@@ -31,7 +31,9 @@ export default function Home() {
   // Check Backend Health
   const checkHealth = async () => {
     try {
-      const res = await fetch("http://localhost:5000/health");
+      // Extract base host from API_BASE_URL (e.g. http://localhost:5000/api/v1 -> http://localhost:5000/health)
+      const healthUrl = API_BASE_URL.replace(/\/api\/v1\/?$/, "") + "/health";
+      const res = await fetch(healthUrl);
       const json: ApiResponse = await res.json();
       setBackendHealth(res.ok && json.data?.status === "ok");
     } catch {
