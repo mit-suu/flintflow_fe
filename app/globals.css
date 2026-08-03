@@ -1,26 +1,89 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ── Primary palette (warm coral / orange) ── */
+  --color-primary: #b32a03;
+  --color-primary-container: #ff5f38;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #5c0f00;
+  --color-primary-fixed: #ffdad2;
+  --color-primary-fixed-dim: #ffb4a2;
+  --color-inverse-primary: #ffb4a2;
+
+  /* ── Secondary ── */
+  --color-secondary: #5f5e5f;
+  --color-secondary-container: #e2dfe0;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #636263;
+
+  /* ── Tertiary ── */
+  --color-tertiary: #505f76;
+  --color-tertiary-container: #8696ae;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #1e2e42;
+
+  /* ── Error ── */
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  /* ── Surface & Background ── */
+  --color-surface: #f7f9fb;
+  --color-surface-dim: #d8dadc;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-surface-variant: #e0e3e5;
+  --color-surface-tint: #b32a03;
+  --color-background: #f7f9fb;
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #5a413a;
+  --color-on-background: #191c1e;
+  --color-inverse-surface: #2d3133;
+  --color-inverse-on-surface: #eff1f3;
+
+  /* ── Outline ── */
+  --color-outline: #8e7069;
+  --color-outline-variant: #e3beb6;
+
+  /* ── Typography ── */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ── Base Styles ── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Focus ring utility ── */
+.input-focus-ring:focus {
+  outline: none;
+  border-color: var(--color-primary-container);
+  box-shadow: 0 0 0 3px rgba(255, 95, 56, 0.15);
+}
+
+/* ── Card shadow ── */
+.card-elevated {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Button press animation ── */
+.btn-press:active {
+  transform: scale(0.98);
+}
+
+/* ── Spinner ── */
+@keyframes ff-spin {
+  to { transform: rotate(360deg); }
+}
+.ff-spinner {
+  animation: ff-spin 0.7s linear infinite;
 }
