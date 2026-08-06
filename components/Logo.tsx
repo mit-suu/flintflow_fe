@@ -20,6 +20,7 @@ export default function Logo({
         alt="Flintflow Logo"
         className="w-full h-full object-contain"
         src={FLINTFLOW_LOGO_URL}
+        suppressHydrationWarning
       />
     </div>
   );

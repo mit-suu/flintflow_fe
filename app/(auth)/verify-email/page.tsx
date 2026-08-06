@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "../../../components/Logo";
+import { saveAuthToken } from "../../../lib/auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -35,6 +36,11 @@ function VerifyEmailContent() {
 
         if (!res.ok || json.error) {
           throw new Error(json.error?.message || "Xác thực thất bại");
+        }
+
+        const userRole = json.data?.user?.role || json.data?.role;
+        if (json.data?.accessToken) {
+          saveAuthToken(json.data.accessToken, userRole);
         }
 
         setStatus("success");
