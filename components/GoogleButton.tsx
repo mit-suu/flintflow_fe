@@ -1,21 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useGoogleOAuth } from "@react-oauth/google";
-
-interface GsiWindow extends Window {
-  google?: {
-    accounts?: {
-      id?: {
-        initialize: (config: {
-          client_id: string;
-          callback: (response: { credential?: string }) => void;
-        }) => void;
-        prompt: (listener?: unknown) => void;
-      };
-    };
-  };
-}
+import { useState } from "react";
+import { useGoogleLogin } from "@react-oauth/google";
 
 interface GoogleButtonProps {
   onSuccess: (idToken: string) => void | Promise<void>;
@@ -46,56 +32,39 @@ const GOOGLE_G_LOGO = (
 );
 
 export default function GoogleButton({ onSuccess, onError, label, disabled }: GoogleButtonProps) {
-  const { clientId, scriptLoadedSuccessfully } = useGoogleOAuth();
-  const [clicking, setClicking] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleClick = useCallback(() => {
-    if (disabled || clicking) return;
+  const login = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(false);
+      if (tokenResponse?.access_token) {
+        await onSuccess(tokenResponse.access_token);
+      } else {
+        onError("Đăng nhập Google không thành công.");
+      }
+    },
+    onError: (errorResponse) => {
+      setLoading(false);
+      console.error("Google Login Error:", errorResponse);
+      onError("Đăng nhập Google bị hủy hoặc thất bại.");
+    },
+  });
 
-    if (!clientId) {
-      onError("Chưa cấu hình Google Client ID. Thêm NEXT_PUBLIC_GOOGLE_CLIENT_ID vào file .env.local rồi restart server.");
-      return;
-    }
-
-    if (!scriptLoadedSuccessfully) {
-      onError("Không thể tải Google Sign-In. Vui lòng kiểm tra kết nối mạng.");
-      return;
-    }
-
-    setClicking(true);
-    const gsiWindow = window as GsiWindow;
-    const gsiId = gsiWindow.google?.accounts?.id;
-
-    if (!gsiId) {
-      setClicking(false);
-      onError("Google Sign-In chưa sẵn sàng. Vui lòng thử lại.");
-      return;
-    }
-
-    gsiId.initialize({
-      client_id: clientId,
-      callback: (response) => {
-        setClicking(false);
-        if (response.credential) {
-          onSuccess(response.credential);
-        } else {
-          onError("Đăng nhập Google không thành công.");
-        }
-      },
-    });
-
-    gsiId.prompt();
-  }, [clientId, scriptLoadedSuccessfully, disabled, clicking, onSuccess, onError]);
+  const handleClick = () => {
+    if (disabled || loading) return;
+    setLoading(true);
+    login();
+  };
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      disabled={disabled || clicking}
+      disabled={disabled || loading}
       className="w-full flex items-center justify-center gap-3 bg-surface-container-lowest hover:bg-surface-container-low text-on-surface font-medium py-3 rounded-lg border border-surface-container shadow-sm transition disabled:opacity-50 text-sm btn-press"
     >
       {GOOGLE_G_LOGO}
-      {clicking ? "Đang mở Google..." : label}
+      {loading ? "Đang mở Google..." : label}
     </button>
   );
 }
