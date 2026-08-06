@@ -1,3 +1,5 @@
+import { saveAuthToken, clearAuthToken, getStoredAuthToken } from "./auth";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 export interface ApiResponse<T = unknown> {
@@ -26,7 +28,7 @@ export const setAccessToken = (token: string | null) => {
 
 export const getAccessToken = () => accessToken;
 
-const refreshAccessToken = async (): Promise<boolean> => {
+export const refreshAccessToken = async (): Promise<boolean> => {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
@@ -36,13 +38,13 @@ const refreshAccessToken = async (): Promise<boolean> => {
         });
         const json: ApiResponse<{ accessToken: string }> = await res.json();
         if (res.ok && json.data?.accessToken) {
-          accessToken = json.data.accessToken;
+          saveAuthToken(json.data.accessToken);
           return true;
         }
-        accessToken = null;
+        clearAuthToken();
         return false;
       } catch {
-        accessToken = null;
+        clearAuthToken();
         return false;
       } finally {
         setTimeout(() => {
@@ -59,6 +61,10 @@ export const apiCall = async <T = unknown>(
   options: RequestInit = {},
   retry = true
 ): Promise<ApiResponse<T>> => {
+  if (!accessToken && typeof window !== "undefined") {
+    accessToken = getStoredAuthToken();
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
