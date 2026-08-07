@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* ── Primary palette (warm coral / orange) ── */
-  --color-primary: #b32a03;
-  --color-primary-container: #ff5f38;
+  /* ── Primary palette (Indigo / Purple Blue) ── */
+  --color-primary: #4f46e5;
+  --color-primary-container: #4f46e5;
   --color-on-primary: #ffffff;
-  --color-on-primary-container: #5c0f00;
-  --color-primary-fixed: #ffdad2;
-  --color-primary-fixed-dim: #ffb4a2;
-  --color-inverse-primary: #ffb4a2;
+  --color-on-primary-container: #dad7ff;
+  --color-primary-fixed: #e2dfff;
+  --color-primary-fixed-dim: #c3c0ff;
+  --color-inverse-primary: #c3c0ff;
 
   /* ── Secondary ── */
-  --color-secondary: #5f5e5f;
-  --color-secondary-container: #e2dfe0;
+  --color-secondary: #845400;
+  --color-secondary-container: #ffb54f;
   --color-on-secondary: #ffffff;
-  --color-on-secondary-container: #636263;
+  --color-on-secondary-container: #714800;
 
   /* ── Tertiary ── */
-  --color-tertiary: #505f76;
-  --color-tertiary-container: #8696ae;
+  --color-tertiary: #3f33b0;
+  --color-tertiary-container: #574ec9;
   --color-on-tertiary: #ffffff;
-  --color-on-tertiary-container: #1e2e42;
+  --color-on-tertiary-container: #dbd7ff;
 
   /* ── Error ── */
   --color-error: #ba1a1a;
@@ -29,26 +29,26 @@
   --color-on-error-container: #93000a;
 
   /* ── Surface & Background ── */
-  --color-surface: #f7f9fb;
-  --color-surface-dim: #d8dadc;
-  --color-surface-bright: #f7f9fb;
+  --color-surface: #fdf8f6;
+  --color-surface-dim: #ddd9d7;
+  --color-surface-bright: #fdf8f6;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f2f4f6;
-  --color-surface-container: #eceef0;
-  --color-surface-container-high: #e6e8ea;
-  --color-surface-container-highest: #e0e3e5;
-  --color-surface-variant: #e0e3e5;
-  --color-surface-tint: #b32a03;
-  --color-background: #f7f9fb;
-  --color-on-surface: #191c1e;
-  --color-on-surface-variant: #5a413a;
-  --color-on-background: #191c1e;
-  --color-inverse-surface: #2d3133;
-  --color-inverse-on-surface: #eff1f3;
+  --color-surface-container-low: #f7f3f0;
+  --color-surface-container: #f2edeb;
+  --color-surface-container-high: #ece7e5;
+  --color-surface-container-highest: #e6e2df;
+  --color-surface-variant: #e6e2df;
+  --color-surface-tint: #4d44e3;
+  --color-background: #fdf8f6;
+  --color-on-surface: #1c1b1a;
+  --color-on-surface-variant: #464555;
+  --color-on-background: #1c1b1a;
+  --color-inverse-surface: #32302f;
+  --color-inverse-on-surface: #f4f0ee;
 
   /* ── Outline ── */
-  --color-outline: #8e7069;
-  --color-outline-variant: #e3beb6;
+  --color-outline: #777587;
+  --color-outline-variant: #c7c4d8;
 
   /* ── Typography ── */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -86,4 +86,15 @@ body {
 }
 .ff-spinner {
   animation: ff-spin 0.7s linear infinite;
+}
+
+/* ── Custom Utilities ── */
+.custom-shadow-card {
+  box-shadow: 0 24px 60px rgba(25, 24, 23, 0.10);
+}
+.grid-pattern {
+  background-size: 52px 52px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
 }

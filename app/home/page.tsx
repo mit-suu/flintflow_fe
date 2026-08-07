@@ -1,19 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { apiCall, setAccessToken } from "../../lib/api";
-
-interface Project {
-  _id: string;
-  name: string;
-  domain?: string;
-  status: string;
-  currentStep: string;
-  progressPercent: number;
-  createdAt: string;
-}
+import { useState, useEffect, useCallback } from "react";
+import ProjectCard, { type Project } from "../../components/ProjectCard";
+import Modal from "../../components/Modal";
+import { apiCall } from "../../lib/api";
 
 interface User {
   id: string;
@@ -22,289 +12,464 @@ interface User {
 }
 
 export default function HomePage() {
-  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
-  // New Project Form
-  const [showModal, setShowModal] = useState(false);
-  const [projectName, setProjectName] = useState("");
-  const [projectDomain, setProjectDomain] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showHardDeleteConfirm, setShowHardDeleteConfirm] = useState(false);
+  const [targetProject, setTargetProject] = useState<Project | null>(null);
+
+  const [createName, setCreateName] = useState("");
+  const [renameName, setRenameName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchProjects = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiCall<Project[]>("/projects?status=active");
+      setProjects(res.data ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const init = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-      setAccessToken(token);
+    fetchProjects();
+  }, [fetchProjects]);
 
+  useEffect(() => {
+    const fetchUser = async () => {
       try {
-        // Fetch User and Projects
-        const [userRes, projectsRes] = await Promise.all([
-          apiCall<User>("/users/me"),
-          apiCall<Project[]>("/projects")
-        ]);
-
-        if (userRes.data) setUser(userRes.data);
-        if (projectsRes.data) setProjects(projectsRes.data);
-      } catch (err: any) {
-        console.error("Dashboard loading failed:", err);
-        setError(err.message || "Không thể tải dữ liệu.");
-        if (err.status === 401) {
-          localStorage.removeItem("accessToken");
-          router.push("/login");
-        }
-      } finally {
-        setLoading(false);
+        const res = await apiCall<User>("/users/me");
+        setUser(res.data ?? null);
+      } catch (err) {
+        console.error("Failed to fetch user:", err);
       }
     };
+    fetchUser();
+  }, []);
 
-    init();
-  }, [router]);
-
-  const handleCreateProject = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectName.trim()) return;
-
-    setCreating(true);
+    if (!createName.trim()) return;
+    setSubmitting(true);
+    setError(null);
     try {
-      const res = await apiCall<Project>("/projects", {
+      await apiCall("/projects", {
         method: "POST",
-        body: JSON.stringify({
-          name: projectName.trim(),
-          domain: projectDomain.trim() || undefined
-        })
+        body: JSON.stringify({ name: createName.trim() }),
       });
-
-      if (res.data) {
-        setProjects((prev) => [res.data!, ...prev]);
-        setShowModal(false);
-        setProjectName("");
-        setProjectDomain("");
-        // Redirect directly to the workspace of the new project
-        router.push(`/projects/${res.data._id}`);
-      }
-    } catch (err: any) {
-      alert(err.message || "Tạo dự án thất bại");
+      setShowCreateModal(false);
+      setCreateName("");
+      await fetchProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể tạo dự án");
     } finally {
-      setCreating(false);
+      setSubmitting(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    setAccessToken(null);
-    router.push("/login");
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetProject || !renameName.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiCall(`/projects/${targetProject._id}/name`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: renameName.trim() }),
+      });
+      setShowRenameModal(false);
+      await fetchProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể đổi tên dự án");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <svg className="w-10 h-10 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeDasharray="31.4" strokeDashoffset="10.4" strokeLinecap="round" strokeWidth="4"></circle>
-          </svg>
-          <span className="text-slate-500 font-medium text-sm">Đang tải danh sách dự án...</span>
-        </div>
-      </div>
-    );
-  }
+  const handleDeleteConfirm = async () => {
+    if (!targetProject) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiCall(`/projects/${targetProject._id}`, { method: "DELETE" });
+      setShowDeleteConfirm(false);
+      setTargetProject(null);
+      await fetchProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể lưu trữ dự án");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleHardDeleteConfirm = async () => {
+    if (!targetProject) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiCall(`/projects/${targetProject._id}?hard=true`, { method: "DELETE" });
+      setShowHardDeleteConfirm(false);
+      setTargetProject(null);
+      await fetchProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể xoá vĩnh viễn dự án");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openRename = (p: Project) => {
+    setTargetProject(p);
+    setRenameName(p.name);
+    setShowRenameModal(true);
+  };
+
+  const openDelete = (p: Project) => {
+    setTargetProject(p);
+    setShowDeleteConfirm(true);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
-      {/* Top Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm sticky top-0 z-10 h-[64px]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">F</div>
-          <span className="font-bold text-lg text-slate-900">FlintFlow Workspace</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {user && (
-            <>
-              <div className="flex items-center px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-sm font-semibold gap-1.5 cursor-pointer">
-                <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
-                {user.balance ?? 0} credits
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-purple-200 border-2 border-white shadow-sm flex items-center justify-center font-bold text-xs text-purple-700">
-                  {user.email.substring(0, 2).toUpperCase()}
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs text-slate-500 hover:text-red-600 font-medium"
-                >
-                  Đăng xuất
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </header>
-
-      {/* Main Body */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-8">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
-            {error}
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900">Dự án của bạn</h1>
-            <p className="text-slate-500 text-sm mt-1">Quản lý đặc tả và làm rõ yêu cầu sản phẩm của bạn.</p>
-          </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:bg-indigo-500 hover:shadow-indigo-600/25 transition-all text-sm flex items-center gap-2"
+    <>
+      {/* Top bar */}
+      <div
+        className="h-[74px] bg-white border-b border-[#ECEAE5] flex items-center gap-4 flex-shrink-0"
+        style={{ padding: "0 32px" }}
+      >
+        {/* Search pill */}
+        <div className="flex items-center gap-3 bg-[#FAF9F7] border-[1.5px] border-[#ECEAE5] rounded-full text-[#A8A49C] text-[14px] w-[340px]" style={{ padding: "11px 18px" }}>
+          <span>⌕</span>
+          <span>Search…</span>
+          <span
+            className="ml-auto text-[11px] bg-white border border-[#E4E1DC] rounded-[6px]"
+            style={{ fontFamily: "'JetBrains Mono', monospace", padding: "2px 7px" }}
           >
-            <span className="material-symbols-outlined text-lg">add</span>
-            Dự án mới
+            ⌘ K
+          </span>
+        </div>
+
+        <div className="ml-auto flex items-center gap-3">
+          {/* Credits chip */}
+          <div
+            className="flex items-center gap-2 bg-[#F0EEEA] rounded-full text-[13px] font-semibold text-[#191817]"
+            style={{ padding: "9px 16px" }}
+          >
+            <span className="w-2 h-2 rounded-full bg-[#4F46E5] flex-shrink-0" />
+            {user?.balance ?? 0} credits · Free
+          </div>
+
+          {/* New Project button */}
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="rounded-full text-white text-[14px] font-bold transition hover:brightness-90 active:scale-[0.97]"
+            style={{
+              padding: "12px 24px",
+              background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
+              boxShadow: "0 8px 22px rgba(79,70,229,0.3)",
+            }}
+          >
+            + New Project
           </button>
         </div>
+      </div>
 
-        {/* Project List Grid */}
-        {projects.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-sm">
-            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-              <span className="material-symbols-outlined text-3xl">folder_open</span>
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-800 text-lg">Chưa có dự án nào</h3>
-              <p className="text-slate-500 text-sm mt-1">Hãy bắt đầu tạo dự án đầu tiên để phân tích đặc tả bằng AI.</p>
-            </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="px-4 py-2 border border-indigo-600 text-indigo-600 hover:bg-indigo-50 text-sm font-bold rounded-xl transition-all"
-            >
-              Tạo dự án mới
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
+      {/* Main scroll area */}
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6" style={{ padding: "30px 32px" }}>
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <h1
+            className="text-[32px] font-[800] text-[#191817]"
+            style={{ letterSpacing: "-0.015em" }}
+          >
+            My Projects
+          </h1>
+          <div className="flex gap-2">
+            {["Status: All ▾", "Domain: Any ▾", "Date: Any ▾"].map((label) => (
               <div
-                key={project._id}
-                className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                key={label}
+                className="flex items-center gap-[6px] bg-white border-[1.5px] border-[#E4E1DC] rounded-full text-[13px] font-semibold text-[#4B4842] cursor-default"
+                style={{ padding: "9px 16px" }}
               >
-                <div>
-                  <div className="flex justify-between items-start gap-2">
-                    <h3 className="font-bold text-slate-900 text-lg line-clamp-1">{project.name}</h3>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 capitalize shrink-0">
-                      {project.status}
-                    </span>
-                  </div>
-                  {project.domain && (
-                    <p className="text-xs text-indigo-600 font-medium mt-1 truncate">
-                      Domain: {project.domain}
-                    </p>
-                  )}
-                  <p className="text-xs text-slate-400 mt-2">
-                    Tạo ngày: {new Date(project.createdAt).toLocaleDateString("vi-VN")}
-                  </p>
-
-                  <div className="mt-5 space-y-2">
-                    <div className="flex justify-between text-xs font-semibold text-slate-500">
-                      <span>Tiến độ phân tích</span>
-                      <span>{project.progressPercent}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div
-                        className="bg-indigo-600 h-full rounded-full transition-all"
-                        style={{ width: `${project.progressPercent}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">wysiwyg</span>
-                    {project.currentStep === "vision_problem"
-                      ? "Vision & Problem"
-                      : project.currentStep === "target_users"
-                      ? "Target Users"
-                      : project.currentStep === "value_proposition"
-                      ? "Value Proposition"
-                      : "MVP Scope"}
-                  </span>
-                  <Link
-                    href={`/projects/${project._id}`}
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-500 flex items-center gap-0.5"
-                  >
-                    Vào Workspace
-                    <span className="material-symbols-outlined text-xs">arrow_forward</span>
-                  </Link>
-                </div>
+                {label}
               </div>
             ))}
           </div>
-        )}
-      </main>
+        </div>
 
-      {/* Create Project Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-950">Tạo dự án mới</h2>
+        {/* Error banner */}
+        {error && (
+          <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+            <span className="material-symbols-outlined text-lg">error</span>
+            <span className="flex-1">{error}</span>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-red-500 font-bold hover:text-red-700"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Projects section */}
+        <div className="flex flex-col gap-[14px]">
+          <div className="flex items-center gap-[10px]">
+            <span className="text-[17px] font-[800] text-[#191817]">Projects</span>
+            <span
+              className="rounded-full bg-[#EDEBE7] text-[12px] font-[700] text-[#6B6862]"
+              style={{ padding: "3px 11px" }}
+            >
+              {projects.length}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-[#A8A49C] gap-3">
+              <span className="material-symbols-outlined text-2xl ff-spinner">
+                progress_activity
+              </span>
+              <span className="text-[14px]">Đang tải dự án…</span>
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-5">
+              <span className="material-symbols-outlined text-[#D6D2CB]" style={{ fontSize: 64 }}>
+                folder_open
+              </span>
+              <div className="text-center">
+                <p className="text-[17px] font-[700] text-[#191817]">Chưa có dự án nào</p>
+                <p className="text-[14px] text-[#8A867E] mt-1">
+                  Tạo dự án đầu tiên để bắt đầu
+                </p>
+              </div>
               <button
-                onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                type="button"
+                onClick={() => setShowCreateModal(true)}
+                className="rounded-full text-white text-[14px] font-bold transition hover:brightness-90 active:scale-[0.97]"
+                style={{
+                  padding: "12px 24px",
+                  background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
+                  boxShadow: "0 8px 22px rgba(79,70,229,0.3)",
+                }}
               >
-                <span className="material-symbols-outlined">close</span>
+                + Tạo dự án mới
               </button>
             </div>
-
-            <form onSubmit={handleCreateProject} className="space-y-4 pt-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">Tên dự án *</label>
-                <input
-                  type="text"
-                  required
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="Lumen — SaaS quản lý khoá học"
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 outline-none text-xs focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600"
+          ) : (
+            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+              {projects.map((p) => (
+                <ProjectCard
+                  key={p._id}
+                  project={p}
+                  onRename={openRename}
+                  onDelete={openDelete}
+                  onHardDelete={(project) => {
+                    setTargetProject(project);
+                    setShowHardDeleteConfirm(true);
+                  }}
                 />
-              </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">Domain hoặc Ngành học (Tùy chọn)</label>
-                <input
-                  type="text"
-                  value={projectDomain}
-                  onChange={(e) => setProjectDomain(e.target.value)}
-                  placeholder="E-learning, Logistics, FinTech..."
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 outline-none text-xs focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600"
-                />
-              </div>
+      </div>
 
-              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-500 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {creating ? "Đang tạo..." : "Tạo dự án"}
-                </button>
-              </div>
-            </form>
+      {/* Create Modal */}
+      <Modal
+        open={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setCreateName("");
+        }}
+        title="Tạo dự án mới"
+      >
+        <form onSubmit={handleCreate} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-[14px] font-[600] text-[#191817]">Tên dự án</label>
+            <input
+              autoFocus
+              type="text"
+              required
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              placeholder="Ví dụ: Booking App, SaaS Dashboard…"
+              className="w-full px-4 py-3 rounded-[12px] border border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[14px] text-[#191817] bg-white transition-all"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={submitting || !createName.trim()}
+            className="w-full py-3 rounded-[12px] text-white text-[14px] font-[700] transition hover:brightness-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{
+              background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
+              boxShadow: "0 4px 14px rgba(79,70,229,0.25)",
+            }}
+          >
+            {submitting && (
+              <span className="material-symbols-outlined text-[16px] ff-spinner">
+                progress_activity
+              </span>
+            )}
+            Tạo dự án
+          </button>
+        </form>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        open={showDeleteConfirm}
+        onClose={() => {
+          if (!submitting) {
+            setShowDeleteConfirm(false);
+            setTargetProject(null);
+          }
+        }}
+        title="Lưu trữ dự án"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-[12px] p-4">
+            <span className="material-symbols-outlined text-red-500 text-[20px] mt-0.5 flex-shrink-0">warning</span>
+            <div>
+              <p className="text-[14px] font-[600] text-[#191817]">
+                Lưu trữ &ldquo;{targetProject?.name}&rdquo;?
+              </p>
+              <p className="text-[13px] text-[#6B6862] mt-1 leading-[1.55]">
+                Project sẽ bị ẩn khỏi dashboard. Bạn có thể khôi phục từ mục Deleted bất cứ lúc nào.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-[10px] justify-end">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setTargetProject(null);
+              }}
+              className="rounded-full border-[1.5px] border-[#E4E1DC] bg-white text-[13.5px] font-[600] text-[#4B4842] hover:bg-[#F5F3F0] transition-colors disabled:opacity-50"
+              style={{ padding: "10px 20px" }}
+            >
+              Huỷ
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleDeleteConfirm}
+              className="rounded-full bg-[#C73E3E] text-white text-[13.5px] font-[700] hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
+              style={{ padding: "10px 20px" }}
+            >
+              {submitting && (
+                <span className="material-symbols-outlined text-[16px] ff-spinner">
+                  progress_activity
+                </span>
+              )}
+              Lưu trữ
+            </button>
           </div>
         </div>
-      )}
-    </div>
+      </Modal>
+
+      {/* Permanent Delete Modal */}
+      <Modal
+        open={showHardDeleteConfirm}
+        onClose={() => {
+          if (!submitting) {
+            setShowHardDeleteConfirm(false);
+            setTargetProject(null);
+          }
+        }}
+        title="Xoá vĩnh viễn dự án"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-[12px] p-4 text-red-800">
+            <span className="material-symbols-outlined text-red-600 text-[20px] mt-0.5 flex-shrink-0">delete_forever</span>
+            <div>
+              <p className="text-[14px] font-[600] text-[#191817]">
+                Xoá vĩnh viễn &ldquo;{targetProject?.name}&rdquo;?
+              </p>
+              <p className="text-[13px] text-red-600/80 mt-1 leading-[1.55]">
+                Thao tác này sẽ xoá hoàn toàn dự án, toàn bộ cuộc hội thoại, đặc tả và các tài liệu đính kèm. Hành động này **không thể hoàn tác**.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-[10px] justify-end">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => {
+                setShowHardDeleteConfirm(false);
+                setTargetProject(null);
+              }}
+              className="rounded-full border-[1.5px] border-[#E4E1DC] bg-white text-[13.5px] font-[600] text-[#4B4842] hover:bg-[#F5F3F0] transition-colors disabled:opacity-50"
+              style={{ padding: "10px 20px" }}
+            >
+              Huỷ
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleHardDeleteConfirm}
+              className="rounded-full bg-red-600 text-white text-[13.5px] font-[700] hover:bg-red-500 transition disabled:opacity-50 flex items-center gap-2"
+              style={{ padding: "10px 20px" }}
+            >
+              {submitting && (
+                <span className="material-symbols-outlined text-[16px] ff-spinner">
+                  progress_activity
+                </span>
+              )}
+              Xoá vĩnh viễn
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Rename Modal */}
+      <Modal
+        open={showRenameModal}
+        onClose={() => setShowRenameModal(false)}
+        title="Đổi tên dự án"
+      >
+        <form onSubmit={handleRename} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-[14px] font-[600] text-[#191817]">Tên dự án</label>
+            <input
+              autoFocus
+              type="text"
+              required
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              placeholder="Tên dự án mới…"
+              className="w-full px-4 py-3 rounded-[12px] border border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[14px] text-[#191817] bg-white transition-all"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={submitting || !renameName.trim()}
+            className="w-full py-3 rounded-[12px] text-white text-[14px] font-[700] transition hover:brightness-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{
+              background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
+              boxShadow: "0 4px 14px rgba(79,70,229,0.25)",
+            }}
+          >
+            {submitting && (
+              <span className="material-symbols-outlined text-[16px] ff-spinner">
+                progress_activity
+              </span>
+            )}
+            Lưu thay đổi
+          </button>
+        </form>
+      </Modal>
+    </>
   );
 }
