@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, type ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { apiCall, setAccessToken } from "../../../lib/api";
+import { apiCall } from "../../../lib/api";
+import { isAuthenticated, clearAuthToken } from "../../../lib/auth";
 
 interface ChatMessage {
   role: "user" | "ai";
@@ -90,6 +91,7 @@ export default function WorkspacePage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const didInitRef = useRef(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -124,14 +126,14 @@ export default function WorkspacePage() {
   // Initialize Auth & Data
   useEffect(() => {
     if (!projectId) return;
+    if (didInitRef.current) return;
+    didInitRef.current = true;
 
     const init = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
+      if (!isAuthenticated()) {
         router.push("/login");
         return;
       }
-      setAccessToken(token);
 
       try {
         // Fetch project, user, and sessions
@@ -159,8 +161,8 @@ export default function WorkspacePage() {
         }
       } catch (err: unknown) {
         console.error("Workspace init failed:", err);
-        if (err instanceof Error && "status" in err && typeof (err as { status?: unknown }).status === "number" && (err as { status?: number }).status === 401) {
-          localStorage.removeItem("accessToken");
+        if (err instanceof Error && "status" in err && (err as { status?: number }).status === 401) {
+          clearAuthToken();
           router.push("/login");
         }
       } finally {
