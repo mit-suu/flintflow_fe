@@ -1,27 +1,68 @@
 import Link from "next/link";
 
-export const FLINTFLOW_LOGO_URL =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBPFPwVJNjtC5eccMJHmnoryqh2_s6fVPROdaGcJI_8VkKDM8-I75WRGFX9R2ZapL-fBpxTFa5-4FehxESdldKY1aQFH-Xdky6p2aDRhd_jGPzqjWqZBjYkdokU3PFPDZFVt0okdvqHwPWCKsTi6GKqPTJru0xChI1jCg7NCjWH9mWqjMaB7f7VRh9yQsAbrFQxsB9ze7ZdImmIWtdExBm7xdpt-M38-43FX2CN1eTjIp31ecpgN-rc7w";
+export type LogoVariant = "icon" | "wordmark" | "full";
+export type LogoTheme = "dark" | "light";
+export type LogoType =
+  | "icon-dark"
+  | "icon-light"
+  | "wordmark-dark"
+  | "wordmark-light";
 
-interface LogoProps {
+export interface LogoProps {
   className?: string;
   sizeClassName?: string;
   href?: string;
+  variant?: LogoVariant;
+  theme?: LogoTheme;
+  type?: LogoType;
+  alt?: string;
+  showText?: boolean;
+  textClassName?: string;
+  src?: string;
 }
+
+export const LOGO_PATHS: Record<LogoType, string> = {
+  "icon-dark": "/logo/flintflow-icon-dark-transparent.png",
+  "icon-light": "/logo/flintflow-icon-light-transparent.png",
+  "wordmark-dark": "/logo/flintflow-wordmark-dark-transparent.png",
+  "wordmark-light": "/logo/flintflow-wordmark-light-transparent.png",
+};
 
 export default function Logo({
   className = "",
-  sizeClassName = "w-36 h-36",
+  sizeClassName = "w-8 h-8",
   href,
+  variant = "icon",
+  theme = "dark",
+  type,
+  alt = "FlintFlow Logo",
+  showText = false,
+  textClassName = "text-white font-semibold text-lg",
+  src,
 }: LogoProps) {
+  let logoSrc = src;
+
+  if (!logoSrc) {
+    if (type && LOGO_PATHS[type]) {
+      logoSrc = LOGO_PATHS[type];
+    } else if (variant === "wordmark") {
+      logoSrc = theme === "light" ? LOGO_PATHS["wordmark-light"] : LOGO_PATHS["wordmark-dark"];
+    } else {
+      logoSrc = theme === "light" ? LOGO_PATHS["icon-light"] : LOGO_PATHS["icon-dark"];
+    }
+  }
+
   const content = (
-    <div className={`inline-block ${sizeClassName} ${className}`}>
-      <img
-        alt="Flintflow Logo"
-        className="w-full h-full object-contain"
-        src={FLINTFLOW_LOGO_URL}
-        suppressHydrationWarning
-      />
+    <div className={`inline-flex items-center gap-2 ${className}`}>
+      <div className={`relative shrink-0 ${sizeClassName}`}>
+        <img
+          alt={alt}
+          className="w-full h-full object-contain"
+          src={logoSrc}
+          suppressHydrationWarning
+        />
+      </div>
+      {showText && <span className={textClassName}>FlintFlow</span>}
     </div>
   );
 
