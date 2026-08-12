@@ -1,6 +1,25 @@
 @import "tailwindcss";
 
 @theme inline {
+  /* ── Brand palette ── */
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95;
+
+  /* ── Dark palette ── */
+  --color-dark-900: #0f0e13;
+  --color-dark-800: #1a1921;
+  --color-dark-700: #272630;
+  --color-dark-card: rgba(26, 25, 33, 0.6);
+  --color-dark-border: rgba(255, 255, 255, 0.1);
+
   /* ── Primary palette (Indigo / Purple Blue) ── */
   --color-primary: #4f46e5;
   --color-primary-container: #4f46e5;
@@ -51,7 +70,7 @@
   --color-outline-variant: #c7c4d8;
 
   /* ── Typography ── */
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
 }
 
 /* ── Base Styles ── */
@@ -61,6 +80,37 @@ body {
   color: var(--color-on-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Landing Page Utilities ── */
+.glass-card {
+  background: rgba(30, 29, 39, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+}
+
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(to right, #ffffff, #c4b5fd);
+}
+
+.text-gradient-purple {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(to right, #c4b5fd, #8b5cf6);
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.5;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(109, 40, 217, 0.4) 50%, transparent 100%);
 }
 
 /* ── Focus ring utility ── */
