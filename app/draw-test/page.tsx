@@ -28,97 +28,130 @@ function getUserInfo() {
   return { name, plan };
 }
 
-const MERMAID_TEMPLATES: Record<string, { label: string; code: string }> = {
-  flowchart: {
-    label: "Flowchart (Luồng xử lý)",
-    code: `graph TD
-    A([Bắt đầu]) --> B[Người dùng nhập số điện thoại]
-    B --> C{Số điện thoại hợp lệ?}
-    C -->|Không| B
-    C -->|Có| D[Hệ thống gửi mã OTP]
-    D --> E[Người dùng nhập OTP]
-    E --> F{OTP chính xác?}
-    F -->|Sai 3 lần| G[Khóa tạm thời 15p]
-    F -->|Đúng| H[Đăng nhập thành công]
-    H --> I([Kết thúc])`,
-  },
-  sequence: {
-    label: "Sequence (Luồng tuần tự)",
-    code: `sequenceDiagram
-    autonumber
-    actor User as Người dùng
-    participant App as FlintFlow App
-    participant Auth as Auth Service
-    participant DB as Database
-
-    User->>App: Gửi Email & Password
-    App->>Auth: POST /api/auth/login
-    Auth->>DB: Truy vấn thông tin User
-    DB-->>Auth: Trả về Record
-    Auth->>Auth: Kiểm tra Password Hash
-    alt Password Hợp lệ
-        Auth-->>App: Trả về JWT Token & User Profile
-        App-->>User: Điều hướng vào Dashboard
-    else Password Sai
-        Auth-->>App: 401 Unauthorized
-        App-->>User: Hiển thị thông báo lỗi
-    end`,
-  },
-  architecture: {
-    label: "Architecture (Kiến trúc hệ thống)",
+const MERMAID_TEMPLATES: Record<string, { label: string; description: string; code: string }> = {
+  context: {
+    label: "Context Diagram",
+    description: "Sơ đồ ngữ cảnh hệ thống & tác nhân bên ngoài",
     code: `graph TB
-    subgraph ClientLayer ["Lớp Client & Frontend"]
-        Web[Next.js Web Client]
-        Mobile[Mobile App Flutter]
-    end
+    User[Khach hang - User]
+    Admin[Quan tri vien - Admin]
+    PayGW[Cong thanh toan VNPay]
+    EmailSvc[Dich vu Email SendGrid]
 
-    subgraph GatewayLayer ["API Gateway & Security"]
-        Gateway[Kong API Gateway]
-    end
+    System{HE THONG FLINTFLOW}
 
-    subgraph ServiceLayer ["Microservices"]
-        AuthSvc[Auth & IAM Service]
-        AISvc[AI Action Orchestrator]
-        DocSvc[Document & PRD Engine]
-    end
+    User -->|Gui yeu cau va thanh toan| System
+    System -->|Tra ve ket qua| User
 
-    subgraph DataLayer ["Cơ sở dữ liệu & Cache"]
-        Redis[(Redis Cache)]
-        MongoDB[(MongoDB Atlas)]
-        VectorDB[(Qdrant Vector DB)]
-    end
+    Admin -->|Quan ly nguoi dung| System
+    System -->|Bao cao thong ke| Admin
 
-    Web --> Gateway
-    Mobile --> Gateway
-    Gateway --> AuthSvc
-    Gateway --> AISvc
-    Gateway --> DocSvc
-    AISvc --> Redis
-    AISvc --> VectorDB
-    DocSvc --> MongoDB`,
+    System -->|Gui yeu cau thanh toan| PayGW
+    PayGW -->|Webhook xac nhan| System
+
+    System -->|Gui email thong bao| EmailSvc`,
+  },
+  screenflow: {
+    label: "Screenflow",
+    description: "Luồng di chuyển giữa các màn hình giao diện",
+    code: `graph LR
+    Splash([Man hinh Khoi dong]) --> Login{Da dang nhap?}
+
+    Login -->|Chua| AuthScreen[Dang nhap / Dang ky]
+    AuthScreen -->|Thanh cong| Dashboard[Trang chu]
+    Login -->|Roi| Dashboard
+
+    Dashboard --> ProjectList[Danh sach Du an]
+    Dashboard --> CreateProject[Tao Du an Moi]
+    Dashboard --> UserProfile[Cai dat Tai khoan]
+
+    ProjectList --> Workspace[Khong gian lam viec]
+    CreateProject --> Workspace
+
+    Workspace --> SpecEditor[Soan thao PRD]
+    Workspace --> DiagramStudio[Diagram Studio]
+    Workspace --> ExportModal[Xuat tai lieu]
+
+    DiagramStudio --> ExportModal`,
+  },
+  usecase: {
+    label: "Use Case Diagram",
+    description: "Sơ đồ chức năng theo từng Actor",
+    code: `graph LR
+    User[Khach hang]
+    Admin[Quan tri vien]
+
+    UC1([Dang nhap / Xac thuc])
+    UC2([Tao du an moi])
+    UC3([Sinh so do bang AI])
+    UC4([Chinh sua ma Mermaid])
+    UC5([Xuat tai lieu PRD])
+    UC6([Quan ly nguoi dung])
+    UC7([Xem thong ke chi tieu])
+
+    User --- UC1
+    User --- UC2
+    User --- UC3
+    User --- UC4
+    User --- UC5
+
+    Admin --- UC1
+    Admin --- UC6
+    Admin --- UC7
+
+    UC3 -.->|include| UC1
+    UC5 -.->|include| UC1
+    UC4 -.->|extend| UC3`,
   },
   erd: {
-    label: "ERD (Sơ đồ dữ liệu)",
+    label: "ERD (Cơ sở dữ liệu)",
+    description: "Sơ đồ thực thể quan hệ & cấu trúc bảng",
     code: `erDiagram
-    USER ||--o{ PROJECT : owns
-    USER {
+    USERS ||--o{ PROJECTS : owns
+    USERS ||--o{ TRANSACTIONS : makes
+    PROJECTS ||--|{ SECTIONS : contains
+    PROJECTS ||--o{ DIAGRAMS : has
+
+    USERS {
         string id PK
         string email
+        string passwordHash
         int balance
         string role
+        datetime createdAt
     }
-    PROJECT ||--o{ DIAGRAM : contains
-    PROJECT {
+
+    PROJECTS {
         string id PK
+        string userId FK
         string name
+        string domain
         string status
-        date createdAt
+        datetime updatedAt
     }
-    DIAGRAM {
+
+    SECTIONS {
         string id PK
-        string title
+        string projectId FK
         string type
-        json content
+        string content
+        string status
+    }
+
+    DIAGRAMS {
+        string id PK
+        string projectId FK
+        string title
+        string diagramType
+        json rawData
+    }
+
+    TRANSACTIONS {
+        string id PK
+        string userId FK
+        int amount
+        string actionType
+        datetime createdAt
     }`,
   },
 };
@@ -147,8 +180,8 @@ export default function DrawTestPage() {
   const [user, setUser] = useState<User | null>(null);
 
   // Mermaid Code Editor state
-  const [mermaidCode, setMermaidCode] = useState<string>(MERMAID_TEMPLATES.flowchart.code);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("flowchart");
+  const [mermaidCode, setMermaidCode] = useState<string>(MERMAID_TEMPLATES.context.code);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("context");
   const [mermaidError, setMermaidError] = useState<string>("");
   const [mermaidCompiling, setMermaidCompiling] = useState<boolean>(false);
   const [mermaidSuccessMsg, setMermaidSuccessMsg] = useState<string>("");
@@ -732,24 +765,30 @@ export default function DrawTestPage() {
                   {/* ══════════════ TAB 2: MERMAID THÔ ══════════════ */}
                   {activeTab === "mermaid" && (
                     <div className="flex flex-col gap-3 flex-1">
-                      {/* Template Preset Selector */}
+                      {/* Template Preset Selector - 4 Diagrams */}
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[12px] font-bold text-[#191817] flex items-center justify-between">
                           <span>Chọn mẫu sơ đồ:</span>
+                          <span className="text-[11px] font-normal text-[#8A867E]">4 mẫu chuẩn BA</span>
                         </label>
-                        <div className="grid grid-cols-2 gap-1.5">
+                        <div className="grid grid-cols-2 gap-2">
                           {Object.entries(MERMAID_TEMPLATES).map(([key, template]) => (
                             <button
                               key={key}
                               type="button"
                               onClick={() => handleSelectTemplate(key)}
-                              className={`px-2 py-1.5 rounded-lg text-left text-[11px] font-semibold border transition ${
+                              className={`p-2.5 rounded-xl text-left border transition flex flex-col gap-0.5 ${
                                 selectedTemplate === key
-                                  ? "bg-[#EEF2FF] border-[#4F46E5] text-[#4F46E5]"
+                                  ? "bg-[#EEF2FF] border-[#4F46E5] text-[#4F46E5] shadow-xs"
                                   : "bg-[#FAF9F7] border-[#E4E1DC] text-[#4B4842] hover:bg-[#F0EEEA]"
                               }`}
                             >
-                              {template.label}
+                              <span className="text-[12px] font-bold tracking-tight">
+                                {template.label}
+                              </span>
+                              <span className="text-[10px] text-[#8A867E] line-clamp-1 leading-snug">
+                                {template.description}
+                              </span>
                             </button>
                           ))}
                         </div>
