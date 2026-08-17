@@ -32,6 +32,7 @@ interface SidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { label: "Home",             href: "/home",              icon: "⌂" },
   { label: "My Projects",      href: "/home/projects",     icon: "◫" },
+  { label: "Diagram Studio",   href: "/draw-test",         icon: "✦" },
   { label: "Templates",        href: "/home/templates",    icon: "▤" },
   { label: "Export & Handoff", href: "/home/export",       icon: "↗" },
   { label: "Billing",          href: "/home/billing",      icon: "◎" },
