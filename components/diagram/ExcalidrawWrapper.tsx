@@ -14,15 +14,17 @@ interface ExcalidrawWrapperProps {
   initialData?: any;
   onChange?: (elements: readonly any[], appState: any) => void;
   excalidrawRef?: any;
+  UIOptions?: any;
 }
 
 export default function ExcalidrawWrapper({
   initialData,
   onChange,
-  excalidrawRef
+  excalidrawRef,
+  UIOptions
 }: ExcalidrawWrapperProps) {
   return (
-    <div className="w-full h-full min-h-[500px] border border-gray-200 rounded-lg overflow-hidden relative">
+    <div className="w-full h-full min-h-[500px] border-0 overflow-hidden relative">
       <Excalidraw
         excalidrawAPI={(api) => {
           if (excalidrawRef) {
@@ -31,11 +33,15 @@ export default function ExcalidrawWrapper({
         }}
         initialData={initialData}
         onChange={onChange}
-        UIOptions={{
+        UIOptions={UIOptions || {
           canvasActions: {
             toggleTheme: true,
-            export: false,
-            loadScene: false,
+            export: {
+              saveFileToDisk: true,
+            },
+            loadScene: true,
+            saveToActiveFile: true,
+            clearCanvas: true,
           }
         }}
       />
