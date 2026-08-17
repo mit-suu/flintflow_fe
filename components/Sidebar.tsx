@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { clearAuthToken } from "../lib/auth";
 
 interface Project {
   id: string;
@@ -54,6 +56,12 @@ export default function Sidebar({
   notificationCount = 0,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = () => {
+    clearAuthToken();
+    router.push("/login");
+  };
 
   return (
     <aside
@@ -179,31 +187,47 @@ export default function Sidebar({
       )}
 
       {/* User card — pinned to bottom */}
-      <div
-        className="flex items-center gap-[11px] rounded-[14px] bg-[#FAF9F7]"
-        style={{
-          marginTop: "auto",
-          padding: collapsed ? "10px 8px" : "12px 14px",
-          justifyContent: collapsed ? "center" : undefined,
-        }}
-        title={collapsed ? `${user.name} · ${user.plan}` : undefined}
-      >
+      <div style={{ marginTop: "auto" }} className="flex flex-col gap-[6px]">
         <div
-          className="w-[34px] h-[34px] rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
-          style={{ background: userAvatarGradient(user.name) }}
+          className="flex items-center gap-[11px] rounded-[14px] bg-[#FAF9F7]"
+          style={{
+            padding: collapsed ? "10px 8px" : "12px 14px",
+            justifyContent: collapsed ? "center" : undefined,
+          }}
+          title={collapsed ? `${user.name} · ${user.plan}` : undefined}
         >
-          {user.name.charAt(0).toUpperCase()}
-        </div>
-        {!collapsed && (
-          <div>
-            <p className="text-[#191817] font-[700]" style={{ fontSize: 13.5 }}>
-              {user.name}
-            </p>
-            <p className="text-[#8A867E]" style={{ fontSize: 11.5 }}>
-              {user.plan}
-            </p>
+          <div
+            className="w-[34px] h-[34px] rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold"
+            style={{ background: userAvatarGradient(user.name) }}
+          >
+            {user.name.charAt(0).toUpperCase()}
           </div>
-        )}
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-[#191817] font-[700] truncate" style={{ fontSize: 13.5 }}>
+                {user.name}
+              </p>
+              <p className="text-[#8A867E] truncate" style={{ fontSize: 11.5 }}>
+                {user.plan}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Logout button */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          title="Đăng xuất"
+          className="flex items-center gap-[10px] rounded-[12px] text-[13.5px] font-[600] text-[#C73E3E] hover:bg-red-50 transition-colors w-full"
+          style={{
+            padding: collapsed ? "9px 0" : "9px 14px",
+            justifyContent: collapsed ? "center" : undefined,
+          }}
+        >
+          <span className="text-[15px] leading-none shrink-0">⏻</span>
+          {!collapsed && "Đăng xuất"}
+        </button>
       </div>
     </aside>
   );

@@ -93,6 +93,11 @@ export default function WorkspacePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const didInitRef = useRef(false);
 
+  const handleLogout = () => {
+    clearAuthToken();
+    router.push("/login");
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setOpenMenuSessionId(null);
@@ -512,13 +517,22 @@ export default function WorkspacePage() {
           </div>
           {user && (
             <div className="flex items-center px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-sm font-semibold gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+              <span className="w-2 h-2 rounded-full bg-indigo-600" />
               {user.balance ?? 0} credits
             </div>
           )}
           <div className="w-8 h-8 rounded-full bg-purple-200 border-2 border-white shadow-sm flex items-center justify-center font-bold text-xs text-purple-700">
             {user?.email.substring(0, 2).toUpperCase()}
           </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Đăng xuất"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 transition-colors"
+          >
+            <span className="text-sm leading-none">⏻</span>
+            Đăng xuất
+          </button>
         </div>
       </header>
 
