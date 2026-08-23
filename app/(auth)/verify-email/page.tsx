@@ -66,175 +66,107 @@ function VerifyEmailContent() {
   // No token state
   if (!token) {
     return (
-      <div className="w-full max-w-[400px] flex flex-col items-center">
-        <div className="mb-4 text-center">
-          <Logo sizeClassName="w-20 h-20" />
+      <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
+        <div className="w-12 h-12 rounded-[14px] bg-[#FDEDED] text-[#B03030] flex items-center justify-center text-[22px] mx-auto">
+          ⚠
         </div>
-
-        <div className="w-full bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center">
-          <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-error-container text-error">
-            <span className="material-symbols-outlined text-[32px]">
-              error
-            </span>
-          </div>
-          <h1 className="text-xl font-bold text-on-surface mb-2">
-            Liên kết không hợp lệ
-          </h1>
-          <p className="text-xs text-secondary mb-6">
-            Link xác thực thiếu token hoặc không đúng định dạng.
-          </p>
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center gap-1.5 w-full h-10 rounded-lg bg-surface-container hover:bg-surface-container-high text-xs font-medium text-on-surface border border-surface-container transition-all btn-press"
-          >
-            <span className="material-symbols-outlined text-lg">
-              arrow_back
-            </span>
-            Về trang Đăng nhập
-          </Link>
-        </div>
+        <h1 className="text-[20px] font-extrabold text-[#191817]">
+          Liên kết không hợp lệ
+        </h1>
+        <p className="text-[13px] text-[#8A867E] leading-[1.6]">
+          Liên kết xác thực thiếu token hoặc không đúng định dạng.
+        </p>
+        <Link
+          href="/login"
+          className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold text-center"
+        >
+          Về trang Đăng nhập →
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[400px] flex flex-col items-center">
-      {/* Logo */}
-      <div className="mb-4 text-center">
-        <Logo sizeClassName="w-36 h-36" />
-      </div>
-
-      <div className="w-full bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center">
-        {/* Step Indicator */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-primary-container text-white flex items-center justify-center text-[11px] font-semibold">
-              <span className="material-symbols-outlined text-[12px]">
-                check
-              </span>
-            </div>
-            <span className="text-xs font-semibold text-on-surface">
-              Xác nhận email
-            </span>
-          </div>
-          <div className="w-8 h-px bg-primary-container" />
-          <div className="flex items-center gap-1.5">
-            <div
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold ${
-                status === "success"
-                  ? "bg-primary-container text-white"
-                  : "bg-surface-container text-secondary"
-              }`}
-            >
-              2
-            </div>
-            <span
-              className={`text-xs ${
-                status === "success"
-                  ? "font-semibold text-on-surface"
-                  : "text-secondary"
-              }`}
-            >
-              Hoàn tất đăng ký
-            </span>
-          </div>
+    <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
+      {/* Loading State */}
+      {status === "loading" && (
+        <div className="flex flex-col items-center gap-3.5 py-4">
+          <span className="w-10 h-10 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
+          <h1 className="text-[20px] font-extrabold text-[#191817]">
+            Đang xác thực email…
+          </h1>
+          <p className="text-[13px] text-[#8A867E]">
+            Vui lòng đợi trong giây lát.
+          </p>
         </div>
+      )}
 
-        {/* Loading State */}
-        {status === "loading" && (
-          <>
-            <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-fixed text-primary">
-              <span className="material-symbols-outlined text-[32px] ff-spinner">
-                progress_activity
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-on-surface mb-2">
-              Đang xác thực email...
-            </h1>
-            <p className="text-xs text-secondary">
-              Vui lòng đợi trong giây lát.
-            </p>
-          </>
-        )}
+      {/* Success State */}
+      {status === "success" && (
+        <div className="flex flex-col items-center gap-3.5 py-2">
+          <div className="w-12 h-12 rounded-[14px] bg-[#EAF6EE] text-[#1F7A45] flex items-center justify-center text-[22px]">
+            ✓
+          </div>
+          <h1 className="text-[20px] font-extrabold text-[#191817]">
+            Xác thực thành công!
+          </h1>
+          <p className="text-[13px] text-[#8A867E] leading-[1.65]">
+            Tài khoản của bạn đã được kích hoạt và tự động đăng nhập.
+            <br />
+            Đang chuyển hướng trong <strong className="text-[#191817] font-bold">{countdown}s</strong>…
+          </p>
+          <button
+            onClick={() => router.push("/home")}
+            className="w-full py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
+          >
+            Vào ứng dụng ngay →
+          </button>
+        </div>
+      )}
 
-        {/* Success State */}
-        {status === "success" && (
-          <>
-            <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#d4edda] text-[#155724]">
-              <span className="material-symbols-outlined text-[32px]">
-                check_circle
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-on-surface tracking-tight mb-2">
-              Xác thực thành công!
-            </h1>
-            <p className="text-xs text-secondary mb-6 leading-relaxed">
-              Tài khoản của bạn đã được kích hoạt và đăng nhập tự động.
-              <br />
-              Đang chuyển hướng trong{" "}
-              <strong className="text-on-surface">{countdown}s</strong>...
-            </p>
-            <button
-              onClick={() => router.push("/home")}
-              className="w-full h-10 bg-primary-container text-white font-medium text-xs rounded-lg shadow-sm transition-all hover:brightness-90 btn-press flex items-center justify-center gap-1.5"
-            >
-              <span className="material-symbols-outlined text-lg">
-                rocket_launch
-              </span>
-              Vào ứng dụng ngay
-            </button>
-          </>
-        )}
-
-        {/* Error State */}
-        {status === "error" && (
-          <>
-            <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-error-container text-error">
-              <span className="material-symbols-outlined text-[32px]">
-                error
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-on-surface mb-2">
-              Xác thực thất bại
-            </h1>
-            <p className="text-xs text-secondary mb-5 leading-relaxed">
-              {errorMessage}
-            </p>
-
-            <div className="pt-4 border-t border-surface-container space-y-2.5">
-              <p className="text-[11px] text-secondary">
-                Link có thể đã hết hạn (24h) hoặc đã được sử dụng. Hãy đăng
-                nhập lại để yêu cầu gửi email mới.
-              </p>
-              <Link
-                href="/login"
-                className="w-full h-10 rounded-lg bg-surface-container hover:bg-surface-container-high text-xs font-medium text-on-surface border border-surface-container-high transition-all btn-press flex items-center justify-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  arrow_back
-                </span>
-                Về trang Đăng nhập
-              </Link>
-            </div>
-          </>
-        )}
-      </div>
+      {/* Error State */}
+      {status === "error" && (
+        <div className="flex flex-col items-center gap-3.5 py-2">
+          <div className="w-12 h-12 rounded-[14px] bg-[#FDEDED] text-[#B03030] flex items-center justify-center text-[22px]">
+            ⚠
+          </div>
+          <h1 className="text-[20px] font-extrabold text-[#191817]">
+            Xác thực thất bại
+          </h1>
+          <p className="text-[13px] text-[#8A867E] leading-[1.6]">
+            {errorMessage}
+          </p>
+          <p className="text-[11.5px] text-[#A8A49C] bg-[#FAF9F7] p-2.5 rounded-[8px] border border-[#ECEAE5]">
+            Liên kết có thể đã hết hạn (24h) hoặc đã được sử dụng. Hãy đăng nhập để gửi lại link mới.
+          </p>
+          <Link
+            href="/login"
+            className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold text-center"
+          >
+            Về trang Đăng nhập →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function VerifyEmailPage() {
   return (
-    <main className="flex-grow flex items-center justify-center px-4 py-8">
-      <Suspense
-        fallback={
-          <div className="w-full max-w-[400px] bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center text-xs text-secondary">
-            Đang tải...
-          </div>
-        }
-      >
-        <VerifyEmailContent />
-      </Suspense>
-    </main>
+    <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
+      <div className="w-full max-w-[420px] flex flex-col gap-4">
+        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+
+        <Suspense
+          fallback={
+            <div className="w-full bg-white rounded-[18px] p-7 border border-[#E4E1DC] text-center text-xs text-[#8A867E]">
+              Đang tải…
+            </div>
+          }
+        >
+          <VerifyEmailContent />
+        </Suspense>
+      </div>
+    </div>
   );
 }
