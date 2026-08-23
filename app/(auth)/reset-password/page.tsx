@@ -7,21 +7,6 @@ import Logo from "../../../components/Logo";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
-function getPasswordStrength(password: string): { level: number; label: string; color: string } {
-  if (!password) return { level: 0, label: "", color: "bg-surface-container" };
-  let score = 0;
-  if (password.length >= 6) score++;
-  if (password.length >= 10) score++;
-  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
-  if (/\d/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-
-  if (score <= 2) return { level: 1, label: "Yếu", color: "bg-error" };
-  if (score <= 3) return { level: 2, label: "Trung bình", color: "bg-amber-500" };
-  if (score <= 4) return { level: 3, label: "Mạnh", color: "bg-emerald-500" };
-  return { level: 4, label: "Rất mạnh", color: "bg-emerald-600" };
-}
-
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -34,6 +19,13 @@ function ResetPasswordContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd) return { level: 0, text: "" };
+    if (pwd.length < 6) return { level: 1, text: "Yếu", color: "#B03030" };
+    if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, text: "Trung bình", color: "#E8A23D" };
+    return { level: 3, text: "Mạnh", color: "#1F7A45" };
+  };
+
   const strength = getPasswordStrength(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +33,7 @@ function ResetPasswordContent() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp");
+      setError("Mật khẩu xác nhận không khớp.");
       return;
     }
 
@@ -69,23 +61,21 @@ function ResetPasswordContent() {
 
   if (!token) {
     return (
-      <div className="w-full bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center">
-        <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-error-container text-error">
-          <span className="material-symbols-outlined text-[32px]">
-            error
-          </span>
+      <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
+        <div className="w-12 h-12 rounded-[14px] bg-[#FDEDED] text-[#B03030] flex items-center justify-center text-[22px] mx-auto">
+          ⚠
         </div>
-        <h1 className="text-xl font-bold text-on-surface mb-2">
+        <h1 className="text-[20px] font-extrabold text-[#191817]">
           Liên kết không hợp lệ
         </h1>
-        <p className="text-xs text-secondary mb-6">
-          Link đặt lại mật khẩu thiếu token hoặc không đúng định dạng.
+        <p className="text-[13px] text-[#8A867E] leading-[1.6]">
+          Liên kết đặt lại mật khẩu thiếu token hoặc không đúng định dạng.
         </p>
         <Link
           href="/forgot-password"
-          className="inline-flex items-center justify-center gap-1.5 w-full h-10 rounded-lg bg-surface-container hover:bg-surface-container-high text-xs font-medium text-on-surface border border-surface-container transition-all btn-press"
+          className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold text-center"
         >
-          Yêu cầu link mới
+          Yêu cầu liên kết mới →
         </Link>
       </div>
     );
@@ -93,161 +83,156 @@ function ResetPasswordContent() {
 
   if (success) {
     return (
-      <div className="w-full bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center">
-        <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#d4edda] text-[#155724]">
-          <span className="material-symbols-outlined text-[32px]">
-            check_circle
-          </span>
+      <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
+        <div className="w-12 h-12 rounded-[14px] bg-[#EAF6EE] text-[#1F7A45] flex items-center justify-center text-[22px] mx-auto">
+          ✓
         </div>
-        <h1 className="text-xl font-bold text-on-surface mb-2">
+        <h1 className="text-[20px] font-extrabold text-[#191817]">
           Đặt lại mật khẩu thành công!
         </h1>
-        <p className="text-xs text-secondary leading-relaxed mb-6">
-          Mật khẩu của bạn đã được cập nhật. Vì lý do bảo mật, tất cả các phiên
-          đăng nhập trước đó đã bị đăng xuất.
+        <p className="text-[13px] text-[#8A867E] leading-[1.65]">
+          Mật khẩu của bạn đã được cập nhật. Mọi phiên đăng nhập cũ đã được thu hồi an toàn.
         </p>
         <button
           onClick={() => router.push("/login")}
-          className="w-full h-10 bg-primary-container text-white font-medium text-xs rounded-lg shadow-sm transition-all hover:brightness-90 btn-press"
+          className="w-full py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
         >
-          Đăng nhập với mật khẩu mới
+          Đăng nhập ngay →
         </button>
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container">
+    <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] flex flex-col gap-4">
+      <div>
+        <h1 className="text-[22px] font-extrabold text-[#191817] tracking-[-0.02em]">
+          Đặt lại mật khẩu
+        </h1>
+        <p className="text-[13px] text-[#8A867E] mt-1">
+          Tạo mật khẩu mới cho tài khoản của bạn.
+        </p>
+      </div>
+
       {error && (
-        <div className="mb-4 bg-error-container border border-error/20 text-on-error-container px-3.5 py-2.5 rounded-lg text-xs font-medium">
-          {error}
+        <div className="p-3 rounded-[10px] bg-[#FDEDED] border border-[#F2CACA] text-[12px] text-[#8A4141] flex items-center gap-2">
+          <span className="material-symbols-outlined text-[16px] shrink-0">error</span>
+          <span>{error}</span>
         </div>
       )}
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tertiary">
+      <form className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
+        {/* New Password */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="password">
             Mật khẩu mới
           </label>
           <div className="relative">
             <input
+              id="password"
               type={showPassword ? "text" : "password"}
               required
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full h-10 px-3.5 pr-10 rounded-lg border border-surface-container bg-white text-on-surface placeholder:text-outline-variant transition-all outline-none input-focus-ring text-xs"
+              className="w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-secondary hover:text-primary transition-colors"
+              className="absolute right-3 top-2.5 text-[#A8A49C] hover:text-[#191817] transition-colors"
             >
-              <span className="material-symbols-outlined text-lg">
+              <span className="material-symbols-outlined text-[18px]">
                 {showPassword ? "visibility_off" : "visibility"}
               </span>
             </button>
           </div>
-          {password && (
-            <div className="mt-1.5">
-              <div className="flex gap-1 mb-1">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className={`h-1 flex-1 rounded-full ${
-                      i <= strength.level ? strength.color : "bg-surface-container"
-                    }`}
-                  />
-                ))}
+
+          {password.length > 0 && (
+            <div className="flex items-center gap-2.5 pt-1">
+              <div className="flex-1 flex gap-1">
+                <div
+                  className="flex-1 h-1 rounded-full transition-colors"
+                  style={{ background: strength.level >= 1 ? strength.color : "#E4E1DC" }}
+                />
+                <div
+                  className="flex-1 h-1 rounded-full transition-colors"
+                  style={{ background: strength.level >= 2 ? strength.color : "#E4E1DC" }}
+                />
+                <div
+                  className="flex-1 h-1 rounded-full transition-colors"
+                  style={{ background: strength.level >= 3 ? strength.color : "#E4E1DC" }}
+                />
               </div>
-              <p className="text-[11px] text-secondary">
-                Độ mạnh:{" "}
-                <span className="text-on-surface font-medium">
-                  {strength.label}
-                </span>
-              </p>
+              <span className="text-[11px] font-bold" style={{ color: strength.color }}>
+                {strength.text}
+              </span>
             </div>
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tertiary">
+        {/* Confirm New Password */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="confirmPassword">
             Xác nhận mật khẩu mới
           </label>
           <input
-            type={showPassword ? "text" : "password"}
+            id="confirmPassword"
+            type="password"
             required
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full h-10 px-3.5 rounded-lg border border-surface-container bg-white text-on-surface placeholder:text-outline-variant transition-all outline-none input-focus-ring text-xs"
+            className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
           />
-          {confirmPassword && password !== confirmPassword && (
-            <p className="text-[11px] text-error mt-1">
-              Mật khẩu xác nhận không khớp
-            </p>
-          )}
         </div>
 
-        <div className="pt-2">
-          <button
-            type="submit"
-            disabled={loading || password !== confirmPassword}
-            className="w-full h-10 bg-primary-container text-white font-medium text-xs rounded-lg shadow-sm transition-all hover:brightness-90 btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading || password !== confirmPassword}
+          className="w-full mt-2 py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
+              Đang cập nhật…
+            </>
+          ) : (
+            "Đặt lại mật khẩu →"
+          )}
+        </button>
+
+        <div className="text-center pt-1">
+          <Link
+            href="/login"
+            className="text-[12.5px] font-semibold text-[#6B6862] hover:text-[#191817] transition-colors"
           >
-            {loading ? (
-              <>
-                <span className="material-symbols-outlined text-lg ff-spinner">
-                  progress_activity
-                </span>
-                Đang cập nhật...
-              </>
-            ) : (
-              "Đặt lại mật khẩu"
-            )}
-          </button>
+            ← Quay lại đăng nhập
+          </Link>
         </div>
       </form>
-
-      <div className="mt-5 text-center pt-3 border-t border-surface-container">
-        <Link
-          href="/login"
-          className="text-xs text-secondary hover:text-primary font-medium transition-colors"
-        >
-          ← Quay lại Đăng nhập
-        </Link>
-      </div>
     </div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <main className="flex-grow flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-[400px]">
-        <div className="text-center mb-6">
-          <div className="mb-2">
-            <Logo sizeClassName="w-36 h-36" />
-          </div>
-          <h1 className="text-xl font-bold text-on-surface tracking-tight mb-1">
-            Đặt lại mật khẩu
-          </h1>
-          <p className="text-xs text-secondary">
-            Tạo mật khẩu mới cho tài khoản của bạn
-          </p>
-        </div>
+    <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
+      <div className="w-full max-w-[420px] flex flex-col gap-4">
+        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
 
         <Suspense
           fallback={
-            <div className="w-full bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center text-xs text-secondary">
-              Đang tải...
+            <div className="w-full bg-white rounded-[18px] p-7 border border-[#E4E1DC] text-center text-xs text-[#8A867E]">
+              Đang tải…
             </div>
           }
         >
           <ResetPasswordContent />
         </Suspense>
       </div>
-    </main>
+    </div>
   );
 }

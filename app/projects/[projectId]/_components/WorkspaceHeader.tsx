@@ -1,0 +1,115 @@
+"use client";
+
+import Link from "next/link";
+import Logo from "../../../../components/Logo";
+
+export interface ProjectData {
+  _id: string;
+  name: string;
+  domain?: string | null;
+  status: string;
+  currentStep?: string;
+  currentPhase?: number;
+  workspacePhase?: string;
+  baselineVersion?: string | null;
+  progressPercent: number;
+}
+
+export interface UserData {
+  id: string;
+  email: string;
+  balance?: number;
+}
+
+interface WorkspaceHeaderProps {
+  project: ProjectData | null;
+  user: UserData | null;
+  onExportClick?: () => void;
+  onLogout: () => void;
+}
+
+export default function WorkspaceHeader({
+  project,
+  user,
+  onExportClick,
+  onLogout,
+}: WorkspaceHeaderProps) {
+  const isBaselined = Boolean(project?.baselineVersion);
+
+  return (
+    <header className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[58px] z-20">
+      <div className="flex items-center gap-3">
+        <Logo sizeClassName="w-7 h-7" theme="light" showText={false} href="/home" />
+        <div className="flex items-center text-[13px] text-[#8A867E] gap-1.5">
+          <Link
+            href="/home"
+            className="hover:text-[#191817] font-semibold transition-colors"
+          >
+            Dự án
+          </Link>
+          <span className="text-[#D6D2CB]">/</span>
+          <span className="font-bold text-[#191817] truncate max-w-[220px]">
+            {project?.name || "Dự án SRS"}
+          </span>
+        </div>
+
+        {project?.domain && (
+          <div className="ml-2 px-2.5 py-0.5 rounded-full bg-[#EEF1FB] text-[#3B4FA8] text-[11px] font-bold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
+            domain: {project.domain}
+          </div>
+        )}
+
+        {isBaselined && (
+          <div className="px-2.5 py-0.5 rounded-full bg-[#E9F7EE] text-[#1F7A45] text-[11px] font-bold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A45]" />
+            Baseline {project?.baselineVersion}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center text-[11.5px] text-[#1F7A45] font-semibold gap-1.5 bg-[#EAF6EE] px-2.5 py-1 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A45]" />
+          Saved · vừa xong
+        </div>
+
+        {user && (
+          <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-[12px] font-semibold gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
+            {user.balance ?? 0} credits
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onExportClick}
+          disabled={!isBaselined && (project?.progressPercent ?? 0) < 100}
+          title={
+            isBaselined
+              ? "Xuất tài liệu SRS"
+              : "Mở khóa khi hoàn thành nghiệm thu toàn bộ SRS"
+          }
+          className={`px-3.5 py-1 rounded-full text-[12px] font-bold flex items-center gap-1 transition-all ${
+            isBaselined || (project?.progressPercent ?? 0) >= 100
+              ? "bg-[#191817] text-white hover:bg-[#33312D] cursor-pointer shadow-sm"
+              : "bg-[#F0EEEA] text-[#A8A49C] cursor-not-allowed"
+          }`}
+        >
+          <span>Export</span>
+          <span className="text-[11px]">↗</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          title="Đăng xuất"
+          className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-bold text-[#B03030] hover:bg-[#FDEDED] border border-[#F2CACA] transition-colors cursor-pointer"
+        >
+          <span className="text-sm leading-none">⏻</span>
+          <span className="hidden md:inline">Đăng xuất</span>
+        </button>
+      </div>
+    </header>
+  );
+}
