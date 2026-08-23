@@ -46,94 +46,60 @@ function CheckEmailContent() {
   };
 
   return (
-    <div className="w-full max-w-[400px] flex flex-col items-center">
-      {/* Logo */}
-      <div className="mb-4 text-center">
-        <Logo sizeClassName="w-36 h-36" />
+    <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
+      {/* Mail Icon */}
+      <div className="w-12 h-12 rounded-[14px] bg-[#F4F3FE] flex items-center justify-center text-[22px] mx-auto">
+        ✉️
       </div>
 
-      {/* Card Container */}
-      <div className="w-full bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center">
-        {/* Step Indicator */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-primary-container text-white flex items-center justify-center text-[11px] font-semibold">
-              1
-            </div>
-            <span className="text-xs font-semibold text-on-surface">
-              Xác nhận email
-            </span>
-          </div>
-          <div className="w-8 h-px bg-surface-container" />
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-surface-container text-secondary flex items-center justify-center text-[11px] font-semibold">
-              2
-            </div>
-            <span className="text-xs text-secondary">Hoàn tất đăng ký</span>
-          </div>
-        </div>
+      <h1 className="text-[20px] font-extrabold text-[#191817]">
+        Kiểm tra email của bạn
+      </h1>
 
-        {/* Mail Icon */}
-        <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-fixed text-primary">
-          <span className="material-symbols-outlined text-[32px]">mail</span>
-        </div>
-
-        <h1 className="text-xl font-bold text-on-surface tracking-tight mb-2">
-          Kiểm tra email của bạn
-        </h1>
-
-        <p className="text-xs text-secondary mb-6 leading-relaxed">
-          Chúng tôi đã gửi một liên kết xác nhận đến{" "}
-          {email ? (
-            <strong className="text-on-surface">{email}</strong>
-          ) : (
-            "email của bạn"
-          )}
-          . Vui lòng kiểm tra hộp thư đến để hoàn tất đăng ký.
-        </p>
-
-        {/* Status Message */}
-        {message && (
-          <div className="mb-5 bg-primary-fixed/50 border border-primary-fixed-dim/40 text-on-primary-container px-3.5 py-2.5 rounded-lg text-xs">
-            {message}
-          </div>
+      <p className="text-[13px] text-[#8A867E] leading-[1.65]">
+        Chúng tôi đã gửi một liên kết xác nhận đến{" "}
+        {email ? (
+          <strong className="text-[#191817] font-bold">{email}</strong>
+        ) : (
+          "email của bạn"
         )}
+        . Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam) để hoàn tất đăng ký.
+      </p>
 
-        {/* Resend Button */}
-        <button
-          type="button"
-          onClick={handleResend}
-          disabled={cooldown > 0 || resending}
-          className="w-full h-10 bg-primary-container text-white font-medium text-xs rounded-lg shadow-sm transition-all hover:brightness-90 btn-press disabled:opacity-50 flex items-center justify-center gap-1.5 mb-6"
-        >
-          {resending ? (
-            <>
-              <span className="material-symbols-outlined text-lg ff-spinner">
-                progress_activity
-              </span>
-              Đang gửi...
-            </>
-          ) : cooldown > 0 ? (
-            `Gửi lại email sau (${cooldown}s)`
-          ) : (
-            <>
-              <span className="material-symbols-outlined text-lg">
-                open_in_new
-              </span>
-              Gửi lại email xác thực
-            </>
-          )}
-        </button>
-
-        {/* Back link */}
-        <div className="pt-3 border-t border-surface-container">
-          <Link
-            href="/login"
-            className="text-xs text-secondary hover:text-primary font-medium transition-colors"
-          >
-            ← Trở lại trang đăng nhập
-          </Link>
+      {/* Status Message */}
+      {message && (
+        <div className="p-3 rounded-[10px] bg-[#EAF6EE] text-[#1F7A45] text-[12px] font-semibold border border-[#C2E5CF]">
+          {message}
         </div>
+      )}
+
+      {/* Resend Button */}
+      <button
+        type="button"
+        onClick={handleResend}
+        disabled={cooldown > 0 || resending}
+        className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+      >
+        {resending ? (
+          <>
+            <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
+            Đang gửi…
+          </>
+        ) : cooldown > 0 ? (
+          `Gửi lại sau (${cooldown}s)`
+        ) : (
+          "Gửi lại email xác thực →"
+        )}
+      </button>
+
+      {/* Back link */}
+      <div className="pt-2 border-t border-[#ECEAE5]">
+        <Link
+          href="/login"
+          className="text-[12.5px] font-semibold text-[#6B6862] hover:text-[#191817] transition-colors"
+        >
+          ← Trở lại trang đăng nhập
+        </Link>
       </div>
     </div>
   );
@@ -141,16 +107,20 @@ function CheckEmailContent() {
 
 export default function CheckEmailPage() {
   return (
-    <main className="flex-grow flex items-center justify-center px-4 py-8">
-      <Suspense
-        fallback={
-          <div className="w-full max-w-[400px] bg-surface-container-lowest rounded-xl p-6 card-elevated border border-surface-container text-center text-xs text-secondary">
-            Đang tải...
-          </div>
-        }
-      >
-        <CheckEmailContent />
-      </Suspense>
-    </main>
+    <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
+      <div className="w-full max-w-[420px] flex flex-col gap-4">
+        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+
+        <Suspense
+          fallback={
+            <div className="w-full bg-white rounded-[18px] p-7 border border-[#E4E1DC] text-center text-xs text-[#8A867E]">
+              Đang tải…
+            </div>
+          }
+        >
+          <CheckEmailContent />
+        </Suspense>
+      </div>
+    </div>
   );
 }

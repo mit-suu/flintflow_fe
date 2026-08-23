@@ -2,7 +2,7 @@
 
 @theme inline {
   /* ── Brand palette ── */
-  --color-brand-50: #f5f3ff;
+  --color-brand-50: #f5f3fe;
   --color-brand-100: #ede9fe;
   --color-brand-200: #ddd6fe;
   --color-brand-300: #c4b5fd;
@@ -23,54 +23,67 @@
   /* ── Primary palette (Indigo / Purple Blue) ── */
   --color-primary: #4f46e5;
   --color-primary-container: #4f46e5;
+  --color-primary-hover: #3b34b0;
+  --color-primary-light: #7c74f0;
+  --color-primary-soft: #f4f3fe;
   --color-on-primary: #ffffff;
   --color-on-primary-container: #dad7ff;
   --color-primary-fixed: #e2dfff;
   --color-primary-fixed-dim: #c3c0ff;
   --color-inverse-primary: #c3c0ff;
 
-  /* ── Secondary ── */
-  --color-secondary: #845400;
-  --color-secondary-container: #ffb54f;
-  --color-on-secondary: #ffffff;
-  --color-on-secondary-container: #714800;
+  /* ── Accent / Gold ── */
+  --color-accent-gold: #e8a23d;
+  --color-accent-gold-light: #f2c572;
+  --color-accent-gold-soft: #fbf4e4;
+  --color-accent-gold-text: #8a6d1f;
+  --color-accent-gold-border: #f0dfb4;
 
-  /* ── Tertiary ── */
-  --color-tertiary: #3f33b0;
-  --color-tertiary-container: #574ec9;
-  --color-on-tertiary: #ffffff;
-  --color-on-tertiary-container: #dbd7ff;
+  /* ── Success / Green ── */
+  --color-success: #1f7a45;
+  --color-success-light: #7bd89e;
+  --color-success-dark: #2fa45c;
+  --color-success-soft: #eaf6ee;
+  --color-success-border: #c2e5cf;
 
-  /* ── Error ── */
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
+  /* ── Error / Warm Red ── */
+  --color-error: #b03030;
+  --color-error-container: #fdeded;
+  --color-error-border: #f2caca;
   --color-on-error: #ffffff;
-  --color-on-error-container: #93000a;
+  --color-on-error-container: #8a4141;
 
-  /* ── Surface & Background ── */
-  --color-surface: #fdf8f6;
-  --color-surface-dim: #ddd9d7;
-  --color-surface-bright: #fdf8f6;
+  /* ── Surface & Warm Backgrounds ── */
+  --color-surface: #f5f3f0;
+  --color-surface-dim: #e4e1dc;
+  --color-surface-bright: #ffffff;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f7f3f0;
-  --color-surface-container: #f2edeb;
-  --color-surface-container-high: #ece7e5;
-  --color-surface-container-highest: #e6e2df;
-  --color-surface-variant: #e6e2df;
-  --color-surface-tint: #4d44e3;
-  --color-background: #fdf8f6;
-  --color-on-surface: #1c1b1a;
-  --color-on-surface-variant: #464555;
-  --color-on-background: #1c1b1a;
+  --color-surface-container-low: #faf9f7;
+  --color-surface-container: #f5f3f0;
+  --color-surface-container-high: #f0eeea;
+  --color-surface-container-highest: #e4e1dc;
+  --color-surface-variant: #eceae5;
+  --color-surface-tint: #4f46e5;
+  --color-background: #f5f3f0;
+  --color-on-surface: #191817;
+  --color-on-surface-variant: #6b6862;
+  --color-on-surface-muted: #8a867e;
+  --color-on-surface-subtle: #a8a49c;
+  --color-on-surface-dark: #33312d;
+  --color-on-surface-medium: #4b4842;
+  --color-on-background: #191817;
   --color-inverse-surface: #32302f;
   --color-inverse-on-surface: #f4f0ee;
 
-  /* ── Outline ── */
-  --color-outline: #777587;
-  --color-outline-variant: #c7c4d8;
+  /* ── Borders & Outlines ── */
+  --color-outline: #e4e1dc;
+  --color-outline-variant: #eceae5;
+  --color-outline-subtle: #f0eeea;
+  --color-outline-purple: #ddd9f6;
 
   /* ── Typography ── */
   --font-sans: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 /* ── Base Styles ── */
@@ -82,7 +95,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Landing Page Utilities ── */
+/* ── Custom Utilities ── */
 .glass-card {
   background: rgba(30, 29, 39, 0.6);
   backdrop-filter: blur(12px);
@@ -94,14 +107,30 @@ body {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-image: linear-gradient(to right, #ffffff, #c4b5fd);
+  background-image: linear-gradient(95deg, #7c74f0, #4f46e5 45%, #e8a23d);
 }
 
 .text-gradient-purple {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-image: linear-gradient(to right, #c4b5fd, #8b5cf6);
+  background-image: linear-gradient(135deg, #7c74f0, #4f46e5);
+}
+
+.btn-gradient-primary {
+  background: linear-gradient(135deg, #7c74f0, #4f46e5 60%, #3b34b0);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.35);
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.btn-gradient-primary:hover:not(:disabled) {
+  box-shadow: 0 14px 28px rgba(79, 70, 229, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-gradient-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .bg-orb {
@@ -113,19 +142,20 @@ body {
   background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(109, 40, 217, 0.4) 50%, transparent 100%);
 }
 
-/* ── Focus ring utility ── */
 .input-focus-ring:focus {
   outline: none;
-  border-color: var(--color-primary-container);
-  box-shadow: 0 0 0 3px rgba(255, 95, 56, 0.15);
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
-/* ── Card shadow ── */
 .card-elevated {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 26px 60px rgba(79, 70, 229, 0.12), 0 8px 20px rgba(25, 24, 23, 0.05);
 }
 
-/* ── Button press animation ── */
+.custom-shadow-card {
+  box-shadow: 0 26px 60px rgba(79, 70, 229, 0.16), 0 8px 20px rgba(25, 24, 23, 0.06);
+}
+
 .btn-press:active {
   transform: scale(0.98);
 }
@@ -135,16 +165,14 @@ body {
   to { transform: rotate(360deg); }
 }
 .ff-spinner {
-  animation: ff-spin 0.7s linear infinite;
+  animation: ff-spin 0.8s linear infinite;
 }
 
-/* ── Custom Utilities ── */
-.custom-shadow-card {
-  box-shadow: 0 24px 60px rgba(25, 24, 23, 0.10);
-}
+/* ── Grid Pattern Background ── */
 .grid-pattern {
-  background-size: 52px 52px;
+  background-size: 44px 44px;
   background-image: 
-    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(25, 24, 23, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(25, 24, 23, 0.04) 1px, transparent 1px);
 }
+

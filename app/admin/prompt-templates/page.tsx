@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "../../../components/Logo";
+import { clearAuthToken } from "../../../lib/auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -52,6 +54,13 @@ export default function AdminPromptTemplatesPage() {
   const [testing, setTesting] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<any | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
+
+  const router = useRouter();
+
+  const handleLogout = () => {
+    clearAuthToken();
+    router.push("/login");
+  };
 
   // Extract {{variables}} from template text
   const detectedVariables = Array.from(
@@ -258,13 +267,23 @@ export default function AdminPromptTemplatesPage() {
             </p>
           </div>
         </div>
-        <Link
-          href="/home"
-          className="text-xs font-semibold text-secondary hover:text-primary transition-colors flex items-center gap-1"
-        >
-          <span className="material-symbols-outlined text-lg">arrow_back</span>
-          Về Dashboard
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/home"
+            className="text-xs font-semibold text-secondary hover:text-primary transition-colors flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            Về Dashboard
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 transition-colors"
+          >
+            <span className="text-sm leading-none">⏻</span>
+            Đăng xuất
+          </button>
+        </div>
       </header>
 
       {/* Main Grid */}

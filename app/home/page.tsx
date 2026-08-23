@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import ProjectCard, { type Project } from "../../components/ProjectCard";
 import Modal from "../../components/Modal";
+import Logo from "../../components/Logo";
 import { apiCall } from "../../lib/api";
 
 interface User {
@@ -140,30 +141,28 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Top bar */}
-      <div
-        className="h-[74px] bg-white border-b border-[#ECEAE5] flex items-center gap-4 flex-shrink-0"
-        style={{ padding: "0 32px" }}
-      >
-        {/* Search pill */}
-        <div className="flex items-center gap-3 bg-[#FAF9F7] border-[1.5px] border-[#ECEAE5] rounded-full text-[#A8A49C] text-[14px] w-[340px]" style={{ padding: "11px 18px" }}>
-          <span>⌕</span>
-          <span>Search…</span>
-          <span
-            className="ml-auto text-[11px] bg-white border border-[#E4E1DC] rounded-[6px]"
-            style={{ fontFamily: "'JetBrains Mono', monospace", padding: "2px 7px" }}
-          >
-            ⌘ K
-          </span>
+      {/* Top Header Bar (B1 Design) */}
+      <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
+          <span>Dự án của tôi</span>
+          <span className="text-[#D6D2CB]">/</span>
+          <span className="text-[#191817] font-bold">Tất cả dự án</span>
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        {/* Right actions */}
+        <div className="ml-auto flex items-center gap-2.5">
+          {/* Notification Bell */}
+          <div className="relative w-[30px] h-[30px] rounded-[9px] bg-[#F5F3F0] border border-[#E4E1DC] flex items-center justify-center text-[13px] cursor-pointer hover:bg-[#FAF9F7] transition-colors">
+            🔔
+            <div className="absolute -top-1 -right-1 min-w-[15px] h-[15px] rounded-full bg-[#B03030] text-white text-[9px] font-extrabold flex items-center justify-center px-1">
+              3
+            </div>
+          </div>
+
           {/* Credits chip */}
-          <div
-            className="flex items-center gap-2 bg-[#F0EEEA] rounded-full text-[13px] font-semibold text-[#191817]"
-            style={{ padding: "9px 16px" }}
-          >
-            <span className="w-2 h-2 rounded-full bg-[#4F46E5] flex-shrink-0" />
+          <div className="flex items-center gap-2 bg-[#F0EEEA] rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[#191817]">
+            <span className="w-2 h-2 rounded-full bg-[#4F46E5] shrink-0" />
             {user?.balance ?? 0} credits · Free
           </div>
 
@@ -171,117 +170,98 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="rounded-full text-white text-[14px] font-bold transition hover:brightness-90 active:scale-[0.97]"
-            style={{
-              padding: "12px 24px",
-              background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
-              boxShadow: "0 8px 22px rgba(79,70,229,0.3)",
-            }}
+            className="px-4 py-2 rounded-full btn-gradient-primary text-white text-[12.5px] font-bold flex items-center gap-1 cursor-pointer"
           >
-            + New Project
+            + Dự án mới
           </button>
         </div>
       </div>
 
       {/* Main scroll area */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6" style={{ padding: "30px 32px" }}>
-        {/* Header row */}
-        <div className="flex items-center justify-between">
-          <h1
-            className="text-[32px] font-[800] text-[#191817]"
-            style={{ letterSpacing: "-0.015em" }}
-          >
-            My Projects
-          </h1>
-          <div className="flex gap-2">
-            {["Status: All ▾", "Domain: Any ▾", "Date: Any ▾"].map((label) => (
-              <div
-                key={label}
-                className="flex items-center gap-[6px] bg-white border-[1.5px] border-[#E4E1DC] rounded-full text-[13px] font-semibold text-[#4B4842] cursor-default"
-                style={{ padding: "9px 16px" }}
-              >
-                {label}
-              </div>
-            ))}
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-[#F5F3F0]">
+        
+        {/* Search & Filter Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">
+              Dự án của tôi
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-[#E4E1DC] text-[11.5px] font-bold text-[#6B6862]">
+              {projects.length}
+            </span>
+          </div>
+
+          {/* Search input & filters */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-white border border-[#E4E1DC] rounded-full px-3.5 py-1.5 text-[12.5px] text-[#A8A49C] w-full sm:w-[240px]">
+              <span>🔍</span>
+              <input
+                type="text"
+                placeholder="Tìm kiếm dự án…"
+                className="w-full bg-transparent outline-none text-[#191817] text-[12px] placeholder:text-[#A8A49C]"
+              />
+            </div>
           </div>
         </div>
 
         {/* Error banner */}
         {error && (
-          <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
             <span className="material-symbols-outlined text-lg">error</span>
             <span className="flex-1">{error}</span>
             <button
               type="button"
               onClick={() => setError(null)}
-              className="text-red-500 font-bold hover:text-red-700"
+              className="text-[#8A4141] font-bold hover:opacity-75"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* Projects section */}
-        <div className="flex flex-col gap-[14px]">
-          <div className="flex items-center gap-[10px]">
-            <span className="text-[17px] font-[800] text-[#191817]">Projects</span>
-            <span
-              className="rounded-full bg-[#EDEBE7] text-[12px] font-[700] text-[#6B6862]"
-              style={{ padding: "3px 11px" }}
-            >
-              {projects.length}
-            </span>
+        {/* Projects Section */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
+            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
+            <span className="text-[13px] font-medium">Đang tải danh sách dự án…</span>
           </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-[#A8A49C] gap-3">
-              <span className="material-symbols-outlined text-2xl ff-spinner">
-                progress_activity
-              </span>
-              <span className="text-[14px]">Đang tải dự án…</span>
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-5">
-              <span className="material-symbols-outlined text-[#D6D2CB]" style={{ fontSize: 64 }}>
-                folder_open
-              </span>
-              <div className="text-center">
-                <p className="text-[17px] font-[700] text-[#191817]">Chưa có dự án nào</p>
-                <p className="text-[14px] text-[#8A867E] mt-1">
-                  Tạo dự án đầu tiên để bắt đầu
-                </p>
-              </div>
+        ) : projects.length === 0 ? (
+          /* Empty / Onboarding State (B1 Design) */
+          <div className="flex-1 flex items-center justify-center relative py-12">
+            <div className="w-full max-w-[560px] bg-white border border-[#ECEAE5] rounded-[24px] p-8 sm:p-10 custom-shadow-card flex flex-col items-center gap-4 text-center">
+              <Logo sizeClassName="w-14 h-14" theme="light" showText={false} />
+              <h2 className="text-[20px] font-extrabold text-[#191817]">
+                Bắt đầu dự án đầu tiên của bạn
+              </h2>
+              <p className="text-[13.5px] text-[#8A867E] max-w-[380px] leading-[1.6]">
+                Tạo tài liệu SRS hoàn chỉnh chuẩn IEEE/FPT chỉ trong vài phút thông qua hội thoại tương tác cùng AI.
+              </p>
               <button
                 type="button"
                 onClick={() => setShowCreateModal(true)}
-                className="rounded-full text-white text-[14px] font-bold transition hover:brightness-90 active:scale-[0.97]"
-                style={{
-                  padding: "12px 24px",
-                  background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
-                  boxShadow: "0 8px 22px rgba(79,70,229,0.3)",
-                }}
+                className="mt-2 px-6 py-3 rounded-full btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
               >
                 + Tạo dự án mới
               </button>
             </div>
-          ) : (
-            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-              {projects.map((p) => (
-                <ProjectCard
-                  key={p._id}
-                  project={p}
-                  onRename={openRename}
-                  onDelete={openDelete}
-                  onHardDelete={(project) => {
-                    setTargetProject(project);
-                    setShowHardDeleteConfirm(true);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
+          </div>
+        ) : (
+          /* Populated Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {projects.map((p) => (
+              <ProjectCard
+                key={p._id}
+                project={p}
+                onRename={openRename}
+                onDelete={openDelete}
+                onHardDelete={(project) => {
+                  setTargetProject(project);
+                  setShowHardDeleteConfirm(true);
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -294,38 +274,36 @@ export default function HomePage() {
         title="Tạo dự án mới"
       >
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-[14px] font-[600] text-[#191817]">Tên dự án</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12.5px] font-bold text-[#4B4842]">Tên dự án</label>
             <input
               autoFocus
               type="text"
               required
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              placeholder="Ví dụ: Booking App, SaaS Dashboard…"
-              className="w-full px-4 py-3 rounded-[12px] border border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[14px] text-[#191817] bg-white transition-all"
+              placeholder="Ví dụ: App Đặt Xe Online, E-Learning Platform…"
+              className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[13.5px] text-[#191817] bg-[#FAF9F7] transition-all"
             />
           </div>
           <button
             type="submit"
             disabled={submitting || !createName.trim()}
-            className="w-full py-3 rounded-[12px] text-white text-[14px] font-[700] transition hover:brightness-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{
-              background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
-              boxShadow: "0 4px 14px rgba(79,70,229,0.25)",
-            }}
+            className="w-full mt-2 py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
-            {submitting && (
-              <span className="material-symbols-outlined text-[16px] ff-spinner">
-                progress_activity
-              </span>
+            {submitting ? (
+              <>
+                <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
+                Đang tạo dự án…
+              </>
+            ) : (
+              "Tạo dự án →"
             )}
-            Tạo dự án
           </button>
         </form>
       </Modal>
 
-      {/* Delete Modal */}
+      {/* Delete / Archive Modal */}
       <Modal
         open={showDeleteConfirm}
         onClose={() => {
@@ -337,18 +315,18 @@ export default function HomePage() {
         title="Lưu trữ dự án"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-[12px] p-4">
-            <span className="material-symbols-outlined text-red-500 text-[20px] mt-0.5 flex-shrink-0">warning</span>
+          <div className="flex items-start gap-3 bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-4 text-[#8A4141]">
+            <span className="material-symbols-outlined text-[20px] mt-0.5 shrink-0">warning</span>
             <div>
-              <p className="text-[14px] font-[600] text-[#191817]">
+              <p className="text-[13.5px] font-bold text-[#191817]">
                 Lưu trữ &ldquo;{targetProject?.name}&rdquo;?
               </p>
-              <p className="text-[13px] text-[#6B6862] mt-1 leading-[1.55]">
-                Project sẽ bị ẩn khỏi dashboard. Bạn có thể khôi phục từ mục Deleted bất cứ lúc nào.
+              <p className="text-[12.5px] text-[#8A4141] mt-1 leading-[1.55]">
+                Dự án sẽ bị ẩn khỏi dashboard chính và có thể khôi phục lại sau.
               </p>
             </div>
           </div>
-          <div className="flex gap-[10px] justify-end">
+          <div className="flex gap-2.5 justify-end pt-2">
             <button
               type="button"
               disabled={submitting}
@@ -356,8 +334,7 @@ export default function HomePage() {
                 setShowDeleteConfirm(false);
                 setTargetProject(null);
               }}
-              className="rounded-full border-[1.5px] border-[#E4E1DC] bg-white text-[13.5px] font-[600] text-[#4B4842] hover:bg-[#F5F3F0] transition-colors disabled:opacity-50"
-              style={{ padding: "10px 20px" }}
+              className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] transition-colors disabled:opacity-50"
             >
               Huỷ
             </button>
@@ -365,15 +342,9 @@ export default function HomePage() {
               type="button"
               disabled={submitting}
               onClick={handleDeleteConfirm}
-              className="rounded-full bg-[#C73E3E] text-white text-[13.5px] font-[700] hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
-              style={{ padding: "10px 20px" }}
+              className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-[13px] font-bold hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
             >
-              {submitting && (
-                <span className="material-symbols-outlined text-[16px] ff-spinner">
-                  progress_activity
-                </span>
-              )}
-              Lưu trữ
+              {submitting ? "Đang lưu trữ…" : "Lưu trữ"}
             </button>
           </div>
         </div>
@@ -391,18 +362,18 @@ export default function HomePage() {
         title="Xoá vĩnh viễn dự án"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-[12px] p-4 text-red-800">
-            <span className="material-symbols-outlined text-red-600 text-[20px] mt-0.5 flex-shrink-0">delete_forever</span>
+          <div className="flex items-start gap-3 bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-4 text-[#8A4141]">
+            <span className="material-symbols-outlined text-[20px] mt-0.5 shrink-0">delete_forever</span>
             <div>
-              <p className="text-[14px] font-[600] text-[#191817]">
+              <p className="text-[13.5px] font-bold text-[#191817]">
                 Xoá vĩnh viễn &ldquo;{targetProject?.name}&rdquo;?
               </p>
-              <p className="text-[13px] text-red-600/80 mt-1 leading-[1.55]">
-                Thao tác này sẽ xoá hoàn toàn dự án, toàn bộ cuộc hội thoại, đặc tả và các tài liệu đính kèm. Hành động này **không thể hoàn tác**.
+              <p className="text-[12.5px] text-[#8A4141] mt-1 leading-[1.55]">
+                Toàn bộ hội thoại, tài liệu SRS và dữ liệu đính kèm sẽ bị xoá hoàn toàn. Hành động này **không thể hoàn tác**.
               </p>
             </div>
           </div>
-          <div className="flex gap-[10px] justify-end">
+          <div className="flex gap-2.5 justify-end pt-2">
             <button
               type="button"
               disabled={submitting}
@@ -410,8 +381,7 @@ export default function HomePage() {
                 setShowHardDeleteConfirm(false);
                 setTargetProject(null);
               }}
-              className="rounded-full border-[1.5px] border-[#E4E1DC] bg-white text-[13.5px] font-[600] text-[#4B4842] hover:bg-[#F5F3F0] transition-colors disabled:opacity-50"
-              style={{ padding: "10px 20px" }}
+              className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] transition-colors disabled:opacity-50"
             >
               Huỷ
             </button>
@@ -419,15 +389,9 @@ export default function HomePage() {
               type="button"
               disabled={submitting}
               onClick={handleHardDeleteConfirm}
-              className="rounded-full bg-red-600 text-white text-[13.5px] font-[700] hover:bg-red-500 transition disabled:opacity-50 flex items-center gap-2"
-              style={{ padding: "10px 20px" }}
+              className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-[13px] font-bold hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
             >
-              {submitting && (
-                <span className="material-symbols-outlined text-[16px] ff-spinner">
-                  progress_activity
-                </span>
-              )}
-              Xoá vĩnh viễn
+              {submitting ? "Đang xoá…" : "Xoá vĩnh viễn"}
             </button>
           </div>
         </div>
@@ -440,33 +404,31 @@ export default function HomePage() {
         title="Đổi tên dự án"
       >
         <form onSubmit={handleRename} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-[14px] font-[600] text-[#191817]">Tên dự án</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12.5px] font-bold text-[#4B4842]">Tên dự án mới</label>
             <input
               autoFocus
               type="text"
               required
               value={renameName}
               onChange={(e) => setRenameName(e.target.value)}
-              placeholder="Tên dự án mới…"
-              className="w-full px-4 py-3 rounded-[12px] border border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[14px] text-[#191817] bg-white transition-all"
+              placeholder="Nhập tên mới…"
+              className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[13.5px] text-[#191817] bg-[#FAF9F7] transition-all"
             />
           </div>
           <button
             type="submit"
             disabled={submitting || !renameName.trim()}
-            className="w-full py-3 rounded-[12px] text-white text-[14px] font-[700] transition hover:brightness-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{
-              background: "linear-gradient(135deg,#7C74F0,#4F46E5 60%,#3B34B0)",
-              boxShadow: "0 4px 14px rgba(79,70,229,0.25)",
-            }}
+            className="w-full mt-2 py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
-            {submitting && (
-              <span className="material-symbols-outlined text-[16px] ff-spinner">
-                progress_activity
-              </span>
+            {submitting ? (
+              <>
+                <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
+                Đang lưu…
+              </>
+            ) : (
+              "Lưu thay đổi"
             )}
-            Lưu thay đổi
           </button>
         </form>
       </Modal>
