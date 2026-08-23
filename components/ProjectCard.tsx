@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
+
 export interface Project {
   _id: string;
   name: string;
@@ -43,40 +44,40 @@ type Variant = {
 function getVariant(progressPercent: number, currentStep: string): Variant {
   if (currentStep === "blocked") {
     return {
-      gradient: "linear-gradient(120deg,#F6D5D5,#E89090 50%,#C73E3E)",
-      badge: "Blocked",
+      gradient: "linear-gradient(135deg,#F6D5D5,#E89090 50%,#B03030)",
+      badge: "Cần làm rõ",
       badgeColor: "#B03030",
-      nextBg: "#FDF6EC",
+      nextBg: "#FBF4E4",
       nextText: "#8A6D1F",
-      arrow: "#B8860B",
+      arrow: "#E8A23D",
     };
   }
   if (progressPercent >= 80) {
     return {
-      gradient: "linear-gradient(120deg,#DDF3E4,#9BD9B4 45%,#4FAE78)",
-      badge: "PRD ready",
+      gradient: "linear-gradient(135deg,#DDF3E4,#9BD9B4 45%,#2FA45C)",
+      badge: "Sẵn sàng",
       badgeColor: "#1F7A45",
-      nextBg: "#F4F3FE",
-      nextText: "#3B34B0",
-      arrow: "#4F46E5",
+      nextBg: "#EAF6EE",
+      nextText: "#1F7A45",
+      arrow: "#2FA45C",
     };
   }
   if (progressPercent >= 40) {
     return {
-      gradient: "linear-gradient(120deg,#C7B8F5,#7C74F0 50%,#4F46E5)",
-      badge: "Brief complete",
-      badgeColor: "#3B4FA8",
+      gradient: "linear-gradient(135deg,#C7B8F5,#7C74F0 50%,#4F46E5)",
+      badge: "Đang phân tích",
+      badgeColor: "#4F46E5",
       nextBg: "#F4F3FE",
       nextText: "#3B34B0",
       arrow: "#4F46E5",
     };
   }
   return {
-    gradient: "linear-gradient(120deg,#E4E1DC,#C9C5BD 50%,#A8A49C)",
-    badge: "Draft",
+    gradient: "linear-gradient(135deg,#E4E1DC,#C9C5BD 50%,#8A867E)",
+    badge: "Bản nháp",
     badgeColor: "#6B6862",
-    nextBg: "#F4F3FE",
-    nextText: "#3B34B0",
+    nextBg: "#F5F3F0",
+    nextText: "#6B6862",
     arrow: "#4F46E5",
   };
 }
@@ -108,15 +109,9 @@ export default function ProjectCard({ project, onRename, onDelete, onHardDelete 
   }, [menuOpen]);
 
   return (
-    <div
-      className="bg-white rounded-[18px] flex flex-col relative hover:shadow-lg transition-shadow group"
-      style={{
-        overflow: "visible",
-        boxShadow: "0 4px 16px rgba(25,24,23,0.05)",
-      }}
-    >
-      {/* 3-dot menu - placed outside Link to prevent navigation on click */}
-      <div ref={menuRef} className="absolute top-3 right-3 z-20">
+    <div className="bg-white rounded-[16px] border border-[#ECEAE5] flex flex-col relative hover:shadow-[0_12px_32px_rgba(25,24,23,0.08)] transition-all group overflow-visible">
+      {/* 3-dot menu */}
+      <div ref={menuRef} className="absolute top-2.5 right-2.5 z-20">
         <button
           type="button"
           onClick={(e) => {
@@ -124,17 +119,13 @@ export default function ProjectCard({ project, onRename, onDelete, onHardDelete 
             e.stopPropagation();
             setMenuOpen((v) => !v);
           }}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-[#6B6862] font-extrabold text-lg hover:bg-gray-50 transition-colors"
-          style={{ boxShadow: "0 4px 12px rgba(25,24,23,0.12)" }}
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm text-[#6B6862] font-bold text-sm hover:bg-white shadow-[0_2px_8px_rgba(25,24,23,0.12)] transition-all cursor-pointer"
         >
           ⋮
         </button>
 
         {menuOpen && (
-          <div
-            className="absolute right-0 top-full mt-1 bg-white rounded-[14px] py-1.5 flex flex-col min-w-[152px] z-30"
-            style={{ boxShadow: "0 8px 28px rgba(25,24,23,0.15)" }}
-          >
+          <div className="absolute right-0 top-full mt-1 bg-white rounded-[12px] border border-[#ECEAE5] py-1.5 flex flex-col min-w-[148px] shadow-[0_12px_28px_rgba(25,24,23,0.14)] z-30">
             <button
               type="button"
               onClick={(e) => {
@@ -142,9 +133,9 @@ export default function ProjectCard({ project, onRename, onDelete, onHardDelete 
                 setMenuOpen(false);
                 onRename(project);
               }}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold text-[#33312D] hover:bg-[#F5F3F0] transition-colors w-full text-left"
+              className="flex items-center gap-2 px-3.5 py-2 text-[12.5px] font-semibold text-[#33312D] hover:bg-[#FAF9F7] transition-colors w-full text-left cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px] text-[#6B6862]">
+              <span className="material-symbols-outlined text-[16px] text-[#6B6862]">
                 edit
               </span>
               Đổi tên
@@ -156,9 +147,9 @@ export default function ProjectCard({ project, onRename, onDelete, onHardDelete 
                 setMenuOpen(false);
                 onDelete(project);
               }}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold text-[#C73E3E] hover:bg-[#FDF0F0] transition-colors w-full text-left"
+              className="flex items-center gap-2 px-3.5 py-2 text-[12.5px] font-semibold text-[#8A4141] hover:bg-[#FDEDED] transition-colors w-full text-left cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px]">archive</span>
+              <span className="material-symbols-outlined text-[16px]">archive</span>
               Lưu trữ
             </button>
             <button
@@ -168,62 +159,47 @@ export default function ProjectCard({ project, onRename, onDelete, onHardDelete 
                 setMenuOpen(false);
                 onHardDelete(project);
               }}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold text-red-600 hover:bg-red-55 transition-colors w-full text-left"
+              className="flex items-center gap-2 px-3.5 py-2 text-[12.5px] font-semibold text-[#B03030] hover:bg-[#FDEDED] transition-colors w-full text-left cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px]">delete</span>
+              <span className="material-symbols-outlined text-[16px]">delete</span>
               Xoá vĩnh viễn
             </button>
           </div>
         )}
       </div>
 
-      <Link href={`/projects/${project._id}`} className="flex flex-col flex-1 rounded-[18px] overflow-hidden">
+      <Link href={`/projects/${project._id}`} className="flex flex-col flex-1 rounded-[16px] overflow-hidden">
         {/* Cover */}
         <div
-          className="h-[104px] relative flex-shrink-0"
+          className="h-[88px] relative shrink-0"
           style={{ background: variant.gradient }}
         >
           {/* Status badge */}
-          <div
-            className="absolute left-4 bg-white rounded-full px-3 py-[5px] text-[11.5px] font-bold whitespace-nowrap"
-            style={{
-              bottom: "-14px",
-              color: variant.badgeColor,
-              boxShadow: "0 4px 12px rgba(25,24,23,0.1)",
-            }}
+          <div className="absolute left-3.5 -bottom-2.5 bg-white border border-[#ECEAE5] rounded-full px-2.5 py-0.5 text-[11px] font-bold shadow-[0_2px_8px_rgba(25,24,23,0.06)] flex items-center gap-1.5"
+            style={{ color: variant.badgeColor }}
           >
-            ● {variant.badge}
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: variant.badgeColor }} />
+            {variant.badge}
           </div>
         </div>
 
         {/* Body */}
-        <div
-          className="flex flex-col gap-[10px] flex-1"
-          style={{ padding: "24px 18px 18px" }}
-        >
-          <div className="text-[11.5px] text-[#8A867E]">
+        <div className="flex flex-col gap-2 flex-1 p-4 pt-5">
+          <div className="text-[11px] text-[#8A867E]">
             {timeAgo(project.updatedAt)} · {project.domain || "general"}
           </div>
 
-          <div
-            className="font-bold text-[#191817] text-[15px] leading-snug"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
+          <div className="font-extrabold text-[#191817] text-[14.5px] leading-snug line-clamp-1">
             {project.name}
           </div>
 
           {/* Next step chip */}
           <div
-            className="flex items-center gap-2 rounded-[10px] px-3 py-[9px] mt-auto"
-            style={{ background: variant.nextBg }}
+            className="flex items-center gap-1.5 rounded-[8px] px-2.5 py-1.5 mt-auto text-[11.5px] font-semibold"
+            style={{ background: variant.nextBg, color: variant.nextText }}
           >
-            <span style={{ color: variant.arrow, fontWeight: 700 }}>→</span>
-            <span
-              className="text-[12px] font-semibold leading-tight"
-              style={{ color: variant.nextText }}
-            >
-              {stepLabel}
-            </span>
+            <span style={{ color: variant.arrow, fontWeight: 800 }}>→</span>
+            <span className="truncate">{stepLabel}</span>
           </div>
         </div>
       </Link>

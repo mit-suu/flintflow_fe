@@ -76,83 +76,86 @@ const MERMAID_TEMPLATES: Record<string, { label: string; description: string; co
   },
   usecase: {
     label: "Use Case Diagram",
-    description: "Sơ đồ chức năng theo từng Actor",
-    code: `graph LR
-    User[Khach hang]
-    Admin[Quan tri vien]
+    description: "Sơ đồ UML chuẩn với Actor hình người",
+    code: `# Use Case Diagram - FlintFlow
+# Format: ACTOR <tên> | USECASE <tên> | LINK <nguồn> -> <đích> [label]
+# Bạn có thể chỉnh sửa tự do, thêm/xóa dòng
 
-    UC1([Dang nhap / Xac thuc])
-    UC2([Tao du an moi])
-    UC3([Sinh so do bang AI])
-    UC4([Chinh sua ma Mermaid])
-    UC5([Xuat tai lieu PRD])
-    UC6([Quan ly nguoi dung])
-    UC7([Xem thong ke chi tieu])
+ACTOR Khach hang
+ACTOR Quan tri vien
 
-    User --- UC1
-    User --- UC2
-    User --- UC3
-    User --- UC4
-    User --- UC5
+USECASE Dang nhap
+USECASE Tao du an moi
+USECASE Sinh so do bang AI
+USECASE Chinh sua Mermaid
+USECASE Xuat tai lieu PRD
+USECASE Quan ly nguoi dung
+USECASE Xem thong ke
 
-    Admin --- UC1
-    Admin --- UC6
-    Admin --- UC7
+LINK Khach hang -> Dang nhap
+LINK Khach hang -> Tao du an moi
+LINK Khach hang -> Sinh so do bang AI
+LINK Khach hang -> Chinh sua Mermaid
+LINK Khach hang -> Xuat tai lieu PRD
 
-    UC3 -.->|include| UC1
-    UC5 -.->|include| UC1
-    UC4 -.->|extend| UC3`,
+LINK Quan tri vien -> Dang nhap
+LINK Quan tri vien -> Quan ly nguoi dung
+LINK Quan tri vien -> Xem thong ke
+
+LINK Sinh so do bang AI -> Dang nhap [include]
+LINK Xuat tai lieu PRD -> Dang nhap [include]
+LINK Chinh sua Mermaid -> Sinh so do bang AI [extend]`,
   },
   erd: {
     label: "ERD (Cơ sở dữ liệu)",
     description: "Sơ đồ thực thể quan hệ & cấu trúc bảng",
-    code: `erDiagram
-    USERS ||--o{ PROJECTS : owns
-    USERS ||--o{ TRANSACTIONS : makes
-    PROJECTS ||--|{ SECTIONS : contains
-    PROJECTS ||--o{ DIAGRAMS : has
-
-    USERS {
-        string id PK
-        string email
-        string passwordHash
-        int balance
-        string role
-        datetime createdAt
+    code: `classDiagram
+    class USERS {
+        +string id PK
+        +string email UK
+        +string passwordHash
+        +int balance
+        +string role
+        +datetime createdAt
     }
 
-    PROJECTS {
-        string id PK
-        string userId FK
-        string name
-        string domain
-        string status
-        datetime updatedAt
+    class PROJECTS {
+        +string id PK
+        +string userId FK
+        +string name
+        +string domain
+        +string status
+        +datetime updatedAt
     }
 
-    SECTIONS {
-        string id PK
-        string projectId FK
-        string type
-        string content
-        string status
+    class SECTIONS {
+        +string id PK
+        +string projectId FK
+        +string type
+        +string content
+        +string status
     }
 
-    DIAGRAMS {
-        string id PK
-        string projectId FK
-        string title
-        string diagramType
-        json rawData
+    class DIAGRAMS {
+        +string id PK
+        +string projectId FK
+        +string title
+        +string diagramType
+        +json rawData
     }
 
-    TRANSACTIONS {
-        string id PK
-        string userId FK
-        int amount
-        string actionType
-        datetime createdAt
-    }`,
+    class TRANSACTIONS {
+        +string id PK
+        +string userId FK
+        +int amount
+        +string actionType
+        +datetime createdAt
+    }
+
+    USERS "1" --> "*" PROJECTS : owns
+    USERS "1" --> "*" TRANSACTIONS : makes
+    PROJECTS "1" --> "*" SECTIONS : contains
+    PROJECTS "1" --> "*" DIAGRAMS : has`,
   },
 };
 
@@ -269,6 +272,333 @@ export default function DrawTestPage() {
     });
   };
 
+  // ── Use Case Diagram builder: generates native Excalidraw elements ──
+  // Parses a simple DSL: ACTOR <name>, USECASE <name>, LINK <src> -> <dst> [label]
+  const isUseCaseDSL = (code: string) => {
+    const lines = code.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
+    return lines.some(l => l.startsWith("ACTOR ")) && lines.some(l => l.startsWith("USECASE "));
+  };
+
+  const buildUseCaseDiagram = (code: string) => {
+    const lines = code.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
+    const actors: string[] = [];
+    const usecases: string[] = [];
+    const links: { src: string; dst: string; label?: string }[] = [];
+
+    for (const line of lines) {
+      if (line.startsWith("ACTOR ")) {
+        actors.push(line.slice(6).trim());
+      } else if (line.startsWith("USECASE ")) {
+        usecases.push(line.slice(8).trim());
+      } else if (line.startsWith("LINK ")) {
+        const rest = line.slice(5);
+        const bracketMatch = rest.match(/\[(.+?)\]\s*$/);
+        const label = bracketMatch ? bracketMatch[1] : undefined;
+        const cleanedRest = bracketMatch ? rest.slice(0, bracketMatch.index).trim() : rest.trim();
+        const parts = cleanedRest.split("->").map(s => s.trim());
+        if (parts.length === 2) {
+          links.push({ src: parts[0], dst: parts[1], label });
+        }
+      }
+    }
+
+    // ── 1. Classify Use Cases into Column 1 (Base) and Column 2 (Extensions) ──
+    const includeTargets = new Set<string>();
+    const extensionSources = new Set<string>();
+
+    for (const link of links) {
+      if (link.label) {
+        extensionSources.add(link.src);
+        includeTargets.add(link.dst);
+      }
+    }
+
+    const col1List: string[] = [];
+    const col2List: string[] = [];
+
+    for (const uc of usecases) {
+      if (extensionSources.has(uc) && !includeTargets.has(uc)) {
+        col2List.push(uc);
+      } else if (includeTargets.has(uc)) {
+        col1List.push(uc);
+      } else {
+        // Distribute remaining evenly
+        if (col1List.length <= col2List.length) {
+          col1List.push(uc);
+        } else {
+          col2List.push(uc);
+        }
+      }
+    }
+
+    // Ensure at least 1 column has elements
+    if (col1List.length === 0 && col2List.length > 0) {
+      col1List.push(...col2List.splice(0, Math.ceil(col2List.length / 2)));
+    }
+
+    const elements: any[] = [];
+    let idCounter = 1;
+    const nextId = () => `uc-el-${idCounter++}`;
+    const seed = () => Math.floor(Math.random() * 100000);
+
+    // Layout constants
+    const ucWidth = 200;
+    const ucHeight = 52;
+    const ucSpacingY = 40;
+    const actorX = 90;
+    const col1X = 310;
+    const col2X = col2List.length > 0 ? 590 : col1X;
+    const systemPadding = 30;
+    const startY = 70;
+
+    const maxRows = Math.max(col1List.length, col2List.length, 1);
+    const totalUcHeight = maxRows * ucHeight + (maxRows - 1) * ucSpacingY;
+    const actorSpacingY = Math.max(160, totalUcHeight / Math.max(actors.length, 1));
+
+    // Position tracking
+    const actorPositions: Record<string, { x: number; y: number }> = {};
+    const ucPositions: Record<string, { x: number; y: number; col: number }> = {};
+
+    const baseStyle = {
+      roughness: 0,
+      opacity: 100,
+      strokeWidth: 1.5,
+      strokeStyle: "solid" as const,
+      strokeColor: "#1e1e1e",
+      fillStyle: "solid" as const,
+    };
+
+    // Pre-calculate positions
+    const actorTotalHeight = (actors.length - 1) * actorSpacingY;
+    const actorStartY = startY + Math.max(0, (totalUcHeight - actorTotalHeight) / 2) + 20;
+
+    actors.forEach((actorName, i) => {
+      actorPositions[actorName] = { x: actorX, y: actorStartY + i * actorSpacingY };
+    });
+
+    col1List.forEach((ucText, idx) => {
+      const x = col1X;
+      const y = startY + idx * (ucHeight + ucSpacingY);
+      ucPositions[ucText] = { x: x + ucWidth / 2, y: y + ucHeight / 2, col: 1 };
+    });
+
+    col2List.forEach((ucText, idx) => {
+      const x = col2X;
+      const y = startY + idx * (ucHeight + ucSpacingY);
+      ucPositions[ucText] = { x: x + ucWidth / 2, y: y + ucHeight / 2, col: 2 };
+    });
+
+    // ── Draw System Boundary ──
+    const boundaryX = col1X - systemPadding;
+    const boundaryY = startY - systemPadding - 25;
+    const boundaryW = (col2List.length > 0 ? (col2X - col1X + ucWidth) : ucWidth) + systemPadding * 2;
+    const boundaryH = totalUcHeight + systemPadding * 2 + 35;
+
+    elements.push({
+      id: nextId(), type: "rectangle",
+      x: boundaryX, y: boundaryY, width: boundaryW, height: boundaryH,
+      ...baseStyle,
+      strokeColor: "#9CA3AF", backgroundColor: "#F9FAFB",
+      fillStyle: "solid", strokeStyle: "dashed", strokeWidth: 1.5,
+      roundness: { type: 3 }, seed: seed(),
+    });
+
+    elements.push({
+      id: nextId(), type: "text",
+      x: boundaryX + 16, y: boundaryY + 10,
+      width: boundaryW - 32, height: 20,
+      text: "System: FlintFlow Core Platform",
+      fontSize: 13, fontFamily: 2, textAlign: "left", verticalAlign: "top",
+      ...baseStyle, strokeColor: "#6B7280", backgroundColor: "transparent",
+      lineHeight: 1.25, originalText: "System: FlintFlow Core Platform",
+      seed: seed(),
+    });
+
+    // ── Draw Column 1 Use Cases (Base - Amber) ──
+    col1List.forEach((ucText) => {
+      const pos = ucPositions[ucText];
+      const x = pos.x - ucWidth / 2;
+      const y = pos.y - ucHeight / 2;
+
+      elements.push({
+        id: nextId(), type: "ellipse",
+        x, y, width: ucWidth, height: ucHeight,
+        ...baseStyle,
+        backgroundColor: "#FEF3C7", strokeColor: "#D97706",
+        roundness: { type: 2 }, seed: seed(),
+      });
+
+      const textWidth = Math.min(ucWidth - 20, ucText.length * 8.5);
+      elements.push({
+        id: nextId(), type: "text",
+        x: x + (ucWidth - textWidth) / 2, y: y + (ucHeight - 16) / 2,
+        width: textWidth, height: 16, text: ucText,
+        fontSize: 13, fontFamily: 2, textAlign: "center", verticalAlign: "middle",
+        ...baseStyle, strokeColor: "#92400E", backgroundColor: "transparent",
+        lineHeight: 1.25, originalText: ucText, seed: seed(),
+      });
+    });
+
+    // ── Draw Column 2 Use Cases (Extension - Purple) ──
+    col2List.forEach((ucText) => {
+      const pos = ucPositions[ucText];
+      const x = pos.x - ucWidth / 2;
+      const y = pos.y - ucHeight / 2;
+
+      elements.push({
+        id: nextId(), type: "ellipse",
+        x, y, width: ucWidth, height: ucHeight,
+        ...baseStyle,
+        backgroundColor: "#EDE9FE", strokeColor: "#7C3AED",
+        roundness: { type: 2 }, seed: seed(),
+      });
+
+      const textWidth = Math.min(ucWidth - 20, ucText.length * 8.5);
+      elements.push({
+        id: nextId(), type: "text",
+        x: x + (ucWidth - textWidth) / 2, y: y + (ucHeight - 16) / 2,
+        width: textWidth, height: 16, text: ucText,
+        fontSize: 13, fontFamily: 2, textAlign: "center", verticalAlign: "middle",
+        ...baseStyle, strokeColor: "#5B21B6", backgroundColor: "transparent",
+        lineHeight: 1.25, originalText: ucText, seed: seed(),
+      });
+    });
+
+    // ── Draw Actors (Stick Figures) ──
+    actors.forEach((actorName) => {
+      const cx = actorPositions[actorName].x;
+      const cy = actorPositions[actorName].y;
+
+      const headR = 14;
+      const bodyLen = 32;
+      const armLen = 22;
+      const legLen = 26;
+      const headCy = cy - 20;
+      const neckY = headCy + headR;
+      const bodyEndY = neckY + bodyLen;
+
+      // Head
+      elements.push({
+        id: nextId(), type: "ellipse",
+        x: cx - headR, y: headCy - headR, width: headR * 2, height: headR * 2,
+        ...baseStyle, strokeColor: "#374151", backgroundColor: "#E0E7FF",
+        roundness: { type: 2 }, seed: seed(),
+      });
+      // Body
+      elements.push({
+        id: nextId(), type: "line",
+        x: cx, y: neckY, width: 0, height: bodyLen,
+        ...baseStyle, strokeColor: "#374151", backgroundColor: "transparent",
+        points: [[0, 0], [0, bodyLen]], seed: seed(),
+      });
+      // Arms
+      elements.push({
+        id: nextId(), type: "line",
+        x: cx - armLen, y: neckY + 10, width: armLen * 2, height: 0,
+        ...baseStyle, strokeColor: "#374151", backgroundColor: "transparent",
+        points: [[0, 0], [armLen * 2, 0]], seed: seed(),
+      });
+      // Left leg
+      elements.push({
+        id: nextId(), type: "line",
+        x: cx, y: bodyEndY, width: -armLen * 0.7, height: legLen,
+        ...baseStyle, strokeColor: "#374151", backgroundColor: "transparent",
+        points: [[0, 0], [-armLen * 0.7, legLen]], seed: seed(),
+      });
+      // Right leg
+      elements.push({
+        id: nextId(), type: "line",
+        x: cx, y: bodyEndY, width: armLen * 0.7, height: legLen,
+        ...baseStyle, strokeColor: "#374151", backgroundColor: "transparent",
+        points: [[0, 0], [armLen * 0.7, legLen]], seed: seed(),
+      });
+      // Label
+      const labelWidth = Math.max(80, actorName.length * 9);
+      elements.push({
+        id: nextId(), type: "text",
+        x: cx - labelWidth / 2, y: bodyEndY + legLen + 8,
+        width: labelWidth, height: 18, text: actorName,
+        fontSize: 13, fontFamily: 2, textAlign: "center", verticalAlign: "top",
+        ...baseStyle, strokeColor: "#111827", backgroundColor: "transparent",
+        lineHeight: 1.25, originalText: actorName, seed: seed(),
+      });
+    });
+
+    // ── Draw Connection Lines ──
+    for (const link of links) {
+      const isActorSrc = !!actorPositions[link.src];
+      const isActorDst = !!actorPositions[link.dst];
+      const isUcToUc = !isActorSrc && !isActorDst;
+
+      let srcPt: { x: number; y: number };
+      let dstPt: { x: number; y: number };
+
+      if (isActorSrc && ucPositions[link.dst]) {
+        const actor = actorPositions[link.src];
+        const uc = ucPositions[link.dst];
+        srcPt = { x: actor.x + 30, y: actor.y + 10 };
+        dstPt = { x: uc.x - ucWidth / 2, y: uc.y };
+      } else if (isActorDst && ucPositions[link.src]) {
+        const uc = ucPositions[link.src];
+        const actor = actorPositions[link.dst];
+        srcPt = { x: uc.x - ucWidth / 2, y: uc.y };
+        dstPt = { x: actor.x + 30, y: actor.y + 10 };
+      } else if (ucPositions[link.src] && ucPositions[link.dst]) {
+        const ucSrc = ucPositions[link.src];
+        const ucDst = ucPositions[link.dst];
+        if (ucSrc.col === 2 && ucDst.col === 1) {
+          srcPt = { x: ucSrc.x - ucWidth / 2, y: ucSrc.y };
+          dstPt = { x: ucDst.x + ucWidth / 2, y: ucDst.y };
+        } else if (ucSrc.col === 1 && ucDst.col === 2) {
+          srcPt = { x: ucSrc.x + ucWidth / 2, y: ucSrc.y };
+          dstPt = { x: ucDst.x - ucWidth / 2, y: ucDst.y };
+        } else {
+          const isSrcHigher = ucSrc.y < ucDst.y;
+          srcPt = { x: ucSrc.x, y: isSrcHigher ? ucSrc.y + ucHeight / 2 : ucSrc.y - ucHeight / 2 };
+          dstPt = { x: ucDst.x, y: isSrcHigher ? ucDst.y - ucHeight / 2 : ucDst.y + ucHeight / 2 };
+        }
+      } else {
+        continue;
+      }
+
+      const dx = dstPt.x - srcPt.x;
+      const dy = dstPt.y - srcPt.y;
+
+      // Use "line" for Actor↔UC (no arrowhead, no binding issues)
+      // Use "line" for UC↔UC too (dashed style)
+      elements.push({
+        id: nextId(), type: "line",
+        x: srcPt.x, y: srcPt.y,
+        width: Math.abs(dx), height: Math.abs(dy),
+        ...baseStyle,
+        strokeColor: isUcToUc ? "#7C3AED" : "#4B5563",
+        strokeStyle: isUcToUc ? "dashed" : "solid",
+        strokeWidth: 1.5,
+        backgroundColor: "transparent",
+        points: [[0, 0], [dx, dy]],
+        seed: seed(),
+      });
+
+      // <<include>> / <<extend>> label
+      if (link.label) {
+        const lx = srcPt.x + dx * 0.5;
+        const ly = srcPt.y + dy * 0.5 - 10;
+        const labelStr = `<<${link.label}>>`;
+        const lw = labelStr.length * 7 + 10;
+        elements.push({
+          id: nextId(), type: "text",
+          x: lx - lw / 2, y: ly - 7,
+          width: lw, height: 16, text: labelStr,
+          fontSize: 11, fontFamily: 2, textAlign: "center", verticalAlign: "middle",
+          ...baseStyle, strokeColor: "#7C3AED", backgroundColor: "transparent",
+          lineHeight: 1.25, originalText: labelStr, seed: seed(),
+        });
+      }
+    }
+
+    return elements;
+  };
+
   // Helper function to compile and draw Mermaid code onto Excalidraw canvas
   const drawMermaidToCanvas = async (code: string) => {
     const { elements, files } = await parseMermaidToExcalidraw(code, {
@@ -297,7 +627,7 @@ export default function DrawTestPage() {
     }
   };
 
-  // Action: Compile Mermaid manually
+  // Action: Compile Mermaid (or Use Case DSL) manually
   const handleImportMermaid = async () => {
     if (!mermaidCode.trim()) {
       setMermaidError("Vui lòng nhập mã nguồn Mermaid.");
@@ -307,13 +637,30 @@ export default function DrawTestPage() {
     setMermaidError("");
     setMermaidSuccessMsg("");
     try {
-      await drawMermaidToCanvas(mermaidCode);
+      // Detect Use Case DSL format and render natively
+      if (isUseCaseDSL(mermaidCode)) {
+        const ucElements = buildUseCaseDiagram(mermaidCode);
+        const { convertToExcalidrawElements } = await import("@excalidraw/excalidraw");
+        const rawElements = convertToExcalidrawElements(ucElements);
+        const excalidrawElements = formatElementsToStyle(rawElements, "clean");
+
+        if (excalidrawRef.current) {
+          excalidrawRef.current.updateScene({
+            elements: excalidrawElements,
+            commitToHistory: true,
+          });
+          excalidrawRef.current.scrollToContent(excalidrawElements, { fitToContent: true });
+          setElementCount(excalidrawElements.length);
+        }
+      } else {
+        await drawMermaidToCanvas(mermaidCode);
+      }
       setMermaidSuccessMsg("Đã vẽ sơ đồ lên Canvas thành công!");
-      setCanvasStatus("Đã biên dịch Mermaid lên Canvas");
+      setCanvasStatus("Đã biên dịch lên Canvas");
       setTimeout(() => setMermaidSuccessMsg(""), 4000);
     } catch (err: any) {
-      console.error("Lỗi biên dịch Mermaid:", err);
-      setMermaidError(err.message || "Cú pháp Mermaid không hợp lệ. Vui lòng kiểm tra lại.");
+      console.error("Lỗi biên dịch:", err);
+      setMermaidError(err.message || "Cú pháp không hợp lệ. Vui lòng kiểm tra lại.");
     } finally {
       setMermaidCompiling(false);
     }
