@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, type ChangeEvent } from "react";
+import { useRef, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   WorkspacePhase,
   DiscoveryStepNumber,
@@ -9,6 +9,7 @@ import {
   SECTION_TYPE_LABELS,
   SectionType,
   WORKSPACE_PHASES,
+  DiscoveryEvaluation,
 } from "../../../../lib/constants/section-types";
 import { ChatSession } from "./ChatSessionSidebar";
 import { SectionItem } from "./PhaseNavBar";
@@ -17,6 +18,7 @@ import ChatInput from "./ChatInput";
 import DraftReviewCard from "./DraftReviewCard";
 import SummaryReviewCard from "./SummaryReviewCard";
 import GeneratingIndicator from "./GeneratingIndicator";
+import StepTransitionBanner from "./StepTransitionBanner";
 
 interface ChatPaneProps {
   session: ChatSession | null;
@@ -40,6 +42,7 @@ interface ChatPaneProps {
   approvingBaseline?: boolean;
   acceptingType?: SectionType | null;
   regeneratingType?: SectionType | null;
+  onAdvanceStep?: (nextStep: number) => void;
 }
 
 export default function ChatPane({
@@ -64,8 +67,10 @@ export default function ChatPane({
   approvingBaseline = false,
   acceptingType,
   regeneratingType,
+  onAdvanceStep,
 }: ChatPaneProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -75,6 +80,49 @@ export default function ChatPane({
   const messages = session?.messages || [];
   const currentPhaseSections = PHASE_SECTION_MAP[workspacePhase] || [];
   const phaseInfo = WORKSPACE_PHASES.find((p) => p.id === workspacePhase);
+
+  // Parse evaluation từ AI message gần nhất CHO STEP HIỆN TẠI
+  const lastEvaluation = useMemo((): DiscoveryEvaluation | null => {
+    const aiMessages = messages.filter((m) => m.role === "ai");
+    for (let i = aiMessages.length - 1; i >= 0; i--) {
+      try {
+        const parsed = JSON.parse(aiMessages[i].content);
+        if (parsed.evaluation) {
+          const eval_ = parsed.evaluation as DiscoveryEvaluation;
+          // Chỉ lấy evaluation của step hiện tại (hoặc isDiscoveryComplete)
+          if (eval_.currentStep === discoveryStep || eval_.isDiscoveryComplete) {
+            return eval_;
+          }
+        }
+      } catch (_) {}
+    }
+    return null;
+  }, [messages, discoveryStep]);
+
+  // Reset banner dismiss khi step thay đổi hoặc có evaluation mới
+  const prevStepRef = useRef(discoveryStep);
+  useEffect(() => {
+    if (prevStepRef.current !== discoveryStep) {
+      prevStepRef.current = discoveryStep;
+      setBannerDismissed(false);
+    }
+  }, [discoveryStep]);
+
+  // Set completedSteps cho DiscoveryStepBar
+  const completedSteps = useMemo((): Set<number> => {
+    const completed = new Set<number>();
+    for (const msg of messages) {
+      if (msg.role === "ai") {
+        try {
+          const parsed = JSON.parse(msg.content);
+          if (parsed.evaluation?.isStepComplete && parsed.evaluation?.currentStep) {
+            completed.add(parsed.evaluation.currentStep);
+          }
+        } catch (_) {}
+      }
+    }
+    return completed;
+  }, [messages]);
 
   // Find generated sections in current phase that are waiting for review
   const phaseGeneratedSections = sections.filter(
@@ -172,8 +220,24 @@ export default function ChatPane({
           />
         ))}
 
-        {/* Discovery Summary Card when enough info or near step 6 */}
-        {workspacePhase === "discovery" && messages.length >= 3 && (
+        {/* Step Transition Banner — AI xác nhận step hiện tại đủ thông tin */}
+        {workspacePhase === "discovery" &&
+          lastEvaluation?.isStepComplete &&
+          !lastEvaluation?.isDiscoveryComplete &&
+          !bannerDismissed && (
+            <StepTransitionBanner
+              currentStep={discoveryStep}
+              stepSummary={lastEvaluation.stepSummary}
+              onContinue={() => {
+                setBannerDismissed(true);
+                onAdvanceStep?.(discoveryStep + 1);
+              }}
+              onStayHere={() => setBannerDismissed(true)}
+            />
+          )}
+
+        {/* Discovery Summary Card — AI xác nhận tất cả 6 steps đủ thông tin */}
+        {workspacePhase === "discovery" && lastEvaluation?.isDiscoveryComplete && (
           <SummaryReviewCard
             status="pending"
             onEdit={() => {

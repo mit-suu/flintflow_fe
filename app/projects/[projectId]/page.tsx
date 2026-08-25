@@ -20,6 +20,7 @@ import PhaseNavBar, { SectionItem } from "./_components/PhaseNavBar";
 import DiscoveryStepBar from "./_components/DiscoveryStepBar";
 import ChatSessionSidebar, {
   ChatSession,
+  ChatMessage,
 } from "./_components/ChatSessionSidebar";
 import ChatPane from "./_components/ChatPane";
 import DocumentPane from "./_components/DocumentPane";
@@ -201,6 +202,23 @@ export default function WorkspacePage() {
     setSending(true);
     if (!customContent) setInputMessage("");
 
+    const contentToPost = msgToSend.trim() || "[Đính kèm tài liệu]";
+
+    // Optimistic update: hiển thị user message ngay lập tức
+    const optimisticMsg: ChatMessage = {
+      role: "user",
+      content: contentToPost,
+      step: workspacePhase === "discovery"
+        ? DISCOVERY_STEPS[discoveryStep - 1]?.chatStepName || "vision_problem"
+        : "vision_problem",
+      createdAt: new Date().toISOString(),
+    };
+    setActiveSession((prev) =>
+      prev
+        ? { ...prev, messages: [...prev.messages, optimisticMsg] }
+        : prev
+    );
+
     try {
       // 1. Upload pending attachments if any
       if (pendingAttachments.length > 0) {
@@ -222,8 +240,6 @@ export default function WorkspacePage() {
           ? DISCOVERY_STEPS[discoveryStep - 1]?.chatStepName || "vision_problem"
           : "vision_problem";
 
-      const contentToPost = msgToSend.trim() || "[Đính kèm tài liệu]";
-
       const res = await apiCall<ChatSession>(
         `/projects/${projectId}/chats/${activeSession._id}/messages`,
         {
@@ -231,16 +247,24 @@ export default function WorkspacePage() {
           body: JSON.stringify({
             content: contentToPost,
             step: currentChatStep,
+            discoveryStep: workspacePhase === "discovery" ? discoveryStep : undefined,
           }),
         }
       );
 
       if (res.data) {
+        // Server response chứa đầy đủ messages (user + AI), thay thế optimistic state
         setActiveSession(res.data);
         const userRes = await apiCall<UserData>("/users/me");
         if (userRes.data) setUser(userRes.data);
       }
     } catch (err: unknown) {
+      // Rollback optimistic update nếu lỗi
+      setActiveSession((prev) =>
+        prev
+          ? { ...prev, messages: prev.messages.filter((m) => m !== optimisticMsg) }
+          : prev
+      );
       alert(getErrorMessage(err, "Không thể gửi tin nhắn"));
     } finally {
       setSending(false);
@@ -406,9 +430,23 @@ export default function WorkspacePage() {
     }
   };
 
-  // Approve Discovery Summary and advance to Product Overview
-  const handleApproveSummary = () => {
-    setWorkspacePhase("product_overview");
+  // Approve Discovery Summary and advance to Product Overview (persist to DB)
+  const handleApproveSummary = async () => {
+    try {
+      await apiCall(`/specifications/projects/${projectId}/advance-to-generation`, {
+        method: "POST",
+      });
+      setWorkspacePhase("product_overview");
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, "Không thể chuyển sang giai đoạn sinh đặc tả"));
+    }
+  };
+
+  // Advance discovery step khi AI gợi ý step hiện tại đã đủ thông tin
+  const handleAdvanceStep = (nextStep: number) => {
+    if (nextStep >= 1 && nextStep <= 6) {
+      setDiscoveryStep(nextStep as DiscoveryStepNumber);
+    }
   };
 
   // Approve SRS Baseline v1.0 (UC 6.14)
@@ -521,6 +559,7 @@ export default function WorkspacePage() {
           approvingBaseline={approvingBaseline}
           acceptingType={acceptingType}
           regeneratingType={regeneratingType}
+          onAdvanceStep={handleAdvanceStep}
         />
 
         {/* Pane 2 (Center): Live 5-Chapter SRS Document Tree */}
