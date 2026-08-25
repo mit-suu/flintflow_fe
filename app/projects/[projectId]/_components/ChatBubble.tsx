@@ -1,21 +1,24 @@
 "use client";
 
 import { ChatMessage } from "./ChatSessionSidebar";
+import { DiscoveryEvaluation } from "../../../../lib/constants/section-types";
 
 interface ChatBubbleProps {
   message: ChatMessage;
   onSuggestedQuestionClick?: (question: string) => void;
+  onEvaluationReceived?: (evaluation: DiscoveryEvaluation) => void;
 }
 
 export default function ChatBubble({
   message,
   onSuggestedQuestionClick,
+  onEvaluationReceived: _onEvaluationReceived,
 }: ChatBubbleProps) {
   const isUser = message.role === "user";
 
   const parseAiMessage = (
     content: string
-  ): { reply: string; suggestedQuestions?: string[] } => {
+  ): { reply: string; suggestedQuestions?: string[]; evaluation?: DiscoveryEvaluation } => {
     if (content.startsWith("{") && content.endsWith("}")) {
       try {
         return JSON.parse(content);
@@ -90,6 +93,28 @@ export default function ChatBubble({
           <div className="text-[#191817] space-y-1.5">
             {renderMarkdown(parsed.reply)}
           </div>
+
+      {/* Completeness Indicator for Discovery mode */}
+          {parsed.evaluation && (
+            <div className="flex items-center gap-1.5 pt-2 border-t border-[#F0EEEA]">
+              <div className="flex-1 h-1 bg-[#F0EEEA] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${parsed.evaluation.stepCompleteness}%`,
+                    background: parsed.evaluation.stepCompleteness >= 80
+                      ? "#22C55E"
+                      : parsed.evaluation.stepCompleteness >= 50
+                      ? "#F59E0B"
+                      : "#4F46E5"
+                  }}
+                />
+              </div>
+              <span className="text-[10px] font-bold text-[#8A867E] shrink-0">
+                {parsed.evaluation.stepCompleteness}%
+              </span>
+            </div>
+          )}
 
           {/* Suggested Reply Questions */}
           {parsed.suggestedQuestions &&
