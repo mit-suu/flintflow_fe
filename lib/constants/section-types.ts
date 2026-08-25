@@ -474,3 +474,18 @@ export const DISCOVERY_STEPS: DiscoveryStepInfo[] = [
   }
 ];
 
+// ─── Discovery Evaluation (from AI Chat response) ──────────────────────────
+
+export interface DiscoveryEvaluation {
+  currentStep: number;
+  stepCompleteness: number;
+  isStepComplete: boolean;
+  isDiscoveryComplete: boolean;
+  recommendedAction:
+    | "ask_clarification"
+    | "propose_next_step"
+    | "show_summary"
+    | "continue_discussion";
+  stepSummary?: string;
+  missingInfo?: string[];
+}
