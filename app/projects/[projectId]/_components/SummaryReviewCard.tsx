@@ -5,6 +5,7 @@ interface SummaryData {
   users?: string;
   solution?: string;
   scope?: string;
+  metrics?: string;
   risks?: string;
 }
 
@@ -49,26 +50,32 @@ export default function SummaryReviewCard({
       <div className="flex flex-col gap-2 text-[12.5px] text-[#4B4842] leading-relaxed bg-[#FAF9F7] p-3.5 rounded-[12px] border border-[#ECEAE5]">
         {summary?.problem && (
           <div>
-            🎯 <strong className="text-[#191817]">Vấn đề:</strong>{" "}
+            🎯 <strong className="text-[#191817]">Vấn đề & Tầm nhìn:</strong>{" "}
             {summary.problem}
           </div>
         )}
         {summary?.users && (
           <div>
-            👥 <strong className="text-[#191817]">Người dùng:</strong>{" "}
+            👥 <strong className="text-[#191817]">Người dùng mục tiêu:</strong>{" "}
             {summary.users}
           </div>
         )}
         {summary?.solution && (
           <div>
-            💡 <strong className="text-[#191817]">Giải pháp:</strong>{" "}
+            💡 <strong className="text-[#191817]">Giá trị cốt lõi:</strong>{" "}
             {summary.solution}
           </div>
         )}
         {summary?.scope && (
           <div>
-            📦 <strong className="text-[#191817]">MVP scope:</strong>{" "}
+            📦 <strong className="text-[#191817]">Phạm vi MVP:</strong>{" "}
             {summary.scope}
+          </div>
+        )}
+        {summary?.metrics && (
+          <div>
+            📊 <strong className="text-[#191817]">Tiêu chí thành công:</strong>{" "}
+            {summary.metrics}
           </div>
         )}
         {summary?.risks && (

@@ -124,6 +124,32 @@ export default function ChatPane({
     return completed;
   }, [messages]);
 
+  // Gom stepSummary từ tất cả evaluation hoàn thành → SummaryReviewCard
+  const discoverySummaryData = useMemo(() => {
+    // Map: step number → latest stepSummary (khi isStepComplete = true)
+    const stepSummaries = new Map<number, string>();
+    for (const msg of messages) {
+      if (msg.role === "ai") {
+        try {
+          const parsed = JSON.parse(msg.content);
+          const ev = parsed.evaluation;
+          if (ev?.isStepComplete && ev?.currentStep && ev?.stepSummary) {
+            stepSummaries.set(ev.currentStep, ev.stepSummary);
+          }
+        } catch (_) {}
+      }
+    }
+    if (stepSummaries.size === 0) return undefined;
+    return {
+      problem: stepSummaries.get(1),   // Step 1: Vision & Problem
+      users: stepSummaries.get(2),     // Step 2: Target Users
+      solution: stepSummaries.get(3),  // Step 3: Value Proposition
+      scope: stepSummaries.get(4),     // Step 4: MVP Scope
+      metrics: stepSummaries.get(5),   // Step 5: Success Metrics
+      risks: stepSummaries.get(6),     // Step 6: Risks & Assumptions
+    };
+  }, [messages]);
+
   // Find generated sections in current phase that are waiting for review
   const phaseGeneratedSections = sections.filter(
     (s) =>
@@ -239,6 +265,7 @@ export default function ChatPane({
         {/* Discovery Summary Card — AI xác nhận tất cả 6 steps đủ thông tin */}
         {workspacePhase === "discovery" && lastEvaluation?.isDiscoveryComplete && (
           <SummaryReviewCard
+            summary={discoverySummaryData}
             status="pending"
             onEdit={() => {
               setInputMessage("Tôi muốn chỉnh sửa thông tin khảo sát...");
