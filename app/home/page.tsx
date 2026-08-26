@@ -19,8 +19,8 @@ export default function HomePage() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showHardDeleteConfirm, setShowHardDeleteConfirm] = useState(false);
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [targetProject, setTargetProject] = useState<Project | null>(null);
 
   const [createName, setCreateName] = useState("");
@@ -95,33 +95,33 @@ export default function HomePage() {
     }
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeactivateConfirm = async () => {
     if (!targetProject) return;
     setSubmitting(true);
     setError(null);
     try {
-      await apiCall(`/projects/${targetProject._id}`, { method: "DELETE" });
-      setShowDeleteConfirm(false);
+      await apiCall(`/projects/${targetProject._id}?status=inactive`, { method: "DELETE" });
+      setShowDeactivateConfirm(false);
       setTargetProject(null);
       await fetchProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể lưu trữ dự án");
+      setError(err instanceof Error ? err.message : "Không thể chuyển dự án sang inactive");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleHardDeleteConfirm = async () => {
+  const handleArchiveConfirm = async () => {
     if (!targetProject) return;
     setSubmitting(true);
     setError(null);
     try {
-      await apiCall(`/projects/${targetProject._id}?hard=true`, { method: "DELETE" });
-      setShowHardDeleteConfirm(false);
+      await apiCall(`/projects/${targetProject._id}?status=archived`, { method: "DELETE" });
+      setShowArchiveConfirm(false);
       setTargetProject(null);
       await fetchProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể xoá vĩnh viễn dự án");
+      setError(err instanceof Error ? err.message : "Không thể lưu trữ dự án");
     } finally {
       setSubmitting(false);
     }
@@ -133,9 +133,14 @@ export default function HomePage() {
     setShowRenameModal(true);
   };
 
-  const openDelete = (p: Project) => {
+  const openDeactivate = (p: Project) => {
     setTargetProject(p);
-    setShowDeleteConfirm(true);
+    setShowDeactivateConfirm(true);
+  };
+
+  const openArchive = (p: Project) => {
+    setTargetProject(p);
+    setShowArchiveConfirm(true);
   };
 
   return (
@@ -271,11 +276,8 @@ export default function HomePage() {
                   key={p._id}
                   project={p}
                   onRename={openRename}
-                  onDelete={openDelete}
-                  onHardDelete={(project) => {
-                    setTargetProject(project);
-                    setShowHardDeleteConfirm(true);
-                  }}
+                  onDelete={openDeactivate}
+                  onArchive={openArchive}
                 />
               ))}
             </div>
@@ -325,26 +327,26 @@ export default function HomePage() {
         </form>
       </Modal>
 
-      {/* Delete Modal */}
+      {/* Deactivate Modal */}
       <Modal
-        open={showDeleteConfirm}
+        open={showDeactivateConfirm}
         onClose={() => {
           if (!submitting) {
-            setShowDeleteConfirm(false);
+            setShowDeactivateConfirm(false);
             setTargetProject(null);
           }
         }}
-        title="Lưu trữ dự án"
+        title="Xoá dự án"
       >
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-[12px] p-4">
             <span className="material-symbols-outlined text-red-500 text-[20px] mt-0.5 flex-shrink-0">warning</span>
             <div>
               <p className="text-[14px] font-[600] text-[#191817]">
-                Lưu trữ &ldquo;{targetProject?.name}&rdquo;?
+                Bạn có muốn xoá dự án &ldquo;{targetProject?.name}&rdquo;?
               </p>
               <p className="text-[13px] text-[#6B6862] mt-1 leading-[1.55]">
-                Project sẽ bị ẩn khỏi dashboard. Bạn có thể khôi phục từ mục Deleted bất cứ lúc nào.
+                Dự án sẽ bị xoá vĩnh viễn.  
               </p>
             </div>
           </div>
@@ -353,7 +355,7 @@ export default function HomePage() {
               type="button"
               disabled={submitting}
               onClick={() => {
-                setShowDeleteConfirm(false);
+                setShowDeactivateConfirm(false);
                 setTargetProject(null);
               }}
               className="rounded-full border-[1.5px] border-[#E4E1DC] bg-white text-[13.5px] font-[600] text-[#4B4842] hover:bg-[#F5F3F0] transition-colors disabled:opacity-50"
@@ -364,7 +366,7 @@ export default function HomePage() {
             <button
               type="button"
               disabled={submitting}
-              onClick={handleDeleteConfirm}
+              onClick={handleDeactivateConfirm}
               className="rounded-full bg-[#C73E3E] text-white text-[13.5px] font-[700] hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
               style={{ padding: "10px 20px" }}
             >
@@ -373,32 +375,32 @@ export default function HomePage() {
                   progress_activity
                 </span>
               )}
-              Lưu trữ
+              Xoá dự án
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Permanent Delete Modal */}
+      {/* Archive Modal */}
       <Modal
-        open={showHardDeleteConfirm}
+        open={showArchiveConfirm}
         onClose={() => {
           if (!submitting) {
-            setShowHardDeleteConfirm(false);
+            setShowArchiveConfirm(false);
             setTargetProject(null);
           }
         }}
-        title="Xoá vĩnh viễn dự án"
+        title="Lưu trữ dự án"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-[12px] p-4 text-red-800">
-            <span className="material-symbols-outlined text-red-600 text-[20px] mt-0.5 flex-shrink-0">delete_forever</span>
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-[12px] p-4">
+            <span className="material-symbols-outlined text-amber-600 text-[20px] mt-0.5 flex-shrink-0">archive</span>
             <div>
               <p className="text-[14px] font-[600] text-[#191817]">
-                Xoá vĩnh viễn &ldquo;{targetProject?.name}&rdquo;?
+                Lưu trữ &ldquo;{targetProject?.name}&rdquo;?
               </p>
-              <p className="text-[13px] text-red-600/80 mt-1 leading-[1.55]">
-                Thao tác này sẽ xoá hoàn toàn dự án, toàn bộ cuộc hội thoại, đặc tả và các tài liệu đính kèm. Hành động này **không thể hoàn tác**.
+              <p className="text-[13px] text-[#6B6862] mt-1 leading-[1.55]">
+                Project sẽ được đánh dấu là archived và tách riêng khỏi danh sách active.
               </p>
             </div>
           </div>
@@ -407,7 +409,7 @@ export default function HomePage() {
               type="button"
               disabled={submitting}
               onClick={() => {
-                setShowHardDeleteConfirm(false);
+                setShowArchiveConfirm(false);
                 setTargetProject(null);
               }}
               className="rounded-full border-[1.5px] border-[#E4E1DC] bg-white text-[13.5px] font-[600] text-[#4B4842] hover:bg-[#F5F3F0] transition-colors disabled:opacity-50"
@@ -418,8 +420,8 @@ export default function HomePage() {
             <button
               type="button"
               disabled={submitting}
-              onClick={handleHardDeleteConfirm}
-              className="rounded-full bg-red-600 text-white text-[13.5px] font-[700] hover:bg-red-500 transition disabled:opacity-50 flex items-center gap-2"
+              onClick={handleArchiveConfirm}
+              className="rounded-full bg-[#C27A1A] text-white text-[13.5px] font-[700] hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
               style={{ padding: "10px 20px" }}
             >
               {submitting && (
@@ -427,7 +429,7 @@ export default function HomePage() {
                   progress_activity
                 </span>
               )}
-              Xoá vĩnh viễn
+              Lưu trữ
             </button>
           </div>
         </div>

@@ -6,7 +6,7 @@ export interface Project {
   _id: string;
   name: string;
   domain?: string | null;
-  status: "active" | "archived";
+  status: "active" | "inactive" | "archived";
   currentStep: string;
   progressPercent: number;
   createdAt: string;
@@ -17,7 +17,7 @@ interface Props {
   project: Project;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
-  onHardDelete: (p: Project) => void;
+  onArchive: (p: Project) => void;
 }
 
 const STEP_LABELS: Record<string, string> = {
@@ -90,7 +90,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(seconds / 604800)} tuần trước`;
 }
 
-export default function ProjectCard({ project, onRename, onDelete, onHardDelete }: Props) {
+export default function ProjectCard({ project, onRename, onDelete, onArchive }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const variant = getVariant(project.progressPercent, project.currentStep);
@@ -154,9 +154,9 @@ export default function ProjectCard({ project, onRename, onDelete, onHardDelete 
               onClick={(e) => {
                 e.stopPropagation();
                 setMenuOpen(false);
-                onDelete(project);
+                onArchive(project);
               }}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold text-[#C73E3E] hover:bg-[#FDF0F0] transition-colors w-full text-left"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold text-[#B56A0A] hover:bg-[#FFF6E8] transition-colors w-full text-left"
             >
               <span className="material-symbols-outlined text-[18px]">archive</span>
               Lưu trữ
@@ -166,12 +166,12 @@ export default function ProjectCard({ project, onRename, onDelete, onHardDelete 
               onClick={(e) => {
                 e.stopPropagation();
                 setMenuOpen(false);
-                onHardDelete(project);
+                onDelete(project);
               }}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold text-red-600 hover:bg-red-55 transition-colors w-full text-left"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold text-[#C73E3E] hover:bg-[#FDF0F0] transition-colors w-full text-left"
             >
               <span className="material-symbols-outlined text-[18px]">delete</span>
-              Xoá vĩnh viễn
+              Xoá dự án
             </button>
           </div>
         )}
