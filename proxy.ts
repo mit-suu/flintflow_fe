@@ -50,15 +50,16 @@ export function proxy(request: NextRequest) {
   const decodedAccess = accessToken ? decodeJwt(accessToken) : null;
   const validAccessToken = decodedAccess ? accessToken : null;
 
-  const hasToken = !!(validAccessToken || refreshToken);
+  const hasToken = !!(accessToken || refreshToken);
   const resolvedRole = decodedAccess?.role || cookieRole || "user";
 
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
   const isHomeRoute = pathname === "/home" || pathname.startsWith("/home/");
+  const isProjectRoute = pathname === "/projects" || pathname.startsWith("/projects/");
   const isAuthRoute = pathname === "/login" || pathname.startsWith("/login") || pathname === "/register" || pathname.startsWith("/register");
 
-  // 1. Guest attempting protected routes (/home, /admin) -> redirect to /login
-  if ((isHomeRoute || isAdminRoute) && !hasToken) {
+  // 1. Guest attempting protected routes (/home, /admin, /projects) -> redirect to /login
+  if ((isHomeRoute || isAdminRoute || isProjectRoute) && !hasToken) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
@@ -84,6 +85,7 @@ export const config = {
   matcher: [
     "/home/:path*",
     "/admin/:path*",
+    "/projects/:path*",
     "/login",
     "/register",
   ],
