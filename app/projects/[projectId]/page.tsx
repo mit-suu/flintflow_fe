@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, type ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { apiCall } from "../../../lib/api";
+import { apiCall, refreshAccessToken } from "../../../lib/api";
 import { isAuthenticated, clearAuthToken } from "../../../lib/auth";
 import {
   WorkspacePhase,
@@ -96,8 +96,12 @@ export default function WorkspacePage() {
 
     const init = async () => {
       if (!isAuthenticated()) {
-        router.push("/login");
-        return;
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          clearAuthToken();
+          router.push("/login");
+          return;
+        }
       }
 
       try {
