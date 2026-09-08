@@ -38,9 +38,10 @@ export const saveAuthToken = (token: string, role?: string) => {
     localStorage.setItem("accessToken", token);
     document.cookie = `accessToken=${token}; path=/; max-age=259200; SameSite=Lax`;
 
-    // Try to extract role from JWT if not explicitly passed
+    // Try to extract role from JWT if not explicitly passed, falling back to existing role
     const decoded = decodeJwt(token);
-    const resolvedRole = role || decoded?.role || "user";
+    const existingRole = getUserRole();
+    const resolvedRole = role || decoded?.role || existingRole || "user";
 
     localStorage.setItem("userRole", resolvedRole);
     document.cookie = `userRole=${resolvedRole}; path=/; max-age=259200; SameSite=Lax`;
