@@ -5,23 +5,30 @@ import { DiscoveryEvaluation } from "../../../../lib/constants/section-types";
 
 interface ChatBubbleProps {
   message: ChatMessage;
-  onSuggestedQuestionClick?: (question: string) => void;
   onEvaluationReceived?: (evaluation: DiscoveryEvaluation) => void;
+  overrideCompleteness?: number | null;
 }
 
 export default function ChatBubble({
   message,
-  onSuggestedQuestionClick,
   onEvaluationReceived: _onEvaluationReceived,
+  overrideCompleteness,
 }: ChatBubbleProps) {
   const isUser = message.role === "user";
 
   const parseAiMessage = (
     content: string
-  ): { reply: string; suggestedQuestions?: string[]; evaluation?: DiscoveryEvaluation } => {
+  ): {
+    reply: string;
+    evaluation?: DiscoveryEvaluation;
+  } => {
     if (content.startsWith("{") && content.endsWith("}")) {
       try {
-        return JSON.parse(content);
+        const data = JSON.parse(content);
+        return {
+          reply: data.reply || content,
+          evaluation: data.evaluation,
+        };
       } catch (_) {
         return { reply: content };
       }
@@ -66,13 +73,17 @@ export default function ChatBubble({
     return (
       <div className="flex flex-col items-end space-y-1">
         <div className="bg-[#F4F3FE] border border-[#DDD9F6] text-[#191817] px-4 py-3 rounded-[16px] rounded-tr-[3px] max-w-[85%] text-[13px] shadow-[0_2px_8px_rgba(79,70,229,0.06)] leading-relaxed">
-          <p>{message.content}</p>
+          <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
       </div>
     );
   }
 
   const parsed = parseAiMessage(message.content);
+  const completeness =
+    typeof overrideCompleteness === "number"
+      ? overrideCompleteness
+      : parsed.evaluation?.stepCompleteness;
 
   return (
     <div className="flex items-start gap-3">
@@ -94,48 +105,28 @@ export default function ChatBubble({
             {renderMarkdown(parsed.reply)}
           </div>
 
-      {/* Completeness Indicator for Discovery mode */}
+          {/* Completeness Indicator for Discovery mode */}
           {parsed.evaluation && (
             <div className="flex items-center gap-1.5 pt-2 border-t border-[#F0EEEA]">
               <div className="flex-1 h-1 bg-[#F0EEEA] rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
-                    width: `${parsed.evaluation.stepCompleteness}%`,
-                    background: parsed.evaluation.stepCompleteness >= 80
-                      ? "#22C55E"
-                      : parsed.evaluation.stepCompleteness >= 50
-                      ? "#F59E0B"
-                      : "#4F46E5"
+                    width: `${completeness}%`,
+                    background:
+                      (completeness ?? 0) >= 80
+                        ? "#22C55E"
+                        : (completeness ?? 0) >= 50
+                        ? "#F59E0B"
+                        : "#4F46E5",
                   }}
                 />
               </div>
               <span className="text-[10px] font-bold text-[#8A867E] shrink-0">
-                {parsed.evaluation.stepCompleteness}%
+                {completeness}%
               </span>
             </div>
           )}
-
-          {/* Suggested Reply Questions */}
-          {parsed.suggestedQuestions &&
-            parsed.suggestedQuestions.length > 0 && (
-              <div className="pt-2 border-t border-[#F0EEEA] flex flex-col gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#A8A49C]">
-                  Gợi ý trả lời nhanh:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.suggestedQuestions.map((q, qIdx) => (
-                    <button
-                      key={qIdx}
-                      onClick={() => onSuggestedQuestionClick?.(q)}
-                      className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F4F3FE] border border-[#ECEAE5] hover:border-[#DDD9F6] text-[11.5px] font-semibold text-[#4F46E5] text-left transition-all cursor-pointer shadow-2xs"
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
         </div>
       </div>
     </div>

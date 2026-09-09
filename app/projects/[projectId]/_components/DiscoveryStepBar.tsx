@@ -28,19 +28,29 @@ export default function DiscoveryStepBar({
           const isDone =
             completedSteps.includes(stepInfo.step) ||
             stepInfo.step < currentStep;
+          const isLocked =
+            stepInfo.step > currentStep &&
+            !completedSteps.includes(stepInfo.step);
 
           return (
             <div key={stepInfo.step} className="flex items-center">
               <button
-                onClick={() => onStepClick(stepInfo.step)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-all cursor-pointer ${
+                disabled={isLocked}
+                onClick={() => !isLocked && onStepClick(stepInfo.step)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-all ${
                   isCurrent
-                    ? "bg-white text-[#3B34B0] border border-[#DDD9F6] shadow-sm"
+                    ? "bg-white text-[#3B34B0] border border-[#DDD9F6] shadow-sm cursor-default"
                     : isDone
-                    ? "text-[#1F7A45] hover:bg-white/80"
-                    : "text-[#8A867E] hover:bg-white/60"
+                    ? "text-[#1F7A45] hover:bg-white/80 cursor-pointer"
+                    : isLocked
+                    ? "text-[#A8A49C] opacity-60 cursor-not-allowed select-none"
+                    : "text-[#8A867E] hover:bg-white/60 cursor-pointer"
                 }`}
-                title={stepInfo.description}
+                title={
+                  isLocked
+                    ? `Bước ${stepInfo.step}: ${stepInfo.label} (Chưa mở khóa - hoàn thành các bước trước để mở)`
+                    : stepInfo.description
+                }
               >
                 <span
                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-extrabold shrink-0 ${
@@ -48,10 +58,12 @@ export default function DiscoveryStepBar({
                       ? "bg-[#4F46E5] text-white"
                       : isDone
                       ? "bg-[#E9F7EE] text-[#1F7A45]"
+                      : isLocked
+                      ? "bg-[#ECEAE5] text-[#A8A49C]"
                       : "bg-[#E4E1DC] text-[#6B6862]"
                   }`}
                 >
-                  {isDone ? "✓" : stepInfo.step}
+                  {isDone ? "✓" : isLocked ? "🔒" : stepInfo.step}
                 </span>
                 <span className="truncate max-w-[130px]">
                   {stepInfo.shortLabel}

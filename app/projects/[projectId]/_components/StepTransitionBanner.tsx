@@ -40,20 +40,22 @@ export default function StepTransitionBanner({
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2 pt-1 border-t border-[#BBF7D0]">
-        {nextStepInfo && (
-          <button
-            type="button"
-            onClick={onContinue}
-            className="flex-1 px-3 py-2 rounded-[10px] bg-[#22C55E] hover:bg-[#16A34A] text-white text-[11.5px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
-          >
-            <span>Tiếp tục Step {nextStep}</span>
-            <span className="text-sm">→</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onContinue}
+          className="flex-1 px-3.5 py-2 rounded-[10px] bg-[#22C55E] hover:bg-[#16A34A] text-white text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-98"
+        >
+          <span>
+            {nextStepInfo
+              ? `Tiếp tục Step ${nextStep}: ${nextStepInfo.shortLabel}`
+              : "Hoàn tất khảo sát"}
+          </span>
+          <span className="text-sm">→</span>
+        </button>
         <button
           type="button"
           onClick={onStayHere}
-          className="px-3 py-2 rounded-[10px] bg-white hover:bg-[#F0FDF4] border border-[#86EFAC] text-[#15803D] text-[11.5px] font-semibold transition-all cursor-pointer"
+          className="px-3.5 py-2 rounded-[10px] bg-white hover:bg-[#F0FDF4] border border-[#86EFAC] text-[#15803D] text-[12px] font-semibold transition-all cursor-pointer active:scale-98"
         >
           Bổ sung thêm
         </button>

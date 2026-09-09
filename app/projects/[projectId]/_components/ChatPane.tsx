@@ -10,11 +10,13 @@ import {
   SectionType,
   WORKSPACE_PHASES,
   DiscoveryEvaluation,
+  DiscoveryQuestion,
 } from "../../../../lib/constants/section-types";
 import { ChatSession } from "./ChatSessionSidebar";
 import { SectionItem } from "./PhaseNavBar";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
+import QuestionStepperInput from "./QuestionStepperInput";
 import DraftReviewCard from "./DraftReviewCard";
 import SummaryReviewCard from "./SummaryReviewCard";
 import GeneratingIndicator from "./GeneratingIndicator";
@@ -70,7 +72,10 @@ export default function ChatPane({
   onAdvanceStep,
 }: ChatPaneProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [overrideCompleteness, setOverrideCompleteness] = useState<number | null>(null);
+  const [isSupplementing, setIsSupplementing] = useState(false);
+  const [stepConfirmed, setStepConfirmed] = useState(false);
+  const [questionnaireDismissed, setQuestionnaireDismissed] = useState(false);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -99,14 +104,82 @@ export default function ChatPane({
     return null;
   }, [messages, discoveryStep]);
 
-  // Reset banner dismiss khi step thay đổi hoặc có evaluation mới
+  // Parse câu hỏi khảo sát từ AI message gần nhất nếu chưa được trả lời (là tin nhắn cuối cùng)
+  const latestAiQuestions = useMemo((): DiscoveryQuestion[] => {
+    if (messages.length === 0) return [];
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== "ai") return [];
+
+    try {
+      if (lastMsg.content.startsWith("{") && lastMsg.content.endsWith("}")) {
+        const parsed = JSON.parse(lastMsg.content);
+        if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+          return parsed.questions
+            .map((q: any) => {
+              if (typeof q === "string") return { question: q, suggestedAnswers: [] };
+              return {
+                question: q.question || "",
+                suggestedAnswers: Array.isArray(q.suggestedAnswers)
+                  ? q.suggestedAnswers.filter(
+                      (a: any) => typeof a === "string" && a.trim().length > 0
+                    )
+                  : [],
+                multiple: typeof q.multiple === "boolean" ? q.multiple : undefined,
+              };
+            })
+            .filter((q: DiscoveryQuestion) => q.question.trim().length > 0);
+        }
+        if (
+          Array.isArray(parsed.suggestedQuestions) &&
+          parsed.suggestedQuestions.length > 0
+        ) {
+          return parsed.suggestedQuestions
+            .filter((q: any) => typeof q === "string" && q.trim().length > 0)
+            .map((q: string) => ({ question: q, suggestedAnswers: [] }));
+        }
+      }
+    } catch (_) {}
+    return [];
+  }, [messages]);
+
+  // Tự động mở lại questionnaire & reset state khi có câu hỏi mới từ AI
+  const lastAiMessageContent =
+    messages.length > 0 && messages[messages.length - 1].role === "ai"
+      ? messages[messages.length - 1].content
+      : null;
+  useEffect(() => {
+    setQuestionnaireDismissed(false);
+    setIsSupplementing(false);
+    setOverrideCompleteness(null);
+    setStepConfirmed(false);
+  }, [lastAiMessageContent]);
+
+  // Reset khi step thay đổi
   const prevStepRef = useRef(discoveryStep);
   useEffect(() => {
     if (prevStepRef.current !== discoveryStep) {
       prevStepRef.current = discoveryStep;
-      setBannerDismissed(false);
+      setStepConfirmed(false);
+      setIsSupplementing(false);
+      setOverrideCompleteness(null);
     }
   }, [discoveryStep]);
+
+  const handleContinueNextStep = () => {
+    setStepConfirmed(true);
+    setIsSupplementing(false);
+    setOverrideCompleteness(null);
+    if (discoveryStep < 6) {
+      onAdvanceStep?.(discoveryStep + 1);
+    } else {
+      onApproveSummary();
+    }
+  };
+
+  const handleSupplement = () => {
+    setIsSupplementing(true);
+    setOverrideCompleteness(75);
+  };
 
   // Set completedSteps cho DiscoveryStepBar
   const completedSteps = useMemo((): Set<number> => {
@@ -123,6 +196,15 @@ export default function ChatPane({
     }
     return completed;
   }, [messages]);
+
+  // Xác định step hiện tại đã đủ thông tin hay chưa
+  const isCurrentStepComplete = useMemo(() => {
+    if (!lastEvaluation) return completedSteps.has(discoveryStep);
+    return (
+      lastEvaluation.isStepComplete ||
+      (completedSteps.has(discoveryStep) && (lastEvaluation.stepCompleteness ?? 0) >= 80)
+    );
+  }, [lastEvaluation, completedSteps, discoveryStep]);
 
   // Gom stepSummary từ tất cả evaluation hoàn thành → SummaryReviewCard
   const discoverySummaryData = useMemo(() => {
@@ -238,29 +320,18 @@ export default function ChatPane({
         )}
 
         {/* Message history */}
-        {messages.map((msg, idx) => (
-          <ChatBubble
-            key={idx}
-            message={msg}
-            onSuggestedQuestionClick={(q) => onSendMessage(q)}
-          />
-        ))}
-
-        {/* Step Transition Banner — AI xác nhận step hiện tại đủ thông tin */}
-        {workspacePhase === "discovery" &&
-          lastEvaluation?.isStepComplete &&
-          !lastEvaluation?.isDiscoveryComplete &&
-          !bannerDismissed && (
-            <StepTransitionBanner
-              currentStep={discoveryStep}
-              stepSummary={lastEvaluation.stepSummary}
-              onContinue={() => {
-                setBannerDismissed(true);
-                onAdvanceStep?.(discoveryStep + 1);
-              }}
-              onStayHere={() => setBannerDismissed(true)}
+        {messages.map((msg, idx) => {
+          const isLatestAi =
+            msg.role === "ai" &&
+            idx === messages.map((m) => m.role).lastIndexOf("ai");
+          return (
+            <ChatBubble
+              key={idx}
+              message={msg}
+              overrideCompleteness={isLatestAi ? overrideCompleteness : null}
             />
-          )}
+          );
+        })}
 
         {/* Discovery Summary Card — AI xác nhận tất cả 6 steps đủ thông tin */}
         {workspacePhase === "discovery" && lastEvaluation?.isDiscoveryComplete && (
@@ -386,16 +457,79 @@ export default function ChatPane({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Chat Input Bar */}
-      <ChatInput
-        inputMessage={inputMessage}
-        setInputMessage={setInputMessage}
-        onSendMessage={() => onSendMessage()}
-        sending={sending}
-        pendingAttachments={pendingAttachments}
-        onSelectAttachment={onSelectAttachment}
-        onRemoveAttachment={onRemoveAttachment}
-      />
+      {/* Bottom User Area: Step Confirmation OR Question Stepper OR Chat Input Bar */}
+      {workspacePhase === "discovery" &&
+      isCurrentStepComplete &&
+      !lastEvaluation?.isDiscoveryComplete &&
+      !isSupplementing &&
+      !stepConfirmed ? (
+        <div className="p-3.5 bg-white border-t border-[#ECEAE5] shrink-0 flex flex-col gap-2 shadow-[0_-4px_16px_rgba(0,0,0,0.03)]">
+          <StepTransitionBanner
+            currentStep={discoveryStep}
+            stepSummary={lastEvaluation?.stepSummary}
+            onContinue={handleContinueNextStep}
+            onStayHere={handleSupplement}
+          />
+        </div>
+      ) : !isSupplementing && latestAiQuestions.length > 0 && !questionnaireDismissed ? (
+        <QuestionStepperInput
+          questions={latestAiQuestions}
+          onSendAnswers={(ans) => onSendMessage(ans)}
+          onDismiss={() => setQuestionnaireDismissed(true)}
+          sending={sending}
+        />
+      ) : (
+        <>
+          {isSupplementing && (
+            <div className="px-4 py-2 bg-[#F0FDF4] border-t border-[#BBF7D0] flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-[#15803D] flex items-center gap-1.5">
+                <span>✎</span> Đang ở chế độ bổ sung thông tin cho Step {discoveryStep}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSupplementing(false);
+                  setOverrideCompleteness(null);
+                }}
+                className="text-[11px] font-bold text-[#15803D] hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <span>Hủy & Xem lại xác nhận chuyển bước</span>
+                <span>→</span>
+              </button>
+            </div>
+          )}
+          {latestAiQuestions.length > 0 && questionnaireDismissed && !isSupplementing && (
+            <div className="px-4 py-2 bg-white border-t border-[#ECEAE5] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setQuestionnaireDismissed(false)}
+                className="px-3 py-1 bg-[#F4F3FE] hover:bg-[#EEF2FF] border border-[#DDD9F6] text-[11.5px] font-bold text-[#4F46E5] rounded-full flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              >
+                <span>✦</span>
+                <span>Mở lại câu hỏi khảo sát ({latestAiQuestions.length} câu)</span>
+              </button>
+            </div>
+          )}
+          <ChatInput
+            inputMessage={inputMessage}
+            setInputMessage={setInputMessage}
+            onSendMessage={() => {
+              onSendMessage();
+              setIsSupplementing(false);
+              setOverrideCompleteness(null);
+            }}
+            sending={sending}
+            placeholder={
+              isSupplementing
+                ? `Nhập thông tin bổ sung cho Step ${discoveryStep} (${DISCOVERY_STEPS[discoveryStep - 1]?.shortLabel || ""})...`
+                : undefined
+            }
+            pendingAttachments={pendingAttachments}
+            onSelectAttachment={onSelectAttachment}
+            onRemoveAttachment={onRemoveAttachment}
+          />
+        </>
+      )}
     </section>
   );
 }
