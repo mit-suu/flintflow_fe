@@ -489,3 +489,10 @@ export interface DiscoveryEvaluation {
   stepSummary?: string;
   missingInfo?: string[];
 }
+
+export interface DiscoveryQuestion {
+  question: string;
+  suggestedAnswers: string[];
+  multiple?: boolean;
+}
+
