@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, type ChangeEvent } from "react";
+import { useEffect, useState, useRef, useMemo, type ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { apiCall, refreshAccessToken } from "../../../lib/api";
 import { isAuthenticated, clearAuthToken } from "../../../lib/auth";
@@ -194,8 +194,11 @@ export default function WorkspacePage() {
   };
 
   // Send Message with optional attachments
-  const handleSendMessage = async (customContent?: string) => {
-    const msgToSend = customContent || inputMessage;
+  const handleSendMessage = async (
+    customContent?: string,
+    overrideStep?: DiscoveryStepNumber
+  ) => {
+    const msgToSend = customContent ?? inputMessage;
     if (
       (!msgToSend.trim() && pendingAttachments.length === 0) ||
       !activeSession ||
@@ -206,6 +209,7 @@ export default function WorkspacePage() {
     setSending(true);
     if (!customContent) setInputMessage("");
 
+    const activeStepNum = overrideStep ?? discoveryStep;
     const contentToPost = msgToSend.trim() || "[Đính kèm tài liệu]";
 
     // Optimistic update: hiển thị user message ngay lập tức
@@ -213,7 +217,7 @@ export default function WorkspacePage() {
       role: "user",
       content: contentToPost,
       step: workspacePhase === "discovery"
-        ? DISCOVERY_STEPS[discoveryStep - 1]?.chatStepName || "vision_problem"
+        ? DISCOVERY_STEPS[activeStepNum - 1]?.chatStepName || "vision_problem"
         : "vision_problem",
       createdAt: new Date().toISOString(),
     };
@@ -241,7 +245,7 @@ export default function WorkspacePage() {
       // 2. Post chat message with current discovery chat step name if in discovery
       const currentChatStep =
         workspacePhase === "discovery"
-          ? DISCOVERY_STEPS[discoveryStep - 1]?.chatStepName || "vision_problem"
+          ? DISCOVERY_STEPS[activeStepNum - 1]?.chatStepName || "vision_problem"
           : "vision_problem";
 
       const res = await apiCall<ChatSession>(
@@ -251,7 +255,7 @@ export default function WorkspacePage() {
           body: JSON.stringify({
             content: contentToPost,
             step: currentChatStep,
-            discoveryStep: workspacePhase === "discovery" ? discoveryStep : undefined,
+            discoveryStep: workspacePhase === "discovery" ? activeStepNum : undefined,
           }),
         }
       );
@@ -447,11 +451,32 @@ export default function WorkspacePage() {
   };
 
   // Advance discovery step khi AI gợi ý step hiện tại đã đủ thông tin
-  const handleAdvanceStep = (nextStep: number) => {
+  const handleAdvanceStep = async (nextStep: number) => {
     if (nextStep >= 1 && nextStep <= 6) {
-      setDiscoveryStep(nextStep as DiscoveryStepNumber);
+      const stepNum = nextStep as DiscoveryStepNumber;
+      setDiscoveryStep(stepNum);
+      const nextStepInfo = DISCOVERY_STEPS[stepNum - 1];
+      const promptText = `Bắt đầu Step ${stepNum}: ${nextStepInfo?.label || ""}`;
+      await handleSendMessage(promptText, stepNum);
     }
   };
+
+  // Tập hợp các step Discovery đã hoàn thành
+  const completedSteps = useMemo((): DiscoveryStepNumber[] => {
+    const completed = new Set<DiscoveryStepNumber>();
+    const msgs = activeSession?.messages || [];
+    for (const msg of msgs) {
+      if (msg.role === "ai") {
+        try {
+          const parsed = JSON.parse(msg.content);
+          if (parsed.evaluation?.isStepComplete && parsed.evaluation?.currentStep) {
+            completed.add(parsed.evaluation.currentStep as DiscoveryStepNumber);
+          }
+        } catch (_) {}
+      }
+    }
+    return Array.from(completed);
+  }, [activeSession?.messages]);
 
   // Approve SRS Baseline v1.0 (UC 6.14)
   const handleApproveBaseline = async () => {
@@ -523,6 +548,7 @@ export default function WorkspacePage() {
       {workspacePhase === "discovery" && (
         <DiscoveryStepBar
           currentStep={discoveryStep}
+          completedSteps={completedSteps}
           onStepClick={(s) => setDiscoveryStep(s)}
         />
       )}
