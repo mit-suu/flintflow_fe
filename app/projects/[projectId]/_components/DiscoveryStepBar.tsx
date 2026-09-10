@@ -8,13 +8,12 @@ import {
 interface DiscoveryStepBarProps {
   currentStep: DiscoveryStepNumber;
   completedSteps?: DiscoveryStepNumber[];
-  onStepClick: (step: DiscoveryStepNumber) => void;
+  onStepClick?: (step: DiscoveryStepNumber) => void;
 }
 
 export default function DiscoveryStepBar({
   currentStep,
   completedSteps = [],
-  onStepClick,
 }: DiscoveryStepBarProps) {
   return (
     <div className="bg-[#FAF9F7] border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[44px] overflow-x-auto scrollbar-hide">
@@ -34,21 +33,23 @@ export default function DiscoveryStepBar({
 
           return (
             <div key={stepInfo.step} className="flex items-center">
-              <button
-                disabled={isLocked}
-                onClick={() => !isLocked && onStepClick(stepInfo.step)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-all ${
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-all select-none cursor-default ${
                   isCurrent
-                    ? "bg-white text-[#3B34B0] border border-[#DDD9F6] shadow-sm cursor-default"
+                    ? "bg-white text-[#3B34B0] border border-[#DDD9F6] shadow-sm"
                     : isDone
-                    ? "text-[#1F7A45] hover:bg-white/80 cursor-pointer"
+                    ? "text-[#1F7A45]"
                     : isLocked
-                    ? "text-[#A8A49C] opacity-60 cursor-not-allowed select-none"
-                    : "text-[#8A867E] hover:bg-white/60 cursor-pointer"
+                    ? "text-[#A8A49C] opacity-60"
+                    : "text-[#8A867E]"
                 }`}
                 title={
-                  isLocked
-                    ? `Bước ${stepInfo.step}: ${stepInfo.label} (Chưa mở khóa - hoàn thành các bước trước để mở)`
+                  isCurrent
+                    ? `Bước ${stepInfo.step}: ${stepInfo.label} (Đang thực hiện)`
+                    : isDone
+                    ? `Bước ${stepInfo.step}: ${stepInfo.label} (Đã hoàn thành)`
+                    : isLocked
+                    ? `Bước ${stepInfo.step}: ${stepInfo.label} (Chưa mở khóa)`
                     : stepInfo.description
                 }
               >
@@ -68,7 +69,7 @@ export default function DiscoveryStepBar({
                 <span className="truncate max-w-[130px]">
                   {stepInfo.shortLabel}
                 </span>
-              </button>
+              </div>
 
               {idx < DISCOVERY_STEPS.length - 1 && (
                 <span className="text-[#D6D2CB] mx-1 text-xs select-none">
