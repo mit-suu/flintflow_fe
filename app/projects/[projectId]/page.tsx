@@ -3,12 +3,14 @@
 import { useEffect, useState, useRef, useMemo, type ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { apiCall, refreshAccessToken } from "../../../lib/api";
+import { streamChatMessage } from "../../../lib/ai-stream";
 import { isAuthenticated, clearAuthToken } from "../../../lib/auth";
 import {
   WorkspacePhase,
   DiscoveryStepNumber,
   SectionType,
   DISCOVERY_STEPS,
+  PHASE_SECTION_MAP,
 } from "../../../lib/constants/section-types";
 
 // Component imports
@@ -37,6 +39,8 @@ export default function WorkspacePage() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [sections, setSections] = useState<SectionItem[]>([]);
+  const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // Workflow State
   const [workspacePhase, setWorkspacePhase] =
@@ -50,6 +54,13 @@ export default function WorkspacePage() {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [generatingPhase, setGeneratingPhase] = useState(false);
+  const [currentGeneratingSection, setCurrentGeneratingSection] =
+    useState<SectionType | null>(null);
+  const [completedBatchTypes, setCompletedBatchTypes] = useState<SectionType[]>(
+    []
+  );
+  const [failedBatchTypes, setFailedBatchTypes] = useState<SectionType[]>([]);
+  const stopGeneratingRef = useRef(false);
   const [acceptingType, setAcceptingType] = useState<SectionType | null>(null);
   const [regeneratingType, setRegeneratingType] = useState<SectionType | null>(
     null
@@ -193,6 +204,59 @@ export default function WorkspacePage() {
     }
   };
 
+  // Check if active session is waiting for an AI response (e.g. user pressed F5 while AI was generating)
+  const isWaitingForAi = useMemo(() => {
+    if (!activeSession?.messages?.length || isStreaming) return false;
+    const lastMsg = activeSession.messages[activeSession.messages.length - 1];
+    if (lastMsg.role !== "user") return false;
+    const msgTime = new Date(lastMsg.createdAt).getTime();
+    if (isNaN(msgTime)) return false;
+    // Waiting if user message was sent within 2 minutes
+    return Date.now() - msgTime < 120000;
+  }, [activeSession?.messages, isStreaming]);
+
+  // Auto-poll active session if waiting for AI response (e.g. page refreshed during streaming)
+  useEffect(() => {
+    if (!isWaitingForAi || !activeSession?._id || !projectId || isStreaming) return;
+
+    let timer: NodeJS.Timeout;
+    let pollCount = 0;
+    const maxPolls = 40; // 40 * 1500ms = 60s max
+
+    const poll = async () => {
+      pollCount++;
+      try {
+        const res = await apiCall<ChatSession>(
+          `/projects/${projectId}/chats/${activeSession._id}`
+        );
+        if (res.data) {
+          const msgs = res.data.messages || [];
+          const lastMsg = msgs[msgs.length - 1];
+          if (lastMsg && lastMsg.role === "ai") {
+            setActiveSession(res.data);
+            setChatSessions((prev) =>
+              prev.map((s) => (s._id === res.data!._id ? res.data! : s))
+            );
+            try {
+              const userRes = await apiCall<UserData>("/users/me");
+              if (userRes.data) setUser(userRes.data);
+            } catch (_) {}
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("[ChatPoll] Error checking for AI response:", err);
+      }
+
+      if (pollCount < maxPolls) {
+        timer = setTimeout(poll, 1500);
+      }
+    };
+
+    timer = setTimeout(poll, 1500);
+    return () => clearTimeout(timer);
+  }, [isWaitingForAi, activeSession?._id, projectId, isStreaming]);
+
   // Send Message with optional attachments
   const handleSendMessage = async (
     customContent?: string,
@@ -242,31 +306,42 @@ export default function WorkspacePage() {
         setPendingAttachments([]);
       }
 
-      // 2. Post chat message with current discovery chat step name if in discovery
+      // 2. Stream chat message with real-time response chunks
       const currentChatStep =
         workspacePhase === "discovery"
           ? DISCOVERY_STEPS[activeStepNum - 1]?.chatStepName || "vision_problem"
           : "vision_problem";
 
-      const res = await apiCall<ChatSession>(
-        `/projects/${projectId}/chats/${activeSession._id}/messages`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            content: contentToPost,
-            step: currentChatStep,
-            discoveryStep: workspacePhase === "discovery" ? activeStepNum : undefined,
-          }),
-        }
-      );
+      setStreamingMessage("");
+      setIsStreaming(true);
 
-      if (res.data) {
-        // Server response chứa đầy đủ messages (user + AI), thay thế optimistic state
-        setActiveSession(res.data);
-        const userRes = await apiCall<UserData>("/users/me");
-        if (userRes.data) setUser(userRes.data);
-      }
+      await streamChatMessage({
+        projectId,
+        chatId: activeSession._id,
+        content: contentToPost,
+        step: currentChatStep,
+        discoveryStep: workspacePhase === "discovery" ? activeStepNum : undefined,
+        onTextDelta: (delta: string) => {
+          setStreamingMessage((prev) => (prev || "") + delta);
+        },
+        onFinish: async ({ session: updatedSession }) => {
+          setActiveSession(updatedSession);
+          setStreamingMessage(null);
+          setIsStreaming(false);
+          try {
+            const userRes = await apiCall<UserData>("/users/me");
+            if (userRes.data) setUser(userRes.data);
+          } catch (_) {}
+        },
+        onError: (err) => {
+          console.error("[Chat] Stream error:", err);
+          setStreamingMessage(null);
+          setIsStreaming(false);
+        },
+      });
     } catch (err: unknown) {
+      setStreamingMessage(null);
+      setIsStreaming(false);
       // Rollback optimistic update nếu lỗi
       setActiveSession((prev) =>
         prev
@@ -292,43 +367,102 @@ export default function WorkspacePage() {
     );
   };
 
-  // Batch Generate Sections for the current phase
+  const handleStopGeneratePhase = () => {
+    stopGeneratingRef.current = true;
+    setCurrentGeneratingSection(null);
+    setGeneratingPhase(false);
+  };
+
+  // Batch Generate Sections for the current phase sequentially with live indicator
   const handleGeneratePhase = async () => {
     if (!activeSession || generatingPhase) return;
+
+    const phaseSectionTypes = PHASE_SECTION_MAP[workspacePhase] || [];
+    if (phaseSectionTypes.length === 0) return;
+
+    stopGeneratingRef.current = false;
     setGeneratingPhase(true);
+    setCurrentGeneratingSection(null);
+    setFailedBatchTypes([]);
+
+    // Pre-mark sections that have already been accepted
+    const initialCompleted = sections
+      .filter(
+        (s) =>
+          phaseSectionTypes.includes(s.type as SectionType) &&
+          s.status === "accepted"
+      )
+      .map((s) => s.type as SectionType);
+    setCompletedBatchTypes(initialCompleted);
 
     try {
-      const res = await apiCall<{
-        generated: SectionItem[];
-        errors: Array<{ type: string; error: string }>;
-      }>(`/specifications/projects/${projectId}/generate-phase`, {
-        method: "POST",
-        body: JSON.stringify({
-          workspacePhase,
-          chatSessionId: activeSession._id,
-        }),
-      });
+      for (const sectionType of phaseSectionTypes) {
+        if (stopGeneratingRef.current) break;
 
-      if (res.data) {
-        setSections((prev) => {
-          const updated = [...prev];
-          for (const newSec of res.data!.generated) {
-            const idx = updated.findIndex((s) => s.type === newSec.type);
-            if (idx !== -1) updated[idx] = newSec;
-            else updated.push(newSec);
+        // Skip sections that have already been accepted
+        if (initialCompleted.includes(sectionType)) continue;
+
+        setCurrentGeneratingSection(sectionType);
+
+        try {
+          const res = await apiCall<SectionItem>(
+            `/specifications/projects/${projectId}/generate`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                type: sectionType,
+                chatSessionId: activeSession._id,
+              }),
+            }
+          );
+
+          if (res.data) {
+            const newSec = res.data;
+            setSections((prev) => {
+              const updated = [...prev];
+              const idx = updated.findIndex((s) => s.type === newSec.type);
+              if (idx !== -1) updated[idx] = newSec;
+              else updated.push(newSec);
+              return updated;
+            });
+
+            setCompletedBatchTypes((prev) =>
+              prev.includes(sectionType) ? prev : [...prev, sectionType]
+            );
+          } else {
+            setFailedBatchTypes((prev) =>
+              prev.includes(sectionType) ? prev : [...prev, sectionType]
+            );
           }
-          return updated;
-        });
+        } catch (secErr: unknown) {
+          console.error(
+            `[BatchGenerate] Lỗi sinh section "${sectionType}":`,
+            secErr
+          );
+          setFailedBatchTypes((prev) =>
+            prev.includes(sectionType) ? prev : [...prev, sectionType]
+          );
+        }
+      }
 
+      // Cập nhật thông tin quota của user sau khi hoàn tất
+      try {
         const userRes = await apiCall<UserData>("/users/me");
         if (userRes.data) setUser(userRes.data);
+      } catch (_) {}
+
+      // Nếu không bị dừng giữa chừng, giữ hiển thị hoàn tất trong 1s
+      if (!stopGeneratingRef.current) {
+        setCurrentGeneratingSection(null);
+        await new Promise((r) => setTimeout(r, 1000));
       }
     } catch (err: unknown) {
       alert(
         "Sinh đặc tả thất bại: " +
-          getErrorMessage(err, "Vui lòng chat làm rõ thêm thông tin!")
+          getErrorMessage(err, "Vui lòng kiểm tra kết nối và thử lại!")
       );
     } finally {
+      setCurrentGeneratingSection(null);
       setGeneratingPhase(false);
     }
   };
@@ -461,6 +595,31 @@ export default function WorkspacePage() {
     }
   };
 
+  // Auto-restore current discoveryStep from session messages on load or session change
+  useEffect(() => {
+    if (!activeSession?.messages?.length || workspacePhase !== "discovery") return;
+    for (let i = activeSession.messages.length - 1; i >= 0; i--) {
+      const msg = activeSession.messages[i];
+      if (msg.discoveryStep && msg.discoveryStep >= 1 && msg.discoveryStep <= 6) {
+        setDiscoveryStep(msg.discoveryStep as DiscoveryStepNumber);
+        return;
+      }
+      if (msg.role === "ai") {
+        try {
+          const parsed = JSON.parse(msg.content);
+          if (
+            parsed.evaluation?.currentStep &&
+            parsed.evaluation.currentStep >= 1 &&
+            parsed.evaluation.currentStep <= 6
+          ) {
+            setDiscoveryStep(parsed.evaluation.currentStep as DiscoveryStepNumber);
+            return;
+          }
+        } catch (_) {}
+      }
+    }
+  }, [activeSession?._id, workspacePhase]);
+
   // Tập hợp các step Discovery đã hoàn thành
   const completedSteps = useMemo((): DiscoveryStepNumber[] => {
     const completed = new Set<DiscoveryStepNumber>();
@@ -573,6 +732,10 @@ export default function WorkspacePage() {
           discoveryStep={discoveryStep}
           sections={sections}
           generatingPhase={generatingPhase}
+          currentGeneratingType={currentGeneratingSection}
+          completedBatchTypes={completedBatchTypes}
+          failedBatchTypes={failedBatchTypes}
+          onStopGeneratePhase={handleStopGeneratePhase}
           inputMessage={inputMessage}
           setInputMessage={setInputMessage}
           onSendMessage={handleSendMessage}
@@ -590,6 +753,9 @@ export default function WorkspacePage() {
           acceptingType={acceptingType}
           regeneratingType={regeneratingType}
           onAdvanceStep={handleAdvanceStep}
+          streamingMessage={streamingMessage}
+          isStreaming={isStreaming}
+          isWaitingForAi={isWaitingForAi}
         />
 
         {/* Pane 2 (Center): Live 5-Chapter SRS Document Tree */}
