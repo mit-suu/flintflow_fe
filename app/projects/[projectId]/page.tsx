@@ -60,6 +60,73 @@ export default function WorkspacePage() {
   const [rollbackTargetIndex, setRollbackTargetIndex] = useState<number | null>(null);
   const [rollingBack, setRollingBack] = useState(false);
 
+  // Resize handle state cho 2 bên ChatPane & DocumentPane (phong cách Antigravity)
+  const [chatPaneWidth, setChatPaneWidth] = useState<number>(480);
+  const [isResizing, setIsResizing] = useState(false);
+  const mainContainerRef = useRef<HTMLElement>(null);
+  const chatPaneWidthRef = useRef(chatPaneWidth);
+  chatPaneWidthRef.current = chatPaneWidth;
+
+  // Khôi phục chiều rộng đã lưu trong localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("flintflow_chat_pane_width");
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 340 && parsed <= 1000) {
+          setChatPaneWidth(parsed);
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  // Xử lý sự kiện kéo chuột để resize 2 bên
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const chatPaneEl = document.getElementById("flintflow-chat-pane");
+      if (!chatPaneEl || !mainContainerRef.current) return;
+
+      const chatPaneRect = chatPaneEl.getBoundingClientRect();
+      const mainRect = mainContainerRef.current.getBoundingClientRect();
+
+      const newWidth = e.clientX - chatPaneRect.left;
+
+      // Giới hạn chiều rộng
+      const minWidth = 350;
+      const minDocWidth = 320;
+      const verificationWidth = verificationOpen ? 380 : 0;
+      const sidebarWidth = sidebarOpen ? 230 : 0;
+      const maxAllowed = Math.max(
+        minWidth,
+        mainRect.width - sidebarWidth - verificationWidth - minDocWidth
+      );
+      const clamped = Math.min(Math.max(minWidth, newWidth), Math.min(1000, maxAllowed));
+
+      setChatPaneWidth(clamped);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      try {
+        localStorage.setItem("flintflow_chat_pane_width", String(chatPaneWidthRef.current));
+      } catch (_) {}
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing, verificationOpen, sidebarOpen]);
+
   const didInitRef = useRef(false);
 
   const getErrorMessage = (error: unknown, fallback: string) => {
@@ -643,7 +710,7 @@ export default function WorkspacePage() {
       )}
 
       {/* 4. Main 3-Pane Workspace Container */}
-      <main className="flex-1 flex overflow-hidden bg-[#F5F3F0]">
+      <main ref={mainContainerRef} className="flex-1 flex overflow-hidden bg-[#F5F3F0]">
         {/* Left Sidebar: Chat Sessions History */}
         {sidebarOpen && (
           <ChatSessionSidebar
@@ -657,6 +724,7 @@ export default function WorkspacePage() {
 
         {/* Pane 1 (Left): Chat & Elicitation Workspace */}
         <ChatPane
+          width={chatPaneWidth}
           session={activeSession}
           workspacePhase={workspacePhase}
           discoveryStep={discoveryStep}
@@ -681,6 +749,48 @@ export default function WorkspacePage() {
           onAdvanceStep={handleAdvanceStep}
           onRequestRollback={handleRequestRollback}
         />
+
+        {/* Thanh Resize ngăn cách 2 bên - Phong cách Antigravity */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+          onDoubleClick={() => {
+            setChatPaneWidth(480);
+            try {
+              localStorage.setItem("flintflow_chat_pane_width", "480");
+            } catch (_) {}
+          }}
+          className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center transition-all"
+          title="Kéo để thay đổi kích thước 2 bên (Nháy đúp để về mặc định)"
+        >
+          {/* Đường kẻ phân cách (rõ ràng và dày hơn) */}
+          <div
+            className={`h-full transition-all ${
+              isResizing
+                ? "w-[3px] bg-[#4F46E5] shadow-[0_0_10px_rgba(79,70,229,0.6)]"
+                : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#4F46E5]"
+            }`}
+          />
+
+          {/* Grip tay cầm ở giữa to rõ hơn xuất hiện khi hover giống Antigravity */}
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 w-5 h-9 rounded-full flex items-center justify-center pointer-events-none transition-all shadow-sm ${
+              isResizing
+                ? "opacity-100 bg-[#4F46E5] text-white scale-110 shadow-[0_2px_8px_rgba(79,70,229,0.35)]"
+                : "opacity-0 group-hover:opacity-100 bg-white border border-[#DDD9F6] text-[#4F46E5]"
+            }`}
+          >
+            <div className="flex flex-col gap-1 items-center">
+              <span className="w-1 h-1 rounded-full bg-current" />
+              <span className="w-1 h-1 rounded-full bg-current" />
+              <span className="w-1 h-1 rounded-full bg-current" />
+            </div>
+          </div>
+        </div>
 
         {/* Pane 2 (Center): Live 5-Chapter SRS Document Tree */}
         <DocumentPane

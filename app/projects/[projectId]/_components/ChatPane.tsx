@@ -23,6 +23,7 @@ import GeneratingIndicator from "./GeneratingIndicator";
 import StepTransitionBanner from "./StepTransitionBanner";
 
 interface ChatPaneProps {
+  width?: number;
   session: ChatSession | null;
   workspacePhase: WorkspacePhase;
   discoveryStep: DiscoveryStepNumber;
@@ -49,6 +50,7 @@ interface ChatPaneProps {
 }
 
 export default function ChatPane({
+  width,
   session,
   workspacePhase,
   discoveryStep,
@@ -265,7 +267,11 @@ export default function ChatPane({
     phaseAcceptedSections.length === currentPhaseSections.length;
 
   return (
-    <section className="w-[440px] flex-none border-r border-[#ECEAE5] bg-[#F5F3F0] flex flex-col overflow-hidden">
+    <section
+      id="flintflow-chat-pane"
+      style={width ? { width: `${width}px` } : undefined}
+      className={`${width ? "" : "w-[460px]"} flex-none bg-[#F5F3F0] flex flex-col overflow-hidden`}
+    >
       {/* Chat Pane Header */}
       <div className="px-5 py-3 border-b border-[#ECEAE5] flex justify-between items-center bg-white shrink-0 h-[52px]">
         <div className="flex items-center gap-2">
