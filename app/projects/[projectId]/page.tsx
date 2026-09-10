@@ -25,6 +25,7 @@ import ChatSessionSidebar, {
 import ChatPane from "./_components/ChatPane";
 import DocumentPane from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
+import ConfirmRollbackModal from "./_components/ConfirmRollbackModal";
 
 export default function WorkspacePage() {
   const router = useRouter();
@@ -56,6 +57,8 @@ export default function WorkspacePage() {
   );
   const [approvingBaseline, setApprovingBaseline] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  const [rollbackTargetIndex, setRollbackTargetIndex] = useState<number | null>(null);
+  const [rollingBack, setRollingBack] = useState(false);
 
   const didInitRef = useRef(false);
 
@@ -207,7 +210,7 @@ export default function WorkspacePage() {
       return;
 
     setSending(true);
-    if (!customContent) setInputMessage("");
+    setInputMessage("");
 
     const activeStepNum = overrideStep ?? discoveryStep;
     const contentToPost = msgToSend.trim() || "[Đính kèm tài liệu]";
@@ -219,6 +222,7 @@ export default function WorkspacePage() {
       step: workspacePhase === "discovery"
         ? DISCOVERY_STEPS[activeStepNum - 1]?.chatStepName || "vision_problem"
         : "vision_problem",
+      workspacePhase,
       createdAt: new Date().toISOString(),
     };
     setActiveSession((prev) =>
@@ -256,6 +260,7 @@ export default function WorkspacePage() {
             content: contentToPost,
             step: currentChatStep,
             discoveryStep: workspacePhase === "discovery" ? activeStepNum : undefined,
+            workspacePhase,
           }),
         }
       );
@@ -461,6 +466,91 @@ export default function WorkspacePage() {
     }
   };
 
+  // Mở modal xác nhận hoàn tác
+  const handleRequestRollback = (index: number) => {
+    if (sending || rollingBack) return;
+    setRollbackTargetIndex(index);
+  };
+
+  // Thực thi hoàn tác sau khi người dùng xác nhận
+  const handleConfirmRollback = async () => {
+    if (
+      rollbackTargetIndex === null ||
+      !activeSession ||
+      rollingBack ||
+      sending
+    ) {
+      return;
+    }
+
+    const targetMsg = activeSession.messages[rollbackTargetIndex];
+    if (!targetMsg) {
+      setRollbackTargetIndex(null);
+      return;
+    }
+
+    setRollingBack(true);
+    // Làm trống ô nhập tin nhắn của người dùng sau khi hoàn tác
+    setInputMessage("");
+    setPendingAttachments([]);
+
+    try {
+      const res = await apiCall<{
+        session: ChatSession;
+        project: ProjectData;
+        sections: SectionItem[];
+        workspacePhase: WorkspacePhase;
+      }>(
+        `/projects/${projectId}/chats/${activeSession._id}/rollback`,
+        {
+          method: "POST",
+          body: JSON.stringify({ messageIndex: rollbackTargetIndex }),
+        }
+      );
+
+      if (res.data) {
+        if (res.data.session) {
+          setActiveSession(res.data.session);
+        }
+        if (res.data.project) {
+          setProject(res.data.project);
+        }
+        if (res.data.sections) {
+          setSections(res.data.sections);
+        }
+        if (res.data.workspacePhase) {
+          setWorkspacePhase(res.data.workspacePhase);
+        }
+
+        // Đồng bộ lại discoveryStep và tiến trình theo các tin nhắn còn lại
+        const remainingMsgs = res.data.session?.messages || [];
+        let newStep: DiscoveryStepNumber = 1;
+
+        for (let i = remainingMsgs.length - 1; i >= 0; i--) {
+          const msg = remainingMsgs[i];
+          if (msg.role === "ai") {
+            try {
+              const parsed = JSON.parse(msg.content);
+              if (parsed.evaluation?.currentStep) {
+                newStep = parsed.evaluation.currentStep as DiscoveryStepNumber;
+                break;
+              }
+            } catch (_) {}
+          } else if (msg.discoveryStep) {
+            newStep = msg.discoveryStep as DiscoveryStepNumber;
+            break;
+          }
+        }
+        setDiscoveryStep(newStep);
+      }
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, "Không thể hoàn tác cuộc trò chuyện"));
+    } finally {
+      setRollingBack(false);
+      setRollbackTargetIndex(null);
+    }
+  };
+
   // Tập hợp các step Discovery đã hoàn thành
   const completedSteps = useMemo((): DiscoveryStepNumber[] => {
     const completed = new Set<DiscoveryStepNumber>();
@@ -549,7 +639,6 @@ export default function WorkspacePage() {
         <DiscoveryStepBar
           currentStep={discoveryStep}
           completedSteps={completedSteps}
-          onStepClick={(s) => setDiscoveryStep(s)}
         />
       )}
 
@@ -590,6 +679,7 @@ export default function WorkspacePage() {
           acceptingType={acceptingType}
           regeneratingType={regeneratingType}
           onAdvanceStep={handleAdvanceStep}
+          onRequestRollback={handleRequestRollback}
         />
 
         {/* Pane 2 (Center): Live 5-Chapter SRS Document Tree */}
@@ -608,6 +698,19 @@ export default function WorkspacePage() {
           />
         )}
       </main>
+
+      {/* Confirm Rollback Modal */}
+      <ConfirmRollbackModal
+        isOpen={rollbackTargetIndex !== null}
+        messageSnippet={
+          rollbackTargetIndex !== null
+            ? activeSession?.messages[rollbackTargetIndex]?.content
+            : undefined
+        }
+        onConfirm={handleConfirmRollback}
+        onCancel={() => !rollingBack && setRollbackTargetIndex(null)}
+        isRollingBack={rollingBack}
+      />
     </div>
   );
 }

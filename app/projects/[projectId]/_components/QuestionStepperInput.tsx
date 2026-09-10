@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DiscoveryQuestion } from "../../../../lib/constants/section-types";
 
 interface QuestionStepperInputProps {
@@ -41,6 +41,12 @@ export default function QuestionStepperInput({
     Record<number, string[]>
   >({});
   const [customAnswers, setCustomAnswers] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    setSelectedOptions({});
+    setCustomAnswers({});
+    setCurrentIndex(0);
+  }, [questions]);
 
   const totalQuestions = questions.length;
   const clampedIndex = Math.min(
@@ -142,15 +148,15 @@ export default function QuestionStepperInput({
       <div className="border border-[#DDD9F6] bg-[#FAF9F7] rounded-[14px] p-3.5 flex flex-col gap-3">
         {/* Header: Question Counter & Step Indicator */}
         <div className="flex items-center justify-between pb-2 border-b border-[#ECEAE5]">
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-[6px] bg-[#EEF2FF] text-[#4F46E5] font-extrabold text-[11px] flex items-center justify-center">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="w-5 h-5 rounded-[6px] bg-[#EEF2FF] text-[#4F46E5] font-extrabold text-[11px] flex items-center justify-center shrink-0">
               ✦
             </span>
-            <span className="text-[11.5px] font-extrabold text-[#4F46E5] uppercase tracking-wider">
+            <span className="text-[11.5px] font-extrabold text-[#4F46E5] uppercase tracking-wider whitespace-nowrap">
               Câu hỏi {clampedIndex + 1} / {totalQuestions}
             </span>
             <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
                 isMultiple
                   ? "bg-[#EEF2FF] text-[#4F46E5] border-[#DDD9F6]"
                   : "bg-[#F5F3F0] text-[#6B6862] border-[#E4E1DC]"
@@ -158,12 +164,12 @@ export default function QuestionStepperInput({
             >
               {isMultiple ? "✦ Chọn nhiều" : "◉ Chọn 1"}
             </span>
-            <span className="text-[11px] text-[#8A867E]">
+            <span className="text-[11px] text-[#8A867E] whitespace-nowrap">
               ({answeredCount}/{totalQuestions})
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Quick jump step pills */}
             {totalQuestions > 1 && (
               <div className="flex items-center gap-1">
@@ -301,61 +307,59 @@ export default function QuestionStepperInput({
         </div>
 
         {/* Navigation Actions Footer */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-2">
-            {currentSelectedList.length > 0 && (
-              <span className="text-[11px] font-semibold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-full border border-[#DDD9F6]">
-                {currentSelectedList.length} đã chọn
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="text-[11.5px] font-semibold text-[#8A867E] hover:text-[#191817] hover:underline transition-colors cursor-pointer"
-            >
-              Bỏ qua (gõ tự do)
-            </button>
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#ECEAE5]">
+          <div className="flex items-center gap-2 shrink-0">
             {!isFirst && (
               <button
                 type="button"
                 onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                className="px-3 py-1.5 rounded-full text-[11.5px] font-bold text-[#6B6862] hover:text-[#191817] bg-[#F0EEEA] hover:bg-[#E5E3DF] flex items-center gap-1 transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-full text-[11.5px] font-bold text-[#6B6862] hover:text-[#191817] bg-[#F0EEEA] hover:bg-[#E5E3DF] flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap active:scale-98"
               >
-                <span>←</span> Quay lại
+                <span>←</span>
+                <span>Quay lại</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="text-[11.5px] font-semibold text-[#8A867E] hover:text-[#191817] hover:underline transition-colors cursor-pointer whitespace-nowrap py-1"
+            >
+              Bỏ qua (gõ tự do)
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {!isLast ? (
+              <button
+                type="button"
+                onClick={handleNextOrSubmit}
+                className="px-4 py-1.5 rounded-full text-[12px] font-bold bg-[#4F46E5] hover:bg-[#4338CA] text-white flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98 whitespace-nowrap"
+              >
+                <span>Tiếp tục</span>
+                <span>→</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleNextOrSubmit}
+                disabled={!hasAnyAnswer || sending}
+                className={`px-4 py-1.5 rounded-full text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-xs whitespace-nowrap ${
+                  hasAnyAnswer && !sending
+                    ? "bg-[#4F46E5] hover:bg-[#4338CA] text-white cursor-pointer active:scale-98"
+                    : "bg-[#E5E3DF] text-[#A8A49C] cursor-not-allowed"
+                }`}
+              >
+                {sending ? (
+                  <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <>
+                    <span>Gửi câu trả lời</span>
+                    <span className="text-[13px] font-bold">↵</span>
+                  </>
+                )}
               </button>
             )}
           </div>
-
-          {!isLast ? (
-            <button
-              type="button"
-              onClick={handleNextOrSubmit}
-              className="px-4 py-1.5 rounded-full text-[12px] font-bold bg-[#4F46E5] hover:bg-[#4338CA] text-white flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98"
-            >
-              <span>Tiếp tục</span>
-              <span>→</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleNextOrSubmit}
-              disabled={!hasAnyAnswer || sending}
-              className={`px-5 py-1.5 rounded-full text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-xs ${
-                hasAnyAnswer && !sending
-                  ? "bg-[#4F46E5] hover:bg-[#4338CA] text-white cursor-pointer active:scale-98"
-                  : "bg-[#E5E3DF] text-[#A8A49C] cursor-not-allowed"
-              }`}
-            >
-              {sending ? (
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-              ) : (
-                <>
-                  <span>Gửi câu trả lời</span>
-                  <span className="text-[13px] font-bold">↵</span>
-                </>
-              )}
-            </button>
-          )}
         </div>
       </div>
     </div>

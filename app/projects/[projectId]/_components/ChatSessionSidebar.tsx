@@ -6,6 +6,8 @@ export interface ChatMessage {
   role: "user" | "ai";
   content: string;
   step?: string;
+  discoveryStep?: number;
+  workspacePhase?: string;
   createdAt: string;
 }
 

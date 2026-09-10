@@ -45,6 +45,7 @@ interface ChatPaneProps {
   acceptingType?: SectionType | null;
   regeneratingType?: SectionType | null;
   onAdvanceStep?: (nextStep: number) => void;
+  onRequestRollback?: (messageIndex: number) => void;
 }
 
 export default function ChatPane({
@@ -70,6 +71,7 @@ export default function ChatPane({
   acceptingType,
   regeneratingType,
   onAdvanceStep,
+  onRequestRollback,
 }: ChatPaneProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [overrideCompleteness, setOverrideCompleteness] = useState<number | null>(null);
@@ -83,6 +85,18 @@ export default function ChatPane({
   }, [session?.messages, workspacePhase, discoveryStep, generatingPhase]);
 
   const messages = session?.messages || [];
+  const prevMsgCountRef = useRef(messages.length);
+  useEffect(() => {
+    if (messages.length < prevMsgCountRef.current) {
+      // Rollback xảy ra: làm sạch toàn bộ cờ trạng thái tạm thời
+      setIsSupplementing(false);
+      setOverrideCompleteness(null);
+      setStepConfirmed(false);
+      setQuestionnaireDismissed(false);
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length]);
+
   const currentPhaseSections = PHASE_SECTION_MAP[workspacePhase] || [];
   const phaseInfo = WORKSPACE_PHASES.find((p) => p.id === workspacePhase);
 
@@ -152,7 +166,7 @@ export default function ChatPane({
     setIsSupplementing(false);
     setOverrideCompleteness(null);
     setStepConfirmed(false);
-  }, [lastAiMessageContent]);
+  }, [lastAiMessageContent, messages.length]);
 
   // Reset khi step thay đổi
   const prevStepRef = useRef(discoveryStep);
@@ -328,6 +342,9 @@ export default function ChatPane({
             <ChatBubble
               key={idx}
               message={msg}
+              messageIndex={idx}
+              onRequestRollback={onRequestRollback}
+              disabled={sending}
               overrideCompleteness={isLatestAi ? overrideCompleteness : null}
             />
           );
@@ -473,6 +490,7 @@ export default function ChatPane({
         </div>
       ) : !isSupplementing && latestAiQuestions.length > 0 && !questionnaireDismissed ? (
         <QuestionStepperInput
+          key={`q-stepper-${messages.length}-${latestAiQuestions.map((q) => q.question).join("::")}`}
           questions={latestAiQuestions}
           onSendAnswers={(ans) => onSendMessage(ans)}
           onDismiss={() => setQuestionnaireDismissed(true)}
