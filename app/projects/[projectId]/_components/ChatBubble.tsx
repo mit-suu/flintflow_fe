@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "./ChatSessionSidebar";
 import { DiscoveryEvaluation } from "../../../../lib/constants/section-types";
 
@@ -7,12 +8,14 @@ interface ChatBubbleProps {
   message: ChatMessage;
   onEvaluationReceived?: (evaluation: DiscoveryEvaluation) => void;
   overrideCompleteness?: number | null;
+  isStreaming?: boolean;
 }
 
 export default function ChatBubble({
   message,
   onEvaluationReceived: _onEvaluationReceived,
   overrideCompleteness,
+  isStreaming = false,
 }: ChatBubbleProps) {
   const isUser = message.role === "user";
 
@@ -22,49 +25,192 @@ export default function ChatBubble({
     reply: string;
     evaluation?: DiscoveryEvaluation;
   } => {
-    if (content.startsWith("{") && content.endsWith("}")) {
-      try {
-        const data = JSON.parse(content);
-        return {
-          reply: data.reply || content,
-          evaluation: data.evaluation,
-        };
-      } catch (_) {
-        return { reply: content };
+    if (!content) return { reply: "" };
+
+    const cleanReply = (raw: string): string => {
+      let str = raw.trim();
+      if (!str) return "";
+
+      // Strip code fence
+      if (str.startsWith("```")) {
+        str = str.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      }
+
+      // If it starts with { or contains "reply":
+      if (str.startsWith("{") || str.includes('"reply"')) {
+        // 1. Try full JSON parse
+        try {
+          const data = JSON.parse(str);
+          if (data && typeof data.reply === "string") {
+            return cleanReply(data.reply);
+          }
+        } catch (_) { }
+
+        // 2. Non-greedy regex match for "reply": "..."
+        const replyMatch = str.match(
+          /(?:'|")reply(?:'|")\s*:\s*(['"])([\s\S]*?)(?<!\\)\1(?:\s*[,}]\s*|$)/
+        );
+        if (replyMatch && replyMatch[2] !== undefined) {
+          try {
+            const unescaped = JSON.parse(`"${replyMatch[2]}"`);
+            return cleanReply(unescaped);
+          } catch (_) {
+            return replyMatch[2]
+              .replace(/\\n/g, "\n")
+              .replace(/\\"/g, '"')
+              .replace(/\\t/g, "\t")
+              .replace(/\\\\/g, "\\");
+          }
+        }
+
+        // 3. Truncated in the middle of "reply"
+        const openMatch = str.match(/(?:'|")reply(?:'|")\s*:\s*(['"])([\s\S]*)$/);
+        if (openMatch && openMatch[2] !== undefined) {
+          let unclosed = openMatch[2];
+          if (unclosed.endsWith(openMatch[1])) {
+            unclosed = unclosed.slice(0, -1);
+          }
+          return unclosed
+            .replace(/\\n/g, "\n")
+            .replace(/\\"/g, '"')
+            .replace(/\\t/g, "\t")
+            .replace(/\\\\/g, "\\")
+            .trim();
+        }
+
+        // 4. Strip leading {"reply":"... and trailing metadata
+        const stripped = str
+          .replace(/^\{[\s\S]*?"reply"\s*:\s*"/i, "")
+          .replace(/"\s*,[\s\S]*$/, "")
+          .replace(/\\n/g, "\n")
+          .replace(/\\"/g, '"')
+          .replace(/\\t/g, "\t")
+          .replace(/\\\\/g, "\\");
+        if (stripped && !stripped.startsWith("{")) {
+          return stripped.trim();
+        }
+      }
+
+      return str;
+    };
+
+    let evaluation: DiscoveryEvaluation | undefined;
+    try {
+      const data = JSON.parse(content);
+      if (data && typeof data === "object") {
+        evaluation = data.evaluation;
+      }
+    } catch (_) {
+      const evalMatch = content.match(/"evaluation"\s*:\s*(\{[\s\S]*?\})/);
+      if (evalMatch && evalMatch[1]) {
+        try {
+          evaluation = JSON.parse(evalMatch[1]);
+        } catch (_) { }
       }
     }
-    return { reply: content };
+
+    return {
+      reply: cleanReply(content),
+      evaluation,
+    };
   };
 
-  const renderMarkdown = (text: string) => {
-    return text.split("\n").map((line, i) => {
+  const parsed = parseAiMessage(message.content);
+
+  // Smooth continuous typewriter ticker for streaming
+  const [displayedReply, setDisplayedReply] = useState(parsed.reply);
+  const targetReplyRef = useRef(parsed.reply);
+  targetReplyRef.current = parsed.reply;
+
+  useEffect(() => {
+    if (!isStreaming) {
+      setDisplayedReply(parsed.reply);
+      return;
+    }
+
+    let animationFrameId: number;
+    let lastTick = performance.now();
+
+    const tick = (now: number) => {
+      const elapsed = now - lastTick;
+      // Run smoothly at ~16ms (60 FPS)
+      if (elapsed >= 16) {
+        lastTick = now;
+        setDisplayedReply((current) => {
+          const target = targetReplyRef.current;
+          if (current.length >= target.length) return current;
+
+          const diff = target.length - current.length;
+          // Smooth adaptive speed: flows continuously, speeds up gracefully if far behind
+          let step = 1;
+          if (diff > 80) step = 5;
+          else if (diff > 40) step = 3;
+          else if (diff > 15) step = 2;
+
+          return target.slice(0, current.length + step);
+        });
+      }
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isStreaming]);
+
+  const activeReply = isStreaming ? displayedReply : parsed.reply;
+
+  const renderMarkdown = (text: string, showCursor: boolean = false) => {
+    const lines = text.split("\n");
+    return lines.map((line, i) => {
+      const isLastLine = i === lines.length - 1;
       let formatted = line;
+      // Auto-close incomplete bold tag while streaming
+      const starCount = (line.match(/\*\*/g) || []).length;
+      if (starCount % 2 !== 0) {
+        formatted += "**";
+      }
       // Bold text **text**
       formatted = formatted.replace(
         /\*\*(.*?)\*\*/g,
         "<strong>$1</strong>"
       );
 
+      const cursorElement = showCursor && isLastLine ? (
+        <span
+          className=""
+          style={{ verticalAlign: "-2px" }}
+        />
+      ) : null;
+
       if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
         return (
           <li
             key={i}
             className="ml-4 list-disc text-[13px] text-[#33312D] leading-relaxed py-0.5"
-            dangerouslySetInnerHTML={{
-              __html: formatted.replace(/^[-*]\s+/, ""),
-            }}
-          />
+          >
+            <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-*]\s+/, "") }} />
+            {cursorElement}
+          </li>
         );
       }
       if (line.trim() === "") {
+        if (cursorElement) {
+          return (
+            <div key={i} className="h-4 flex items-center">
+              {cursorElement}
+            </div>
+          );
+        }
         return <div key={i} className="h-1.5" />;
       }
       return (
         <p
           key={i}
           className="text-[13px] text-[#33312D] leading-relaxed mb-1"
-          dangerouslySetInnerHTML={{ __html: formatted }}
-        />
+        >
+          <span dangerouslySetInnerHTML={{ __html: formatted }} />
+          {cursorElement}
+        </p>
       );
     });
   };
@@ -79,7 +225,6 @@ export default function ChatBubble({
     );
   }
 
-  const parsed = parseAiMessage(message.content);
   const completeness =
     typeof overrideCompleteness === "number"
       ? overrideCompleteness
@@ -97,12 +242,26 @@ export default function ChatBubble({
       </div>
 
       <div className="flex flex-col gap-1.5 w-full max-w-[90%]">
-        <span className="text-[10.5px] font-bold text-[#A8A49C]">
-          FlintFlow AI Analyst
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10.5px] font-bold text-[#A8A49C]">
+            FlintFlow AI Analyst
+          </span>
+          {isStreaming && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#4F46E5] bg-[#F4F3FE] px-2 py-0.5 rounded-full border border-[#DDD9F6] animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
+              Đang phản hồi...
+            </span>
+          )}
+        </div>
         <div className="bg-white border border-[#ECEAE5] rounded-[18px] rounded-tl-[3px] p-5 shadow-[0_4px_16px_rgba(25,24,23,0.04)] space-y-3.5">
-          <div className="text-[#191817] space-y-1.5">
-            {renderMarkdown(parsed.reply)}
+          <div className="text-[#191817] space-y-1.5 relative">
+            {activeReply ? (
+              renderMarkdown(activeReply, isStreaming)
+            ) : isStreaming ? (
+              <div className="flex items-center gap-2 py-1.5 text-[#6B6862] text-[12.5px]">
+                <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-ping" />
+              </div>
+            ) : null}
           </div>
 
           {/* Completeness Indicator for Discovery mode */}
@@ -117,8 +276,8 @@ export default function ChatBubble({
                       (completeness ?? 0) >= 80
                         ? "#22C55E"
                         : (completeness ?? 0) >= 50
-                        ? "#F59E0B"
-                        : "#4F46E5",
+                          ? "#F59E0B"
+                          : "#4F46E5",
                   }}
                 />
               </div>

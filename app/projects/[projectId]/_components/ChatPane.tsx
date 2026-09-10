@@ -28,6 +28,10 @@ interface ChatPaneProps {
   discoveryStep: DiscoveryStepNumber;
   sections: SectionItem[];
   generatingPhase: boolean;
+  currentGeneratingType?: SectionType | null;
+  completedBatchTypes?: SectionType[];
+  failedBatchTypes?: SectionType[];
+  onStopGeneratePhase?: () => void;
   inputMessage: string;
   setInputMessage: (msg: string) => void;
   onSendMessage: (customContent?: string) => void;
@@ -45,6 +49,9 @@ interface ChatPaneProps {
   acceptingType?: SectionType | null;
   regeneratingType?: SectionType | null;
   onAdvanceStep?: (nextStep: number) => void;
+  streamingMessage?: string | null;
+  isStreaming?: boolean;
+  isWaitingForAi?: boolean;
 }
 
 export default function ChatPane({
@@ -53,6 +60,10 @@ export default function ChatPane({
   discoveryStep,
   sections,
   generatingPhase,
+  currentGeneratingType,
+  completedBatchTypes = [],
+  failedBatchTypes = [],
+  onStopGeneratePhase,
   inputMessage,
   setInputMessage,
   onSendMessage,
@@ -70,6 +81,9 @@ export default function ChatPane({
   acceptingType,
   regeneratingType,
   onAdvanceStep,
+  streamingMessage,
+  isStreaming = false,
+  isWaitingForAi = false,
 }: ChatPaneProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [overrideCompleteness, setOverrideCompleteness] = useState<number | null>(null);
@@ -77,10 +91,11 @@ export default function ChatPane({
   const [stepConfirmed, setStepConfirmed] = useState(false);
   const [questionnaireDismissed, setQuestionnaireDismissed] = useState(false);
 
-  // Auto scroll to bottom
+  // Auto scroll to bottom — follows cursor in real-time
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [session?.messages, workspacePhase, discoveryStep, generatingPhase]);
+    const isStreamingActive = streamingMessage !== null || isWaitingForAi;
+    messagesEndRef.current?.scrollIntoView({ behavior: isStreamingActive ? "auto" : "smooth" });
+  }, [session?.messages, workspacePhase, discoveryStep, generatingPhase, streamingMessage, currentGeneratingType, isWaitingForAi]);
 
   const messages = session?.messages || [];
   const currentPhaseSections = PHASE_SECTION_MAP[workspacePhase] || [];
@@ -90,16 +105,26 @@ export default function ChatPane({
   const lastEvaluation = useMemo((): DiscoveryEvaluation | null => {
     const aiMessages = messages.filter((m) => m.role === "ai");
     for (let i = aiMessages.length - 1; i >= 0; i--) {
+      let eval_: DiscoveryEvaluation | undefined;
       try {
         const parsed = JSON.parse(aiMessages[i].content);
         if (parsed.evaluation) {
-          const eval_ = parsed.evaluation as DiscoveryEvaluation;
-          // Chỉ lấy evaluation của step hiện tại (hoặc isDiscoveryComplete)
-          if (eval_.currentStep === discoveryStep || eval_.isDiscoveryComplete) {
-            return eval_;
-          }
+          eval_ = parsed.evaluation as DiscoveryEvaluation;
         }
-      } catch (_) {}
+      } catch (_) {
+        const evalMatch = aiMessages[i].content.match(/"evaluation"\s*:\s*(\{[\s\S]*?\})/);
+        if (evalMatch && evalMatch[1]) {
+          try {
+            eval_ = JSON.parse(evalMatch[1]);
+          } catch (_) {}
+        }
+      }
+
+      if (eval_) {
+        if (eval_.currentStep === discoveryStep || eval_.isDiscoveryComplete) {
+          return eval_;
+        }
+      }
     }
     return null;
   }, [messages, discoveryStep]);
@@ -110,36 +135,79 @@ export default function ChatPane({
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role !== "ai") return [];
 
+    const content = lastMsg.content?.trim() || "";
+    if (!content) return [];
+
+    // 1. Thử parse full JSON
     try {
-      if (lastMsg.content.startsWith("{") && lastMsg.content.endsWith("}")) {
-        const parsed = JSON.parse(lastMsg.content);
-        if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-          return parsed.questions
-            .map((q: any) => {
-              if (typeof q === "string") return { question: q, suggestedAnswers: [] };
-              return {
-                question: q.question || "",
-                suggestedAnswers: Array.isArray(q.suggestedAnswers)
-                  ? q.suggestedAnswers.filter(
-                      (a: any) => typeof a === "string" && a.trim().length > 0
-                    )
-                  : [],
-                multiple: typeof q.multiple === "boolean" ? q.multiple : undefined,
-              };
-            })
-            .filter((q: DiscoveryQuestion) => q.question.trim().length > 0);
-        }
-        if (
-          Array.isArray(parsed.suggestedQuestions) &&
-          parsed.suggestedQuestions.length > 0
-        ) {
-          return parsed.suggestedQuestions
-            .filter((q: any) => typeof q === "string" && q.trim().length > 0)
-            .map((q: string) => ({ question: q, suggestedAnswers: [] }));
-        }
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+        return parsed.questions
+          .map((q: any) => {
+            if (typeof q === "string") return { question: q, suggestedAnswers: [] };
+            return {
+              question: q.question || "",
+              suggestedAnswers: Array.isArray(q.suggestedAnswers)
+                ? q.suggestedAnswers.filter(
+                    (a: any) => typeof a === "string" && a.trim().length > 0
+                  )
+                : [],
+              multiple: typeof q.multiple === "boolean" ? q.multiple : undefined,
+            };
+          })
+          .filter((q: DiscoveryQuestion) => q.question.trim().length > 0);
+      }
+      if (
+        Array.isArray(parsed.suggestedQuestions) &&
+        parsed.suggestedQuestions.length > 0
+      ) {
+        return parsed.suggestedQuestions
+          .filter((q: any) => typeof q === "string" && q.trim().length > 0)
+          .map((q: string) => ({ question: q, suggestedAnswers: [] }));
       }
     } catch (_) {}
-    return [];
+
+    // 2. Fallback regex block parsing nếu JSON bị truncate ở cuối
+    const questions: DiscoveryQuestion[] = [];
+    const blockRegex = /\{\s*"question"\s*:\s*"((?:[^"\\]|\\.)*?)"[\s\S]*?\}/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = blockRegex.exec(content)) !== null) {
+      const blockStr = match[0];
+      try {
+        const parsed = JSON.parse(blockStr);
+        if (parsed.question) {
+          questions.push({
+            question: parsed.question,
+            suggestedAnswers: Array.isArray(parsed.suggestedAnswers) ? parsed.suggestedAnswers : [],
+            multiple: typeof parsed.multiple === "boolean" ? parsed.multiple : undefined,
+          });
+          continue;
+        }
+      } catch (_) {}
+
+      const qMatch = blockStr.match(/"question"\s*:\s*"((?:[^"\\]|\\.)*?)"/);
+      if (qMatch && qMatch[1]) {
+        const qText = qMatch[1].replace(/\\"/g, '"').replace(/\\n/g, "\n");
+        const answers: string[] = [];
+        const answersMatch = blockStr.match(/"suggestedAnswers"\s*:\s*\[([\s\S]*?)\]/);
+        if (answersMatch && answersMatch[1]) {
+          const itemRegex = /"((?:[^"\\]|\\.)*?)"/g;
+          let aMatch: RegExpExecArray | null;
+          while ((aMatch = itemRegex.exec(answersMatch[1])) !== null) {
+            answers.push(aMatch[1].replace(/\\"/g, '"'));
+          }
+        }
+        const multipleMatch = blockStr.match(/"multiple"\s*:\s*(true|false)/i);
+        questions.push({
+          question: qText,
+          suggestedAnswers: answers,
+          multiple: multipleMatch ? multipleMatch[1].toLowerCase() === "true" : undefined,
+        });
+      }
+    }
+
+    return questions;
   }, [messages]);
 
   // Tự động mở lại questionnaire & reset state khi có câu hỏi mới từ AI
@@ -333,6 +401,22 @@ export default function ChatPane({
           );
         })}
 
+        {/* Live Streaming AI Response or Waiting for AI after reload */}
+        {(isStreaming || isWaitingForAi) && (
+          <ChatBubble
+            message={{
+              role: "ai",
+              content: streamingMessage || "",
+              step:
+                workspacePhase === "discovery"
+                  ? DISCOVERY_STEPS[discoveryStep - 1]?.chatStepName || "vision_problem"
+                  : "vision_problem",
+              createdAt: new Date().toISOString(),
+            }}
+            isStreaming={true}
+          />
+        )}
+
         {/* Discovery Summary Card — AI xác nhận tất cả 6 steps đủ thông tin */}
         {workspacePhase === "discovery" && lastEvaluation?.isDiscoveryComplete && (
           <SummaryReviewCard
@@ -383,29 +467,31 @@ export default function ChatPane({
           <GeneratingIndicator
             phaseLabel={phaseInfo?.label || "Phase"}
             sectionTypes={currentPhaseSections}
-            completedTypes={phaseAcceptedSections.map(
-              (s) => s.type as SectionType
-            )}
+            completedTypes={completedBatchTypes}
+            currentGeneratingType={currentGeneratingType || undefined}
+            failedTypes={failedBatchTypes}
+            onStop={onStopGeneratePhase}
           />
         )}
 
         {/* Draft Review Cards for generated sections */}
-        {phaseGeneratedSections.map((sec) => (
-          <DraftReviewCard
-            key={sec.type}
-            sectionType={sec.type as SectionType}
-            sectionLabel={
-              SECTION_TYPE_LABELS[sec.type as SectionType] || sec.type
-            }
-            contentPreview={sec.content}
-            status={sec.status}
-            isAccepting={acceptingType === sec.type}
-            isRegenerating={regeneratingType === sec.type}
-            onAccept={() => onAcceptSection(sec.type as SectionType)}
-            onRevise={() => onRequestRevision(sec.type as SectionType)}
-            onRegenerate={() => onRegenerateSection(sec.type as SectionType)}
-          />
-        ))}
+        {!generatingPhase &&
+          phaseGeneratedSections.map((sec) => (
+            <DraftReviewCard
+              key={sec.type}
+              sectionType={sec.type as SectionType}
+              sectionLabel={
+                SECTION_TYPE_LABELS[sec.type as SectionType] || sec.type
+              }
+              contentPreview={sec.content}
+              status={sec.status}
+              isAccepting={acceptingType === sec.type}
+              isRegenerating={regeneratingType === sec.type}
+              onAccept={() => onAcceptSection(sec.type as SectionType)}
+              onRevise={() => onRequestRevision(sec.type as SectionType)}
+              onRegenerate={() => onRegenerateSection(sec.type as SectionType)}
+            />
+          ))}
 
         {/* Phase All Accepted Banner */}
         {isAllPhaseAccepted && (
