@@ -5,7 +5,9 @@ import dynamic from "next/dynamic";
 import "@excalidraw/excalidraw/index.css";
 
 // Import động Excalidraw và tắt Server-Side Rendering (SSR)
-const Excalidraw = dynamic(
+// dynamic<any>: gói @excalidraw/excalidraw không có type (xem types/excalidraw.d.ts),
+// nên next/dynamic suy ra props là {} và mọi prop truyền vào thành lỗi TS2769.
+const Excalidraw = dynamic<any>(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
   { ssr: false }
 );
@@ -26,7 +28,7 @@ export default function ExcalidrawWrapper({
   return (
     <div className="w-full h-full min-h-[500px] border-0 overflow-hidden relative">
       <Excalidraw
-        excalidrawAPI={(api) => {
+        excalidrawAPI={(api: any) => {
           if (excalidrawRef) {
             excalidrawRef.current = api;
           }
