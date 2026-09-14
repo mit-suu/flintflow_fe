@@ -3,7 +3,6 @@ import { apiCall } from "@/lib/api";
 export type PlanId = "free" | "pro";
 export type CreditTransactionType = "reserve" | "deduct" | "release" | "monthly_reset" | "purchase";
 export type PaymentIntentStatus = "pending" | "succeeded" | "failed";
-export type MockPaymentResult = "success" | "failed";
 
 export interface CreditTransaction {
   _id: string;
@@ -56,24 +55,14 @@ export interface PaymentIntentDTO {
   amount: number;
   currency: string;
   status: PaymentIntentStatus;
+  /** Mã đối chiếu giao dịch ngân hàng do payment_service sinh */
+  referenceCode: string | null;
+  /** Nội dung chuyển khoản — hiển thị nguyên văn, không tự sửa */
+  paymentDescription: string | null;
+  /** Ảnh VietQR */
+  qrCodeUrl: string | null;
   processedAt: string | null;
   createdAt: string;
-}
-
-export interface CheckoutResponse extends PaymentIntentDTO {
-  redirectUrl: string;
-}
-
-export interface CheckoutDetail extends PaymentIntentDTO {
-  mockSignatures: Record<MockPaymentResult, string> | null;
-}
-
-export interface MockWebhookResult {
-  intentId: string;
-  status: PaymentIntentStatus;
-  alreadyProcessed: boolean;
-  creditsAdded: number;
-  balance?: number;
 }
 
 export interface TransactionsMeta {
@@ -98,33 +87,19 @@ export async function fetchPackages(): Promise<{ packages: CreditPackage[]; plan
   return unwrap(res.data, "gói credit");
 }
 
-export async function createCheckout(packageId: string): Promise<CheckoutResponse> {
-  const res = await apiCall<CheckoutResponse>("/billing/checkout", {
+/** Tạo order thanh toán (BE gọi payment_service; API key không bao giờ ra trình duyệt). */
+export async function createCheckout(packageId: string): Promise<PaymentIntentDTO> {
+  const res = await apiCall<PaymentIntentDTO>("/billing/checkout", {
     method: "POST",
     body: JSON.stringify({ packageId }),
   });
   return unwrap(res.data, "thanh toán");
 }
 
-export async function fetchCheckout(intentId: string): Promise<CheckoutDetail> {
-  const res = await apiCall<CheckoutDetail>(`/billing/checkout/${intentId}`);
+/** Trạng thái giao dịch — dùng để polling trên trang QR. */
+export async function fetchCheckout(intentId: string): Promise<PaymentIntentDTO> {
+  const res = await apiCall<PaymentIntentDTO>(`/billing/checkout/${intentId}`);
   return unwrap(res.data, "giao dịch");
-}
-
-/**
- * Trang mock checkout đóng vai cổng thanh toán gọi webhook. Chữ ký gửi trong
- * body vì CORS của BE không cho header tuỳ biến từ trình duyệt.
- */
-export async function submitMockPayment(
-  intentId: string,
-  status: MockPaymentResult,
-  signature: string
-): Promise<MockWebhookResult> {
-  const res = await apiCall<MockWebhookResult>("/billing/webhook/mock", {
-    method: "POST",
-    body: JSON.stringify({ intentId, status, signature }),
-  });
-  return unwrap(res.data, "webhook");
 }
 
 export async function upgradePlan(plan: PlanId) {

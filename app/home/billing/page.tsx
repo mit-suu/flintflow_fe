@@ -84,12 +84,7 @@ export default function BillingPage() {
     setError(null);
     try {
       const checkout = await createCheckout(pkg.id);
-      const target = new URL(checkout.redirectUrl, window.location.origin);
-      if (target.origin === window.location.origin) {
-        router.push(`${target.pathname}${target.search}`);
-      } else {
-        window.location.assign(target.toString());
-      }
+      router.push(`/home/billing/checkout?intentId=${encodeURIComponent(checkout.intentId)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể tạo giao dịch");
       setBusy(null);
@@ -220,7 +215,7 @@ export default function BillingPage() {
                 ))}
               </div>
               <p className="text-[11.5px] text-[#A8A49C]">
-                Môi trường thử nghiệm: thanh toán qua cổng giả lập, không trừ tiền thật.
+                Thanh toán bằng chuyển khoản ngân hàng qua mã VietQR. Credit được cộng tự động khi giao dịch được xác nhận.
               </p>
             </section>
 
