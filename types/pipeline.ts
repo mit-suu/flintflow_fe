@@ -1,31 +1,85 @@
 /**
- * Kiểu hợp đồng Pipeline API — theo danh sách endpoint của T08; chốt lại theo
- * `docs/api/pipeline-contract.md` + `pipeline.dto.ts` khi T08 merge (T12 cập nhật).
+ * Kiểu hợp đồng Pipeline API — ĐỒNG BỘ TAY với BE `docs/api/pipeline-contract.md` và
+ * `src/modules/pipeline/pipeline.dto.ts` (T08, đóng băng tại M2).
  */
 import type { SectionStatus } from "./document";
-import type { Change, OpKind, Spine, StepStatus } from "./spine";
+import type { Change, Spine, StepStatus } from "./spine";
+
+// ─── changes ─────────────────────────────────────────────────────
+
+export type UserOpKind = "set" | "add" | "remove" | "renumber";
 
 export interface Op {
-  op: OpKind;
+  op: UserOpKind;
   path: string;
   value?: unknown;
   reason?: string;
 }
 
-/** Body `POST /projects/:id/changes` và `/changes/preview`. */
+/** Body `POST /projects/:id/changes` và `/changes/preview` — đúng một trong `ops` / `instruction`. */
 export interface ChangeRequest {
-  instruction?: string;
-  ops?: Op[];
   base_version: number;
+  ops?: Op[];
+  instruction?: string;
+  reason?: string;
+  preview_id?: string;
 }
 
-export interface ApplyResult {
-  spine: Spine;
-  changes: Change[];
-  spine_version: number;
+export interface Violation {
+  rule: string;
+  message: string;
+  path?: string;
+  op_index?: number;
 }
+
+export interface Referrer {
+  path: string;
+  id: string;
+}
+
+export interface ChangeDiff {
+  op: string;
+  path: string;
+  before: unknown;
+  value: unknown;
+  reason: string | null;
+}
+
+export interface Impact {
+  fields: string[];
+  sections: { id: string; relation: "owner" | "reads" | "derived" }[];
+  diagrams: string[];
+  referrers: Referrer[];
+}
+
+/** `POST /projects/:id/changes/preview` — 200 cả khi `ok = false`. */
+export interface PreviewResult {
+  ok: boolean;
+  txn: string;
+  base_version: number;
+  ops: Op[];
+  changes: ChangeDiff[];
+  violations: Violation[];
+  referrers: Referrer[];
+  branch?: "silent" | "dependent" | "post_baseline";
+  impact?: Impact;
+  clarification?: string;
+  preview_id?: string;
+}
+
+/** `POST /projects/:id/changes`, `/undo`, `/reconcile`. */
+export interface ApplyResult {
+  txn: string;
+  spine_version: number;
+  changes: Change[];
+  spine: Spine;
+}
+
+// ─── steps ───────────────────────────────────────────────────────
 
 export type StepKind = "soft" | "fixed" | "loop" | "gate";
+
+export type GateAction = "accept" | "revision" | "regenerate" | "accept_as_is";
 
 export interface StepSummary {
   id: string;
@@ -34,68 +88,124 @@ export interface StepSummary {
   label_en: string;
   kind: StepKind;
   status: StepStatus;
+  deterministic: boolean;
+  calls_used: number;
+  calls_limit: 8;
+  regenerate_used: number;
+  regenerate_limit: 3;
+  accepted_at: string | null;
 }
 
-/** Sự kiện SSE của `POST /projects/:id/steps/:stepId/run`. */
-export type StepEventType =
-  | "intake"
-  | "elicit"
-  | "answer_needed"
-  | "draft"
-  | "ops_applied"
-  | "render"
-  | "flags"
-  | "gate_ready"
-  | "error";
-
-export interface StepEvent {
-  type: StepEventType;
-  data?: unknown;
+/** `GET /projects/:id/steps`. */
+export interface StepsResponse {
+  current_phase: string | null;
+  current_step: string | null;
+  steps: StepSummary[];
 }
 
-export type StepAnswers = Record<string, string | string[]>;
+export interface Question {
+  id: string;
+  text: string;
+  options?: string[];
+  multiple?: boolean;
+}
 
-export type GateAction = "accept" | "revision" | "regenerate" | "accept_as_is";
+export type PipelineErrorCode =
+  | "VALIDATION_ERROR"
+  | "FLAG_NOT_WAIVABLE"
+  | "UNAUTHORIZED"
+  | "INSUFFICIENT_CREDIT"
+  | "NOT_PIPELINE_SESSION"
+  | "PROJECT_NOT_FOUND"
+  | "SPINE_NOT_FOUND"
+  | "STEP_NOT_FOUND"
+  | "FLAG_NOT_FOUND"
+  | "BASELINE_NOT_FOUND"
+  | "DIAGRAM_NOT_FOUND"
+  | "SPINE_VERSION_CONFLICT"
+  | "NEEDS_USER_INPUT"
+  | "NEEDS_CLARIFICATION"
+  | "REGENERATE_LIMIT"
+  | "CALL_LIMIT"
+  | "STEP_NOT_RUNNABLE"
+  | "INVARIANT_VIOLATION"
+  | "OP_INVALID"
+  | "CHANGE_RANGE_INVALID"
+  | "NOTHING_TO_UNDO"
+  | "BASELINE_BLOCKED"
+  | "NOT_IMPLEMENTED";
 
+/** Sự kiện SSE của `POST /projects/:id/steps/:stepId/run` (`event: <type>` + `data: <JSON>`). */
+export type StepEvent =
+  | { type: "intake"; step_id: string; phase: string; empty_fields: string[] }
+  | { type: "elicit"; step_id: string; delta: string }
+  | { type: "answer_needed"; step_id: string; questions: Question[] }
+  | { type: "draft"; step_id: string; attempt: number }
+  | { type: "ops_applied"; step_id: string; txn: string; spine_version: number; changes: ChangeDiff[] }
+  | { type: "render"; step_id: string; diagram_id: string; render_status: "ok" | "error"; error?: string }
+  | { type: "flags"; step_id: string; red_open: number; yellow_open: number }
+  | { type: "gate_ready"; step_id: string; actions: GateAction[]; regenerate_used: number; calls_used: number }
+  | { type: "error"; step_id: string; code: PipelineErrorCode; message: string; retryable: boolean };
+
+export type StepEventType = StepEvent["type"];
+
+export interface RunStepRequest {
+  session_id: string;
+  base_version: number;
+}
+
+export interface StepAnswer {
+  question_id: string;
+  answer: string | string[];
+}
+
+export interface StepAnswerRequest {
+  session_id: string;
+  answers: StepAnswer[];
+}
+
+/** `revision` và `accept_as_is` bắt buộc `note`. */
 export interface GateRequest {
   action: GateAction;
   note?: string;
+  base_version: number;
+  function_id?: string;
 }
 
+export interface GateResponse {
+  step: StepSummary;
+  next_step: string | null;
+  spine_version: number;
+}
+
+// ─── progress ────────────────────────────────────────────────────
+
 export interface Readiness {
-  acceptedPct: number;
-  awaitingReaccept: number;
-  redOpen: number;
+  accepted_pct: number;
+  awaiting_reaccept: number;
+  red_open: number;
   stale: number;
 }
 
 export interface StepProgress {
   done: number;
   total: number;
-  currentPhase: string;
-  currentStep: string;
-  showPercent: boolean;
+  current_phase: string | null;
+  current_step: string | null;
+  show_percent: boolean;
 }
 
 export interface SectionProgress {
   id: string;
   status: SectionStatus;
   awaiting_reaccept: boolean;
+  required: boolean;
+  derived: boolean;
 }
 
 /** `GET /projects/:id/progress`. */
 export interface ProgressResponse {
   readiness: Readiness;
-  steps: StepProgress;
+  progress: StepProgress;
   sections: SectionProgress[];
 }
-
-export type PipelineErrorCode =
-  | "SPINE_VERSION_CONFLICT"
-  | "INVARIANT_VIOLATION"
-  | "NEEDS_USER_INPUT"
-  | "NEEDS_CLARIFICATION"
-  | "REGENERATE_LIMIT"
-  | "CALL_LIMIT"
-  | "INSUFFICIENT_CREDIT"
-  | "NOT_PIPELINE_SESSION";
