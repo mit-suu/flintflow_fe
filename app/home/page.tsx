@@ -4,19 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import ProjectCard, { type Project } from "../../components/ProjectCard";
 import Modal from "../../components/Modal";
 import Logo from "../../components/Logo";
+import NotificationBell from "../../components/NotificationBell";
 import { apiCall } from "../../lib/api";
-
-interface User {
-  id: string;
-  email: string;
-  balance?: number;
-}
+import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [billing, setBilling] = useState<BalanceResponse | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -46,15 +42,14 @@ export default function HomePage() {
   }, [fetchProjects]);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const loadBilling = async () => {
       try {
-        const res = await apiCall<User>("/users/me");
-        setUser(res.data ?? null);
+        setBilling(await fetchBalance());
       } catch (err) {
-        console.error("Failed to fetch user:", err);
+        console.error("Failed to fetch billing balance:", err);
       }
     };
-    fetchUser();
+    loadBilling();
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -153,17 +148,12 @@ export default function HomePage() {
         {/* Right actions */}
         <div className="ml-auto flex items-center gap-2.5">
           {/* Notification Bell */}
-          <div className="relative w-[30px] h-[30px] rounded-[9px] bg-[#F5F3F0] border border-[#E4E1DC] flex items-center justify-center text-[13px] cursor-pointer hover:bg-[#FAF9F7] transition-colors">
-            🔔
-            <div className="absolute -top-1 -right-1 min-w-[15px] h-[15px] rounded-full bg-[#B03030] text-white text-[9px] font-extrabold flex items-center justify-center px-1">
-              3
-            </div>
-          </div>
+          <NotificationBell />
 
           {/* Credits chip */}
           <div className="flex items-center gap-2 bg-[#F0EEEA] rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[#191817]">
             <span className="w-2 h-2 rounded-full bg-[#4F46E5] shrink-0" />
-            {user?.balance ?? 0} credits · Free
+            {billing?.balance ?? 0} credits · {billing?.planLabel ?? "Free"}
           </div>
 
           {/* New Project button */}
