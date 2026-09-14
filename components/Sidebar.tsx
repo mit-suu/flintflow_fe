@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clearAuthToken } from "../lib/auth";
+import { fetchBalance } from "../lib/api/billing";
 import Logo from "./Logo";
+import { useUnreadNotificationCount } from "./NotificationBell";
 
 interface Project {
   id: string;
@@ -54,12 +56,33 @@ export default function Sidebar({
   activePath,
   user,
   favourites = [],
-  notificationCount = 0,
+  notificationCount,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [planLabel, setPlanLabel] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const liveUnreadCount = useUnreadNotificationCount();
+  const unreadCount = notificationCount ?? liveUnreadCount;
+  // Nhãn plan lấy từ /billing/balance; admin giữ nhãn "Admin"
+  const displayPlan = user.plan === "Admin" ? user.plan : planLabel ?? user.plan;
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPlan = async () => {
+      try {
+        const balance = await fetchBalance();
+        if (!cancelled) setPlanLabel(`${balance.planLabel} Plan`);
+      } catch {
+        // Giữ nhãn mặc định từ layout
+      }
+    };
+    void loadPlan();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -128,6 +151,32 @@ export default function Sidebar({
           </Link>
         );
       })}
+
+      <Link
+        href="/home/notifications"
+        title={collapsed ? "Thông báo" : undefined}
+        className={`relative flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
+          activePath === "/home/notifications"
+            ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
+            : "text-[#6B6862] font-semibold hover:bg-[#FAF9F7]"
+        }`}
+        style={{
+          padding: collapsed ? "8px 0" : "8px 10px",
+          justifyContent: collapsed ? "center" : undefined,
+        }}
+      >
+        <span className="text-[13px] leading-none shrink-0">◉</span>
+        {!collapsed && "Thông báo"}
+        {unreadCount > 0 && (
+          <span
+            className={`min-w-[16px] h-[16px] rounded-full bg-[#B03030] text-white text-[9.5px] font-extrabold flex items-center justify-center px-1 ${
+              collapsed ? "absolute top-0.5 right-1" : "ml-auto"
+            }`}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </Link>
 
       {/* Divider */}
       <div className="h-px bg-[#F0EEEA] mx-2 my-2.5" />
@@ -199,7 +248,7 @@ export default function Sidebar({
             >
               ◎ Thanh toán
               <span className="ml-auto px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[10px] font-bold text-[#6B6862]">
-                {user.plan}
+                {displayPlan}
               </span>
             </button>
             <button
@@ -240,7 +289,7 @@ export default function Sidebar({
             <>
               <div className="min-w-0">
                 <div className="text-[11.5px] font-bold text-[#191817] truncate">{user.name}</div>
-                <div className="text-[10px] text-[#8A867E] truncate">{user.plan}</div>
+                <div className="text-[10px] text-[#8A867E] truncate">{displayPlan}</div>
               </div>
               <div className="ml-auto text-[#A8A49C] text-[11px]">⌄</div>
             </>
