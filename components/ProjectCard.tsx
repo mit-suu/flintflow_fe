@@ -2,17 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
-
-export interface Project {
-  _id: string;
-  name: string;
-  domain?: string | null;
-  status: "active" | "archived";
-  currentStep: string;
-  progressPercent: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Project } from "@/types/project";
 
 interface Props {
   project: Project;
