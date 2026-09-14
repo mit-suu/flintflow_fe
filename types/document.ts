@@ -56,6 +56,8 @@ export interface RocRow {
 export type FlagRow = Pick<Flag, "id" | "rule_id" | "section_id" | "message" | "waive_reason">;
 
 export interface RenderedDocument {
+  /** Bắt buộc: ghi vào custom property của file .docx làm "dấu version FlintFlow" (business-flow I-1). */
+  projectId: string;
   projectName: string;
   version: string;
   source: DocumentSource;
