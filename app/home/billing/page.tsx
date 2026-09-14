@@ -91,16 +91,23 @@ export default function BillingPage() {
     }
   };
 
-  const handleUpgrade = async (plan: PlanId) => {
-    setBusy(`plan:${plan}`);
+  /** Gói trả phí đi qua checkout thật (`plan:<id>`); về gói miễn phí thì đổi ngay. */
+  const handleUpgrade = async (plan: PlanDefinition) => {
+    const busyKey: `plan:${PlanId}` = `plan:${plan.id}`;
+    setBusy(busyKey);
     setError(null);
     try {
-      await upgradePlan(plan);
+      if (plan.priceVnd > 0) {
+        const checkout = await createCheckout(busyKey);
+        router.push(`/home/billing/checkout?intentId=${encodeURIComponent(checkout.intentId)}`);
+        return;
+      }
+      await upgradePlan(plan.id);
       await loadBalance();
       emitNotificationsChanged();
+      setBusy(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể đổi gói");
-    } finally {
       setBusy(null);
     }
   };
@@ -246,11 +253,17 @@ export default function BillingPage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleUpgrade(plan.id)}
+                          onClick={() => handleUpgrade(plan)}
                           disabled={busy !== null}
                           className="px-4 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-white text-[12.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
                         >
-                          {busy === `plan:${plan.id}` ? "Đang đổi…" : `Chuyển sang ${plan.label}`}
+                          {busy === `plan:${plan.id}`
+                            ? plan.priceVnd > 0
+                              ? "Đang tạo giao dịch…"
+                              : "Đang đổi…"
+                            : plan.priceVnd > 0
+                              ? `Mua gói ${plan.label}`
+                              : `Chuyển sang ${plan.label}`}
                         </button>
                       )}
                     </div>
