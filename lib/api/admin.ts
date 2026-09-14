@@ -1,26 +1,33 @@
-/**
- * Khung API admin — prompt template (endpoint hiện có) + read-only 10.1–10.3 theo T06.
- * T06 chốt shape response khi BE merge.
- */
 import { apiCall } from "./client";
+import type { CreditTransaction } from "./billing";
+
+export type AdminUserRole = "user" | "admin";
+export type AiCostGroupBy = "day" | "actionType" | "provider" | "user";
 
 export interface AdminUser {
-  id: string;
+  _id: string;
   email: string;
-  role: string;
+  name: string | null;
+  role: AdminUserRole;
   isActive: boolean;
-  balance?: number;
-  projectsCount?: number;
-  lastLoginAt?: string | null;
+  emailVerified: boolean;
+  authProvider: string;
   createdAt: string;
+  walletBalance: number;
+  projectsCount: number;
+  lastLoginAt: string | null;
 }
 
-export interface AdminUserQuery {
-  page?: number;
-  limit?: number;
-  role?: string;
-  isActive?: boolean;
-  q?: string;
+export interface AdminUserDetail extends AdminUser {
+  wallet: { balance: number; reserved: number } | null;
+  recentTransactions: CreditTransaction[];
+}
+
+export interface PageMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface AdminMetrics {
@@ -30,40 +37,94 @@ export interface AdminMetrics {
   projectsActive7d: number;
   baselinesTotal: number;
   aiCallsToday: number;
+  aiCalls7d: number;
+  /** Tỉ lệ 0..1 */
   aiFailRate7d: number;
 }
 
-export interface AiCostQuery {
-  from?: string;
-  to?: string;
-  groupBy?: "day" | "actionType" | "provider" | "user";
+export interface AiCostRow {
+  key: string;
+  label: string;
+  calls: number;
+  failedCalls: number;
+  promptTokens: number;
+  completionTokens: number;
+  credits: number;
+  estimatedUsd: number;
 }
 
-const toQueryString = (query: object) => {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== "") params.set(key, String(value));
+export interface AiCostReport {
+  from: string;
+  to: string;
+  groupBy: AiCostGroupBy;
+  currency: string;
+  pricingNote: string;
+  rows: AiCostRow[];
+  totals: Omit<AiCostRow, "key" | "label">;
+}
+
+export interface FetchUsersParams {
+  page?: number;
+  limit?: number;
+  role?: AdminUserRole;
+  isActive?: boolean;
+  q?: string;
+}
+
+export interface FetchAiCostParams {
+  /** YYYY-MM-DD */
+  from?: string;
+  /** YYYY-MM-DD */
+  to?: string;
+  groupBy?: AiCostGroupBy;
+}
+
+const unwrap = <T>(data: T | null, what: string): T => {
+  if (data === null) throw new Error(`Không nhận được dữ liệu ${what}`);
+  return data;
+};
+
+const toQuery = (params: Record<string, string | number | boolean | undefined>) => {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
   }
-  const qs = params.toString();
+  const qs = query.toString();
   return qs ? `?${qs}` : "";
 };
 
-export const listAdminUsers = (query: AdminUserQuery = {}) =>
-  apiCall<AdminUser[]>(`/admin/users${toQueryString(query)}`);
+export async function fetchAdminUsers(params: FetchUsersParams = {}) {
+  const res = await apiCall<AdminUser[]>(`/admin/users${toQuery({ ...params })}`);
+  return {
+    items: res.data ?? [],
+    meta: res.meta as unknown as PageMeta,
+  };
+}
 
-export const getAdminUser = (userId: string) => apiCall<AdminUser>(`/admin/users/${userId}`);
+export async function fetchAdminUser(id: string): Promise<AdminUserDetail> {
+  const res = await apiCall<AdminUserDetail>(`/admin/users/${id}`);
+  return unwrap(res.data, "người dùng");
+}
 
-export const getAdminMetrics = () => apiCall<AdminMetrics>("/admin/metrics");
+export async function fetchAdminMetrics(): Promise<AdminMetrics> {
+  const res = await apiCall<AdminMetrics>("/admin/metrics");
+  return unwrap(res.data, "số liệu");
+}
 
-export const getAiCost = (query: AiCostQuery = {}) =>
-  apiCall<unknown>(`/admin/ai-cost${toQueryString(query)}`);
+export async function fetchAiCost(params: FetchAiCostParams = {}): Promise<AiCostReport> {
+  const res = await apiCall<AiCostReport>(`/admin/ai-cost${toQuery({ ...params })}`);
+  return unwrap(res.data, "chi phí AI");
+}
 
-export const listAdminFeedback = () => apiCall<unknown[]>("/admin/feedback");
+export async function fetchAdminFeedback(): Promise<unknown[]> {
+  const res = await apiCall<unknown[]>("/admin/feedback");
+  return res.data ?? [];
+}
 
-export const listPromptTemplates = () => apiCall<unknown[]>("/admin/prompt-templates");
+export const formatNumber = (value: number) => value.toLocaleString("vi-VN");
 
-export const getPromptTemplate = (actionType: string) =>
-  apiCall<unknown>(`/admin/prompt-templates/${actionType}`);
+export const formatUsd = (value: number) =>
+  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 
-export const getPromptTemplateHistory = (actionType: string) =>
-  apiCall<unknown[]>(`/admin/prompt-templates/${actionType}/history`);
+export const formatDateTime = (value: string | null) =>
+  value ? new Date(value).toLocaleString("vi-VN") : "—";

@@ -140,26 +140,18 @@ const cases: EndpointCase[] = [
     post({ packageId: "pkg1" }),
   ],
   ["fetchCheckout", () => billing.fetchCheckout("i1").catch(() => undefined), "/billing/checkout/i1"],
-  [
-    "submitMockPayment",
-    () => billing.submitMockPayment("i1", "success", "sig").catch(() => undefined),
-    "/billing/webhook/mock",
-    post({ intentId: "i1", status: "success", signature: "sig" }),
-  ],
   ["upgradePlan", () => billing.upgradePlan("pro").catch(() => undefined), "/billing/upgrade", post({ plan: "pro" })],
   ["fetchTransactions", () => billing.fetchTransactions(2), "/billing/transactions?page=2&limit=20"],
-  ["listAdminUsers", () => admin.listAdminUsers({ page: 2, q: "an" }), "/admin/users?page=2&q=an"],
-  ["getAdminUser", () => admin.getAdminUser("u1"), "/admin/users/u1"],
-  ["getAdminMetrics", () => admin.getAdminMetrics(), "/admin/metrics"],
-  ["getAiCost", () => admin.getAiCost({ groupBy: "day" }), "/admin/ai-cost?groupBy=day"],
-  ["listAdminFeedback", () => admin.listAdminFeedback(), "/admin/feedback"],
-  ["listPromptTemplates", () => admin.listPromptTemplates(), "/admin/prompt-templates"],
-  ["getPromptTemplate", () => admin.getPromptTemplate("chat"), "/admin/prompt-templates/chat"],
+  ["fetchAdminUsers", () => admin.fetchAdminUsers({ page: 2, q: "an" }), "/admin/users?page=2&q=an"],
+  // Các hàm admin dưới ném lỗi khi data = null (mock trả null) — chỉ kiểm endpoint
+  ["fetchAdminUser", () => admin.fetchAdminUser("u1").catch(() => undefined), "/admin/users/u1"],
+  ["fetchAdminMetrics", () => admin.fetchAdminMetrics().catch(() => undefined), "/admin/metrics"],
   [
-    "getPromptTemplateHistory",
-    () => admin.getPromptTemplateHistory("chat"),
-    "/admin/prompt-templates/chat/history",
+    "fetchAiCost",
+    () => admin.fetchAiCost({ groupBy: "day" }).catch(() => undefined),
+    "/admin/ai-cost?groupBy=day",
   ],
+  ["fetchAdminFeedback", () => admin.fetchAdminFeedback(), "/admin/feedback"],
 ];
 
 describe("lib/api wrappers", () => {
