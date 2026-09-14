@@ -183,14 +183,20 @@ const progressOf = (state: MockState): ProgressResponse => {
 
 // ─── SSE ─────────────────────────────────────────────────────────
 
-const sseStream = (produce: (send: (event: StepEvent) => void) => Promise<void>) => {
+/** Kịch bản ném lỗi thì vẫn phát `error` rồi đóng luồng — không để client treo (contract §2). */
+const sseStream = (stepId: string, produce: (send: (event: StepEvent) => void) => Promise<void>) => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: StepEvent) =>
         controller.enqueue(encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
-      await produce(send);
-      controller.close();
+      try {
+        await produce(send);
+      } catch (err) {
+        send({ type: "error", step_id: stepId, code: "STEP_NOT_RUNNABLE", message: `(mock) ${err instanceof Error ? err.message : String(err)}`, retryable: true });
+      } finally {
+        controller.close();
+      }
     },
   });
   return new HttpResponse(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
@@ -312,7 +318,7 @@ export const handlers = [
     if (stepStatusOf(mockState, stepId) === "accepted") return fail(409, "STEP_NOT_RUNNABLE", `Step ${stepId} đã accepted`);
     const counters = countersOf(mockState, stepId);
     if (counters.calls_used >= CALLS_LIMIT) return fail(409, "CALL_LIMIT", "Đã hết 8 lượt gọi model của step", { calls_used: counters.calls_used });
-    return sseStream((send) => runSteps(mockState, stepId, send));
+    return sseStream(stepId, (send) => runSteps(mockState, stepId, send));
   }),
 
   http.post(api("/projects/:projectId/steps/:stepId/answer"), async ({ params, request }) => {

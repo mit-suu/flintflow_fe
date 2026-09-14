@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { answerStep, runStep, submitGate } from "@/lib/api/pipeline";
 import type { GateAction, GateResponse, Question, StepAnswer, StepEvent } from "@/types/pipeline";
@@ -113,6 +113,11 @@ export interface UseStepRunnerOptions {
   onGateDone?: (response: GateResponse) => void;
 }
 
+/** Luồng SSE của `/run` chỉ được đóng sau hai sự kiện này (contract §2). */
+export const isTerminalEvent = (event: StepEvent): boolean => event.type === "gate_ready" || event.type === "error";
+
+export const STREAM_CLOSED = "STREAM_CLOSED";
+
 const toFailure = (err: unknown): { code: string; message: string } =>
   err instanceof ApiClientError
     ? { code: err.code, message: err.message }
@@ -121,6 +126,10 @@ const toFailure = (err: unknown): { code: string; message: string } =>
 export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Rời trang / đổi project: đóng luồng SSE đang mở
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const run = useCallback(
     async (stepId: string) => {
@@ -129,19 +138,32 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
         return;
       }
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       stepRef.current = stepId;
       dispatch({ type: "start", stepId });
+
+      let terminated = false;
       try {
         await runStep(projectId, stepId, { session_id: sessionId, base_version: baseVersion }, {
+          signal: controller.signal,
           onEvent: (event) => {
+            // Luồng cũ đã bị huỷ, hoặc sự kiện của step khác: bỏ qua
+            if (controller.signal.aborted || event.step_id !== stepId) return;
+            if (isTerminalEvent(event)) terminated = true;
             dispatch({ type: "event", event });
             if (event.type === "ops_applied") onSpineChanged(event.spine_version);
             if (event.type === "gate_ready") onSpineChanged();
           },
         });
+        if (!controller.signal.aborted && !terminated) {
+          dispatch({ type: "failed", code: STREAM_CLOSED, message: "Kết nối tới step bị đóng giữa chừng. Vui lòng chạy lại." });
+        }
       } catch (err) {
-        const failure = toFailure(err);
-        dispatch({ type: "failed", ...failure });
+        if (!controller.signal.aborted) dispatch({ type: "failed", ...toFailure(err) });
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
       }
     },
     [projectId, sessionId, getBaseVersion, onSpineChanged]
@@ -187,7 +209,10 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     [projectId, getBaseVersion, onSpineChanged, onGateDone, run]
   );
 
-  const reset = useCallback(() => dispatch({ type: "reset" }), []);
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    dispatch({ type: "reset" });
+  }, []);
 
   return { state, run, answer, gate, reset };
 }

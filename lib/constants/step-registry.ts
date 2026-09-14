@@ -80,7 +80,7 @@ const expand = (def: StepDef, loop: string | null): ExpandedStep => ({
 export const getStepDef = (stepId: string): ExpandedStep | undefined => {
   const { base, loop } = parseStepId(stepId);
   const def = STEP_REGISTRY.find((s) => s.id === base);
-  if (!def || (def.kind === "loop") !== (loop !== null)) return undefined;
+  if (!def || (def.kind === "loop") !== (loop !== null) || loop === "") return undefined;
   return expand(def, loop);
 };
 
