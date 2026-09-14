@@ -1,27 +1,77 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   SRS_CHAPTERS,
   SECTION_TYPE_LABELS,
   SectionType,
-  WorkspacePhase,
 } from "../../../../lib/constants/section-types";
-import { SectionItem } from "./PhaseNavBar";
+import type { SectionItem } from "@/types/document";
 
 interface DocumentPaneProps {
   projectName?: string;
   sections: SectionItem[];
-  workspacePhase: WorkspacePhase;
-  onSaveSectionContent?: (type: SectionType, content: string) => Promise<void>;
-  onAssembleSRS?: () => void;
 }
 
+// Style cho markdown render (không dùng plugin typography)
+const markdownComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="text-[15px] font-extrabold text-[#191817] mt-3 mb-2 first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-[14px] font-extrabold text-[#191817] mt-3 mb-2 first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-[13px] font-bold text-[#191817] mt-2.5 mb-1.5 first:mt-0">{children}</h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="text-[12.5px] font-bold text-[#191817] mt-2 mb-1 first:mt-0">{children}</h4>
+  ),
+  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-0.5">{children}</ol>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="text-[#4F46E5] underline">
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-[#DDD9F6] pl-3 text-[#6B6862] mb-2">{children}</blockquote>
+  ),
+  code: ({ children }) => (
+    <code className="font-mono text-[11px] bg-[#F5F3F0] px-1 py-0.5 rounded">{children}</code>
+  ),
+  pre: ({ children }) => (
+    <pre className="font-mono text-[11px] bg-[#F5F3F0] p-2.5 rounded-[6px] overflow-x-auto mb-2">
+      {children}
+    </pre>
+  ),
+  hr: () => <hr className="my-3 border-[#ECEAE5]" />,
+  table: ({ children }) => (
+    <div className="overflow-x-auto mb-2">
+      <table className="w-full border-collapse text-[11.5px]">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">{children}</th>
+  ),
+  td: ({ children }) => <td className="border border-[#ECEAE5] px-2 py-1 align-top">{children}</td>,
+};
+
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      {content}
+    </ReactMarkdown>
+  );
+}
+
+/** Document pane chỉ đọc: nội dung SRS chỉ đổi qua step/chat, không sửa trực tiếp tại đây. */
 export default function DocumentPane({
   projectName = "Dự án",
   sections,
-  onSaveSectionContent,
-  onAssembleSRS,
 }: DocumentPaneProps) {
   const [expandedChapters, setExpandedChapters] = useState<
     Record<string, boolean>
@@ -33,10 +83,6 @@ export default function DocumentPane({
     ch5: true,
   });
 
-  const [editingSectionType, setEditingSectionType] =
-    useState<SectionType | null>(null);
-  const [editBuffer, setEditBuffer] = useState<string>("");
-  const [savingEdit, setSavingEdit] = useState(false);
   const [showFullDocModal, setShowFullDocModal] = useState(false);
 
   const toggleChapter = (chapterId: string) => {
@@ -48,24 +94,6 @@ export default function DocumentPane({
 
   const getSectionData = (type: SectionType) => {
     return sections.find((s) => s.type === type);
-  };
-
-  const startEdit = (type: SectionType, content: string) => {
-    setEditingSectionType(type);
-    setEditBuffer(content || "");
-  };
-
-  const saveEdit = async (type: SectionType) => {
-    if (!onSaveSectionContent) return;
-    try {
-      setSavingEdit(true);
-      await onSaveSectionContent(type, editBuffer);
-      setEditingSectionType(null);
-    } catch (err: unknown) {
-      alert("Lưu đặc tả thất bại: " + (err instanceof Error ? err.message : "Lỗi chưa xác định"));
-    } finally {
-      setSavingEdit(false);
-    }
   };
 
   // Compile full SRS Document text for preview / copy
@@ -190,7 +218,6 @@ export default function DocumentPane({
                   {chapterSections.map((secType) => {
                     const sec = getSectionData(secType);
                     const label = SECTION_TYPE_LABELS[secType] || secType;
-                    const isEditing = editingSectionType === secType;
                     const hasContent = Boolean(sec && sec.content);
                     const isAccepted = sec?.status === "accepted";
 
@@ -215,67 +242,27 @@ export default function DocumentPane({
                             </h5>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${
-                                isAccepted
-                                  ? "bg-[#E9F7EE] text-[#1F7A45]"
-                                  : hasContent
-                                  ? "bg-[#F4F3FE] text-[#3B34B0]"
-                                  : "bg-[#F0EEEA] text-[#8A867E]"
-                              }`}
-                            >
-                              {isAccepted
-                                ? "Accepted"
+                          <span
+                            className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${
+                              isAccepted
+                                ? "bg-[#E9F7EE] text-[#1F7A45]"
                                 : hasContent
-                                ? "Draft"
-                                : "Chưa sinh"}
-                            </span>
-
-                            {hasContent && !isEditing && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  startEdit(secType, sec?.content || "")
-                                }
-                                className="text-[11px] font-bold text-[#4F46E5] hover:underline cursor-pointer ml-1"
-                              >
-                                Sửa
-                              </button>
-                            )}
-                          </div>
+                                ? "bg-[#F4F3FE] text-[#3B34B0]"
+                                : "bg-[#F0EEEA] text-[#8A867E]"
+                            }`}
+                          >
+                            {isAccepted
+                              ? "Accepted"
+                              : hasContent
+                              ? "Draft"
+                              : "Chưa sinh"}
+                          </span>
                         </div>
 
-                        {/* Content render or edit mode */}
-                        {isEditing ? (
-                          <div className="flex flex-col gap-2 pt-1">
-                            <textarea
-                              value={editBuffer}
-                              onChange={(e) => setEditBuffer(e.target.value)}
-                              rows={8}
-                              className="w-full p-3 text-[12px] font-mono text-[#191817] bg-white border border-[#DDD9F6] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#4F46E5]"
-                            />
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setEditingSectionType(null)}
-                                className="px-3 py-1 rounded-full text-[11px] font-semibold text-[#6B6862] hover:bg-[#F0EEEA] cursor-pointer"
-                              >
-                                Huỷ
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => saveEdit(secType)}
-                                disabled={savingEdit}
-                                className="px-3.5 py-1 rounded-full btn-gradient-primary text-white text-[11px] font-bold cursor-pointer"
-                              >
-                                {savingEdit ? "Đang lưu…" : "Lưu thay đổi"}
-                              </button>
-                            </div>
-                          </div>
-                        ) : hasContent ? (
-                          <div className="p-3 bg-white border border-[#ECEAE5] rounded-[8px] text-[12px] text-[#33312D] font-mono leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
-                            {sec?.content}
+                        {/* Content render (read-only) */}
+                        {hasContent ? (
+                          <div className="p-3 bg-white border border-[#ECEAE5] rounded-[8px] text-[12px] text-[#33312D] leading-relaxed max-h-64 overflow-y-auto">
+                            <MarkdownContent content={sec?.content || ""} />
                           </div>
                         ) : (
                           <div className="p-3 bg-white/60 border border-dashed border-[#E4E1DC] rounded-[8px] text-[11.5px] text-[#A8A49C] italic">
@@ -329,8 +316,8 @@ export default function DocumentPane({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-[#FAF9F7] rounded-[12px] border border-[#ECEAE5] font-mono text-[12px] text-[#191817] leading-relaxed whitespace-pre-wrap">
-              {getFullSrsMarkdown()}
+            <div className="flex-1 overflow-y-auto p-4 bg-[#FAF9F7] rounded-[12px] border border-[#ECEAE5] text-[12.5px] text-[#191817] leading-relaxed">
+              <MarkdownContent content={getFullSrsMarkdown()} />
             </div>
           </div>
         </div>

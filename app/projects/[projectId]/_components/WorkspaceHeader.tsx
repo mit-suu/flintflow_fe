@@ -2,28 +2,12 @@
 
 import Link from "next/link";
 import Logo from "../../../../components/Logo";
-
-export interface ProjectData {
-  _id: string;
-  name: string;
-  domain?: string | null;
-  status: string;
-  currentStep?: string;
-  currentPhase?: number;
-  workspacePhase?: string;
-  baselineVersion?: string | null;
-  progressPercent: number;
-}
-
-export interface UserData {
-  id: string;
-  email: string;
-  balance?: number;
-}
+import type { Project } from "@/types/project";
+import type { User } from "@/types/user";
 
 interface WorkspaceHeaderProps {
-  project: ProjectData | null;
-  user: UserData | null;
+  project: Project | null;
+  user: User | null;
   onExportClick?: () => void;
   onLogout: () => void;
 }
@@ -69,11 +53,6 @@ export default function WorkspaceHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="hidden sm:flex items-center text-[11.5px] text-[#1F7A45] font-semibold gap-1.5 bg-[#EAF6EE] px-2.5 py-1 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A45]" />
-          Saved · vừa xong
-        </div>
-
         {user && (
           <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-[12px] font-semibold gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
@@ -84,17 +63,8 @@ export default function WorkspaceHeader({
         <button
           type="button"
           onClick={onExportClick}
-          disabled={!isBaselined && (project?.progressPercent ?? 0) < 100}
-          title={
-            isBaselined
-              ? "Xuất tài liệu SRS"
-              : "Mở khóa khi hoàn thành nghiệm thu toàn bộ SRS"
-          }
-          className={`px-3.5 py-1 rounded-full text-[12px] font-bold flex items-center gap-1 transition-all ${
-            isBaselined || (project?.progressPercent ?? 0) >= 100
-              ? "bg-[#191817] text-white hover:bg-[#33312D] cursor-pointer shadow-sm"
-              : "bg-[#F0EEEA] text-[#A8A49C] cursor-not-allowed"
-          }`}
+          title="Xuất tài liệu SRS"
+          className="px-3.5 py-1 rounded-full text-[12px] font-bold flex items-center gap-1 transition-all bg-[#191817] text-white hover:bg-[#33312D] cursor-pointer shadow-sm"
         >
           <span>Export</span>
           <span className="text-[11px]">↗</span>

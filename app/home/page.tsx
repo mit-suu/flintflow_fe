@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import ProjectCard, { type Project } from "../../components/ProjectCard";
+import ProjectCard from "../../components/ProjectCard";
+import type { Project } from "@/types/project";
 import Modal from "../../components/Modal";
 import Logo from "../../components/Logo";
 import NotificationBell from "../../components/NotificationBell";
@@ -24,22 +25,36 @@ export default function HomePage() {
   const [renameName, setRenameName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchProjects = useCallback(async () => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // setState chỉ nằm trong callback của promise để effect gọi hàm này không set state đồng bộ
+  const loadProjects = useCallback(
+    () =>
+      apiCall<Project[]>("/projects?status=active")
+        .then((res) => setProjects(res.data ?? []))
+        .catch((err: unknown) =>
+          setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án")
+        )
+        .finally(() => setLoading(false)),
+    []
+  );
+
+  // Tải lại sau khi tạo/đổi tên/xoá: bật loading và xoá lỗi cũ trước khi gọi
+  const fetchProjects = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const res = await apiCall<Project[]>("/projects?status=active");
-      setProjects(res.data ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await loadProjects();
+  };
 
+  // Lần tải đầu: state khởi tạo sẵn loading=true, error=null
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    loadProjects();
+  }, [loadProjects]);
+
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase("vi");
+  const filteredProjects = normalizedQuery
+    ? projects.filter((p) => p.name.toLocaleLowerCase("vi").includes(normalizedQuery))
+    : projects;
 
   useEffect(() => {
     const loadBilling = async () => {
@@ -187,7 +202,10 @@ export default function HomePage() {
               <span>🔍</span>
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm dự án…"
+                aria-label="Tìm kiếm dự án theo tên"
                 className="w-full bg-transparent outline-none text-[#191817] text-[12px] placeholder:text-[#A8A49C]"
               />
             </div>
@@ -235,10 +253,14 @@ export default function HomePage() {
               </button>
             </div>
           </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="py-16 text-center text-[13px] text-[#8A867E]">
+            Không tìm thấy dự án nào khớp “{searchQuery.trim()}”.
+          </div>
         ) : (
           /* Populated Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((p) => (
+            {filteredProjects.map((p) => (
               <ProjectCard
                 key={p._id}
                 project={p}

@@ -1,4 +1,4 @@
-import { apiCall } from "@/lib/api";
+import { apiCall } from "./client";
 
 export type PlanId = "free" | "pro";
 export type CreditTransactionType = "reserve" | "deduct" | "release" | "monthly_reset" | "purchase";

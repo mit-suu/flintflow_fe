@@ -13,21 +13,62 @@ import {
   PHASE_SECTION_MAP,
 } from "../../../lib/constants/section-types";
 
+import type { ChatMessage, ChatRollbackResult, ChatSession } from "@/types/chat";
+import type { SectionItem } from "@/types/document";
+import type { Project } from "@/types/project";
+import type { User } from "@/types/user";
+
 // Component imports
-import WorkspaceHeader, {
-  ProjectData,
-  UserData,
-} from "./_components/WorkspaceHeader";
-import PhaseNavBar, { SectionItem } from "./_components/PhaseNavBar";
+import WorkspaceHeader from "./_components/WorkspaceHeader";
+import PhaseNavBar from "./_components/PhaseNavBar";
 import DiscoveryStepBar from "./_components/DiscoveryStepBar";
-import ChatSessionSidebar, {
-  ChatSession,
-  ChatMessage,
-} from "./_components/ChatSessionSidebar";
+import ChatSessionSidebar from "./_components/ChatSessionSidebar";
 import ChatPane from "./_components/ChatPane";
 import DocumentPane from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
 import ConfirmRollbackModal from "./_components/ConfirmRollbackModal";
+
+// Hoàn tác hội thoại tạm tắt: nút rollback và modal xác nhận chỉ hiện khi bật cờ này.
+const ROLLBACK_ENABLED = false;
+
+const DEFAULT_CHAT_PANE_WIDTH = 480;
+
+// Đọc chiều rộng chat pane đã lưu (chỉ chạy phía client)
+const readSavedChatPaneWidth = (): number => {
+  if (typeof window === "undefined") return DEFAULT_CHAT_PANE_WIDTH;
+  try {
+    const parsed = parseInt(localStorage.getItem("flintflow_chat_pane_width") ?? "", 10);
+    if (!isNaN(parsed) && parsed >= 340 && parsed <= 1000) {
+      return parsed;
+    }
+  } catch {}
+  return DEFAULT_CHAT_PANE_WIDTH;
+};
+
+// Tìm discovery step gần nhất từ lịch sử tin nhắn (tin nhắn user hoặc evaluation của AI)
+const findLatestDiscoveryStep = (
+  messages: ChatMessage[]
+): DiscoveryStepNumber | null => {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.discoveryStep && msg.discoveryStep >= 1 && msg.discoveryStep <= 6) {
+      return msg.discoveryStep as DiscoveryStepNumber;
+    }
+    if (msg.role === "ai") {
+      try {
+        const parsed = JSON.parse(msg.content);
+        if (
+          parsed.evaluation?.currentStep &&
+          parsed.evaluation.currentStep >= 1 &&
+          parsed.evaluation.currentStep <= 6
+        ) {
+          return parsed.evaluation.currentStep as DiscoveryStepNumber;
+        }
+      } catch {}
+    }
+  }
+  return null;
+};
 
 export default function WorkspacePage() {
   const router = useRouter();
@@ -35,8 +76,8 @@ export default function WorkspacePage() {
   const projectId = params?.projectId as string;
 
   // Primary Data State
-  const [project, setProject] = useState<ProjectData | null>(null);
-  const [user, setUser] = useState<UserData | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [sections, setSections] = useState<SectionItem[]>([]);
@@ -72,24 +113,15 @@ export default function WorkspacePage() {
   const [rollingBack, setRollingBack] = useState(false);
 
   // Resize handle state cho 2 bên ChatPane & DocumentPane (phong cách Antigravity)
-  const [chatPaneWidth, setChatPaneWidth] = useState<number>(480);
+  // Chiều rộng đã lưu đọc ngay lúc khởi tạo; các pane chỉ render sau khi tải xong nên không lệch hydrate
+  const [chatPaneWidth, setChatPaneWidth] = useState<number>(readSavedChatPaneWidth);
   const [isResizing, setIsResizing] = useState(false);
   const mainContainerRef = useRef<HTMLElement>(null);
   const chatPaneWidthRef = useRef(chatPaneWidth);
-  chatPaneWidthRef.current = chatPaneWidth;
 
-  // Khôi phục chiều rộng đã lưu trong localStorage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("flintflow_chat_pane_width");
-      if (saved) {
-        const parsed = parseInt(saved, 10);
-        if (!isNaN(parsed) && parsed >= 340 && parsed <= 1000) {
-          setChatPaneWidth(parsed);
-        }
-      }
-    } catch (_) {}
-  }, []);
+    chatPaneWidthRef.current = chatPaneWidth;
+  }, [chatPaneWidth]);
 
   // Xử lý sự kiện kéo chuột để resize 2 bên
   useEffect(() => {
@@ -188,8 +220,8 @@ export default function WorkspacePage() {
       try {
         const [projectRes, userRes, sessionsRes, sectionsRes] =
           await Promise.all([
-            apiCall<ProjectData>(`/projects/${projectId}`),
-            apiCall<UserData>("/users/me"),
+            apiCall<Project>(`/projects/${projectId}`),
+            apiCall<User>("/users/me"),
             apiCall<ChatSession[]>(`/projects/${projectId}/chats`),
             apiCall<SectionItem[]>(`/specifications/projects/${projectId}`),
           ]);
@@ -281,7 +313,9 @@ export default function WorkspacePage() {
     if (lastMsg.role !== "user") return false;
     const msgTime = new Date(lastMsg.createdAt).getTime();
     if (isNaN(msgTime)) return false;
-    // Waiting if user message was sent within 2 minutes
+    // Waiting if user message was sent within 2 minutes.
+    // Cần "bây giờ" thật mỗi khi messages đổi; mốc cố định sẽ báo chờ sai cho tin gửi sau khi mở trang.
+    // eslint-disable-next-line react-hooks/purity
     return Date.now() - msgTime < 120000;
   }, [activeSession?.messages, isStreaming]);
 
@@ -308,7 +342,7 @@ export default function WorkspacePage() {
               prev.map((s) => (s._id === res.data!._id ? res.data! : s))
             );
             try {
-              const userRes = await apiCall<UserData>("/users/me");
+              const userRes = await apiCall<User>("/users/me");
               if (userRes.data) setUser(userRes.data);
             } catch (_) {}
             return;
@@ -400,7 +434,7 @@ export default function WorkspacePage() {
           setStreamingMessage(null);
           setIsStreaming(false);
           try {
-            const userRes = await apiCall<UserData>("/users/me");
+            const userRes = await apiCall<User>("/users/me");
             if (userRes.data) setUser(userRes.data);
           } catch (_) {}
         },
@@ -518,7 +552,7 @@ export default function WorkspacePage() {
 
       // Cập nhật thông tin quota của user sau khi hoàn tất
       try {
-        const userRes = await apiCall<UserData>("/users/me");
+        const userRes = await apiCall<User>("/users/me");
         if (userRes.data) setUser(userRes.data);
       } catch (_) {}
 
@@ -620,29 +654,6 @@ export default function WorkspacePage() {
     }
   };
 
-  // Save manual edits to a section
-  const handleSaveSectionContent = async (
-    type: SectionType,
-    content: string
-  ) => {
-    const res = await apiCall<SectionItem>(
-      `/specifications/projects/${projectId}/${type}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          content,
-          status: "edited_manually",
-        }),
-      }
-    );
-
-    if (res.data) {
-      setSections((prev) =>
-        prev.map((s) => (s.type === type ? res.data! : s))
-      );
-    }
-  };
-
   // Approve Discovery Summary and advance to Product Overview (persist to DB)
   const handleApproveSummary = async () => {
     try {
@@ -695,12 +706,7 @@ export default function WorkspacePage() {
     setPendingAttachments([]);
 
     try {
-      const res = await apiCall<{
-        session: ChatSession;
-        project: ProjectData;
-        sections: SectionItem[];
-        workspacePhase: WorkspacePhase;
-      }>(
+      const res = await apiCall<ChatRollbackResult>(
         `/projects/${projectId}/chats/${activeSession._id}/rollback`,
         {
           method: "POST",
@@ -752,29 +758,16 @@ export default function WorkspacePage() {
   };
 
   // Auto-restore current discoveryStep from session messages on load or session change
-  useEffect(() => {
-    if (!activeSession?.messages?.length || workspacePhase !== "discovery") return;
-    for (let i = activeSession.messages.length - 1; i >= 0; i--) {
-      const msg = activeSession.messages[i];
-      if (msg.discoveryStep && msg.discoveryStep >= 1 && msg.discoveryStep <= 6) {
-        setDiscoveryStep(msg.discoveryStep as DiscoveryStepNumber);
-        return;
-      }
-      if (msg.role === "ai") {
-        try {
-          const parsed = JSON.parse(msg.content);
-          if (
-            parsed.evaluation?.currentStep &&
-            parsed.evaluation.currentStep >= 1 &&
-            parsed.evaluation.currentStep <= 6
-          ) {
-            setDiscoveryStep(parsed.evaluation.currentStep as DiscoveryStepNumber);
-            return;
-          }
-        } catch (_) {}
-      }
+  // (điều chỉnh state ngay lúc render khi đổi session/phase, thay cho effect gọi setState)
+  const restoreStepKey = `${activeSession?._id ?? ""}|${workspacePhase}`;
+  const [restoredStepKey, setRestoredStepKey] = useState<string | null>(null);
+  if (restoredStepKey !== restoreStepKey) {
+    setRestoredStepKey(restoreStepKey);
+    if (activeSession?.messages?.length && workspacePhase === "discovery") {
+      const restoredStep = findLatestDiscoveryStep(activeSession.messages);
+      if (restoredStep) setDiscoveryStep(restoredStep);
     }
-  }, [activeSession?._id, workspacePhase]);
+  }
 
   // Tập hợp các step Discovery đã hoàn thành
   const completedSteps = useMemo((): DiscoveryStepNumber[] => {
@@ -909,7 +902,7 @@ export default function WorkspacePage() {
           acceptingType={acceptingType}
           regeneratingType={regeneratingType}
           onAdvanceStep={handleAdvanceStep}
-          onRequestRollback={handleRequestRollback}
+          onRequestRollback={ROLLBACK_ENABLED ? handleRequestRollback : undefined}
           streamingMessage={streamingMessage}
           isStreaming={isStreaming}
           isWaitingForAi={isWaitingForAi}
@@ -957,13 +950,8 @@ export default function WorkspacePage() {
           </div>
         </div>
 
-        {/* Pane 2 (Center): Live 5-Chapter SRS Document Tree */}
-        <DocumentPane
-          projectName={project?.name}
-          sections={sections}
-          workspacePhase={workspacePhase}
-          onSaveSectionContent={handleSaveSectionContent}
-        />
+        {/* Pane 2 (Center): Live 5-Chapter SRS Document Tree (read-only) */}
+        <DocumentPane projectName={project?.name} sections={sections} />
 
         {/* Pane 3 (Right): Verification & Readiness Panel */}
         {verificationOpen && (
@@ -975,17 +963,19 @@ export default function WorkspacePage() {
       </main>
 
       {/* Confirm Rollback Modal */}
-      <ConfirmRollbackModal
-        isOpen={rollbackTargetIndex !== null}
-        messageSnippet={
-          rollbackTargetIndex !== null
-            ? activeSession?.messages[rollbackTargetIndex]?.content
-            : undefined
-        }
-        onConfirm={handleConfirmRollback}
-        onCancel={() => !rollingBack && setRollbackTargetIndex(null)}
-        isRollingBack={rollingBack}
-      />
+      {ROLLBACK_ENABLED && (
+        <ConfirmRollbackModal
+          isOpen={rollbackTargetIndex !== null}
+          messageSnippet={
+            rollbackTargetIndex !== null
+              ? activeSession?.messages[rollbackTargetIndex]?.content
+              : undefined
+          }
+          onConfirm={handleConfirmRollback}
+          onCancel={() => !rollingBack && setRollbackTargetIndex(null)}
+          isRollingBack={rollingBack}
+        />
+      )}
     </div>
   );
 }

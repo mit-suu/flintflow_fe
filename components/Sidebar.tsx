@@ -36,7 +36,7 @@ interface SidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { label: "Trang chủ", href: "/home", icon: "⌂" },
   { label: "Dự án của tôi", href: "/home", icon: "◫" },
-  { label: "Diagram Studio", href: "/draw-test", icon: "✦" },
+  { label: "Thông báo", href: "/home/notifications", icon: "◉" },
   { label: "Thanh toán & credit", href: "/home/billing", icon: "◎" },
 ];
 
@@ -236,13 +236,6 @@ export default function Sidebar({
 
             <button
               type="button"
-              onClick={() => router.push("/home/account")}
-              className="flex items-center gap-2.5 p-2 rounded-[9px] text-[12px] text-[#33312D] font-semibold hover:bg-[#FAF9F7] transition-colors w-full text-left"
-            >
-              ⚙ Cài đặt tài khoản
-            </button>
-            <button
-              type="button"
               onClick={() => router.push("/home/billing")}
               className="flex items-center gap-2.5 p-2 rounded-[9px] text-[12px] text-[#33312D] font-semibold hover:bg-[#FAF9F7] transition-colors w-full text-left"
             >
@@ -250,13 +243,6 @@ export default function Sidebar({
               <span className="ml-auto px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[10px] font-bold text-[#6B6862]">
                 {displayPlan}
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/home/history")}
-              className="flex items-center gap-2.5 p-2 rounded-[9px] text-[12px] text-[#33312D] font-semibold hover:bg-[#FAF9F7] transition-colors w-full text-left"
-            >
-              ◷ Lịch sử sử dụng
             </button>
 
             <div className="h-px bg-[#F0EEEA] mx-1.5 my-1" />
