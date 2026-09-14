@@ -2,104 +2,60 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import PhaseNavBar from "./PhaseNavBar";
-import type { SectionItem } from "@/types/document";
+import PhaseNavBar, { phaseState } from "./PhaseNavBar";
+import type { StepSummary } from "@/types/pipeline";
+
+const step = (id: string, status: StepSummary["status"]): StepSummary => ({
+  id,
+  phase: id.split(".")[0],
+  label_vi: id,
+  label_en: id,
+  kind: "fixed",
+  status,
+  deterministic: false,
+  calls_used: 0,
+  calls_limit: 8,
+  regenerate_used: 0,
+  regenerate_limit: 3,
+  accepted_at: null,
+});
 
 describe("PhaseNavBar", () => {
-  const mockSections: SectionItem[] = [
-    {
-      type: "vision",
-      content: "Vision content",
-      status: "accepted",
-    },
-  ];
-
   const defaultProps = {
-    currentPhase: "discovery" as const,
-    sections: mockSections,
-    progressPercent: 0,
+    currentPhase: "S-3",
+    steps: [step("S-2.1", "accepted"), step("S-3.1", "in_progress"), step("S-4.1", "pending")],
     sidebarOpen: false,
     onToggleSidebar: vi.fn(),
-    onPhaseClick: vi.fn(),
-    onVerificationClick: vi.fn(),
-    verificationOpen: false,
-    verificationFlagsCount: 0,
+    onExportClick: vi.fn(),
   };
 
-  it("Export button luôn bấm được (enabled) khi progressPercent = 0", () => {
-    render(<PhaseNavBar {...defaultProps} progressPercent={0} />);
-
-    const exportButton = screen.getByRole("button", {
-      name: /Export & Handoff/i,
-    });
-
-    expect(exportButton).not.toBeDisabled();
-    expect(exportButton).toHaveClass("cursor-pointer");
+  it("hiển thị đủ 12 phase B-0…S-9, đánh dấu phase đang chạy và phase đã xong", () => {
+    render(<PhaseNavBar {...defaultProps} />);
+    for (const phase of ["B-0", "B-1", "B-2", "S-1", "S-2", "S-3", "S-4", "S-5", "S-6", "S-7", "S-8", "S-9"]) {
+      expect(screen.getByText(phase)).toBeInTheDocument();
+    }
+    expect(screen.getByText("S-3").closest("li")).toHaveAttribute("data-state", "active");
+    expect(screen.getByText("S-2").closest("li")).toHaveAttribute("data-state", "completed");
+    expect(screen.getByText("S-4").closest("li")).toHaveAttribute("data-state", "upcoming");
   });
 
-  it("Export button luôn bấm được (enabled) khi progressPercent = 50", () => {
-    render(<PhaseNavBar {...defaultProps} progressPercent={50} />);
-
-    const exportButton = screen.getByRole("button", {
-      name: /Export & Handoff/i,
-    });
-
-    expect(exportButton).not.toBeDisabled();
-    expect(exportButton).toHaveClass("cursor-pointer");
+  it("phaseState: phase không có step chưa tính là xong", () => {
+    expect(phaseState("S-5", "S-3", defaultProps.steps)).toBe("upcoming");
   });
 
-  it("Export button luôn bấm được (enabled) khi progressPercent = 99", () => {
-    render(<PhaseNavBar {...defaultProps} progressPercent={99} />);
-
-    const exportButton = screen.getByRole("button", {
-      name: /Export & Handoff/i,
-    });
-
+  it("Export & Handoff luôn bấm được và gọi onExportClick", () => {
+    const onExportClick = vi.fn();
+    render(<PhaseNavBar {...defaultProps} onExportClick={onExportClick} />);
+    const exportButton = screen.getByRole("button", { name: /Export & Handoff/i });
     expect(exportButton).not.toBeDisabled();
-    expect(exportButton).toHaveClass("cursor-pointer");
-  });
-
-  it("gọi onPhaseClick('export') khi bấm Export button", () => {
-    const onPhaseClick = vi.fn();
-    render(
-      <PhaseNavBar
-        {...defaultProps}
-        onPhaseClick={onPhaseClick}
-      />
-    );
-
-    const exportButton = screen.getByRole("button", {
-      name: /Export & Handoff/i,
-    });
-
     fireEvent.click(exportButton);
-
-    expect(onPhaseClick).toHaveBeenCalledWith("export");
+    expect(onExportClick).toHaveBeenCalledTimes(1);
   });
 
-  it("Export button thay đổi style khi active", () => {
-    const { rerender } = render(
-      <PhaseNavBar
-        {...defaultProps}
-        currentPhase="discovery"
-      />
-    );
-
-    let exportButton = screen.getByRole("button", {
-      name: /Export & Handoff/i,
-    });
-    expect(exportButton).toHaveClass("bg-[#F4F3FE]"); // inactive style
-
-    rerender(
-      <PhaseNavBar
-        {...defaultProps}
-        currentPhase="export"
-      />
-    );
-
-    exportButton = screen.getByRole("button", {
-      name: /Export & Handoff/i,
-    });
-    expect(exportButton).toHaveClass("bg-[#191817]"); // active style
+  it("Export đổi style khi active", () => {
+    const { rerender } = render(<PhaseNavBar {...defaultProps} />);
+    expect(screen.getByRole("button", { name: /Export & Handoff/i })).toHaveClass("bg-[#F4F3FE]");
+    rerender(<PhaseNavBar {...defaultProps} exportActive />);
+    expect(screen.getByRole("button", { name: /Export & Handoff/i })).toHaveClass("bg-[#191817]");
   });
 });
