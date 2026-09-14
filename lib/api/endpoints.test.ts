@@ -94,15 +94,15 @@ const cases: EndpointCase[] = [
   ["listSteps", () => pipeline.listSteps("p1"), "/projects/p1/steps"],
   [
     "answerStep",
-    () => pipeline.answerStep("p1", "S-3.1", { q1: "Có" }),
+    () => pipeline.answerStep("p1", "S-3.1", { session_id: "c1", answers: [{ question_id: "q1", answer: "Có" }] }),
     "/projects/p1/steps/S-3.1/answer",
-    post({ answers: { q1: "Có" } }),
+    post({ session_id: "c1", answers: [{ question_id: "q1", answer: "Có" }] }),
   ],
   [
     "submitGate",
-    () => pipeline.submitGate("p1", "S-3.1", { action: "accept" }),
+    () => pipeline.submitGate("p1", "S-3.1", { action: "accept", base_version: 7 }),
     "/projects/p1/steps/S-3.1/gate",
-    post({ action: "accept" }),
+    post({ action: "accept", base_version: 7 }),
   ],
   ["listFlags", () => flags.listFlags("p1", { level: "red", open: true }), "/projects/p1/flags?level=red&open=true"],
   ["recomputeFlags", () => flags.recomputeFlags("p1"), "/projects/p1/flags/recompute", post()],
@@ -186,9 +186,13 @@ describe("lib/api wrappers", () => {
   it("runStep mở luồng SSE của step", async () => {
     const handlers = { onEvent: vi.fn() };
 
-    await pipeline.runStep("p1", "S-3.1", handlers);
+    await pipeline.runStep("p1", "S-3.1", { session_id: "c1", base_version: 3 }, handlers);
 
-    expect(streamSse).toHaveBeenCalledWith("/projects/p1/steps/S-3.1/run", {}, handlers);
+    expect(streamSse).toHaveBeenCalledWith(
+      "/projects/p1/steps/S-3.1/run",
+      { session_id: "c1", base_version: 3 },
+      handlers
+    );
   });
 
   it("downloadWordExport trả Blob khi OK", async () => {
