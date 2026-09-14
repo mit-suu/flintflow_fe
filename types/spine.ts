@@ -1,9 +1,11 @@
 /**
- * Kiểu dữ liệu Spine — ĐỒNG BỘ TAY, nguồn là BE `flintflow_be/src/modules/spine/spine.types.ts` (T01).
+ * Kiểu dữ liệu Spine — ĐỒNG BỘ TAY với BE `flintflow_be/src/modules/spine/spine.types.ts` (T01),
+ * đối chiếu lại ở T12 theo `docs/api/pipeline-contract.md`.
  * Tên field giữ snake_case y như `srs-spine.md` §2 để path op khớp tài liệu.
- * Tại thời điểm tạo file BE chưa có `spine.types.ts`; bản này chép từ `srs-spine.md` §2 và phải
- * đối chiếu lại với BE tại merge point M1.
  */
+
+/** Chuỗi ISO 8601. */
+export type IsoDateTime = string;
 
 export type WorkingMode = "fast" | "coaching";
 
@@ -14,25 +16,20 @@ export interface ReleaseScope {
 
 export interface SpineProject {
   name: string;
-  vision: string;
+  vision: string | null;
   goals: string[];
-  type: string;
-  domain: string;
-  complexity: string;
-  form_factor: string;
-  stakes: string;
-  working_mode: WorkingMode;
+  type: string | null;
+  domain: string | null;
+  complexity: string | null;
+  form_factor: string | null;
+  stakes: string | null;
+  working_mode: WorkingMode | null;
   release_scope: ReleaseScope;
 }
 
-export interface SpineSession {
-  id: string;
-  is_pipeline: boolean;
-}
-
 export interface Progress {
-  current_phase: string;
-  current_step: string;
+  current_phase: string | null;
+  current_step: string | null;
   screen_cursor: string | null;
   screen_queue: string[];
   elicit_turns_this_phase: number;
@@ -41,11 +38,12 @@ export interface Progress {
 export type StepStatus = "pending" | "in_progress" | "accepted" | "revision_requested";
 
 export interface StepState {
+  /** Step id theo registry, kèm `@<screen_id>` cho vòng S-5. */
   id: string;
   status: StepStatus;
   first_seq: number | null;
   last_seq: number | null;
-  accepted_at: string | null;
+  accepted_at: IsoDateTime | null;
 }
 
 export interface Feature {
@@ -90,7 +88,7 @@ export interface Screen {
   is_popup: boolean;
   tabs: string[];
   primary_function_id: string | null;
-  queue_order: number;
+  queue_order: number | null;
   detail_status: ScreenDetailStatus;
 }
 
@@ -107,6 +105,8 @@ export interface Entity {
   description: string;
   relations: string[];
 }
+
+export type Priority = "must" | "should" | "could" | "wont";
 
 export type ValidationKind = "business" | "format" | "required";
 
@@ -129,7 +129,7 @@ export interface SpineFunction {
   abnormal: string[];
   validations: Validation[];
   business_rule_ids: string[];
-  priority: string | null;
+  priority: Priority | null;
 }
 
 export type NfrCategory = "interface" | "usability" | "reliability" | "performance" | "other";
@@ -142,7 +142,7 @@ export interface Nfr {
   kind: NfrKind;
   metric?: string;
   threshold?: string;
-  priority: string | null;
+  priority: Priority | null;
 }
 
 export type BusinessRuleTier = "high" | "detail";
@@ -188,7 +188,7 @@ export interface Addendum {
   content: string;
   content_en: string;
   target_section: string;
-  captured_at: string;
+  captured_at: IsoDateTime;
 }
 
 export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "screen_layout";
@@ -198,12 +198,12 @@ export interface Diagram {
   kind: DiagramKind;
   puml: string;
   section: string;
-  owner_kind: string;
-  owner_id: string;
+  owner_kind: string | null;
+  owner_id: string | null;
   render_status: "ok" | "error";
   error?: string;
   source_hash: string;
-  rendered_at: string;
+  rendered_at: IsoDateTime | null;
 }
 
 export type AssumptionStatus = "unconfirmed" | "confirmed" | "rejected";
@@ -215,7 +215,7 @@ export interface Assumption {
   rationale: string;
   origin_step_id: string;
   status: AssumptionStatus;
-  confirmed_at: string | null;
+  confirmed_at: IsoDateTime | null;
 }
 
 export type FlagLevel = "red" | "yellow";
@@ -247,14 +247,15 @@ export type FlagRuleId = RedFlagRuleId | YellowFlagRuleId;
 export interface Flag {
   id: string;
   level: FlagLevel;
-  rule_id: FlagRuleId;
+  /** Luật tất định; cờ vàng từ lens LLM hoặc Accept as-is có thể mang rule_id khác. */
+  rule_id: FlagRuleId | (string & {});
   section_id: string;
   target_id?: string | null;
   message: string;
   remediation_step: string;
   opened_at_version: number;
-  resolved_at: string | null;
-  waived_by_user: string | null;
+  resolved_at: IsoDateTime | null;
+  waived_by_user: boolean;
   waive_reason: string | null;
   waived_at_version: number | null;
 }
@@ -268,34 +269,36 @@ export interface SectionState {
 export interface Baseline {
   id: string;
   version: string;
-  at: string;
+  at: IsoDateTime;
   snapshot_ref: string;
   checked_at_version: number;
   waived_count: number;
 }
 
-/** Loại op (`op.types.ts` của T08) và `revert` do undo ghi lại. */
+/** Loại op (`op.types.ts` của T08) và `revert` do engine ghi lại. */
 export type OpKind = "set" | "add" | "remove" | "renumber" | "clone" | "migrate" | "revert";
 
 /** Một dòng lịch sử ghi — BE lưu ở collection riêng, đọc qua `GET /projects/:id/changes`. */
 export interface Change {
+  projectId: string;
   seq: number;
   txn: string;
-  op: OpKind;
+  op: OpKind | (string & {});
   path: string;
   before: unknown;
   value: unknown;
-  reason?: string;
-  at: string;
+  reason: string | null;
+  at: IsoDateTime;
   by: string;
-  step_id?: string;
+  step_id: string | null;
 }
 
 export type UsageState = "reserved" | "deducted" | "refunded";
 
-/** Một lần gọi model — BE lưu ở collection riêng. */
+/** Một lượt gọi model — BE lưu ở collection `usages`. */
 export interface Usage {
-  id: string;
+  projectId: string;
+  userId: string;
   step_id: string;
   call_kind: string;
   attempt: number;
@@ -303,15 +306,18 @@ export interface Usage {
   tokens_out: number;
   cost: number;
   state: UsageState;
-  expires_at: string;
+  expires_at: IsoDateTime;
+  logId: string | null;
 }
 
-/** Document Spine của một project. `changes[]` và `usage[]` tách collection nên không nằm ở đây. */
+/**
+ * `GET /projects/:id/spine` — `SpineRecord` của BE. `changes[]`, `usage[]`, snapshot baseline và
+ * `sessions[]` (cờ `is_pipeline` của chat session) nằm ngoài document này.
+ */
 export interface Spine {
   projectId: string;
   spine_version: number;
   project: SpineProject;
-  sessions: SpineSession[];
   progress: Progress;
   steps: StepState[];
   features: Feature[];

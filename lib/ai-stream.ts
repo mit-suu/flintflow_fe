@@ -8,6 +8,20 @@ export interface SseHandlers<T> {
 }
 
 /**
+ * Lấy payload JSON của một khối SSE. Khối có thể gồm `event: <type>`, một hoặc nhiều dòng `data:`
+ * (nối bằng xuống dòng) và comment `: ping`. Khối không có `data:` ⇒ null.
+ */
+export const readSseData = (block: string): string | null => {
+  const data = block
+    .split("\n")
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice("data:".length).replace(/^ /, ""));
+  if (data.length === 0) return null;
+  const joined = data.join("\n").trim();
+  return joined || null;
+};
+
+/**
  * POST JSON tới một endpoint SSE và phát từng khối `data: {...}` thành event kiểu `T`.
  * Lỗi HTTP/mạng gọi `onError` rồi ném lại; huỷ bằng `signal` thì kết thúc im lặng.
  */
@@ -39,17 +53,14 @@ export const streamSse = async <T>(
       const { value, done } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
 
       // SSE events are separated by a blank line
       const chunks = buffer.split("\n\n");
       buffer = chunks.pop() || "";
 
       for (const chunk of chunks) {
-        const trimmed = chunk.trim();
-        if (!trimmed.startsWith("data:")) continue;
-
-        const jsonStr = trimmed.replace(/^data:\s*/, "").trim();
+        const jsonStr = readSseData(chunk);
         if (!jsonStr) continue;
 
         let event: T;

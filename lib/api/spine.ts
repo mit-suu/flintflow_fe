@@ -2,7 +2,7 @@
  * Spine, lịch sử thay đổi, hoà giải, undo, traceability — theo danh sách endpoint T08.
  * Chốt request/response theo `pipeline-contract.md` ở T12/T16.
  */
-import type { ApplyResult, ChangeRequest } from "@/types/pipeline";
+import type { ApplyResult, ChangeRequest, PreviewResult } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
 import { ApiClientError, apiCall, authFetch, readErrorMessage } from "./client";
 
@@ -17,7 +17,7 @@ export const listChanges = (projectId: string, range: { from?: number; to?: numb
 };
 
 export const previewChanges = (projectId: string, request: ChangeRequest) =>
-  apiCall<ApplyResult>(`/projects/${projectId}/changes/preview`, {
+  apiCall<PreviewResult>(`/projects/${projectId}/changes/preview`, {
     method: "POST",
     body: JSON.stringify(request),
   });
