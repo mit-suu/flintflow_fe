@@ -1,0 +1,217 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { streamSse } from "../ai-stream";
+import * as admin from "./admin";
+import * as billing from "./billing";
+import * as chat from "./chat";
+import { ApiClientError, apiCall, authFetch } from "./client";
+import * as documents from "./documents";
+import * as exportApi from "./export";
+import * as flags from "./flags";
+import * as notifications from "./notifications";
+import * as pipeline from "./pipeline";
+import * as projects from "./projects";
+import * as spine from "./spine";
+
+vi.mock("./client", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  apiCall: vi.fn(async () => ({ data: null, error: null })),
+  authFetch: vi.fn(),
+}));
+
+vi.mock("../ai-stream", () => ({
+  streamSse: vi.fn(async () => {}),
+}));
+
+const post = (body?: unknown) => ({
+  method: "POST",
+  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+});
+
+type EndpointCase = [name: string, call: () => unknown, path: string, init?: RequestInit];
+
+const cases: EndpointCase[] = [
+  ["listProjects", () => projects.listProjects("active"), "/projects?status=active"],
+  ["getProject", () => projects.getProject("p1"), "/projects/p1"],
+  ["createProject", () => projects.createProject("App"), "/projects", post({ name: "App" })],
+  [
+    "renameProject",
+    () => projects.renameProject("p1", "Mới"),
+    "/projects/p1/name",
+    { method: "PATCH", body: JSON.stringify({ name: "Mới" }) },
+  ],
+  ["deleteProject (archive)", () => projects.deleteProject("p1"), "/projects/p1", { method: "DELETE" }],
+  [
+    "deleteProject (hard)",
+    () => projects.deleteProject("p1", { hard: true }),
+    "/projects/p1?hard=true",
+    { method: "DELETE" },
+  ],
+  ["listChatSessions", () => chat.listChatSessions("p1"), "/projects/p1/chats"],
+  ["createChatSession", () => chat.createChatSession("p1"), "/projects/p1/chats", post()],
+  ["getChatSession", () => chat.getChatSession("p1", "c1"), "/projects/p1/chats/c1"],
+  ["deleteChatSession", () => chat.deleteChatSession("p1", "c1"), "/projects/p1/chats/c1", { method: "DELETE" }],
+  [
+    "rollbackChat",
+    () => chat.rollbackChat("p1", "c1", 2),
+    "/projects/p1/chats/c1/rollback",
+    post({ messageIndex: 2 }),
+  ],
+  [
+    "estimateActionCost",
+    () => chat.estimateActionCost("chat_discovery"),
+    "/ai-actions/estimate-cost",
+    post({ actionType: "chat_discovery" }),
+  ],
+  ["listProjectDocuments", () => documents.listProjectDocuments("p1"), "/projects/p1/documents"],
+  [
+    "deleteProjectDocument",
+    () => documents.deleteProjectDocument("p1", "d1"),
+    "/projects/p1/documents/d1",
+    { method: "DELETE" },
+  ],
+  ["getSpine", () => spine.getSpine("p1"), "/projects/p1/spine"],
+  ["listChanges", () => spine.listChanges("p1", { from: 3, to: 9 }), "/projects/p1/changes?from=3&to=9"],
+  [
+    "previewChanges",
+    () => spine.previewChanges("p1", { instruction: "Đổi tên", base_version: 4 }),
+    "/projects/p1/changes/preview",
+    post({ instruction: "Đổi tên", base_version: 4 }),
+  ],
+  [
+    "applyChanges",
+    () => spine.applyChanges("p1", { ops: [{ op: "set", path: "project.name", value: "X" }], base_version: 4 }),
+    "/projects/p1/changes",
+    post({ ops: [{ op: "set", path: "project.name", value: "X" }], base_version: 4 }),
+  ],
+  ["reconcile", () => spine.reconcile("p1"), "/projects/p1/reconcile", post()],
+  ["undoLastChange", () => spine.undoLastChange("p1"), "/projects/p1/undo", post()],
+  [
+    "getTraceability",
+    () => spine.getTraceability("p1", { entity: "actor", id: "A01" }),
+    "/projects/p1/traceability?entity=actor&id=A01",
+  ],
+  ["getProgress", () => pipeline.getProgress("p1"), "/projects/p1/progress"],
+  ["listSteps", () => pipeline.listSteps("p1"), "/projects/p1/steps"],
+  [
+    "answerStep",
+    () => pipeline.answerStep("p1", "S-3.1", { q1: "Có" }),
+    "/projects/p1/steps/S-3.1/answer",
+    post({ answers: { q1: "Có" } }),
+  ],
+  [
+    "submitGate",
+    () => pipeline.submitGate("p1", "S-3.1", { action: "accept" }),
+    "/projects/p1/steps/S-3.1/gate",
+    post({ action: "accept" }),
+  ],
+  ["listFlags", () => flags.listFlags("p1", { level: "red", open: true }), "/projects/p1/flags?level=red&open=true"],
+  ["recomputeFlags", () => flags.recomputeFlags("p1"), "/projects/p1/flags/recompute", post()],
+  [
+    "waiveFlag",
+    () => flags.waiveFlag("p1", "f1", "Chấp nhận rủi ro vì phạm vi MVP"),
+    "/projects/p1/flags/f1/waive",
+    post({ reason: "Chấp nhận rủi ro vì phạm vi MVP" }),
+  ],
+  ["assembleDocument", () => exportApi.assembleDocument("p1"), "/projects/p1/assemble", post()],
+  ["getDocument", () => exportApi.getDocument("p1", "baseline"), "/projects/p1/document?source=baseline"],
+  ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
+  ["createBaseline", () => exportApi.createBaseline("p1"), "/projects/p1/baseline", post()],
+  ["listNotifications", () => notifications.listNotifications({ unread: true }), "/notifications?unread=1"],
+  ["getUnreadNotificationCount", () => notifications.getUnreadNotificationCount(), "/notifications/unread-count"],
+  [
+    "markNotificationRead",
+    () => notifications.markNotificationRead("n1"),
+    "/notifications/n1/read",
+    { method: "PATCH" },
+  ],
+  [
+    "markAllNotificationsRead",
+    () => notifications.markAllNotificationsRead(),
+    "/notifications/read-all",
+    { method: "PATCH" },
+  ],
+  ["getBillingBalance", () => billing.getBillingBalance(), "/billing/balance"],
+  ["listCreditPackages", () => billing.listCreditPackages(), "/billing/packages"],
+  ["checkoutPackage", () => billing.checkoutPackage("pkg1"), "/billing/checkout", post({ packageId: "pkg1" })],
+  ["upgradePlan", () => billing.upgradePlan("pro"), "/billing/upgrade", post({ plan: "pro" })],
+  ["listCreditTransactions", () => billing.listCreditTransactions(2), "/billing/transactions?page=2"],
+  ["listAdminUsers", () => admin.listAdminUsers({ page: 2, q: "an" }), "/admin/users?page=2&q=an"],
+  ["getAdminUser", () => admin.getAdminUser("u1"), "/admin/users/u1"],
+  ["getAdminMetrics", () => admin.getAdminMetrics(), "/admin/metrics"],
+  ["getAiCost", () => admin.getAiCost({ groupBy: "day" }), "/admin/ai-cost?groupBy=day"],
+  ["listAdminFeedback", () => admin.listAdminFeedback(), "/admin/feedback"],
+  ["listPromptTemplates", () => admin.listPromptTemplates(), "/admin/prompt-templates"],
+  ["getPromptTemplate", () => admin.getPromptTemplate("chat"), "/admin/prompt-templates/chat"],
+  [
+    "getPromptTemplateHistory",
+    () => admin.getPromptTemplateHistory("chat"),
+    "/admin/prompt-templates/chat/history",
+  ],
+];
+
+describe("lib/api wrappers", () => {
+  beforeEach(() => {
+    vi.mocked(apiCall).mockClear();
+    vi.mocked(authFetch).mockReset();
+    vi.mocked(streamSse).mockClear();
+  });
+
+  it.each(cases)("%s gọi đúng endpoint", async (_name, call, path, init) => {
+    await call();
+
+    if (init) {
+      expect(apiCall).toHaveBeenCalledWith(path, init);
+    } else {
+      expect(apiCall).toHaveBeenCalledWith(path);
+    }
+  });
+
+  it("uploadProjectDocument gửi file qua FormData", async () => {
+    const file = new File(["nội dung"], "brief.md", { type: "text/markdown" });
+
+    await documents.uploadProjectDocument("p1", file);
+
+    const [path, init] = vi.mocked(apiCall).mock.calls[0];
+    expect(path).toBe("/projects/p1/documents");
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect((init?.body as FormData).get("file")).toBe(file);
+  });
+
+  it("runStep mở luồng SSE của step", async () => {
+    const handlers = { onEvent: vi.fn() };
+
+    await pipeline.runStep("p1", "S-3.1", handlers);
+
+    expect(streamSse).toHaveBeenCalledWith("/projects/p1/steps/S-3.1/run", {}, handlers);
+  });
+
+  it("downloadWordExport trả Blob khi OK", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(new Response("docx-bytes", { status: 200 }));
+
+    const blob = await exportApi.downloadWordExport("p1");
+
+    expect(authFetch).toHaveBeenCalledWith("/projects/p1/export/word?source=draft");
+    expect(await blob.text()).toBe("docx-bytes");
+  });
+
+  it("downloadWordExport ném lỗi kèm thông điệp BE khi chưa có bản ghép", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: "NO_WORKING_DRAFT", message: "Chưa assemble" } }), {
+        status: 409,
+      })
+    );
+
+    const promise = exportApi.downloadWordExport("p1");
+
+    await expect(promise).rejects.toBeInstanceOf(ApiClientError);
+    await expect(promise).rejects.toMatchObject({ status: 409, message: "Chưa assemble" });
+  });
+
+  it("fetchDiagramSvg trả nội dung SVG", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(new Response("<svg/>", { status: 200 }));
+
+    await expect(spine.fetchDiagramSvg("p1", "D1")).resolves.toBe("<svg/>");
+    expect(authFetch).toHaveBeenCalledWith("/projects/p1/diagrams/D1.svg");
+  });
+});
