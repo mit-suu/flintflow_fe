@@ -6,14 +6,7 @@ import {
   PHASE_SECTION_MAP,
   SectionType,
 } from "../../../../lib/constants/section-types";
-
-export interface SectionItem {
-  _id?: string;
-  type: string;
-  content: string;
-  status: string;
-  sourceType?: string;
-}
+import type { SectionItem } from "@/types/document";
 
 interface PhaseNavBarProps {
   currentPhase: WorkspacePhase;
@@ -49,10 +42,6 @@ export default function PhaseNavBar({
       return currentPhase !== "discovery" ? "completed" : "active";
     }
 
-    if (phaseId === "export") {
-      return progressPercent >= 100 ? "completed" : "locked";
-    }
-
     const phaseSections = PHASE_SECTION_MAP[phaseId];
     if (!phaseSections || phaseSections.length === 0) return "locked";
 
@@ -80,8 +69,6 @@ export default function PhaseNavBar({
 
     return "locked";
   };
-
-  const isExportUnlocked = progressPercent >= 100;
 
   return (
     <nav className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center gap-3 shrink-0 h-[52px] overflow-x-auto scrollbar-hide z-10">
@@ -147,33 +134,18 @@ export default function PhaseNavBar({
       {/* Divider */}
       <div className="w-[1px] h-5 bg-[#E4E1DC] mx-1 shrink-0" />
 
-      {/* Export Gate Pill */}
+      {/* Export Pill — luôn bấm được, không khoá theo % tiến độ */}
       <button
-        onClick={() => {
-          if (isExportUnlocked) {
-            onPhaseClick("export");
-          }
-        }}
-        disabled={!isExportUnlocked}
-        className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all ${
+        onClick={() => onPhaseClick("export")}
+        className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
           currentPhase === "export"
             ? "bg-[#191817] text-white shadow-sm"
-            : isExportUnlocked
-            ? "bg-[#F4F3FE] text-[#4F46E5] border border-[#DDD9F6] hover:bg-[#EDEAFB] cursor-pointer"
-            : "border border-dashed border-[#D6D2CB] text-[#A8A49C] bg-[#FAF9F7] cursor-not-allowed"
+            : "bg-[#F4F3FE] text-[#4F46E5] border border-[#DDD9F6] hover:bg-[#EDEAFB]"
         }`}
-        title={
-          isExportUnlocked
-            ? "Mở luồng hoàn tất và xuất tài liệu"
-            : "Khóa mềm — mở khóa khi hoàn thành nghiệm thu toàn bộ SRS"
-        }
+        title="Mở luồng hoàn tất và xuất tài liệu"
       >
-        <span>{isExportUnlocked ? "★" : "🔒"}</span>
-        <span>
-          {isExportUnlocked
-            ? "Export & Handoff"
-            : "Export — khóa đến khi đủ 100% SRS"}
-        </span>
+        <span>★</span>
+        <span>Export & Handoff</span>
       </button>
 
       {/* Progress & Verification Right Section */}

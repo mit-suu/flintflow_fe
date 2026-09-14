@@ -8,7 +8,6 @@ import {
 interface DiscoveryStepBarProps {
   currentStep: DiscoveryStepNumber;
   completedSteps?: DiscoveryStepNumber[];
-  onStepClick?: (step: DiscoveryStepNumber) => void;
 }
 
 export default function DiscoveryStepBar({

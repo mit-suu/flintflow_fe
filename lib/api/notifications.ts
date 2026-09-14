@@ -1,4 +1,4 @@
-import { apiCall } from "@/lib/api";
+import { apiCall } from "./client";
 
 export interface AppNotification {
   _id: string;
