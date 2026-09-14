@@ -54,22 +54,25 @@ export default function WorkspacePage() {
   const [savingChange, setSavingChange] = useState(false);
 
   // ─── version hiện tại cho mọi lượt ghi ─────────────────────────
+  // Chỉ tăng: một response GET về trễ không được kéo base_version lùi lại (gây 409 giả)
   const versionRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (spineState.version !== null) versionRef.current = spineState.version;
-  }, [spineState.version]);
+  const bumpVersion = useCallback((version: number | null | undefined) => {
+    if (version === null || version === undefined) return;
+    if (versionRef.current === null || version > versionRef.current) versionRef.current = version;
+  }, []);
+  useEffect(() => bumpVersion(spineState.version), [bumpVersion, spineState.version]);
   const getBaseVersion = useCallback(() => versionRef.current, []);
 
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
   const { refreshUser } = ws;
   const onSpineChanged = useCallback(
     (spineVersion?: number) => {
-      if (spineVersion !== undefined) versionRef.current = spineVersion;
+      bumpVersion(spineVersion);
       void reloadSpine();
       void reloadProgress();
       refreshUser();
     },
-    [reloadSpine, reloadProgress, refreshUser]
+    [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
 
   const runner = useStepRunner({
@@ -96,7 +99,7 @@ export default function WorkspacePage() {
       try {
         const res = await applyChanges(projectId, { base_version: baseVersion, ops });
         if (res.data) {
-          versionRef.current = res.data.spine_version;
+          bumpVersion(res.data.spine_version);
           replaceSpine(res.data.spine);
           void reloadProgress();
         }
@@ -111,7 +114,7 @@ export default function WorkspacePage() {
         setSavingChange(false);
       }
     },
-    [projectId, replaceSpine, reloadProgress, reloadSpine]
+    [projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine]
   );
 
   const changeWorkingMode = (mode: WorkingMode) =>

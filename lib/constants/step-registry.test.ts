@@ -37,6 +37,7 @@ describe("step registry FE (đồng bộ BE)", () => {
     expect(getStepDef("S-5.4@S01")).toMatchObject({ id: "S-5.4@S01", loop: "S01", phase: "S-5" });
     expect(getStepDef("S-5.4")).toBeUndefined();
     expect(getStepDef("S-3.1@S01")).toBeUndefined();
+    expect(getStepDef("S-5.4@")).toBeUndefined();
     expect(stepLabel("S-3.1")).toBe("Actor");
     expect(stepLabel("S-5.2@nonscreen")).toBe("Kích hoạt & mô tả · không màn hình");
     expect(stepLabel("X-1")).toBe("X-1");
