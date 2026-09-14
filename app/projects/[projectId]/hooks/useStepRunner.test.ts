@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialRunnerState, stepRunnerReducer, type RunnerAction, type RunnerState } from "./useStepRunner";
+import { initialRunnerState, isTerminalEvent, stepRunnerReducer, type RunnerAction, type RunnerState } from "./useStepRunner";
 
 const apply = (actions: RunnerAction[], state: RunnerState = initialRunnerState) => actions.reduce(stepRunnerReducer, state);
 
@@ -39,5 +39,12 @@ describe("stepRunnerReducer", () => {
     const failed = apply([{ type: "start", stepId: "S-3.2" }, { type: "failed", code: "SPINE_VERSION_CONFLICT", message: "409" }]);
     expect(failed.error?.code).toBe("SPINE_VERSION_CONFLICT");
     expect(stepRunnerReducer(failed, { type: "reset" })).toEqual(initialRunnerState);
+  });
+
+  it("chỉ gate_ready và error là sự kiện kết thúc luồng", () => {
+    expect(isTerminalEvent({ type: "gate_ready", step_id: "S-3.1", actions: ["accept"], regenerate_used: 0, calls_used: 1 })).toBe(true);
+    expect(isTerminalEvent({ type: "error", step_id: "S-3.1", code: "CALL_LIMIT", message: "x", retryable: false })).toBe(true);
+    expect(isTerminalEvent({ type: "answer_needed", step_id: "S-3.1", questions: [] })).toBe(false);
+    expect(isTerminalEvent({ type: "flags", step_id: "S-3.1", red_open: 0, yellow_open: 0 })).toBe(false);
   });
 });
