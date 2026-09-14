@@ -1,12 +1,14 @@
 /**
- * Step pipeline — theo danh sách endpoint T08; chốt payload theo `pipeline-contract.md` ở T12.
+ * Step pipeline — theo `docs/api/pipeline-contract.md` (T08) mục 1 và 2.
  */
 import type {
   GateRequest,
+  GateResponse,
   ProgressResponse,
-  StepAnswers,
+  RunStepRequest,
+  StepAnswerRequest,
   StepEvent,
-  StepSummary,
+  StepsResponse,
 } from "@/types/pipeline";
 import { streamSse, type SseHandlers } from "../ai-stream";
 import { apiCall } from "./client";
@@ -15,24 +17,25 @@ export const getProgress = (projectId: string) =>
   apiCall<ProgressResponse>(`/projects/${projectId}/progress`);
 
 export const listSteps = (projectId: string) =>
-  apiCall<StepSummary[]>(`/projects/${projectId}/steps`);
+  apiCall<StepsResponse>(`/projects/${projectId}/steps`);
 
-/** Chạy một step; BE trả luồng SSE các `StepEvent`. */
+/** Chạy một step; BE trả luồng SSE các `StepEvent`, đóng sau `gate_ready` hoặc `error`. */
 export const runStep = (
   projectId: string,
   stepId: string,
-  handlers: SseHandlers<StepEvent>,
-  body: Record<string, unknown> = {}
-) => streamSse<StepEvent>(`/projects/${projectId}/steps/${stepId}/run`, body, handlers);
+  request: RunStepRequest,
+  handlers: SseHandlers<StepEvent>
+) => streamSse<StepEvent>(`/projects/${projectId}/steps/${stepId}/run`, request, handlers);
 
-export const answerStep = (projectId: string, stepId: string, answers: StepAnswers) =>
-  apiCall<unknown>(`/projects/${projectId}/steps/${stepId}/answer`, {
+/** Trả lời `answer_needed`; luồng SSE của `/run` tiếp tục. */
+export const answerStep = (projectId: string, stepId: string, request: StepAnswerRequest) =>
+  apiCall<{ accepted: boolean }>(`/projects/${projectId}/steps/${stepId}/answer`, {
     method: "POST",
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify(request),
   });
 
 export const submitGate = (projectId: string, stepId: string, request: GateRequest) =>
-  apiCall<unknown>(`/projects/${projectId}/steps/${stepId}/gate`, {
+  apiCall<GateResponse>(`/projects/${projectId}/steps/${stepId}/gate`, {
     method: "POST",
     body: JSON.stringify(request),
   });
