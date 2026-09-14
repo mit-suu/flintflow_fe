@@ -69,7 +69,8 @@ export interface PreviewResult {
 
 /** `POST /projects/:id/changes`, `/undo`, `/reconcile`. */
 export interface ApplyResult {
-  txn: string;
+  /** null ⇒ lô không đổi gì: không ghi change, `spine_version` giữ nguyên. */
+  txn: string | null;
   spine_version: number;
   changes: Change[];
   spine: Spine;
