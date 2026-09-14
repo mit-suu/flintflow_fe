@@ -70,10 +70,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/home", request.url));
   }
 
-  // 3. Logged-in user attempting /login or /register -> redirect to /admin/prompt-templates or /home ONLY IF validAccessToken is valid
+  // 3. Logged-in user attempting /login or /register -> redirect to /admin/metrics or /home ONLY IF validAccessToken is valid
   if (isAuthRoute && validAccessToken) {
     if (resolvedRole === "admin") {
-      return NextResponse.redirect(new URL("/admin/prompt-templates", request.url));
+      return NextResponse.redirect(new URL("/admin/metrics", request.url));
     }
     return NextResponse.redirect(new URL("/home", request.url));
   }
