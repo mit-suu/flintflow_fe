@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChatMessage } from "./ChatSessionSidebar";
+import type { ChatMessage } from "@/types/chat";
 import { DiscoveryEvaluation } from "../../../../lib/constants/section-types";
 
 interface ChatBubbleProps {
@@ -145,13 +145,14 @@ export default function ChatBubble({
   // Smooth continuous typewriter ticker for streaming
   const [displayedReply, setDisplayedReply] = useState(parsed.reply);
   const targetReplyRef = useRef(parsed.reply);
-  targetReplyRef.current = parsed.reply;
 
   useEffect(() => {
-    if (!isStreaming) {
-      setDisplayedReply(parsed.reply);
-      return;
-    }
+    targetReplyRef.current = parsed.reply;
+  }, [parsed.reply]);
+
+  // Khi không stream, UI dùng thẳng parsed.reply (activeReply) nên ticker chỉ chạy lúc stream
+  useEffect(() => {
+    if (!isStreaming) return;
 
     let animationFrameId: number;
     let lastTick = performance.now();

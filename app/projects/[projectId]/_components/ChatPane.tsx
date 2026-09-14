@@ -12,8 +12,8 @@ import {
   DiscoveryEvaluation,
   DiscoveryQuestion,
 } from "../../../../lib/constants/section-types";
-import { ChatSession } from "./ChatSessionSidebar";
-import { SectionItem } from "./PhaseNavBar";
+import type { ChatSession } from "@/types/chat";
+import type { SectionItem } from "@/types/document";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput from "./QuestionStepperInput";
@@ -35,7 +35,7 @@ interface ChatPaneProps {
   onStopGeneratePhase?: () => void;
   inputMessage: string;
   setInputMessage: (msg: string) => void;
-  onSendMessage: (customContent?: string) => void;
+  onSendMessage: (customContent?: string, overrideStep?: DiscoveryStepNumber) => void;
   sending: boolean;
   pendingAttachments: File[];
   onSelectAttachment: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -159,16 +159,21 @@ export default function ChatPane({
       const parsed = JSON.parse(content);
       if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
         return parsed.questions
-          .map((q: any) => {
+          .map((q: unknown): DiscoveryQuestion => {
             if (typeof q === "string") return { question: q, suggestedAnswers: [] };
+            const item = (q ?? {}) as {
+              question?: unknown;
+              suggestedAnswers?: unknown;
+              multiple?: unknown;
+            };
             return {
-              question: q.question || "",
-              suggestedAnswers: Array.isArray(q.suggestedAnswers)
-                ? q.suggestedAnswers.filter(
-                    (a: any) => typeof a === "string" && a.trim().length > 0
+              question: typeof item.question === "string" ? item.question : "",
+              suggestedAnswers: Array.isArray(item.suggestedAnswers)
+                ? item.suggestedAnswers.filter(
+                    (a: unknown): a is string => typeof a === "string" && a.trim().length > 0
                   )
                 : [],
-              multiple: typeof q.multiple === "boolean" ? q.multiple : undefined,
+              multiple: typeof item.multiple === "boolean" ? item.multiple : undefined,
             };
           })
           .filter((q: DiscoveryQuestion) => q.question.trim().length > 0);
@@ -178,7 +183,7 @@ export default function ChatPane({
         parsed.suggestedQuestions.length > 0
       ) {
         return parsed.suggestedQuestions
-          .filter((q: any) => typeof q === "string" && q.trim().length > 0)
+          .filter((q: unknown): q is string => typeof q === "string" && q.trim().length > 0)
           .map((q: string) => ({ question: q, suggestedAnswers: [] }));
       }
     } catch (_) {}
@@ -231,12 +236,16 @@ export default function ChatPane({
     messages.length > 0 && messages[messages.length - 1].role === "ai"
       ? messages[messages.length - 1].content
       : null;
-  useEffect(() => {
+  // Điều chỉnh state ngay lúc render khi tin nhắn đổi (thay cho effect gọi setState)
+  const latestMessageKey = `${messages.length}:${lastAiMessageContent ?? ""}`;
+  const [seenMessageKey, setSeenMessageKey] = useState(latestMessageKey);
+  if (seenMessageKey !== latestMessageKey) {
+    setSeenMessageKey(latestMessageKey);
     setQuestionnaireDismissed(false);
     setIsSupplementing(false);
     setOverrideCompleteness(null);
     setStepConfirmed(false);
-  }, [lastAiMessageContent, messages.length]);
+  }
 
   // Reset khi step thay đổi
   const prevStepRef = useRef(discoveryStep);
@@ -637,6 +646,7 @@ export default function ChatPane({
             pendingAttachments={pendingAttachments}
             onSelectAttachment={onSelectAttachment}
             onRemoveAttachment={onRemoveAttachment}
+            actionType={workspacePhase === "discovery" ? "chat_discovery" : "chat"}
           />
         </>
       )}

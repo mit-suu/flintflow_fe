@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DiscoveryQuestion } from "../../../../lib/constants/section-types";
 
 interface QuestionStepperInputProps {
@@ -40,13 +40,8 @@ export default function QuestionStepperInput({
   const [selectedOptions, setSelectedOptions] = useState<
     Record<number, string[]>
   >({});
+  // Bộ câu hỏi mới được ChatPane mount lại qua `key`, nên state tự reset — không cần effect.
   const [customAnswers, setCustomAnswers] = useState<Record<number, string>>({});
-
-  useEffect(() => {
-    setSelectedOptions({});
-    setCustomAnswers({});
-    setCurrentIndex(0);
-  }, [questions]);
 
   const totalQuestions = questions.length;
   const clampedIndex = Math.min(
