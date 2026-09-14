@@ -44,6 +44,23 @@ describe("streamSse", () => {
     expect(onEvent.mock.calls.map(([event]) => event)).toEqual([{ n: 1 }, { n: 2 }]);
   });
 
+  it("khối SSE có dòng `event:` (pipeline contract) và CRLF vẫn đọc được data", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      sseResponse([
+        'event: gate_ready\ndata: {"type":"gate_ready","step_id":"S-3.1"}\n\n',
+        'event: flags\r\ndata: {"type":"flags",\r\ndata: "red_open":0}\r\n\r\n',
+      ])
+    );
+    const onEvent = vi.fn();
+
+    await streamSse("/projects/p1/steps/S-3.1/run", {}, { onEvent });
+
+    expect(onEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: "gate_ready", step_id: "S-3.1" },
+      { type: "flags", red_open: 0 },
+    ]);
+  });
+
   it("HTTP lỗi thì gọi onError một lần với thông điệp BE rồi ném lại", async () => {
     vi.mocked(authFetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ error: { message: "Không đủ credit" } }), { status: 402 })
