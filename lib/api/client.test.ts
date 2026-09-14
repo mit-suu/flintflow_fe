@@ -1,0 +1,106 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { API_BASE_URL, ApiClientError, apiCall } from "./client";
+import { getAccessToken, getStoredAuthToken, saveAuthToken, setAccessToken } from "./token-store";
+
+const makeJwt = (payload: Record<string, unknown>) =>
+  `header.${btoa(JSON.stringify(payload))}.signature`;
+
+const jsonResponse = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+
+const futureExp = () => Math.floor(Date.now() / 1000) + 3600;
+
+describe("token-store", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setAccessToken(null);
+  });
+
+  it("saveAuthToken lưu token vào bộ nhớ, localStorage và lấy role từ JWT", () => {
+    const token = makeJwt({ role: "admin", exp: futureExp() });
+
+    saveAuthToken(token);
+
+    expect(getAccessToken()).toBe(token);
+    expect(getStoredAuthToken()).toBe(token);
+    expect(localStorage.getItem("userRole")).toBe("admin");
+  });
+});
+
+describe("apiCall", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    localStorage.clear();
+    setAccessToken(null);
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("gắn Bearer token đã lưu và trả body JSON khi OK", async () => {
+    const token = makeJwt({ role: "user", exp: futureExp() });
+    saveAuthToken(token);
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: { id: "p1" }, error: null }));
+
+    const res = await apiCall<{ id: string }>("/projects/p1");
+
+    expect(res.data).toEqual({ id: "p1" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${API_BASE_URL}/projects/p1`);
+    expect(init.headers.Authorization).toBe(`Bearer ${token}`);
+    expect(init.credentials).toBe("include");
+  });
+
+  it("ném ApiClientError mang status và code từ BE", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(404, { data: null, error: { code: "PROJECT_NOT_FOUND", message: "Không thấy" } })
+    );
+
+    const promise = apiCall("/projects/missing");
+
+    await expect(promise).rejects.toBeInstanceOf(ApiClientError);
+    await expect(promise).rejects.toMatchObject({
+      status: 404,
+      code: "PROJECT_NOT_FOUND",
+      message: "Không thấy",
+    });
+  });
+
+  it("body không phải JSON thì ném PARSE_ERROR", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("<html>Bad gateway</html>", { status: 502 }));
+
+    await expect(apiCall("/projects")).rejects.toMatchObject({ status: 502, code: "PARSE_ERROR" });
+  });
+
+  it("không gửi Content-Type JSON khi body là FormData", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(201, { data: {}, error: null }));
+
+    await apiCall("/projects/p1/documents", { method: "POST", body: new FormData() });
+
+    expect(fetchMock.mock.calls[0][1].headers["Content-Type"]).toBeUndefined();
+  });
+
+  it("gặp 401 thì refresh token rồi thử lại đúng một lần", async () => {
+    const oldToken = makeJwt({ role: "user", exp: futureExp() });
+    const newToken = makeJwt({ role: "user", exp: futureExp() + 60 });
+    saveAuthToken(oldToken);
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, { data: null, error: { code: "UNAUTHORIZED", message: "x" } }))
+      .mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: newToken }, error: null }))
+      .mockResolvedValueOnce(jsonResponse(200, { data: ["ok"], error: null }));
+
+    const res = await apiCall<string[]>("/projects");
+
+    expect(res.data).toEqual(["ok"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][0]).toBe(`${API_BASE_URL}/auth/refresh`);
+    expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe(`Bearer ${newToken}`);
+  });
+});
