@@ -75,7 +75,8 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
 }
 
-function BlockView({ block, projectId }: { block: Block; projectId: string }) {
+/** Dùng lại ở `view/page.tsx` (read-only) để không lặp logic render Block. */
+export function BlockView({ block, projectId }: { block: Block; projectId: string }) {
   switch (block.type) {
     case "heading": {
       const Tag = (`h${Math.min(6, Math.max(1, block.level))}` as unknown) as "h1";
