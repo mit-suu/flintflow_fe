@@ -12,7 +12,12 @@ import type { ProgressResponse } from "@/types/pipeline";
 /**
  * Read-only projection (UC 1.14): section bắt buộc chưa `accepted` chỉ hiện tiêu đề +
  * "chưa hoàn thiện". Không hiện flags, assumptions, `by`/`reason` của change, readiness, hay
- * chip stale — chỉ nội dung đã chốt, phù hợp chia sẻ ra ngoài nhóm làm việc.
+ * chip stale — chỉ nội dung đã chốt.
+ *
+ * Trang này đọc qua Bearer token của thành viên project đã đăng nhập (`authFetch`), không phải
+ * link chia sẻ công khai — "chỉ đọc" ở đây nghĩa là ẩn các trường nội bộ (flags/readiness/stale)
+ * cho member xem nhanh. Chia sẻ ra NGOÀI nhóm làm việc (không cần đăng nhập FlintFlow) cần
+ * share-token riêng — chưa có endpoint, XREQ với BE khi cần (ngoài phạm vi T16).
  */
 export default function ReadOnlyDocumentPage() {
   const params = useParams();
@@ -25,14 +30,18 @@ export default function ReadOnlyDocumentPage() {
 
   useEffect(() => {
     if (!projectId) return;
-    Promise.all([getDocument(projectId, "draft"), getProgress(projectId)])
-      .then(([docRes, progressRes]) => {
-        setDoc(docRes.data);
-        setProgress(progressRes.data);
+    // `allSettled`: `/progress` lỗi (vd chưa có quyền) không được kéo cả tài liệu xuống trang trắng
+    // — tài liệu vẫn hiện, chỉ mất khả năng ẩn section theo `required`/`status` (coi như đã đủ).
+    Promise.allSettled([getDocument(projectId, "draft"), getProgress(projectId)]).then(([docResult, progressResult]) => {
+      if (docResult.status === "fulfilled") {
+        setDoc(docResult.value.data);
         setError(null);
-      })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Không tải được tài liệu"))
-      .finally(() => setLoading(false));
+      } else {
+        setError(docResult.reason instanceof Error ? docResult.reason.message : "Không tải được tài liệu");
+      }
+      setProgress(progressResult.status === "fulfilled" ? progressResult.value.data : null);
+      setLoading(false);
+    });
   }, [projectId]);
 
   const isIncomplete = (section: RenderedSection): boolean => {
