@@ -28,14 +28,16 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
         className="bg-white rounded-[20px] p-6 w-[640px] max-w-full max-h-[85vh] overflow-y-auto shadow-[0_30px_80px_rgba(0,0,0,0.3)] flex flex-col gap-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="font-extrabold text-[15px] text-[#191817]">Xem trước thay đổi</h3>
-          <button type="button" onClick={onCancel} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
-            ✕
-          </button>
-          {preview.branch && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F4F3FE] text-[#4F46E5]">{preview.branch}</span>
-          )}
+          <div className="flex items-center gap-2">
+            {preview.branch && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F4F3FE] text-[#4F46E5]">{preview.branch}</span>
+            )}
+            <button type="button" onClick={onCancel} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
+              ✕
+            </button>
+          </div>
         </div>
 
         {hasViolations && (

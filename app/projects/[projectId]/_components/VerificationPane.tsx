@@ -1,41 +1,36 @@
 "use client";
 
-import { useFlags } from "../hooks/useFlags";
 import FlagsPanel from "./FlagsPanel";
 import ReadinessSummary from "./ReadinessSummary";
 import type { Readiness } from "@/types/pipeline";
+import type { Flag } from "@/types/flags";
 
 interface VerificationPaneProps {
-  projectId: string;
-  spineVersion: number | null;
   readiness: Readiness | null;
+  /** Nguồn cờ duy nhất — sống ở `page.tsx` (T8) để `DocumentPane` cũng dùng chung, thay vì mỗi
+   * panel tự gọi `useFlags` (hai bản state cờ lệch nhau). */
+  flags: Flag[];
+  flagsLoading: boolean;
+  flagsError: string | null;
+  flagsBusy: boolean;
   onClose: () => void;
   onSelectStep?: (stepId: string) => void;
-  /** Cờ vừa đổi (waive/recompute) — cha tải lại `GET /progress` để đồng bộ readiness. */
-  onFlagsChanged?: () => void;
+  onWaive: (flagId: string, reason: string) => Promise<void>;
+  onRecompute: () => Promise<void> | void;
 }
 
 /** Panel Verification & Readiness thật (T16) — cờ đỏ/vàng, waive, readiness từ BE. */
 export default function VerificationPane({
-  projectId,
-  spineVersion,
   readiness,
+  flags,
+  flagsLoading,
+  flagsError,
+  flagsBusy,
   onClose,
   onSelectStep,
-  onFlagsChanged,
+  onWaive,
+  onRecompute,
 }: VerificationPaneProps) {
-  const { flags, loading, error, busy, waive, recompute } = useFlags(projectId, spineVersion);
-
-  const handleWaive = async (flagId: string, reason: string) => {
-    await waive(flagId, reason);
-    onFlagsChanged?.();
-  };
-
-  const handleRecompute = async () => {
-    await recompute();
-    onFlagsChanged?.();
-  };
-
   return (
     <aside className="w-[340px] flex-none bg-[#FAF9F7] border-l border-[#ECEAE5] flex flex-col overflow-hidden z-10">
       <div className="p-3.5 border-b border-[#ECEAE5] bg-white flex items-center justify-between shrink-0">
@@ -55,7 +50,7 @@ export default function VerificationPane({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <ReadinessSummary readiness={readiness} />
 
-        {loading ? (
+        {flagsLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-[#8A867E]">
             <span className="w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin" />
             <span className="text-xs">Đang tải danh sách cờ…</span>
@@ -63,10 +58,10 @@ export default function VerificationPane({
         ) : (
           <FlagsPanel
             flags={flags}
-            busy={busy}
-            error={error}
-            onWaive={handleWaive}
-            onRecompute={() => void handleRecompute()}
+            busy={flagsBusy}
+            error={flagsError}
+            onWaive={onWaive}
+            onRecompute={() => void onRecompute()}
             onSelectStep={onSelectStep}
           />
         )}
