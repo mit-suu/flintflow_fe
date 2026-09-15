@@ -57,7 +57,12 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
     let objectUrl: string | null = null;
     fetchDiagramPng(projectId, diagramId)
       .then((url) => {
-        if (cancelled) return;
+        // Unmount (hoặc đổi `png`) trước khi fetch xong: blob URL vừa tạo không còn ai revoke ở
+        // cleanup bên dưới (nó chạy trước khi promise này resolve) — revoke ngay tại đây.
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
         objectUrl = url;
         setResolvedSrc(url);
       })
@@ -75,11 +80,13 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
 }
 
+const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
+
 /** Dùng lại ở `view/page.tsx` (read-only) để không lặp logic render Block. */
 export function BlockView({ block, projectId }: { block: Block; projectId: string }) {
   switch (block.type) {
     case "heading": {
-      const Tag = (`h${Math.min(6, Math.max(1, block.level))}` as unknown) as "h1";
+      const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
       return <Tag className="font-extrabold text-[#191817] mt-2 mb-1 text-[13px]">{block.text}</Tag>;
     }
     case "paragraph":
