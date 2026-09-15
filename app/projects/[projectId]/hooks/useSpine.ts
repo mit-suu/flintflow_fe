@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resumeProject } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
 import type { Spine } from "@/types/spine";
 
@@ -51,7 +52,10 @@ export function useSpine(projectId: string, enabled = true): UseSpineResult {
 
   useEffect(() => {
     if (!enabled || !projectId) return;
-    void reload();
+    // Mở workspace: BE revert step bỏ dở giữa Draft (endpoint 24) rồi mới đọc Spine; resume lỗi không chặn tải.
+    void resumeProject(projectId)
+      .catch(() => undefined)
+      .then(() => reload());
   }, [enabled, projectId, reload]);
 
   return { spine, version: spine?.spine_version ?? null, loading, error, reload, replace };

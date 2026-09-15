@@ -25,6 +25,7 @@ import type {
   PreviewResult,
   ProgressResponse,
   Question,
+  ResumeResponse,
   RunStepRequest,
   SectionProgress,
   StepAnswerRequest,
@@ -49,11 +50,10 @@ import {
 const api = (path: string) => `${API_BASE_URL}${path}`;
 
 /**
- * `is_pipeline` (bất biến 7, `pipeline-contract.md` §0.3) — `types/chat.ts` (T07, R với T16) chưa
- * khai báo field này (xem `ChatPane.tsx` `TODO(XREQ-local-2)`). Session gốc mock
- * (`MOCK_SESSION_ID`) là pipeline; mọi session tạo thêm qua `POST /chats` là phụ.
+ * `is_pipeline` (bất biến 7, `pipeline-contract.md` §0.3). Session gốc mock (`MOCK_SESSION_ID`) là
+ * pipeline; mọi session tạo thêm qua `POST /chats` là phụ.
  */
-const withPipelineFlag = (session: ChatSession): ChatSession & { is_pipeline: boolean } => ({
+const withPipelineFlag = (session: ChatSession): ChatSession => ({
   ...session,
   is_pipeline: session._id === MOCK_SESSION_ID,
 });
@@ -546,9 +546,22 @@ export const handlers = [
     return ok({ accepted: true });
   }),
 
+  // Endpoint 24 (contract-change 2026-09-15): mock không có step chạy dở giữa hai lần mở trang.
+  http.post(api("/projects/:projectId/resume"), () =>
+    ok<ResumeResponse>({
+      reverted_step: null,
+      spine_version: mockState.spine.spine_version,
+      progress: progressOf(mockState),
+    })
+  ),
+
   http.post(api("/projects/:projectId/steps/:stepId/gate"), async ({ params, request }) => {
     const stepId = String(params.stepId);
     const body = (await request.json()) as GateRequest;
+    if (!body.session_id) return fail(400, "VALIDATION_ERROR", "Thiếu session_id");
+    if (body.session_id !== MOCK_SESSION_ID) {
+      return fail(403, "NOT_PIPELINE_SESSION", "Session này không phải session pipeline của dự án");
+    }
     if (!getStepDef(stepId)) return fail(404, "STEP_NOT_FOUND", `Không có step ${stepId}`);
     if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
     if ((body.action === "revision" || body.action === "accept_as_is") && !body.note?.trim()) {

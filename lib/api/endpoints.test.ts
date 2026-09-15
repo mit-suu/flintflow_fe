@@ -116,10 +116,11 @@ const cases: EndpointCase[] = [
   ],
   [
     "submitGate",
-    () => pipeline.submitGate("p1", "S-3.1", { action: "accept", base_version: 7 }),
+    () => pipeline.submitGate("p1", "S-3.1", { session_id: "c1", action: "accept", base_version: 7 }),
     "/projects/p1/steps/S-3.1/gate",
-    post({ action: "accept", base_version: 7 }),
+    post({ session_id: "c1", action: "accept", base_version: 7 }),
   ],
+  ["resumeProject", () => pipeline.resumeProject("p1"), "/projects/p1/resume", { method: "POST" }],
   ["listFlags", () => flags.listFlags("p1", { level: "red", open: true }), "/projects/p1/flags?level=red&open=true"],
   ["recomputeFlags", () => flags.recomputeFlags("p1"), "/projects/p1/flags/recompute", post()],
   [
