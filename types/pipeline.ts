@@ -129,6 +129,7 @@ export type PipelineErrorCode =
   | "REGENERATE_LIMIT"
   | "CALL_LIMIT"
   | "STEP_NOT_RUNNABLE"
+  | "NO_WORKING_DRAFT"
   | "INVARIANT_VIOLATION"
   | "OP_INVALID"
   | "CHANGE_RANGE_INVALID"
@@ -165,12 +166,20 @@ export interface StepAnswerRequest {
   answers: StepAnswer[];
 }
 
-/** `revision` và `accept_as_is` bắt buộc `note`. */
+/** `revision` và `accept_as_is` bắt buộc `note`. `session_id` bắt buộc (contract-change 2026-09-15). */
 export interface GateRequest {
+  session_id: string;
   action: GateAction;
   note?: string;
   base_version: number;
   function_id?: string;
+}
+
+/** `POST /projects/:id/resume` (endpoint 24): step `in_progress` dang dở bị revert về `pending`. */
+export interface ResumeResponse {
+  reverted_step: string | null;
+  spine_version: number;
+  progress: ProgressResponse;
 }
 
 export interface GateResponse {

@@ -5,6 +5,7 @@ import type {
   GateRequest,
   GateResponse,
   ProgressResponse,
+  ResumeResponse,
   RunStepRequest,
   StepAnswerRequest,
   StepEvent,
@@ -39,3 +40,7 @@ export const submitGate = (projectId: string, stepId: string, request: GateReque
     method: "POST",
     body: JSON.stringify(request),
   });
+
+/** Mở lại project: BE revert step `in_progress` dang dở (đóng tab giữa Draft) rồi trả tiến độ. */
+export const resumeProject = (projectId: string) =>
+  apiCall<ResumeResponse>(`/projects/${projectId}/resume`, { method: "POST" });

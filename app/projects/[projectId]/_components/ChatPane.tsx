@@ -7,13 +7,6 @@ import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput from "./QuestionStepperInput";
 
-/**
- * BE lưu `is_pipeline` trên `chatsessions` (bất biến 7, `pipeline-contract.md` §0.3) nhưng
- * `types/chat.ts` (T07, R với T16) chưa khai báo field này — mở rộng cục bộ tại đây.
- * TODO(XREQ-local-2): xin T07/T17 thêm `is_pipeline?: boolean` chính thức vào `ChatSession`.
- */
-type SessionWithPipelineFlag = ChatSession & { is_pipeline?: boolean };
-
 interface ChatPaneProps {
   width?: number;
   session: ChatSession | null;
@@ -97,7 +90,7 @@ export default function ChatPane({
 
   // Không có session ⇒ coi như pipeline (không đủ căn cứ chuyển hướng); session._id vắng field
   // mới thì mặc định pipeline để không phá luồng chat hiện có.
-  const isNonPipelineSession = (session as SessionWithPipelineFlag | null)?.is_pipeline === false;
+  const isNonPipelineSession = session?.is_pipeline === false;
   const redirectToChangePanel = isNonPipelineSession && Boolean(onEditInstruction);
 
   return (
