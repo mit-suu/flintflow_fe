@@ -67,7 +67,9 @@ export function useDocument(
 
   useEffect(() => {
     if (!projectId) return;
-    void reload();
+    // Lùi một microtask: `reload()` tự `setLoading(true)` đồng bộ (T1) — gọi thẳng trong effect bị
+    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `ChangePanel.tsx`).
+    queueMicrotask(() => void reload());
   }, [projectId, reload, refreshToken]);
 
   return { document, meta, loading, notAssembled, error, reload };
