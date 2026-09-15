@@ -52,9 +52,9 @@ describe("ExportPanel", () => {
     render(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
 
-    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(downloadWordExport).toHaveBeenCalledWith("p1", "draft", undefined));
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1), { timeout: 3000 });
     expect(createObjectURL).toHaveBeenCalledTimes(1);
-    expect(downloadWordExport).toHaveBeenCalledWith("p1", "draft", undefined);
 
     clickSpy.mockRestore();
     vi.unstubAllGlobals();
