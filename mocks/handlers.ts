@@ -679,9 +679,11 @@ export const handlers = [
       const [rule, path] = String(err instanceof Error ? err.message : err).split(": ");
       return fail(422, "OP_INVALID", `Undo thất bại: ${path ?? rule}`, { violations: [{ rule, message: String(err), path }] });
     }
-    mockChangesLog = mockChangesLog.filter((c) => c.txn !== last.txn);
     mockState.spine = draft;
     const changes = commit(mockState, revertDiffs, null);
+    // Undo cũng là một thao tác qua Change panel — thay lô vừa xoá bằng chính change đảo của nó
+    // trong lịch sử, không để `GET /changes` trống sau undo.
+    mockChangesLog = [...mockChangesLog.filter((c) => c.txn !== last.txn), ...changes];
     const result: ApplyResult = { txn: changes[0]?.txn ?? "mock", spine_version: mockState.spine.spine_version, changes, spine: mockState.spine };
     return ok(result);
   }),
