@@ -83,14 +83,18 @@ const cases: EndpointCase[] = [
     "/projects/p1/changes",
     post({ ops: [{ op: "set", path: "project.name", value: "X" }], base_version: 4 }),
   ],
-  ["reconcile (không tham số)", () => spine.reconcile("p1"), "/projects/p1/reconcile", post()],
+  [
+    "reconcile (base_version)",
+    () => spine.reconcile("p1", { base_version: 4 }),
+    "/projects/p1/reconcile",
+    post({ base_version: 4 }),
+  ],
   [
     "reconcile (base_version + preview_id)",
     () => spine.reconcile("p1", { base_version: 4, preview_id: "pv1" }),
     "/projects/p1/reconcile",
     post({ base_version: 4, preview_id: "pv1" }),
   ],
-  ["undoLastChange (không tham số)", () => spine.undoLastChange("p1"), "/projects/p1/undo", post()],
   [
     "undoLastChange (base_version)",
     () => spine.undoLastChange("p1", { base_version: 4 }),
@@ -212,18 +216,40 @@ describe("lib/api wrappers", () => {
     );
   });
 
-  it("downloadWordExport trả Blob khi OK", async () => {
-    vi.mocked(authFetch).mockResolvedValueOnce(new Response("docx-bytes", { status: 200 }));
+  it("downloadWordExport trả {blob, filename} khi OK; filename đọc từ Content-Disposition", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response("docx-bytes", {
+        status: 200,
+        headers: { "Content-Disposition": 'attachment; filename="Du-an-v1-draft.docx"' },
+      })
+    );
 
-    const blob = await exportApi.downloadWordExport("p1");
+    const result = await exportApi.downloadWordExport("p1");
 
     expect(authFetch).toHaveBeenCalledWith("/projects/p1/export/word?source=draft");
-    expect(await blob.text()).toBe("docx-bytes");
+    expect(await result.blob.text()).toBe("docx-bytes");
+    expect(result.filename).toBe("Du-an-v1-draft.docx");
   });
 
-  it("downloadWordExport ném lỗi kèm thông điệp BE khi chưa có bản ghép", async () => {
+  it("downloadWordExport trả filename null khi thiếu Content-Disposition", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(new Response("docx-bytes", { status: 200 }));
+
+    const result = await exportApi.downloadWordExport("p1");
+
+    expect(result.filename).toBeNull();
+  });
+
+  it("downloadWordExport gửi baseline_id khi có", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(new Response("docx-bytes", { status: 200 }));
+
+    await exportApi.downloadWordExport("p1", "baseline", "B1");
+
+    expect(authFetch).toHaveBeenCalledWith("/projects/p1/export/word?source=baseline&baseline_id=B1");
+  });
+
+  it("downloadWordExport ném lỗi kèm đúng code/thông điệp BE khi chưa có bản ghép (không hard-code EXPORT_FAILED)", async () => {
     vi.mocked(authFetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { code: "NO_WORKING_DRAFT", message: "Chưa assemble" } }), {
+      new Response(JSON.stringify({ error: { code: "NO_WORKING_DRAFT", message: "Chưa assemble" }, meta: { hint: "S-8.2" } }), {
         status: 409,
       })
     );
@@ -231,7 +257,15 @@ describe("lib/api wrappers", () => {
     const promise = exportApi.downloadWordExport("p1");
 
     await expect(promise).rejects.toBeInstanceOf(ApiClientError);
-    await expect(promise).rejects.toMatchObject({ status: 409, message: "Chưa assemble" });
+    await expect(promise).rejects.toMatchObject({ status: 409, code: "NO_WORKING_DRAFT", message: "Chưa assemble (S-8.2)" });
+  });
+
+  it("downloadWordExport dùng EXPORT_FAILED khi body lỗi không phải JSON hợp lệ", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(new Response("not json", { status: 500 }));
+
+    const promise = exportApi.downloadWordExport("p1");
+
+    await expect(promise).rejects.toMatchObject({ status: 500, code: "EXPORT_FAILED" });
   });
 
   it("fetchDiagramSvg trả nội dung SVG", async () => {

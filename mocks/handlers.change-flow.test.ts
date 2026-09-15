@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { getSpine, previewChanges, applyChanges, reconcile, undoLastChange, listChanges, getTraceability } from "@/lib/api/spine";
 import { listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
 import { assembleDocument, getDocument, downloadWordExport } from "@/lib/api/export";
-import { apiCall, ApiClientError } from "@/lib/api/client";
+import { apiCall } from "@/lib/api/client";
 import { mockTiming, resetMockChangeFlowState } from "./handlers";
 import { mockServer } from "./server";
 import { MOCK_PROJECT_ID, resetMockState } from "./state";
@@ -74,6 +74,30 @@ describe("mock T16: changes/preview → apply → undo → reconcile trên mock"
 
     const undone = await undoLastChange(P, { base_version: appliedVersion });
     expect(undone.data?.spine.actors[0]?.description).toBe("Ban đầu");
+  });
+
+  it("undo một lô nhiều change (add rồi set trong cùng txn) trả lại đúng trạng thái trước lô, theo seq giảm dần", async () => {
+    const base_version = await version();
+    // Preview với 2 ops trong cùng lô (add actor mới rồi set mô tả) — trace qua Change panel nên áp
+    // (`preview_id` + `instruction`) mới ghi vào `mockChangesLog`, dùng được cho undo.
+    const preview = await previewChanges(P, {
+      base_version,
+      ops: [
+        { op: "add", path: "actors[]", value: { id: "A09", name: "Ops Bot", kind: "system", description: "Ban đầu" } },
+        { op: "set", path: "actors[id=A09].description", value: "Đã đổi", reason: "chỉnh mô tả" },
+      ],
+    });
+    const applied = await applyChanges(P, {
+      instruction: "thêm actor rồi chỉnh mô tả",
+      base_version,
+      preview_id: preview.data!.preview_id!,
+    });
+    expect(applied.data?.spine.actors.some((a) => a.id === "A09")).toBe(true);
+    expect(applied.data?.spine.actors.find((a) => a.id === "A09")?.description).toBe("Đã đổi");
+
+    const undone = await undoLastChange(P, { base_version: applied.data!.spine_version });
+    // `before={_absent:true}` của op add ⇒ undo phải xoá hẳn actor, không để lại marker trong field.
+    expect(undone.data?.spine.actors.some((a) => a.id === "A09")).toBe(false);
   });
 
   it("reconcile hai bước: lượt đầu trả preview, lượt hai (kèm preview_id) áp lô", async () => {
@@ -183,11 +207,12 @@ describe("mock T16: assemble/document/export", () => {
     expect(doc.meta?.stale).toBe(false);
   });
 
-  it("export word trả blob sau khi assemble; 409 khi chưa assemble", async () => {
-    await expect(downloadWordExport(P)).rejects.toBeInstanceOf(ApiClientError);
+  it("export word trả {blob, filename} sau khi assemble; 409 khi chưa assemble", async () => {
+    await expect(downloadWordExport(P)).rejects.toMatchObject({ code: "NO_WORKING_DRAFT", status: 409 });
     await assembleDocument(P, await version());
-    const blob = await downloadWordExport(P);
+    const { blob, filename } = await downloadWordExport(P);
     expect(blob.size).toBeGreaterThan(0);
+    expect(filename).toContain("-draft.docx");
   });
 });
 

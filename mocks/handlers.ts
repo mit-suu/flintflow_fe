@@ -13,7 +13,7 @@ import {
   orderedSteps,
   phaseOfStep,
 } from "@/lib/constants/step-registry";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatMessage, ChatSession } from "@/types/chat";
 import type {
   ApplyResult,
   ChangeDiff,
@@ -37,6 +37,7 @@ import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
 import {
   countersOf,
+  MOCK_SESSION_ID,
   mockState,
   nextMockStep,
   setStepStatus,
@@ -45,6 +46,16 @@ import {
 } from "./state";
 
 const api = (path: string) => `${API_BASE_URL}${path}`;
+
+/**
+ * `is_pipeline` (bất biến 7, `pipeline-contract.md` §0.3) — `types/chat.ts` (T07, R với T16) chưa
+ * khai báo field này (xem `ChatPane.tsx` `TODO(XREQ-local-2)`). Session gốc mock
+ * (`MOCK_SESSION_ID`) là pipeline; mọi session tạo thêm qua `POST /chats` là phụ.
+ */
+const withPipelineFlag = (session: ChatSession): ChatSession & { is_pipeline: boolean } => ({
+  ...session,
+  is_pipeline: session._id === MOCK_SESSION_ID,
+});
 
 const ok = <T>(data: T, init?: ResponseInit) => HttpResponse.json({ data, error: null }, init);
 
@@ -293,6 +304,27 @@ const previewOf = (state: MockState, baseVersion: number, ops: Op[]): PreviewRes
   return { ok: true, txn: previewId, base_version: baseVersion, ops, changes, violations: [], referrers: [], branch: "silent", preview_id: previewId };
 };
 
+const isAbsentMarker = (value: unknown): value is { _absent: true } =>
+  typeof value === "object" && value !== null && (value as Record<string, unknown>)._absent === true;
+
+/**
+ * Đảo một `Change` đã ghi: set lại `before`, hoặc — khi `before` là `{_absent:true}` (đánh dấu
+ * "chưa tồn tại" do op `add` để lại) — xoá hẳn phần tử khỏi collection thay vì gán marker vào field.
+ */
+const revertMockChange = (spine: Spine, change: Change): ChangeDiff => {
+  if (isAbsentMarker(change.before)) {
+    const match = /^([a-z_]+)\[id=([^\]]+)\]$/.exec(change.path);
+    if (!match) throw new Error(`path_not_resolved: ${change.path}`);
+    const [, collection, id] = match;
+    const list = spine[collection as Collection] as unknown as Record<string, unknown>[] | undefined;
+    if (!list) throw new Error(`path_not_resolved: ${change.path}`);
+    const index = list.findIndex((el) => el.id === id);
+    const removed = index >= 0 ? list.splice(index, 1)[0] : undefined;
+    return { op: "remove", path: change.path, before: removed ?? change.value, value: { _absent: true }, reason: `Undo #${change.seq}` };
+  }
+  return applyMockOp(spine, { op: "set", path: change.path, value: change.before, reason: `Undo #${change.seq}` });
+};
+
 /** Áp một `preview_id` đã tính sẵn — dùng chung cho `/changes` (instruction) và `/reconcile`. */
 const applyMockPreview = (state: MockState, previewId: string, stepId: string | null = null): ApplyResult | null => {
   const stored = mockPreviews.get(previewId);
@@ -307,14 +339,8 @@ const applyMockPreview = (state: MockState, previewId: string, stepId: string | 
 };
 
 /** Tài liệu ghép giả (T15 mock) — vài chương ngắn dựng từ Spine, đủ để DocumentPane/ExportPanel chạy trên mock. */
-const buildMockDocument = (state: MockState): RenderedDocument => ({
-  projectId: state.spine.projectId,
-  projectName: state.project.name,
-  version: `v0.${mockAssembledAtVersion ?? state.spine.spine_version}`,
-  source: "draft",
-  watermark: "DRAFT",
-  generatedAt: new Date().toISOString(),
-  sections: [
+const buildMockDocument = (state: MockState): RenderedDocument => {
+  const sections: RenderedDocument["sections"] = [
     {
       id: "fixed:1",
       number: "1",
@@ -349,24 +375,41 @@ const buildMockDocument = (state: MockState): RenderedDocument => ({
         ? [{ type: "bullet_list", items: state.spine.use_cases.map((u) => [{ text: `${u.id}: ${u.name}` }]) }]
         : [],
     },
-  ],
-  recordOfChanges: mockChangesLog.slice(-5).map((c) => ({
-    date: c.at.slice(0, 10),
-    version: `v${state.spine.spine_version}`,
-    change_type: "M",
-    in_charge: c.by,
-    description: c.reason ?? c.path,
-  })),
-  flagsAppendix: {
-    redOpen: state.spine.flags
-      .filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user)
-      .map((f) => ({ id: f.id, rule_id: f.rule_id, section: f.section_id, message: f.message })),
-    staleCount: 0,
-    waived: state.spine.flags
-      .filter((f) => f.waived_by_user)
-      .map((f) => ({ id: f.id, rule_id: f.rule_id, section: f.section_id, message: f.message, waive_reason: f.waive_reason })),
-  },
-});
+  ];
+
+  // `FlagRow.section` là nhãn đã phân giải ("3.2.1 Create Project"), không phải `section_id` thô —
+  // tra trong `sections` vừa dựng, rơi về chính `section_id` khi không khớp section nào ở trên.
+  const sectionLabelOf = (sectionId: string): string => {
+    const section = sections.find((s) => s.id === sectionId);
+    return section ? `${section.number} ${section.heading}` : sectionId;
+  };
+
+  return {
+    projectId: state.spine.projectId,
+    projectName: state.project.name,
+    version: `v0.${mockAssembledAtVersion ?? state.spine.spine_version}`,
+    source: "draft",
+    watermark: "DRAFT",
+    generatedAt: new Date().toISOString(),
+    sections,
+    recordOfChanges: mockChangesLog.slice(-5).map((c) => ({
+      date: c.at.slice(0, 10),
+      version: `v${state.spine.spine_version}`,
+      change_type: "M",
+      in_charge: c.by,
+      description: c.reason ?? c.path,
+    })),
+    flagsAppendix: {
+      redOpen: state.spine.flags
+        .filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user)
+        .map((f) => ({ id: f.id, rule_id: f.rule_id, section: sectionLabelOf(f.section_id), message: f.message })),
+      staleCount: 0,
+      waived: state.spine.flags
+        .filter((f) => f.waived_by_user)
+        .map((f) => ({ id: f.id, rule_id: f.rule_id, section: sectionLabelOf(f.section_id), message: f.message, waive_reason: f.waive_reason })),
+    },
+  };
+};
 
 const buildMockTraceability = (state: MockState, entity: TraceabilityEntity, id: string): TraceabilityResponse => {
   if (entity === "actor") {
@@ -408,15 +451,15 @@ export const handlers = [
   http.get(api("/projects/:projectId/documents"), () => ok([])),
   http.get(api("/verification/projects/:projectId"), () => ok({})),
 
-  http.get(api("/projects/:projectId/chats"), () => ok(mockState.sessions)),
+  http.get(api("/projects/:projectId/chats"), () => ok(mockState.sessions.map(withPipelineFlag))),
   http.post(api("/projects/:projectId/chats"), () => {
     const session = { _id: `${Date.now()}`, projectId: mockState.project._id, messages: [], isActive: true, createdAt: new Date().toISOString() };
     mockState.sessions = [session, ...mockState.sessions.map((s) => ({ ...s, isActive: false }))];
-    return ok(session);
+    return ok(withPipelineFlag(session));
   }),
   http.get(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
     const session = mockState.sessions.find((s) => s._id === params.chatId);
-    return session ? ok(session) : fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
+    return session ? ok(withPipelineFlag(session)) : fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
   }),
   http.delete(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
     mockState.sessions = mockState.sessions.filter((s) => s._id !== params.chatId);
@@ -602,11 +645,19 @@ export const handlers = [
     if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
     const last = mockChangesLog[mockChangesLog.length - 1];
     if (!last) return fail(422, "NOTHING_TO_UNDO", "Không còn thao tác nào để undo");
-    mockChangesLog = mockChangesLog.slice(0, -1);
+    // Đảo cả dải change của lô (txn) cuối, theo seq giảm dần — không chỉ dòng cuối cùng.
+    const txnChanges = mockChangesLog.filter((c) => c.txn === last.txn).sort((a, b) => b.seq - a.seq);
     const draft = structuredClone(mockState.spine);
-    const revertDiff = applyMockOp(draft, { op: "set", path: last.path, value: last.before, reason: `Undo #${last.seq}` });
+    let revertDiffs: ChangeDiff[];
+    try {
+      revertDiffs = txnChanges.map((change) => ({ ...revertMockChange(draft, change), op: "revert" }));
+    } catch (err) {
+      const [rule, path] = String(err instanceof Error ? err.message : err).split(": ");
+      return fail(422, "OP_INVALID", `Undo thất bại: ${path ?? rule}`, { violations: [{ rule, message: String(err), path }] });
+    }
+    mockChangesLog = mockChangesLog.filter((c) => c.txn !== last.txn);
     mockState.spine = draft;
-    const changes = commit(mockState, [{ ...revertDiff, op: "revert" }], null);
+    const changes = commit(mockState, revertDiffs, null);
     const result: ApplyResult = { txn: changes[0]?.txn ?? "mock", spine_version: mockState.spine.spine_version, changes, spine: mockState.spine };
     return ok(result);
   }),
