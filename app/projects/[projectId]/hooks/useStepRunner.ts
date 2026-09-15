@@ -187,10 +187,11 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     async (action: GateAction, note?: string) => {
       const stepId = stepRef.current;
       const baseVersion = getBaseVersion();
-      if (!stepId || baseVersion === null) return;
+      if (!stepId || !sessionId || baseVersion === null) return;
       dispatch({ type: "busy", busy: true });
       try {
         const res = await submitGate(projectId, stepId, {
+          session_id: sessionId,
           action,
           base_version: baseVersion,
           ...(note ? { note } : {}),
@@ -206,7 +207,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         dispatch({ type: "failed", ...toFailure(err) });
       }
     },
-    [projectId, getBaseVersion, onSpineChanged, onGateDone, run]
+    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, run]
   );
 
   const reset = useCallback(() => {

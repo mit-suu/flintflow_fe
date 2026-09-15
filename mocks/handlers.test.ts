@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getSpine, applyChanges } from "@/lib/api/spine";
-import { answerStep, getProgress, listSteps, runStep, submitGate } from "@/lib/api/pipeline";
+import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import type { StepEvent } from "@/types/pipeline";
 import { mockTiming } from "./handlers";
 import { mockServer } from "./server";
@@ -55,7 +55,7 @@ describe("mock pipeline theo contract (DoD T12)", () => {
       expect(types[types.length - 1], stepId).toBe("gate_ready");
       if (stepId === "S-3.6") expect(types).toContain("render");
 
-      const gate = await submitGate(P, stepId, { action: "accept", base_version: await version() });
+      const gate = await submitGate(P, stepId, { session_id: MOCK_SESSION_ID, action: "accept", base_version: await version() });
       expect(gate.data?.step.status, stepId).toBe("accepted");
     }
     const steps = (await listSteps(P)).data!;
@@ -67,27 +67,42 @@ describe("mock pipeline theo contract (DoD T12)", () => {
 
   it("Regenerate lần 4 bị từ chối; Accept as-is đòi ghi chú và chỉ mở khi hết Regenerate", async () => {
     await runToGate("S-3.1");
-    await expect(submitGate(P, "S-3.1", { action: "accept_as_is", note: "ok", base_version: await version() })).rejects.toMatchObject({
+    await expect(submitGate(P, "S-3.1", { session_id: MOCK_SESSION_ID, action: "accept_as_is", note: "ok", base_version: await version() })).rejects.toMatchObject({
       code: "STEP_NOT_RUNNABLE",
     });
 
     for (let i = 1; i <= 3; i++) {
-      const res = await submitGate(P, "S-3.1", { action: "regenerate", base_version: await version() });
+      const res = await submitGate(P, "S-3.1", { session_id: MOCK_SESSION_ID, action: "regenerate", base_version: await version() });
       expect(res.data?.step.regenerate_used).toBe(i);
       const events = await runToGate("S-3.1");
       const gateReady = events.find((e) => e.type === "gate_ready");
       expect(gateReady && gateReady.type === "gate_ready" && gateReady.actions.includes("regenerate")).toBe(i < 3);
     }
 
-    await expect(submitGate(P, "S-3.1", { action: "regenerate", base_version: await version() })).rejects.toMatchObject({
+    await expect(submitGate(P, "S-3.1", { session_id: MOCK_SESSION_ID, action: "regenerate", base_version: await version() })).rejects.toMatchObject({
       code: "REGENERATE_LIMIT",
       status: 409,
     });
-    await expect(submitGate(P, "S-3.1", { action: "accept_as_is", base_version: await version() })).rejects.toMatchObject({
+    await expect(submitGate(P, "S-3.1", { session_id: MOCK_SESSION_ID, action: "accept_as_is", base_version: await version() })).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
     });
-    const asIs = await submitGate(P, "S-3.1", { action: "accept_as_is", note: "Chấp nhận mô tả hiện tại", base_version: await version() });
+    const asIs = await submitGate(P, "S-3.1", { session_id: MOCK_SESSION_ID, action: "accept_as_is", note: "Chấp nhận mô tả hiện tại", base_version: await version() });
     expect(asIs.data?.step.status).toBe("accepted");
+  });
+
+  it("gate thiếu session_id ⇒ 400, session phụ ⇒ 403 NOT_PIPELINE_SESSION (contract-change 2026-09-15)", async () => {
+    const base_version = await version();
+    await expect(submitGate(P, "S-3.1", { session_id: "", action: "accept", base_version })).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(submitGate(P, "S-3.1", { session_id: "other-session", action: "accept", base_version })).rejects.toMatchObject({
+      code: "NOT_PIPELINE_SESSION",
+      status: 403,
+    });
+  });
+
+  it("POST /resume trả reverted_step + spine_version hiện tại", async () => {
+    const res = await resumeProject(P);
+    expect(res.data).toMatchObject({ reverted_step: null, spine_version: await version() });
+    expect(res.data?.progress.progress.total).toBeGreaterThan(0);
   });
 
   it("base_version cũ ⇒ 409; POST /changes ops thuần tăng version", async () => {

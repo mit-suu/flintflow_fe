@@ -16,6 +16,8 @@ export interface ChatSession {
   projectId: string;
   messages: ChatMessage[];
   isActive: boolean;
+  /** Bất biến 7: đúng một session pipeline mỗi project; session khác chỉ hỏi đáp (CHAT). */
+  is_pipeline?: boolean;
   createdAt: string;
 }
 
