@@ -9,7 +9,7 @@ import Logo from "../../components/Logo";
 import NotificationBell from "../../components/NotificationBell";
 import { apiCall } from "../../lib/api";
 import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
-import type { UserWithOnboarding } from "./onboarding/api";
+import type { User } from "@/types/user";
 
 export default function HomePage() {
   const router = useRouter();
@@ -64,7 +64,7 @@ export default function HomePage() {
     if (loading) return;
     if (projects.length > 0) return;
     let cancelled = false;
-    apiCall<UserWithOnboarding>("/users/me")
+    apiCall<User>("/users/me")
       .then((res) => {
         if (!cancelled && res.data && res.data.onboardedAt === null) router.replace("/home/onboarding");
       })
