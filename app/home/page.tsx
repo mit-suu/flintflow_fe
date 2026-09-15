@@ -14,16 +14,6 @@ import type { UserWithOnboarding } from "./onboarding/api";
 export default function HomePage() {
   const router = useRouter();
 
-  // UC 1.12: user chưa qua onboarding (`onboardedAt === null`) ⇒ đưa vào /home/onboarding.
-  // User không có field này (BE cũ) ⇒ coi như đã onboard, không redirect.
-  useEffect(() => {
-    apiCall<UserWithOnboarding>("/users/me")
-      .then((res) => {
-        if (res.data && res.data.onboardedAt === null) router.replace("/home/onboarding");
-      })
-      .catch(() => undefined);
-  }, [router]);
-
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +54,25 @@ export default function HomePage() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  // UC 1.12: user chưa qua onboarding (`onboardedAt === null`) ⇒ đưa vào /home/onboarding —
+  // NHƯNG chỉ khi user CHƯA có project nào. `onboarding/page.tsx` gọi `patchMe({onboardedAt})`
+  // SAU khi tạo project; nếu cú `patchMe` đó lỗi, `onboardedAt` vẫn null mãi mãi, và nếu ta chỉ xét
+  // `onboardedAt` thì mỗi lần user quay lại /home sẽ bị đẩy lại vào onboarding dù đã có project —
+  // vòng lặp tạo project vô hạn. Chờ danh sách project tải xong rồi mới xét cả hai điều kiện.
+  useEffect(() => {
+    if (loading) return;
+    if (projects.length > 0) return;
+    let cancelled = false;
+    apiCall<UserWithOnboarding>("/users/me")
+      .then((res) => {
+        if (!cancelled && res.data && res.data.onboardedAt === null) router.replace("/home/onboarding");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, projects, router]);
 
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase("vi");
   const filteredProjects = normalizedQuery
