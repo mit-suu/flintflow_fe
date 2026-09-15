@@ -46,14 +46,3 @@ export interface TraceabilityResponse {
   nodes: TraceabilityNode[];
   edges: TraceabilityEdge[];
 }
-
-/** Dữ liệu legacy `GET /verification/projects/:id` — T16 thay bằng flags + progress. */
-export interface VerificationData {
-  readinessScore?: number;
-  readinessLevel?: "discuss" | "plan" | "blocked" | "ready";
-  completenessPercent?: number;
-  blockingIssues?: string[];
-  facts?: Array<{ statement: string; source?: string }>;
-  assumptions?: Array<{ statement: string; status?: "confirmed" | "pending" }>;
-  goalAlignmentPercent?: number;
-}
