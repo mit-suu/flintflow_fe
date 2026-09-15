@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { applyChanges } from "@/lib/api/spine";
 import { ApiClientError } from "@/lib/api/client";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
-import type { Op } from "@/types/pipeline";
+import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 
 import WorkspaceHeader from "./_components/WorkspaceHeader";
@@ -16,6 +16,8 @@ import ChatSessionSidebar from "./_components/ChatSessionSidebar";
 import ChatPane from "./_components/ChatPane";
 import DocumentPane from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
+import ChangePanel, { type ChangeSeed } from "./_components/ChangePanel";
+import ExportPanel from "./_components/ExportPanel";
 import GateCard from "./_components/GateCard";
 import ElicitPanel from "./_components/ElicitPanel";
 import StepEventLog from "./_components/StepEventLog";
@@ -50,6 +52,8 @@ export default function WorkspacePage() {
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [changePanelOpen, setChangePanelOpen] = useState(false);
+  const [changeSeed, setChangeSeed] = useState<ChangeSeed | undefined>(undefined);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [savingChange, setSavingChange] = useState(false);
 
@@ -125,6 +129,25 @@ export default function WorkspacePage() {
 
   const markPlaceholder = (screenId: string) =>
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
+
+  // ─── ChangePanel áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
+  const handleChangeApplied = useCallback(
+    (result: ApplyResult, impactedSectionIds?: string[]) => {
+      bumpVersion(result.spine_version);
+      replaceSpine(result.spine);
+      void reloadProgress();
+      setDocumentRefreshToken((v) => v + 1);
+      setChangedSectionIds(new Set(impactedSectionIds ?? []));
+    },
+    [bumpVersion, replaceSpine, reloadProgress]
+  );
+
+  // ChatPane: session không pipeline ⇒ ô lệnh sửa mở Change panel và xem trước lệnh ngay
+  const forwardInstructionToChangePanel = useCallback((instruction: string) => {
+    if (!instruction.trim()) return;
+    setChangeSeed({ text: instruction, nonce: Date.now() });
+    setChangePanelOpen(true);
+  }, []);
 
   // ─── resize chat pane ─────────────────────────────────────────
   const [chatPaneWidth, setChatPaneWidth] = useState<number>(readSavedChatPaneWidth);
@@ -233,6 +256,7 @@ export default function WorkspacePage() {
           onRemoveAttachment={ws.removeAttachment}
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
+          onEditInstruction={forwardInstructionToChangePanel}
           footer={
             runner.state.status === "needs_input" ? (
               <ElicitPanel questions={runner.state.questions} onSubmit={(answers) => void runner.answer(answers)} sending={runner.state.busy} />
@@ -242,11 +266,6 @@ export default function WorkspacePage() {
           {viewingAccepted && viewedStep && (
             <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-3 text-[12px] text-[#1F7A45]">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
-            </div>
-          )}
-          {exportOpen && (
-            <div className="bg-white border border-[#DDD9F6] rounded-[14px] p-3 text-[12px] text-[#4B4842]">
-              Xuất Word (bản nháp có watermark hoặc bản baseline) sẽ nối ở bước ghép tài liệu S-8.2 — chưa có trong bản này.
             </div>
           )}
           {runnerStep && runner.state.events.length > 0 && <StepEventLog events={runner.state.events} />}
@@ -298,14 +317,26 @@ export default function WorkspacePage() {
           refreshToken={documentRefreshToken}
         />
 
-        <button
-          type="button"
-          onClick={() => setToolsOpen((v) => !v)}
-          className="self-start m-2 px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer shrink-0"
-          title="Tên riêng, thuật ngữ và hàng đợi màn"
-        >
-          {toolsOpen ? "›" : "‹ Công cụ"}
-        </button>
+        <div className="flex flex-col gap-1.5 m-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setChangePanelOpen((v) => !v)}
+            className={`px-2 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${
+              changePanelOpen ? "bg-[#191817] text-white border-[#191817]" : "bg-white border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7]"
+            }`}
+            title="Sửa qua lệnh với xem trước diff"
+          >
+            {changePanelOpen ? "›" : "‹ Sửa lệnh"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setToolsOpen((v) => !v)}
+            className="self-start px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
+            title="Tên riêng, thuật ngữ và hàng đợi màn"
+          >
+            {toolsOpen ? "›" : "‹ Công cụ"}
+          </button>
+        </div>
 
         {toolsOpen && spine && (
           <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label="Công cụ">
@@ -320,6 +351,16 @@ export default function WorkspacePage() {
           </aside>
         )}
 
+        {changePanelOpen && (
+          <ChangePanel
+            projectId={projectId}
+            getBaseVersion={getBaseVersion}
+            onApplied={handleChangeApplied}
+            onClose={() => setChangePanelOpen(false)}
+            seed={changeSeed}
+          />
+        )}
+
         {verificationOpen && (
           <VerificationPane
             projectId={projectId}
@@ -331,6 +372,15 @@ export default function WorkspacePage() {
           />
         )}
       </main>
+
+      {exportOpen && (
+        <ExportPanel
+          projectId={projectId}
+          projectName={ws.project?.name}
+          onClose={() => setExportOpen(false)}
+          onGoToStep={setSelectedStepId}
+        />
+      )}
     </div>
   );
 }
