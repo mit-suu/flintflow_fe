@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import ProjectCard from "../../components/ProjectCard";
 import type { Project } from "@/types/project";
 import Modal from "../../components/Modal";
@@ -8,8 +9,21 @@ import Logo from "../../components/Logo";
 import NotificationBell from "../../components/NotificationBell";
 import { apiCall } from "../../lib/api";
 import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
+import type { UserWithOnboarding } from "./onboarding/api";
 
 export default function HomePage() {
+  const router = useRouter();
+
+  // UC 1.12: user chưa qua onboarding (`onboardedAt === null`) ⇒ đưa vào /home/onboarding.
+  // User không có field này (BE cũ) ⇒ coi như đã onboard, không redirect.
+  useEffect(() => {
+    apiCall<UserWithOnboarding>("/users/me")
+      .then((res) => {
+        if (res.data && res.data.onboardedAt === null) router.replace("/home/onboarding");
+      })
+      .catch(() => undefined);
+  }, [router]);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
