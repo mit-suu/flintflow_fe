@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import ProjectCard from "../../components/ProjectCard";
 import type { Project } from "@/types/project";
 import Modal from "../../components/Modal";
@@ -8,8 +9,11 @@ import Logo from "../../components/Logo";
 import NotificationBell from "../../components/NotificationBell";
 import { apiCall } from "../../lib/api";
 import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
+import type { UserWithOnboarding } from "./onboarding/api";
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +54,25 @@ export default function HomePage() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  // UC 1.12: user chưa qua onboarding (`onboardedAt === null`) ⇒ đưa vào /home/onboarding —
+  // NHƯNG chỉ khi user CHƯA có project nào. `onboarding/page.tsx` gọi `patchMe({onboardedAt})`
+  // SAU khi tạo project; nếu cú `patchMe` đó lỗi, `onboardedAt` vẫn null mãi mãi, và nếu ta chỉ xét
+  // `onboardedAt` thì mỗi lần user quay lại /home sẽ bị đẩy lại vào onboarding dù đã có project —
+  // vòng lặp tạo project vô hạn. Chờ danh sách project tải xong rồi mới xét cả hai điều kiện.
+  useEffect(() => {
+    if (loading) return;
+    if (projects.length > 0) return;
+    let cancelled = false;
+    apiCall<UserWithOnboarding>("/users/me")
+      .then((res) => {
+        if (!cancelled && res.data && res.data.onboardedAt === null) router.replace("/home/onboarding");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, projects, router]);
 
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase("vi");
   const filteredProjects = normalizedQuery
