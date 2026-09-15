@@ -31,20 +31,20 @@ export const applyChanges = (projectId: string, request: ChangeRequest) =>
 
 /**
  * Hoà giải một lượt (T17). Lượt đầu chỉ `base_version` ⇒ trả `PreviewResult` gộp; gửi kèm
- * `preview_id` đã user xác nhận ⇒ trả `ApplyResult` đã ghi. Không truyền gì (mock T12 cũ) vẫn
- * hoạt động — giữ tương thích test hiện có.
+ * `preview_id` đã user xác nhận ⇒ trả `ApplyResult` đã ghi. `base_version` bắt buộc theo
+ * `reconcileRequestSchema` — thiếu nó BE trả 400 chắc chắn, nên không cho gọi thiếu tham số.
  */
-export const reconcile = (projectId: string, request?: { base_version: number; preview_id?: string }) =>
+export const reconcile = (projectId: string, request: { base_version: number; preview_id?: string }) =>
   apiCall<PreviewResult | ApplyResult>(`/projects/${projectId}/reconcile`, {
     method: "POST",
-    ...(request ? { body: JSON.stringify(request) } : {}),
+    body: JSON.stringify(request),
   });
 
-/** `base_version` bắt buộc theo `undoRequestSchema`; tham số tuỳ chọn để giữ tương thích lời gọi cũ. */
-export const undoLastChange = (projectId: string, request?: { base_version: number }) =>
+/** `base_version` bắt buộc theo `undoRequestSchema` — thiếu nó BE trả 400 chắc chắn. */
+export const undoLastChange = (projectId: string, request: { base_version: number }) =>
   apiCall<ApplyResult>(`/projects/${projectId}/undo`, {
     method: "POST",
-    ...(request ? { body: JSON.stringify(request) } : {}),
+    body: JSON.stringify(request),
   });
 
 export const getTraceability = (projectId: string, query: TraceabilityQuery) => {
