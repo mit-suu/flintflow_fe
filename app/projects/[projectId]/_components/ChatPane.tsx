@@ -7,6 +7,13 @@ import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput from "./QuestionStepperInput";
 
+/**
+ * BE lưu `is_pipeline` trên `chatsessions` (bất biến 7, `pipeline-contract.md` §0.3) nhưng
+ * `types/chat.ts` (T07, R với T16) chưa khai báo field này — mở rộng cục bộ tại đây.
+ * TODO(XREQ-local-2): xin T07/T17 thêm `is_pipeline?: boolean` chính thức vào `ChatSession`.
+ */
+type SessionWithPipelineFlag = ChatSession & { is_pipeline?: boolean };
+
 interface ChatPaneProps {
   width?: number;
   session: ChatSession | null;
@@ -26,6 +33,11 @@ interface ChatPaneProps {
   children?: ReactNode;
   /** Thay ô nhập chat, ví dụ ElicitPanel khi step chờ câu trả lời. */
   footer?: ReactNode;
+  /**
+   * Session hiện tại không phải pipeline session (`is_pipeline === false`) — ô lệnh sửa chuyển
+   * hướng vào Change panel (UC 6.8) thay vì gửi chat thường.
+   */
+  onEditInstruction?: (instruction: string) => void;
 }
 
 /** Câu hỏi gợi ý trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step). */
@@ -68,6 +80,7 @@ export default function ChatPane({
   isStreaming = false,
   children,
   footer,
+  onEditInstruction,
 }: ChatPaneProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
@@ -81,6 +94,11 @@ export default function ChatPane({
   const questionKey = last?.role === "ai" ? `${messages.length}:${last.content}` : null;
   const latestQuestions = useMemo(() => (last?.role === "ai" ? parseQuestions(last.content) : []), [last]);
   const showQuestions = !footer && latestQuestions.length > 0 && dismissedKey !== questionKey;
+
+  // Không có session ⇒ coi như pipeline (không đủ căn cứ chuyển hướng); session._id vắng field
+  // mới thì mặc định pipeline để không phá luồng chat hiện có.
+  const isNonPipelineSession = (session as SessionWithPipelineFlag | null)?.is_pipeline === false;
+  const redirectToChangePanel = isNonPipelineSession && Boolean(onEditInstruction);
 
   return (
     <section
@@ -119,6 +137,12 @@ export default function ChatPane({
           <ChatBubble message={{ role: "ai", content: streamingMessage ?? "", createdAt: new Date().toISOString() }} isStreaming />
         )}
 
+        {redirectToChangePanel && (
+          <div className="bg-[#F4F3FE] border border-[#DDD9F6] rounded-[14px] p-3 text-[12px] text-[#3B34B0]">
+            Phiên này không phải phiên pipeline — lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.
+          </div>
+        )}
+
         {children}
 
         <div ref={messagesEndRef} />
@@ -137,12 +161,20 @@ export default function ChatPane({
           <ChatInput
             inputMessage={inputMessage}
             setInputMessage={setInputMessage}
-            onSendMessage={() => onSendMessage()}
+            onSendMessage={() => {
+              if (redirectToChangePanel && onEditInstruction) {
+                onEditInstruction(inputMessage);
+                setInputMessage("");
+              } else {
+                onSendMessage();
+              }
+            }}
             sending={sending}
             pendingAttachments={pendingAttachments}
             onSelectAttachment={onSelectAttachment}
             onRemoveAttachment={onRemoveAttachment}
             actionType="chat"
+            placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : undefined}
           />
         ))}
     </section>
