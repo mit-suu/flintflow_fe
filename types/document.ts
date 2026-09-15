@@ -72,6 +72,13 @@ export interface RenderedDocument {
   };
 }
 
+/** `meta` của `GET /document?source=draft` — vắng mặt khi `source=baseline`. */
+export interface DraftMeta {
+  assembled_at_version: number;
+  spine_version: number;
+  stale: boolean;
+}
+
 /** Tài liệu đính kèm của project (`/projects/:id/documents`). */
 export interface ProjectDocument {
   _id: string;

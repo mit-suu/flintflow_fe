@@ -8,8 +8,10 @@ import { ApiClientError, apiCall, authFetch, readErrorMessage } from "./client";
 export const assembleDocument = (projectId: string) =>
   apiCall<RenderedDocument>(`/projects/${projectId}/assemble`, { method: "POST" });
 
-export const getDocument = (projectId: string, source: DocumentSource = "draft") =>
-  apiCall<RenderedDocument>(`/projects/${projectId}/document?source=${source}`);
+export const getDocument = (projectId: string, source: DocumentSource = "draft", baselineId?: string) =>
+  apiCall<RenderedDocument>(
+    `/projects/${projectId}/document?source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}`
+  );
 
 /** Tải file `.docx`; lỗi (vd `NO_WORKING_DRAFT`) ném `ApiClientError` với thông điệp từ BE. */
 export const downloadWordExport = async (

@@ -83,8 +83,20 @@ const cases: EndpointCase[] = [
     "/projects/p1/changes",
     post({ ops: [{ op: "set", path: "project.name", value: "X" }], base_version: 4 }),
   ],
-  ["reconcile", () => spine.reconcile("p1"), "/projects/p1/reconcile", post()],
-  ["undoLastChange", () => spine.undoLastChange("p1"), "/projects/p1/undo", post()],
+  ["reconcile (không tham số)", () => spine.reconcile("p1"), "/projects/p1/reconcile", post()],
+  [
+    "reconcile (base_version + preview_id)",
+    () => spine.reconcile("p1", { base_version: 4, preview_id: "pv1" }),
+    "/projects/p1/reconcile",
+    post({ base_version: 4, preview_id: "pv1" }),
+  ],
+  ["undoLastChange (không tham số)", () => spine.undoLastChange("p1"), "/projects/p1/undo", post()],
+  [
+    "undoLastChange (base_version)",
+    () => spine.undoLastChange("p1", { base_version: 4 }),
+    "/projects/p1/undo",
+    post({ base_version: 4 }),
+  ],
   [
     "getTraceability",
     () => spine.getTraceability("p1", { entity: "actor", id: "A01" }),
@@ -222,5 +234,21 @@ describe("lib/api wrappers", () => {
 
     await expect(spine.fetchDiagramSvg("p1", "D1")).resolves.toBe("<svg/>");
     expect(authFetch).toHaveBeenCalledWith("/projects/p1/diagrams/D1.svg");
+  });
+
+  it("fetchDiagramPng trả object URL từ blob PNG", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(new Response("png-bytes", { status: 200 }));
+    const createObjectURL = vi.fn(() => "blob:mock-url");
+    vi.stubGlobal("URL", { ...URL, createObjectURL });
+
+    await expect(spine.fetchDiagramPng("p1", "D1")).resolves.toBe("blob:mock-url");
+    expect(authFetch).toHaveBeenCalledWith("/projects/p1/diagrams/D1.png");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("getDocument gửi baseline_id khi có", async () => {
+    await exportApi.getDocument("p1", "baseline", "B1");
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/document?source=baseline&baseline_id=B1");
   });
 });
