@@ -65,12 +65,15 @@ export default function WorkspacePage() {
 
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
   const { refreshUser } = ws;
+  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
     (spineVersion?: number) => {
       bumpVersion(spineVersion);
       void reloadSpine();
       void reloadProgress();
       refreshUser();
+      setDocumentRefreshToken((v) => v + 1);
     },
     [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
@@ -287,7 +290,13 @@ export default function WorkspacePage() {
           <div className={`h-full transition-all ${isResizing ? "w-[3px] bg-[#4F46E5]" : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#4F46E5]"}`} />
         </div>
 
-        <DocumentPane projectName={ws.project?.name} spine={spine} sections={progress?.sections} />
+        <DocumentPane
+          projectId={projectId}
+          projectName={ws.project?.name}
+          changedSectionIds={changedSectionIds}
+          onSelectStep={setSelectedStepId}
+          refreshToken={documentRefreshToken}
+        />
 
         <button
           type="button"

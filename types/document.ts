@@ -1,5 +1,3 @@
-import type { Flag } from "./spine";
-
 /** Section legacy (`/specifications/projects/:id`) — thay bằng `RenderedDocument` ở T16. */
 export interface SectionItem {
   _id?: string;
@@ -16,22 +14,27 @@ export type DocumentSource = "draft" | "baseline";
 
 /*
  * RenderedDocument — ĐỒNG BỘ TAY, nguồn là BE `modules/render/rendered-document.types.ts` (T05).
- * Ảnh qua HTTP là chuỗi base64.
+ * Ảnh qua HTTP là chuỗi base64 (có thể kèm tiền tố `data:image/png;base64,`), hoặc tham chiếu
+ * `diagram-ref:<diagramId>` khi BE lộ cache nội bộ — FE tải lại qua `GET /diagrams/:id.png`.
  */
 
-export interface TextRun {
+export interface InlineRun {
   text: string;
   bold?: boolean;
   italic?: boolean;
+  /** Code inline (font đơn cách). */
   code?: boolean;
 }
 
+/** Một ô bảng = một dãy run (giữ được bold/italic trong ô). */
+export type TableCell = InlineRun[];
+
 export type Block =
-  | { type: "paragraph"; runs: TextRun[] }
+  | { type: "paragraph"; runs: InlineRun[] }
   | { type: "heading"; level: number; text: string }
-  | { type: "bullet_list"; items: TextRun[][] }
-  | { type: "numbered_list"; items: TextRun[][] }
-  | { type: "table"; header: string[]; rows: string[][] }
+  | { type: "bullet_list"; items: InlineRun[][] }
+  | { type: "numbered_list"; items: InlineRun[][] }
+  | { type: "table"; header: TableCell[]; rows: TableCell[][] }
   | { type: "image"; png: string; caption?: string }
   | { type: "page_break" };
 
@@ -45,15 +48,26 @@ export interface RenderedSection {
   blocks: Block[];
 }
 
-/** Một dòng bảng §I Record of Changes. */
+export type RocChangeType = "A" | "M" | "D";
+
+/** Một dòng bảng §I Record of Changes (khung FPT). */
 export interface RocRow {
+  /** `YYYY-MM-DD`. */
   date: string;
-  action: "A" | "M" | "D";
+  version: string;
+  change_type: RocChangeType;
   in_charge: string;
   description: string;
 }
 
-export type FlagRow = Pick<Flag, "id" | "rule_id" | "section_id" | "message" | "waive_reason">;
+export interface FlagRow {
+  id: string;
+  rule_id: string;
+  /** Nhãn section đã phân giải để hiển thị (`3.2.1 Create Project`), không phải khoá logic. */
+  section: string;
+  message: string;
+  waive_reason?: string | null;
+}
 
 export interface RenderedDocument {
   /** Bắt buộc: ghi vào custom property của file .docx làm "dấu version FlintFlow" (business-flow I-1). */
