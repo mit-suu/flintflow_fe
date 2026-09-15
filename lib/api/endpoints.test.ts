@@ -124,7 +124,12 @@ const cases: EndpointCase[] = [
     "/projects/p1/flags/f1/waive",
     post({ reason: "Chấp nhận rủi ro vì phạm vi MVP" }),
   ],
-  ["assembleDocument", () => exportApi.assembleDocument("p1"), "/projects/p1/assemble", post()],
+  [
+    "assembleDocument",
+    () => exportApi.assembleDocument("p1", 4),
+    "/projects/p1/assemble",
+    post({ base_version: 4 }),
+  ],
   ["getDocument", () => exportApi.getDocument("p1", "baseline"), "/projects/p1/document?source=baseline"],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
   ["createBaseline", () => exportApi.createBaseline("p1"), "/projects/p1/baseline", post()],
