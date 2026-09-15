@@ -26,6 +26,7 @@ import type {
   ProgressResponse,
   Question,
   RunStepRequest,
+  SectionProgress,
   StepAnswerRequest,
   StepEvent,
   StepSummary,
@@ -175,6 +176,29 @@ const summaryOf = (state: MockState, stepId: string): StepSummary => {
   };
 };
 
+/**
+ * `ProgressResponse.sections[]` — dùng bởi `view/page.tsx` (T16, UC 1.14) để ẩn nội dung section
+ * bắt buộc chưa `accepted`. Mirror đúng 3 section cố định `buildMockDocument` dựng (cùng tiêu chí
+ * accepted/draft theo dữ liệu Spine) để mock nhất quán giữa `GET /document` và `GET /progress`.
+ */
+const mockSectionsProgress = (state: MockState): SectionProgress[] => [
+  { id: "fixed:1", status: "accepted", awaiting_reaccept: false, required: true, derived: false },
+  {
+    id: "fixed:2.1",
+    status: state.spine.actors.length ? "accepted" : "draft",
+    awaiting_reaccept: false,
+    required: true,
+    derived: false,
+  },
+  {
+    id: "fixed:2.2.2",
+    status: state.spine.use_cases.length ? "accepted" : "draft",
+    awaiting_reaccept: false,
+    required: true,
+    derived: false,
+  },
+];
+
 const progressOf = (state: MockState): ProgressResponse => {
   const steps = orderedSteps(state.spine);
   const done = steps.filter((s) => stepStatusOf(state, s.id) === "accepted").length;
@@ -192,7 +216,7 @@ const progressOf = (state: MockState): ProgressResponse => {
       current_step: state.spine.progress.current_step,
       show_percent: stepStatusOf(state, "S-4.1") === "accepted",
     },
-    sections: [],
+    sections: mockSectionsProgress(state),
   };
 };
 
