@@ -35,7 +35,6 @@ export function useDocument(
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    setLoading(true);
     return getDocument(projectId, source, baselineId)
       .then((res) => {
         setDocument(res.data);
