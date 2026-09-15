@@ -6,8 +6,11 @@ import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } 
 import type { ApplyResult, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 
+export type PreviewSource = "instruction" | "reconcile";
+
 export interface UseChangesResult {
   preview: PreviewResult | null;
+  previewSource: PreviewSource | null;
   previewing: boolean;
   applying: boolean;
   /** `NEEDS_CLARIFICATION` (UC 6.11) — câu hỏi làm rõ lệnh, chưa có preview. */
@@ -16,7 +19,8 @@ export interface UseChangesResult {
   history: Change[];
   historyLoading: boolean;
   requestPreview: (instruction: string) => Promise<void>;
-  confirmPreview: (instruction: string) => Promise<void>;
+  /** Xác nhận `preview` đang hiển thị — tự chọn `applyChanges` hay `reconcile` theo nguồn gốc. */
+  confirmPreview: () => Promise<void>;
   cancelPreview: () => void;
   reconcileOnce: () => Promise<void>;
   undo: () => Promise<void>;
@@ -32,6 +36,8 @@ export function useChanges(
   onApplied: (result: ApplyResult) => void
 ): UseChangesResult {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
+  const [pendingInstruction, setPendingInstruction] = useState("");
   const [previewing, setPreviewing] = useState(false);
   const [applying, setApplying] = useState(false);
   const [clarification, setClarification] = useState<string | null>(null);
@@ -49,12 +55,14 @@ export function useChanges(
       setError(null);
       setClarification(null);
       setPreview(null);
+      setPendingInstruction(instruction.trim());
       try {
         const res = await previewChanges(projectId, { instruction: instruction.trim(), base_version: baseVersion });
         if (res.data?.clarification) {
           setClarification(res.data.clarification);
         } else {
           setPreview(res.data);
+          setPreviewSource("instruction");
         }
       } catch (err) {
         if (err instanceof ApiClientError && err.code === "NEEDS_CLARIFICATION") {
@@ -69,31 +77,9 @@ export function useChanges(
     [projectId, getBaseVersion]
   );
 
-  const confirmPreview = useCallback(
-    async (instruction: string) => {
-      const baseVersion = getBaseVersion();
-      if (baseVersion === null || !preview?.preview_id) return;
-      setApplying(true);
-      setError(null);
-      try {
-        const res = await applyChanges(projectId, {
-          instruction: instruction.trim(),
-          base_version: baseVersion,
-          preview_id: preview.preview_id,
-        });
-        if (res.data) onApplied(res.data);
-        setPreview(null);
-      } catch (err) {
-        setError(failureMessage(err));
-      } finally {
-        setApplying(false);
-      }
-    },
-    [projectId, getBaseVersion, preview, onApplied]
-  );
-
   const cancelPreview = useCallback(() => {
     setPreview(null);
+    setPreviewSource(null);
     setClarification(null);
   }, []);
 
@@ -103,23 +89,41 @@ export function useChanges(
     setApplying(true);
     setError(null);
     try {
-      if (preview?.preview_id) {
-        const res = await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
-        if (res.data && !isPreviewResult(res.data)) {
-          onApplied(res.data);
-          setPreview(null);
-        }
-      } else {
-        const res = await reconcile(projectId, { base_version: baseVersion });
-        if (res.data && isPreviewResult(res.data)) setPreview(res.data);
-        else if (res.data) onApplied(res.data);
+      const res = await reconcile(projectId, { base_version: baseVersion });
+      if (res.data && isPreviewResult(res.data)) {
+        setPreview(res.data);
+        setPreviewSource("reconcile");
+      } else if (res.data) {
+        onApplied(res.data);
       }
     } catch (err) {
       setError(failureMessage(err));
     } finally {
       setApplying(false);
     }
-  }, [projectId, getBaseVersion, preview, onApplied]);
+  }, [projectId, getBaseVersion, onApplied]);
+
+  const confirmPreview = useCallback(async () => {
+    const baseVersion = getBaseVersion();
+    if (baseVersion === null || !preview?.preview_id || !previewSource) return;
+    setApplying(true);
+    setError(null);
+    try {
+      const res =
+        previewSource === "instruction"
+          ? await applyChanges(projectId, { instruction: pendingInstruction, base_version: baseVersion, preview_id: preview.preview_id })
+          : await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
+      if (res.data && !isPreviewResult(res.data)) {
+        onApplied(res.data);
+        setPreview(null);
+        setPreviewSource(null);
+      }
+    } catch (err) {
+      setError(failureMessage(err));
+    } finally {
+      setApplying(false);
+    }
+  }, [projectId, getBaseVersion, preview, previewSource, pendingInstruction, onApplied]);
 
   const undo = useCallback(async () => {
     const baseVersion = getBaseVersion();
@@ -151,6 +155,7 @@ export function useChanges(
 
   return {
     preview,
+    previewSource,
     previewing,
     applying,
     clarification,
