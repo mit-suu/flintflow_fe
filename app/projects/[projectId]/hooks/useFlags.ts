@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
 import type { Flag } from "@/types/flags";
 
@@ -20,18 +20,26 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Chỉ response của lần gọi mới nhất được áp — reload chồng nhau (đổi spineVersion liên tiếp)
+  // không bị ghi đè bằng dữ liệu cũ về trễ (cùng pattern `useSpine.ts`).
+  const requestRef = useRef(0);
 
-  const reload = useCallback(
-    () =>
-      listFlags(projectId)
-        .then((res) => {
-          setFlags(res.data ?? []);
-          setError(null);
-        })
-        .catch((err: unknown) => setError(err instanceof Error ? err.message : "Không tải được danh sách cờ"))
-        .finally(() => setLoading(false)),
-    [projectId]
-  );
+  const reload = useCallback(() => {
+    const request = ++requestRef.current;
+    setLoading(true);
+    return listFlags(projectId)
+      .then((res) => {
+        if (request !== requestRef.current) return;
+        setFlags(res.data ?? []);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (request === requestRef.current) setError(err instanceof Error ? err.message : "Không tải được danh sách cờ");
+      })
+      .finally(() => {
+        if (request === requestRef.current) setLoading(false);
+      });
+  }, [projectId]);
 
   useEffect(() => {
     if (!projectId || spineVersion === null) return;
