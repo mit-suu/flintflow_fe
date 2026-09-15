@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { applyChanges } from "@/lib/api/spine";
 import { ApiClientError } from "@/lib/api/client";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
-import type { Op } from "@/types/pipeline";
+import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 
 import WorkspaceHeader from "./_components/WorkspaceHeader";
@@ -16,6 +16,8 @@ import ChatSessionSidebar from "./_components/ChatSessionSidebar";
 import ChatPane from "./_components/ChatPane";
 import DocumentPane from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
+import ChangePanel, { type ChangeSeed } from "./_components/ChangePanel";
+import ExportPanel from "./_components/ExportPanel";
 import GateCard from "./_components/GateCard";
 import ElicitPanel from "./_components/ElicitPanel";
 import StepEventLog from "./_components/StepEventLog";
@@ -25,6 +27,10 @@ import { useWorkspace } from "./hooks/useWorkspace";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useStepRunner } from "./hooks/useStepRunner";
+import { useFlags } from "./hooks/useFlags";
+
+/** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
+const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
 
 const DEFAULT_CHAT_PANE_WIDTH = 480;
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
@@ -45,11 +51,23 @@ export default function WorkspacePage() {
   const ws = useWorkspace(projectId);
   const spineState = useSpine(projectId, ws.ready);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
+  // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
+  // `DocumentPane` không nhận `flags` nên nút "xem tại step" chết; nâng lên đây, truyền xuống cả hai.
+  const {
+    flags,
+    loading: flagsLoading,
+    error: flagsError,
+    busy: flagsBusy,
+    waive: waiveFlagFn,
+    recompute: recomputeFlagsFn,
+  } = useFlags(projectId, spineState.version);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [changePanelOpen, setChangePanelOpen] = useState(false);
+  const [changeSeed, setChangeSeed] = useState<ChangeSeed | undefined>(undefined);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [savingChange, setSavingChange] = useState(false);
 
@@ -62,15 +80,39 @@ export default function WorkspacePage() {
   }, []);
   useEffect(() => bumpVersion(spineState.version), [bumpVersion, spineState.version]);
   const getBaseVersion = useCallback(() => versionRef.current, []);
+  // `latestSeq` cho lịch sử Change panel (20 dòng gần nhất) — lấy từ `max(steps[].last_seq)` của
+  // Spine hiện tại, không phải `spine_version` (seq của change và version step là hai trục khác nhau).
+  const getLatestSeq = useCallback(() => {
+    const currentSpine = spineState.spine;
+    if (!currentSpine) return null;
+    const seqs = currentSpine.steps.map((s) => s.last_seq).filter((n): n is number => typeof n === "number");
+    return seqs.length ? Math.max(...seqs) : null;
+  }, [spineState.spine]);
+
+  const handleFlagWaive = useCallback(
+    async (flagId: string, reason: string) => {
+      await waiveFlagFn(flagId, reason);
+      void reloadProgress();
+    },
+    [waiveFlagFn, reloadProgress]
+  );
+
+  const handleFlagRecompute = useCallback(async () => {
+    await recomputeFlagsFn();
+    void reloadProgress();
+  }, [recomputeFlagsFn, reloadProgress]);
 
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
   const { refreshUser } = ws;
+  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
     (spineVersion?: number) => {
       bumpVersion(spineVersion);
       void reloadSpine();
       void reloadProgress();
       refreshUser();
+      setDocumentRefreshToken((v) => v + 1);
     },
     [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
@@ -122,6 +164,32 @@ export default function WorkspacePage() {
 
   const markPlaceholder = (screenId: string) =>
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
+
+  // ─── ChangePanel áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
+  const changedSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleChangeApplied = useCallback(
+    (result: ApplyResult, impactedSectionIds?: string[]) => {
+      bumpVersion(result.spine_version);
+      replaceSpine(result.spine);
+      void reloadProgress();
+      setDocumentRefreshToken((v) => v + 1);
+      setChangedSectionIds(new Set(impactedSectionIds ?? []));
+      // Viền nổi bật "một nhịp" (chú thích DocumentPane) — tắt sau một khoảng, không giữ mãi.
+      if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
+      changedSectionTimerRef.current = setTimeout(() => setChangedSectionIds(new Set()), CHANGED_SECTION_HIGHLIGHT_MS);
+    },
+    [bumpVersion, replaceSpine, reloadProgress]
+  );
+  useEffect(() => () => {
+    if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
+  }, []);
+
+  // ChatPane: session không pipeline ⇒ ô lệnh sửa mở Change panel và xem trước lệnh ngay
+  const forwardInstructionToChangePanel = useCallback((instruction: string) => {
+    if (!instruction.trim()) return;
+    setChangeSeed({ text: instruction, nonce: Date.now() });
+    setChangePanelOpen(true);
+  }, []);
 
   // ─── resize chat pane ─────────────────────────────────────────
   const [chatPaneWidth, setChatPaneWidth] = useState<number>(readSavedChatPaneWidth);
@@ -230,6 +298,7 @@ export default function WorkspacePage() {
           onRemoveAttachment={ws.removeAttachment}
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
+          onEditInstruction={forwardInstructionToChangePanel}
           footer={
             runner.state.status === "needs_input" ? (
               <ElicitPanel questions={runner.state.questions} onSubmit={(answers) => void runner.answer(answers)} sending={runner.state.busy} />
@@ -239,11 +308,6 @@ export default function WorkspacePage() {
           {viewingAccepted && viewedStep && (
             <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-3 text-[12px] text-[#1F7A45]">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
-            </div>
-          )}
-          {exportOpen && (
-            <div className="bg-white border border-[#DDD9F6] rounded-[14px] p-3 text-[12px] text-[#4B4842]">
-              Xuất Word (bản nháp có watermark hoặc bản baseline) sẽ nối ở bước ghép tài liệu S-8.2 — chưa có trong bản này.
             </div>
           )}
           {runnerStep && runner.state.events.length > 0 && <StepEventLog events={runner.state.events} />}
@@ -287,16 +351,35 @@ export default function WorkspacePage() {
           <div className={`h-full transition-all ${isResizing ? "w-[3px] bg-[#4F46E5]" : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#4F46E5]"}`} />
         </div>
 
-        <DocumentPane projectName={ws.project?.name} spine={spine} sections={progress?.sections} />
+        <DocumentPane
+          projectId={projectId}
+          projectName={ws.project?.name}
+          flags={flags}
+          changedSectionIds={changedSectionIds}
+          onSelectStep={setSelectedStepId}
+          refreshToken={documentRefreshToken}
+        />
 
-        <button
-          type="button"
-          onClick={() => setToolsOpen((v) => !v)}
-          className="self-start m-2 px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer shrink-0"
-          title="Tên riêng, thuật ngữ và hàng đợi màn"
-        >
-          {toolsOpen ? "›" : "‹ Công cụ"}
-        </button>
+        <div className="flex flex-col gap-1.5 m-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setChangePanelOpen((v) => !v)}
+            className={`px-2 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${
+              changePanelOpen ? "bg-[#191817] text-white border-[#191817]" : "bg-white border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7]"
+            }`}
+            title="Sửa qua lệnh với xem trước diff"
+          >
+            {changePanelOpen ? "›" : "‹ Sửa lệnh"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setToolsOpen((v) => !v)}
+            className="self-start px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
+            title="Tên riêng, thuật ngữ và hàng đợi màn"
+          >
+            {toolsOpen ? "›" : "‹ Công cụ"}
+          </button>
+        </div>
 
         {toolsOpen && spine && (
           <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label="Công cụ">
@@ -311,8 +394,44 @@ export default function WorkspacePage() {
           </aside>
         )}
 
-        {verificationOpen && <VerificationPane projectId={projectId} onClose={() => setVerificationOpen(false)} />}
+        {changePanelOpen && (
+          <ChangePanel
+            projectId={projectId}
+            getBaseVersion={getBaseVersion}
+            getLatestSeq={getLatestSeq}
+            onApplied={handleChangeApplied}
+            onClose={() => {
+              setChangePanelOpen(false);
+              // Xoá seed khi đóng — mở lại panel sau đó không được tự chạy lại lệnh cũ.
+              setChangeSeed(undefined);
+            }}
+            seed={changeSeed}
+          />
+        )}
+
+        {verificationOpen && (
+          <VerificationPane
+            readiness={progress?.readiness ?? null}
+            flags={flags}
+            flagsLoading={flagsLoading}
+            flagsError={flagsError}
+            flagsBusy={flagsBusy}
+            onClose={() => setVerificationOpen(false)}
+            onSelectStep={setSelectedStepId}
+            onWaive={handleFlagWaive}
+            onRecompute={handleFlagRecompute}
+          />
+        )}
       </main>
+
+      {exportOpen && (
+        <ExportPanel
+          projectId={projectId}
+          projectName={ws.project?.name}
+          onClose={() => setExportOpen(false)}
+          onGoToStep={setSelectedStepId}
+        />
+      )}
     </div>
   );
 }

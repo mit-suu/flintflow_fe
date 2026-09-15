@@ -13,7 +13,7 @@ import {
   orderedSteps,
   phaseOfStep,
 } from "@/lib/constants/step-registry";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatMessage, ChatSession } from "@/types/chat";
 import type {
   ApplyResult,
   ChangeDiff,
@@ -22,17 +22,23 @@ import type {
   GateRequest,
   GateResponse,
   Op,
+  PreviewResult,
   ProgressResponse,
   Question,
   RunStepRequest,
+  SectionProgress,
   StepAnswerRequest,
   StepEvent,
   StepSummary,
   StepsResponse,
 } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
+import type { RenderedDocument } from "@/types/document";
+import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
+import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
 import {
   countersOf,
+  MOCK_SESSION_ID,
   mockState,
   nextMockStep,
   setStepStatus,
@@ -41,6 +47,16 @@ import {
 } from "./state";
 
 const api = (path: string) => `${API_BASE_URL}${path}`;
+
+/**
+ * `is_pipeline` (bất biến 7, `pipeline-contract.md` §0.3) — `types/chat.ts` (T07, R với T16) chưa
+ * khai báo field này (xem `ChatPane.tsx` `TODO(XREQ-local-2)`). Session gốc mock
+ * (`MOCK_SESSION_ID`) là pipeline; mọi session tạo thêm qua `POST /chats` là phụ.
+ */
+const withPipelineFlag = (session: ChatSession): ChatSession & { is_pipeline: boolean } => ({
+  ...session,
+  is_pipeline: session._id === MOCK_SESSION_ID,
+});
 
 const ok = <T>(data: T, init?: ResponseInit) => HttpResponse.json({ data, error: null }, init);
 
@@ -160,6 +176,29 @@ const summaryOf = (state: MockState, stepId: string): StepSummary => {
   };
 };
 
+/**
+ * `ProgressResponse.sections[]` — dùng bởi `view/page.tsx` (T16, UC 1.14) để ẩn nội dung section
+ * bắt buộc chưa `accepted`. Mirror đúng 3 section cố định `buildMockDocument` dựng (cùng tiêu chí
+ * accepted/draft theo dữ liệu Spine) để mock nhất quán giữa `GET /document` và `GET /progress`.
+ */
+const mockSectionsProgress = (state: MockState): SectionProgress[] => [
+  { id: "fixed:1", status: "accepted", awaiting_reaccept: false, required: true, derived: false },
+  {
+    id: "fixed:2.1",
+    status: state.spine.actors.length ? "accepted" : "draft",
+    awaiting_reaccept: false,
+    required: true,
+    derived: false,
+  },
+  {
+    id: "fixed:2.2.2",
+    status: state.spine.use_cases.length ? "accepted" : "draft",
+    awaiting_reaccept: false,
+    required: true,
+    derived: false,
+  },
+];
+
 const progressOf = (state: MockState): ProgressResponse => {
   const steps = orderedSteps(state.spine);
   const done = steps.filter((s) => stepStatusOf(state, s.id) === "accepted").length;
@@ -177,7 +216,7 @@ const progressOf = (state: MockState): ProgressResponse => {
       current_step: state.spine.progress.current_step,
       show_percent: stepStatusOf(state, "S-4.1") === "accepted",
     },
-    sections: [],
+    sections: mockSectionsProgress(state),
   };
 };
 
@@ -248,6 +287,181 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
   send({ type: "gate_ready", step_id: stepId, actions: gateActions(counters.regenerate_used), regenerate_used: counters.regenerate_used, calls_used: counters.calls_used });
 };
 
+// ─── T16: changes/preview, reconcile, undo, traceability, document, export ────────
+// Trạng thái phụ, độc lập với `MockState` (T12) — chỉ phục vụ các endpoint T16 thêm mới; không
+// đụng `mocks/state.ts`. `resetMockChangeFlowState` dùng trong test riêng của T16, không nối vào
+// `resetMockState` (thuộc T12).
+
+const okWithMeta = <T>(data: T, meta: Record<string, unknown>) => HttpResponse.json({ data, meta, error: null });
+
+/** `preview_id` → lô ops đã tính diff, chờ `POST /changes` hoặc `POST /reconcile` xác nhận. */
+let mockPreviews = new Map<string, { base_version: number; ops: Op[] }>();
+/** Lịch sử hiển thị ở `GET /changes` — chỉ ghi nhận thao tác qua Change panel (preview→apply/reconcile/undo). */
+let mockChangesLog: Change[] = [];
+let mockAssembledAtVersion: number | null = null;
+
+export const resetMockChangeFlowState = (): void => {
+  mockPreviews = new Map();
+  mockChangesLog = [];
+  mockAssembledAtVersion = null;
+};
+
+/** Lệnh tự nhiên (T17 chưa hiện thực) — mock đổi mô tả actor đầu tiên để có gì đó xem trước. */
+const mockInstructionToOps = (spine: Spine, instruction: string): Op[] | null => {
+  const first = spine.actors[0];
+  if (!first) return null;
+  return [
+    {
+      op: "set",
+      path: `actors[id=${first.id}].description`,
+      value: `${first.description} — ${instruction.trim()}`,
+      reason: instruction.trim(),
+    },
+  ];
+};
+
+const previewOf = (state: MockState, baseVersion: number, ops: Op[]): PreviewResult => {
+  const draft = structuredClone(state.spine);
+  const changes = ops.map((op) => applyMockOp(draft, op));
+  const previewId = `preview-${Date.now()}-${mockPreviews.size}`;
+  mockPreviews.set(previewId, { base_version: baseVersion, ops });
+  return { ok: true, txn: previewId, base_version: baseVersion, ops, changes, violations: [], referrers: [], branch: "silent", preview_id: previewId };
+};
+
+const isAbsentMarker = (value: unknown): value is { _absent: true } =>
+  typeof value === "object" && value !== null && (value as Record<string, unknown>)._absent === true;
+
+/**
+ * Đảo một `Change` đã ghi: set lại `before`, hoặc — khi `before` là `{_absent:true}` (đánh dấu
+ * "chưa tồn tại" do op `add` để lại) — xoá hẳn phần tử khỏi collection thay vì gán marker vào field.
+ */
+const revertMockChange = (spine: Spine, change: Change): ChangeDiff => {
+  if (isAbsentMarker(change.before)) {
+    const match = /^([a-z_]+)\[id=([^\]]+)\]$/.exec(change.path);
+    if (!match) throw new Error(`path_not_resolved: ${change.path}`);
+    const [, collection, id] = match;
+    const list = spine[collection as Collection] as unknown as Record<string, unknown>[] | undefined;
+    if (!list) throw new Error(`path_not_resolved: ${change.path}`);
+    const index = list.findIndex((el) => el.id === id);
+    const removed = index >= 0 ? list.splice(index, 1)[0] : undefined;
+    return { op: "remove", path: change.path, before: removed ?? change.value, value: { _absent: true }, reason: `Undo #${change.seq}` };
+  }
+  return applyMockOp(spine, { op: "set", path: change.path, value: change.before, reason: `Undo #${change.seq}` });
+};
+
+/** Áp một `preview_id` đã tính sẵn — dùng chung cho `/changes` (instruction) và `/reconcile`. */
+const applyMockPreview = (state: MockState, previewId: string, stepId: string | null = null): ApplyResult | null => {
+  const stored = mockPreviews.get(previewId);
+  if (!stored) return null;
+  mockPreviews.delete(previewId);
+  const draft = structuredClone(state.spine);
+  const diffs = stored.ops.map((op) => applyMockOp(draft, op));
+  state.spine = draft;
+  const changes = commit(state, diffs, stepId);
+  mockChangesLog = [...mockChangesLog, ...changes];
+  return { txn: changes[0]?.txn ?? "mock", spine_version: state.spine.spine_version, changes, spine: state.spine };
+};
+
+/** Tài liệu ghép giả (T15 mock) — vài chương ngắn dựng từ Spine, đủ để DocumentPane/ExportPanel chạy trên mock. */
+const buildMockDocument = (state: MockState): RenderedDocument => {
+  const sections: RenderedDocument["sections"] = [
+    {
+      id: "fixed:1",
+      number: "1",
+      heading: "Product Overview",
+      level: 1,
+      status: "accepted",
+      blocks: [{ type: "paragraph", runs: [{ text: state.spine.project.vision ?? "" }] }],
+    },
+    {
+      id: "fixed:2.1",
+      number: "2.1",
+      heading: "Actors",
+      level: 2,
+      status: state.spine.actors.length ? "accepted" : "draft",
+      blocks: state.spine.actors.length
+        ? [
+            {
+              type: "table",
+              header: [[{ text: "ID" }], [{ text: "Actor" }], [{ text: "Kind" }]],
+              rows: state.spine.actors.map((a) => [[{ text: a.id }], [{ text: a.name, bold: true }], [{ text: a.kind }]]),
+            },
+          ]
+        : [],
+    },
+    {
+      id: "fixed:2.2.2",
+      number: "2.2.2",
+      heading: "Use Case Descriptions",
+      level: 2,
+      status: state.spine.use_cases.length ? "accepted" : "draft",
+      blocks: state.spine.use_cases.length
+        ? [{ type: "bullet_list", items: state.spine.use_cases.map((u) => [{ text: `${u.id}: ${u.name}` }]) }]
+        : [],
+    },
+  ];
+
+  // `FlagRow.section` là nhãn đã phân giải ("3.2.1 Create Project"), không phải `section_id` thô —
+  // tra trong `sections` vừa dựng, rơi về chính `section_id` khi không khớp section nào ở trên.
+  const sectionLabelOf = (sectionId: string): string => {
+    const section = sections.find((s) => s.id === sectionId);
+    return section ? `${section.number} ${section.heading}` : sectionId;
+  };
+
+  return {
+    projectId: state.spine.projectId,
+    projectName: state.project.name,
+    version: `v0.${mockAssembledAtVersion ?? state.spine.spine_version}`,
+    source: "draft",
+    watermark: "DRAFT",
+    generatedAt: new Date().toISOString(),
+    sections,
+    recordOfChanges: mockChangesLog.slice(-5).map((c) => ({
+      date: c.at.slice(0, 10),
+      version: `v${state.spine.spine_version}`,
+      change_type: "M",
+      in_charge: c.by,
+      description: c.reason ?? c.path,
+    })),
+    flagsAppendix: {
+      redOpen: state.spine.flags
+        .filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user)
+        .map((f) => ({ id: f.id, rule_id: f.rule_id, section: sectionLabelOf(f.section_id), message: f.message })),
+      staleCount: 0,
+      waived: state.spine.flags
+        .filter((f) => f.waived_by_user)
+        .map((f) => ({ id: f.id, rule_id: f.rule_id, section: sectionLabelOf(f.section_id), message: f.message, waive_reason: f.waive_reason })),
+    },
+  };
+};
+
+const buildMockTraceability = (state: MockState, entity: TraceabilityEntity, id: string): TraceabilityResponse => {
+  if (entity === "actor") {
+    const actor = state.spine.actors.find((a) => a.id === id);
+    if (!actor) return { nodes: [], edges: [] };
+    const useCases = state.spine.use_cases.filter((u) => u.actor_ids.includes(id));
+    return {
+      nodes: [{ kind: "actor", id: actor.id, label: actor.name }, ...useCases.map((u) => ({ kind: "use_case" as const, id: u.id, label: u.name }))],
+      edges: useCases.map((u) => ({ from: actor.id, to: u.id, field: "actor_ids" })),
+    };
+  }
+  if (entity === "use_case") {
+    const useCase = state.spine.use_cases.find((u) => u.id === id);
+    if (!useCase) return { nodes: [], edges: [] };
+    return {
+      nodes: [
+        { kind: "use_case", id: useCase.id, label: useCase.name },
+        ...useCase.actor_ids
+          .map((actorId) => state.spine.actors.find((a) => a.id === actorId))
+          .filter((a): a is Spine["actors"][number] => Boolean(a))
+          .map((a) => ({ kind: "actor" as const, id: a.id, label: a.name })),
+      ],
+      edges: useCase.actor_ids.map((actorId) => ({ from: useCase.id, to: actorId, field: "actor_ids" })),
+    };
+  }
+  return { nodes: [], edges: [] };
+};
+
 // ─── handlers ────────────────────────────────────────────────────
 
 export const handlers = [
@@ -261,15 +475,15 @@ export const handlers = [
   http.get(api("/projects/:projectId/documents"), () => ok([])),
   http.get(api("/verification/projects/:projectId"), () => ok({})),
 
-  http.get(api("/projects/:projectId/chats"), () => ok(mockState.sessions)),
+  http.get(api("/projects/:projectId/chats"), () => ok(mockState.sessions.map(withPipelineFlag))),
   http.post(api("/projects/:projectId/chats"), () => {
     const session = { _id: `${Date.now()}`, projectId: mockState.project._id, messages: [], isActive: true, createdAt: new Date().toISOString() };
     mockState.sessions = [session, ...mockState.sessions.map((s) => ({ ...s, isActive: false }))];
-    return ok(session);
+    return ok(withPipelineFlag(session));
   }),
   http.get(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
     const session = mockState.sessions.find((s) => s._id === params.chatId);
-    return session ? ok(session) : fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
+    return session ? ok(withPipelineFlag(session)) : fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
   }),
   http.delete(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
     mockState.sessions = mockState.sessions.filter((s) => s._id !== params.chatId);
@@ -390,6 +604,14 @@ export const handlers = [
   http.post(api("/projects/:projectId/changes"), async ({ request }) => {
     const body = (await request.json()) as ChangeRequest;
     if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
+    // T16: instruction đã xem trước (`preview_id` từ /changes/preview) — áp lô đã tính sẵn.
+    // Bổ sung tối thiểu vào nhánh else (không sửa nhánh ops thuần bên dưới): msw khớp handler
+    // theo thứ tự khai báo nên endpoint mới không thể "chen" trước handler này.
+    if (!body.ops?.length && body.instruction && body.preview_id) {
+      const result = applyMockPreview(mockState, body.preview_id, null);
+      if (!result) return fail(422, "CHANGE_RANGE_INVALID", "preview_id không còn hiệu lực — xem trước lại");
+      return ok(result);
+    }
     if (!body.ops?.length) return fail(501, "NOT_IMPLEMENTED", "Mock chỉ hỗ trợ ops thuần");
     try {
       const draft = structuredClone(mockState.spine);
@@ -402,6 +624,143 @@ export const handlers = [
       const [rule, path] = String(err instanceof Error ? err.message : err).split(": ");
       return fail(422, "OP_INVALID", `Op không hợp lệ: ${path ?? rule}`, { violations: [{ rule, message: String(err), path }], referrers: [] });
     }
+  }),
+
+  // ─── T16: preview / reconcile / undo / traceability / flags waive+recompute / document / export ───
+
+  http.post(api("/projects/:projectId/changes/preview"), async ({ request }) => {
+    const body = (await request.json()) as ChangeRequest;
+    if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
+    if (body.ops?.length) return ok(previewOf(mockState, body.base_version, body.ops));
+    if (body.instruction) {
+      const ops = mockInstructionToOps(mockState.spine, body.instruction);
+      if (!ops) {
+        const result: PreviewResult = {
+          ok: false,
+          txn: `preview-${Date.now()}`,
+          base_version: body.base_version,
+          ops: [],
+          changes: [],
+          violations: [],
+          referrers: [],
+          clarification: "Chưa rõ đối tượng cần sửa — hãy nêu tên actor/use case cụ thể (mock T16, T17 sẽ hiểu ngôn ngữ tự nhiên thật).",
+        };
+        return ok(result);
+      }
+      return ok(previewOf(mockState, body.base_version, ops));
+    }
+    return fail(400, "VALIDATION_ERROR", "Cần ops hoặc instruction");
+  }),
+
+  http.post(api("/projects/:projectId/reconcile"), async ({ request }) => {
+    const body = (await request.json()) as { base_version: number; preview_id?: string };
+    if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
+    if (body.preview_id) {
+      const result = applyMockPreview(mockState, body.preview_id, null);
+      if (!result) return fail(422, "CHANGE_RANGE_INVALID", "preview_id không còn hiệu lực — hoà giải lại");
+      return ok(result);
+    }
+    // Mock không có thay đổi treo thật sự để gộp — trả preview rỗng để ChangePanel có preview_id xác nhận.
+    return ok(previewOf(mockState, body.base_version, []));
+  }),
+
+  http.post(api("/projects/:projectId/undo"), async ({ request }) => {
+    const body = (await request.json()) as { base_version: number };
+    if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
+    const last = mockChangesLog[mockChangesLog.length - 1];
+    if (!last) return fail(422, "NOTHING_TO_UNDO", "Không còn thao tác nào để undo");
+    // Đảo cả dải change của lô (txn) cuối, theo seq giảm dần — không chỉ dòng cuối cùng.
+    const txnChanges = mockChangesLog.filter((c) => c.txn === last.txn).sort((a, b) => b.seq - a.seq);
+    const draft = structuredClone(mockState.spine);
+    let revertDiffs: ChangeDiff[];
+    try {
+      revertDiffs = txnChanges.map((change) => ({ ...revertMockChange(draft, change), op: "revert" }));
+    } catch (err) {
+      const [rule, path] = String(err instanceof Error ? err.message : err).split(": ");
+      return fail(422, "OP_INVALID", `Undo thất bại: ${path ?? rule}`, { violations: [{ rule, message: String(err), path }] });
+    }
+    mockState.spine = draft;
+    const changes = commit(mockState, revertDiffs, null);
+    // Undo cũng là một thao tác qua Change panel — thay lô vừa xoá bằng chính change đảo của nó
+    // trong lịch sử, không để `GET /changes` trống sau undo.
+    mockChangesLog = [...mockChangesLog.filter((c) => c.txn !== last.txn), ...changes];
+    const result: ApplyResult = { txn: changes[0]?.txn ?? "mock", spine_version: mockState.spine.spine_version, changes, spine: mockState.spine };
+    return ok(result);
+  }),
+
+  http.get(api("/projects/:projectId/changes"), () => ok(mockChangesLog.slice(-20))),
+
+  http.get(api("/projects/:projectId/traceability"), ({ request }) => {
+    const url = new URL(request.url);
+    const entity = url.searchParams.get("entity") as TraceabilityEntity | null;
+    const id = url.searchParams.get("id");
+    if (!entity || !id) return fail(400, "VALIDATION_ERROR", "Cần entity và id");
+    return ok(buildMockTraceability(mockState, entity, id));
+  }),
+
+  http.post(api("/projects/:projectId/flags/recompute"), () =>
+    okWithMeta(mockState.spine.flags, {
+      checked_at_version: mockState.spine.spine_version,
+      opened: [],
+      resolved: [],
+      reopened: [],
+    })
+  ),
+
+  http.post(api("/projects/:projectId/flags/:flagId/waive"), async ({ params, request }) => {
+    const body = (await request.json()) as { reason: string };
+    const flag = mockState.spine.flags.find((f) => f.id === params.flagId);
+    if (!flag) return fail(404, "FLAG_NOT_FOUND", "Không tìm thấy cờ");
+    if (!body.reason || body.reason.trim().length < 20) return fail(400, "VALIDATION_ERROR", "Lý do cần tối thiểu 20 ký tự");
+    if (FLAG_NOT_WAIVABLE_RULES.includes(flag.rule_id as (typeof FLAG_NOT_WAIVABLE_RULES)[number])) {
+      return fail(400, "FLAG_NOT_WAIVABLE", "Luật này không cho waive");
+    }
+    flag.waived_by_user = true;
+    flag.waive_reason = body.reason.trim();
+    flag.waived_at_version = mockState.spine.spine_version;
+    return ok(flag);
+  }),
+
+  http.post(api("/projects/:projectId/assemble"), async ({ request }) => {
+    const body = (await request.json()) as { base_version: number };
+    if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
+    mockAssembledAtVersion = mockState.spine.spine_version;
+    return ok({ spine_version: mockState.spine.spine_version, sections: 3, generated_at: new Date().toISOString() });
+  }),
+
+  http.get(api("/projects/:projectId/document"), ({ request }) => {
+    const url = new URL(request.url);
+    const source = url.searchParams.get("source") ?? "draft";
+    if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
+    if (mockAssembledAtVersion === null) return fail(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).", { hint: "S-8.2" });
+    return okWithMeta(buildMockDocument(mockState), {
+      assembled_at_version: mockAssembledAtVersion,
+      spine_version: mockState.spine.spine_version,
+      stale: mockAssembledAtVersion < mockState.spine.spine_version,
+    });
+  }),
+
+  http.get(api("/projects/:projectId/export/word"), ({ request }) => {
+    const url = new URL(request.url);
+    const source = url.searchParams.get("source") ?? "draft";
+    if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
+    if (mockAssembledAtVersion === null) {
+      return fail(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).", { hint: "S-8.2" });
+    }
+    return new HttpResponse("mock docx bytes — T16 chỉ giả lập, nội dung thật do T15", {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition": `attachment; filename="${mockState.project.name}${source === "draft" ? "-draft" : ""}.docx"`,
+        "X-Assembled-At-Version": String(mockAssembledAtVersion),
+        "X-Spine-Version": String(mockState.spine.spine_version),
+      },
+    });
+  }),
+
+  http.patch(api("/users/me"), async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    Object.assign(mockState.user as unknown as Record<string, unknown>, body);
+    return ok(mockState.user);
   }),
 ];
 
