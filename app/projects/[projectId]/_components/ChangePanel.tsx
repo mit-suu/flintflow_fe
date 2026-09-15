@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChanges } from "../hooks/useChanges";
 import DiffPreviewModal from "./DiffPreviewModal";
 import TraceabilityMap from "./TraceabilityMap";
@@ -8,13 +8,15 @@ import type { ApplyResult } from "@/types/pipeline";
 
 export interface ChangeSeed {
   text: string;
-  /** Tăng mỗi lần gửi để `useEffect` phát hiện lệnh mới kể cả khi trùng nội dung. */
+  /** Tăng mỗi lần gửi để phát hiện lệnh mới kể cả khi trùng nội dung. */
   nonce: number;
 }
 
 interface ChangePanelProps {
   projectId: string;
   getBaseVersion: () => number | null;
+  /** Seq lớn nhất đã biết của Spine — dùng giới hạn `GET /changes` về 20 dòng gần nhất. */
+  getLatestSeq: () => number | null;
   onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void;
   onClose: () => void;
   /** Lệnh sửa forward từ ChatPane khi session hiện tại không phải pipeline session. */
@@ -22,7 +24,7 @@ interface ChangePanelProps {
 }
 
 /** Change panel (UC 6.8–6.11): ô lệnh → preview diff → xác nhận; hoà giải; undo; lịch sử; traceability. */
-export default function ChangePanel({ projectId, getBaseVersion, onApplied, onClose, seed }: ChangePanelProps) {
+export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, onApplied, onClose, seed }: ChangePanelProps) {
   const [instruction, setInstruction] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [showTraceability, setShowTraceability] = useState(false);
@@ -40,18 +42,18 @@ export default function ChangePanel({ projectId, getBaseVersion, onApplied, onCl
     reconcileOnce,
     undo,
     loadHistory,
-  } = useChanges(projectId, getBaseVersion, onApplied);
+  } = useChanges(projectId, getBaseVersion, getLatestSeq, onApplied);
 
+  // Chặn chạy lại lệnh cũ khi panel mở lại với cùng `seed` (vd `seed.nonce` không đổi giữa hai lần
+  // mount, hoặc effect re-run vì tham chiếu `seed` đổi mà nonce thì không) — chỉ preview khi gặp
+  // `nonce` mới thật sự.
+  const handledNonceRef = useRef<number | undefined>(undefined);
   useEffect(() => {
-    if (!seed?.text) return;
-    // Lùi một microtask: đồng bộ với hệ thống ngoài (gọi preview qua BE), không setState đồng bộ
-    // ngay trong effect. Chỉ theo dõi `nonce` — cùng text gửi lại lần nữa vẫn phải preview lại.
-    queueMicrotask(() => {
-      setInstruction(seed.text);
-      void requestPreview(seed.text);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed?.nonce]);
+    if (!seed?.text || seed.nonce === handledNonceRef.current) return;
+    handledNonceRef.current = seed.nonce;
+    setInstruction(seed.text);
+    void requestPreview(seed.text);
+  }, [seed, requestPreview]);
 
   const submit = () => {
     if (!instruction.trim() || previewing) return;

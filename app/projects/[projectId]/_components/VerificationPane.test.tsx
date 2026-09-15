@@ -1,17 +1,10 @@
 "use client";
 
-import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import VerificationPane from "./VerificationPane";
-import * as flagsApi from "@/lib/api/flags";
 import type { Flag } from "@/types/flags";
 import type { Readiness } from "@/types/pipeline";
-
-vi.mock("@/lib/api/flags", () => ({
-  listFlags: vi.fn(),
-  waiveFlag: vi.fn(),
-  recomputeFlags: vi.fn(),
-}));
 
 const readiness: Readiness = { accepted_pct: 72, awaiting_reaccept: 4, red_open: 2, stale: 0 };
 
@@ -30,52 +23,62 @@ const redFlag: Flag = {
   waived_at_version: null,
 };
 
+const baseProps = {
+  readiness,
+  onClose: () => {},
+  onWaive: vi.fn(),
+  onRecompute: vi.fn(),
+};
+
 describe("VerificationPane", () => {
-  const listFlags = vi.mocked(flagsApi.listFlags);
+  it("hiện readiness summary theo format '% accepted · N chờ duyệt lại · N cờ đỏ'", () => {
+    render(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
-  beforeEach(() => {
-    listFlags.mockReset();
-  });
-
-  it("hiện readiness summary theo format '% accepted · N chờ duyệt lại · N cờ đỏ'", async () => {
-    listFlags.mockResolvedValueOnce({ data: [], error: null });
-
-    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
-
-    expect(await screen.findByText("72% accepted")).toBeInTheDocument();
+    expect(screen.getByText("72% accepted")).toBeInTheDocument();
     expect(screen.getByText("4 chờ duyệt lại")).toBeInTheDocument();
     expect(screen.getByText("2 cờ đỏ")).toBeInTheDocument();
   });
 
-  it("hiện cờ từ BE fixture; không cho waive rule array_empty", async () => {
-    listFlags.mockResolvedValueOnce({ data: [redFlag], error: null });
+  it("hiện cờ từ props (page.tsx nâng useFlags lên); không cho waive rule array_empty", () => {
+    render(<VerificationPane {...baseProps} flags={[redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
-    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
-
-    expect(await screen.findByText("Actors đang rỗng")).toBeInTheDocument();
+    expect(screen.getByText("Actors đang rỗng")).toBeInTheDocument();
     expect(screen.getByText("array_empty")).toBeInTheDocument();
     expect(screen.getByText("Không thể waive")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Waive" })).not.toBeInTheDocument();
   });
 
-  it("cờ waive được thì có nút Waive", async () => {
-    listFlags.mockResolvedValueOnce({
-      data: [{ ...redFlag, id: "FL02", rule_id: "unconfirmed_assumption" }],
-      error: null,
-    });
+  it("cờ waive được thì có nút Waive", () => {
+    render(
+      <VerificationPane
+        {...baseProps}
+        flags={[{ ...redFlag, id: "FL02", rule_id: "unconfirmed_assumption" }]}
+        flagsLoading={false}
+        flagsError={null}
+        flagsBusy={false}
+      />
+    );
 
-    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Waive" })).toBeInTheDocument();
-    });
+    expect(screen.getByRole("button", { name: "Waive" })).toBeInTheDocument();
   });
 
-  it("không còn cờ mở thì hiện thông báo trống", async () => {
-    listFlags.mockResolvedValueOnce({ data: [], error: null });
+  it("không còn cờ mở thì hiện thông báo trống", () => {
+    render(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
-    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
+    expect(screen.getByText("Không có cờ nào đang mở.")).toBeInTheDocument();
+  });
 
-    expect(await screen.findByText("Không có cờ nào đang mở.")).toBeInTheDocument();
+  it("flagsLoading = true hiện spinner, không render FlagsPanel", () => {
+    render(<VerificationPane {...baseProps} flags={[]} flagsLoading={true} flagsError={null} flagsBusy={false} />);
+
+    expect(screen.getByText("Đang tải danh sách cờ…")).toBeInTheDocument();
+    expect(screen.queryByText("Không có cờ nào đang mở.")).not.toBeInTheDocument();
+  });
+
+  it("không còn chuỗi demo cũ (Sinh viên & Tài xế, 84%) trong VerificationPane thật", () => {
+    render(<VerificationPane {...baseProps} flags={[redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
+
+    expect(screen.queryByText(/Sinh viên & Tài xế/)).not.toBeInTheDocument();
+    expect(screen.queryByText("84%")).not.toBeInTheDocument();
   });
 });

@@ -10,11 +10,12 @@ const WAIVE_REASON_MIN_LENGTH = 20;
 interface WaiveModalProps {
   flag: Flag;
   busy: boolean;
+  error?: string | null;
   onCancel: () => void;
   onSubmit: (reason: string) => void;
 }
 
-function WaiveModal({ flag, busy, onCancel, onSubmit }: WaiveModalProps) {
+function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) {
   const [reason, setReason] = useState("");
   const canSubmit = reason.trim().length >= WAIVE_REASON_MIN_LENGTH && !busy;
 
@@ -40,6 +41,7 @@ function WaiveModal({ flag, busy, onCancel, onSubmit }: WaiveModalProps) {
         <div className="flex items-center justify-between text-[10.5px] text-[#A8A49C]">
           <span>{reason.trim().length}/{WAIVE_REASON_MIN_LENGTH}</span>
         </div>
+        {error && <div className="text-[11px] text-[#B03030]">{error}</div>}
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
@@ -82,14 +84,32 @@ const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_use
 /** Bảng cờ đỏ/vàng (`GET /flags`); waive luật `array_empty`/`dead_reference`/`render_error` bị khoá. */
 export default function FlagsPanel({ flags, busy = false, error, onWaive, onRecompute, onSelectStep }: FlagsPanelProps) {
   const [waivingId, setWaivingId] = useState<string | null>(null);
+  const [waiveError, setWaiveError] = useState<string | null>(null);
   const openFlags = flags.filter(isOpen);
   const waivedFlags = flags.filter((f) => f.waived_by_user);
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
 
+  const openWaiveModal = (flagId: string) => {
+    setWaiveError(null);
+    setWaivingId(flagId);
+  };
+
+  const closeWaiveModal = () => {
+    setWaiveError(null);
+    setWaivingId(null);
+  };
+
+  // `onWaive` (từ `useFlags`) ném lỗi khi BE từ chối — bắt tại đây để không rơi vào unhandled
+  // rejection (trước đây `void submitWaive(...)` không có try/catch) và giữ modal mở để user sửa lại.
   const submitWaive = async (reason: string) => {
     if (!waivingFlag) return;
-    await onWaive(waivingFlag.id, reason);
-    setWaivingId(null);
+    setWaiveError(null);
+    try {
+      await onWaive(waivingFlag.id, reason);
+      setWaivingId(null);
+    } catch (err) {
+      setWaiveError(err instanceof Error ? err.message : "Waive cờ thất bại");
+    }
   };
 
   return (
@@ -143,7 +163,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => setWaivingId(flag.id)}
+                    onClick={() => openWaiveModal(flag.id)}
                     className="px-2.5 py-1 rounded-full text-[10.5px] font-bold border border-[#F0DFB4] text-[#8A6D1F] bg-[#FBF4E4] hover:bg-[#F7EBCF] disabled:opacity-50 cursor-pointer"
                   >
                     Waive
@@ -175,7 +195,13 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
       )}
 
       {waivingFlag && (
-        <WaiveModal flag={waivingFlag} busy={busy} onCancel={() => setWaivingId(null)} onSubmit={(reason) => void submitWaive(reason)} />
+        <WaiveModal
+          flag={waivingFlag}
+          busy={busy}
+          error={waiveError}
+          onCancel={closeWaiveModal}
+          onSubmit={(reason) => void submitWaive(reason)}
+        />
       )}
     </div>
   );

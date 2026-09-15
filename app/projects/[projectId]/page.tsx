@@ -27,6 +27,10 @@ import { useWorkspace } from "./hooks/useWorkspace";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useStepRunner } from "./hooks/useStepRunner";
+import { useFlags } from "./hooks/useFlags";
+
+/** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
+const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
 
 const DEFAULT_CHAT_PANE_WIDTH = 480;
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
@@ -47,6 +51,16 @@ export default function WorkspacePage() {
   const ws = useWorkspace(projectId);
   const spineState = useSpine(projectId, ws.ready);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
+  // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
+  // `DocumentPane` không nhận `flags` nên nút "xem tại step" chết; nâng lên đây, truyền xuống cả hai.
+  const {
+    flags,
+    loading: flagsLoading,
+    error: flagsError,
+    busy: flagsBusy,
+    waive: waiveFlagFn,
+    recompute: recomputeFlagsFn,
+  } = useFlags(projectId, spineState.version);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [verificationOpen, setVerificationOpen] = useState(false);
@@ -66,6 +80,27 @@ export default function WorkspacePage() {
   }, []);
   useEffect(() => bumpVersion(spineState.version), [bumpVersion, spineState.version]);
   const getBaseVersion = useCallback(() => versionRef.current, []);
+  // `latestSeq` cho lịch sử Change panel (20 dòng gần nhất) — lấy từ `max(steps[].last_seq)` của
+  // Spine hiện tại, không phải `spine_version` (seq của change và version step là hai trục khác nhau).
+  const getLatestSeq = useCallback(() => {
+    const currentSpine = spineState.spine;
+    if (!currentSpine) return null;
+    const seqs = currentSpine.steps.map((s) => s.last_seq).filter((n): n is number => typeof n === "number");
+    return seqs.length ? Math.max(...seqs) : null;
+  }, [spineState.spine]);
+
+  const handleFlagWaive = useCallback(
+    async (flagId: string, reason: string) => {
+      await waiveFlagFn(flagId, reason);
+      void reloadProgress();
+    },
+    [waiveFlagFn, reloadProgress]
+  );
+
+  const handleFlagRecompute = useCallback(async () => {
+    await recomputeFlagsFn();
+    void reloadProgress();
+  }, [recomputeFlagsFn, reloadProgress]);
 
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
   const { refreshUser } = ws;
@@ -131,6 +166,7 @@ export default function WorkspacePage() {
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
 
   // ─── ChangePanel áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
+  const changedSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       bumpVersion(result.spine_version);
@@ -138,9 +174,15 @@ export default function WorkspacePage() {
       void reloadProgress();
       setDocumentRefreshToken((v) => v + 1);
       setChangedSectionIds(new Set(impactedSectionIds ?? []));
+      // Viền nổi bật "một nhịp" (chú thích DocumentPane) — tắt sau một khoảng, không giữ mãi.
+      if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
+      changedSectionTimerRef.current = setTimeout(() => setChangedSectionIds(new Set()), CHANGED_SECTION_HIGHLIGHT_MS);
     },
     [bumpVersion, replaceSpine, reloadProgress]
   );
+  useEffect(() => () => {
+    if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
+  }, []);
 
   // ChatPane: session không pipeline ⇒ ô lệnh sửa mở Change panel và xem trước lệnh ngay
   const forwardInstructionToChangePanel = useCallback((instruction: string) => {
@@ -312,6 +354,7 @@ export default function WorkspacePage() {
         <DocumentPane
           projectId={projectId}
           projectName={ws.project?.name}
+          flags={flags}
           changedSectionIds={changedSectionIds}
           onSelectStep={setSelectedStepId}
           refreshToken={documentRefreshToken}
@@ -355,20 +398,28 @@ export default function WorkspacePage() {
           <ChangePanel
             projectId={projectId}
             getBaseVersion={getBaseVersion}
+            getLatestSeq={getLatestSeq}
             onApplied={handleChangeApplied}
-            onClose={() => setChangePanelOpen(false)}
+            onClose={() => {
+              setChangePanelOpen(false);
+              // Xoá seed khi đóng — mở lại panel sau đó không được tự chạy lại lệnh cũ.
+              setChangeSeed(undefined);
+            }}
             seed={changeSeed}
           />
         )}
 
         {verificationOpen && (
           <VerificationPane
-            projectId={projectId}
-            spineVersion={spineState.version}
             readiness={progress?.readiness ?? null}
+            flags={flags}
+            flagsLoading={flagsLoading}
+            flagsError={flagsError}
+            flagsBusy={flagsBusy}
             onClose={() => setVerificationOpen(false)}
             onSelectStep={setSelectedStepId}
-            onFlagsChanged={reloadProgress}
+            onWaive={handleFlagWaive}
+            onRecompute={handleFlagRecompute}
           />
         )}
       </main>

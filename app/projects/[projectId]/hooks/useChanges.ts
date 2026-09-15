@@ -33,6 +33,9 @@ const isPreviewResult = (result: PreviewResult | ApplyResult): result is Preview
 export function useChanges(
   projectId: string,
   getBaseVersion: () => number | null,
+  /** Seq lớn nhất đã biết của Spine hiện tại (`max(steps[].last_seq)`) — giới hạn `GET /changes`
+   * về 20 dòng gần nhất thay vì tải toàn bộ lịch sử. `null` khi chưa xác định được (tải không giới hạn). */
+  getLatestSeq: () => number | null,
   /** `impactedSectionIds` (từ `preview.impact.sections`, nếu preview có) — cha dùng để highlight DocumentPane. */
   onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void
 ): UseChangesResult {
@@ -144,7 +147,9 @@ export function useChanges(
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const res = await listChanges(projectId);
+      const latestSeq = getLatestSeq();
+      const range = latestSeq !== null ? { from: Math.max(1, latestSeq - 19) } : {};
+      const res = await listChanges(projectId, range);
       setHistory((res.data ?? []).slice(-20).reverse());
       setError(null);
     } catch (err) {
@@ -152,7 +157,7 @@ export function useChanges(
     } finally {
       setHistoryLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, getLatestSeq]);
 
   return {
     preview,
