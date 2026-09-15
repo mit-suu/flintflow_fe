@@ -15,7 +15,7 @@ export interface ChangeSeed {
 interface ChangePanelProps {
   projectId: string;
   getBaseVersion: () => number | null;
-  onApplied: (result: ApplyResult) => void;
+  onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void;
   onClose: () => void;
   /** Lệnh sửa forward từ ChatPane khi session hiện tại không phải pipeline session. */
   seed?: ChangeSeed;

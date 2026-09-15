@@ -33,7 +33,8 @@ const isPreviewResult = (result: PreviewResult | ApplyResult): result is Preview
 export function useChanges(
   projectId: string,
   getBaseVersion: () => number | null,
-  onApplied: (result: ApplyResult) => void
+  /** `impactedSectionIds` (từ `preview.impact.sections`, nếu preview có) — cha dùng để highlight DocumentPane. */
+  onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void
 ): UseChangesResult {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
@@ -114,7 +115,7 @@ export function useChanges(
           ? await applyChanges(projectId, { instruction: pendingInstruction, base_version: baseVersion, preview_id: preview.preview_id })
           : await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
       if (res.data && !isPreviewResult(res.data)) {
-        onApplied(res.data);
+        onApplied(res.data, preview.impact?.sections.map((s) => s.id));
         setPreview(null);
         setPreviewSource(null);
       }
