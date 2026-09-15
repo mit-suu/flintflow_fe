@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { createProject } from "@/lib/api/projects";
-import { applyChanges } from "@/lib/api/spine";
+import { applyChanges, getSpine } from "@/lib/api/spine";
 import WorkingModeSelect from "../../projects/[projectId]/_components/WorkingModeSelect";
+import type { Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 import { patchMe } from "./api";
 
@@ -21,6 +22,9 @@ export default function OnboardingPage() {
   const [projectName, setProjectName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Dự án đã tạo ở lần bấm trước (nếu bước ghi Spine hoặc patchMe sau đó lỗi) — bấm lại chỉ retry
+  // phần còn thiếu, không tạo dự án trùng lặp.
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
 
   const goToStep2 = () => {
     setProjectName((prev) => prev || goal.trim());
@@ -32,24 +36,37 @@ export default function OnboardingPage() {
     setSubmitting(true);
     setError(null);
     try {
+      let projectId = createdProjectId;
+      if (!projectId) {
+        const projectRes = await createProject(projectName.trim());
+        const project = projectRes.data;
+        if (!project) throw new Error("Không tạo được dự án");
+        projectId = project._id;
+        setCreatedProjectId(projectId);
+      }
+
+      // working_mode + mục tiêu ban đầu (project.vision): đọc `spine_version` thật thay vì
+      // hard-code `base_version: 1` (Spine tạo lười ở BE — GET đầu tiên mới getOrCreate, version có
+      // thể khác 1). Lỗi ở bước này chặn tiếp tục, không nuốt lặng lẽ như trước.
+      const spineRes = await getSpine(projectId);
+      const spineVersion = spineRes.data?.spine_version;
+      if (spineVersion === undefined) throw new Error("Không đọc được Spine của dự án vừa tạo");
+      const ops: Op[] = [{ op: "set", path: "project.working_mode", value: workingMode, reason: "Onboarding" }];
+      if (goal.trim()) {
+        ops.push({ op: "set", path: "project.vision", value: goal.trim(), reason: "Onboarding — mục tiêu ban đầu" });
+      }
+      await applyChanges(projectId, { base_version: spineVersion, ops });
+
       if (name.trim()) await patchMe({ name: name.trim() }).catch(() => undefined);
 
-      const projectRes = await createProject(projectName.trim());
-      const project = projectRes.data;
-      if (!project) throw new Error("Không tạo được dự án");
+      // Đánh dấu đã onboard SAU khi dự án + Spine đã ghi xong; lỗi ở đây (khác thao tác trên) phải
+      // chặn `router.push` — nếu không, `app/home/page.tsx` sẽ đẩy user quay lại đây ở lần ghé sau
+      // dù đã có project, dẫn tới nguy cơ tạo dự án lặp nếu không giữ `createdProjectId`.
+      await patchMe({ onboardedAt: new Date().toISOString() });
 
-      // Đặt working mode mặc định cho Spine mới tạo (best-effort — Spine vừa tạo nên base_version = 1;
-      // đổi được sau ở PhaseHeader nếu lô này lệch version vì lý do khác).
-      await applyChanges(project._id, {
-        base_version: 1,
-        ops: [{ op: "set", path: "project.working_mode", value: workingMode, reason: "Onboarding" }],
-      }).catch(() => undefined);
-
-      await patchMe({ onboardedAt: new Date().toISOString() }).catch(() => undefined);
-
-      router.push(`/projects/${project._id}`);
+      router.push(`/projects/${projectId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không tạo được dự án đầu tiên");
+      setError(err instanceof Error ? err.message : "Không hoàn tất được thiết lập ban đầu — bấm lại để thử tiếp");
       setSubmitting(false);
     }
   };
@@ -102,8 +119,9 @@ export default function OnboardingPage() {
             </div>
             <button
               type="button"
+              disabled={!name.trim()}
               onClick={goToStep2}
-              className="w-full py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
+              className="w-full py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               Tiếp tục →
             </button>
