@@ -5,6 +5,7 @@ import { ApiClientError } from "@/lib/api/client";
 import { downloadWordExport, listBaselines } from "@/lib/api/export";
 import { useDocument } from "../hooks/useDocument";
 import type { DocumentSource } from "@/types/document";
+import type { Baseline } from "@/types/spine";
 
 interface ExportPanelProps {
   projectId: string;
@@ -13,22 +14,30 @@ interface ExportPanelProps {
   onGoToStep?: (stepId: string) => void;
 }
 
+/** Ghim thẻ `<a download>` vào DOM trước khi click — Safari/Firefox bỏ qua click trên thẻ rời DOM. */
 const triggerDownload = (blob: Blob, fileName: string) => {
   const url = URL.createObjectURL(blob);
   const a = window.document.createElement("a");
   a.href = url;
   a.download = fileName;
+  window.document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // Lùi việc revoke ra khỏi tick hiện tại: một số trình duyệt đọc `href` bất đồng bộ sau `click()`.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
 /** Export UI (Phases §6.5): Word draft (watermark DRAFT) / Word baseline; hiện lý do khi chưa ghép. */
 export default function ExportPanel({ projectId, projectName = "Dự án", onClose, onGoToStep }: ExportPanelProps) {
   const [source, setSource] = useState<DocumentSource>("draft");
-  const { document, meta, loading, notAssembled, error } = useDocument(projectId, source);
+  const [baselines, setBaselines] = useState<Baseline[]>([]);
+  const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
+  const hasBaseline = baselines.length > 0;
+  // Baseline mới nhất — ExportPanel chưa có bộ chọn version cụ thể (ngoài phạm vi T16).
+  const baselineId = source === "baseline" ? baselines[0]?.id : undefined;
+  const { document, meta, loading, notAssembled, error } = useDocument(projectId, source, baselineId);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [hasBaseline, setHasBaseline] = useState(false);
 
   const selectSource = (next: DocumentSource) => {
     setSource(next);
@@ -36,9 +45,21 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
   };
 
   useEffect(() => {
+    let cancelled = false;
     listBaselines(projectId)
-      .then((res) => setHasBaseline((res.data ?? []).length > 0))
-      .catch(() => setHasBaseline(false));
+      .then((res) => {
+        if (cancelled) return;
+        setBaselines(res.data ?? []);
+        setBaselineCheckError(null);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setBaselines([]);
+        setBaselineCheckError(err instanceof Error ? err.message : "Không kiểm tra được baseline");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
   const redCount = document?.flagsAppendix?.redOpen.length ?? 0;
@@ -47,9 +68,10 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
     setDownloading(true);
     setDownloadError(null);
     try {
-      const blob = await downloadWordExport(projectId, source);
+      const { blob, filename } = await downloadWordExport(projectId, source, baselineId);
       const suffix = source === "draft" ? "-draft" : "";
-      triggerDownload(blob, `${projectName}${suffix}.docx`);
+      const fallbackName = `${projectName}-${document?.version ?? "v0"}${suffix}.docx`;
+      triggerDownload(blob, filename ?? fallbackName);
     } catch (err) {
       setDownloadError(
         err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
@@ -102,6 +124,10 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
             Word baseline
           </button>
         </div>
+
+        {baselineCheckError && (
+          <div className="text-[10.5px] text-[#B03030]">Không kiểm tra được baseline: {baselineCheckError}</div>
+        )}
 
         {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải thông tin bản ghép…</div>}
 
