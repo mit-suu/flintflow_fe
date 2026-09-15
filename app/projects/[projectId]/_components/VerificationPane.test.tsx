@@ -3,118 +3,79 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import VerificationPane from "./VerificationPane";
-import * as api from "../../../../lib/api";
+import * as flagsApi from "@/lib/api/flags";
+import type { Flag } from "@/types/flags";
+import type { Readiness } from "@/types/pipeline";
 
-vi.mock("../../../../lib/api", () => ({
-  apiCall: vi.fn(),
+vi.mock("@/lib/api/flags", () => ({
+  listFlags: vi.fn(),
+  waiveFlag: vi.fn(),
+  recomputeFlags: vi.fn(),
 }));
 
+const readiness: Readiness = { accepted_pct: 72, awaiting_reaccept: 4, red_open: 2, stale: 0 };
+
+const redFlag: Flag = {
+  id: "FL01",
+  level: "red",
+  rule_id: "array_empty",
+  section_id: "fixed:2.1",
+  target_id: null,
+  message: "Actors đang rỗng",
+  remediation_step: "S-3.1",
+  opened_at_version: 3,
+  resolved_at: null,
+  waived_by_user: false,
+  waive_reason: null,
+  waived_at_version: null,
+};
+
 describe("VerificationPane", () => {
-  const mockApiCall = vi.mocked(api.apiCall);
+  const listFlags = vi.mocked(flagsApi.listFlags);
 
   beforeEach(() => {
-    mockApiCall.mockClear();
+    listFlags.mockReset();
   });
 
-  it("hiện empty state khi /verification trả null data", async () => {
-    mockApiCall.mockResolvedValueOnce({ data: null, error: null });
+  it("hiện readiness summary theo format '% accepted · N chờ duyệt lại · N cờ đỏ'", async () => {
+    listFlags.mockResolvedValueOnce({ data: [], error: null });
 
-    render(<VerificationPane projectId="p1" onClose={() => {}} />);
+    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
 
-    await waitFor(
-      () => {
-        expect(screen.getByText("Chưa có dữ liệu kiểm tra")).toBeInTheDocument();
-      },
-      { timeout: 2000 }
-    );
+    expect(await screen.findByText("72% accepted")).toBeInTheDocument();
+    expect(screen.getByText("4 chờ duyệt lại")).toBeInTheDocument();
+    expect(screen.getByText("2 cờ đỏ")).toBeInTheDocument();
   });
 
-  it("hiện empty state khi data rỗng (tất cả field undefined/empty)", async () => {
-    mockApiCall.mockClear();
-    mockApiCall.mockResolvedValueOnce({
-      data: {
-        readinessScore: undefined,
-        completenessPercent: undefined,
-        goalAlignmentPercent: undefined,
-        blockingIssues: [],
-        facts: [],
-        assumptions: [],
-      },
+  it("hiện cờ từ BE fixture; không cho waive rule array_empty", async () => {
+    listFlags.mockResolvedValueOnce({ data: [redFlag], error: null });
+
+    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
+
+    expect(await screen.findByText("Actors đang rỗng")).toBeInTheDocument();
+    expect(screen.getByText("array_empty")).toBeInTheDocument();
+    expect(screen.getByText("Không thể waive")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Waive" })).not.toBeInTheDocument();
+  });
+
+  it("cờ waive được thì có nút Waive", async () => {
+    listFlags.mockResolvedValueOnce({
+      data: [{ ...redFlag, id: "FL02", rule_id: "unconfirmed_assumption" }],
       error: null,
     });
 
-    render(<VerificationPane projectId="p1" onClose={() => {}} />);
+    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Chưa có dữ liệu kiểm tra")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Waive" })).toBeInTheDocument();
     });
   });
 
-  it("hiện completeness score khi có data", async () => {
-    mockApiCall.mockResolvedValueOnce({
-      data: {
-        completenessPercent: 65,
-        readinessScore: undefined,
-        goalAlignmentPercent: undefined,
-        blockingIssues: [],
-        facts: [],
-        assumptions: [],
-      },
-      error: null,
-    });
+  it("không còn cờ mở thì hiện thông báo trống", async () => {
+    listFlags.mockResolvedValueOnce({ data: [], error: null });
 
-    render(<VerificationPane projectId="p1" onClose={() => {}} />);
+    render(<VerificationPane projectId="p1" spineVersion={5} readiness={readiness} onClose={() => {}} />);
 
-    await waitFor(() => {
-      expect(screen.getByText("65%")).toBeInTheDocument();
-      expect(screen.getByText("SRS COMPLETENESS")).toBeInTheDocument();
-    });
-  });
-
-  it("không hiện demo string 'Sinh viên & Tài xế' hay '84%'", async () => {
-    mockApiCall.mockResolvedValueOnce({
-      data: {
-        completenessPercent: 50,
-        readinessScore: undefined,
-        goalAlignmentPercent: undefined,
-        blockingIssues: [],
-        facts: [],
-        assumptions: [],
-      },
-      error: null,
-    });
-
-    render(<VerificationPane projectId="p1" onClose={() => {}} />);
-
-    await waitFor(() => {
-      expect(screen.queryByText("Sinh viên & Tài xế")).not.toBeInTheDocument();
-      expect(screen.queryByText("84%")).not.toBeInTheDocument();
-    });
-  });
-
-  it("chỉ có readinessScore thì hiện thẻ readiness, không hiện empty state", async () => {
-    mockApiCall.mockResolvedValueOnce({
-      data: { readinessScore: 78, readinessLevel: "plan" },
-      error: null,
-    });
-
-    render(<VerificationPane projectId="p1" onClose={() => {}} />);
-
-    expect(await screen.findByText("READINESS")).toBeInTheDocument();
-    expect(screen.getByText("78")).toBeInTheDocument();
-    expect(screen.queryByText("Chưa có dữ liệu kiểm tra")).not.toBeInTheDocument();
-  });
-
-  it("hiện error message khi apiCall fail", async () => {
-    const errorMsg = "Network error";
-    mockApiCall.mockRejectedValueOnce(new Error(errorMsg));
-
-    render(<VerificationPane projectId="p1" onClose={() => {}} />);
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Không tải được dữ liệu kiểm tra.*Network error/)
-      ).toBeInTheDocument();
-    });
+    expect(await screen.findByText("Không có cờ nào đang mở.")).toBeInTheDocument();
   });
 });

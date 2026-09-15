@@ -311,7 +311,16 @@ export default function WorkspacePage() {
           </aside>
         )}
 
-        {verificationOpen && <VerificationPane projectId={projectId} onClose={() => setVerificationOpen(false)} />}
+        {verificationOpen && (
+          <VerificationPane
+            projectId={projectId}
+            spineVersion={spineState.version}
+            readiness={progress?.readiness ?? null}
+            onClose={() => setVerificationOpen(false)}
+            onSelectStep={setSelectedStepId}
+            onFlagsChanged={reloadProgress}
+          />
+        )}
       </main>
     </div>
   );
