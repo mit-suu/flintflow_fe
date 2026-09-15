@@ -5,8 +5,18 @@ import type { DocumentSource, RenderedDocument } from "@/types/document";
 import type { Baseline } from "@/types/spine";
 import { ApiClientError, apiCall, authFetch, readErrorMessage } from "./client";
 
-export const assembleDocument = (projectId: string) =>
-  apiCall<RenderedDocument>(`/projects/${projectId}/assemble`, { method: "POST" });
+/** `POST /projects/:id/assemble` — trả kết quả ghép (`assembleResponseSchema`), không phải tài liệu. */
+export interface AssembleResult {
+  spine_version: number;
+  sections: number;
+  generated_at: string;
+}
+
+export const assembleDocument = (projectId: string, baseVersion: number) =>
+  apiCall<AssembleResult>(`/projects/${projectId}/assemble`, {
+    method: "POST",
+    body: JSON.stringify({ base_version: baseVersion }),
+  });
 
 export const getDocument = (projectId: string, source: DocumentSource = "draft", baselineId?: string) =>
   apiCall<RenderedDocument>(
