@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { GOOGLE_CLIENT_ID, isGoogleAuthEnabled } from "@/lib/google-auth";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
   description: "Enterprise-grade AI-powered software specification engine",
 };
 
-const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+// Không có client id ⇒ KHÔNG bọc provider. Xem `lib/google-auth.ts` (T24): bọc với client id rỗng
+// làm script gsi của Google ném lỗi và cả app thành trang trắng.
 
 export default function RootLayout({
   children,
@@ -36,9 +38,11 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen flex flex-col">
-        <GoogleOAuthProvider clientId={googleClientId}>
-          {children}
-        </GoogleOAuthProvider>
+        {isGoogleAuthEnabled ? (
+          <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{children}</GoogleOAuthProvider>
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

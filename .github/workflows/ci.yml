@@ -42,9 +42,9 @@ jobs:
         run: npm run build
 
   # e2e chạy FE thật trên BE thật + Mongo thật — không msw, không mock ở tầng HTTP.
-  # Kịch bản cố ý KHÔNG chạy step AI: provider chọn theo frontmatter từng skill và `mock.provider.ts`
-  # trả JSON không khớp schema pipeline, nên bật mock cũng không sinh được op (xem e2e/workspace.spec.ts).
-  # Nội dung được gieo bằng op qua `POST /changes` — vẫn đi qua op engine và invariants thật.
+  # Kịch bản cố ý KHÔNG chạy step AI: provider chọn theo frontmatter từng skill (xem
+  # e2e/workspace.spec.ts). Nội dung được gieo bằng op qua `POST /changes` — vẫn đi qua op engine
+  # và invariants thật.
   e2e:
     runs-on: ubuntu-latest
     needs: build
@@ -85,30 +85,45 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      # Tên biến phải khớp `flintflow_be/src/config/env.ts`: MONGO_URI (không phải MONGODB_URI) và
+      # JWT_ACCESS_SECRET (không phải JWT_SECRET). Sai tên thì env.ts âm thầm dùng default —
+      # BE nối vào database `flintflow` chứ không phải `flintflow_e2e`.
+      #
+      # Mongo ở đây là standalone (service container không đổi được `command` để bật replica set),
+      # nên transaction không dùng được — `shared/db/transaction.ts` tự rơi sang đường không
+      # transaction. Đường có replica set được kiểm ở workflow `docker` của flintflow_be.
+      #
+      # PlantUML trỏ vào cổng đóng + timeout ngắn: render trả `render_status: "error"` ngay và tất
+      # định, thay vì treo 15 s mỗi diagram (cùng cách test/setup.ts làm).
       - name: Start backend
         working-directory: backend
         env:
           NODE_ENV: test
           PORT: 5000
-          MONGODB_URI: mongodb://localhost:27017/flintflow_e2e
-          JWT_SECRET: e2e-secret-not-a-real-key
-          JWT_REFRESH_SECRET: e2e-refresh-not-a-real-key
+          MONGO_URI: mongodb://localhost:27017/flintflow_e2e
+          JWT_ACCESS_SECRET: e2e-access-secret-not-a-real-key-32chars
+          JWT_REFRESH_SECRET: e2e-refresh-secret-not-a-real-key-32chars
+          CLIENT_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
+          PLANTUML_BASE_URL: http://127.0.0.1:9
+          PLANTUML_TIMEOUT_MS: 1000
         run: |
-          npm run dev > backend.log 2>&1 &
+          npx tsx src/server.ts > backend.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://localhost:5000/health > /dev/null && exit 0
             sleep 2
           done
           echo "backend không lên sau 120s"; cat backend.log; exit 1
 
+      # KHÔNG dùng POST /auth/register: `login` từ chối tài khoản chưa xác thực email
+      # (403 EMAIL_NOT_VERIFIED) và trong CI không có hộp thư nào để bấm link.
       - name: Seed e2e account
+        working-directory: backend
         env:
+          MONGO_URI: mongodb://localhost:27017/flintflow_e2e
           E2E_EMAIL: fixture@flintflow.io
           E2E_PASSWORD: fixture-password-123
-        run: |
-          curl -sf -X POST http://localhost:5000/api/v1/auth/register \
-            -H 'Content-Type: application/json' \
-            -d "{\"email\":\"$E2E_EMAIL\",\"password\":\"$E2E_PASSWORD\",\"name\":\"E2E\"}" || true
+        run: npm run seed:e2e-user
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
@@ -124,6 +139,11 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
           E2E_API_URL: http://localhost:5000/api/v1
         run: npm run e2e
+
+      - name: Backend log khi e2e hỏng
+        if: failure()
+        working-directory: backend
+        run: tail -200 backend.log
 
       - name: Upload Playwright report
         if: failure()
