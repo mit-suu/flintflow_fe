@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
 
 interface GoogleButtonProps {
   onSuccess: (idToken: string) => void | Promise<void>;
@@ -31,7 +32,19 @@ const GOOGLE_G_LOGO = (
   </svg>
 );
 
-export default function GoogleButton({ onSuccess, onError, label, disabled }: GoogleButtonProps) {
+/**
+ * Không cấu hình `NEXT_PUBLIC_GOOGLE_CLIENT_ID` thì không có nút Google (T24, `lib/google-auth.ts`).
+ *
+ * Phải tách làm hai component: `useGoogleLogin` là hook, gọi nó ngoài `GoogleOAuthProvider` sẽ ném
+ * "Google OAuth components must be used within GoogleOAuthProvider". Trả `null` ở vỏ bọc nghĩa là
+ * hook bên trong không bao giờ chạy khi provider vắng mặt.
+ */
+export default function GoogleButton(props: GoogleButtonProps) {
+  if (!isGoogleAuthEnabled) return null;
+  return <GoogleLoginButton {...props} />;
+}
+
+function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const login = useGoogleLogin({
