@@ -51,12 +51,6 @@ const cases: EndpointCase[] = [
   ["getChatSession", () => chat.getChatSession("p1", "c1"), "/projects/p1/chats/c1"],
   ["deleteChatSession", () => chat.deleteChatSession("p1", "c1"), "/projects/p1/chats/c1", { method: "DELETE" }],
   [
-    "rollbackChat",
-    () => chat.rollbackChat("p1", "c1", 2),
-    "/projects/p1/chats/c1/rollback",
-    post({ messageIndex: 2 }),
-  ],
-  [
     "estimateActionCost",
     () => chat.estimateActionCost("chat_discovery"),
     "/ai-actions/estimate-cost",

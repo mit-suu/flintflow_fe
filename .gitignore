@@ -14,6 +14,12 @@ node_modules/
 # testing
 coverage/
 
+# playwright (T23)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # next.js
 .next/
 out/
