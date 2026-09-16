@@ -5,10 +5,13 @@ on:
     branches:
       - main
       - master
+      - develop
+      - refactor_codebase_v3
   pull_request:
     branches:
       - main
       - master
+      - develop
 
 jobs:
   build:
@@ -26,5 +29,132 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
       - name: Build project
         run: npm run build
+
+  # e2e chạy FE thật trên BE thật + Mongo thật — không msw, không mock ở tầng HTTP.
+  # Kịch bản cố ý KHÔNG chạy step AI: provider chọn theo frontmatter từng skill (xem
+  # e2e/workspace.spec.ts). Nội dung được gieo bằng op qua `POST /changes` — vẫn đi qua op engine
+  # và invariants thật.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend deps
+        run: npm ci
+
+      # Build TRƯỚC khi clone backend vào `backend/`: `next build` chạy tsc trên cả thư mục dự án,
+      # nên có code BE nằm trong đó là nó đi typecheck luôn (`backend/test/setup.ts` gán
+      # `process.env.NODE_ENV` ⇒ TS2540, build đỏ). `tsconfig.json` đã loại trừ `backend`, thứ tự
+      # này là lớp chặn thứ hai — và cũng nhanh hơn vì không phải đợi backend cài xong mới build.
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
+        run: npm run build
+
+      # `flintflow_be` là repo public nên `GITHUB_TOKEN` mặc định đọc được, không cần secret riêng.
+      # Nếu sau này chuyển sang private thì thêm `token: ${{ secrets.BE_REPO_TOKEN }}` (PAT có quyền
+      # đọc Contents của repo đó).
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          repository: mit-suu/flintflow_be
+          ref: develop
+          path: backend
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      # Tên biến phải khớp `flintflow_be/src/config/env.ts`: MONGO_URI (không phải MONGODB_URI) và
+      # JWT_ACCESS_SECRET (không phải JWT_SECRET). Sai tên thì env.ts âm thầm dùng default —
+      # BE nối vào database `flintflow` chứ không phải `flintflow_e2e`.
+      #
+      # Mongo ở đây là standalone (service container không đổi được `command` để bật replica set),
+      # nên transaction không dùng được — `shared/db/transaction.ts` tự rơi sang đường không
+      # transaction. Đường có replica set được kiểm ở workflow `docker` của flintflow_be.
+      #
+      # PlantUML trỏ vào cổng đóng + timeout ngắn: render trả `render_status: "error"` ngay và tất
+      # định, thay vì treo 15 s mỗi diagram (cùng cách test/setup.ts làm).
+      - name: Start backend
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          PORT: 5000
+          MONGO_URI: mongodb://localhost:27017/flintflow_e2e
+          JWT_ACCESS_SECRET: e2e-access-secret-not-a-real-key-32chars
+          JWT_REFRESH_SECRET: e2e-refresh-secret-not-a-real-key-32chars
+          CLIENT_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
+          PLANTUML_BASE_URL: http://127.0.0.1:9
+          PLANTUML_TIMEOUT_MS: 1000
+        run: |
+          npx tsx src/server.ts > backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5000/health > /dev/null && exit 0
+            sleep 2
+          done
+          echo "backend không lên sau 120s"; cat backend.log; exit 1
+
+      # KHÔNG dùng POST /auth/register: `login` từ chối tài khoản chưa xác thực email
+      # (403 EMAIL_NOT_VERIFIED) và trong CI không có hộp thư nào để bấm link.
+      - name: Seed e2e account
+        working-directory: backend
+        env:
+          MONGO_URI: mongodb://localhost:27017/flintflow_e2e
+          E2E_EMAIL: fixture@flintflow.io
+          E2E_PASSWORD: fixture-password-123
+        run: npm run seed:e2e-user
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e
+        env:
+          CI: "1"
+          NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
+          E2E_API_URL: http://localhost:5000/api/v1
+        run: npm run e2e
+
+      - name: Backend log khi e2e hỏng
+        if: failure()
+        working-directory: backend
+        run: tail -200 backend.log
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

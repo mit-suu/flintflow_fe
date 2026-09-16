@@ -1,22 +1,25 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import ProjectCard, { type Project } from "../../components/ProjectCard";
+import { useRouter } from "next/navigation";
+import ProjectCard from "../../components/ProjectCard";
+import type { Project } from "@/types/project";
 import Modal from "../../components/Modal";
 import Logo from "../../components/Logo";
+import NotificationBell from "../../components/NotificationBell";
 import { apiCall } from "../../lib/api";
-
-interface User {
-  id: string;
-  email: string;
-  balance?: number;
-}
+import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
+import { getProgress } from "../../lib/api/pipeline";
+import type { ProgressResponse } from "@/types/pipeline";
+import type { User } from "@/types/user";
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [billing, setBilling] = useState<BalanceResponse | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -28,33 +31,89 @@ export default function HomePage() {
   const [renameName, setRenameName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchProjects = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await apiCall<Project[]>("/projects?status=active");
-      setProjects(res.data ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án");
-    } finally {
-      setLoading(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  /**
+   * T23: thẻ dự án hiện việc tiếp theo và trạng thái theo Spine thật. `GET /projects` chỉ trả document
+   * Project (không có tiến độ), nên nạp `progress` riêng cho từng dự án — song song, và **lỗi của một
+   * dự án không làm hỏng lưới**: dự án chưa có Spine trả `null` và hiện "Chưa bắt đầu".
+   */
+  const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>({});
+
+  const loadProgress = useCallback((list: Project[]) => {
+    if (list.length === 0) {
+      setProgressById({});
+      return;
     }
+    void Promise.all(
+      list.map((project) =>
+        getProgress(project._id)
+          .then((res) => [project._id, res.data ?? null] as const)
+          .catch(() => [project._id, null] as const)
+      )
+    ).then((entries) => setProgressById(Object.fromEntries(entries)));
   }, []);
 
+  // setState chỉ nằm trong callback của promise để effect gọi hàm này không set state đồng bộ
+  const loadProjects = useCallback(
+    () =>
+      apiCall<Project[]>("/projects?status=active")
+        .then((res) => {
+          const list = res.data ?? [];
+          setProjects(list);
+          loadProgress(list);
+        })
+        .catch((err: unknown) =>
+          setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án")
+        )
+        .finally(() => setLoading(false)),
+    [loadProgress]
+  );
+
+  // Tải lại sau khi tạo/đổi tên/xoá: bật loading và xoá lỗi cũ trước khi gọi
+  const fetchProjects = async () => {
+    setLoading(true);
+    setError(null);
+    await loadProjects();
+  };
+
+  // Lần tải đầu: state khởi tạo sẵn loading=true, error=null
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    loadProjects();
+  }, [loadProjects]);
+
+  // UC 1.12: user chưa qua onboarding (`onboardedAt === null`) ⇒ đưa vào /home/onboarding —
+  // NHƯNG chỉ khi user CHƯA có project nào. `onboarding/page.tsx` gọi `patchMe({onboardedAt})`
+  // SAU khi tạo project; nếu cú `patchMe` đó lỗi, `onboardedAt` vẫn null mãi mãi, và nếu ta chỉ xét
+  // `onboardedAt` thì mỗi lần user quay lại /home sẽ bị đẩy lại vào onboarding dù đã có project —
+  // vòng lặp tạo project vô hạn. Chờ danh sách project tải xong rồi mới xét cả hai điều kiện.
+  useEffect(() => {
+    if (loading) return;
+    if (projects.length > 0) return;
+    let cancelled = false;
+    apiCall<User>("/users/me")
+      .then((res) => {
+        if (!cancelled && res.data && res.data.onboardedAt === null) router.replace("/home/onboarding");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, projects, router]);
+
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase("vi");
+  const filteredProjects = normalizedQuery
+    ? projects.filter((p) => p.name.toLocaleLowerCase("vi").includes(normalizedQuery))
+    : projects;
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const loadBilling = async () => {
       try {
-        const res = await apiCall<User>("/users/me");
-        setUser(res.data ?? null);
+        setBilling(await fetchBalance());
       } catch (err) {
-        console.error("Failed to fetch user:", err);
+        console.error("Failed to fetch billing balance:", err);
       }
     };
-    fetchUser();
+    loadBilling();
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -153,17 +212,12 @@ export default function HomePage() {
         {/* Right actions */}
         <div className="ml-auto flex items-center gap-2.5">
           {/* Notification Bell */}
-          <div className="relative w-[30px] h-[30px] rounded-[9px] bg-[#F5F3F0] border border-[#E4E1DC] flex items-center justify-center text-[13px] cursor-pointer hover:bg-[#FAF9F7] transition-colors">
-            🔔
-            <div className="absolute -top-1 -right-1 min-w-[15px] h-[15px] rounded-full bg-[#B03030] text-white text-[9px] font-extrabold flex items-center justify-center px-1">
-              3
-            </div>
-          </div>
+          <NotificationBell />
 
           {/* Credits chip */}
           <div className="flex items-center gap-2 bg-[#F0EEEA] rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[#191817]">
             <span className="w-2 h-2 rounded-full bg-[#4F46E5] shrink-0" />
-            {user?.balance ?? 0} credits · Free
+            {billing?.balance ?? 0} credits · {billing?.planLabel ?? "Free"}
           </div>
 
           {/* New Project button */}
@@ -197,7 +251,10 @@ export default function HomePage() {
               <span>🔍</span>
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm dự án…"
+                aria-label="Tìm kiếm dự án theo tên"
                 className="w-full bg-transparent outline-none text-[#191817] text-[12px] placeholder:text-[#A8A49C]"
               />
             </div>
@@ -245,13 +302,18 @@ export default function HomePage() {
               </button>
             </div>
           </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="py-16 text-center text-[13px] text-[#8A867E]">
+            Không tìm thấy dự án nào khớp “{searchQuery.trim()}”.
+          </div>
         ) : (
           /* Populated Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((p) => (
+            {filteredProjects.map((p) => (
               <ProjectCard
                 key={p._id}
                 project={p}
+                progress={progressById[p._id]}
                 onRename={openRename}
                 onDelete={openDelete}
                 onHardDelete={(project) => {

@@ -50,7 +50,7 @@ export default function LoginPage() {
       }
 
       if (userRole === "admin") {
-        window.location.href = "/admin/prompt-templates";
+        window.location.href = "/admin/metrics";
       } else {
         window.location.href = "/home";
       }
@@ -186,7 +186,7 @@ export default function LoginPage() {
                       saveAuthToken(json.data.accessToken, userRole);
                     }
                     if (userRole === "admin") {
-                      window.location.href = "/admin/prompt-templates";
+                      window.location.href = "/admin/metrics";
                     } else {
                       window.location.href = "/home";
                     }

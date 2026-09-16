@@ -1,340 +1,288 @@
 "use client";
 
-import { useState } from "react";
-import {
-  SRS_CHAPTERS,
-  SECTION_TYPE_LABELS,
-  SectionType,
-  WorkspacePhase,
-} from "../../../../lib/constants/section-types";
-import { SectionItem } from "./PhaseNavBar";
+import { useEffect, useState } from "react";
+import { fetchDiagramPng } from "@/lib/api/spine";
+import { stepLabel } from "@/lib/constants/step-registry";
+import { useDocument } from "../hooks/useDocument";
+import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
+import type { Flag } from "@/types/flags";
 
 interface DocumentPaneProps {
+  projectId: string;
   projectName?: string;
-  sections: SectionItem[];
-  workspacePhase: WorkspacePhase;
-  onSaveSectionContent?: (type: SectionType, content: string) => Promise<void>;
-  onAssembleSRS?: () => void;
+  /** Cờ mở, dùng để gắn nút "xem tại step" theo `section_id` (nguồn duy nhất đáng tin cho map này). */
+  flags?: Flag[];
+  /** Section vừa đổi sau khi step ghi op hoặc ChangePanel áp một lô — viền nổi bật một nhịp. */
+  changedSectionIds?: ReadonlySet<string>;
+  onSelectStep?: (stepId: string) => void;
+  /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc ChangePanel áp lô). */
+  refreshToken?: number;
 }
 
-export default function DocumentPane({
-  projectName = "Dự án",
-  sections,
-  onSaveSectionContent,
-  onAssembleSRS,
-}: DocumentPaneProps) {
-  const [expandedChapters, setExpandedChapters] = useState<
-    Record<string, boolean>
-  >({
-    ch1: true,
-    ch2: true,
-    ch3: true,
-    ch4: true,
-    ch5: true,
-  });
+const STATUS_BADGE: Record<SectionStatus, { text: string; style: string }> = {
+  accepted: { text: "Accepted", style: "bg-[#E9F7EE] text-[#1F7A45]" },
+  draft: { text: "Draft", style: "bg-[#F4F3FE] text-[#3B34B0]" },
+  stale: { text: "Cũ", style: "bg-[#FBF4E4] text-[#8A6D1F]" },
+  derived: { text: "Dẫn xuất", style: "bg-[#F0EEEA] text-[#6B6862]" },
+};
 
-  const [editingSectionType, setEditingSectionType] =
-    useState<SectionType | null>(null);
-  const [editBuffer, setEditBuffer] = useState<string>("");
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [showFullDocModal, setShowFullDocModal] = useState(false);
+const runClass = (run: InlineRun): string =>
+  [run.bold ? "font-bold" : "", run.italic ? "italic" : "", run.code ? "font-mono bg-[#F0EEEA] px-1 rounded-[4px]" : ""]
+    .filter(Boolean)
+    .join(" ");
 
-  const toggleChapter = (chapterId: string) => {
-    setExpandedChapters((prev) => ({
-      ...prev,
-      [chapterId]: !prev[chapterId],
-    }));
-  };
+const Runs = ({ runs }: { runs: InlineRun[] }) => (
+  <>
+    {runs.map((run, i) => (
+      <span key={i} className={runClass(run) || undefined}>
+        {run.text}
+      </span>
+    ))}
+  </>
+);
 
-  const getSectionData = (type: SectionType) => {
-    return sections.find((s) => s.type === type);
-  };
+const Cell = ({ cell }: { cell: TableCell }) => <Runs runs={cell} />;
 
-  const startEdit = (type: SectionType, content: string) => {
-    setEditingSectionType(type);
-    setEditBuffer(content || "");
-  };
+/** Ảnh trong tài liệu: base64 thật hoặc tham chiếu `diagram-ref:<id>` (cache nội bộ BE lộ ra). */
+function DocumentImage({ projectId, png, caption }: { projectId: string; png: string; caption?: string }) {
+  const isDiagramRef = png.startsWith("diagram-ref:");
+  const directSrc = isDiagramRef ? null : `data:image/png;base64,${png}`;
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const saveEdit = async (type: SectionType) => {
-    if (!onSaveSectionContent) return;
-    try {
-      setSavingEdit(true);
-      await onSaveSectionContent(type, editBuffer);
-      setEditingSectionType(null);
-    } catch (err: unknown) {
-      alert("Lưu đặc tả thất bại: " + (err instanceof Error ? err.message : "Lỗi chưa xác định"));
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
-  // Compile full SRS Document text for preview / copy
-  const getFullSrsMarkdown = (): string => {
-    let doc = `# Software Requirement Specification (SRS)\n`;
-    doc += `## Dự án: ${projectName}\n`;
-    doc += `*Chuẩn cấu trúc: FPT Capstone Report 3 / ISO 29148*\n\n---\n\n`;
-
-    SRS_CHAPTERS.forEach((ch) => {
-      doc += `# ${ch.title}\n\n`;
-      ch.sections.forEach((type) => {
-        const sec = getSectionData(type);
-        const label = SECTION_TYPE_LABELS[type] || type;
-        doc += `### ${label}\n\n`;
-        if (sec && sec.content) {
-          doc += `${sec.content}\n\n`;
-        } else {
-          doc += `*Chưa có nội dung đặc tả cho mục này.*\n\n`;
+  useEffect(() => {
+    if (!isDiagramRef) return;
+    const diagramId = png.slice("diagram-ref:".length);
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    fetchDiagramPng(projectId, diagramId)
+      .then((url) => {
+        // Unmount (hoặc đổi `png`) trước khi fetch xong: blob URL vừa tạo không còn ai revoke ở
+        // cleanup bên dưới (nó chạy trước khi promise này resolve) — revoke ngay tại đây.
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
         }
-      });
-      doc += `---\n\n`;
-    });
+        objectUrl = url;
+        setResolvedSrc(url);
+      })
+      .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : "Không tải được ảnh diagram"));
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [projectId, png, isDiagramRef]);
 
-    return doc;
-  };
+  const src = directSrc ?? resolvedSrc;
+  if (error) return <div className="text-[11px] text-[#B03030] italic">Không tải được ảnh: {error}</div>;
+  if (!src) return <div className="text-[11px] text-[#A8A49C] italic">Đang tải ảnh…</div>;
+  // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
+  return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
+}
 
-  const handleCopyMarkdown = () => {
-    navigator.clipboard.writeText(getFullSrsMarkdown());
-    alert("Đã sao chép toàn bộ tài liệu SRS vào clipboard!");
-  };
+const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 
-  const handleDownloadMarkdown = () => {
-    const blob = new Blob([getFullSrsMarkdown()], {
-      type: "text/markdown;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `SRS_${projectName.replace(/\s+/g, "_")}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+/** Dùng lại ở `view/page.tsx` (read-only) để không lặp logic render Block. */
+export function BlockView({ block, projectId }: { block: Block; projectId: string }) {
+  switch (block.type) {
+    case "heading": {
+      const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
+      return <Tag className="font-extrabold text-[#191817] mt-2 mb-1 text-[13px]">{block.text}</Tag>;
+    }
+    case "paragraph":
+      return (
+        <p className="mb-2 last:mb-0 text-[12px] text-[#33312D] leading-relaxed">
+          <Runs runs={block.runs} />
+        </p>
+      );
+    case "bullet_list":
+      return (
+        <ul className="list-disc pl-5 mb-2 space-y-0.5 text-[12px] text-[#33312D]">
+          {block.items.map((item, i) => (
+            <li key={i}>
+              <Runs runs={item} />
+            </li>
+          ))}
+        </ul>
+      );
+    case "numbered_list":
+      return (
+        <ol className="list-decimal pl-5 mb-2 space-y-0.5 text-[12px] text-[#33312D]">
+          {block.items.map((item, i) => (
+            <li key={i}>
+              <Runs runs={item} />
+            </li>
+          ))}
+        </ol>
+      );
+    case "table":
+      return (
+        <div className="overflow-x-auto mb-2">
+          <table className="w-full border-collapse text-[11.5px]">
+            <thead>
+              <tr>
+                {block.header.map((cell, i) => (
+                  <th key={i} className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">
+                    <Cell cell={cell} />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, ri) => (
+                <tr key={ri}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="border border-[#ECEAE5] px-2 py-1 align-top">
+                      <Cell cell={cell} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    case "image":
+      return (
+        <div className="mb-2 flex flex-col items-center gap-1">
+          <DocumentImage projectId={projectId} png={block.png} caption={block.caption} />
+          {block.caption && <span className="text-[10.5px] text-[#8A867E] italic">{block.caption}</span>}
+        </div>
+      );
+    case "page_break":
+      return <hr className="my-3 border-dashed border-[#E4E1DC]" />;
+  }
+}
+
+function SectionView({
+  section,
+  projectId,
+  remediationStep,
+  changed,
+  onSelectStep,
+}: {
+  section: RenderedSection;
+  projectId: string;
+  remediationStep?: string;
+  changed: boolean;
+  onSelectStep?: (stepId: string) => void;
+}) {
+  const badge = section.status ? STATUS_BADGE[section.status] : null;
+  return (
+    <article
+      data-section-id={section.id}
+      className={`p-4 rounded-[12px] border bg-white flex flex-col gap-2 transition-colors ${
+        changed ? "border-[#4F46E5] ring-1 ring-[#DDD9F6]" : "border-[#ECEAE5]"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h5 className="font-bold text-[12.5px] text-[#191817]">
+          §{section.number} {section.heading}
+        </h5>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {section.awaiting_reaccept && (
+            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">Chờ duyệt lại</span>
+          )}
+          {badge && <span className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{badge.text}</span>}
+          {remediationStep && onSelectStep && (
+            <button
+              type="button"
+              onClick={() => onSelectStep(remediationStep)}
+              className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#F4F3FE] text-[#4F46E5] hover:bg-[#EDEAFB] cursor-pointer"
+            >
+              xem tại {remediationStep} · {stepLabel(remediationStep)}
+            </button>
+          )}
+        </div>
+      </div>
+      {section.blocks.length > 0 ? (
+        section.blocks.map((block, i) => <BlockView key={i} block={block} projectId={projectId} />)
+      ) : (
+        <div className="text-[11.5px] text-[#A8A49C] italic">Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.</div>
+      )}
+    </article>
+  );
+}
+
+/** Document pane thật (T16): render `GET /document` (RenderedDocument, T15) — chỉ đọc. */
+export default function DocumentPane({
+  projectId,
+  projectName = "Dự án",
+  flags = [],
+  changedSectionIds,
+  onSelectStep,
+  refreshToken = 0,
+}: DocumentPaneProps) {
+  const { document, meta, loading, notAssembled, error, reload } = useDocument(projectId, "draft", undefined, refreshToken);
+
+  const remediationStepOf = (sectionId: string): string | undefined =>
+    flags.find((f) => (!f.resolved_at && !f.waived_by_user) && f.section_id === sectionId)?.remediation_step;
 
   return (
-    <section className="flex-1 bg-white flex flex-col min-w-[480px] overflow-hidden">
-      {/* Top Header of Document Pane */}
+    <section className="flex-1 bg-white flex flex-col min-w-[320px] overflow-hidden">
       <div className="px-6 py-3 border-b border-[#ECEAE5] flex items-center justify-between shrink-0 h-[52px] bg-white">
         <div className="flex items-center gap-2.5">
-          <h3 className="font-extrabold text-[13.5px] text-[#191817]">
-            SRS — {projectName}
-          </h3>
-          <span className="text-[10.5px] text-[#8A867E] bg-[#F5F3F0] px-2 py-0.5 rounded-full font-mono">
-            source of truth
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowFullDocModal(true)}
-            className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F4F3FE] border border-[#ECEAE5] hover:border-[#DDD9F6] text-[#4F46E5] text-[11.5px] font-bold transition-all cursor-pointer"
-          >
-            📄 Xem toàn văn SRS
-          </button>
-        </div>
-      </div>
-
-      {/* Document Tree Body */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-[#FAF9F7]">
-        {SRS_CHAPTERS.map((ch) => {
-          const isExpanded = expandedChapters[ch.id];
-          const chapterSections = ch.sections;
-          const acceptedCount = chapterSections.filter(
-            (t) => getSectionData(t)?.status === "accepted"
-          ).length;
-          const hasContentCount = chapterSections.filter(
-            (t) => Boolean(getSectionData(t)?.content)
-          ).length;
-          const isAllAccepted =
-            acceptedCount === chapterSections.length &&
-            chapterSections.length > 0;
-
-          return (
-            <div
-              key={ch.id}
-              className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden shadow-2xs transition-all"
+          <h3 className="font-extrabold text-[13.5px] text-[#191817]">SRS — {projectName}</h3>
+          {document && <span className="text-[10.5px] text-[#8A867E] bg-[#F5F3F0] px-2 py-0.5 rounded-full font-mono">{document.version}</span>}
+          {document?.watermark && (
+            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">{document.watermark}</span>
+          )}
+          {meta?.stale && (
+            <span
+              className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FDEDED] text-[#B03030]"
+              title="Spine đã đổi tiếp sau lần ghép gần nhất"
             >
-              {/* Chapter Header Bar */}
-              <div
-                onClick={() => toggleChapter(ch.id)}
-                className="px-5 py-3.5 bg-white hover:bg-[#FAF9F7] flex items-center justify-between cursor-pointer select-none border-b border-[#ECEAE5]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-sm text-[#8A867E] transition-transform">
-                    {isExpanded ? "▼" : "▶"}
-                  </span>
-                  <h4 className="font-extrabold text-[13.5px] text-[#191817]">
-                    {ch.title}
-                  </h4>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                      isAllAccepted
-                        ? "bg-[#E9F7EE] text-[#1F7A45] border border-[#BFE6CE]"
-                        : hasContentCount > 0
-                        ? "bg-[#F4F3FE] text-[#3B34B0] border border-[#DDD9F6]"
-                        : "bg-[#F0EEEA] text-[#8A867E]"
-                    }`}
-                  >
-                    {isAllAccepted
-                      ? "✓ ĐÃ NGHIỆM THU ĐỦ"
-                      : `${acceptedCount}/${chapterSections.length} mục`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Sub-sections list */}
-              {isExpanded && (
-                <div className="p-5 space-y-4 bg-white">
-                  {chapterSections.map((secType) => {
-                    const sec = getSectionData(secType);
-                    const label = SECTION_TYPE_LABELS[secType] || secType;
-                    const isEditing = editingSectionType === secType;
-                    const hasContent = Boolean(sec && sec.content);
-                    const isAccepted = sec?.status === "accepted";
-
-                    return (
-                      <div
-                        key={secType}
-                        className="p-4 rounded-[12px] border border-[#ECEAE5] bg-[#FAF9F7] flex flex-col gap-2.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                isAccepted
-                                  ? "bg-[#1F7A45]"
-                                  : hasContent
-                                  ? "bg-[#4F46E5]"
-                                  : "bg-[#D6D2CB]"
-                              }`}
-                            />
-                            <h5 className="font-bold text-[12.5px] text-[#191817]">
-                              {label}
-                            </h5>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${
-                                isAccepted
-                                  ? "bg-[#E9F7EE] text-[#1F7A45]"
-                                  : hasContent
-                                  ? "bg-[#F4F3FE] text-[#3B34B0]"
-                                  : "bg-[#F0EEEA] text-[#8A867E]"
-                              }`}
-                            >
-                              {isAccepted
-                                ? "Accepted"
-                                : hasContent
-                                ? "Draft"
-                                : "Chưa sinh"}
-                            </span>
-
-                            {hasContent && !isEditing && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  startEdit(secType, sec?.content || "")
-                                }
-                                className="text-[11px] font-bold text-[#4F46E5] hover:underline cursor-pointer ml-1"
-                              >
-                                Sửa
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Content render or edit mode */}
-                        {isEditing ? (
-                          <div className="flex flex-col gap-2 pt-1">
-                            <textarea
-                              value={editBuffer}
-                              onChange={(e) => setEditBuffer(e.target.value)}
-                              rows={8}
-                              className="w-full p-3 text-[12px] font-mono text-[#191817] bg-white border border-[#DDD9F6] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#4F46E5]"
-                            />
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setEditingSectionType(null)}
-                                className="px-3 py-1 rounded-full text-[11px] font-semibold text-[#6B6862] hover:bg-[#F0EEEA] cursor-pointer"
-                              >
-                                Huỷ
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => saveEdit(secType)}
-                                disabled={savingEdit}
-                                className="px-3.5 py-1 rounded-full btn-gradient-primary text-white text-[11px] font-bold cursor-pointer"
-                              >
-                                {savingEdit ? "Đang lưu…" : "Lưu thay đổi"}
-                              </button>
-                            </div>
-                          </div>
-                        ) : hasContent ? (
-                          <div className="p-3 bg-white border border-[#ECEAE5] rounded-[8px] text-[12px] text-[#33312D] font-mono leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
-                            {sec?.content}
-                          </div>
-                        ) : (
-                          <div className="p-3 bg-white/60 border border-dashed border-[#E4E1DC] rounded-[8px] text-[11.5px] text-[#A8A49C] italic">
-                            Chưa có nội dung đặc tả. Vui lòng chuyển sang Phase
-                            tương ứng để sinh.
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+              stale
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => void reload()}
+          className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F4F3FE] border border-[#ECEAE5] text-[#4F46E5] text-[11.5px] font-bold cursor-pointer"
+        >
+          ↻ Tải lại
+        </button>
       </div>
 
-      {/* Full Document Modal */}
-      {showFullDocModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[20px] p-6 max-w-4xl w-full h-[85vh] border border-[#ECEAE5] shadow-2xl flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#ECEAE5]">
-              <div className="flex items-center gap-2">
-                <span className="text-[#4F46E5] text-lg">📄</span>
-                <h3 className="font-extrabold text-[16px] text-[#191817]">
-                  Toàn văn tài liệu SRS — {projectName}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleCopyMarkdown}
-                  className="px-3.5 py-1.5 rounded-full border border-[#ECEAE5] hover:bg-[#FAF9F7] text-[11.5px] font-bold text-[#4B4842] cursor-pointer"
-                >
-                  📋 Sao chép Markdown
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadMarkdown}
-                  className="px-3.5 py-1.5 rounded-full btn-gradient-primary text-white text-[11.5px] font-bold cursor-pointer"
-                >
-                  📥 Tải file .md
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowFullDocModal(false)}
-                  className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] hover:text-[#191817] cursor-pointer ml-1"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+      <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#FAF9F7]">
+        {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
 
-            <div className="flex-1 overflow-y-auto p-4 bg-[#FAF9F7] rounded-[12px] border border-[#ECEAE5] font-mono text-[12px] text-[#191817] leading-relaxed whitespace-pre-wrap">
-              {getFullSrsMarkdown()}
-            </div>
+        {!loading && notAssembled && (
+          <div className="bg-white border border-dashed border-[#E4E1DC] rounded-[14px] p-5 flex flex-col items-center gap-2 text-center">
+            <span className="text-[12.5px] font-bold text-[#4B4842]">Chưa có bản ghép tài liệu</span>
+            <span className="text-[11px] text-[#8A867E] leading-relaxed">{error}</span>
+            {onSelectStep && (
+              <button
+                type="button"
+                onClick={() => onSelectStep("S-8.2")}
+                className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer"
+              >
+                Đi tới S-8.2 · Ghép tài liệu
+              </button>
+            )}
           </div>
-        </div>
-      )}
+        )}
+
+        {!loading && !notAssembled && error && (
+          <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
+            Không tải được tài liệu: {error}
+          </div>
+        )}
+
+        {!loading &&
+          document &&
+          document.sections.map((section) => (
+            <SectionView
+              key={section.id}
+              section={section}
+              projectId={projectId}
+              remediationStep={remediationStepOf(section.id)}
+              changed={changedSectionIds?.has(section.id) ?? false}
+              onSelectStep={onSelectStep}
+            />
+          ))}
+      </div>
     </section>
   );
 }

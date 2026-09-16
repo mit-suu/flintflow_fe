@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { estimateActionCost } from "../../../../lib/api/chat";
+import type { ChatActionType } from "@/types/chat";
 
 interface ChatInputProps {
   inputMessage: string;
@@ -10,9 +12,28 @@ interface ChatInputProps {
   pendingAttachments: File[];
   onSelectAttachment: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemoveAttachment: (fileName: string) => void;
-  creditEstimate?: number;
+  /** ActionType BE dùng để tính giá credit mỗi tin nhắn. */
+  actionType: ChatActionType;
   placeholder?: string;
 }
+
+// ChatInput mount lại sau mỗi lượt AI; cache giá theo actionType để chỉ gọi BE một lần mỗi loại.
+// Request lỗi bị xoá khỏi cache để lần mount sau thử lại.
+const costRequests = new Map<ChatActionType, Promise<number | null>>();
+
+const loadActionCost = (actionType: ChatActionType): Promise<number | null> => {
+  let request = costRequests.get(actionType);
+  if (!request) {
+    request = estimateActionCost(actionType)
+      .then((res) => res.data?.cost ?? null)
+      .catch(() => {
+        costRequests.delete(actionType);
+        return null;
+      });
+    costRequests.set(actionType, request);
+  }
+  return request;
+};
 
 export default function ChatInput({
   inputMessage,
@@ -22,10 +43,22 @@ export default function ChatInput({
   pendingAttachments,
   onSelectAttachment,
   onRemoveAttachment,
-  creditEstimate = 1,
+  actionType,
   placeholder = "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [creditEstimate, setCreditEstimate] = useState<number | null>(null);
+
+  // Giá credit lấy từ BE; lỗi thì ẩn thay vì hiện số đoán
+  useEffect(() => {
+    let cancelled = false;
+    loadActionCost(actionType).then((cost) => {
+      if (!cancelled) setCreditEstimate(cost);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [actionType]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -99,9 +132,11 @@ export default function ChatInput({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[10.5px] font-mono text-[#A8A49C]">
-              ~{creditEstimate} credit / msg
-            </span>
+            {creditEstimate !== null && (
+              <span className="text-[10.5px] font-mono text-[#A8A49C]">
+                ~{creditEstimate} credit / msg
+              </span>
+            )}
 
             <button
               type="button"

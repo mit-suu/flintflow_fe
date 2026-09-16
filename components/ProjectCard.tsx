@@ -2,35 +2,19 @@
 
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
-
-export interface Project {
-  _id: string;
-  name: string;
-  domain?: string | null;
-  status: "active" | "archived";
-  currentStep: string;
-  progressPercent: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Project } from "@/types/project";
+import type { ProgressResponse } from "@/types/pipeline";
+import { tStep, type Locale } from "@/lib/i18n";
 
 interface Props {
   project: Project;
+  /** `GET /projects/:id/progress`; `null` khi project chưa có Spine, `undefined` khi đang tải. */
+  progress?: ProgressResponse | null;
+  locale?: Locale;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
   onHardDelete: (p: Project) => void;
 }
-
-const STEP_LABELS: Record<string, string> = {
-  step_1: "Mô tả ý tưởng dự án",
-  step_2: "AI đặt câu hỏi làm rõ",
-  step_3: "Phân tích yêu cầu",
-  step_4: "Sinh đặc tả sections",
-  step_5: "Review & chỉnh sửa",
-  step_6: "Xác minh chất lượng",
-  step_7: "Export handoff cho dev",
-  blocked: "Cần trả lời câu hỏi mở",
-};
 
 type Variant = {
   gradient: string;
@@ -41,8 +25,15 @@ type Variant = {
   arrow: string;
 };
 
-function getVariant(progressPercent: number, currentStep: string): Variant {
-  if (currentStep === "blocked") {
+/**
+ * T23: trạng thái thẻ đọc từ **readiness thật** của Spine, không phải phần trăm legacy trên document
+ * Project (field section-based cũ, BE không còn cập nhật; T21 xoá).
+ *
+ * Thứ tự quyết định có chủ ý: **cờ đỏ thắng phần trăm**. Một tài liệu 90% section đã chấp nhận mà còn
+ * khoá chết thì không "sẵn sàng" — đó đúng là điều kiện chặn baseline ở S-9.5.
+ */
+function getVariant(progress: ProgressResponse | null | undefined): Variant {
+  if (progress && progress.readiness.red_open > 0) {
     return {
       gradient: "linear-gradient(135deg,#F6D5D5,#E89090 50%,#B03030)",
       badge: "Cần làm rõ",
@@ -52,7 +43,8 @@ function getVariant(progressPercent: number, currentStep: string): Variant {
       arrow: "#E8A23D",
     };
   }
-  if (progressPercent >= 80) {
+  const accepted = progress?.readiness.accepted_pct ?? 0;
+  if (progress && accepted >= 80) {
     return {
       gradient: "linear-gradient(135deg,#DDF3E4,#9BD9B4 45%,#2FA45C)",
       badge: "Sẵn sàng",
@@ -62,7 +54,7 @@ function getVariant(progressPercent: number, currentStep: string): Variant {
       arrow: "#2FA45C",
     };
   }
-  if (progressPercent >= 40) {
+  if (progress && accepted >= 40) {
     return {
       gradient: "linear-gradient(135deg,#C7B8F5,#7C74F0 50%,#4F46E5)",
       badge: "Đang phân tích",
@@ -82,6 +74,14 @@ function getVariant(progressPercent: number, currentStep: string): Variant {
   };
 }
 
+/** Việc tiếp theo: step đang dở lấy từ registry. Chưa có Spine ⇒ nói thẳng là chưa bắt đầu. */
+export function nextStepLabel(progress: ProgressResponse | null | undefined, locale: Locale = "vi"): string {
+  if (progress === undefined) return "Đang tải…";
+  const stepId = progress?.progress.current_step;
+  if (!stepId) return "Chưa bắt đầu — mở để mô tả ý tưởng";
+  return tStep(stepId, locale);
+}
+
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (seconds < 3600) return `${Math.max(1, Math.floor(seconds / 60))} phút trước`;
@@ -91,11 +91,11 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(seconds / 604800)} tuần trước`;
 }
 
-export default function ProjectCard({ project, onRename, onDelete, onHardDelete }: Props) {
+export default function ProjectCard({ project, progress, locale = "vi", onRename, onDelete, onHardDelete }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const variant = getVariant(project.progressPercent, project.currentStep);
-  const stepLabel = STEP_LABELS[project.currentStep] ?? project.currentStep;
+  const variant = getVariant(progress);
+  const stepLabel = nextStepLabel(progress, locale);
 
   useEffect(() => {
     if (!menuOpen) return;
