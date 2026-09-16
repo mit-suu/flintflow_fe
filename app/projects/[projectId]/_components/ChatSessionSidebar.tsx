@@ -1,21 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-export interface ChatMessage {
-  role: "user" | "ai";
-  content: string;
-  step?: string;
-  createdAt: string;
-}
-
-export interface ChatSession {
-  _id: string;
-  projectId: string;
-  messages: ChatMessage[];
-  isActive: boolean;
-  createdAt: string;
-}
+import type { ChatSession } from "@/types/chat";
 
 interface ChatSessionSidebarProps {
   sessions: ChatSession[];

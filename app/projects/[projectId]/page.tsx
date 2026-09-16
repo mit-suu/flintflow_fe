@@ -1,583 +1,465 @@
 "use client";
 
-import { useEffect, useState, useRef, type ChangeEvent } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { apiCall } from "../../../lib/api";
-import { isAuthenticated, clearAuthToken } from "../../../lib/auth";
-import {
-  WorkspacePhase,
-  DiscoveryStepNumber,
-  SectionType,
-  DISCOVERY_STEPS,
-} from "../../../lib/constants/section-types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { applyChanges } from "@/lib/api/spine";
+import { ApiClientError } from "@/lib/api/client";
+import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
+import type { ApplyResult, Op } from "@/types/pipeline";
+import type { WorkingMode } from "@/types/spine";
 
-// Component imports
-import WorkspaceHeader, {
-  ProjectData,
-  UserData,
-} from "./_components/WorkspaceHeader";
-import PhaseNavBar, { SectionItem } from "./_components/PhaseNavBar";
-import DiscoveryStepBar from "./_components/DiscoveryStepBar";
-import ChatSessionSidebar, {
-  ChatSession,
-  ChatMessage,
-} from "./_components/ChatSessionSidebar";
+import WorkspaceHeader from "./_components/WorkspaceHeader";
+import PhaseNavBar from "./_components/PhaseNavBar";
+import PhaseHeader from "./_components/PhaseHeader";
+import StepProgressBar from "./_components/StepProgressBar";
+import ChatSessionSidebar from "./_components/ChatSessionSidebar";
 import ChatPane from "./_components/ChatPane";
 import DocumentPane from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
+import ChangePanel, { type ChangeSeed } from "./_components/ChangePanel";
+import ExportPanel from "./_components/ExportPanel";
+import GateCard from "./_components/GateCard";
+import ElicitPanel from "./_components/ElicitPanel";
+import StepEventLog from "./_components/StepEventLog";
+import ScreenQueuePanel from "./_components/ScreenQueuePanel";
+import NamesGlossaryPanel from "./_components/NamesGlossaryPanel";
+import BriefSummaryCard from "./_components/BriefSummaryCard";
+import AssumptionSweepPanel from "./_components/AssumptionSweepPanel";
+import AddendumTriagePanel from "./_components/AddendumTriagePanel";
+import { useWorkspace } from "./hooks/useWorkspace";
+import { useSpine } from "./hooks/useSpine";
+import { useProgress } from "./hooks/useProgress";
+import { useStepRunner } from "./hooks/useStepRunner";
+import { useFlags } from "./hooks/useFlags";
+
+/** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
+const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+
+const DEFAULT_CHAT_PANE_WIDTH = 480;
+const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
+
+const readSavedChatPaneWidth = (): number => {
+  if (typeof window === "undefined") return DEFAULT_CHAT_PANE_WIDTH;
+  try {
+    const parsed = parseInt(localStorage.getItem(CHAT_WIDTH_KEY) ?? "", 10);
+    if (!isNaN(parsed) && parsed >= 340 && parsed <= 1000) return parsed;
+  } catch {}
+  return DEFAULT_CHAT_PANE_WIDTH;
+};
 
 export default function WorkspacePage() {
-  const router = useRouter();
   const params = useParams();
   const projectId = params?.projectId as string;
 
-  // Primary Data State
-  const [project, setProject] = useState<ProjectData | null>(null);
-  const [user, setUser] = useState<UserData | null>(null);
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-  const [sections, setSections] = useState<SectionItem[]>([]);
+  const ws = useWorkspace(projectId);
+  const spineState = useSpine(projectId, ws.ready);
+  const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
+  // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
+  // `DocumentPane` không nhận `flags` nên nút "xem tại step" chết; nâng lên đây, truyền xuống cả hai.
+  const {
+    flags,
+    loading: flagsLoading,
+    error: flagsError,
+    busy: flagsBusy,
+    waive: waiveFlagFn,
+    recompute: recomputeFlagsFn,
+  } = useFlags(projectId, spineState.version);
 
-  // Workflow State
-  const [workspacePhase, setWorkspacePhase] =
-    useState<WorkspacePhase>("discovery");
-  const [discoveryStep, setDiscoveryStep] = useState<DiscoveryStepNumber>(1);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [verificationOpen, setVerificationOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [changePanelOpen, setChangePanelOpen] = useState(false);
+  const [changeSeed, setChangeSeed] = useState<ChangeSeed | undefined>(undefined);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [savingChange, setSavingChange] = useState(false);
 
-  // Interaction State
-  const [inputMessage, setInputMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [generatingPhase, setGeneratingPhase] = useState(false);
-  const [acceptingType, setAcceptingType] = useState<SectionType | null>(null);
-  const [regeneratingType, setRegeneratingType] = useState<SectionType | null>(
-    null
+  // ─── version hiện tại cho mọi lượt ghi ─────────────────────────
+  // Chỉ tăng: một response GET về trễ không được kéo base_version lùi lại (gây 409 giả)
+  const versionRef = useRef<number | null>(null);
+  const bumpVersion = useCallback((version: number | null | undefined) => {
+    if (version === null || version === undefined) return;
+    if (versionRef.current === null || version > versionRef.current) versionRef.current = version;
+  }, []);
+  useEffect(() => bumpVersion(spineState.version), [bumpVersion, spineState.version]);
+  const getBaseVersion = useCallback(() => versionRef.current, []);
+  // `latestSeq` cho lịch sử Change panel (20 dòng gần nhất) — lấy từ `max(steps[].last_seq)` của
+  // Spine hiện tại, không phải `spine_version` (seq của change và version step là hai trục khác nhau).
+  const getLatestSeq = useCallback(() => {
+    const currentSpine = spineState.spine;
+    if (!currentSpine) return null;
+    const seqs = currentSpine.steps.map((s) => s.last_seq).filter((n): n is number => typeof n === "number");
+    return seqs.length ? Math.max(...seqs) : null;
+  }, [spineState.spine]);
+
+  const handleFlagWaive = useCallback(
+    async (flagId: string, reason: string) => {
+      await waiveFlagFn(flagId, reason);
+      void reloadProgress();
+    },
+    [waiveFlagFn, reloadProgress]
   );
-  const [approvingBaseline, setApprovingBaseline] = useState(false);
-  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
 
-  const didInitRef = useRef(false);
+  const handleFlagRecompute = useCallback(async () => {
+    await recomputeFlagsFn();
+    void reloadProgress();
+  }, [recomputeFlagsFn, reloadProgress]);
 
-  const getErrorMessage = (error: unknown, fallback: string) => {
-    if (error instanceof Error) {
-      return error.message || fallback;
-    }
-    return fallback;
-  };
+  const { reload: reloadSpine, replace: replaceSpine } = spineState;
+  const { refreshUser } = ws;
+  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
+  const onSpineChanged = useCallback(
+    (spineVersion?: number) => {
+      bumpVersion(spineVersion);
+      void reloadSpine();
+      void reloadProgress();
+      refreshUser();
+      setDocumentRefreshToken((v) => v + 1);
+    },
+    [bumpVersion, reloadSpine, reloadProgress, refreshUser]
+  );
 
-  const handleLogout = () => {
-    clearAuthToken();
-    router.push("/login");
-  };
+  const runner = useStepRunner({
+    projectId,
+    sessionId: ws.activeSession?._id ?? null,
+    getBaseVersion,
+    onSpineChanged,
+    onGateDone: (res) => setSelectedStepId(res.next_step),
+  });
 
-  const handleCreateChatSession = async () => {
-    try {
-      const res = await apiCall<ChatSession>(`/projects/${projectId}/chats`, {
-        method: "POST",
-      });
-      if (res.data) {
-        setChatSessions((prev) => [
-          res.data!,
-          ...prev.map((s) => ({ ...s, isActive: false })),
-        ]);
-        setActiveSession(res.data);
-      }
-    } catch (err: unknown) {
-      alert(getErrorMessage(err, "Không thể tạo cuộc trò chuyện mới"));
-    }
-  };
+  const spine = spineState.spine;
+  const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
+  const currentPhase = progress?.progress.current_phase ?? steps?.current_phase ?? spine?.progress.current_phase ?? null;
+  const runnerStep = runner.state.stepId;
+  const viewedStep = selectedStepId ?? currentStep;
+  const viewedSummary = steps?.steps.find((s) => s.id === viewedStep);
 
-  // Initialize Workspace Data
-  useEffect(() => {
-    if (!projectId) return;
-    if (didInitRef.current) return;
-    didInitRef.current = true;
-
-    const init = async () => {
-      if (!isAuthenticated()) {
-        router.push("/login");
-        return;
-      }
-
+  // ─── ghi op thuần (Panel Tên riêng, [C], placeholder) ──────────
+  const submitOps = useCallback(
+    async (ops: Op[]) => {
+      const baseVersion = versionRef.current;
+      if (baseVersion === null) return;
+      setSavingChange(true);
       try {
-        const [projectRes, userRes, sessionsRes, sectionsRes] =
-          await Promise.all([
-            apiCall<ProjectData>(`/projects/${projectId}`),
-            apiCall<UserData>("/users/me"),
-            apiCall<ChatSession[]>(`/projects/${projectId}/chats`),
-            apiCall<SectionItem[]>(`/specifications/projects/${projectId}`),
-          ]);
-
-        if (projectRes.data) {
-          setProject(projectRes.data);
-          if (projectRes.data.workspacePhase) {
-            setWorkspacePhase(
-              projectRes.data.workspacePhase as WorkspacePhase
-            );
-          }
+        const res = await applyChanges(projectId, { base_version: baseVersion, ops });
+        if (res.data) {
+          bumpVersion(res.data.spine_version);
+          replaceSpine(res.data.spine);
+          void reloadProgress();
         }
-        if (userRes.data) setUser(userRes.data);
-        if (sectionsRes.data) setSections(sectionsRes.data);
-
-        if (sessionsRes.data) {
-          setChatSessions(sessionsRes.data);
-          const active =
-            sessionsRes.data.find((s) => s.isActive) || sessionsRes.data[0];
-          if (active) {
-            setActiveSession(active);
-          } else {
-            await handleCreateChatSession();
-          }
-        }
-      } catch (err: unknown) {
-        console.error("Workspace init failed:", err);
-        if (
-          err instanceof Error &&
-          "status" in err &&
-          (err as { status?: number }).status === 401
-        ) {
-          clearAuthToken();
-          router.push("/login");
+      } catch (err) {
+        if (err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT") {
+          alert("Tài liệu vừa đổi ở phiên khác — đã tải lại, vui lòng thử lại.");
+          void reloadSpine();
+        } else {
+          alert(err instanceof Error ? err.message : "Không lưu được thay đổi");
         }
       } finally {
-        setLoading(false);
+        setSavingChange(false);
       }
+    },
+    [projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine]
+  );
+
+  const changeWorkingMode = (mode: WorkingMode) =>
+    submitOps([{ op: "set", path: "project.working_mode", value: mode, reason: "[C] đổi cách làm việc" }]);
+
+  /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
+  const inBriefPhase = (spine?.progress.current_phase ?? "").startsWith("B-") || spine?.progress.current_phase === "S-1";
+
+  const markPlaceholder = (screenId: string) =>
+    submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
+
+  // ─── ChangePanel áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
+  const changedSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleChangeApplied = useCallback(
+    (result: ApplyResult, impactedSectionIds?: string[]) => {
+      bumpVersion(result.spine_version);
+      replaceSpine(result.spine);
+      void reloadProgress();
+      setDocumentRefreshToken((v) => v + 1);
+      setChangedSectionIds(new Set(impactedSectionIds ?? []));
+      // Viền nổi bật "một nhịp" (chú thích DocumentPane) — tắt sau một khoảng, không giữ mãi.
+      if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
+      changedSectionTimerRef.current = setTimeout(() => setChangedSectionIds(new Set()), CHANGED_SECTION_HIGHLIGHT_MS);
+    },
+    [bumpVersion, replaceSpine, reloadProgress]
+  );
+  useEffect(() => () => {
+    if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
+  }, []);
+
+  // ChatPane: session không pipeline ⇒ ô lệnh sửa mở Change panel và xem trước lệnh ngay
+  const forwardInstructionToChangePanel = useCallback((instruction: string) => {
+    if (!instruction.trim()) return;
+    setChangeSeed({ text: instruction, nonce: Date.now() });
+    setChangePanelOpen(true);
+  }, []);
+
+  // ─── resize chat pane ─────────────────────────────────────────
+  const [chatPaneWidth, setChatPaneWidth] = useState<number>(readSavedChatPaneWidth);
+  const [isResizing, setIsResizing] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const widthRef = useRef(chatPaneWidth);
+  useEffect(() => {
+    widthRef.current = chatPaneWidth;
+  }, [chatPaneWidth]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const onMove = (e: MouseEvent) => {
+      const pane = document.getElementById("flintflow-chat-pane");
+      if (!pane || !mainRef.current) return;
+      const asideWidth = (verificationOpen ? 380 : 0) + (toolsOpen ? 340 : 0) + (sidebarOpen ? 230 : 0);
+      const maxAllowed = Math.max(350, mainRef.current.getBoundingClientRect().width - asideWidth - 320);
+      setChatPaneWidth(Math.min(Math.max(350, e.clientX - pane.getBoundingClientRect().left), Math.min(1000, maxAllowed)));
     };
-
-    init();
-  }, [projectId, router]);
-
-  // Select a Chat Session
-  const handleSelectSession = async (session: ChatSession) => {
-    try {
-      const res = await apiCall<ChatSession>(
-        `/projects/${projectId}/chats/${session._id}`
-      );
-      if (res.data) {
-        setActiveSession(res.data);
-        setChatSessions((prev) =>
-          prev.map((s) => ({ ...s, isActive: s._id === session._id }))
-        );
-      }
-    } catch (err: unknown) {
-      alert(getErrorMessage(err, "Không thể tải cuộc trò chuyện"));
-    }
-  };
-
-  // Delete a Chat Session
-  const handleDeleteSession = async (sessionId: string) => {
-    try {
-      await apiCall(`/projects/${projectId}/chats/${sessionId}`, {
-        method: "DELETE",
-      });
-
-      setChatSessions((prev) => {
-        const filtered = prev.filter((s) => s._id !== sessionId);
-        if (activeSession?._id === sessionId) {
-          const nextActive = filtered[0];
-          if (nextActive) {
-            handleSelectSession(nextActive);
-          } else {
-            setActiveSession(null);
-          }
-        }
-        return filtered;
-      });
-    } catch (err: unknown) {
-      alert("Không thể xoá cuộc trò chuyện: " + getErrorMessage(err, "Lỗi"));
-    }
-  };
-
-  // Send Message with optional attachments
-  const handleSendMessage = async (customContent?: string) => {
-    const msgToSend = customContent || inputMessage;
-    if (
-      (!msgToSend.trim() && pendingAttachments.length === 0) ||
-      !activeSession ||
-      sending
-    )
-      return;
-
-    setSending(true);
-    if (!customContent) setInputMessage("");
-
-    const contentToPost = msgToSend.trim() || "[Đính kèm tài liệu]";
-
-    // Optimistic update: hiển thị user message ngay lập tức
-    const optimisticMsg: ChatMessage = {
-      role: "user",
-      content: contentToPost,
-      step: workspacePhase === "discovery"
-        ? DISCOVERY_STEPS[discoveryStep - 1]?.chatStepName || "vision_problem"
-        : "vision_problem",
-      createdAt: new Date().toISOString(),
+    const onUp = () => {
+      setIsResizing(false);
+      try {
+        localStorage.setItem(CHAT_WIDTH_KEY, String(widthRef.current));
+      } catch {}
     };
-    setActiveSession((prev) =>
-      prev
-        ? { ...prev, messages: [...prev.messages, optimisticMsg] }
-        : prev
-    );
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing, verificationOpen, toolsOpen, sidebarOpen]);
 
-    try {
-      // 1. Upload pending attachments if any
-      if (pendingAttachments.length > 0) {
-        for (const file of pendingAttachments) {
-          const formData = new FormData();
-          formData.append("file", file);
-
-          await apiCall(`/projects/${projectId}/documents`, {
-            method: "POST",
-            body: formData,
-          });
-        }
-        setPendingAttachments([]);
-      }
-
-      // 2. Post chat message with current discovery chat step name if in discovery
-      const currentChatStep =
-        workspacePhase === "discovery"
-          ? DISCOVERY_STEPS[discoveryStep - 1]?.chatStepName || "vision_problem"
-          : "vision_problem";
-
-      const res = await apiCall<ChatSession>(
-        `/projects/${projectId}/chats/${activeSession._id}/messages`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            content: contentToPost,
-            step: currentChatStep,
-            discoveryStep: workspacePhase === "discovery" ? discoveryStep : undefined,
-          }),
-        }
-      );
-
-      if (res.data) {
-        // Server response chứa đầy đủ messages (user + AI), thay thế optimistic state
-        setActiveSession(res.data);
-        const userRes = await apiCall<UserData>("/users/me");
-        if (userRes.data) setUser(userRes.data);
-      }
-    } catch (err: unknown) {
-      // Rollback optimistic update nếu lỗi
-      setActiveSession((prev) =>
-        prev
-          ? { ...prev, messages: prev.messages.filter((m) => m !== optimisticMsg) }
-          : prev
-      );
-      alert(getErrorMessage(err, "Không thể gửi tin nhắn"));
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleSelectAttachment = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    setPendingAttachments((prev) => [...prev, ...Array.from(files)]);
-    event.target.value = "";
-  };
-
-  const handleRemoveAttachment = (fileName: string) => {
-    setPendingAttachments((prev) =>
-      prev.filter((f) => f.name !== fileName)
-    );
-  };
-
-  // Batch Generate Sections for the current phase
-  const handleGeneratePhase = async () => {
-    if (!activeSession || generatingPhase) return;
-    setGeneratingPhase(true);
-
-    try {
-      const res = await apiCall<{
-        generated: SectionItem[];
-        errors: Array<{ type: string; error: string }>;
-      }>(`/specifications/projects/${projectId}/generate-phase`, {
-        method: "POST",
-        body: JSON.stringify({
-          workspacePhase,
-          chatSessionId: activeSession._id,
-        }),
-      });
-
-      if (res.data) {
-        setSections((prev) => {
-          const updated = [...prev];
-          for (const newSec of res.data!.generated) {
-            const idx = updated.findIndex((s) => s.type === newSec.type);
-            if (idx !== -1) updated[idx] = newSec;
-            else updated.push(newSec);
-          }
-          return updated;
-        });
-
-        const userRes = await apiCall<UserData>("/users/me");
-        if (userRes.data) setUser(userRes.data);
-      }
-    } catch (err: unknown) {
-      alert(
-        "Sinh đặc tả thất bại: " +
-          getErrorMessage(err, "Vui lòng chat làm rõ thêm thông tin!")
-      );
-    } finally {
-      setGeneratingPhase(false);
-    }
-  };
-
-  // Accept a single section and advance Phase Gate if all required are accepted
-  const handleAcceptSection = async (sectionType: SectionType) => {
-    try {
-      setAcceptingType(sectionType);
-      const res = await apiCall<{
-        section: SectionItem;
-        phaseProgression?: {
-          advanced: boolean;
-          newWorkspacePhase?: WorkspacePhase;
-          progressPercent: number;
-        };
-      }>(`/specifications/projects/${projectId}/${sectionType}/accept`, {
-        method: "PUT",
-      });
-
-      if (res.data) {
-        const returnedSec = res.data.section;
-        setSections((prev) =>
-          prev.map((s) => (s.type === sectionType ? returnedSec : s))
-        );
-
-        if (res.data.phaseProgression) {
-          const { advanced, newWorkspacePhase, progressPercent } =
-            res.data.phaseProgression;
-
-          setProject((prev) =>
-            prev ? { ...prev, progressPercent } : null
-          );
-
-          if (advanced && newWorkspacePhase) {
-            setWorkspacePhase(newWorkspacePhase);
-          }
-        }
-      }
-    } catch (err: unknown) {
-      alert(getErrorMessage(err, "Nghiệm thu section thất bại"));
-    } finally {
-      setAcceptingType(null);
-    }
-  };
-
-  // Request revision via chat
-  const handleRequestRevision = (sectionType: SectionType) => {
-    setInputMessage(
-      `Tôi muốn chỉnh sửa phần đặc tả "${sectionType}": `
-    );
-  };
-
-  // Regenerate a single section
-  const handleRegenerateSection = async (sectionType: SectionType) => {
-    if (!activeSession) return;
-    try {
-      setRegeneratingType(sectionType);
-      const res = await apiCall<SectionItem>(
-        `/specifications/projects/${projectId}/generate`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            type: sectionType,
-            chatSessionId: activeSession._id,
-          }),
-        }
-      );
-
-      if (res.data) {
-        setSections((prev) => {
-          const idx = prev.findIndex((s) => s.type === sectionType);
-          if (idx !== -1) {
-            const u = [...prev];
-            u[idx] = res.data!;
-            return u;
-          }
-          return [...prev, res.data!] as SectionItem[];
-        });
-      }
-    } catch (err: unknown) {
-      alert(getErrorMessage(err, "Tạo lại đặc tả thất bại"));
-    } finally {
-      setRegeneratingType(null);
-    }
-  };
-
-  // Save manual edits to a section
-  const handleSaveSectionContent = async (
-    type: SectionType,
-    content: string
-  ) => {
-    const res = await apiCall<SectionItem>(
-      `/specifications/projects/${projectId}/${type}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          content,
-          status: "edited_manually",
-        }),
-      }
-    );
-
-    if (res.data) {
-      setSections((prev) =>
-        prev.map((s) => (s.type === type ? res.data! : s))
-      );
-    }
-  };
-
-  // Approve Discovery Summary and advance to Product Overview (persist to DB)
-  const handleApproveSummary = async () => {
-    try {
-      await apiCall(`/specifications/projects/${projectId}/advance-to-generation`, {
-        method: "POST",
-      });
-      setWorkspacePhase("product_overview");
-    } catch (err: unknown) {
-      alert(getErrorMessage(err, "Không thể chuyển sang giai đoạn sinh đặc tả"));
-    }
-  };
-
-  // Advance discovery step khi AI gợi ý step hiện tại đã đủ thông tin
-  const handleAdvanceStep = (nextStep: number) => {
-    if (nextStep >= 1 && nextStep <= 6) {
-      setDiscoveryStep(nextStep as DiscoveryStepNumber);
-    }
-  };
-
-  // Approve SRS Baseline v1.0 (UC 6.14)
-  const handleApproveBaseline = async () => {
-    try {
-      setApprovingBaseline(true);
-      const res = await apiCall<{
-        baselineVersion: string;
-      }>(`/specifications/projects/${projectId}/approve-baseline`, {
-        method: "POST",
-      });
-
-      if (res.data) {
-        setProject((prev) =>
-          prev
-            ? {
-                ...prev,
-                baselineVersion: res.data!.baselineVersion,
-                progressPercent: 100,
-              }
-            : null
-        );
-        alert(
-          `🏆 Phê duyệt thành công SRS Baseline ${res.data.baselineVersion}! Quyền xuất bản đã được mở khóa.`
-        );
-      }
-    } catch (err: unknown) {
-      alert(getErrorMessage(err, "Phê duyệt SRS Baseline thất bại"));
-    } finally {
-      setApprovingBaseline(false);
-    }
-  };
-
-  if (loading) {
+  if (!ws.ready) {
     return (
       <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] animate-spin shrink-0" />
-          <span className="text-[#8A867E] font-medium text-sm">
-            Đang tải không gian làm việc SRS…
-          </span>
+          <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
         </div>
       </div>
     );
   }
 
+  const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
+  const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep;
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#F5F3F0] font-sans">
-      {/* 1. Top Header Bar */}
       <WorkspaceHeader
-        project={project}
-        user={user}
-        onExportClick={() => setWorkspacePhase("export")}
-        onLogout={handleLogout}
+        project={ws.project}
+        user={ws.user}
+        baselineVersion={spine?.baselines.at(-1)?.version ?? null}
+        onExportClick={() => setExportOpen((v) => !v)}
+        onLogout={ws.logout}
       />
 
-      {/* 2. Phase Gate Navigation Bar (5 Phases) */}
       <PhaseNavBar
-        currentPhase={workspacePhase}
-        sections={sections}
-        progressPercent={project?.progressPercent ?? 0}
+        currentPhase={currentPhase}
+        steps={steps?.steps ?? []}
         sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        onPhaseClick={(phase) => setWorkspacePhase(phase)}
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        onExportClick={() => setExportOpen((v) => !v)}
+        exportActive={exportOpen}
+        onVerificationClick={() => setVerificationOpen((v) => !v)}
         verificationOpen={verificationOpen}
-        onVerificationClick={() => setVerificationOpen(!verificationOpen)}
+        verificationFlagsCount={progress?.readiness.red_open ?? 0}
+        readinessPercent={progress?.readiness.accepted_pct}
       />
 
-      {/* 3. Discovery 6-Step Bar (when in discovery) */}
-      {workspacePhase === "discovery" && (
-        <DiscoveryStepBar
-          currentStep={discoveryStep}
-          onStepClick={(s) => setDiscoveryStep(s)}
-        />
-      )}
+      <PhaseHeader
+        currentPhase={currentPhase}
+        currentStep={currentStep}
+        workingMode={spine?.project.working_mode ?? null}
+        onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
+        onRunCurrentStep={currentStep && runner.state.status === "idle" ? () => void runner.run(currentStep) : undefined}
+        busy={runner.state.busy || savingChange}
+      />
 
-      {/* 4. Main 3-Pane Workspace Container */}
-      <main className="flex-1 flex overflow-hidden bg-[#F5F3F0]">
-        {/* Left Sidebar: Chat Sessions History */}
+      <StepProgressBar
+        steps={steps?.steps ?? []}
+        progress={progress?.progress ?? null}
+        selectedStepId={viewedStep}
+        onSelectStep={setSelectedStepId}
+      />
+
+      <main ref={mainRef} className="flex-1 flex overflow-hidden bg-[#F5F3F0]">
         {sidebarOpen && (
           <ChatSessionSidebar
-            sessions={chatSessions}
-            activeSessionId={activeSession?._id || null}
-            onSelectSession={handleSelectSession}
-            onCreateSession={handleCreateChatSession}
-            onDeleteSession={handleDeleteSession}
+            sessions={ws.sessions}
+            activeSessionId={ws.activeSession?._id ?? null}
+            onSelectSession={ws.selectSession}
+            onCreateSession={ws.createSession}
+            onDeleteSession={ws.deleteSession}
           />
         )}
 
-        {/* Pane 1 (Left): Chat & Elicitation Workspace */}
         <ChatPane
-          session={activeSession}
-          workspacePhase={workspacePhase}
-          discoveryStep={discoveryStep}
-          sections={sections}
-          generatingPhase={generatingPhase}
-          inputMessage={inputMessage}
-          setInputMessage={setInputMessage}
-          onSendMessage={handleSendMessage}
-          sending={sending}
-          pendingAttachments={pendingAttachments}
-          onSelectAttachment={handleSelectAttachment}
-          onRemoveAttachment={handleRemoveAttachment}
-          onAcceptSection={handleAcceptSection}
-          onRequestRevision={handleRequestRevision}
-          onRegenerateSection={handleRegenerateSection}
-          onApproveSummary={handleApproveSummary}
-          onGeneratePhase={handleGeneratePhase}
-          onApproveBaseline={handleApproveBaseline}
-          approvingBaseline={approvingBaseline}
-          acceptingType={acceptingType}
-          regeneratingType={regeneratingType}
-          onAdvanceStep={handleAdvanceStep}
-        />
+          width={chatPaneWidth}
+          session={ws.activeSession}
+          stepLabel={viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
+          inputMessage={ws.inputMessage}
+          setInputMessage={ws.setInputMessage}
+          onSendMessage={(custom) => void ws.sendMessage(currentStep, custom)}
+          sending={ws.sending}
+          pendingAttachments={ws.pendingAttachments}
+          onSelectAttachment={ws.selectAttachment}
+          onRemoveAttachment={ws.removeAttachment}
+          streamingMessage={ws.streamingMessage}
+          isStreaming={ws.streamingMessage !== null}
+          onEditInstruction={forwardInstructionToChangePanel}
+          footer={
+            runner.state.status === "needs_input" ? (
+              <ElicitPanel questions={runner.state.questions} onSubmit={(answers) => void runner.answer(answers)} sending={runner.state.busy} />
+            ) : undefined
+          }
+        >
+          {viewingAccepted && viewedStep && (
+            <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-3 text-[12px] text-[#1F7A45]">
+              Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
+            </div>
+          )}
+          {runnerStep && runner.state.events.length > 0 && <StepEventLog events={runner.state.events} />}
+          {gate && runnerStep && (
+            <GateCard
+              stepId={runnerStep}
+              actions={gate.actions}
+              regenerateUsed={gate.regenerate_used}
+              busy={runner.state.busy}
+              onAction={(action, note) => void runner.gate(action, note)}
+            />
+          )}
+          {runner.state.error && (
+            <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3 text-[12px] text-[#B03030] flex items-center justify-between gap-2">
+              <span>
+                {runner.state.error.code}: {runner.state.error.message}
+              </span>
+              <button type="button" onClick={runner.reset} className="text-[11.5px] font-bold underline cursor-pointer">
+                Đóng
+              </button>
+            </div>
+          )}
+        </ChatPane>
 
-        {/* Pane 2 (Center): Live 5-Chapter SRS Document Tree */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+          onDoubleClick={() => {
+            setChatPaneWidth(DEFAULT_CHAT_PANE_WIDTH);
+            try {
+              localStorage.setItem(CHAT_WIDTH_KEY, String(DEFAULT_CHAT_PANE_WIDTH));
+            } catch {}
+          }}
+          className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center"
+          title="Kéo để thay đổi kích thước (nháy đúp để về mặc định)"
+        >
+          <div className={`h-full transition-all ${isResizing ? "w-[3px] bg-[#4F46E5]" : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#4F46E5]"}`} />
+        </div>
+
         <DocumentPane
-          projectName={project?.name}
-          sections={sections}
-          workspacePhase={workspacePhase}
-          onSaveSectionContent={handleSaveSectionContent}
+          projectId={projectId}
+          projectName={ws.project?.name}
+          flags={flags}
+          changedSectionIds={changedSectionIds}
+          onSelectStep={setSelectedStepId}
+          refreshToken={documentRefreshToken}
         />
 
-        {/* Pane 3 (Right): Verification & Readiness Panel */}
+        <div className="flex flex-col gap-1.5 m-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setChangePanelOpen((v) => !v)}
+            className={`px-2 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${
+              changePanelOpen ? "bg-[#191817] text-white border-[#191817]" : "bg-white border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7]"
+            }`}
+            title="Sửa qua lệnh với xem trước diff"
+          >
+            {changePanelOpen ? "›" : "‹ Sửa lệnh"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setToolsOpen((v) => !v)}
+            className="self-start px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
+            title="Tên riêng, thuật ngữ và hàng đợi màn"
+          >
+            {toolsOpen ? "›" : "‹ Công cụ"}
+          </button>
+        </div>
+
+        {toolsOpen && spine && (
+          <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label="Công cụ">
+            {inBriefPhase && (
+              <>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">Tóm tắt Brief</h4>
+                  <BriefSummaryCard spine={spine} />
+                </section>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">Giả định chờ xác nhận (B-2.1)</h4>
+                  <AssumptionSweepPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
+                </section>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">Ghi chú Brief (B-2.2)</h4>
+                  <AddendumTriagePanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
+                </section>
+              </>
+            )}
+            <section className="flex flex-col gap-2">
+              <h4 className="text-[12px] font-extrabold text-[#191817]">Tên riêng & thuật ngữ</h4>
+              <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
+            </section>
+            <section className="flex flex-col gap-2">
+              <h4 className="text-[12px] font-extrabold text-[#191817]">Hàng đợi màn (S-5)</h4>
+              <ScreenQueuePanel spine={spine} onMarkPlaceholder={(id) => void markPlaceholder(id)} busy={savingChange} />
+            </section>
+          </aside>
+        )}
+
+        {changePanelOpen && (
+          <ChangePanel
+            projectId={projectId}
+            getBaseVersion={getBaseVersion}
+            getLatestSeq={getLatestSeq}
+            onApplied={handleChangeApplied}
+            onClose={() => {
+              setChangePanelOpen(false);
+              // Xoá seed khi đóng — mở lại panel sau đó không được tự chạy lại lệnh cũ.
+              setChangeSeed(undefined);
+            }}
+            seed={changeSeed}
+          />
+        )}
+
         {verificationOpen && (
           <VerificationPane
-            projectId={projectId}
+            readiness={progress?.readiness ?? null}
+            flags={flags}
+            flagsLoading={flagsLoading}
+            flagsError={flagsError}
+            flagsBusy={flagsBusy}
             onClose={() => setVerificationOpen(false)}
+            onSelectStep={setSelectedStepId}
+            onWaive={handleFlagWaive}
+            onRecompute={handleFlagRecompute}
           />
         )}
       </main>
+
+      {exportOpen && (
+        <ExportPanel
+          projectId={projectId}
+          projectName={ws.project?.name}
+          onClose={() => setExportOpen(false)}
+          onGoToStep={setSelectedStepId}
+        />
+      )}
     </div>
   );
 }
