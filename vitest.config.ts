@@ -12,6 +12,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./test/setup.ts"],
     include: ["**/*.test.{ts,tsx}"],
-    exclude: [...configDefaults.exclude, ".next/**"],
+    // `e2e/` là Playwright (`npm run e2e`), không phải vitest — include ở trên chỉ bắt `*.test.*`
+    // nhưng loại tường minh để không ai vô tình đặt `*.test.ts` vào đó rồi chạy hai runner chồng nhau.
+    exclude: [...configDefaults.exclude, ".next/**", "e2e/**"],
   },
 });
