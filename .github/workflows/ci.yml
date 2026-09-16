@@ -62,6 +62,24 @@ jobs:
       - name: Checkout frontend
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend deps
+        run: npm ci
+
+      # Build TRƯỚC khi clone backend vào `backend/`: `next build` chạy tsc trên cả thư mục dự án,
+      # nên có code BE nằm trong đó là nó đi typecheck luôn (`backend/test/setup.ts` gán
+      # `process.env.NODE_ENV` ⇒ TS2540, build đỏ). `tsconfig.json` đã loại trừ `backend`, thứ tự
+      # này là lớp chặn thứ hai — và cũng nhanh hơn vì không phải đợi backend cài xong mới build.
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
+        run: npm run build
+
       # `flintflow_be` là repo public nên `GITHUB_TOKEN` mặc định đọc được, không cần secret riêng.
       # Nếu sau này chuyển sang private thì thêm `token: ${{ secrets.BE_REPO_TOKEN }}` (PAT có quyền
       # đọc Contents của repo đó).
@@ -71,15 +89,6 @@ jobs:
           repository: mit-suu/flintflow_be
           ref: develop
           path: backend
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install frontend deps
-        run: npm ci
 
       - name: Install backend deps
         working-directory: backend
@@ -127,11 +136,6 @@ jobs:
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
-
-      - name: Build frontend
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
-        run: npm run build
 
       - name: Run e2e
         env:
