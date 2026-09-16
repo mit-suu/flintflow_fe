@@ -9,8 +9,6 @@ import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 
-const MOCK_ENABLED = process.env.NEXT_PUBLIC_API_MOCK === "1";
-
 const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message || fallback : fallback);
 
 /**
@@ -53,11 +51,10 @@ export function useWorkspace(projectId: string) {
     if (!projectId || didInit.current) return;
     didInit.current = true;
 
+    // T23: workspace luôn chạy trên BE thật. msw chỉ còn dùng trong vitest (`mocks/server.ts`) —
+    // không còn đường bật mock ở runtime, nên không có chuyện chạy dev mà tưởng đang nói chuyện với BE.
     const init = async () => {
-      if (MOCK_ENABLED) {
-        const { startMockWorker } = await import("@/mocks/browser");
-        await startMockWorker();
-      } else if (!isAuthenticated()) {
+      if (!isAuthenticated()) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
           clearAuthToken();
