@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DiscoveryQuestion } from "../../../../lib/constants/section-types";
+import type { DiscoveryQuestion } from "@/types/chat";
 
 interface QuestionStepperInputProps {
   questions: DiscoveryQuestion[];
