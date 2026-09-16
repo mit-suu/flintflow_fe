@@ -8,6 +8,8 @@ import type { User } from "@/types/user";
 interface WorkspaceHeaderProps {
   project: Project | null;
   user: User | null;
+  /** Phiên bản baseline mới nhất trong `spine.baselines[]`; `null` khi chưa ký baseline. */
+  baselineVersion?: string | null;
   onExportClick?: () => void;
   onLogout: () => void;
 }
@@ -15,10 +17,10 @@ interface WorkspaceHeaderProps {
 export default function WorkspaceHeader({
   project,
   user,
+  baselineVersion = null,
   onExportClick,
   onLogout,
 }: WorkspaceHeaderProps) {
-  const isBaselined = Boolean(project?.baselineVersion);
 
   return (
     <header className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[58px] z-20">
@@ -44,10 +46,10 @@ export default function WorkspaceHeader({
           </div>
         )}
 
-        {isBaselined && (
+        {baselineVersion && (
           <div className="px-2.5 py-0.5 rounded-full bg-[#E9F7EE] text-[#1F7A45] text-[11px] font-bold flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A45]" />
-            Baseline {project?.baselineVersion}
+            Baseline {baselineVersion}
           </div>
         )}
       </div>
