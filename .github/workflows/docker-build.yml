@@ -1,35 +1,60 @@
-name: Docker Build
+name: docker
 
+# Image FE cũng được build ở workflow `docker` của flintflow_be (cùng lúc với compose). Workflow này
+# tồn tại để một PR chỉ đụng FE cũng phát hiện được Dockerfile hỏng, không phải đợi tới lượt BE.
 on:
   push:
     branches:
       - main
       - master
+      - develop
   pull_request:
     branches:
       - main
       - master
+      - develop
 
 permissions:
   contents: read
 
 jobs:
-  build-frontend-image:
+  frontend-image:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Build frontend image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: false
-          tags: flintflow-fe:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          load: true
+          tags: flintflow-fe:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Image có .next, public và next.config
+        run: |
+          docker run --rm --entrypoint sh flintflow-fe:ci -c '
+            test -d .next && test -d public && test -f next.config.ts
+          '
+
+      - name: Container lên và trả 200
+        run: |
+          docker run -d --name fe-ci -p 3000:3000 flintflow-fe:ci
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/login > /dev/null && echo "FE ok" && exit 0
+            sleep 2
+          done
+          echo "FE không lên sau 60s"; docker logs fe-ci; exit 1
+
+      - name: Dọn
+        if: always()
+        run: docker rm -f fe-ci || true
