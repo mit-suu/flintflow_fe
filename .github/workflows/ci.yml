@@ -62,13 +62,15 @@ jobs:
       - name: Checkout frontend
         uses: actions/checkout@v4
 
+      # `flintflow_be` là repo public nên `GITHUB_TOKEN` mặc định đọc được, không cần secret riêng.
+      # Nếu sau này chuyển sang private thì thêm `token: ${{ secrets.BE_REPO_TOKEN }}` (PAT có quyền
+      # đọc Contents của repo đó).
       - name: Checkout backend
         uses: actions/checkout@v4
         with:
           repository: mit-suu/flintflow_be
           ref: develop
           path: backend
-          token: ${{ secrets.BE_REPO_TOKEN || github.token }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
