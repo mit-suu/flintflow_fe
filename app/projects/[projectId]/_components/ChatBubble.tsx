@@ -2,12 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types/chat";
-import { DiscoveryEvaluation } from "../../../../lib/constants/section-types";
 
 interface ChatBubbleProps {
   message: ChatMessage;
-  onEvaluationReceived?: (evaluation: DiscoveryEvaluation) => void;
-  overrideCompleteness?: number | null;
   messageIndex?: number;
   onRequestRollback?: (index: number) => void;
   disabled?: boolean;
@@ -16,8 +13,6 @@ interface ChatBubbleProps {
 
 export default function ChatBubble({
   message,
-  onEvaluationReceived: _onEvaluationReceived,
-  overrideCompleteness,
   messageIndex,
   onRequestRollback,
   disabled = false,
@@ -44,100 +39,28 @@ export default function ChatBubble({
     }
   };
 
-  const parseAiMessage = (
-    content: string
-  ): {
-    reply: string;
-    evaluation?: DiscoveryEvaluation;
-  } => {
-    if (!content) return { reply: "" };
-
-    const cleanReply = (raw: string): string => {
-      let str = raw.trim();
-      if (!str) return "";
-
-      // Strip code fence
-      if (str.startsWith("```")) {
-        str = str.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-      }
-
-      // If it starts with { or contains "reply":
-      if (str.startsWith("{") || str.includes('"reply"')) {
-        // 1. Try full JSON parse
-        try {
-          const data = JSON.parse(str);
-          if (data && typeof data.reply === "string") {
-            return cleanReply(data.reply);
-          }
-        } catch (_) { }
-
-        // 2. Non-greedy regex match for "reply": "..."
-        const replyMatch = str.match(
-          /(?:'|")reply(?:'|")\s*:\s*(['"])([\s\S]*?)(?<!\\)\1(?:\s*[,}]\s*|$)/
-        );
-        if (replyMatch && replyMatch[2] !== undefined) {
-          try {
-            const unescaped = JSON.parse(`"${replyMatch[2]}"`);
-            return cleanReply(unescaped);
-          } catch (_) {
-            return replyMatch[2]
-              .replace(/\\n/g, "\n")
-              .replace(/\\"/g, '"')
-              .replace(/\\t/g, "\t")
-              .replace(/\\\\/g, "\\");
-          }
-        }
-
-        // 3. Truncated in the middle of "reply"
-        const openMatch = str.match(/(?:'|")reply(?:'|")\s*:\s*(['"])([\s\S]*)$/);
-        if (openMatch && openMatch[2] !== undefined) {
-          let unclosed = openMatch[2];
-          if (unclosed.endsWith(openMatch[1])) {
-            unclosed = unclosed.slice(0, -1);
-          }
-          return unclosed
-            .replace(/\\n/g, "\n")
-            .replace(/\\"/g, '"')
-            .replace(/\\t/g, "\t")
-            .replace(/\\\\/g, "\\")
-            .trim();
-        }
-
-        // 4. Strip leading {"reply":"... and trailing metadata
-        const stripped = str
-          .replace(/^\{[\s\S]*?"reply"\s*:\s*"/i, "")
-          .replace(/"\s*,[\s\S]*$/, "")
-          .replace(/\\n/g, "\n")
-          .replace(/\\"/g, '"')
-          .replace(/\\t/g, "\t")
-          .replace(/\\\\/g, "\\");
-        if (stripped && !stripped.startsWith("{")) {
-          return stripped.trim();
-        }
-      }
-
-      return str;
-    };
-
-    let evaluation: DiscoveryEvaluation | undefined;
+  /**
+   * T20: BE trả `reply` sạch — luồng SSE stream `text-delta` rồi đóng bằng `finish` mang object đã parse,
+   * và transcript lưu chính object đó. Nên chỉ còn MỘT tầng: parse JSON, lấy `reply`; không parse được
+   * thì hiển thị nguyên văn.
+   *
+   * Bốn tầng cũ (regex vớt `"reply"` khi JSON bị cắt giữa chừng) tồn tại vì prompt Discovery cũ bắt model
+   * trả một object lớn kèm khối tự chấm tiến độ, và FE đọc từng mẩu trong lúc stream. Discovery giờ là
+   * step chạy qua step runner, tiến độ đọc từ Spine — không còn gì để vớt.
+   */
+  const parseAiMessage = (content: string): { reply: string } => {
+    const raw = (content ?? "").trim();
+    if (!raw) return { reply: "" };
+    if (!raw.startsWith("{")) return { reply: raw };
     try {
-      const data = JSON.parse(content);
-      if (data && typeof data === "object") {
-        evaluation = data.evaluation;
+      const data: unknown = JSON.parse(raw);
+      if (data && typeof data === "object" && typeof (data as { reply?: unknown }).reply === "string") {
+        return { reply: (data as { reply: string }).reply };
       }
     } catch (_) {
-      const evalMatch = content.match(/"evaluation"\s*:\s*(\{[\s\S]*?\})/);
-      if (evalMatch && evalMatch[1]) {
-        try {
-          evaluation = JSON.parse(evalMatch[1]);
-        } catch (_) { }
-      }
+      // JSON chưa đủ (đang stream) — hiện nguyên văn, ticker bên dưới vẫn chạy
     }
-
-    return {
-      reply: cleanReply(content),
-      evaluation,
-    };
+    return { reply: raw };
   };
 
   const parsed = parseAiMessage(message.content);
@@ -308,11 +231,6 @@ export default function ChatBubble({
     );
   }
 
-  const completeness =
-    typeof overrideCompleteness === "number"
-      ? overrideCompleteness
-      : parsed.evaluation?.stepCompleteness;
-
   return (
     <div className="flex items-start gap-3">
       <div
@@ -347,28 +265,6 @@ export default function ChatBubble({
             ) : null}
           </div>
 
-          {/* Completeness Indicator for Discovery mode */}
-          {parsed.evaluation && (
-            <div className="flex items-center gap-1.5 pt-2 border-t border-[#F0EEEA]">
-              <div className="flex-1 h-1 bg-[#F0EEEA] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${completeness}%`,
-                    background:
-                      (completeness ?? 0) >= 80
-                        ? "#22C55E"
-                        : (completeness ?? 0) >= 50
-                          ? "#F59E0B"
-                          : "#4F46E5",
-                  }}
-                />
-              </div>
-              <span className="text-[10px] font-bold text-[#8A867E] shrink-0">
-                {completeness}%
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </div>

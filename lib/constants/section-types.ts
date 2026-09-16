@@ -399,6 +399,12 @@ export interface DiscoveryStepInfo {
   sampleQuestions: string[];
 }
 
+/**
+ * T20: nhãn 6 bước Discovery cũ. Nguồn sự thật giờ là **step registry**
+ * (`lib/constants/step-registry.json`, 13 step B-0…B-2 + 4 step S-1) — dùng `stepLabel()` / `getStepDef()`
+ * thay cho danh sách này. Giữ lại vì `sampleQuestions` còn là gợi ý cho skill `product-brief`; cả file
+ * `section-types.ts` bị xoá ở T21.
+ */
 export const DISCOVERY_STEPS: DiscoveryStepInfo[] = [
   {
     step: 1,
