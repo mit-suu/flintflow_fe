@@ -76,11 +76,12 @@ T21**. Import API từ `@/lib/api/<resource>` (hoặc `@/lib/api` — trỏ tớ
 
 ## Mock (msw)
 
-`mocks/handlers.ts` mô phỏng BE theo đúng contract. Chỉ bật khi `NEXT_PUBLIC_API_MOCK=1` — mặc định app
-gọi BE thật. Dùng mock để phát triển UI khi endpoint BE chưa có; khi BE có rồi thì **không cần sửa
-component**, chỉ cần không bật biến môi trường đó.
+`mocks/handlers.ts` mô phỏng BE theo đúng contract, và **chỉ còn dùng trong vitest**
+(`mocks/server.ts`, nạp ở `test/setup.ts`). T23 đã gỡ hẳn msw khỏi trình duyệt: `mocks/browser.ts`,
+`public/mockServiceWorker.js` và biến `NEXT_PUBLIC_API_MOCK` không còn tồn tại.
 
-`mocks/server.ts` cho vitest, `mocks/browser.ts` cho trình duyệt.
+Lý do: một biến môi trường quyết định app đang nói chuyện với BE thật hay với dữ liệu giả là thứ sớm
+muộn cũng làm ai đó debug nhầm nửa ngày. Chạy app nghĩa là chạy trên BE thật.
 
 ## Test
 

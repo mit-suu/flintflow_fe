@@ -8,12 +8,13 @@ import registry from "../lib/constants/step-registry.json";
  * `GET /projects/:id/progress` → mở workspace → gieo nội dung qua change flow (`POST /changes`, T17) →
  * Document pane hiển thị nội dung đó → Verification đọc cờ từ BE → Export mở được.
  *
- * **Không chạy step AI trong e2e.** Task-23 dự tính khởi BE với `AI_PROVIDER=mock`, nhưng thực tế:
- *   1. provider chọn theo frontmatter từng skill (`provider: glm`), không có biến môi trường ghi đè;
- *   2. `mock.provider.ts` trả JSON cố định (`{status,message,promptSnippet}`) không khớp
- *      `opTransactionSchema`/`elicitSchema`, nên step sẽ chết ở parse chứ không sinh op.
- * Gieo nội dung bằng op là đường **không cần model** mà vẫn đi qua đúng op engine + invariants thật.
- * Xem `docs/fe-architecture.md` và spec-gaps; sửa mock provider thuộc T22/T24.
+ * **Không chạy step AI trong e2e.** Gieo nội dung bằng op là đường **không cần model** mà vẫn đi qua
+ * đúng op engine + invariants thật — nó kiểm được cái e2e cần kiểm: seam FE ↔ BE.
+ *
+ * T24 đã mở đường chạy step mà không gọi model (`AI_PROVIDER_OVERRIDE=mock` + `mock.provider.ts` trả
+ * output hợp schema), nhưng lô op của mock luôn rỗng nên step chạy qua mà không sinh nội dung nào.
+ * Muốn e2e phủ cả bước AI thì phải thêm một kịch bản riêng khẳng định được điều gì đó về *đường đi*
+ * (step tới được gate, SSE phát đủ sự kiện), không phải về nội dung. Xem `docs/fe-architecture.md`.
  */
 
 const API = process.env.E2E_API_URL ?? "http://localhost:5000/api/v1";

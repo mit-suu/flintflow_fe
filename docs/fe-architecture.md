@@ -91,19 +91,41 @@ Kịch bản `e2e/workspace.spec.ts` chạy FE thật trên BE thật + Mongo th
 thẻ dự án đọc `GET /progress` → mở workspace → gieo nội dung bằng op qua `POST /changes` → Export panel →
 kiểm `GET /document` trả đúng `200` hoặc `409 NO_WORKING_DRAFT`.
 
-**Cố ý không chạy step AI trong e2e.** Task-23 dự tính khởi BE với `AI_PROVIDER=mock`, nhưng thực tế:
+**Cố ý không chạy step AI trong e2e.** Gieo nội dung bằng op là đường **không cần model** mà vẫn đi qua
+đúng op engine và invariants thật — tức là vẫn kiểm được cái e2e cần kiểm: FE ↔ BE.
 
-1. provider chọn theo frontmatter của từng skill (`provider: glm`) — không có biến môi trường ghi đè;
-2. `mock.provider.ts` trả JSON cố định (`{status, message, promptSnippet}`) không khớp
-   `opTransactionSchema` / `elicitSchema`, nên có ép dùng mock thì step cũng chết ở bước parse chứ không
-   sinh ra op nào.
+T24 đã mở đường chạy step mà **không gọi model**: `AI_PROVIDER_OVERRIDE=mock` (BE) ghi đè provider của
+mọi skill, và `mock.provider.ts` giờ trả output hợp schema theo `ActionType`. Nhưng lô op của mock luôn
+**rỗng** — nó không đọc được Spine nên không thể sinh op hợp bất biến. Nghĩa là đường này chứng minh
+*step chạy tới gate*, không chứng minh nội dung. Thêm kịch bản e2e cho bước AI thì phải khẳng định đúng
+thứ đó (SSE phát đủ `intake · elicit · draft · gate_ready`), không phải khẳng định tài liệu có gì.
 
-Gieo nội dung bằng op là đường **không cần model** mà vẫn đi qua đúng op engine và invariants thật — tức
-là vẫn kiểm được cái e2e cần kiểm: FE ↔ BE. Muốn e2e phủ luôn bước AI thì phải sửa mock provider ở BE
-(trả output hợp schema theo `ActionType`) — việc đó thuộc T22/T24, đã ghi `docs/spec-gaps.md`.
+**Chạy e2e trong docker compose** (`flintflow_be/docker-compose.yml`, xem `flintflow_be/docs/ops.md`):
+
+```bash
+cd flintflow_be && docker compose up -d --wait
+docker compose exec backend node dist/scripts/seed-e2e-user.js
+cd ../flintflow_fe && npm run e2e          # mặc định :3000 / :5000
+```
 
 Chạy tại máy: cần FE `:3000` và BE `:5000` đang chạy, rồi `npm run e2e`. Đổi địa chỉ bằng `E2E_BASE_URL`
 / `E2E_API_URL`; đổi tài khoản bằng `E2E_EMAIL` / `E2E_PASSWORD`.
+
+## Docker (T24)
+
+`Dockerfile` build ba stage: `deps` (npm ci đủ devDependencies) -> `build` (next build) -> `runtime`
+(`npm ci --omit=dev`, chạy `npm run start`). Compose của cả hệ thống nằm ở `flintflow_be/docker-compose.yml`
+(`docker compose up -d` dựng mongo + plantuml + backend + frontend); chi tiết vận hành ở
+`flintflow_be/docs/ops.md`.
+
+**`NEXT_PUBLIC_API_URL` là địa chỉ của TRÌNH DUYỆT.** Next nhúng mọi biến `NEXT_PUBLIC_*` vào bundle lúc
+build, và bundle đó chạy trong trình duyệt người dùng — `http://backend:5000` chỉ phân giải được bên
+trong mạng docker. Đổi giá trị này phải **build lại** image, không phải restart container.
+
+**Cố ý không dùng `output: "standalone"`.** Image sẽ nhỏ hơn nhiều (~200 MB thay vì ~950 MB), nhưng Next
+cảnh báo `next start` không chạy với cấu hình đó — mà `npm run start` chính là lệnh Playwright dùng để
+dựng server ở CI (`playwright.config.ts#webServer`). Không đổi một đường chạy được chính Next tuyên bố
+là không hỗ trợ lấy image nhỏ hơn.
 
 ## Routing
 
@@ -116,10 +138,18 @@ Chạy tại máy: cần FE `:3000` và BE `:5000` đang chạy, rồi `npm run 
 /admin/{users,metrics,ai-cost,feedback}
 ```
 
+## Đăng nhập Google là tuỳ chọn
+
+`lib/google-auth.ts` là nơi duy nhất đọc `NEXT_PUBLIC_GOOGLE_CLIENT_ID`. Không có client id thì
+`app/layout.tsx` **không bọc** `GoogleOAuthProvider` và `GoogleButton` trả `null`.
+
+Trước T24 layout luôn bọc provider với `clientId={... || ""}`; thiếu biến — đúng cảnh build image mà
+quên `--build-arg` — làm script `gsi/client` của Google ném lỗi và **cả app thành trang trắng**, kể cả
+đăng nhập bằng mật khẩu. Một tính năng phụ không được là điều kiện sống còn của trang đăng nhập.
+
 ## Nợ còn lại
 
-- `lib/constants/section-types.ts` — hằng số section cũ, T21 xoá.
-- `_components/{DiscoveryStepBar, SummaryReviewCard, StepTransitionBanner, DraftReviewCard,
-  ConfirmRollbackModal, QuestionStepperInput}.tsx` — không còn được import, T21 xoá.
 - Chưa có nút "Ký baseline" trên UI: `lib/api/export.ts#createBaseline` đã đúng hợp đồng nhưng chưa
   component nào gọi.
+- Danh sách trên đã sạch các mục T21 (`lib/constants/section-types.ts` và 6 component không còn import
+  đã bị xoá).
