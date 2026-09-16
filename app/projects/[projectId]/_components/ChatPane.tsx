@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import type { DiscoveryQuestion } from "../../../../lib/constants/section-types";
+import type { DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";

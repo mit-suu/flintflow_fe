@@ -59,8 +59,8 @@ không gọi; cần thêm thì phải sửa contract trước (PR `contract-chan
   - Tài liệu & kiểm chứng: `DocumentPane`, `VerificationPane`, `FlagsPanel`, `ReadinessSummary`,
     `ExportPanel`
   - Sửa qua chat: `ChangePanel`, `DiffPreviewModal`, `TraceabilityMap`
-  - Legacy (T21 sẽ xoá): `ConfirmRollbackModal`, `DraftReviewCard`, `DiscoveryStepBar`,
-    `SummaryReviewCard`, `StepTransitionBanner`, `QuestionStepperInput`
+  - Brief (B-0…S-1): `BriefSummaryCard`, `AssumptionSweepPanel`, `AddendumTriagePanel`, `NamesGlossaryPanel`
+  - Dùng chung: `QuestionStepperInput` (câu hỏi có gợi ý — kiểu `DiscoveryQuestion` ở `types/chat.ts`)
 - Chạy step là **SSE** (`lib/ai-stream.ts`): sự kiện `intake · elicit · answer_needed · draft ·
   ops_applied · render · flags · gate_ready · error`. Luôn huỷ luồng khi rời trang hoặc chạy lại; luồng
   đóng sớm phải thành lỗi rõ ràng, không im lặng.
@@ -71,7 +71,8 @@ không gọi; cần thêm thì phải sửa contract trước (PR `contract-chan
 đóng băng. Đừng sửa tay: chạy `npm run sync:registry`. Step của vòng S-5 mang id `S-5.<n>@<screen_id>`
 hoặc `S-5.<n>@nonscreen`.
 
-`lib/constants/section-types.ts` là legacy (T21 xoá), đừng xây thêm lên.
+Mô hình section cũ (`lib/constants/section-types.ts`, rollback chat, `lib/api.ts` re-export) **đã xoá ở
+T21**. Import API từ `@/lib/api/<resource>` (hoặc `@/lib/api` — trỏ tới `lib/api/index.ts`).
 
 ## Mock (msw)
 

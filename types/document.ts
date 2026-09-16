@@ -1,12 +1,3 @@
-/** Section legacy (`/specifications/projects/:id`) — thay bằng `RenderedDocument` ở T16. */
-export interface SectionItem {
-  _id?: string;
-  type: string;
-  content: string;
-  status: string;
-  sourceType?: string;
-}
-
 /** Trạng thái section là hàm tính ở BE (`srs-spine.md` §5). */
 export type SectionStatus = "draft" | "accepted" | "stale" | "derived";
 
