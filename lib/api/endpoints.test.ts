@@ -52,9 +52,9 @@ const cases: EndpointCase[] = [
   ["deleteChatSession", () => chat.deleteChatSession("p1", "c1"), "/projects/p1/chats/c1", { method: "DELETE" }],
   [
     "estimateActionCost",
-    () => chat.estimateActionCost("chat_discovery"),
+    () => chat.estimateActionCost("chat"),
     "/ai-actions/estimate-cost",
-    post({ actionType: "chat_discovery" }),
+    post({ actionType: "chat" }),
   ],
   ["listProjectDocuments", () => documents.listProjectDocuments("p1"), "/projects/p1/documents"],
   [
