@@ -249,7 +249,13 @@ export default function WorkspacePage() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#F5F3F0] font-sans">
-      <WorkspaceHeader project={ws.project} user={ws.user} onExportClick={() => setExportOpen((v) => !v)} onLogout={ws.logout} />
+      <WorkspaceHeader
+        project={ws.project}
+        user={ws.user}
+        baselineVersion={spine?.baselines.at(-1)?.version ?? null}
+        onExportClick={() => setExportOpen((v) => !v)}
+        onLogout={ws.logout}
+      />
 
       <PhaseNavBar
         currentPhase={currentPhase}
