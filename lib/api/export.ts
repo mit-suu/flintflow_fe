@@ -104,5 +104,15 @@ export const downloadWordExport = async (
 export const listBaselines = (projectId: string) =>
   apiCall<Baseline[]>(`/projects/${projectId}/baselines`);
 
-export const createBaseline = (projectId: string) =>
-  apiCall<Baseline>(`/projects/${projectId}/baseline`, { method: "POST" });
+/**
+ * XREQ T19→T16: `baselineRequestSchema` (đóng băng) bắt buộc `base_version` — gửi thiếu thì BE trả
+ * `400 VALIDATION_ERROR`. `baseVersion` là `spine_version` đang xem, giống mọi endpoint ghi khác:
+ * lệch thì BE trả `409 SPINE_VERSION_CONFLICT` và client tải lại Spine rồi ký lại.
+ *
+ * Lỗi riêng cần xử lý ở nơi gọi: `422 BASELINE_BLOCKED` kèm `meta.flags[]` — còn cờ đỏ chưa waive.
+ */
+export const createBaseline = (projectId: string, baseVersion: number) =>
+  apiCall<Baseline>(`/projects/${projectId}/baseline`, {
+    method: "POST",
+    body: JSON.stringify({ base_version: baseVersion }),
+  });

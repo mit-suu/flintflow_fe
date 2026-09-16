@@ -137,7 +137,7 @@ const cases: EndpointCase[] = [
   ],
   ["getDocument", () => exportApi.getDocument("p1", "baseline"), "/projects/p1/document?source=baseline"],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
-  ["createBaseline", () => exportApi.createBaseline("p1"), "/projects/p1/baseline", post()],
+  ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],
   ["fetchUnreadCount", () => notifications.fetchUnreadCount(), "/notifications/unread-count"],
   [
