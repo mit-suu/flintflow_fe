@@ -23,6 +23,9 @@ import ElicitPanel from "./_components/ElicitPanel";
 import StepEventLog from "./_components/StepEventLog";
 import ScreenQueuePanel from "./_components/ScreenQueuePanel";
 import NamesGlossaryPanel from "./_components/NamesGlossaryPanel";
+import BriefSummaryCard from "./_components/BriefSummaryCard";
+import AssumptionSweepPanel from "./_components/AssumptionSweepPanel";
+import AddendumTriagePanel from "./_components/AddendumTriagePanel";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -161,6 +164,9 @@ export default function WorkspacePage() {
 
   const changeWorkingMode = (mode: WorkingMode) =>
     submitOps([{ op: "set", path: "project.working_mode", value: mode, reason: "[C] đổi cách làm việc" }]);
+
+  /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
+  const inBriefPhase = (spine?.progress.current_phase ?? "").startsWith("B-") || spine?.progress.current_phase === "S-1";
 
   const markPlaceholder = (screenId: string) =>
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
@@ -383,6 +389,22 @@ export default function WorkspacePage() {
 
         {toolsOpen && spine && (
           <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label="Công cụ">
+            {inBriefPhase && (
+              <>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">Tóm tắt Brief</h4>
+                  <BriefSummaryCard spine={spine} />
+                </section>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">Giả định chờ xác nhận (B-2.1)</h4>
+                  <AssumptionSweepPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
+                </section>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">Ghi chú Brief (B-2.2)</h4>
+                  <AddendumTriagePanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
+                </section>
+              </>
+            )}
             <section className="flex flex-col gap-2">
               <h4 className="text-[12px] font-extrabold text-[#191817]">Tên riêng & thuật ngữ</h4>
               <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
