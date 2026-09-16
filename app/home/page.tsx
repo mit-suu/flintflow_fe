@@ -9,6 +9,8 @@ import Logo from "../../components/Logo";
 import NotificationBell from "../../components/NotificationBell";
 import { apiCall } from "../../lib/api";
 import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
+import { getProgress } from "../../lib/api/pipeline";
+import type { ProgressResponse } from "@/types/pipeline";
 import type { User } from "@/types/user";
 
 export default function HomePage() {
@@ -30,17 +32,41 @@ export default function HomePage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
+  /**
+   * T23: thẻ dự án hiện việc tiếp theo và trạng thái theo Spine thật. `GET /projects` chỉ trả document
+   * Project (không có tiến độ), nên nạp `progress` riêng cho từng dự án — song song, và **lỗi của một
+   * dự án không làm hỏng lưới**: dự án chưa có Spine trả `null` và hiện "Chưa bắt đầu".
+   */
+  const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>({});
+
+  const loadProgress = useCallback((list: Project[]) => {
+    if (list.length === 0) {
+      setProgressById({});
+      return;
+    }
+    void Promise.all(
+      list.map((project) =>
+        getProgress(project._id)
+          .then((res) => [project._id, res.data ?? null] as const)
+          .catch(() => [project._id, null] as const)
+      )
+    ).then((entries) => setProgressById(Object.fromEntries(entries)));
+  }, []);
 
   // setState chỉ nằm trong callback của promise để effect gọi hàm này không set state đồng bộ
   const loadProjects = useCallback(
     () =>
       apiCall<Project[]>("/projects?status=active")
-        .then((res) => setProjects(res.data ?? []))
+        .then((res) => {
+          const list = res.data ?? [];
+          setProjects(list);
+          loadProgress(list);
+        })
         .catch((err: unknown) =>
           setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án")
         )
         .finally(() => setLoading(false)),
-    []
+    [loadProgress]
   );
 
   // Tải lại sau khi tạo/đổi tên/xoá: bật loading và xoá lỗi cũ trước khi gọi
@@ -287,6 +313,7 @@ export default function HomePage() {
               <ProjectCard
                 key={p._id}
                 project={p}
+                progress={progressById[p._id]}
                 onRename={openRename}
                 onDelete={openDelete}
                 onHardDelete={(project) => {
