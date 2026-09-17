@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { apiCall, refreshAccessToken } from "@/lib/api";
+import { apiCall, refreshSession } from "@/lib/api";
 import { streamChatMessage } from "@/lib/ai-stream";
-import { clearAuthToken, isAuthenticated } from "@/lib/auth";
+import { clearAuthToken, getStoredAuthToken, isAuthenticated } from "@/lib/auth";
 import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
@@ -54,13 +54,12 @@ export function useWorkspace(projectId: string) {
     // T23: workspace luôn chạy trên BE thật. msw chỉ còn dùng trong vitest (`mocks/server.ts`) —
     // không còn đường bật mock ở runtime, nên không có chuyện chạy dev mà tưởng đang nói chuyện với BE.
     const init = async () => {
-      if (!isAuthenticated()) {
-        const refreshed = await refreshAccessToken();
-        if (!refreshed) {
-          clearAuthToken();
-          router.push("/login");
-          return;
-        }
+      // Chỉ về /login khi BE từ chối refresh token (refreshSession đã xoá token). Lỗi mạng / 5xx thì
+      // vẫn thử tải dữ liệu — apiCall sẽ tự refresh lại; đăng xuất ở đây sẽ gọi /auth/logout và thu hồi
+      // một phiên còn hợp lệ (FLF-137).
+      if (!isAuthenticated() && (await refreshSession()) === "rejected") {
+        router.push("/login");
+        return;
       }
 
       try {
@@ -79,8 +78,16 @@ export function useWorkspace(projectId: string) {
       } catch (err) {
         console.error("Workspace init failed:", err);
         if ((err as { status?: number }).status === 401) {
-          clearAuthToken();
-          router.push("/login");
+          if (!getStoredAuthToken()) {
+            router.push("/login");
+          } else if (isAuthenticated()) {
+            // Token còn hạn mà BE vẫn 401 ⇒ phiên thật sự không hợp lệ
+            clearAuthToken();
+            router.push("/login");
+          } else {
+            // Token hết hạn nhưng refresh chỉ lỗi mạng / 5xx ⇒ giữ phiên
+            alert("Không kết nối được máy chủ. Vui lòng tải lại trang.");
+          }
         }
       } finally {
         setReady(true);
