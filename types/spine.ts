@@ -266,9 +266,16 @@ export interface SectionState {
   asset_version: string;
 }
 
+/** Nguồn gốc baseline (FLF-171): mode 2 ký ở S-9.5 = `generated`; mode 1 import = `imported`, release = `release`. */
+export type BaselineType = "generated" | "imported" | "release";
+
 export interface Baseline {
   id: string;
+  /** Mode 2: `v1.0`, `v1.0-conditional`… Mode 1: `0.0`, `1.0`… */
   version: string;
+  type: BaselineType;
+  /** Mode 1: version tài liệu baseline chụp; mode 2 luôn `null`. */
+  doc_version: string | null;
   at: IsoDateTime;
   snapshot_ref: string;
   checked_at_version: number;
