@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { getDocument } from "@/lib/api/export";
+import { assembleDocument, getDocument } from "@/lib/api/export";
 import type { DocumentSource, DraftMeta, RenderedDocument } from "@/types/document";
 
 export interface UseDocumentResult {
@@ -13,6 +13,10 @@ export interface UseDocumentResult {
   notAssembled: boolean;
   error: string | null;
   reload: () => Promise<void>;
+  /** `POST /assemble` ở `baseVersion` rồi tải lại — gỡ kẹt project đã qua S-8.2 mà chưa từng ghép. */
+  assemble: (baseVersion: number | null) => Promise<void>;
+  assembling: boolean;
+  assembleError: string | null;
 }
 
 const isDraftMeta = (meta: Record<string, unknown> | undefined): meta is Record<string, unknown> & DraftMeta =>
@@ -65,6 +69,35 @@ export function useDocument(
       });
   }, [projectId, source, baselineId]);
 
+  const [assembling, setAssembling] = useState(false);
+  const [assembleError, setAssembleError] = useState<string | null>(null);
+
+  const assemble = useCallback(
+    async (baseVersion: number | null) => {
+      if (baseVersion === null) {
+        setAssembleError("Spine chưa tải xong — thử lại sau giây lát.");
+        return;
+      }
+      setAssembling(true);
+      setAssembleError(null);
+      try {
+        await assembleDocument(projectId, baseVersion);
+        await reload();
+      } catch (err) {
+        setAssembleError(
+          err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT"
+            ? "Tài liệu vừa đổi ở phiên khác — tải lại trang rồi thử ghép lại."
+            : err instanceof Error
+              ? err.message
+              : "Không ghép được tài liệu"
+        );
+      } finally {
+        setAssembling(false);
+      }
+    },
+    [projectId, reload]
+  );
+
   useEffect(() => {
     if (!projectId) return;
     // Lùi một microtask: `reload()` tự `setLoading(true)` đồng bộ (T1) — gọi thẳng trong effect bị
@@ -72,5 +105,5 @@ export function useDocument(
     queueMicrotask(() => void reload());
   }, [projectId, reload, refreshToken]);
 
-  return { document, meta, loading, notAssembled, error, reload };
+  return { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError };
 }
