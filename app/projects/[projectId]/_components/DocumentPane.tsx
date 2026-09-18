@@ -17,6 +17,8 @@ interface DocumentPaneProps {
   onSelectStep?: (stepId: string) => void;
   /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc ChangePanel áp lô). */
   refreshToken?: number;
+  /** `spine_version` hiện tại — có thì nút ghép gọi `POST /assemble` thẳng thay vì chỉ chuyển sang S-8.2. */
+  getBaseVersion?: () => number | null;
 }
 
 const STATUS_BADGE: Record<SectionStatus, { text: string; style: string }> = {
@@ -212,8 +214,15 @@ export default function DocumentPane({
   changedSectionIds,
   onSelectStep,
   refreshToken = 0,
+  getBaseVersion,
 }: DocumentPaneProps) {
-  const { document, meta, loading, notAssembled, error, reload } = useDocument(projectId, "draft", undefined, refreshToken);
+  const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
+    projectId,
+    "draft",
+    undefined,
+    refreshToken
+  );
+  const runAssemble = getBaseVersion ? () => void assemble(getBaseVersion()) : undefined;
 
   const remediationStepOf = (sectionId: string): string | undefined =>
     flags.find((f) => (!f.resolved_at && !f.waived_by_user) && f.section_id === sectionId)?.remediation_step;
@@ -236,13 +245,25 @@ export default function DocumentPane({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => void reload()}
-          className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F4F3FE] border border-[#ECEAE5] text-[#4F46E5] text-[11.5px] font-bold cursor-pointer"
-        >
-          ↻ Tải lại
-        </button>
+        <div className="flex items-center gap-1.5">
+          {meta?.stale && runAssemble && (
+            <button
+              type="button"
+              onClick={runAssemble}
+              disabled={assembling}
+              className="px-3 py-1 rounded-full bg-[#191817] text-white text-[11.5px] font-bold cursor-pointer disabled:opacity-60"
+            >
+              {assembling ? "Đang ghép…" : "Ghép lại"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void reload()}
+            className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F4F3FE] border border-[#ECEAE5] text-[#4F46E5] text-[11.5px] font-bold cursor-pointer"
+          >
+            ↻ Tải lại
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#FAF9F7]">
@@ -252,15 +273,32 @@ export default function DocumentPane({
           <div className="bg-white border border-dashed border-[#E4E1DC] rounded-[14px] p-5 flex flex-col items-center gap-2 text-center">
             <span className="text-[12.5px] font-bold text-[#4B4842]">Chưa có bản ghép tài liệu</span>
             <span className="text-[11px] text-[#8A867E] leading-relaxed">{error}</span>
-            {onSelectStep && (
+            {runAssemble ? (
               <button
                 type="button"
-                onClick={() => onSelectStep("S-8.2")}
-                className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer"
+                onClick={runAssemble}
+                disabled={assembling}
+                className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer disabled:opacity-60"
               >
-                Đi tới S-8.2 · Ghép tài liệu
+                {assembling ? "Đang ghép tài liệu…" : "Ghép tài liệu ngay"}
               </button>
+            ) : (
+              onSelectStep && (
+                <button
+                  type="button"
+                  onClick={() => onSelectStep("S-8.2")}
+                  className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer"
+                >
+                  Đi tới S-8.2 · Ghép tài liệu
+                </button>
+              )
             )}
+          </div>
+        )}
+
+        {assembleError && (
+          <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
+            Không ghép được tài liệu: {assembleError}
           </div>
         )}
 

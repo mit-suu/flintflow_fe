@@ -12,6 +12,8 @@ interface ExportPanelProps {
   projectName?: string;
   onClose: () => void;
   onGoToStep?: (stepId: string) => void;
+  /** `spine_version` hiện tại — có thì nút ghép gọi `POST /assemble` thẳng thay vì chỉ chuyển sang S-8.2. */
+  getBaseVersion?: () => number | null;
 }
 
 /** Ghim thẻ `<a download>` vào DOM trước khi click — Safari/Firefox bỏ qua click trên thẻ rời DOM. */
@@ -28,14 +30,16 @@ const triggerDownload = (blob: Blob, fileName: string) => {
 };
 
 /** Export UI (Phases §6.5): Word draft (watermark DRAFT) / Word baseline; hiện lý do khi chưa ghép. */
-export default function ExportPanel({ projectId, projectName = "Dự án", onClose, onGoToStep }: ExportPanelProps) {
+export default function ExportPanel({ projectId, projectName = "Dự án", onClose, onGoToStep, getBaseVersion }: ExportPanelProps) {
   const [source, setSource] = useState<DocumentSource>("draft");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
   const hasBaseline = baselines.length > 0;
   // Baseline mới nhất — ExportPanel chưa có bộ chọn version cụ thể (ngoài phạm vi T16).
   const baselineId = source === "baseline" ? baselines[0]?.id : undefined;
-  const { document, meta, loading, notAssembled, error } = useDocument(projectId, source, baselineId);
+  const { document, meta, loading, notAssembled, error, assemble, assembling, assembleError } = useDocument(projectId, source, baselineId);
+  // Chỉ bản draft ghép được theo yêu cầu — baseline do S-9.5 ký, không ghép lại từ đây.
+  const runAssemble = getBaseVersion && source === "draft" ? () => void assemble(getBaseVersion()) : undefined;
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -134,20 +138,33 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
         {!loading && notAssembled && (
           <div className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] p-3.5 flex flex-col gap-2 text-[11.5px] text-[#6B5A2A]">
             <span>{error ?? "Chưa có bản ghép tài liệu cho nguồn này."}</span>
-            {onGoToStep && (
+            {runAssemble ? (
               <button
                 type="button"
-                onClick={() => {
-                  onGoToStep("S-8.2");
-                  onClose();
-                }}
-                className="self-start px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white cursor-pointer"
+                onClick={runAssemble}
+                disabled={assembling}
+                className="self-start px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white cursor-pointer disabled:opacity-60"
               >
-                Đi tới S-8.2 · Ghép tài liệu
+                {assembling ? "Đang ghép tài liệu…" : "Ghép tài liệu ngay"}
               </button>
+            ) : (
+              onGoToStep && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onGoToStep("S-8.2");
+                    onClose();
+                  }}
+                  className="self-start px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white cursor-pointer"
+                >
+                  Đi tới S-8.2 · Ghép tài liệu
+                </button>
+              )
             )}
           </div>
         )}
+
+        {assembleError && <div className="text-[10.5px] text-[#B03030]">Không ghép được tài liệu: {assembleError}</div>}
 
         {!loading && !notAssembled && document && (
           <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3.5 flex flex-col gap-1.5 text-[11.5px] text-[#4B4842]">
