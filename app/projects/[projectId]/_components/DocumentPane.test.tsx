@@ -10,6 +10,7 @@ import type { Flag } from "@/types/flags";
 
 vi.mock("@/lib/api/export", () => ({
   getDocument: vi.fn(),
+  assembleDocument: vi.fn(),
 }));
 
 const fixture: RenderedDocument = {
@@ -132,6 +133,31 @@ describe("DocumentPane", () => {
     expect(screen.getByText("Chưa ghép tài liệu.")).toBeInTheDocument();
     screen.getByRole("button", { name: /Đi tới S-8.2/ }).click();
     expect(onSelectStep).toHaveBeenCalledWith("S-8.2");
+  });
+
+  it("chưa ghép + có getBaseVersion: 'Ghép tài liệu ngay' gọi POST /assemble ở version hiện tại rồi tải lại tài liệu", async () => {
+    const assembleDocument = vi.mocked(exportApi.assembleDocument);
+    assembleDocument.mockResolvedValueOnce({ data: { spine_version: 363, sections: 40, generated_at: "2026-09-17T00:00:00.000Z" }, error: null } as never);
+    getDocument
+      .mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."))
+      .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 363, spine_version: 363, stale: false } });
+
+    render(<DocumentPane projectId="p1" onSelectStep={vi.fn()} getBaseVersion={() => 363} />);
+
+    (await screen.findByRole("button", { name: "Ghép tài liệu ngay" })).click();
+    await waitFor(() => expect(assembleDocument).toHaveBeenCalledWith("p1", 363));
+    expect(await screen.findByText("Vision statement")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Đi tới S-8.2/ })).not.toBeInTheDocument();
+  });
+
+  it("ghép lỗi SPINE_VERSION_CONFLICT: hiện lý do tiếng Việt", async () => {
+    vi.mocked(exportApi.assembleDocument).mockRejectedValueOnce(new ApiClientError(409, "SPINE_VERSION_CONFLICT", "conflict"));
+    getDocument.mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."));
+
+    render(<DocumentPane projectId="p1" getBaseVersion={() => 1} />);
+
+    (await screen.findByRole("button", { name: "Ghép tài liệu ngay" })).click();
+    expect(await screen.findByText(/Tài liệu vừa đổi ở phiên khác/)).toBeInTheDocument();
   });
 
   it("nút xem tại step hiện theo flag mở khớp section_id", async () => {

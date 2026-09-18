@@ -370,6 +370,7 @@ export default function WorkspacePage() {
           changedSectionIds={changedSectionIds}
           onSelectStep={setSelectedStepId}
           refreshToken={documentRefreshToken}
+          getBaseVersion={getBaseVersion}
         />
 
         <div className="flex flex-col gap-1.5 m-2 shrink-0">
@@ -458,6 +459,7 @@ export default function WorkspacePage() {
           projectName={ws.project?.name}
           onClose={() => setExportOpen(false)}
           onGoToStep={setSelectedStepId}
+          getBaseVersion={getBaseVersion}
         />
       )}
     </div>
