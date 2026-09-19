@@ -74,7 +74,7 @@ const STATUS_TEXT: Record<BadgeTone, string> = {
 const Dot = () => <span aria-hidden className="w-1 h-1 rounded-full bg-on-surface-subtle" />;
 
 /**
- * Card dự án kiểu Floe: bìa gradient tự sinh, thân trắng bo lớn phủ lên bìa với một "tab" khoét ở góc phải chứa
+ * Card dự án kiểu Floe: bìa màu trơn theo mode, thân trắng bo lớn phủ lên bìa với một "tab" khoét ở góc phải chứa
  * nút ⋮, meta "thời gian • trạng thái", tên (font mono), vạch ngăn, footer việc tiếp theo + chip nguồn.
  */
 export default function ProjectCard({ project, progress, locale = "vi", onRename, onDelete, onHardDelete, onMoveToFolder }: Props) {
@@ -93,20 +93,20 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
   return (
     <article
       data-mode={project.sourceMode}
-      className="relative flex flex-col rounded-[22px] transition-shadow shadow-[0_1px_2px_rgba(25,24,23,0.04)] hover:shadow-[0_16px_36px_rgba(25,24,23,0.10)]"
+      className="relative flex flex-col rounded-[20px] transition-shadow shadow-[0_1px_3px_rgba(25,24,23,0.06)] hover:shadow-[0_14px_30px_rgba(25,24,23,0.10)]"
     >
       <Link
         href={`/projects/${project._id}`}
-        className="flex flex-col flex-1 rounded-[22px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="flex flex-col flex-1 rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
-        <ProjectCover seed={project._id} tone={mode.tone} className="h-[116px] rounded-t-[22px]" />
+        <ProjectCover seed={project._id} tone={mode.tone} className="h-[84px] rounded-t-[20px]" />
 
-        <div className="relative -mt-8 flex flex-col flex-1 gap-2 rounded-[22px] rounded-tr-none bg-surface-container-lowest px-5 pt-4 pb-4">
+        <div className="relative -mt-5 flex flex-col flex-1 gap-1.5 rounded-[20px] rounded-tr-none bg-surface-container-lowest px-4 pt-3.5 pb-3.5">
           {/* Tab nhô lên ở góc phải (chứa nút ⋮) + góc lõm nối tab với thân */}
-          <span aria-hidden className="absolute right-0 -top-[24px] h-[25px] w-[76px] rounded-tl-[16px] rounded-tr-[22px] bg-surface-container-lowest" />
-          <span aria-hidden className="absolute right-[76px] -top-[14px] h-[14px] w-[14px] rounded-br-[14px] shadow-[5px_5px_0_5px] shadow-surface-container-lowest" />
+          <span aria-hidden className="absolute right-0 -top-[12px] h-[13px] w-[64px] rounded-tl-[12px] rounded-tr-[20px] bg-surface-container-lowest" />
+          <span aria-hidden className="absolute right-[64px] -top-[10px] h-[10px] w-[10px] rounded-br-[10px] shadow-[4px_4px_0_4px] shadow-surface-container-lowest" />
 
-          <div className="flex items-center gap-1.5 text-[11.5px] text-on-surface-muted pr-12">
+          <div className="flex items-center gap-1.5 text-[11.5px] text-on-surface-muted pr-11">
             <span>{timeAgo(project.updatedAt)}</span>
             <Dot />
             <span className={`font-semibold ${STATUS_TEXT[status.tone]}`}>{status.label}</span>
@@ -118,9 +118,9 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
             )}
           </div>
 
-          <h3 className="font-mono text-[15px] font-medium text-on-surface leading-snug line-clamp-2">{project.name}</h3>
+          <h3 className="font-mono text-[14.5px] font-medium text-on-surface leading-snug line-clamp-2">{project.name}</h3>
 
-          <div className="h-px bg-outline-variant mt-auto" />
+          <div className="h-px bg-outline-variant mt-auto mb-0.5" />
 
           <div className="flex items-center gap-2 pt-0.5">
             <span className="flex-1 min-w-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-on-surface-variant">
@@ -136,16 +136,16 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
       </Link>
 
       {/* Ngoài Link để bấm menu không điều hướng; nằm đúng trong tab khoét */}
-      <div className="absolute right-[24px] top-[66px] z-20">
+      <div className="absolute right-[14px] top-[54px] z-20">
         <DropdownMenu
           items={menuItems}
           trigger={(props) => (
             <IconButton
               {...props}
               icon="more"
-              size="sm"
+              size="pill"
               label={`Tuỳ chọn cho ${project.name}`}
-              className="bg-surface-container-low border border-outline-variant hover:bg-surface-container-high"
+              className="bg-surface-container-high hover:bg-surface-container-highest"
             />
           )}
         />

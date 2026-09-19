@@ -51,15 +51,15 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
   const noop = () => {};
 
   it.each([
-    ["edit_srs", "SRS có sẵn", "from-info-border"],
-    ["customer_template", "Template khách", "from-accent-gold-light"],
-    ["fpt_template", "Mẫu FPT", "from-brand-300"],
+    ["edit_srs", "SRS có sẵn", /bg-(info|brand|success)-/],
+    ["customer_template", "Template khách", /bg-(accent-gold|error)-/],
+    ["fpt_template", "Mẫu FPT", /bg-(brand|primary)-/],
   ] as const)("%s ⇒ nhãn %s, bìa theo tone của mode", (sourceMode, label, stripe) => {
     const { container } = render(
       <ProjectCard project={{ ...baseProject, sourceMode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
     );
     expect(screen.getAllByText(label, { exact: false }).length).toBeGreaterThan(0);
-    expect(container.querySelector(`.${stripe}`)).not.toBeNull();
+    expect(container.querySelector("[data-cover-variant]")?.className).toMatch(stripe);
   });
 
   it("luôn link vào /projects/:id; badge trạng thái theo readiness (cờ đỏ thắng %)", () => {
