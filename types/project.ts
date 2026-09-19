@@ -1,11 +1,12 @@
+import type { ImportStatus } from "./import";
+
 export type ProjectStatus = "active" | "archived";
 
 /**
- * Nguồn khởi đầu của dự án (BE `SOURCE_MODES`, `project.model.ts`) — quyết định nhánh BPMN:
- * `edit_srs` Flow 1 (upload SRS có sẵn), `fpt_template` Flow 2.1 (mẫu FPT), `customer_template` Flow 2.2
- * (template khách). Chọn khi tạo, không đổi được. Khác `WorkingMode` (fast/coaching) ở `types/spine.ts`.
+ * Cách làm SRS (FLF-171) — khác `spine.project.working_mode` (fast/coaching):
+ * `import` = mode 1 upload SRS có sẵn rồi sửa · `fpt` = mode 2 sinh theo template FPT · `customer_template` = chưa hỗ trợ (BE 501).
  */
-export type ProjectSourceMode = "edit_srs" | "fpt_template" | "customer_template";
+export type ProjectMode = "import" | "fpt" | "customer_template";
 
 /**
  * Project theo `project.model.ts` BE — chỉ metadata danh sách. Nội dung, tiến độ và baseline nằm ở Spine
@@ -17,12 +18,21 @@ export interface Project {
   name: string;
   domain?: string | null;
   status: ProjectStatus;
-  /** Luôn có: dự án tạo trước khi có field được BE migrate thành `fpt_template`. */
-  sourceMode: ProjectSourceMode;
+  /** Project cũ (trước FLF-171) BE trả `fpt`. */
+  mode: ProjectMode;
+  /** Mode 1: trạng thái import rút gọn cho danh sách (UC-14, UC-19); mode khác `null`. */
+  import_state: ImportStatus | null;
   /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */
   folderId?: string | null;
   /** Lần mở gần nhất (BE ghi khi `GET /projects/:id`); null = chưa mở. */
   lastOpenedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  domain?: string;
+  /** Không gửi ⇒ `fpt`. */
+  mode?: ProjectMode;
 }
