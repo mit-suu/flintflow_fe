@@ -98,6 +98,22 @@ describe("AppSidebar", () => {
     expect(screen.queryByText("Tổ chức")).toBeNull();
   });
 
+  it("bấm vùng trống của sidebar ⇒ thu gọn/mở rộng; bấm vào một mục (kể cả mục \"Sắp có\") thì không", () => {
+    renderSidebar([]);
+    const card = screen.getByRole("complementary", { name: "Điều hướng chính" }).firstElementChild as HTMLElement;
+    // Trạng thái thu gọn được nhớ ở mức module (test trước có thể để lại) ⇒ so với trạng thái ban đầu, không giả định
+    const toggleLabel = () => screen.getByRole("button", { name: /thanh bên$/ }).getAttribute("aria-label");
+    const initial = toggleLabel();
+
+    fireEvent.click(screen.getAllByText("Đổi tổ chức", { exact: false })[0].closest("[aria-disabled]") as HTMLElement);
+    expect(toggleLabel()).toBe(initial);
+
+    fireEvent.click(card);
+    expect(toggleLabel()).not.toBe(initial);
+    fireEvent.click(card);
+    expect(toggleLabel()).toBe(initial);
+  });
+
   it("menu user: Đăng xuất gọi logoutAndRedirect (thu hồi phiên rồi về /login)", () => {
     renderSidebar([]);
     fireEvent.click(screen.getByRole("button", { name: "Tài khoản hiep" }));

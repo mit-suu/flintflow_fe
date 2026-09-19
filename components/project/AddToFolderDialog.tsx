@@ -108,7 +108,7 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
                   return (
                     <label
                       key={p._id}
-                      className={`flex items-center gap-3 min-h-11 px-3 py-2 rounded-[12px] border cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
+                      className={`flex items-center gap-3 min-h-11 px-3 py-2 rounded-control border cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
                         checked ? "border-outline-purple bg-primary-soft" : "border-outline-variant hover:bg-surface-container-low"
                       }`}
                     >
@@ -122,7 +122,7 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
                         {checked && <Icon name="check" size={11} />}
                       </span>
                       <span className="flex-1 min-w-0">
-                        <span className="block font-mono text-[13.5px] text-on-surface truncate">{p.name}</span>
+                        <span className="block text-[13.5px] font-medium text-on-surface truncate">{p.name}</span>
                         <span className="block text-[11px] text-on-surface-muted">
                           {mode.shortLabel}
                           {p.folderId && folderIds.has(p.folderId) ? " · đang ở thư mục khác" : ""}
@@ -135,7 +135,7 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
               </fieldset>
 
               {error && (
-                <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-[10px] px-3 py-2">
+                <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
                   {error}
                 </p>
               )}

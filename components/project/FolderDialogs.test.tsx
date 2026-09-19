@@ -40,7 +40,7 @@ describe("FolderDialogs", () => {
 
     fireEvent.change(screen.getByLabelText("Tên thư mục"), { target: { value: "Khách A2" } });
     fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
-    await waitFor(() => expect(updateFolder).toHaveBeenCalledWith("f1", { name: "Khách A2", color: "violet" }));
+    await waitFor(() => expect(updateFolder).toHaveBeenCalledWith("f1", { name: "Khách A2", color: "blue" }));
   });
 
   it("xoá: nói rõ dự án bên trong được giữ", async () => {

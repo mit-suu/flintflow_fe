@@ -13,8 +13,13 @@ import { logoutAndRedirect } from "@/lib/auth";
 import { selectRecentProjects, useProjects } from "@/lib/hooks/use-projects";
 import { useAppShell } from "./AppShell";
 import RecentProjects from "./RecentProjects";
-import SidebarNavItem from "./SidebarNavItem";
-import { ORG_SWITCHER, SIDEBAR_SECTIONS, isSidebarItemActive } from "./sidebar-config";
+import SidebarNavItem, {
+  SIDEBAR_ROW,
+  SIDEBAR_ROW_IDLE,
+  SidebarTooltip,
+  sidebarRowLayout
+} from "./SidebarNavItem";
+import { SIDEBAR_SECTIONS, isSidebarItemActive } from "./sidebar-config";
 
 export interface SidebarUser {
   name: string;
@@ -22,13 +27,19 @@ export interface SidebarUser {
   isAdmin: boolean;
 }
 
-/** Avatar chữ cái đầu của user — dùng chung cho sidebar và trang hồ sơ. Gradient dựng từ token primary (không hex). */
-export const USER_AVATAR = "bg-gradient-to-br from-primary-light to-primary text-on-primary";
+/** Avatar chữ cái đầu của user — dùng chung cho sidebar và trang hồ sơ. Màu trơn (không gradient): nền tím nhạt, chữ tím. */
+export const USER_AVATAR = "bg-primary-fixed text-primary";
 
 export default function AppSidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { navOpen, closeNav, collapsed: collapsedPref, toggleCollapsed, balance } = useAppShell();
+  const {
+    navOpen,
+    closeNav,
+    collapsed: collapsedPref,
+    toggleCollapsed,
+    balance
+  } = useAppShell();
   const { projects } = useProjects();
   const unreadCount = useUnreadNotificationCount();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -36,7 +47,11 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
   // Drawer mobile luôn mở rộng; thu gọn chỉ áp dụng trên desktop
   const collapsed = collapsedPref && !navOpen;
   const recent = selectRecentProjects(projects);
-  const planLabel = user.isAdmin ? "Admin" : balance ? `Gói ${balance.planLabel}` : "Gói Free";
+  const planLabel = user.isAdmin
+    ? "Admin"
+    : balance
+      ? `Gói ${balance.planLabel}`
+      : "Gói Free";
   const initial = user.name.charAt(0).toUpperCase();
 
   const handleLogout = () => {
@@ -44,130 +59,209 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
   };
 
   return (
+    // Cột nền xám nhạt, bên trong là một card trắng bo góc nổi lên (sidebar kiểu "floating panel")
     <aside
       aria-label="Điều hướng chính"
-      className={`h-dvh bg-surface-container-lowest border-r border-outline-variant flex flex-col gap-1 py-4 transition-[width] duration-200 ${
-        collapsed ? "w-[68px] px-2.5" : "w-[248px] px-3"
-      }`}
-    >
-      <div className={`flex items-center gap-2 pb-3 ${collapsed ? "flex-col" : "px-1.5"}`}>
-        <Logo variant={collapsed ? "icon" : "wordmark"} sizeClassName={collapsed ? "w-6 h-6" : "h-4 w-auto"} theme="light" />
-        {/* Chỉ desktop; bọc riêng vì `hidden` không thắng được `inline-flex` sẵn có của IconButton */}
-        <span className="hidden md:contents">
-          <IconButton
-            icon={collapsed ? "caret-right" : "caret-left"}
-            label={collapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
-            size="sm"
-            onClick={toggleCollapsed}
-            className={collapsed ? "" : "ml-auto"}
-          />
-        </span>
-        <IconButton icon="close" label="Đóng menu" size="sm" onClick={closeNav} className="ml-auto md:hidden" data-autofocus />
-      </div>
-
-      <div className={collapsed ? "" : "pb-2"}>
-        <SidebarNavItem item={ORG_SWITCHER} collapsed={collapsed} />
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
-        {SIDEBAR_SECTIONS.map((section) => (
-          <nav key={section.id} aria-label={section.label ?? "Chính"} className="flex flex-col gap-0.5">
-            {section.label &&
-              (collapsed ? (
-                <div aria-hidden className="h-px bg-outline-subtle mx-2 my-1" />
-              ) : (
-                <div className="px-2.5 pt-1 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-on-surface-subtle">
-                  {section.label}
-                </div>
-              ))}
-            {section.items.map((item) => (
-              <SidebarNavItem
-                key={item.id}
-                item={item}
-                collapsed={collapsed}
-                active={item.status === "ready" && isSidebarItemActive(item, pathname)}
-                count={item.status === "ready" && item.badge === "unread" ? unreadCount : 0}
-                onNavigate={closeNav}
-              />
-            ))}
-          </nav>
-        ))}
-        {!collapsed && <RecentProjects projects={recent} onNavigate={closeNav} />}
-      </div>
-
-      <div className="flex flex-col gap-1 pt-2 border-t border-outline-subtle">
+      className="h-dvh bg-surface-sidebar p-3 pl-0 pr-4 rounded-r-2xl">
+      <div
+        // Bấm vào VÙNG TRỐNG của sidebar (không phải link/nút/menu/mục "Sắp có") ⇒ thu gọn/mở rộng — chỉ desktop.
+        // Bàn phím vẫn dùng nút tròn ở mép phải; vùng trống không nhận focus nên không cần phím riêng.
+        onClick={(e) => {
+          if (navOpen) return;
+          if ((e.target as HTMLElement).closest("a, button, input, textarea, select, label, [role], [aria-disabled]")) return;
+          toggleCollapsed();
+        }}
+        className={`relative h-full flex flex-col rounded-r-[20px] bg-surface-container-lowest shadow-[0_1px_2px_rgba(25,24,23,0.04),0_8px_24px_rgba(25,24,23,0.05)] py-4 transition-[width] duration-200 ${
+          collapsed ? "w-[64px] px-2 md:cursor-e-resize" : "w-[232px] px-3 md:cursor-w-resize"
+        }`}>
+        {/* Nút tròn nằm đè lên mép phải card, ở GIỮA chiều cao — chỉ desktop (mobile có nút đóng riêng) */}
         <button
           type="button"
-          onClick={() => setFeedbackOpen(true)}
-          title={collapsed ? "Gửi góp ý" : undefined}
-          className={`flex items-center gap-2.5 rounded-[10px] text-[12.5px] font-semibold text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-            collapsed ? "justify-center h-9 w-9 mx-auto" : "h-9 px-2.5"
-          }`}
-        >
-          <Icon name="feedback" size={17} />
-          {collapsed ? <span className="sr-only">Gửi góp ý</span> : "Gửi góp ý"}
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
+          title={collapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
+          className="hidden md:grid absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-6 h-6 place-items-center rounded-full bg-surface-container-lowest text-on-surface-variant shadow-[0_1px_3px_rgba(25,24,23,0.14)] hover:text-on-surface transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <Icon
+            name={collapsed ? "caret-right" : "caret-left"}
+            size={13}
+            weight="bold"
+          />
         </button>
 
-        <DropdownMenu
-          placement="top"
-          header={
-            <div className="flex items-center gap-2.5">
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 ${USER_AVATAR}`}>
-                {initial}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[12.5px] font-extrabold text-on-surface truncate">{user.name}</span>
-                <span className="block text-[10.5px] text-on-surface-muted truncate">{user.email}</span>
-              </span>
-            </div>
-          }
-          items={[
-            {
-              label: "Hồ sơ cá nhân",
-              icon: "user",
-              onSelect: () => {
-                closeNav();
-                router.push("/home/profile");
-              },
-            },
-            {
-              label: "Thanh toán",
-              icon: "credit-card",
-              onSelect: () => {
-                closeNav();
-                router.push("/home/billing");
-              },
-              trailing: <Badge>{planLabel}</Badge>,
-            },
-            { label: "Đăng xuất", icon: "logout", tone: "danger", onSelect: handleLogout },
-          ]}
-          trigger={(props) => (
-            <button
-              type="button"
-              {...props}
-              aria-label={`Tài khoản ${user.name}`}
-              className={`flex items-center gap-2.5 w-full rounded-[12px] bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                collapsed ? "justify-center p-1.5" : "p-2"
-              }`}
-            >
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${USER_AVATAR}`}>
-                {initial}
-              </span>
-              {!collapsed && (
-                <>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[12px] font-bold text-on-surface truncate">{user.name}</span>
-                    <span className="block text-[10.5px] text-on-surface-muted truncate">{planLabel}</span>
-                  </span>
-                  <Icon name="chevron-down" size={14} className="text-on-surface-subtle" />
-                </>
-              )}
-            </button>
+        {/* Logo: mở rộng = wordmark (bản 2026-09 — chữ "Flow" tím dịu khớp primary #6a62c4); thu gọn = icon chữ F. */}
+        <div
+          className={`flex items-center h-11 mb-5 gap-2 pt-3 ${collapsed ? "justify-center" : "px-5"}`}>
+          {/* Luôn render CẢ HAI logo, chỉ ẩn/hiện bằng CSS: ảnh bị ẩn vẫn được trình duyệt tải sẵn ⇒ bấm thu gọn/mở rộng
+              là đổi logo ngay. Mount có điều kiện thì ảnh chỉ bắt đầu tải lúc bấm ⇒ logo đổi trễ. */}
+          <Logo
+            variant="icon"
+            sizeClassName="w-7 h-7"
+            theme="light"
+            className={collapsed ? "" : "hidden"}
+          />
+          <Logo
+            variant="wordmark"
+            sizeClassName="h-5 w-auto"
+            theme="light"
+            className={collapsed ? "hidden" : ""}
+          />
+          {!collapsed && (
+            <IconButton
+              icon="close"
+              label="Đóng menu"
+              size="sm"
+              onClick={closeNav}
+              className="ml-auto md:hidden"
+              data-autofocus
+            />
           )}
-        />
+        </div>
+
+        {/* Thu gọn: không cuộn để tooltip bên phải icon không bị cắt (ít mục, không cần cuộn) */}
+        <div
+          className={`flex-1 min-h-0 flex flex-col gap-6 ${collapsed ? "overflow-visible" : "overflow-y-auto"}`}>
+          {SIDEBAR_SECTIONS.map((section) => (
+            <nav
+              key={section.id}
+              aria-label={section.label ?? "Chính"}
+              className="flex flex-col gap-1">
+              {section.label &&
+                (collapsed ? (
+                  <div
+                    aria-hidden
+                    className="h-px bg-on-surface/[0.07] mx-2 mb-2"
+                  />
+                ) : (
+                  <div className="px-3 pb-1 text-[11.5px] font-medium text-on-surface-muted">
+                    {section.label}
+                  </div>
+                ))}
+              {section.items.map((item) => (
+                <SidebarNavItem
+                  key={item.id}
+                  item={item}
+                  collapsed={collapsed}
+                  active={
+                    item.status === "ready" &&
+                    isSidebarItemActive(item, pathname)
+                  }
+                  count={
+                    item.status === "ready" && item.badge === "unread"
+                      ? unreadCount
+                      : 0
+                  }
+                  onNavigate={closeNav}
+                />
+              ))}
+            </nav>
+          ))}
+          {!collapsed && (
+            <RecentProjects
+              projects={recent}
+              onNavigate={closeNav}
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1 pt-3">
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            className={`${SIDEBAR_ROW} ${SIDEBAR_ROW_IDLE} cursor-pointer ${sidebarRowLayout(collapsed)}`}>
+            <Icon
+              name="feedback"
+              size={19}
+            />
+            {collapsed ? (
+              <>
+                <span className="sr-only">Gửi góp ý</span>
+                <SidebarTooltip label="Gửi góp ý" />
+              </>
+            ) : (
+              "Gửi góp ý"
+            )}
+          </button>
+
+          <DropdownMenu
+            placement="top"
+            header={
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${USER_AVATAR}`}>
+                  {initial}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[12.5px] font-semibold text-on-surface truncate">
+                    {user.name}
+                  </span>
+                  <span className="block text-[11px] text-on-surface-muted truncate">
+                    {user.email}
+                  </span>
+                </span>
+              </div>
+            }
+            items={[
+              {
+                label: "Hồ sơ cá nhân",
+                icon: "user",
+                onSelect: () => {
+                  closeNav();
+                  router.push("/home/profile");
+                }
+              },
+              {
+                label: "Thanh toán",
+                icon: "credit-card",
+                onSelect: () => {
+                  closeNav();
+                  router.push("/home/billing");
+                },
+                trailing: <Badge>{planLabel}</Badge>
+              },
+              {
+                label: "Đăng xuất",
+                icon: "logout",
+                tone: "danger",
+                onSelect: handleLogout
+              }
+            ]}
+            trigger={(props) => (
+              <button
+                type="button"
+                {...props}
+                aria-label={`Tài khoản ${user.name}`}
+                className={`${SIDEBAR_ROW} ${SIDEBAR_ROW_IDLE} w-full cursor-pointer text-left ${collapsed ? "justify-center h-10 w-10 mx-auto" : "h-12 px-2"}`}>
+                <span
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${USER_AVATAR}`}>
+                  {initial}
+                </span>
+                {!collapsed && (
+                  <>
+                    <span className="min-w-0 flex-1 leading-tight">
+                      <span className="block text-[13px] font-medium text-on-surface truncate">
+                        {user.name}
+                      </span>
+                      <span className="block text-[11.5px] font-normal text-on-surface-muted truncate">
+                        {planLabel}
+                      </span>
+                    </span>
+                    <Icon
+                      name="caret-up-down"
+                      size={15}
+                      className="text-on-surface-subtle"
+                    />
+                  </>
+                )}
+              </button>
+            )}
+          />
+        </div>
       </div>
 
-      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      <FeedbackDialog
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+      />
     </aside>
   );
 }

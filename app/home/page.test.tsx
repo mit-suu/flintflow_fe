@@ -118,12 +118,15 @@ describe("Project Dashboard", () => {
     expect(screen.getByRole("link", { name: /Dự án a/ })).toBeInTheDocument();
   });
 
-  it("chỉ còn dự án lưu trữ ⇒ không hiện onboarding, vẫn mở được lưu trữ", async () => {
+  it("chỉ còn dự án lưu trữ ⇒ không hiện onboarding nhưng có sẵn form tạo dự án, vẫn mở được lưu trữ", async () => {
     vi.mocked(listProjects).mockResolvedValue(ok([project("c", { status: "archived" })]));
     renderPage();
 
     expect(await screen.findByText("Chưa có dự án đang làm")).toBeInTheDocument();
     expect(screen.queryByText("Bắt đầu dự án SRS đầu tiên")).toBeNull();
+    // Chọn cách bắt đầu ngay trong vùng trống, không phải mở dialog
+    expect(screen.getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Bắt đầu/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xem lưu trữ" }));
     expect(screen.getByRole("link", { name: /Dự án c/ })).toBeInTheDocument();
   });
