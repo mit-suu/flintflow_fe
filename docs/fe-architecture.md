@@ -132,8 +132,9 @@ là không hỗ trợ lấy image nhỏ hơn.
 ```
 /(auth)/{login,register,verify-email,forgot-password,reset-password,check-email}
 /home                     Project Dashboard: chưa có dự án/thư mục ⇒ chọn source mode + tên ngay trên trang;
-                          còn lại ⇒ hàng Thư mục + lưới card dự án (lọc Trạng thái/Nguồn, tìm kiếm, "+ Dự án mới");
-                          bấm thư mục ⇒ chỉ dự án trong thư mục (state trên trang, không đổi URL)
+                          còn lại ⇒ tab Tất cả (thư mục + dự án ngoài thư mục) · Thư mục · Dự án (mọi dự án, chia vùng
+                          Hôm nay/7/30 ngày theo "Mới cập nhật" hoặc "Mới mở" = Project.lastOpenedAt); kéo card thả vào
+                          thẻ thư mục để chuyển; bấm thư mục ⇒ dự án trong thư mục + "Thêm dự án" (chọn có sẵn / tạo mới)
 /home/{notifications,billing}
 /projects/[projectId]     workspace — cửa vào duy nhất của một dự án (card luôn link tới đây)
 /projects/[projectId]/view  bản đọc read-only
@@ -156,9 +157,9 @@ gọi nó là "working mode". Nhãn, mô tả, icon, tone và `status: "ready" |
 
 | Thư mục | Chứa gì |
 | --- | --- |
-| `ui/` | Primitive không biết domain: `Icon`, `Button`, `IconButton`, `Badge`, `CountBadge`, `SearchInput`, `FilterSelect`, `DropdownMenu`, `Card`, `Skeleton`, `EmptyState`, `Modal` (import qua `@/components/ui`) |
+| `ui/` | Primitive không biết domain: `Icon`, `Button`, `IconButton`, `Badge`, `CountBadge`, `SearchInput`, `FilterSelect`, `DropdownMenu`, `Card`, `Skeleton`, `EmptyState`, `Modal`, `Tabs` (import qua `@/components/ui`) |
 | `layout/` | Khung `/home/*`: `AppShell` (drawer mobile, số dư credits, trạng thái thu gọn), `AppSidebar` dựng từ `sidebar-config.ts`, `SidebarNavItem`, `TopBar`, `RecentProjects` |
-| `project/` | Feature dùng ở nhiều trang: `SourceModePicker`, `CreateProjectForm` (một component cho empty state và dialog), `ProjectCard` + `ProjectCover` (bìa gradient tự sinh theo tone mode, cố định theo id), `ProjectGrid`, `ProjectActionDialogs`, `FolderCard`, `FolderDialogs` (tạo/sửa/xoá thư mục, chuyển dự án), `FeedbackDialog` |
+| `project/` | Feature dùng ở nhiều trang: `SourceModePicker`, `CreateProjectForm` (một component cho empty state và dialog), `ProjectCard` (kéo được) + `ProjectCover` (bìa màu trơn theo tone mode, sắc độ cố định theo id), `ProjectGrid`, `ProjectActionDialogs`, `FolderCard` (nhận thả card), `FolderDialogs` (tạo/sửa/xoá thư mục, chuyển dự án), `AddToFolderDialog`, `ProjectTimeline`, `FeedbackDialog` |
 
 Quy tắc:
 

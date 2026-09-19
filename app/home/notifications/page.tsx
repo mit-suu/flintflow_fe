@@ -98,7 +98,7 @@ export default function NotificationsPage() {
     <>
       <TopBar trail={["Tài khoản", "Thông báo"]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8 bg-[#F5F3F0]">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8 bg-surface-container-lowest">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Thông báo</h1>

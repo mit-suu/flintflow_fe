@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/layout/AppShell";
 import { getProgress } from "@/lib/api/pipeline";
-import { createProject, listProjects } from "@/lib/api/projects";
+import { createProject, listProjects, moveProjectToFolder } from "@/lib/api/projects";
 import { listFolders } from "@/lib/api/folders";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
@@ -15,6 +15,7 @@ vi.mock("@/lib/api/projects", () => ({
   createProject: vi.fn(),
   renameProject: vi.fn(),
   deleteProject: vi.fn(),
+  moveProjectToFolder: vi.fn(async () => ({ data: null, error: null })),
 }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn() }));
 vi.mock("@/lib/api/pipeline", () => ({ getProgress: vi.fn(async () => ({ data: null, error: null })) }));
@@ -137,6 +138,46 @@ describe("Project Dashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Tất cả dự án" }));
     expect(screen.getByRole("link", { name: /Dự án b/ })).toBeInTheDocument();
+  });
+
+  it("tab Tất cả ẩn dự án trong thư mục; tab Dự án hiện tất cả kèm chip thư mục, chia vùng thời gian", async () => {
+    const now = new Date().toISOString();
+    vi.mocked(listProjects).mockResolvedValue(
+      ok([project("a", { folderId: "f1", updatedAt: now }), project("b", { updatedAt: "2020-01-01T00:00:00Z" })])
+    );
+    vi.mocked(listFolders).mockResolvedValue(
+      ok([{ _id: "f1", name: "Khách A", color: "blue", projectCount: 1, createdAt: "", updatedAt: "" }])
+    );
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /Dự án b/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Dự án a/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: /^Dự án/ }));
+    expect(screen.getByRole("link", { name: /Dự án a/ })).toHaveTextContent("Khách A");
+    expect(screen.getByRole("heading", { name: "Hôm nay" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cũ hơn" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /^Thư mục/ })).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Sắp xếp" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /^Thư mục/ }));
+    expect(screen.queryByRole("link", { name: /Dự án/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Khách A/ })).toBeInTheDocument();
+  });
+
+  it("thả card dự án vào thẻ thư mục ⇒ chuyển rồi tải lại", async () => {
+    vi.mocked(listProjects).mockResolvedValue(ok([project("a")]));
+    vi.mocked(listFolders).mockResolvedValue(ok([{ _id: "f1", name: "Khách A", color: "blue", projectCount: 0, createdAt: "", updatedAt: "" }]));
+    renderPage();
+    await screen.findByRole("link", { name: /Dự án a/ });
+
+    const folder = screen.getByRole("button", { name: /^Khách A/ }).closest("article") as HTMLElement;
+    const dataTransfer = { types: ["application/x-flintflow-project"], getData: () => "a", dropEffect: "none" };
+    fireEvent.dragOver(folder, { dataTransfer });
+    fireEvent.drop(folder, { dataTransfer });
+
+    await waitFor(() => expect(moveProjectToFolder).toHaveBeenCalledWith("a", "f1"));
+    await waitFor(() => expect(listProjects).toHaveBeenCalledTimes(2));
   });
 
   it('"+ Dự án mới" mở dialog chứa cùng picker; Huỷ không tạo gì', async () => {

@@ -21,6 +21,8 @@ export interface Project {
   sourceMode: ProjectSourceMode;
   /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */
   folderId?: string | null;
+  /** Lần mở gần nhất (BE ghi khi `GET /projects/:id`); null = chưa mở. */
+  lastOpenedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

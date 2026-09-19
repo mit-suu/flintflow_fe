@@ -12,7 +12,7 @@ const POLL_TIMEOUT_MS = 15 * 60 * 1000;
 
 function CenteredCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 bg-[#F5F3F0]">
+    <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 bg-surface-container-lowest">
       <div className="w-full max-w-[460px] bg-white border border-[#ECEAE5] rounded-[20px] p-7 flex flex-col gap-4">
         {children}
       </div>
