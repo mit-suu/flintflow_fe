@@ -8,4 +8,9 @@ export interface User {
   balance?: number;
   createdAt?: string;
   updatedAt?: string;
+  /** Chỉ có ở `GET /users/me` (trang Hồ sơ). */
+  authProvider?: "local" | "google";
+  emailVerified?: boolean;
+  /** `false` với tài khoản Google thuần ⇒ không có form đổi mật khẩu. */
+  hasPassword?: boolean;
 }
