@@ -28,7 +28,7 @@ Cửa duy nhất gọi BE. Không `fetch` trực tiếp trong component.
 `types/` phản chiếu kiểu của BE và giữ **snake_case** y như field Spine — đổi sang camelCase là tự tạo
 một tầng dịch phải bảo trì mãi.
 
-## Workspace (`app/projects/[projectId]/`)
+## Workspace (`app/projects/[id]/`)
 
 `page.tsx` ghép mọi thứ; state nằm trong hook:
 
@@ -131,27 +131,28 @@ là không hỗ trợ lấy image nhỏ hơn.
 
 ```
 /(auth)/{login,register,verify-email,forgot-password,reset-password,check-email}
-/home                     Project Dashboard: chưa có dự án/thư mục ⇒ chọn source mode + tên ngay trên trang;
+/home                     Project Dashboard: chưa có dự án/thư mục ⇒ chọn cách làm SRS (`Project.mode`) + tên ngay trên trang;
                           còn lại ⇒ tab Tất cả (thư mục + dự án ngoài thư mục) · Thư mục · Dự án (mọi dự án, chia vùng
                           Hôm nay/7/30 ngày theo "Mới cập nhật" hoặc "Mới mở" = Project.lastOpenedAt); kéo card thả vào
-                          thẻ thư mục để chuyển; bấm thư mục ⇒ dự án trong thư mục + "Thêm dự án" (chọn có sẵn / tạo mới)
-/home/{notifications,billing}
-/projects/[projectId]     workspace — cửa vào duy nhất của một dự án (card luôn link tới đây)
-/projects/[projectId]/view  bản đọc read-only
+                          thẻ thư mục để chuyển; bấm thư mục ⇒ dự án trong thư mục + "Thêm dự án" (chọn có sẵn / tạo mới).
+                          Tạo dự án `import` (mode 1) ⇒ vào thẳng wizard `/projects/[id]/import`
+/home/{notifications,billing,profile}
+/projects/[id]            workspace — cửa vào duy nhất của một dự án (card luôn link tới đây)
+/projects/[id]/view       bản đọc read-only
 /admin/{users,metrics,ai-cost,feedback}
 ```
 
-Tạo dự án xong đi tới `getProjectStartRoute(id, sourceMode)` (`lib/project-source-mode.ts`) — chỗ duy nhất
-map mode → route: `edit_srs → /projects/:id/import`, `customer_template → /projects/:id/template`,
-`fpt_template → /projects/:id`. Hai route đầu thuộc nhánh upload SRS / template khách; route đổi thì chỉ
-sửa hàm này.
+Tạo dự án xong đi tới `getProjectStartRoute(id, mode)` (`lib/project-source-mode.ts`) — chỗ duy nhất
+map mode → route: `import → /projects/:id/import` (wizard mode 1), `customer_template → /projects/:id/template`
+(chưa có, BE trả 501), `fpt → /projects/:id`. Route đổi thì chỉ sửa hàm này.
 
-## Source mode của dự án
+## Cách làm SRS của dự án (`Project.mode`)
 
-`Project.sourceMode` (`edit_srs | fpt_template | customer_template`) do BE lưu khi tạo, bắt buộc và không đổi
-được; dự án cũ đã được migrate thành `fpt_template`. Khác `WorkingMode` (fast/coaching) của Spine — đừng
-gọi nó là "working mode". Nhãn, mô tả, icon, tone và `status: "ready" | "soon"` của 3 mode chỉ khai báo ở
-`SOURCE_MODE_OPTIONS`; mode `soon` hiện nhưng không chọn được.
+`Project.mode` (`import | fpt | customer_template`, BE `project.model.ts`) chọn khi tạo, không đổi được; không gửi
+⇒ `fpt`, dự án cũ BE đọc ra `fpt`. Khác `WorkingMode` (fast/coaching) của Spine — đừng gọi nó là "working mode".
+Nhãn, mô tả, icon, tone và `status: "ready" | "soon"` của 3 mode chỉ khai báo ở `SOURCE_MODE_OPTIONS`; mode `soon`
+hiện nhưng không chọn được. Card dự án `import` hiện trạng thái import (`import_state`) hoặc số change request đang mở
+thay cho step tiếp theo.
 
 ## Component dùng chung (`components/`)
 

@@ -18,11 +18,14 @@ export interface ApiResponse<T = unknown> {
 export class ApiClientError extends Error {
   code: string;
   status: number;
+  /** `meta` của envelope lỗi (vd `issues[]` của `IMPORT_FILE_REJECTED`, `prefill` của `CHANGE_REQUIRES_CR`). */
+  meta?: Record<string, unknown>;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, meta?: Record<string, unknown>) {
     super(message);
     this.status = status;
     this.code = code;
+    this.meta = meta;
   }
 }
 
@@ -240,7 +243,8 @@ export const apiCall = async <T = unknown>(
     throw new ApiClientError(
       res.status,
       json.error?.code || "UNKNOWN_ERROR",
-      json.error?.message || `HTTP ${res.status}`
+      json.error?.message || `HTTP ${res.status}`,
+      json.meta
     );
   }
 

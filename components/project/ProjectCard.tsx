@@ -5,6 +5,7 @@ import type { BadgeTone } from "@/components/ui/Badge";
 import DropdownMenu, { type DropdownMenuItem } from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
+import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[id]/_components/mode1/labels";
 import { tStep, type Locale } from "@/lib/i18n";
 import { getSourceModeOption, type SourceModeTone } from "@/lib/project-source-mode";
 import type { ProgressResponse } from "@/types/pipeline";
@@ -16,6 +17,8 @@ interface Props {
   /** `GET /projects/:id/progress`; `null` khi project chưa có Spine, `undefined` khi đang tải. */
   progress?: ProgressResponse | null;
   locale?: Locale;
+  /** Mode 1: số change request đang mở; `undefined` khi chưa tải / không áp dụng. */
+  openCrs?: number;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
   onHardDelete: (p: Project) => void;
@@ -53,6 +56,18 @@ export function nextStepLabel(progress: ProgressResponse | null | undefined, loc
   return tStep(stepId, locale);
 }
 
+/**
+ * Mode 1 (UC-14, UC-19): chưa import xong ⇒ trạng thái import; đã có baseline ⇒ số change request đang mở.
+ * Trạng thái lấy từ `project.import_state` do BE trả.
+ */
+export function mode1NextLabel(project: Project, openCrs?: number): string {
+  const state = project.import_state;
+  if (!state) return "Chưa tải SRS lên — mở để upload .docx";
+  if (!IMPORT_DONE_STATUSES.includes(state)) return `Nhập SRS: ${IMPORT_STATUS_LABELS[state]}`;
+  if (openCrs === undefined) return IMPORT_STATUS_LABELS[state];
+  return openCrs > 0 ? `${openCrs} change request đang mở` : IMPORT_STATUS_LABELS[state];
+}
+
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (seconds < 3600) return `${Math.max(1, Math.floor(seconds / 60))} phút trước`;
@@ -88,6 +103,7 @@ export default function ProjectCard({
   project,
   progress,
   locale = "vi",
+  openCrs,
   onRename,
   onDelete,
   onHardDelete,
@@ -96,7 +112,7 @@ export default function ProjectCard({
   draggable = false,
 }: Props) {
   const status = getStatusBadge(progress);
-  const mode = getSourceModeOption(project.sourceMode);
+  const mode = getSourceModeOption(project.mode);
   const archived = project.status === "archived";
 
   const menuItems: DropdownMenuItem[] = [
@@ -109,7 +125,7 @@ export default function ProjectCard({
 
   return (
     <article
-      data-mode={project.sourceMode}
+      data-mode={project.mode}
       draggable={draggable || undefined}
       onDragStart={
         draggable
@@ -168,7 +184,7 @@ export default function ProjectCard({
           <div className="flex items-center gap-2 pt-0.5">
             <span className="flex-1 min-w-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-on-surface-variant">
               <Icon name="arrow-right" size={13} className="text-primary" />
-              <span className="truncate">{nextStepLabel(progress, locale)}</span>
+              <span className="truncate">{project.mode === "import" ? mode1NextLabel(project, openCrs) : nextStepLabel(progress, locale)}</span>
             </span>
             <span title={mode.label} className={`inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10.5px] font-bold ${MODE_CHIP[mode.tone]}`}>
               <Icon name={mode.icon} size={12} />
