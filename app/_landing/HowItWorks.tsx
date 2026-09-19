@@ -8,7 +8,7 @@ import { SectionHeading, TONE_FILL } from "./ui";
  */
 export default function HowItWorks() {
   return (
-    <section id="cach-hoat-dong" aria-labelledby="how-title" className="scroll-mt-20 bg-surface-sidebar px-4 py-20 sm:px-6 lg:py-28">
+    <section id="cach-hoat-dong" aria-labelledby="how-title" className="scroll-mt-24 bg-surface-sidebar px-4 py-20 sm:px-6 lg:py-28">
       <div className="mx-auto max-w-[1200px]">
         <SectionHeading id="how-title" eyebrow={HOW_HEADING.eyebrow} title={HOW_HEADING.title} subline={HOW_HEADING.subline} />
 

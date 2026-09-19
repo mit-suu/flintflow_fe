@@ -8,6 +8,7 @@ import type { PhaseId } from "@/lib/constants/step-registry";
  */
 
 export const NAV_LINKS = [
+  { href: "#top", label: "Trang chủ" },
   { href: "#cach-hoat-dong", label: "Cách hoạt động" },
   { href: "#che-do", label: "Cách bắt đầu" },
   { href: "#bang-gia", label: "Bảng giá" },

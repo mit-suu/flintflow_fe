@@ -4,7 +4,7 @@ import { ButtonLink, Diamond, SectionHeading } from "./ui";
 /* Hai gói phẳng: Free nền xám ấm, Pro nền mực đậm để nổi — nhãn "Phổ biến nhất" vàng như hạt kim cương logo. */
 export default function Pricing() {
   return (
-    <section id="bang-gia" aria-labelledby="pricing-title" className="scroll-mt-20 px-4 py-20 sm:px-6 lg:py-28">
+    <section id="bang-gia" aria-labelledby="pricing-title" className="scroll-mt-24 px-4 py-20 sm:px-6 lg:py-28">
       <div className="mx-auto max-w-[1200px]">
         <SectionHeading
           id="pricing-title"

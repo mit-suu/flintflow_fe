@@ -4,7 +4,7 @@ import { FolderShape, SectionHeading } from "./ui";
 /* Ba cách bắt đầu dự án, vẽ bằng thẻ thư mục của dashboard — mỗi chế độ một màu, cùng tone với bước tạo dự án. */
 export default function Modes() {
   return (
-    <section id="che-do" aria-labelledby="modes-title" className="scroll-mt-20 px-4 py-20 sm:px-6 lg:py-28">
+    <section id="che-do" aria-labelledby="modes-title" className="scroll-mt-24 px-4 py-20 sm:px-6 lg:py-28">
       <div className="mx-auto max-w-[1200px]">
         <SectionHeading id="modes-title" eyebrow={MODES_HEADING.eyebrow} title={MODES_HEADING.title} />
 
