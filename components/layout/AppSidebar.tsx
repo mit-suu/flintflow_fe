@@ -56,7 +56,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
         {/* Chỉ desktop; bọc riêng vì `hidden` không thắng được `inline-flex` sẵn có của IconButton */}
         <span className="hidden md:contents">
           <IconButton
-            icon={collapsed ? "angle-double-right" : "angle-double-left"}
+            icon={collapsed ? "caret-right" : "caret-left"}
             label={collapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
             size="sm"
             onClick={toggleCollapsed}
