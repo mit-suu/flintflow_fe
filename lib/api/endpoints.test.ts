@@ -9,6 +9,7 @@ import * as documents from "./documents";
 import * as exportApi from "./export";
 import * as files from "./files";
 import * as flags from "./flags";
+import * as folders from "./folders";
 import * as importApi from "./import";
 import * as notifications from "./notifications";
 import * as pipeline from "./pipeline";
@@ -39,6 +40,12 @@ const cases: EndpointCase[] = [
   ["createProject", () => projects.createProject("App"), "/projects", post({ name: "App" })],
   ["createProject (mode 1)", () => projects.createProject("App", "import"), "/projects", post({ name: "App", mode: "import" })],
   [
+    "createProject (trong thư mục)",
+    () => projects.createProject("App", "fpt", "f1"),
+    "/projects",
+    post({ name: "App", mode: "fpt", folderId: "f1" }),
+  ],
+  [
     "renameProject",
     () => projects.renameProject("p1", "Mới"),
     "/projects/p1/name",
@@ -50,6 +57,27 @@ const cases: EndpointCase[] = [
     () => projects.deleteProject("p1", { hard: true }),
     "/projects/p1?hard=true",
     { method: "DELETE" },
+  ],
+  [
+    "moveProjectToFolder",
+    () => projects.moveProjectToFolder("p1", "f1"),
+    "/projects/p1/folder",
+    { method: "PATCH", body: JSON.stringify({ folderId: "f1" }) },
+  ],
+  ["listFolders", () => folders.listFolders(), "/folders"],
+  ["createFolder", () => folders.createFolder({ name: "A", color: "blue" }), "/folders", post({ name: "A", color: "blue" })],
+  [
+    "updateFolder",
+    () => folders.updateFolder("f1", { name: "B" }),
+    "/folders/f1",
+    { method: "PATCH", body: JSON.stringify({ name: "B" }) },
+  ],
+  ["deleteFolder", () => folders.deleteFolder("f1"), "/folders/f1", { method: "DELETE" }],
+  [
+    "addProjectsToFolder",
+    () => folders.addProjectsToFolder("f1", ["p1", "p2"]),
+    "/folders/f1/projects",
+    post({ projectIds: ["p1", "p2"] }),
   ],
   ["listChatSessions", () => chat.listChatSessions("p1"), "/projects/p1/chats"],
   ["createChatSession", () => chat.createChatSession("p1"), "/projects/p1/chats", post()],

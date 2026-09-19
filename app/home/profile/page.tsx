@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import NotificationBell from "../../../components/NotificationBell";
+import TopBar from "@/components/layout/TopBar";
 import PasswordInput from "../../../components/PasswordInput";
-import { userAvatarGradient } from "../../../components/Sidebar";
+import { USER_AVATAR } from "@/components/layout/AppSidebar";
 import { ApiClientError } from "../../../lib/api/client";
 import { changeMyPassword, fetchMe, updateMyName } from "../../../lib/api/users";
 import type { User } from "../../../types/user";
@@ -70,8 +70,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
     <section className={cardClass}>
       <div className="flex items-center gap-4">
         <div
-          className="w-16 h-16 rounded-full shrink-0 flex items-center justify-center text-white text-[26px] font-extrabold"
-          style={{ background: userAvatarGradient(displayName) }}
+          className={`w-16 h-16 rounded-full shrink-0 flex items-center justify-center text-[26px] font-extrabold ${USER_AVATAR}`}
           aria-hidden
         >
           {displayName.charAt(0).toUpperCase()}
@@ -355,18 +354,9 @@ export default function ProfilePage() {
 
   return (
     <>
-      <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
-        <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
-          <span>Tài khoản</span>
-          <span className="text-[#D6D2CB]">/</span>
-          <span className="text-[#191817] font-bold">Hồ sơ</span>
-        </div>
-        <div className="ml-auto">
-          <NotificationBell />
-        </div>
-      </div>
+      <TopBar trail={["Tài khoản", "Hồ sơ"]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-[#F5F3F0]">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-surface-container-lowest">
         <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Hồ sơ cá nhân</h1>
 
         {loading ? (

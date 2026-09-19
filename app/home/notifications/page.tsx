@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import NotificationBell, { formatNotificationTime } from "../../../components/NotificationBell";
+import { formatNotificationTime } from "../../../components/NotificationBell";
+import TopBar from "@/components/layout/TopBar";
 import {
   fetchNotifications,
   markAllNotificationsRead,
@@ -95,18 +96,9 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
-        <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
-          <span>Tài khoản</span>
-          <span className="text-[#D6D2CB]">/</span>
-          <span className="text-[#191817] font-bold">Thông báo</span>
-        </div>
-        <div className="ml-auto">
-          <NotificationBell />
-        </div>
-      </div>
+      <TopBar trail={["Tài khoản", "Thông báo"]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8 bg-[#F5F3F0]">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8 bg-surface-container-lowest">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Thông báo</h1>

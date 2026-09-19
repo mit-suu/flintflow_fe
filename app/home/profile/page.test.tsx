@@ -6,8 +6,8 @@ import type { User } from "@/types/user";
 import ProfilePage from "./page";
 
 vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn(), updateMyName: vi.fn(), changeMyPassword: vi.fn() }));
-vi.mock("../../../components/NotificationBell", () => ({ default: () => null }));
-vi.mock("../../../components/Sidebar", () => ({ userAvatarGradient: () => "#4F46E5" }));
+// TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang hồ sơ
+vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
 
 const LOCAL_USER: User = {
   id: "u1",
