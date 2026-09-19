@@ -28,7 +28,8 @@ export function useWorkspace(projectId: string) {
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
   /** Mode 1 (G9, BR-03): lệnh sửa trong chat bị BE chặn `409 CHANGE_REQUIRES_CR` ⇒ gợi ý tạo CR điền sẵn. */
-  const [crPrefill, setCrPrefill] = useState<(ChangeRequiresCrMeta["prefill"] & { instruction: string }) | null>(null);
+  // FLF-186: lệnh sửa trong chat sau v1 ⇒ BE đã tạo CR nguồn chat (`change_request`) — thẻ trỏ thẳng tới CR đó
+  const [crPrefill, setCrPrefill] = useState<(ChangeRequiresCrMeta["prefill"] & { instruction: string; change_request?: ChangeRequiresCrMeta["change_request"] }) | null>(null);
   const didInit = useRef(false);
 
   const refreshUser = useCallback(() => {
@@ -174,8 +175,8 @@ export function useWorkspace(projectId: string) {
       } catch (err) {
         setStreamingMessage(null);
         setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
-        const prefill = err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR" ? (err.meta as ChangeRequiresCrMeta | undefined)?.prefill : undefined;
-        if (prefill) setCrPrefill({ ...prefill, instruction: content });
+        const meta = err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR" ? (err.meta as ChangeRequiresCrMeta | undefined) : undefined;
+        if (meta?.prefill) setCrPrefill({ ...meta.prefill, instruction: content, ...(meta.change_request ? { change_request: meta.change_request } : {}) });
         else alert(errorMessage(err, "Không thể gửi tin nhắn"));
       } finally {
         setSending(false);

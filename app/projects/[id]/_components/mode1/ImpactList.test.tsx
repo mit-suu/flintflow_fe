@@ -5,8 +5,10 @@ import ImpactList from "./ImpactList";
 
 const location = (id: string, over: Partial<CrLocation> = {}): CrLocation => ({
   location_id: id,
-  block_id: `B00${id.slice(-2)}`,
-  block: null,
+  path: `x[id=${id}]`,
+  section_id: "fixed:1",
+  section_title: "Product Overview",
+  current_text: "",
   found_by: ["keyword"],
   entity_paths: [],
   owner_step: null,
