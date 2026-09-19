@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { createProject } from "@/lib/api/projects";
 import { applyChanges, getSpine } from "@/lib/api/spine";
-import WorkingModeSelect from "../../projects/[projectId]/_components/WorkingModeSelect";
+import WorkingModeSelect from "../../projects/[id]/_components/WorkingModeSelect";
 import type { Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 import { patchMe } from "./api";

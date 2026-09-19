@@ -24,6 +24,8 @@ export interface Mode1MockState {
   importDoc: ImportedDocument | null;
   profile: TemplateProfile | null;
   sections: ExtractionSection[];
+  /** Job I-4 nền đang chạy (#6/#10 trả ngay; mỗi lần poll #4 trích thêm một section). */
+  extractRunning: boolean;
   reviewFields: ReviewField[];
   baselines: Baseline[];
   versions: DocVersion[];
@@ -83,6 +85,7 @@ export const createMode1MockState = (): Mode1MockState => ({
   importDoc: null,
   profile: null,
   sections: [],
+  extractRunning: false,
   reviewFields: [],
   baselines: [],
   versions: [],

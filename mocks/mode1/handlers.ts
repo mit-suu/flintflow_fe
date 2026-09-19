@@ -105,15 +105,26 @@ const parseDocument = () => {
 
 const sectionIds = () => [...new Set((S().profile?.heading_map ?? []).map((h) => h.section_id).filter((id) => id !== "unmapped"))];
 
-/** Chạy/tiếp tục I-4 từ `extract_cursor`; hết credit ⇒ pause. Section đã `done` không trích lại. */
-const runExtraction = () => {
+/**
+ * I-4 chạy nền như BE (việc A sau P2): #6/#10 chỉ bật job rồi trả ngay `extracting` + `paused: null`;
+ * mỗi lần poll #4 trích thêm **một** section từ `extract_cursor` để FE thấy tiến độ tăng dần.
+ * Hết credit ⇒ job dừng, `paused: credits`; section đã `done` không trích lại.
+ */
+const startExtraction = () => {
   const doc = S().importDoc!;
   doc.paused = null;
-  for (const section of S().sections) {
-    if (section.status === "done") continue;
+  doc.extract_cursor = S().sections.find((s) => s.status !== "done")?.section_id ?? null;
+  S().extractRunning = true;
+};
+
+const extractNextSection = () => {
+  const doc = S().importDoc!;
+  const section = S().sections.find((s) => s.status !== "done");
+  if (section) {
     doc.extract_cursor = section.section_id;
     if (!spend(COST.extract)) {
       doc.paused = { reason: "credits", at: now() };
+      S().extractRunning = false;
       return;
     }
     section.status = "done";
@@ -132,7 +143,13 @@ const runExtraction = () => {
       S().reviewFields.push(field);
     }
   }
+  const next = S().sections.find((s) => s.status !== "done");
+  if (next) {
+    doc.extract_cursor = next.section_id;
+    return;
+  }
   doc.extract_cursor = null;
+  S().extractRunning = false;
   setImportStatus(S().reviewFields.some((f) => !f.confirmed) ? "fields_review" : "baselining");
 };
 
@@ -152,7 +169,10 @@ const redFlag = (): Flag => ({
 
 const yellowFlag = (): Flag => ({ ...redFlag(), id: "FL002", level: "yellow", rule_id: "ambiguity", section_id: "fixed:4.2.3", message: "\"quickly\" không đo được — cần ngưỡng (vd ≤ 2 giây)" });
 
-const newBaseline = (type: Baseline["type"], version: string): Baseline => ({
+/** Cờ mở sau import: đỏ theo `redFlags` (0 ⇒ release được) + một cờ vàng. Chưa có baseline ⇒ chưa check. */
+const openFlags = (): Flag[] => (hasBaseline() ? [...(S().redFlags > 0 ? [redFlag()] : []), yellowFlag()] : []);
+
+const newBaseline =(type: Baseline["type"], version: string): Baseline => ({
   id: `BL${String(S().baselines.length + 1).padStart(3, "0")}`,
   version,
   type,
@@ -428,14 +448,15 @@ export const mode1Handlers = [
   // #4 Trạng thái import
   http.get(
     api("/projects/:projectId/import"),
-    mode1(() =>
-      ok({
+    mode1(() => {
+      if (S().extractRunning) extractNextSection();
+      return ok({
         import: S().importDoc,
         profile: S().profile,
         extraction: { sections: S().sections, review_fields: S().reviewFields.filter((f) => !f.confirmed) },
         blocks_count: S().blocks.get("0.0")?.length ?? 0,
-      }),
-    ),
+      });
+    }),
   ),
 
   // #5 Xác nhận mapping
@@ -464,14 +485,14 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #6 Trích field (I-4) — chạy/tiếp tục
+  // #6 Trích field (I-4) — trả ngay, job chạy nền; FE poll #4
   http.post(
     api("/projects/:projectId/import/extract"),
     mode1(() => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
       if (doc.status !== "extracting") return invalidImportState("extracting");
-      runExtraction();
+      if (!S().extractRunning) startExtraction();
       return ok({ import: doc, sections: S().sections });
     }),
   ),
@@ -538,14 +559,14 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #10 Resume import sau pause
+  // #10 Resume import sau pause — ở extracting: trả ngay, chạy nền như #6
   http.post(
     api("/projects/:projectId/import/resume"),
     mode1(() => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
       if (!doc.paused || doc.status !== "extracting") return invalidImportState("extracting");
-      runExtraction();
+      startExtraction();
       return ok({ import: doc, sections: S().sections });
     }),
   ),
@@ -916,6 +937,22 @@ export const mode1Handlers = [
       const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true });
       return ok({ version, baseline, cr_ids: crIds, spine_version: S().spineVersion });
     }),
+  ),
+
+  // Spine (chỉ mục) + cờ của project mode 1 — FE đọc `spine_version` làm `base_version`, đếm cờ đỏ để chặn Release.
+  // Project khác trả `undefined` ⇒ rơi xuống mock pipeline.
+  http.get(api("/projects/:projectId/spine"), ({ params }) =>
+    isMode1(params.projectId)
+      ? ok({ projectId: MODE1_PROJECT_ID, spine_version: S().spineVersion, flags: openFlags(), baselines: S().baselines, sections: [], steps: [] })
+      : undefined,
+  ),
+  http.get(api("/projects/:projectId/flags"), ({ params, request }) => {
+    if (!isMode1(params.projectId)) return undefined;
+    const level = new URL(request.url).searchParams.get("level");
+    return ok(openFlags().filter((f) => !level || f.level === level));
+  }),
+  http.get(api("/billing/balance"), () =>
+    ok({ balance: S().credits, reserved: 0, available: S().credits, plan: "free", planLabel: "Free", lowCreditThreshold: 10, subscription: null, ledger: [] }),
   ),
 
   // G9 / BR-03: project mode 1 không sửa qua /changes, /undo, reconcile hay chat — trả 409 kèm prefill CR.

@@ -11,6 +11,9 @@ import { apiCall } from "../../lib/api";
 import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
 import { getProgress } from "../../lib/api/pipeline";
 import type { ProgressResponse } from "@/types/pipeline";
+import { listCrs } from "../../lib/api/change-requests";
+import { CR_TERMINAL_STATUSES } from "@/types/change-request";
+import CreateProjectDialog from "./_components/CreateProjectDialog";
 import type { User } from "@/types/user";
 
 export default function HomePage() {
@@ -27,7 +30,6 @@ export default function HomePage() {
   const [showHardDeleteConfirm, setShowHardDeleteConfirm] = useState(false);
   const [targetProject, setTargetProject] = useState<Project | null>(null);
 
-  const [createName, setCreateName] = useState("");
   const [renameName, setRenameName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,6 +40,8 @@ export default function HomePage() {
    * dự án không làm hỏng lưới**: dự án chưa có Spine trả `null` và hiện "Chưa bắt đầu".
    */
   const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>({});
+  /** Mode 1: số change request đang mở (UC-14) — lỗi của một dự án không làm hỏng lưới. */
+  const [openCrsById, setOpenCrsById] = useState<Record<string, number>>({});
 
   const loadProgress = useCallback((list: Project[]) => {
     if (list.length === 0) {
@@ -51,6 +55,14 @@ export default function HomePage() {
           .catch(() => [project._id, null] as const)
       )
     ).then((entries) => setProgressById(Object.fromEntries(entries)));
+    const imported = list.filter((p) => p.mode === "import" && p.import_state !== null);
+    void Promise.all(
+      imported.map((project) =>
+        listCrs(project._id)
+          .then((res) => [project._id, (res.data ?? []).filter((c) => !CR_TERMINAL_STATUSES.includes(c.status)).length] as const)
+          .catch(() => [project._id, 0] as const)
+      )
+    ).then((entries) => setOpenCrsById(Object.fromEntries(entries)));
   }, []);
 
   // setState chỉ nằm trong callback của promise để effect gọi hàm này không set state đồng bộ
@@ -116,24 +128,14 @@ export default function HomePage() {
     loadBilling();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createName.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall("/projects", {
-        method: "POST",
-        body: JSON.stringify({ name: createName.trim() }),
-      });
-      setShowCreateModal(false);
-      setCreateName("");
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tạo dự án");
-    } finally {
-      setSubmitting(false);
+  // Mode 1 vào thẳng wizard import; mode 2 ở lại danh sách như trước
+  const handleCreated = async (project: Project) => {
+    setShowCreateModal(false);
+    if (project.mode === "import") {
+      router.push(`/projects/${project._id}/import`);
+      return;
     }
+    await fetchProjects();
   };
 
   const handleRename = async (e: React.FormEvent) => {
@@ -314,6 +316,7 @@ export default function HomePage() {
                 key={p._id}
                 project={p}
                 progress={progressById[p._id]}
+                openCrs={openCrsById[p._id]}
                 onRename={openRename}
                 onDelete={openDelete}
                 onHardDelete={(project) => {
@@ -326,44 +329,12 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Create Modal */}
-      <Modal
+      {/* Create Modal — chọn cách làm SRS (UC-13) */}
+      <CreateProjectDialog
         open={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setCreateName("");
-        }}
-        title="Tạo dự án mới"
-      >
-        <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[#4B4842]">Tên dự án</label>
-            <input
-              autoFocus
-              type="text"
-              required
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              placeholder="Ví dụ: App Đặt Xe Online, E-Learning Platform…"
-              className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[13.5px] text-[#191817] bg-[#FAF9F7] transition-all"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting || !createName.trim()}
-            className="w-full mt-2 py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {submitting ? (
-              <>
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-                Đang tạo dự án…
-              </>
-            ) : (
-              "Tạo dự án →"
-            )}
-          </button>
-        </form>
-      </Modal>
+        onClose={() => setShowCreateModal(false)}
+        onCreated={(project) => void handleCreated(project)}
+      />
 
       {/* Delete / Archive Modal */}
       <Modal

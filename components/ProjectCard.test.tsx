@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { nextStepLabel } from "./ProjectCard";
+import { mode1NextLabel, nextStepLabel } from "./ProjectCard";
+import type { Project } from "@/types/project";
 import { tStep } from "@/lib/i18n";
 import type { ProgressResponse } from "@/types/pipeline";
 
@@ -34,5 +35,30 @@ describe("nextStepLabel — việc tiếp theo lấy từ step registry", () => 
     const vi = nextStepLabel(progress({ current_step: "S-3.1" }), "vi");
     const en = nextStepLabel(progress({ current_step: "S-3.1" }), "en");
     expect(vi).not.toBe(en);
+  });
+});
+
+describe("mode1NextLabel — thẻ dự án upload SRS (UC-14, UC-19)", () => {
+  const project = (import_state: Project["import_state"]): Project => ({
+    _id: "p1",
+    name: "Lumen",
+    status: "active",
+    mode: "import",
+    import_state,
+    createdAt: "2026-09-19T00:00:00.000Z",
+    updatedAt: "2026-09-19T00:00:00.000Z",
+  });
+
+  it("chưa upload ⇒ mời tải SRS lên", () => {
+    expect(mode1NextLabel(project(null))).toContain("Chưa tải SRS lên");
+  });
+
+  it("đang import ⇒ trạng thái import", () => {
+    expect(mode1NextLabel(project("mapping_review"))).toBe("Nhập SRS: Chờ xác nhận mapping");
+  });
+
+  it("đã có baseline ⇒ số CR đang mở, không có thì trạng thái", () => {
+    expect(mode1NextLabel(project("change_requested"), 2)).toBe("2 change request đang mở");
+    expect(mode1NextLabel(project("gap_review"), 0)).toBe("Chờ xem gap report");
   });
 });
