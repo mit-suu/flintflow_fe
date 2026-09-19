@@ -26,7 +26,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="dark" href="/" />
           <p className="mt-12 inline-flex items-center gap-2.5 text-[13px] font-bold text-on-primary-container">
             <Diamond />
-            AI Business Analyst
+            Trợ lý BA bằng AI
           </p>
           <p className="mt-3 max-w-md text-[34px] font-bold leading-[1.1] tracking-[-0.03em] text-on-primary xl:text-[38px]">
             AI soạn nháp.

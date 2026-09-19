@@ -62,10 +62,10 @@ function ForgotPasswordContent() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="mai@studio.vn"
+          placeholder="ban@example.com"
         />
         <SubmitButton loading={loading} loadingLabel="Đang gửi…">
-          Gửi mã OTP →
+          Gửi mã OTP
         </SubmitButton>
       </form>
 

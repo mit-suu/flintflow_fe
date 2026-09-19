@@ -125,7 +125,7 @@ function VerifyEmailContent() {
         <AuthHeading title="Thiếu địa chỉ email">
           Vui lòng đăng nhập bằng tài khoản vừa đăng ký để nhận mã xác thực.
         </AuthHeading>
-        <PrimaryLink href="/login">Về trang Đăng nhập →</PrimaryLink>
+        <PrimaryLink href="/login">Về trang đăng nhập</PrimaryLink>
       </AuthCard>
     );
   }
@@ -139,7 +139,7 @@ function VerifyEmailContent() {
           <strong className="font-bold text-on-surface">{countdown}s</strong>…
         </AuthHeading>
         <SubmitButton type="button" loadingLabel="" onClick={() => router.push("/home")}>
-          Vào ứng dụng ngay →
+          Vào ứng dụng ngay
         </SubmitButton>
       </AuthCard>
     );
@@ -181,11 +181,11 @@ function VerifyEmailContent() {
 
         {expired ? (
           <SubmitButton type="button" onClick={handleResend} loading={resending} loadingLabel="Đang gửi…">
-            Gửi lại mã OTP →
+            Gửi lại mã OTP
           </SubmitButton>
         ) : (
           <SubmitButton loading={status === "verifying"} loadingLabel="Đang xác thực…" disabled={!otpComplete}>
-            Xác thực →
+            Xác thực
           </SubmitButton>
         )}
       </form>

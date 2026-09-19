@@ -15,7 +15,7 @@ describe("RegisterPage — ô xác nhận mật khẩu", () => {
     render(<RegisterPage />);
 
     const confirmInput = screen.getByLabelText("Xác nhận mật khẩu") as HTMLInputElement;
-    const submit = screen.getByRole("button", { name: /Tạo tài khoản →/ });
+    const submit = screen.getByRole("button", { name: /^Tạo tài khoản$/ });
     expect(screen.queryByText(/không giống với mật khẩu/)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Mật khẩu"), { target: { value: "password-123" } });

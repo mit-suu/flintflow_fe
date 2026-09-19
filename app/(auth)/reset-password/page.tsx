@@ -156,7 +156,7 @@ function ResetPasswordContent() {
       <AuthCard>
         <StatusIcon icon="warning" tone="error" />
         <AuthHeading title="Thiếu địa chỉ email">Vui lòng nhập email tài khoản để nhận mã OTP đặt lại mật khẩu.</AuthHeading>
-        <PrimaryLink href="/forgot-password">Nhận mã OTP →</PrimaryLink>
+        <PrimaryLink href="/forgot-password">Nhận mã OTP</PrimaryLink>
       </AuthCard>
     );
   }
@@ -171,7 +171,7 @@ function ResetPasswordContent() {
         {/* Mở từ trang Hồ sơ thì trình duyệt còn access token cũ (tối đa 15 phút) ⇒ /login bị đẩy về /home.
             Xoá hẳn phiên cũ trước khi sang trang đăng nhập. */}
         <SubmitButton type="button" loadingLabel="" onClick={() => void logoutAndRedirect("/login")}>
-          Đăng nhập ngay →
+          Đăng nhập ngay
         </SubmitButton>
       </AuthCard>
     );
@@ -210,11 +210,11 @@ function ResetPasswordContent() {
 
           {expired ? (
             <SubmitButton type="button" onClick={handleResend} loading={resending} loadingLabel="Đang gửi…">
-              Gửi lại mã OTP →
+              Gửi lại mã OTP
             </SubmitButton>
           ) : (
             <SubmitButton loading={verifying} loadingLabel="Đang xác nhận…" disabled={!otpComplete}>
-              Xác nhận mã →
+              Xác nhận mã
             </SubmitButton>
           )}
         </form>
@@ -257,7 +257,7 @@ function ResetPasswordContent() {
         />
 
         <SubmitButton loading={saving} loadingLabel="Đang cập nhật…" disabled={!confirmPassword || passwordMismatch}>
-          Đặt lại mật khẩu →
+          Đặt lại mật khẩu
         </SubmitButton>
       </form>
 

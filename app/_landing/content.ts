@@ -30,7 +30,7 @@ export const PREVIEW_PROJECTS = [
   {
     name: "Cổng cấp phép xây dựng",
     status: { label: "Sẵn sàng", tone: "ok" },
-    next: "Kiểm tra & baseline",
+    next: "Kiểm tra & chốt baseline",
     phasesDone: 11,
   },
   {

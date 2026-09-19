@@ -29,7 +29,7 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Lần trước có tick "Ghi nhớ tài khoản" ⇒ điền sẵn email và giữ tick. Đọc sau khi mount (localStorage
+  // Lần trước có tick "Ghi nhớ đăng nhập" ⇒ điền sẵn email và giữ tick. Đọc sau khi mount (localStorage
   // không có lúc prerender); lùi một microtask vì setState thẳng trong effect bị lint chặn.
   useEffect(() => {
     queueMicrotask(() => {
@@ -133,7 +133,7 @@ export default function LoginPage() {
   return (
     <AuthCard>
       <AuthHeading title="Chào mừng bạn trở lại">
-        Chưa có tài khoản? <InlineLink href="/register">Đăng ký miễn phí</InlineLink>
+        Chưa có tài khoản? <InlineLink href="/register">Tạo tài khoản</InlineLink>
       </AuthHeading>
 
       <GoogleButton label="Tiếp tục với Google" disabled={loading} onSuccess={handleGoogle} onError={(msg) => setError(msg)} />
@@ -165,7 +165,7 @@ export default function LoginPage() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="mai@studio.vn"
+          placeholder="ban@example.com"
         />
         <PasswordField
           id="password"
@@ -177,7 +177,7 @@ export default function LoginPage() {
         />
 
         <SubmitButton loading={loading} loadingLabel="Đang đăng nhập…">
-          Đăng nhập →
+          Đăng nhập
         </SubmitButton>
       </form>
 
@@ -190,7 +190,7 @@ export default function LoginPage() {
             onChange={(e) => setRememberMe(e.target.checked)}
             className="size-4 cursor-pointer rounded-[4px] accent-primary"
           />
-          Ghi nhớ tài khoản
+          Ghi nhớ đăng nhập
         </label>
         <span className="text-[13px]">
           <InlineLink href="/forgot-password">Quên mật khẩu?</InlineLink>

@@ -117,7 +117,7 @@ export default function RegisterPage() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="mai@studio.vn"
+          placeholder="ban@example.com"
         />
         {/* Hai ô mật khẩu cạnh nhau (≥ sm) để form đăng ký vừa một màn hình */}
         <div className="grid items-start gap-4 sm:grid-cols-2 sm:gap-3">
@@ -136,7 +136,7 @@ export default function RegisterPage() {
         </div>
 
         <SubmitButton loading={loading} loadingLabel="Đang tạo tài khoản…" disabled={passwordMismatch}>
-          Tạo tài khoản →
+          Tạo tài khoản
         </SubmitButton>
       </form>
 
