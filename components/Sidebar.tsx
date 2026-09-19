@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { clearAuthToken } from "../lib/auth";
+import { usePathname, useRouter } from "next/navigation";
+import { logoutAndRedirect } from "../lib/auth";
 import { fetchBalance } from "../lib/api/billing";
 import Logo from "./Logo";
 import { useUnreadNotificationCount } from "./NotificationBell";
@@ -24,19 +24,22 @@ interface NavItem {
   label: string;
   href: string;
   icon: string;
+  /** Hiện badge số thông báo chưa đọc. */
+  showUnreadBadge?: boolean;
+  /** Chỉ sáng khi đúng đường dẫn, không tính trang con (`/home` không sáng ở `/home/profile`). */
+  exact?: boolean;
 }
 
 interface SidebarProps {
-  activePath: string;
   user: SidebarUser;
   favourites?: Project[];
   notificationCount?: number;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Trang chủ", href: "/home", icon: "⌂" },
-  { label: "Dự án của tôi", href: "/home", icon: "◫" },
-  { label: "Thông báo", href: "/home/notifications", icon: "◉" },
+  { label: "Trang chủ", href: "/home", icon: "⌂", exact: true },
+  { label: "Dự án của tôi", href: "/home", icon: "◫", exact: true },
+  { label: "Thông báo", href: "/home/notifications", icon: "◉", showUnreadBadge: true },
   { label: "Thanh toán & credit", href: "/home/billing", icon: "◎" },
 ];
 
@@ -48,12 +51,26 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(135deg,#B8D9F5,#4F7AE5)",
 ];
 
-function userAvatarGradient(name: string) {
+export function userAvatarGradient(name: string) {
   return AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
 }
 
+/**
+ * Mục đang mở = mục có `href` khớp dài nhất với trang hiện tại (`/home/billing/checkout` ⇒ "Thanh toán").
+ * Nhiều mục cùng `href` (Trang chủ, Dự án của tôi đều là `/home`) thì chỉ tô mục đầu tiên.
+ */
+export function findActiveNavIndex(pathname: string, items: NavItem[] = NAV_ITEMS): number {
+  let best = -1;
+  items.forEach((item, idx) => {
+    const matches = pathname === item.href || (!item.exact && pathname.startsWith(`${item.href}/`));
+    if (matches && (best === -1 || item.href.length > items[best].href.length)) best = idx;
+  });
+  return best;
+}
+
+const PROFILE_PATH = "/home/profile";
+
 export default function Sidebar({
-  activePath,
   user,
   favourites = [],
   notificationCount,
@@ -63,6 +80,9 @@ export default function Sidebar({
   const [planLabel, setPlanLabel] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname() ?? "";
+  const activeNavIndex = findActiveNavIndex(pathname);
+  const onProfilePage = pathname === PROFILE_PATH;
   const liveUnreadCount = useUnreadNotificationCount();
   const unreadCount = notificationCount ?? liveUnreadCount;
   // Nhãn plan lấy từ /billing/balance; admin giữ nhãn "Admin"
@@ -95,8 +115,7 @@ export default function Sidebar({
   }, []);
 
   const handleLogout = () => {
-    clearAuthToken();
-    router.push("/login");
+    void logoutAndRedirect();
   };
 
   return (
@@ -130,13 +149,14 @@ export default function Sidebar({
 
       {/* Nav items */}
       {NAV_ITEMS.map((item, idx) => {
-        const isActive = idx === 1 ? activePath === "/home" || activePath.startsWith("/home/projects") : activePath === item.href;
+        const isActive = idx === activeNavIndex;
         return (
           <Link
             key={item.label}
             href={item.href}
             title={collapsed ? item.label : undefined}
-            className={`flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
+            aria-current={isActive ? "page" : undefined}
+            className={`relative flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
               isActive
                 ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
                 : "text-[#6B6862] font-semibold hover:bg-[#FAF9F7]"
@@ -148,35 +168,18 @@ export default function Sidebar({
           >
             <span className="text-[13px] leading-none shrink-0">{item.icon}</span>
             {!collapsed && item.label}
+            {item.showUnreadBadge && unreadCount > 0 && (
+              <span
+                className={`min-w-[16px] h-[16px] rounded-full bg-[#B03030] text-white text-[9.5px] font-extrabold flex items-center justify-center px-1 ${
+                  collapsed ? "absolute top-0.5 right-1" : "ml-auto"
+                }`}
+              >
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </Link>
         );
       })}
-
-      <Link
-        href="/home/notifications"
-        title={collapsed ? "Thông báo" : undefined}
-        className={`relative flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
-          activePath === "/home/notifications"
-            ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
-            : "text-[#6B6862] font-semibold hover:bg-[#FAF9F7]"
-        }`}
-        style={{
-          padding: collapsed ? "8px 0" : "8px 10px",
-          justifyContent: collapsed ? "center" : undefined,
-        }}
-      >
-        <span className="text-[13px] leading-none shrink-0">◉</span>
-        {!collapsed && "Thông báo"}
-        {unreadCount > 0 && (
-          <span
-            className={`min-w-[16px] h-[16px] rounded-full bg-[#B03030] text-white text-[9.5px] font-extrabold flex items-center justify-center px-1 ${
-              collapsed ? "absolute top-0.5 right-1" : "ml-auto"
-            }`}
-          >
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </Link>
 
       {/* Divider */}
       <div className="h-px bg-[#F0EEEA] mx-2 my-2.5" />
@@ -219,7 +222,11 @@ export default function Sidebar({
         {/* User Dropdown Menu (B1 Design) */}
         {userMenuOpen && (
           <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 bg-white border border-[#ECEAE5] rounded-[14px] shadow-[0_16px_42px_rgba(25,24,23,0.18)] p-1.5 flex flex-col gap-0.5 z-40">
-            <div className="flex items-center gap-2.5 p-2.5 pb-3">
+            <Link
+              href={PROFILE_PATH}
+              onClick={() => setUserMenuOpen(false)}
+              className="flex items-center gap-2.5 p-2.5 pb-3 rounded-[9px] hover:bg-[#FAF9F7] transition-colors"
+            >
               <div
                 className="w-8.5 h-8.5 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold"
                 style={{ background: userAvatarGradient(user.name) }}
@@ -230,13 +237,31 @@ export default function Sidebar({
                 <div className="text-[12.5px] font-extrabold text-[#191817] truncate">{user.name}</div>
                 <div className="text-[10.5px] text-[#8A867E] truncate">{user.email || `${user.name.toLowerCase()}@flintflow.com`}</div>
               </div>
-            </div>
+            </Link>
 
             <div className="h-px bg-[#F0EEEA] mx-1.5 my-1" />
 
             <button
               type="button"
-              onClick={() => router.push("/home/billing")}
+              onClick={() => {
+                setUserMenuOpen(false);
+                router.push(PROFILE_PATH);
+              }}
+              className={`flex items-center gap-2.5 p-2 rounded-[9px] text-[12px] transition-colors w-full text-left ${
+                onProfilePage
+                  ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
+                  : "text-[#33312D] font-semibold hover:bg-[#FAF9F7]"
+              }`}
+            >
+              ◉ Hồ sơ cá nhân
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setUserMenuOpen(false);
+                router.push("/home/billing");
+              }}
               className="flex items-center gap-2.5 p-2 rounded-[9px] text-[12px] text-[#33312D] font-semibold hover:bg-[#FAF9F7] transition-colors w-full text-left"
             >
               ◎ Thanh toán
@@ -260,7 +285,12 @@ export default function Sidebar({
         {/* Collapsed Pill (Click to open menu) */}
         <div
           onClick={() => setUserMenuOpen(!userMenuOpen)}
-          className="flex items-center gap-2.5 p-2.5 rounded-[12px] bg-[#FAF9F7] hover:bg-[#F0EEEA] cursor-pointer transition-colors"
+          aria-current={onProfilePage ? "page" : undefined}
+          className={`flex items-center gap-2.5 p-2.5 rounded-[12px] cursor-pointer transition-colors ${
+            onProfilePage
+              ? "bg-[#F4F3FE] ring-1 ring-[#DDD9F6] hover:bg-[#ECEAFD]"
+              : "bg-[#FAF9F7] hover:bg-[#F0EEEA]"
+          }`}
           style={{
             justifyContent: collapsed ? "center" : undefined,
           }}

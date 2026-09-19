@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
-import { clearAuthToken } from "@/lib/auth";
+import { logoutAndRedirect } from "@/lib/auth";
 
 const NAV_ITEMS = [
   { label: "Số liệu", href: "/admin/metrics", icon: "▦" },
@@ -14,11 +14,9 @@ const NAV_ITEMS = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
 
   const handleLogout = () => {
-    clearAuthToken();
-    router.push("/login");
+    void logoutAndRedirect();
   };
 
   return (
