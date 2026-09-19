@@ -75,7 +75,7 @@ test.describe("workspace end-to-end trên BE thật", () => {
 
     const created = await api<{ _id: string }>(request, "post", "/projects", token, {
       name: PROJECT_NAME,
-      sourceMode: "fpt_template",
+      mode: "fpt",
     });
     expect(created.status, "tạo dự án qua API").toBeLessThan(300);
     projectId = created.json.data!._id;

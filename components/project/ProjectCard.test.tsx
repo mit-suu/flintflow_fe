@@ -44,19 +44,20 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     _id: "p1",
     name: "Lumen",
     status: "active",
-    sourceMode: "fpt_template",
+    mode: "fpt",
+    import_state: null,
     createdAt: "2026-09-01T00:00:00Z",
     updatedAt: "2026-09-01T00:00:00Z",
   };
   const noop = () => {};
 
   it.each([
-    ["edit_srs", "SRS có sẵn", /bg-(info|brand|success)-/],
+    ["import", "SRS có sẵn", /bg-(info|brand|success)-/],
     ["customer_template", "Template khách", /bg-(accent-gold|error)-/],
-    ["fpt_template", "Mẫu FPT", /bg-(brand|primary)-/],
-  ] as const)("%s ⇒ nhãn %s, bìa theo tone của mode", (sourceMode, label, stripe) => {
+    ["fpt", "Mẫu FPT", /bg-(brand|primary)-/],
+  ] as const)("%s ⇒ nhãn %s, bìa theo tone của mode", (mode, label, stripe) => {
     const { container } = render(
-      <ProjectCard project={{ ...baseProject, sourceMode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
+      <ProjectCard project={{ ...baseProject, mode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
     );
     expect(screen.getAllByText(label, { exact: false }).length).toBeGreaterThan(0);
     expect(container.querySelector("[data-cover-variant]")?.className).toMatch(stripe);

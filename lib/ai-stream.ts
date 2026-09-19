@@ -1,5 +1,5 @@
 import type { ChatSession } from "@/types/chat";
-import { authFetch, readErrorMessage } from "./api/client";
+import { ApiClientError, authFetch, readErrorMessage } from "./api/client";
 
 export interface SseHandlers<T> {
   onEvent: (event: T) => void;
@@ -38,7 +38,12 @@ export const streamSse = async <T>(
     });
 
     if (!res.ok) {
-      throw new Error(await readErrorMessage(res, `HTTP ${res.status}: Failed to stream response`));
+      // ApiClientError mang `code` + `meta` (vd 409 CHANGE_REQUIRES_CR kèm `prefill` ở project mode 1)
+      const envelope = res.clone();
+      const message = await readErrorMessage(res, `HTTP ${res.status}: Failed to stream response`);
+      const json = (await envelope.json().catch(() => null)) as { error?: { code?: unknown }; meta?: Record<string, unknown> } | null;
+      const code = typeof json?.error?.code === "string" ? json.error.code : "STREAM_FAILED";
+      throw new ApiClientError(res.status, code, message, json?.meta);
     }
 
     if (!res.body) {

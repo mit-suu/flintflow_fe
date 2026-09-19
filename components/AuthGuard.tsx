@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, getUserRole } from "../lib/auth";
+import { isAuthenticated, getUserRole, logoutAndRedirect } from "../lib/auth";
 import { refreshSession, type RefreshOutcome } from "../lib/api";
 
 interface AuthGuardProps {
@@ -39,8 +39,9 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
         const outcome = await refreshWithRetry();
         if (!isMounted) return;
         if (outcome === "rejected") {
-          // refreshSession đã xoá token khi BE từ chối
-          router.replace("/login");
+          // Chờ BE xoá cookie HttpOnly rồi reload hẳn sang /login — router.replace có thể bị proxy đẩy
+          // ngược về trang hiện tại (cookie accessToken còn hạn) và AuthGuard kẹt ở spinner.
+          await logoutAndRedirect();
           return;
         }
         if (outcome === "failed") {

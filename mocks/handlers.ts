@@ -34,7 +34,7 @@ import type {
   StepsResponse,
 } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
-import type { Project, ProjectSourceMode, ProjectStatus } from "@/types/project";
+import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
@@ -472,15 +472,15 @@ export const handlers = [
     return ok({ actionType: body.actionType ?? "chat", cost: 1 });
   }),
 
-  // Dashboard: một dự án mock; tạo mới trả lại đúng sourceMode đã gửi (BE bắt buộc field này)
+  // Dashboard: một dự án mock; tạo mới trả lại đúng mode đã gửi (không gửi ⇒ fpt như BE)
   http.get(api("/projects"), ({ request }) => {
     const status = new URL(request.url).searchParams.get("status") as ProjectStatus | null;
     return ok([mockState.project].filter((p) => !status || p.status === status));
   }),
   http.post(api("/projects"), async ({ request }) => {
-    const body = (await request.json()) as { name: string; sourceMode: ProjectSourceMode };
+    const body = (await request.json()) as { name: string; mode?: ProjectMode };
     const now = new Date().toISOString();
-    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", sourceMode: body.sourceMode, createdAt: now, updatedAt: now };
+    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode: body.mode ?? "fpt", import_state: null, createdAt: now, updatedAt: now };
     return ok(project, { status: 201 });
   }),
   http.get(api("/folders"), () => ok([])),
