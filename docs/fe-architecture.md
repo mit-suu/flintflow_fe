@@ -163,8 +163,8 @@ gọi nó là "working mode". Nhãn, mô tả, icon, tone và `status: "ready" |
 
 Quy tắc:
 
-- **Icon chỉ qua `components/ui/Icon.tsx`** (Lineicons Free). Không emoji, ký tự hay Material Symbols làm icon.
-  `Icon` tự dựng `<svg>` từ dữ liệu của `@lineiconshq/free-icons`; thêm icon = thêm một dòng vào bảng `ICONS`.
+- **Icon chỉ qua `components/ui/Icon.tsx`** (Phosphor Icons, `@phosphor-icons/react`). Không emoji, ký tự hay Material Symbols làm icon.
+  `Icon` map tên miền của app sang component Phosphor (import `dist/ssr`, chạy cả Server Component); thêm icon = thêm một dòng vào bảng `ICONS`. Độ nét dùng prop `weight` (`regular` mặc định, `bold`, `fill`).
 - **Màu chỉ qua token** trong `app/globals.css` (`bg-surface`, `text-on-surface`, `bg-primary`, `bg-info-soft`…),
   không hex trong component mới. Thiếu màu thì thêm token.
 - **Tính năng chưa có BE** hiện nhưng disabled kèm `<Badge tone="soon" />` ("Sắp có") — không ẩn, không dữ liệu
