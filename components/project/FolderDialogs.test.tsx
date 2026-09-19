@@ -11,7 +11,7 @@ vi.mock("@/lib/api/projects", () => ({ moveProjectToFolder: vi.fn() }));
 
 const ok = { data: null, error: null } as never;
 const folder: Folder = { _id: "f1", name: "Khách A", color: "violet", projectCount: 2, createdAt: "", updatedAt: "" };
-const project: Project = { _id: "p1", name: "Lumen", status: "active", sourceMode: "fpt_template", folderId: null, createdAt: "", updatedAt: "" };
+const project: Project = { _id: "p1", name: "Lumen", status: "active", mode: "fpt", import_state: null, folderId: null, createdAt: "", updatedAt: "" };
 
 describe("FolderDialogs", () => {
   beforeEach(() => {

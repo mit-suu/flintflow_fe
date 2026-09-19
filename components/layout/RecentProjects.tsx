@@ -28,7 +28,7 @@ export default function RecentProjects({ projects, onNavigate }: RecentProjectsP
           onClick={onNavigate}
           className="flex items-center gap-2.5 h-8 px-2.5 rounded-[9px] text-[12px] font-semibold text-on-surface-dark hover:bg-surface-container-low transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <span aria-hidden className={`w-2 h-2 rounded-full shrink-0 ${DOT[getSourceModeOption(project.sourceMode).tone]}`} />
+          <span aria-hidden className={`w-2 h-2 rounded-full shrink-0 ${DOT[getSourceModeOption(project.mode).tone]}`} />
           <span className="truncate">{project.name}</span>
         </Link>
       ))}

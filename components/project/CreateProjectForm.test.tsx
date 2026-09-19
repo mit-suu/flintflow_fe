@@ -26,8 +26,8 @@ describe("CreateProjectForm (UC-13/14)", () => {
     expect(submit()).toBeDisabled();
   });
 
-  it("gửi {name đã trim, sourceMode} rồi gọi onCreated với dự án BE trả", async () => {
-    const created = { _id: "p9", name: "Lumen", sourceMode: "fpt_template" };
+  it("gửi {name đã trim, mode} rồi gọi onCreated với dự án BE trả", async () => {
+    const created = { _id: "p9", name: "Lumen", mode: "fpt" };
     vi.mocked(createProject).mockResolvedValue({ data: created, error: null } as never);
     const onCreated = vi.fn();
     render(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
@@ -37,7 +37,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
     fireEvent.click(submit());
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
-    expect(createProject).toHaveBeenCalledWith("Lumen", "fpt_template", undefined);
+    expect(createProject).toHaveBeenCalledWith("Lumen", "fpt", undefined);
   });
 
   it("lỗi hiện dưới form, giữ nguyên mode và tên để thử lại", async () => {
@@ -67,12 +67,12 @@ describe("CreateProjectForm (UC-13/14)", () => {
 
 describe("CreateProjectForm trong thư mục", () => {
   it("có folderId ⇒ tạo thẳng trong thư mục (một request)", async () => {
-    vi.mocked(createProject).mockReset().mockResolvedValue({ data: { _id: "p1", sourceMode: "fpt_template" }, error: null } as never);
+    vi.mocked(createProject).mockReset().mockResolvedValue({ data: { _id: "p1", mode: "fpt" }, error: null } as never);
     render(<CreateProjectForm variant="dialog" onCreated={() => {}} folderId="f1" />);
 
     fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
-    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "fpt_template", "f1"));
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "fpt", "f1"));
   });
 });
