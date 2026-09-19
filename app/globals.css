@@ -238,13 +238,13 @@ body {
   background-size: 52px 52px;
 }
 
-/* Tím landing (sáng hơn primary của app) — nút chính, badge, card nổi bật. */
+/* Tím indigo hệ thống (primary-light → primary → primary-hover) — nút chính, badge, card nổi bật. */
 .landing-gradient {
-  background-image: linear-gradient(135deg, #b98bf5, #8b5cf0 55%, #5b2ec4);
+  background-image: linear-gradient(135deg, #8E87D6, #6A62C4 60%, #554DB0);
 }
 
 .landing-gradient-text {
-  background-image: linear-gradient(95deg, #b98bf5, #8b5cf0 50%, #5b2ec4);
+  background-image: linear-gradient(95deg, #8E87D6, #6A62C4 50%, #554DB0);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -252,7 +252,7 @@ body {
 
 /* Tím → vàng ấm, dùng cho cụm chữ nhấn thứ hai. */
 .landing-gradient-text-warm {
-  background-image: linear-gradient(95deg, #8b5cf0, #d9932b);
+  background-image: linear-gradient(95deg, #6A62C4, #d9932b);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -263,5 +263,5 @@ body {
   border: 2px solid transparent;
   background:
     linear-gradient(var(--landing-fill, #ffffff), var(--landing-fill, #ffffff)) padding-box,
-    linear-gradient(120deg, #b98bf5, #8b5cf0 50%, #e8a23d) border-box;
+    linear-gradient(120deg, #8E87D6, #6A62C4 50%, #e8a23d) border-box;
 }

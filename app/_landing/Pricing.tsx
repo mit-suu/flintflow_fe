@@ -22,16 +22,16 @@ function PlanCard({ plan }: { plan: Plan }) {
     <article
       className={`relative flex flex-col gap-3 rounded-[22px] p-[30px] ${
         featured
-          ? "landing-gradient-border shadow-[0_24px_60px_rgba(139,92,240,0.18)]"
+          ? "landing-gradient-border shadow-[0_24px_60px_rgba(106,98,196,0.18)]"
           : "border border-outline-variant bg-white"
       }`}
     >
       {featured && (
-        <span className="absolute -top-3 right-6 rounded-full bg-[linear-gradient(135deg,#B98BF5,#8B5CF0)] px-3.5 py-[5px] text-[10.5px] font-extrabold text-white shadow-[0_8px_20px_rgba(139,92,240,0.4)]">
+        <span className="absolute -top-3 right-6 rounded-full bg-[linear-gradient(135deg,#8E87D6,#6A62C4)] px-3.5 py-[5px] text-[10.5px] font-extrabold text-white shadow-[0_8px_20px_rgba(106,98,196,0.4)]">
           PHỔ BIẾN NHẤT
         </span>
       )}
-      <h3 className={`text-sm font-extrabold ${featured ? "text-[#5B2EC4]" : "text-on-surface-variant"}`}>{plan.name}</h3>
+      <h3 className={`text-sm font-extrabold ${featured ? "text-primary-hover" : "text-on-surface-variant"}`}>{plan.name}</h3>
       <p className="text-4xl font-extrabold text-on-surface">
         {plan.price}
         <span className="text-sm font-semibold text-on-surface-subtle">{plan.unit}</span>

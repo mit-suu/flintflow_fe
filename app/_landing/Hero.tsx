@@ -11,7 +11,7 @@ export default function Hero() {
       <Blob className="-right-24 top-4 hidden h-[500px] w-[540px] rotate-12 md:block lg:right-11 lg:top-12" />
 
       <div className="relative mx-auto flex max-w-[1136px] flex-col gap-6 lg:gap-[26px]">
-        <p className="self-start rounded-full border border-outline-purple bg-white px-[18px] py-2 text-[12.5px] font-bold tracking-[0.04em] text-[#5B2EC4] shadow-[0_4px_14px_rgba(139,92,240,0.1)]">
+        <p className="self-start rounded-full border border-outline-purple bg-white px-[18px] py-2 text-[12.5px] font-bold tracking-[0.04em] text-primary-hover shadow-[0_4px_14px_rgba(106,98,196,0.1)]">
           {HERO.eyebrow}
         </p>
         <h1
@@ -43,7 +43,7 @@ export default function Hero() {
             >
               <p className="text-[30px] font-extrabold text-on-surface">
                 {stat.value}
-                {stat.accent && <span className="text-[#8B5CF0]">{stat.accent}</span>}
+                {stat.accent && <span className="text-primary">{stat.accent}</span>}
               </p>
               <p className="mt-1 whitespace-pre-line text-[11.5px] leading-normal text-on-surface-muted">{stat.label}</p>
             </li>
@@ -74,10 +74,10 @@ function CheckCard() {
   return (
     <figure
       aria-label="Minh hoạ kết quả kiểm tra 3 tầng"
-      className="mt-6 w-full max-w-[320px] rounded-[20px] border border-outline-variant bg-white/90 px-[22px] py-5 shadow-[0_30px_70px_rgba(91,46,196,0.16)] backdrop-blur-xl lg:absolute lg:right-8 lg:top-[324px] lg:mt-0"
+      className="mt-6 w-full max-w-[320px] rounded-[20px] border border-outline-variant bg-white/90 px-[22px] py-5 shadow-[0_30px_70px_rgba(85,77,176,0.16)] backdrop-blur-xl lg:absolute lg:right-8 lg:top-[324px] lg:mt-0"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-extrabold tracking-[0.08em] text-[#8B5CF0]">{CHECK_CARD.title}</span>
+        <span className="text-[11px] font-extrabold tracking-[0.08em] text-primary">{CHECK_CARD.title}</span>
         <span className="rounded-full bg-success-soft px-[11px] py-1 text-[10.5px] font-bold text-success">{CHECK_CARD.status}</span>
       </div>
       <p className="mt-2.5 text-[26px] font-extrabold text-on-surface">
@@ -109,7 +109,7 @@ export function HeroBackdrop() {
         className="pointer-events-none absolute -top-44 left-1/2 h-[640px] w-[1000px] max-w-[160vw] -translate-x-1/2 blur-[44px]"
         style={{
           background:
-            "radial-gradient(ellipse at 55% 35%, rgba(185,139,245,0.3), rgba(242,197,114,0.14) 55%, transparent 75%)",
+            "radial-gradient(ellipse at 55% 35%, rgba(142,135,214,0.3), rgba(242,197,114,0.14) 55%, transparent 75%)",
         }}
       />
     </>

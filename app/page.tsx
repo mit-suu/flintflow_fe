@@ -9,11 +9,11 @@ import WorkspacePreview from "./_landing/WorkspacePreview";
 /*
  * Landing page — bản sáng theo mock L1 (flintflow-ui-design `_src/screens/02-L1.html`).
  * Mỗi section là một component trong `app/_landing/`; nội dung tĩnh ở `content.ts`.
- * Nền kem `surface`, tím landing (#B98BF5 → #8B5CF0 → #5B2EC4) cho điểm nhấn; utility ở globals.css (`.landing-*`).
+ * Nền kem `surface`, tím indigo hệ thống (primary-light → primary → primary-hover) cho điểm nhấn; utility ở globals.css (`.landing-*`).
  */
 export default function LandingPage() {
   return (
-    <div id="top" className="relative min-h-screen overflow-x-clip bg-surface font-sans text-on-surface antialiased selection:bg-[#8B5CF0]/20">
+    <div id="top" className="relative min-h-screen overflow-x-clip bg-surface font-sans text-on-surface antialiased selection:bg-primary/20">
       <HeroBackdrop />
       <SiteHeader />
       <main>

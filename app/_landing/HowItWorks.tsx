@@ -16,7 +16,7 @@ export default function HowItWorks() {
           className="max-w-[880px] text-2xl font-bold leading-[1.45] tracking-[-0.01em] text-on-surface sm:text-[34px]"
         >
           {STATEMENT.lead}
-          <span className="font-extrabold text-[#8B5CF0]">{STATEMENT.highlight}</span>
+          <span className="font-extrabold text-primary">{STATEMENT.highlight}</span>
           {STATEMENT.middle}
           <span className="landing-gradient-text-warm font-extrabold">{STATEMENT.gradient}</span>
           {STATEMENT.tail}
@@ -30,11 +30,11 @@ export default function HowItWorks() {
                 key={item.step}
                 className={`flex flex-col gap-10 rounded-[20px] px-[22px] py-6 ${
                   featured
-                    ? "landing-gradient-border shadow-[0_16px_44px_rgba(139,92,240,0.16)] [--landing-fill:#FBFAFF]"
+                    ? "landing-gradient-border shadow-[0_16px_44px_rgba(106,98,196,0.16)] [--landing-fill:#F8F7FC]"
                     : "border border-outline-variant bg-surface"
                 }`}
               >
-                <span className={`font-mono text-[22px] font-extrabold ${featured ? "text-[#8B5CF0]" : "text-[#C9C5BD]"}`}>
+                <span className={`font-mono text-[22px] font-extrabold ${featured ? "text-primary" : "text-[#C9C5BD]"}`}>
                   {item.step}
                 </span>
                 <div>

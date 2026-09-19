@@ -19,7 +19,7 @@ export default function FinalCta() {
         >
           {FINAL_CTA.headline}
           <br />
-          <span className="bg-[linear-gradient(95deg,#B98BF5,#8B5CF0_45%,#D9932B)] bg-clip-text text-transparent">
+          <span className="bg-[linear-gradient(95deg,#8E87D6,#6A62C4_45%,#D9932B)] bg-clip-text text-transparent">
             {FINAL_CTA.headlineAccent}
           </span>
         </h2>
