@@ -54,6 +54,7 @@ export default function Mode1Workspace({ projectId }: { projectId: string }) {
           <ChatPane
             width={400}
             title="Hỏi đáp về tài liệu"
+            inputPlaceholder="Hỏi về nội dung tài liệu…"
             session={ws.activeSession}
             inputMessage={ws.inputMessage}
             setInputMessage={ws.setInputMessage}

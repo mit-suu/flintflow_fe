@@ -83,8 +83,15 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
     );
   } else if (c.status === "impact_review" || (c.status === "proposing" && locations.some(needsProposal))) {
     const redo = locations.some((l) => l.verify && !l.verify.code_ok);
+    // AI đã chạy mà còn vị trí chưa kết luận (model bỏ sót) ⇒ nói rõ, cho chọn chạy lại hoặc sửa tay
+    const missed = c.status === "proposing" && !redo ? locations.filter((l) => l.conclusion === null).length : 0;
+    const text = redo
+      ? "Một số đề xuất trượt kiểm — AI đề xuất lại các vị trí đó (tối đa 2 lần)."
+      : missed > 0 && missed < locations.length
+        ? `AI chưa kết luận ${missed} vị trí. Bấm chạy lại, hoặc dùng "Sửa tay" ở từng vị trí bên dưới để tự kết luận.`
+        : "AI đề xuất cho từng vị trí: sửa, chỉ comment, hoặc không liên quan kèm lý do (tốn credit).";
     next = (
-      <Step text={redo ? "Một số đề xuất trượt kiểm — AI đề xuất lại các vị trí đó (tối đa 2 lần)." : "AI đề xuất cho từng vị trí: sửa, chỉ comment, hoặc không liên quan kèm lý do (tốn credit)."}>
+      <Step text={text}>
         {primary(redo ? "AI làm lại vị trí trượt" : "AI đề xuất sửa", () => after(cr.action("propose")), "AI đang đề xuất…")}
       </Step>
     );
