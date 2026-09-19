@@ -74,7 +74,7 @@ export default function OnboardingPage() {
   return (
     <div className="flex-1 flex items-center justify-center p-6">
       <div className="w-full max-w-[520px] bg-white border border-[#ECEAE5] rounded-[24px] p-8 flex flex-col items-center gap-6 custom-shadow-card">
-        <Logo sizeClassName="w-12 h-12" theme="light" showText={false} />
+        <Logo sizeClassName="w-8 h-8" theme="light" />
 
         <div className="flex items-center gap-1.5">
           {([1, 2, 3] as Step[]).map((s) => (
