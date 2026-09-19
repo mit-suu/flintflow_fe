@@ -136,7 +136,7 @@ function ResetPasswordContent() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
+              className="w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
             />
             <button
               type="button"
@@ -184,7 +184,7 @@ function ResetPasswordContent() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
+            className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
           />
         </div>
 

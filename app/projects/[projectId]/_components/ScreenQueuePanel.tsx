@@ -10,7 +10,7 @@ interface ScreenQueuePanelProps {
 
 const STATUS_LABEL: Record<ScreenDetailStatus, { text: string; style: string }> = {
   pending: { text: "Chờ", style: "bg-[#F0EEEA] text-[#6B6862]" },
-  in_progress: { text: "Đang làm", style: "bg-[#F4F3FE] text-[#4F46E5]" },
+  in_progress: { text: "Đang làm", style: "bg-[#F2F1FB] text-[#6A62C4]" },
   signed_off: { text: "Đã chốt", style: "bg-[#E9F7EE] text-[#1F7A45]" },
   placeholder: { text: "Để lại", style: "bg-[#FBF4E4] text-[#8A6D1F]" },
 };
@@ -30,7 +30,7 @@ export default function ScreenQueuePanel({ spine, onMarkPlaceholder, busy = fals
         const status = STATUS_LABEL[screen.detail_status];
         const isCursor = spine.progress.screen_cursor === screen.id;
         return (
-          <li key={screen.id} className={`flex items-center gap-2 px-3 py-2 rounded-[10px] border ${isCursor ? "border-[#4F46E5] bg-[#F4F3FE]" : "border-[#ECEAE5] bg-white"}`}>
+          <li key={screen.id} className={`flex items-center gap-2 px-3 py-2 rounded-[10px] border ${isCursor ? "border-[#6A62C4] bg-[#F2F1FB]" : "border-[#ECEAE5] bg-white"}`}>
             <span className="font-mono text-[10.5px] text-[#8A867E]">{screen.id}</span>
             <span className="text-[12px] font-semibold text-[#191817] flex-1 truncate">{screen.name}</span>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status.style}`}>{status.text}</span>

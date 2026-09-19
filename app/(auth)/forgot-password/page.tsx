@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
         <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] flex flex-col gap-4">
           {submitted ? (
             <div className="flex flex-col items-center text-center gap-3.5 py-2">
-              <div className="w-12 h-12 rounded-[14px] bg-[#F4F3FE] flex items-center justify-center text-[22px]">
+              <div className="w-12 h-12 rounded-[14px] bg-[#F2F1FB] flex items-center justify-center text-[22px]">
                 ✉️
               </div>
               <h1 className="text-[20px] font-extrabold text-[#191817]">
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
               </button>
               <Link
                 href="/login"
-                className="text-[12.5px] font-semibold text-[#4F46E5] hover:underline pt-1"
+                className="text-[12.5px] font-semibold text-[#6A62C4] hover:underline pt-1"
               >
                 ← Quay lại đăng nhập
               </Link>
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="mai@studio.vn"
-                    className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
+                    className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
                   />
                 </div>
 

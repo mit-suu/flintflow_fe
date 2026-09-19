@@ -74,7 +74,7 @@ function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButton
       type="button"
       onClick={handleClick}
       disabled={disabled || loading}
-      className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-[#FAF9F7] text-[#191817] font-bold py-3 px-4 rounded-[12px] border-[1.5px] border-[#E4E1DC] hover:border-[#DDD9F6] shadow-[0_2px_6px_rgba(25,24,23,0.05)] transition-all disabled:opacity-50 text-[13px] btn-press"
+      className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-[#FAF9F7] text-[#191817] font-bold py-3 px-4 rounded-[12px] border-[1.5px] border-[#E4E1DC] hover:border-[#DCD8F0] shadow-[0_2px_6px_rgba(25,24,23,0.05)] transition-all disabled:opacity-50 text-[13px] btn-press"
     >
       <span className="w-[17px] height-[17px] h-[17px] rounded-full shrink-0 inline-block" style={{ background: "conic-gradient(from -30deg,#EA4335 0 25%,#FBBC05 0 50%,#34A853 0 75%,#4285F4 0)" }} />
       {loading ? "Đang mở Google..." : label}

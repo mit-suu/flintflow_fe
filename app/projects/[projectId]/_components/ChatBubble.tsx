@@ -168,7 +168,7 @@ export default function ChatBubble({
     const formattedTime = formatTimestamp(message.createdAt);
     return (
       <div className="flex flex-col items-end space-y-1 group">
-        <div className="bg-[#F4F3FE] border border-[#DDD9F6] text-[#191817] px-4 py-2.5 rounded-[16px] rounded-tr-[3px] max-w-[85%] text-[13px] shadow-[0_2px_8px_rgba(79,70,229,0.06)] leading-relaxed flex flex-col gap-0.5">
+        <div className="bg-[#F2F1FB] border border-[#DCD8F0] text-[#191817] px-4 py-2.5 rounded-[16px] rounded-tr-[3px] max-w-[85%] text-[13px] shadow-[0_2px_8px_rgba(106,98,196,0.06)] leading-relaxed flex flex-col gap-0.5">
           <p className="whitespace-pre-wrap">{message.content}</p>
 
           {/* Action bar: Timestamp, Copy, Rollback - phong cách Antigravity (chỉ hiện khi hover) */}
@@ -208,7 +208,7 @@ export default function ChatBubble({
                 type="button"
                 disabled={disabled}
                 onClick={() => onRequestRollback(messageIndex)}
-                className="p-1 hover:bg-[#E8E5F8] text-[#8A867E] hover:text-[#4F46E5] rounded-[5px] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+                className="p-1 hover:bg-[#E8E5F8] text-[#8A867E] hover:text-[#6A62C4] rounded-[5px] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
                 title="Hoàn tác về câu hỏi này"
               >
                 <svg
@@ -234,9 +234,9 @@ export default function ChatBubble({
   return (
     <div className="flex items-start gap-3">
       <div
-        className="w-7 h-7 rounded-[9px] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-[0_4px_10px_rgba(79,70,229,0.3)] mt-1"
+        className="w-7 h-7 rounded-[9px] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-[0_4px_10px_rgba(106,98,196,0.3)] mt-1"
         style={{
-          background: "linear-gradient(135deg,#7C74F0,#4F46E5)",
+          background: "linear-gradient(135deg,#8E87D6,#6A62C4)",
         }}
       >
         F
@@ -248,8 +248,8 @@ export default function ChatBubble({
             FlintFlow AI Analyst
           </span>
           {isStreaming && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#4F46E5] bg-[#F4F3FE] px-2 py-0.5 rounded-full border border-[#DDD9F6] animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#6A62C4] bg-[#F2F1FB] px-2 py-0.5 rounded-full border border-[#DCD8F0] animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
               Đang phản hồi...
             </span>
           )}
@@ -260,7 +260,7 @@ export default function ChatBubble({
               renderMarkdown(activeReply, isStreaming)
             ) : isStreaming ? (
               <div className="flex items-center gap-2 py-1.5 text-[#6B6862] text-[12.5px]">
-                <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-[#6A62C4] animate-ping" />
               </div>
             ) : null}
           </div>

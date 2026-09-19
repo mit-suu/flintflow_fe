@@ -15,8 +15,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
+// Nền phẳng, không đổ bóng: hover đậm màu hơn một nấc, nhấn thì co nhẹ (xem `active:` ở class gốc)
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: "btn-gradient-primary text-on-primary",
+  primary: "bg-primary text-on-primary hover:bg-primary-hover",
   secondary: "bg-surface-container-lowest text-on-surface-medium border border-outline hover:bg-surface-container-low",
   ghost: "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
   danger: "bg-error text-on-error hover:brightness-90",
@@ -46,7 +47,7 @@ export default function Button({
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`inline-flex items-center justify-center rounded-full font-bold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${VARIANT[variant]} ${SIZE[size]} ${fullWidth ? "w-full" : ""} ${className ?? ""}`}
+      className={`inline-flex items-center justify-center rounded-control font-bold transition-[background-color,color,transform] duration-150 active:scale-[0.98] disabled:active:scale-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${VARIANT[variant]} ${SIZE[size]} ${fullWidth ? "w-full" : ""} ${className ?? ""}`}
       {...rest}
     >
       {loading ? (

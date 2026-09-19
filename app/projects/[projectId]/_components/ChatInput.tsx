@@ -77,7 +77,7 @@ export default function ChatInput({
           {pendingAttachments.map((file) => (
             <div
               key={file.name}
-              className="flex items-center gap-1.5 px-3 py-1 bg-[#F4F3FE] border border-[#DDD9F6] rounded-full text-[11.5px] font-semibold text-[#3B34B0]"
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#F2F1FB] border border-[#DCD8F0] rounded-full text-[11.5px] font-semibold text-[#554DB0]"
             >
               <span className="material-symbols-outlined text-[14px]">
                 description
@@ -97,7 +97,7 @@ export default function ChatInput({
       )}
 
       {/* Input box */}
-      <div className="border-1.5 border-[#E4E1DC] focus-within:border-[#7C74F0] rounded-[16px] p-3 flex flex-col gap-2.5 transition-all bg-white shadow-2xs">
+      <div className="border-1.5 border-[#E4E1DC] focus-within:border-[#8E87D6] rounded-[16px] p-3 flex flex-col gap-2.5 transition-all bg-white shadow-2xs">
         <textarea
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
@@ -148,7 +148,7 @@ export default function ChatInput({
               className={`w-8 h-8 rounded-full flex items-center justify-center text-white transition-all cursor-pointer ${
                 (inputMessage.trim() || pendingAttachments.length > 0) &&
                 !sending
-                  ? "bg-[#4F46E5] hover:bg-[#4338CA] shadow-[0_2px_8px_rgba(79,70,229,0.3)]"
+                  ? "bg-[#6A62C4] hover:bg-[#554DB0] shadow-[0_2px_8px_rgba(106,98,196,0.3)]"
                   : "bg-[#D6D2CB] cursor-not-allowed opacity-60"
               }`}
               title="Gửi tin nhắn (Enter)"

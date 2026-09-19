@@ -50,12 +50,12 @@ export default function ChatSessionSidebar({
     <aside className="w-[230px] border-r border-[#ECEAE5] bg-white flex flex-col shrink-0">
       <div className="p-3.5 border-b border-[#ECEAE5] flex justify-between items-center bg-white shrink-0">
         <span className="font-bold text-[#191817] text-[13px] flex items-center gap-1.5">
-          <span className="text-[#4F46E5]">💬</span>
+          <span className="text-[#6A62C4]">💬</span>
           Lịch sử phiên chat
         </span>
         <button
           onClick={onCreateSession}
-          className="p-1 text-[#4F46E5] hover:bg-[#F4F3FE] rounded-[8px] transition-colors cursor-pointer"
+          className="p-1 text-[#6A62C4] hover:bg-[#F2F1FB] rounded-[8px] transition-colors cursor-pointer"
           title="Tạo phiên chat mới"
         >
           <span className="material-symbols-outlined text-[18px] font-bold">
@@ -89,7 +89,7 @@ export default function ChatSessionSidebar({
                 key={session._id}
                 className={`group relative flex items-center justify-between p-2.5 rounded-[10px] transition-all ${
                   isActive
-                    ? "bg-[#F4F3FE] text-[#3B34B0] border border-[#DDD9F6]"
+                    ? "bg-[#F2F1FB] text-[#554DB0] border border-[#DCD8F0]"
                     : "hover:bg-[#FAF9F7] text-[#33312D]"
                 }`}
               >
@@ -106,7 +106,7 @@ export default function ChatSessionSidebar({
                   </div>
                   <div
                     className={`text-[10.5px] truncate mt-0.5 ${
-                      isActive ? "text-[#4F46E5]" : "text-[#8A867E]"
+                      isActive ? "text-[#6A62C4]" : "text-[#8A867E]"
                     }`}
                   >
                     {previewText}
