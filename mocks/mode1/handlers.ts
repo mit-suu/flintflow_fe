@@ -7,7 +7,8 @@
  * Quy ước mock để test/UI điều khiển được kịch bản:
  * - Tên file chứa `.doc` (không `x`) ⇒ LEGACY_DOC; chứa `tracked` ⇒ FOREIGN_TRACK_CHANGE; chứa `other-project` ⇒ stamp project khác.
  * - Mô tả CR chứa `mơ hồ` hoặc `ambiguous` ⇒ vòng làm rõ đầu hỏi lại.
- * - `new_text` chứa `FAIL` ⇒ verify trượt (AI làm lại ≤ 2 lần rồi `manual_fix`).
+ * - CR có `FAIL` trong tiêu đề ⇒ `new_text` của đề xuất chứa `FAIL` ⇒ verify trượt (AI làm lại ≤ 2 lần rồi `manual_fix`).
+ * - FLF-186: vị trí CR là phần tử Spine giả (`mode1State.elements`), khoá theo path (`mode1State.locks`).
  * - `mode1State.credits` < giá lượt gọi ⇒ `paused: credits`; `mode1State.redFlags` > 0 ⇒ release bị chặn.
  */
 import { http, HttpResponse, type DefaultBodyType, type PathParams, type StrictRequest } from "msw";
@@ -217,24 +218,43 @@ const setCrStatus = (detail: CrDetail, status: CrStatus) => {
   detail.change_request.updated_at = now();
 };
 
-const unlock = (crId: string, blockIds?: string[]) => {
-  for (const b of latestBlocks()) if (b.locked_by_cr === crId && (!blockIds || blockIds.includes(b.block_id))) b.locked_by_cr = null;
+// FLF-186: vị trí CR là phần tử Spine (path), khoá theo path
+
+const sortKeys = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((k) => [k, sortKeys((value as Record<string, unknown>)[k])])
+    );
+  }
+  return value;
+};
+/** Giá trị phần tử dạng chuỗi ổn định (như BE `valueText`). */
+const valueText = (value: unknown): string => (value === undefined ? "" : JSON.stringify(sortKeys(value), null, 2));
+const elementOf = (path: string) => S().elements.find((e) => e.path === path);
+
+const unlock = (crId: string, paths?: string[]) => {
+  for (const [path, holder] of [...S().locks]) if (holder === crId && (!paths || paths.includes(path))) S().locks.delete(path);
 };
 
-/** Khoá nguyên tử: một block đã bị CR khác giữ ⇒ không khoá gì, trả danh sách xung đột. */
-const lock = (crId: string, blockIds: string[]): { block_id: string; cr_id: string }[] => {
-  const blocks = latestBlocks().filter((b) => blockIds.includes(b.block_id));
-  const conflicts = blocks.filter((b) => b.locked_by_cr && b.locked_by_cr !== crId).map((b) => ({ block_id: b.block_id, cr_id: b.locked_by_cr! }));
-  if (conflicts.length === 0) for (const b of blocks) b.locked_by_cr = crId;
+/** Khoá nguyên tử: một phần tử đã bị CR khác giữ ⇒ không khoá gì, trả danh sách xung đột. */
+const lock = (crId: string, paths: string[]): { path: string; cr_id: string }[] => {
+  const conflicts = paths.filter((p) => S().locks.has(p) && S().locks.get(p) !== crId).map((p) => ({ path: p, cr_id: S().locks.get(p)! }));
+  if (conflicts.length === 0) for (const p of paths) S().locks.set(p, crId);
   return conflicts;
 };
 
-const withBlocks = (detail: CrDetail): CrDetail => ({
+const pathLocked = (conflicts: { path: string; cr_id: string }[]) =>
+  fail(409, "PATH_LOCKED", `${conflicts[0].path} đang được ${conflicts[0].cr_id} sửa`, { locked: conflicts });
+
+const withCurrent = (detail: CrDetail): CrDetail => ({
   ...detail,
-  locations: detail.locations.map((l) => ({ ...l, block: latestBlocks().find((b) => b.block_id === l.block_id) ?? null })),
+  locations: detail.locations.map((l) => ({ ...l, current_text: valueText(elementOf(l.path)?.value) })),
 });
 
-const okCr = (detail: CrDetail, status = 200) => ok(withBlocks(detail), status);
+const okCr = (detail: CrDetail, status = 200) => ok(withCurrent(detail), status);
 
 const runClarify = (detail: CrDetail) => {
   const cr = detail.change_request;
@@ -272,11 +292,15 @@ const runPropose = (detail: CrDetail) => {
   }
   detail.locations.forEach((loc, i) => {
     if (loc.manual) return;
-    const text = latestBlocks().find((b) => b.block_id === loc.block_id)?.text ?? "";
+    const value = elementOf(loc.path)?.value ?? {};
+    const text = valueText(value);
     if (i === 0) {
+      // Sửa field mô tả chính của phần tử: thêm tiêu đề CR (test đặt "FAIL" vào tiêu đề để verify trượt)
+      const field = ["statement", "name", "vision"].find((k) => typeof value[k] === "string") ?? "name";
+      const next = { ...value, [field]: `${String(value[field] ?? "")} (${cr.title})` };
       loc.conclusion = "edit";
       loc.reason = `Vị trí chính của ${cr.cr_id}`;
-      loc.proposal = { old_text: text, new_text: `${text} (${cr.title})`, comment_text: null, spine_ops: [] };
+      loc.proposal = { old_text: text, new_text: valueText(next), comment_text: null, spine_ops: [{ op: "set", path: `${loc.path}.${field}`, value: next[field] }] };
     } else {
       loc.conclusion = "not_related";
       loc.reason = "Chỉ trùng từ khoá, không nói về thay đổi này";
@@ -291,7 +315,7 @@ const regroup = (detail: CrDetail) => {
   const affected = detail.locations.filter((l) => l.conclusion === "edit" || l.conclusion === "comment");
   detail.groups = affected.map((l, i) => ({
     group_id: `G${String(i + 1).padStart(2, "0")}`,
-    title: l.block?.text ?? latestBlocks().find((b) => b.block_id === l.block_id)?.text ?? l.block_id,
+    title: l.section_title || l.path,
     location_ids: [l.location_id],
     decision: "pending",
     reason: null,
@@ -327,27 +351,24 @@ const runVerify = (detail: CrDetail) => {
   setCrStatus(detail, "manual_fix");
 };
 
-/** C-7: ghi Track Changes (mock: text mới + revisions), version minor mới, mở khoá hết. */
+/** C-7 (FLF-186): ghi giá trị mới vào phần tử Spine, version minor mới (bản render — mock: chép block), mở khoá hết. */
 const writeCr = (detail: CrDetail) => {
   const cr = detail.change_request;
   const from = latestVersion()!;
   const to = nextMinor(from);
   const approved = new Set(detail.groups.filter((g) => g.decision === "approved").flatMap((g) => g.location_ids));
-  const edits = new Map(detail.locations.filter((l) => approved.has(l.location_id) && l.conclusion === "edit").map((l) => [l.block_id, l]));
-  const blocks = latestBlocks().map((b): DocBlock => {
-    const loc = edits.get(b.block_id);
-    const base: DocBlock = { ...b, doc_version: to, locked_by_cr: null, revisions: undefined };
-    if (!loc?.proposal?.new_text) return base;
-    return {
-      ...base,
-      text: loc.proposal.new_text,
-      revisions: [
-        { kind: "del", text: loc.proposal.old_text, author: cr.cr_id },
-        { kind: "ins", text: loc.proposal.new_text, author: cr.cr_id },
-      ],
-    };
-  });
-  S().blocks.set(to, blocks);
+  // Chuỗi đổi (cũ ⇒ mới) — bản render mới mang nội dung mới ở block chứa chuỗi cũ
+  const replacements: [string, string][] = [];
+  for (const l of detail.locations) {
+    if (!approved.has(l.location_id) || l.conclusion !== "edit" || !l.proposal?.new_text) continue;
+    const el = elementOf(l.path);
+    if (!el) continue;
+    const next = JSON.parse(l.proposal.new_text) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(next)) if (typeof v === "string" && typeof el.value[k] === "string" && el.value[k] !== v) replacements.push([el.value[k] as string, v]);
+    el.value = next;
+  }
+  const render = (text: string) => replacements.reduce((t, [a, b]) => t.split(a).join(b), text);
+  S().blocks.set(to, latestBlocks().map((b): DocBlock => ({ ...b, text: render(b.text), doc_version: to, locked_by_cr: null, revisions: undefined })));
   unlock(cr.cr_id);
   addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_original_file: false });
   S().spineVersion += 1;
@@ -357,10 +378,47 @@ const writeCr = (detail: CrDetail) => {
 };
 
 const CHANGE_VERB = /^\s*(đổi|sửa|thêm|xoá|xóa|bỏ|rename|change|add|remove|delete|update)\b/i;
+const newCr = (title: string, description: string, source: Cr["source"], requester: string): CrDetail => {
+  S().crSeq += 1;
+  const cr: Cr = {
+    cr_id: `CR-${String(S().crSeq).padStart(3, "0")}`,
+    project_id: MODE1_PROJECT_ID,
+    title,
+    description,
+    source,
+    requester,
+    status: "draft",
+    paused: null,
+    clarifications: [],
+    base_doc_version: latestVersion()!,
+    result_doc_version: null,
+    created_by: MODE1_USER_ID,
+    submitted_at: null,
+    decided_by: null,
+    closed_reason: null,
+    created_at: now(),
+    updated_at: now(),
+  };
+  const detail: CrDetail = { change_request: cr, locations: [], groups: [], pending_questions: [] };
+  S().crs.set(cr.cr_id, detail);
+  return detail;
+};
+
 const requiresCr = (instruction: string) =>
   fail(409, "CHANGE_REQUIRES_CR", "Tài liệu đã có baseline — mọi sửa phải qua change request", {
     prefill: { title: instruction.slice(0, 80) || "Change request", description: instruction },
   });
+
+/** FLF-186: lệnh sửa trong chat ⇒ tạo CR nguồn chat (đã import xong), trả 409 kèm `change_request`. */
+const crFromChat = (instruction: string, chatId: string) => {
+  if (!hasBaseline()) return requiresCr(instruction);
+  const title = instruction.split(/\r?\n/)[0].slice(0, 80) || "Change request";
+  const d = newCr(title, instruction, { kind: "chat", ref: `chat:${chatId}`, note: null }, "PM");
+  return fail(409, "CHANGE_REQUIRES_CR", `Tài liệu đã có baseline v1 — đã tạo ${d.change_request.cr_id} từ lệnh sửa`, {
+    prefill: { title, description: instruction },
+    change_request: { cr_id: d.change_request.cr_id, status: d.change_request.status },
+  });
+};
 
 // ─── handlers ────────────────────────────────────────────────────
 
@@ -669,28 +727,7 @@ export const mode1Handlers = [
       const source = body.source as { kind?: string; ref?: string | null; note?: string | null } | undefined;
       if (!source?.kind || !String(body.requester ?? "").trim()) return fail(400, "CR_SOURCE_REQUIRED", "Change request cần nguồn và người yêu cầu");
       if (!String(body.title ?? "").trim() || !String(body.description ?? "").trim()) return fail(400, "VALIDATION_ERROR", "Cần title và description");
-      S().crSeq += 1;
-      const cr: Cr = {
-        cr_id: `CR-${String(S().crSeq).padStart(3, "0")}`,
-        project_id: MODE1_PROJECT_ID,
-        title: String(body.title),
-        description: String(body.description),
-        source: { kind: source.kind as Cr["source"]["kind"], ref: source.ref ?? null, note: source.note ?? null },
-        requester: String(body.requester),
-        status: "draft",
-        paused: null,
-        clarifications: [],
-        base_doc_version: latestVersion()!,
-        result_doc_version: null,
-        created_by: MODE1_USER_ID,
-        submitted_at: null,
-        decided_by: null,
-        closed_reason: null,
-        created_at: now(),
-        updated_at: now(),
-      };
-      const detail: CrDetail = { change_request: cr, locations: [], groups: [], pending_questions: [] };
-      S().crs.set(cr.cr_id, detail);
+      const detail = newCr(String(body.title), String(body.description), { kind: source.kind as Cr["source"]["kind"], ref: source.ref ?? null, note: source.note ?? null }, String(body.requester));
       return okCr(detail, 201);
     }),
   ),
@@ -750,17 +787,20 @@ export const mode1Handlers = [
       if (d instanceof Response) return d;
       const cr = d.change_request;
       if (cr.status !== "impact_review" || d.locations.length > 0) return invalidTransition(cr, "impact_review");
+      // FLF-186: vị trí = phần tử Spine chứa từ khoá của CR (không có ⇒ NFR đầu tiên)
       const words = keywordsOf(cr);
-      const hits = latestBlocks().filter((b) => b.editable && b.kind !== "heading" && words.some((w) => b.text.toLowerCase().includes(w)));
-      const found = hits.length ? hits : latestBlocks().filter((b) => b.kind === "paragraph").slice(0, 1);
-      const conflicts = lock(cr.cr_id, found.map((b) => b.block_id));
-      if (conflicts.length) return fail(409, "BLOCK_LOCKED", `Block ${conflicts[0].block_id} đang được ${conflicts[0].cr_id} sửa`, { locked: conflicts });
-      d.locations = found.map((b, i): CrLocation => ({
+      const hits = S().elements.filter((e) => words.some((w) => valueText(e.value).toLowerCase().includes(w)));
+      const found = hits.length ? hits : S().elements.filter((e) => e.path.startsWith("nfrs[")).slice(0, 1);
+      const conflicts = lock(cr.cr_id, found.map((e) => e.path));
+      if (conflicts.length) return pathLocked(conflicts);
+      d.locations = found.map((e, i): CrLocation => ({
         location_id: `L${String(i + 1).padStart(3, "0")}`,
-        block_id: b.block_id,
-        block: null,
-        found_by: b.mentions.length ? ["mention", "keyword"] : ["keyword"],
-        entity_paths: b.mentions.map((m) => `${m.entity}s[id=${m.id}]`),
+        path: e.path,
+        section_id: e.section_id,
+        section_title: e.section_title,
+        current_text: valueText(e.value),
+        found_by: ["keyword"],
+        entity_paths: [],
         owner_step: null,
         conclusion: null,
         reason: null,
@@ -798,19 +838,21 @@ export const mode1Handlers = [
       if (!["proposing", "manual_fix", "ready_to_submit"].includes(cr.status)) return invalidTransition(cr, "verifying");
       const loc = d.locations.find((l) => l.location_id === params.locId);
       if (!loc) return fail(404, "CR_LOCATION_NOT_FOUND", `Không có vị trí ${String(params.locId)}`);
-      const body = (await readJson(request)) as { conclusion?: CrLocation["conclusion"]; reason?: string; new_text?: string; comment_text?: string };
+      const body = (await readJson(request)) as { conclusion?: CrLocation["conclusion"]; reason?: string; new_value?: unknown; spine_ops?: unknown[]; comment_text?: string };
       if (!Object.keys(body).length) return fail(400, "VALIDATION_ERROR", "Cần ít nhất một field để sửa");
-      if (body.conclusion === "edit" && body.new_text === undefined) return fail(400, "VALIDATION_ERROR", "Kết luận edit cần new_text");
+      if (body.conclusion === "edit" && body.new_value === undefined && body.spine_ops === undefined) return fail(400, "VALIDATION_ERROR", "Kết luận edit cần new_value hoặc spine_ops");
       if (body.conclusion === "comment" && !body.comment_text) return fail(400, "VALIDATION_ERROR", "Kết luận comment cần comment_text");
       if (body.conclusion === "not_related" && !body.reason) return fail(400, "VALIDATION_ERROR", "Kết luận not_related cần lý do");
-      const oldText = loc.proposal?.old_text ?? latestBlocks().find((b) => b.block_id === loc.block_id)?.text ?? "";
+      if (S().locks.get(loc.path) !== cr.cr_id) return pathLocked([{ path: loc.path, cr_id: S().locks.get(loc.path) ?? "?" }]);
+      const oldText = valueText(elementOf(loc.path)?.value);
       loc.conclusion = body.conclusion ?? loc.conclusion;
       loc.reason = body.reason ?? loc.reason;
       loc.proposal = {
         old_text: oldText,
-        new_text: body.new_text ?? loc.proposal?.new_text ?? null,
+        // new_value ⇒ op set cả phần tử (mock bỏ qua spine_ops tự viết: giữ đề xuất cũ)
+        new_text: body.new_value !== undefined ? valueText(body.new_value) : (loc.proposal?.new_text ?? null),
         comment_text: body.comment_text ?? loc.proposal?.comment_text ?? null,
-        spine_ops: loc.proposal?.spine_ops ?? [],
+        spine_ops: body.new_value !== undefined ? [{ op: "set", path: loc.path, value: body.new_value }] : (body.spine_ops ?? loc.proposal?.spine_ops ?? []),
       };
       loc.manual = true;
       regroup(d);
@@ -868,7 +910,7 @@ export const mode1Handlers = [
       }
       Object.assign(group, { decision: body.decision, reason: (body.reason as string | undefined) ?? null, decided_by: MODE1_USER_ID, decided_at: now() });
       if (group.decision === "rejected") {
-        unlock(cr.cr_id, d.locations.filter((l) => group.location_ids.includes(l.location_id)).map((l) => l.block_id));
+        unlock(cr.cr_id, d.locations.filter((l) => group.location_ids.includes(l.location_id)).map((l) => l.path));
       }
       const pending = d.groups.some((g) => g.decision === "pending");
       if (!pending && d.groups.some((g) => g.decision === "approved")) writeCr(d);
@@ -884,8 +926,8 @@ export const mode1Handlers = [
       if (d instanceof Response) return d;
       const cr = d.change_request;
       if (cr.status !== "in_review" || d.groups.some((g) => g.decision !== "rejected")) return invalidTransition(cr, "proposing");
-      const conflicts = lock(cr.cr_id, d.locations.map((l) => l.block_id));
-      if (conflicts.length) return fail(409, "BLOCK_LOCKED", `Block ${conflicts[0].block_id} đang được ${conflicts[0].cr_id} sửa`, { locked: conflicts });
+      const conflicts = lock(cr.cr_id, d.locations.map((l) => l.path));
+      if (conflicts.length) return pathLocked(conflicts);
       for (const l of d.locations) Object.assign(l, { conclusion: null, reason: null, proposal: null, manual: false, redo_count: 0, verify: null, group_id: null });
       d.groups = [];
       setCrStatus(d, "proposing");
@@ -993,7 +1035,7 @@ export const mode1Handlers = [
   http.post(api("/projects/:projectId/chats/:chatId/messages/stream"), async ({ params, request }) => {
     if (!isMode1(params.projectId)) return undefined;
     const content = String((await readJson(request.clone())).content ?? "");
-    if (CHANGE_VERB.test(content)) return requiresCr(content);
+    if (CHANGE_VERB.test(content)) return crFromChat(content, String(params.chatId));
     return undefined;
   }),
 ];

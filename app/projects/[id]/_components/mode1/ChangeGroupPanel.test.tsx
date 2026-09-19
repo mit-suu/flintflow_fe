@@ -6,14 +6,16 @@ import { formatDateTime } from "./labels";
 
 const location = (id: string, over: Partial<CrLocation> = {}): CrLocation => ({
   location_id: id,
-  block_id: `B00${id.slice(-2)}`,
-  block: null,
+  path: `x[id=${id}]`,
+  section_id: "fixed:1",
+  section_title: "Product Overview",
+  current_text: "",
   found_by: ["mention"],
   entity_paths: [],
   owner_step: null,
   conclusion: "edit",
   reason: null,
-  proposal: { old_text: `old ${id}`, new_text: `new ${id}`, comment_text: null, spine_ops: [] },
+  proposal: { old_text: JSON.stringify({ statement: `old ${id}` }), new_text: JSON.stringify({ statement: `new ${id}` }), comment_text: null, spine_ops: [] },
   manual: false,
   redo_count: 0,
   verify: null,
@@ -58,13 +60,13 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
     );
     expect(screen.getByRole("heading", { name: "Nhóm thay đổi (2)" })).toBeInTheDocument();
     const g1 = article("G1");
-    expect(within(g1).getByText("B0001 · Sửa")).toBeInTheDocument();
+    expect(within(g1).getByText("x[id=L001]")).toBeInTheDocument();
     expect(within(g1).getByText("old L001").tagName).toBe("DEL");
     expect(within(g1).getByText("new L001").tagName).toBe("INS");
-    expect(within(g1).getByText("B0002 · Chỉ comment")).toBeInTheDocument();
+    expect(within(g1).getByText("x[id=L002]").parentElement).toHaveTextContent("x[id=L002] · Chỉ comment");
     expect(within(g1).getByText("💬 Xác nhận với PM")).toBeInTheDocument();
-    expect(within(g1).queryByText(/B0003/)).not.toBeInTheDocument();
-    expect(within(article("G2")).getByText("B0003 · —")).toBeInTheDocument();
+    expect(within(g1).queryByText(/L003/)).not.toBeInTheDocument();
+    expect(within(article("G2")).getByText("x[id=L003]").parentElement).toHaveTextContent("x[id=L003] · —");
     expect(within(g1).getByText("Chờ duyệt")).toBeInTheDocument();
   });
 
