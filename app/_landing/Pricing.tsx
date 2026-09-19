@@ -1,11 +1,12 @@
 import { PLANS, PRICING_HEADING, type Plan } from "./content";
-import { ButtonLink, Diamond, SectionHeading } from "./ui";
+import { ButtonLink, Diamond, SectionHeading, Texture } from "./ui";
 
 /* Hai gói phẳng: Free nền xám ấm, Pro nền mực đậm để nổi — nhãn "Phổ biến nhất" vàng như hạt kim cương logo. */
 export default function Pricing() {
   return (
-    <section id="bang-gia" aria-labelledby="pricing-title" className="scroll-mt-24 px-4 py-20 sm:px-6 lg:py-28">
-      <div className="mx-auto max-w-[1200px]">
+    <section id="bang-gia" aria-labelledby="pricing-title" className="relative mt-20 scroll-mt-24 bg-surface-container-lowest px-4 py-20 sm:px-6 lg:mt-28 lg:py-28">
+      <Texture kind="dots" mask="radial-gradient(ellipse 45% 55% at 50% 60%, #000, transparent)" />
+      <div className="relative mx-auto max-w-[1200px]">
         <SectionHeading
           id="pricing-title"
           eyebrow={PRICING_HEADING.eyebrow}

@@ -1,14 +1,17 @@
 import { PHASES } from "@/lib/constants/step-registry";
 import { CHECK_CARD, HERO, PREVIEW_FOLDER, PREVIEW_PROJECTS } from "./content";
-import { ArrowRight, ButtonLink, Diamond, Eyebrow, FolderShape, PhaseBar } from "./ui";
+import { ArrowRight, ButtonLink, Diamond, Eyebrow, FolderShape, PhaseBar, Texture } from "./ui";
 
 /*
- * Hero: chữ bên trái; bên phải là "ảnh chụp" dashboard dựng bằng chính ngôn ngữ của nó (cột xám nhạt,
- * thẻ thư mục, card dự án tím pastel + thanh 12 giai đoạn) và thẻ kiểm tra 3 tầng.
+ * Hero: chữ bên trái; bên phải là "ảnh chụp" dashboard dựng bằng chính ngôn ngữ của nó (card trắng nổi,
+ * thẻ thư mục, card dự án tím pastel + thanh 12 giai đoạn) và thẻ kiểm tra 3 tầng; phía sau là hai tờ tài liệu xếp lệch.
  */
 export default function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="px-4 pb-20 pt-10 sm:px-6 lg:pb-28 lg:pt-16">
+    <section aria-labelledby="hero-title" className="relative isolate px-4 pb-20 pt-10 sm:px-6 lg:pb-28 lg:pt-16">
+      {/* "Sân khấu" tím nhạt phẳng ôm lấy collage, tràn ra mép phải; lưới chấm mờ dần quanh nó */}
+      <div aria-hidden="true" className="absolute inset-y-6 right-0 -z-10 hidden w-[47%] rounded-l-[48px] bg-primary-fixed lg:block" />
+      <Texture kind="dots" mask="radial-gradient(ellipse 40% 60% at 72% 50%, #000, transparent)" className="-z-10 hidden lg:block" />
       <div className="mx-auto grid max-w-[1200px] items-center gap-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
         <div>
           <Eyebrow className="rounded-full bg-primary-soft px-3.5 py-1.5 text-primary-hover">{HERO.eyebrow}</Eyebrow>
@@ -57,8 +60,11 @@ export default function Hero() {
 /* Minh hoạ tĩnh, không gọi API. Số giai đoạn lấy từ step registry thật. */
 function DashboardCollage() {
   return (
-    <figure aria-label="Minh hoạ dashboard FlintFlow">
-      <div className="rounded-dialog bg-surface-sidebar p-4 sm:p-6">
+    <figure aria-label="Minh hoạ dashboard FlintFlow" className="relative mx-2 sm:mx-4">
+      {/* Hai tờ "tài liệu" xếp chồng phía sau — phẳng, lệch góc nhẹ */}
+      <div aria-hidden="true" className="absolute inset-0 translate-x-3 translate-y-5 rotate-[3deg] rounded-dialog bg-folder-rose" />
+      <div aria-hidden="true" className="absolute inset-0 -translate-x-2 translate-y-3 -rotate-[2.5deg] rounded-dialog bg-folder-blue" />
+      <div className="relative rounded-dialog bg-surface-container-lowest p-4 shadow-[0_1px_2px_rgba(25,24,23,0.04),0_12px_32px_rgba(25,24,23,0.08)] sm:p-6">
         <div className="mb-4 flex items-center gap-2">
           <p className="text-[17px] font-semibold tracking-tight text-on-surface">Dự án của bạn</p>
           <span className="rounded-full bg-surface-container-highest px-2 py-0.5 text-[11px] font-bold text-on-surface-variant">3</span>
@@ -104,7 +110,7 @@ const TIER_STYLES = {
 /* Hàng cuối của collage: kết quả kiểm tra 3 tầng trước khi chốt baseline. */
 function CheckCard() {
   return (
-    <div className="mt-3 rounded-card bg-surface-container-lowest p-4">
+    <div className="mt-3 rounded-card bg-surface-sidebar p-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[12.5px] font-bold text-on-surface">{CHECK_CARD.title}</p>
         <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10.5px] font-bold text-success">

@@ -12,7 +12,7 @@ const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible
 
 const buttonVariants = {
   primary: "bg-primary text-on-primary hover:bg-primary-hover",
-  secondary: "bg-surface-container text-on-surface hover:bg-surface-container-high",
+  secondary: "bg-surface-container-lowest text-on-surface hover:bg-surface-container-high",
   /** Nút trắng trên khối màu `primary`. */
   inverse: "bg-surface-container-lowest text-primary-hover hover:bg-primary-soft",
 } as const;
@@ -108,6 +108,33 @@ export function PhaseBar({ done }: { done: number }) {
     <div aria-hidden="true" className="relative h-2 overflow-hidden rounded-full bg-card-track">
       <span className="absolute inset-y-0 left-0 rounded-full bg-primary/35" style={{ width: width(done + 1) }} />
       <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: width(done) }} />
+    </div>
+  );
+}
+
+const TEXTURES = { dots: "landing-dots", "dots-light": "landing-dots-light" } as const;
+
+/**
+ * Lớp hoạ tiết phẳng phủ kín phần tử cha (cha phải `relative`): lưới chấm tối hoặc sáng (`globals.css`).
+ * `mask` quyết định vùng hoạ tiết mờ dần.
+ */
+export function Texture({ kind, mask, className = "" }: { kind: keyof typeof TEXTURES; mask?: string; className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-0 ${TEXTURES[kind]} ${className}`}
+      style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+    />
+  );
+}
+
+/** Dải 12 đoạn màu theo bốn bước BA — "vạch giai đoạn" làm đường phân cách section. */
+export function PhaseRibbon({ groups, className = "" }: { groups: { tone: GroupTone; phases: readonly string[] }[]; className?: string }) {
+  return (
+    <div aria-hidden="true" className={`flex gap-1 ${className}`}>
+      {groups.flatMap((group) =>
+        group.phases.map((phase) => <span key={phase} className={`h-full flex-1 rounded-full ${TONE_FILL[group.tone].back}`} />)
+      )}
     </div>
   );
 }
