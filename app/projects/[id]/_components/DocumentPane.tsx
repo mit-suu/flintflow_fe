@@ -19,6 +19,16 @@ interface DocumentPaneProps {
   refreshToken?: number;
   /** `spine_version` hiện tại — có thì nút ghép gọi `POST /assemble` thẳng thay vì chỉ chuyển sang S-8.2. */
   getBaseVersion?: () => number | null;
+  /**
+   * Mode 1 v2 (FLF-185): step sở hữu section chưa có nội dung — hiện "Chưa có nội dung — chạy step X" thay câu chung,
+   * `missing` = đầu mục mẫu FPT file upload không có (đỏ).
+   */
+  emptyHintOf?: (sectionId: string) => EmptyHint | undefined;
+}
+
+export interface EmptyHint {
+  stepId: string;
+  missing: boolean;
 }
 
 const STATUS_BADGE: Record<SectionStatus, { text: string; style: string }> = {
@@ -156,20 +166,53 @@ export function BlockView({ block, projectId }: { block: Block; projectId: strin
   }
 }
 
+/** Heading nhóm (`group:*`) — chỉ tiêu đề chương/mục cha, không phải section có nội dung (contract-change 2026-09-15). */
+function GroupHeading({ section }: { section: RenderedSection }) {
+  return (
+    <div data-section-id={section.id} className="pt-2 px-1">
+      <h4 className="font-extrabold text-[13px] text-[#4B4842]">
+        {section.number ? `§${section.number} ` : ""}
+        {section.heading}
+      </h4>
+    </div>
+  );
+}
+
+function EmptySection({ hint, onSelectStep }: { hint?: EmptyHint; onSelectStep?: (stepId: string) => void }) {
+  if (!hint) return <div className="text-[11.5px] text-[#A8A49C] italic">Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.</div>;
+  return (
+    <div className={`text-[11.5px] italic flex items-center gap-2 flex-wrap ${hint.missing ? "text-[#B03030]" : "text-[#8A867E]"}`}>
+      {hint.missing && <span className="not-italic text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#B03030] text-white">Thiếu</span>}
+      <span>
+        Chưa có nội dung — chạy step {hint.stepId} · {stepLabel(hint.stepId)}
+      </span>
+      {onSelectStep && (
+        <button type="button" onClick={() => onSelectStep(hint.stepId)} className="not-italic text-[10.5px] font-bold text-[#4F46E5] hover:underline cursor-pointer">
+          Mở step
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SectionView({
   section,
   projectId,
   remediationStep,
   changed,
   onSelectStep,
+  emptyHint,
 }: {
   section: RenderedSection;
   projectId: string;
   remediationStep?: string;
   changed: boolean;
   onSelectStep?: (stepId: string) => void;
+  emptyHint?: EmptyHint;
 }) {
+  if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
   const badge = section.status ? STATUS_BADGE[section.status] : null;
+  const custom = section.id.startsWith("custom:");
   return (
     <article
       data-section-id={section.id}
@@ -179,9 +222,15 @@ function SectionView({
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h5 className="font-bold text-[12.5px] text-[#191817]">
-          §{section.number} {section.heading}
+          {section.number ? `§${section.number} ` : ""}
+          {section.heading}
         </h5>
         <div className="flex items-center gap-1.5 flex-wrap">
+          {custom && (
+            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]" title="Mục ngoài mẫu FPT — giữ nguyên văn từ file upload, sửa qua chat">
+              Mục riêng
+            </span>
+          )}
           {section.awaiting_reaccept && (
             <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">Chờ duyệt lại</span>
           )}
@@ -200,7 +249,7 @@ function SectionView({
       {section.blocks.length > 0 ? (
         section.blocks.map((block, i) => <BlockView key={i} block={block} projectId={projectId} />)
       ) : (
-        <div className="text-[11.5px] text-[#A8A49C] italic">Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.</div>
+        <EmptySection hint={emptyHint} onSelectStep={onSelectStep} />
       )}
     </article>
   );
@@ -215,6 +264,7 @@ export default function DocumentPane({
   onSelectStep,
   refreshToken = 0,
   getBaseVersion,
+  emptyHintOf,
 }: DocumentPaneProps) {
   const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
     projectId,
@@ -318,6 +368,7 @@ export default function DocumentPane({
               remediationStep={remediationStepOf(section.id)}
               changed={changedSectionIds?.has(section.id) ?? false}
               onSelectStep={onSelectStep}
+              emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
             />
           ))}
       </div>

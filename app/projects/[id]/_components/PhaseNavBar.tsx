@@ -27,7 +27,10 @@ export const phaseState = (phase: PhaseId, currentPhase: string | null, steps: S
   return "upcoming";
 };
 
-/** 12 phase B-0…S-9 theo step registry (Phases §1.1). */
+/**
+ * 12 phase B-0…S-9 theo step registry (Phases §1.1). Phase không có step nào trong danh sách BE (project mode 1:
+ * step không áp dụng cho template bị bỏ — FLF-185) bị ẩn; danh sách rỗng (chưa tải) ⇒ hiện đủ 12.
+ */
 export default function PhaseNavBar({
   currentPhase,
   steps,
@@ -53,7 +56,7 @@ export default function PhaseNavBar({
       <span className="text-[10px] font-extrabold text-[#8A867E] tracking-wider uppercase shrink-0 mr-1">PHASE</span>
 
       <ol className="flex items-center gap-1.5 shrink-0">
-        {PHASES.map((phase) => {
+        {PHASES.filter((phase) => steps.length === 0 || steps.some((s) => s.phase === phase)).map((phase) => {
           const state = phaseState(phase, currentPhase, steps);
           const style =
             state === "completed"

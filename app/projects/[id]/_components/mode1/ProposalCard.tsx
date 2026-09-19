@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { CrLocation, LocationConclusion, PatchLocationRequest } from "@/types/change-request";
-import { Revisions } from "./DocBlockView";
+import { Revisions } from "./Revisions";
 import { CONCLUSION_LABELS, FOUND_BY_LABELS } from "./labels";
 import VerifyResult from "./VerifyResult";
 
