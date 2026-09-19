@@ -21,7 +21,7 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
   const current = trail[trail.length - 1];
 
   return (
-    <header className="shrink-0 bg-surface-container-lowest border-b border-outline-variant">
+    <header className="shrink-0 bg-surface-container-lowest">
       <div className="min-h-[58px] flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-6 py-2.5">
         <IconButton icon="menu" label="Mở menu" onClick={openNav} className="md:hidden -ml-1" />
 
@@ -45,7 +45,7 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
             <Link
               href="/home/billing"
               title="Credits & Thanh toán"
-              className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-surface-container-high text-[12px] font-semibold text-on-surface hover:bg-surface-container-highest transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-control bg-surface-container-high text-[12px] font-semibold text-on-surface hover:bg-surface-container-highest transition-colors"
             >
               <Icon name="wallet" size={14} className="text-primary" />
               <span className="tabular-nums">{balance.balance.toLocaleString("vi-VN")}</span>
