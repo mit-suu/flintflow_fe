@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-[420px] flex flex-col gap-4">
         
         {/* Logo Top */}
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" href="/" />
 
         {/* Card (A3 Design) */}
         <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] flex flex-col gap-4">
