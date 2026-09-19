@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { usePathname } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listProjects } from "@/lib/api/projects";
+import { logoutAndRedirect } from "@/lib/auth";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
 import AppShell from "./AppShell";
@@ -10,6 +11,7 @@ import AppSidebar from "./AppSidebar";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: vi.fn(), useRouter: () => ({ push }) }));
 vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 120, planLabel: "Pro" })) }));
 vi.mock("@/lib/api/notifications", () => ({
@@ -21,7 +23,8 @@ const project = (id: string, updatedAt: string, over: Partial<Project> = {}): Pr
   _id: id,
   name: `Dự án ${id}`,
   status: "active",
-  sourceMode: "fpt_template",
+  mode: "fpt",
+  import_state: null,
   createdAt: updatedAt,
   updatedAt,
   ...over,
@@ -95,11 +98,18 @@ describe("AppSidebar", () => {
     expect(screen.queryByText("Tổ chức")).toBeNull();
   });
 
-  it("menu user: Đăng xuất về /login", () => {
+  it("menu user: Đăng xuất gọi logoutAndRedirect (thu hồi phiên rồi về /login)", () => {
     renderSidebar([]);
     fireEvent.click(screen.getByRole("button", { name: "Tài khoản hiep" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Đăng xuất/ }));
-    expect(push).toHaveBeenCalledWith("/login");
+    expect(logoutAndRedirect).toHaveBeenCalledOnce();
+  });
+
+  it("menu user: Hồ sơ cá nhân mở /home/profile", () => {
+    renderSidebar([]);
+    fireEvent.click(screen.getByRole("button", { name: "Tài khoản hiep" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Hồ sơ cá nhân/ }));
+    expect(push).toHaveBeenCalledWith("/home/profile");
   });
 
   it("Gửi góp ý mở dialog", () => {

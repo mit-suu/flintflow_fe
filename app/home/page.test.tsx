@@ -25,7 +25,8 @@ const project = (id: string, over: Partial<Project> = {}): Project => ({
   _id: id,
   name: `Dự án ${id}`,
   status: "active",
-  sourceMode: "fpt_template",
+  mode: "fpt",
+  import_state: null,
   createdAt: "2026-09-01T00:00:00Z",
   updatedAt: "2026-09-01T00:00:00Z",
   ...over,
@@ -73,19 +74,20 @@ describe("Project Dashboard", () => {
     expect(await screen.findByText("Bắt đầu dự án SRS đầu tiên")).toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(3);
 
-    // Upload SRS và template khách đang "Sắp có": không chọn được
-    expect(screen.getByRole("radio", { name: /Upload SRS có sẵn/ })).toHaveAttribute("aria-disabled", "true");
+    // Template khách đang "Sắp có": không chọn được; Upload SRS (mode 1) chọn được
+    expect(screen.getByRole("radio", { name: /Có template của khách/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("radio", { name: /Upload SRS có sẵn/ })).not.toHaveAttribute("aria-disabled", "true");
     fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p9"));
-    expect(createProject).toHaveBeenCalledWith("Dự án chưa đặt tên", "fpt_template", undefined);
+    expect(createProject).toHaveBeenCalledWith("Dự án chưa đặt tên", "fpt", undefined);
     expect(listProjects).toHaveBeenCalledTimes(2);
   });
 
   it("có dự án ⇒ lưới đúng số card; lọc theo nguồn và trạng thái", async () => {
     vi.mocked(listProjects).mockResolvedValue(
-      ok([project("a", { sourceMode: "edit_srs" }), project("b"), project("c", { status: "archived" })])
+      ok([project("a", { mode: "import" }), project("b"), project("c", { status: "archived" })])
     );
     renderPage();
 
