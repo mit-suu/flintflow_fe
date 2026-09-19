@@ -4,7 +4,7 @@ import { useRef } from "react";
 import Badge from "@/components/ui/Badge";
 import Icon from "@/components/ui/Icon";
 import { SOURCE_MODE_OPTIONS, type SourceModeTone } from "@/lib/project-source-mode";
-import type { ProjectSourceMode } from "@/types/project";
+import type { ProjectMode } from "@/types/project";
 
 // Màu theo tone của mode — chỉ token. Thẻ phẳng không viền (cùng ngôn ngữ với card dự án): chọn ⇒ nền ngả màu tone
 const TONE: Record<SourceModeTone, { icon: string; selected: string }> = {
@@ -14,8 +14,8 @@ const TONE: Record<SourceModeTone, { icon: string; selected: string }> = {
 };
 
 interface SourceModePickerProps {
-  value: ProjectSourceMode | null;
-  onChange: (mode: ProjectSourceMode) => void;
+  value: ProjectMode | null;
+  onChange: (mode: ProjectMode) => void;
   disabled?: boolean;
 }
 
@@ -24,17 +24,17 @@ interface SourceModePickerProps {
  * không chọn được (chuột lẫn phím), mũi tên bỏ qua nó.
  */
 export default function SourceModePicker({ value, onChange, disabled = false }: SourceModePickerProps) {
-  const refs = useRef(new Map<ProjectSourceMode, HTMLDivElement>());
-  const ready: ProjectSourceMode[] = SOURCE_MODE_OPTIONS.filter((o) => o.status === "ready").map((o) => o.value);
+  const refs = useRef(new Map<ProjectMode, HTMLDivElement>());
+  const ready: ProjectMode[] = SOURCE_MODE_OPTIONS.filter((o) => o.status === "ready").map((o) => o.value);
   // Roving tabindex: Tab vào nhóm rơi đúng thẻ đang chọn (chưa chọn ⇒ thẻ sẵn sàng đầu tiên)
   const tabStop = value ?? ready[0];
 
-  const select = (mode: ProjectSourceMode) => {
+  const select = (mode: ProjectMode) => {
     if (disabled || !ready.includes(mode)) return;
     onChange(mode);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent, mode: ProjectSourceMode) => {
+  const onKeyDown = (e: React.KeyboardEvent, mode: ProjectMode) => {
     const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
     if (step !== 0) {
       e.preventDefault();

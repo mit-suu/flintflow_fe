@@ -10,7 +10,8 @@ const project: Project = {
   _id: "p1",
   name: "Lumen",
   status: "active",
-  sourceMode: "edit_srs",
+  mode: "import",
+  import_state: null,
   createdAt: "2026-09-01T00:00:00Z",
   updatedAt: "2026-09-01T00:00:00Z",
 };
