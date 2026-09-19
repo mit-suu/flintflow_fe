@@ -4,7 +4,7 @@ import type { Project } from "@/types/project";
 import ProjectCard from "./ProjectCard";
 
 /** Lưới dùng chung cho thư mục, dự án và skeleton — cùng cột để không nhảy bố cục. */
-export const CARD_GRID = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5";
+export const CARD_GRID = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5";
 const SKELETON_COUNT = 6;
 
 interface ProjectGridProps {
@@ -16,7 +16,7 @@ interface ProjectGridProps {
   onMoveToFolder?: (p: Project) => void;
 }
 
-/** Lưới card dự án responsive 1/2/3/4 cột. */
+/** Lưới card dự án responsive 1/2/3/4 cột (4 cột từ màn desktop xl). */
 export default function ProjectGrid({ projects, progressById, onRename, onDelete, onHardDelete, onMoveToFolder }: ProjectGridProps) {
   return (
     <div className={CARD_GRID}>

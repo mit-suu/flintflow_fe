@@ -19,7 +19,7 @@ describe("FolderCard", () => {
     const { container } = render(<FolderCard folder={folder} onOpen={onOpen} onRename={() => {}} onDelete={() => {}} />);
 
     expect(screen.getByText("3 dự án")).toBeInTheDocument();
-    expect(container.querySelector(".from-info-soft")).not.toBeNull();
+    expect(container.querySelector(".bg-info-soft")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Khách A/ }));
     expect(onOpen).toHaveBeenCalledWith(folder);
   });
@@ -50,9 +50,10 @@ describe("ProjectCover", () => {
     expect(variants.size).toBeGreaterThan(1);
   });
 
-  it("nền theo tone của mode", () => {
+  it("màu trơn theo tone của mode, không gradient", () => {
     const { container } = render(<ProjectCover seed="p1" tone="info" />);
-    expect(container.firstElementChild?.className).toContain("from-info-border");
-    expect(container.querySelectorAll("span")).toHaveLength(3);
+    const cls = container.firstElementChild?.className ?? "";
+    expect(cls).toMatch(/bg-(info|brand|success)-/);
+    expect(cls).not.toContain("gradient");
   });
 });
