@@ -7,6 +7,7 @@ import DropdownMenu, {
 } from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
+import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[id]/_components/mode1/labels";
 import { tStep, type Locale } from "@/lib/i18n";
 import {
   PHASES,
@@ -15,13 +16,15 @@ import {
 } from "@/lib/constants/step-registry";
 import { getSourceModeOption } from "@/lib/project-source-mode";
 import type { ProgressResponse } from "@/types/pipeline";
-import type { Project, ProjectSourceMode } from "@/types/project";
+import type { Project, ProjectMode } from "@/types/project";
 
 interface Props {
   project: Project;
   /** `GET /projects/:id/progress`; `null` khi project chưa có Spine, `undefined` khi đang tải. */
   progress?: ProgressResponse | null;
   locale?: Locale;
+  /** Mode 1: số change request đang mở; `undefined` khi chưa tải / không áp dụng. */
+  openCrs?: number;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
   onHardDelete: (p: Project) => void;
@@ -74,6 +77,18 @@ export function nextStepLabel(
   return tStep(stepId, locale);
 }
 
+/**
+ * Mode 1 (UC-14, UC-19): chưa import xong ⇒ trạng thái import; đã có baseline ⇒ số change request đang mở.
+ * Trạng thái lấy từ `project.import_state` do BE trả.
+ */
+export function mode1NextLabel(project: Project, openCrs?: number): string {
+  const state = project.import_state;
+  if (!state) return "Chưa tải SRS lên — mở để upload .docx";
+  if (!IMPORT_DONE_STATUSES.includes(state)) return `Nhập SRS: ${IMPORT_STATUS_LABELS[state]}`;
+  if (openCrs === undefined) return IMPORT_STATUS_LABELS[state];
+  return openCrs > 0 ? `${openCrs} change request đang mở` : IMPORT_STATUS_LABELS[state];
+}
+
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (seconds < 3600)
@@ -85,7 +100,7 @@ function timeAgo(dateStr: string): string {
 }
 
 /** Nguồn mặc định (gần như mọi dự án) — không ghi nhãn trên card; chỉ nguồn khác mới hiện tên. */
-const DEFAULT_SOURCE_MODE: ProjectSourceMode = "fpt_template";
+const DEFAULT_SOURCE_MODE: ProjectMode = "fpt";
 
 /**
  * Vị trí trên thanh 12 giai đoạn. Đếm theo **phase** chứ không theo % bước: tổng bước (51 + 5×N) chỉ chốt
@@ -177,6 +192,7 @@ export default function ProjectCard({
   project,
   progress,
   locale = "vi",
+  openCrs,
   onRename,
   onDelete,
   onHardDelete,
@@ -185,7 +201,7 @@ export default function ProjectCard({
   draggable = false
 }: Props) {
   const status = getStatusBadge(progress);
-  const mode = getSourceModeOption(project.sourceMode);
+  const mode = getSourceModeOption(project.mode);
   const archived = project.status === "archived";
 
   const menuItems: DropdownMenuItem[] = [
@@ -219,7 +235,7 @@ export default function ProjectCard({
 
   return (
     <article
-      data-mode={project.sourceMode}
+      data-mode={project.mode}
       draggable={draggable || undefined}
       onDragStart={
         draggable
@@ -257,7 +273,7 @@ export default function ProjectCard({
               </span>
             </>
           )}
-          {/* So theo nguồn đã phân giải: dự án thiếu `sourceMode` (BE có lúc không trả) được coi là mặc định */}
+          {/* So theo nguồn đã phân giải: dự án thiếu `mode` (BE có lúc không trả) được coi là mặc định */}
           {mode.value !== DEFAULT_SOURCE_MODE && (
             <>
               <Dot />
@@ -279,7 +295,7 @@ export default function ProjectCard({
           {/* Khác hẳn dòng meta (nhạt, thường): đậm vừa, màu đậm, mũi tên tím = "việc tiếp theo" */}
           <span className="flex items-center gap-1.5 min-w-0 text-[12.5px] font-medium text-on-card-strong">
             <Icon name="arrow-right" size={13} className="shrink-0 text-primary" />
-            <span className="truncate">{nextStepLabel(progress, locale)}</span>
+            <span className="truncate">{project.mode === "import" ? mode1NextLabel(project, openCrs) : nextStepLabel(progress, locale)}</span>
           </span>
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">

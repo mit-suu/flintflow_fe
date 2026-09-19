@@ -9,7 +9,7 @@ import Badge from "@/components/ui/Badge";
 import DropdownMenu from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import { clearAuthToken } from "@/lib/auth";
+import { logoutAndRedirect } from "@/lib/auth";
 import { selectRecentProjects, useProjects } from "@/lib/hooks/use-projects";
 import { useAppShell } from "./AppShell";
 import RecentProjects from "./RecentProjects";
@@ -27,8 +27,8 @@ export interface SidebarUser {
   isAdmin: boolean;
 }
 
-// Avatar màu trơn (không gradient): nền tím nhạt, chữ tím
-const AVATAR = "bg-primary-fixed text-primary";
+/** Avatar chữ cái đầu của user — dùng chung cho sidebar và trang hồ sơ. Màu trơn (không gradient): nền tím nhạt, chữ tím. */
+export const USER_AVATAR = "bg-primary-fixed text-primary";
 
 export default function AppSidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
@@ -55,8 +55,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
   const initial = user.name.charAt(0).toUpperCase();
 
   const handleLogout = () => {
-    clearAuthToken();
-    router.push("/login");
+    void logoutAndRedirect();
   };
 
   return (
@@ -188,7 +187,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
             header={
               <div className="flex items-center gap-2.5">
                 <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${AVATAR}`}>
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${USER_AVATAR}`}>
                   {initial}
                 </span>
                 <span className="min-w-0">
@@ -202,6 +201,14 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
               </div>
             }
             items={[
+              {
+                label: "Hồ sơ cá nhân",
+                icon: "user",
+                onSelect: () => {
+                  closeNav();
+                  router.push("/home/profile");
+                }
+              },
               {
                 label: "Thanh toán",
                 icon: "credit-card",
@@ -225,7 +232,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                 aria-label={`Tài khoản ${user.name}`}
                 className={`${SIDEBAR_ROW} ${SIDEBAR_ROW_IDLE} w-full cursor-pointer text-left ${collapsed ? "justify-center h-10 w-10 mx-auto" : "h-12 px-2"}`}>
                 <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${AVATAR}`}>
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${USER_AVATAR}`}>
                   {initial}
                 </span>
                 {!collapsed && (

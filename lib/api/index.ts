@@ -12,3 +12,8 @@ export * from "./billing";
 export * from "./admin";
 export * from "./feedback";
 export * from "./folders";
+export * from "./files";
+export * from "./import";
+export * from "./versions";
+export * from "./change-requests";
+export * from "./users";

@@ -11,15 +11,17 @@ import ProjectActionDialogs, { type ProjectActionTarget } from "@/components/pro
 import ProjectGrid, { CARD_GRID, ProjectGridSkeleton } from "@/components/project/ProjectGrid";
 import ProjectTimeline, { type ProjectSort } from "@/components/project/ProjectTimeline";
 import { Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, Tabs } from "@/components/ui";
+import { listCrs } from "@/lib/api/change-requests";
 import { getProgress } from "@/lib/api/pipeline";
 import { moveProjectToFolder } from "@/lib/api/projects";
 import { useProjects } from "@/lib/hooks/use-projects";
 import { SOURCE_MODE_OPTIONS, getProjectStartRoute } from "@/lib/project-source-mode";
+import { CR_TERMINAL_STATUSES } from "@/types/change-request";
 import type { Folder } from "@/types/folder";
 import type { ProgressResponse } from "@/types/pipeline";
-import type { Project, ProjectSourceMode, ProjectStatus } from "@/types/project";
+import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
 
-type ModeFilter = ProjectSourceMode | "all";
+type ModeFilter = ProjectMode | "all";
 type DashboardTab = "all" | "folders" | "projects";
 
 const STATUS_OPTIONS = [
@@ -96,6 +98,8 @@ export default function HomePage() {
    * dự án không làm hỏng lưới**: dự án chưa có Spine trả `null` và hiện "Chưa bắt đầu".
    */
   const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>({});
+  /** Mode 1: số change request đang mở (UC-14) — lỗi của một dự án không làm hỏng lưới. */
+  const [openCrsById, setOpenCrsById] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (projects.length === 0) return;
@@ -108,6 +112,16 @@ export default function HomePage() {
       )
     ).then((entries) => {
       if (!cancelled) setProgressById(Object.fromEntries(entries));
+    });
+    const imported = projects.filter((p) => p.mode === "import" && p.import_state !== null);
+    void Promise.all(
+      imported.map((project) =>
+        listCrs(project._id)
+          .then((res) => [project._id, (res.data ?? []).filter((c) => !CR_TERMINAL_STATUSES.includes(c.status)).length] as const)
+          .catch(() => [project._id, 0] as const)
+      )
+    ).then((entries) => {
+      if (!cancelled) setOpenCrsById(Object.fromEntries(entries));
     });
     return () => {
       cancelled = true;
@@ -122,7 +136,7 @@ export default function HomePage() {
   const normalizedQuery = query.trim().toLocaleLowerCase("vi");
   const matches = (p: Project) =>
     p.status === status &&
-    (mode === "all" || p.sourceMode === mode) &&
+    (mode === "all" || p.mode === mode) &&
     (!normalizedQuery || p.name.toLocaleLowerCase("vi").includes(normalizedQuery));
 
   // Phạm vi dự án theo ngữ cảnh: trong thư mục · tab Dự án (mọi dự án) · tab Tất cả (ngoài thư mục; có từ khoá ⇒ tìm cả trong thư mục)
@@ -165,7 +179,7 @@ export default function HomePage() {
 
   const handleCreated = async (project: Project) => {
     await reload();
-    router.push(getProjectStartRoute(project._id, project.sourceMode));
+    router.push(getProjectStartRoute(project._id, project.mode));
   };
 
   const handleDropProject = async (folder: Folder, projectId: string) => {
@@ -182,6 +196,7 @@ export default function HomePage() {
   const openAction = (action: ProjectActionTarget["action"]) => (project: Project) => setActionTarget({ action, project });
   const gridProps = {
     progressById,
+    openCrsById,
     onRename: openAction("rename"),
     onDelete: openAction("archive"),
     onHardDelete: openAction("delete"),
