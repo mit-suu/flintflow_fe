@@ -1,8 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Folder } from "@/types/folder";
-import FolderCard, { NewFolderTile } from "./FolderCard";
-import ProjectCover, { coverVariant } from "./ProjectCover";
+import FolderCard, { FOLDER_COLOR_ORDER, NewFolderTile, pickableFolderColor } from "./FolderCard";
 
 const folder: Folder = {
   _id: "f1",
@@ -19,7 +18,7 @@ describe("FolderCard", () => {
     const { container } = render(<FolderCard folder={folder} onOpen={onOpen} onRename={() => {}} onDelete={() => {}} />);
 
     expect(screen.getByText("3 dự án")).toBeInTheDocument();
-    expect(container.querySelector(".bg-info-soft")).not.toBeNull();
+    expect(container.querySelector(".bg-folder-blue")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Khách A/ }));
     expect(onOpen).toHaveBeenCalledWith(folder);
   });
@@ -40,21 +39,6 @@ describe("FolderCard", () => {
     render(<NewFolderTile onCreate={onCreate} />);
     fireEvent.click(screen.getByRole("button", { name: /Thư mục mới/ }));
     expect(onCreate).toHaveBeenCalledOnce();
-  });
-});
-
-describe("ProjectCover", () => {
-  it("biến thể cố định theo id, các id khác nhau có thể khác bìa", () => {
-    expect(coverVariant("650000000000000000000001")).toBe(coverVariant("650000000000000000000001"));
-    const variants = new Set(["a", "b", "c", "d", "e", "f", "g", "h"].map(coverVariant));
-    expect(variants.size).toBeGreaterThan(1);
-  });
-
-  it("màu trơn theo tone của mode, không gradient", () => {
-    const { container } = render(<ProjectCover seed="p1" tone="info" />);
-    const cls = container.firstElementChild?.className ?? "";
-    expect(cls).toMatch(/bg-(info|brand|success)-/);
-    expect(cls).not.toContain("gradient");
   });
 });
 
@@ -89,5 +73,13 @@ describe("FolderCard — thả dự án vào", () => {
     fireEvent.dragOver(target, { dataTransfer: dataTransfer(["Files"]) });
     fireEvent.drop(target, { dataTransfer: dataTransfer(["Files"]) });
     expect(onDropProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("Màu thư mục — tím dành cho card dự án", () => {
+  it("bảng chọn không có tím; thư mục violet cũ quy về xanh dương", () => {
+    expect(FOLDER_COLOR_ORDER).not.toContain("violet");
+    expect(pickableFolderColor("violet")).toBe("blue");
+    expect(pickableFolderColor("green")).toBe("green");
   });
 });
