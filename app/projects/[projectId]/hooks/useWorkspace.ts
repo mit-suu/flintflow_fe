@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { apiCall, refreshSession } from "@/lib/api";
 import { streamChatMessage } from "@/lib/ai-stream";
 import { clearAuthToken, getStoredAuthToken, isAuthenticated } from "@/lib/auth";
@@ -17,6 +18,9 @@ const errorMessage = (error: unknown, fallback: string) => (error instanceof Err
  */
 export function useWorkspace(projectId: string) {
   const router = useRouter();
+  const t = useTranslations("workspace.session");
+  // Báo lỗi trong effect khởi tạo mà không đưa `t` vào dependency (effect chỉ chạy một lần).
+  const alertOffline = useEffectEvent(() => alert(t("offline")));
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -43,9 +47,9 @@ export function useWorkspace(projectId: string) {
         setActiveSession(created);
       }
     } catch (err) {
-      alert(errorMessage(err, "Không thể tạo cuộc trò chuyện mới"));
+      alert(errorMessage(err, t("createFailed")));
     }
-  }, [projectId]);
+  }, [projectId, t]);
 
   useEffect(() => {
     if (!projectId || didInit.current) return;
@@ -86,7 +90,7 @@ export function useWorkspace(projectId: string) {
             router.push("/login");
           } else {
             // Token hết hạn nhưng refresh chỉ lỗi mạng / 5xx ⇒ giữ phiên
-            alert("Không kết nối được máy chủ. Vui lòng tải lại trang.");
+            alertOffline();
           }
         }
       } finally {
@@ -105,10 +109,10 @@ export function useWorkspace(projectId: string) {
           setSessions((prev) => prev.map((s) => ({ ...s, isActive: s._id === session._id })));
         }
       } catch (err) {
-        alert(errorMessage(err, "Không thể tải cuộc trò chuyện"));
+        alert(errorMessage(err, t("loadFailed")));
       }
     },
-    [projectId]
+    [projectId, t]
   );
 
   const deleteSession = useCallback(
@@ -122,10 +126,10 @@ export function useWorkspace(projectId: string) {
           else setActiveSession(null);
         }
       } catch (err) {
-        alert("Không thể xoá cuộc trò chuyện: " + errorMessage(err, "Lỗi"));
+        alert(t("deleteFailed", { error: errorMessage(err, t("error")) }));
       }
     },
-    [projectId, sessions, activeSession, selectSession]
+    [projectId, sessions, activeSession, selectSession, t]
   );
 
   /** Hỏi đáp tự do trong chat; step hiện tại gửi kèm để BE lưu transcript theo step. */
@@ -136,7 +140,7 @@ export function useWorkspace(projectId: string) {
 
       setSending(true);
       setInputMessage("");
-      const content = text.trim() || "[Đính kèm tài liệu]";
+      const content = text.trim() || t("attachmentOnly");
       const step = currentStep ?? "chat";
       const optimistic: ChatMessage = { role: "user", content, step, createdAt: new Date().toISOString() };
       setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev));
@@ -169,12 +173,12 @@ export function useWorkspace(projectId: string) {
       } catch (err) {
         setStreamingMessage(null);
         setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
-        alert(errorMessage(err, "Không thể gửi tin nhắn"));
+        alert(errorMessage(err, t("sendFailed")));
       } finally {
         setSending(false);
       }
     },
-    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending]
+    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, t]
   );
 
   const selectAttachment = useCallback((event: ChangeEvent<HTMLInputElement>) => {

@@ -1,10 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 
 /*
  * Mockup cửa sổ workspace — minh hoạ, không gọi API. Tab chuyển giữa tài liệu (diff + inline
  * annotation) và audit log. Dữ liệu là ví dụ "Cổng cấp phép xây dựng" trong context/business-flow.md §7.
+ * Nội dung tài liệu (outline, diff) luôn tiếng Anh như SRS thật; chỉ khung UI đi qua `landing.mockup` (T25).
  */
 
 const TABS = [
@@ -15,18 +17,19 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 const OUTLINE = [
-  { id: "3.2.3", label: "Tra cứu hồ sơ", flags: 0 },
-  { id: "3.2.4", label: "Nộp hồ sơ cấp phép", flags: 1, active: true },
-  { id: "3.2.5", label: "Thẩm định hồ sơ", flags: 0 },
-  { id: "4.1", label: "Hiệu năng", flags: 0 },
+  { id: "3.2.3", label: "Look up applications", flags: 0 },
+  { id: "3.2.4", label: "Submit permit application", flags: 1, active: true },
+  { id: "3.2.5", label: "Review application", flags: 0 },
+  { id: "4.1", label: "Performance", flags: 0 },
 ];
 
 export default function WorkspaceMockup() {
+  const t = useTranslations("landing");
   const [tab, setTab] = useState<TabId>("doc");
 
   return (
     <figure
-      aria-label="Minh hoạ workspace FlintFlow"
+      aria-label={t("a11y.workspace")}
       className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/60 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]"
     >
       {/* Title bar */}
@@ -46,7 +49,7 @@ export default function WorkspaceMockup() {
       </div>
 
       {/* File tabs */}
-      <div role="tablist" aria-label="Tệp đang mở" className="flex border-b border-white/[0.06] bg-zinc-950/40">
+      <div role="tablist" aria-label={t("a11y.openFiles")} className="flex border-b border-white/[0.06] bg-zinc-950/40">
         {TABS.map((t) => {
           const selected = tab === t.id;
           return (
@@ -72,7 +75,7 @@ export default function WorkspaceMockup() {
       <div className="grid md:grid-cols-[200px_1fr]">
         {/* Outline */}
         <aside className="hidden border-r border-white/[0.06] p-3 md:block">
-          <p className="px-2 pb-2 font-mono text-[11px] uppercase tracking-wider text-zinc-600">§3.2 Chức năng</p>
+          <p className="px-2 pb-2 font-mono text-[11px] uppercase tracking-wider text-zinc-600">§3.2 Functions</p>
           <ul className="space-y-0.5 text-[13px]">
             {OUTLINE.map((item) => (
               <li
@@ -104,8 +107,8 @@ export default function WorkspaceMockup() {
       {/* Status bar */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/[0.06] px-3 py-2 font-mono text-[11px] text-zinc-500">
         <span className="text-blue-400">CR-012</span>
-        <span>3 vùng ảnh hưởng</span>
-        <span>1 mâu thuẫn mở</span>
+        <span>{t("mockup.impacted", { count: 3 })}</span>
+        <span>{t("mockup.openConflicts", { count: 1 })}</span>
         <span className="ml-auto hidden sm:inline">spine v48</span>
       </div>
     </figure>
@@ -113,65 +116,65 @@ export default function WorkspaceMockup() {
 }
 
 function DocumentPanel() {
+  const t = useTranslations("landing");
+  const emphasis = (chunks: ReactNode) => <span className="text-zinc-200">{chunks}</span>;
+
   return (
     <article className="text-sm leading-relaxed text-zinc-400">
       <header className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-mono text-xs text-zinc-600">3.2.4</span>
-        <h3 className="font-medium text-zinc-100">F-S04-01 · Nộp hồ sơ cấp phép</h3>
+        <h3 className="font-medium text-zinc-100">F-S04-01 · Submit permit application</h3>
       </header>
 
       <p className="mb-4 max-w-prose">
-        Người nộp tải lên bộ hồ sơ gồm bản vẽ thiết kế và giấy tờ pháp lý. Hệ thống kiểm tra đủ thành phần trước
-        khi chuyển sang thẩm định.
+        The applicant uploads a dossier with design drawings and legal documents. The system checks that every
+        required part is present before sending it to review.
       </p>
 
       {/* Diff + inline annotation cùng một hàng lưới để chú thích bám đúng dòng lỗi */}
       <div className="grid gap-3 lg:grid-cols-[1fr_240px] lg:gap-5">
         <div className="overflow-hidden rounded-md border border-white/[0.06] font-mono text-[12.5px]">
           <DiffLine kind="context" n={41}>
-            Validation: hồ sơ phải có bản vẽ thiết kế.
+            Validation: the dossier must include design drawings.
           </DiffLine>
           <DiffLine kind="del" n={42}>
-            Thời hạn thẩm định:{" "}
+            Review deadline:{" "}
             <mark className="bg-transparent text-red-300 underline decoration-red-400 decoration-wavy underline-offset-4">
-              5 ngày làm việc
+              5 working days
             </mark>
             .
           </DiffLine>
           <DiffLine kind="add" n={42}>
-            Thời hạn thẩm định: tối đa 3 ngày làm việc (NFR-02).
+            Review deadline: at most 3 working days (NFR-02).
           </DiffLine>
           <DiffLine kind="add" n={43}>
-            Công trình &gt; 7 tầng: bắt buộc văn bản thẩm duyệt PCCC.
+            Buildings &gt; 7 floors: a fire-safety approval document is required.
           </DiffLine>
         </div>
 
         <aside
-          aria-label="Chú thích mâu thuẫn"
+          aria-label={t("a11y.conflictNote")}
           className="relative rounded-md border border-white/[0.1] bg-zinc-900 p-3 text-[13px] before:absolute before:-top-[5px] before:left-6 before:size-2.5 before:rotate-45 before:border-l before:border-t before:border-white/[0.1] before:bg-zinc-900 lg:before:left-[-5px] lg:before:top-9 lg:before:border-b lg:before:border-r-0 lg:before:border-t-0"
         >
           <div className="mb-2 flex items-center gap-2">
             <span className="grid size-5 place-items-center rounded-full bg-red-500/15 font-mono text-[10px] text-red-400">
               !
             </span>
-            <span className="font-medium text-zinc-100">Mâu thuẫn</span>
+            <span className="font-medium text-zinc-100">{t("mockup.conflict")}</span>
             <span className="ml-auto font-mono text-[11px] text-zinc-500">UC-07 ↔ NFR-02</span>
           </div>
-          <p className="text-zinc-400">
-            UC-07 cam kết thẩm định <span className="text-zinc-200">5 ngày</span>, NFR-02 giới hạn{" "}
-            <span className="text-zinc-200">3 ngày</span>. Đề xuất sửa theo NFR-02.
-          </p>
+          <p className="text-zinc-400">{t.rich("mockup.conflictBody", { em: emphasis })}</p>
           <div className="mt-3 flex gap-2 text-xs" aria-hidden="true">
             <span className="rounded border border-white/[0.12] bg-[#FAFAFA] px-2 py-1 font-medium text-zinc-950">
-              Áp dụng
+              {t("mockup.apply")}
             </span>
-            <span className="rounded border border-white/[0.12] px-2 py-1 text-zinc-300">Hỏi lại khách</span>
+            <span className="rounded border border-white/[0.12] px-2 py-1 text-zinc-300">{t("mockup.askClient")}</span>
           </div>
         </aside>
       </div>
 
       <p className="mt-4 font-mono text-[11px] text-zinc-600">
-        Track Changes · tác giả <span className="text-blue-400">CR-012</span> · chờ Lead duyệt
+        {t.rich("mockup.trackChanges", { cr: (chunks) => <span className="text-blue-400">{chunks}</span> })}
       </p>
     </article>
   );

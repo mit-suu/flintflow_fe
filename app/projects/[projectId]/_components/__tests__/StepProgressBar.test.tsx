@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import StepProgressBar from "../StepProgressBar";
 import type { StepProgress, StepSummary } from "@/types/pipeline";
@@ -30,20 +31,20 @@ const progress = (over: Partial<StepProgress> = {}): StepProgress => ({
 
 describe("StepProgressBar", () => {
   it("đếm theo Bước; ẩn % khi N chưa chốt", () => {
-    render(<StepProgressBar steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
+    renderWithIntl(<StepProgressBar steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
     expect(screen.getByText("Bước")).toBeInTheDocument();
     expect(screen.getByTestId("step-count")).toHaveTextContent("17/56");
     expect(screen.queryByTestId("step-percent")).not.toBeInTheDocument();
   });
 
   it("hiện % sau khi S-4.1 chốt N", () => {
-    render(<StepProgressBar steps={steps} progress={progress({ show_percent: true, done: 28 })} selectedStepId={null} onSelectStep={vi.fn()} />);
+    renderWithIntl(<StepProgressBar steps={steps} progress={progress({ show_percent: true, done: 28 })} selectedStepId={null} onSelectStep={vi.fn()} />);
     expect(screen.getByTestId("step-percent")).toHaveTextContent("50%");
   });
 
   it("bấm step đã accepted hoặc step hiện tại; step chưa tới bị khoá", () => {
     const onSelectStep = vi.fn();
-    render(<StepProgressBar steps={steps} progress={progress()} selectedStepId={null} onSelectStep={onSelectStep} />);
+    renderWithIntl(<StepProgressBar steps={steps} progress={progress()} selectedStepId={null} onSelectStep={onSelectStep} />);
 
     fireEvent.click(screen.getByRole("button", { name: /^S-2\.5/ }));
     expect(onSelectStep).toHaveBeenCalledWith("S-2.5");

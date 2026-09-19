@@ -4,10 +4,18 @@ import { useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { isGoogleAuthEnabled } from "@/lib/google-auth";
 
+/** Lý do thất bại — trang gọi tự dịch (`auth.google.<reason>`). */
+export type GoogleErrorReason = "failed" | "cancelled";
+
+/**
+ * Chữ đi qua props thay vì `useTranslations` ở đây: test của nút này nạp lại module (`vi.resetModules`),
+ * một bản next-intl mới sẽ không thấy provider của test. Trang gọi đã có sẵn `t()`.
+ */
 interface GoogleButtonProps {
   onSuccess: (idToken: string) => void | Promise<void>;
-  onError: (message: string) => void;
+  onError: (reason: GoogleErrorReason) => void;
   label: string;
+  loadingLabel: string;
   disabled?: boolean;
 }
 
@@ -44,7 +52,7 @@ export default function GoogleButton(props: GoogleButtonProps) {
   return <GoogleLoginButton {...props} />;
 }
 
-function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButtonProps) {
+function GoogleLoginButton({ onSuccess, onError, label, loadingLabel, disabled }: GoogleButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const login = useGoogleLogin({
@@ -53,13 +61,13 @@ function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButton
       if (tokenResponse?.access_token) {
         await onSuccess(tokenResponse.access_token);
       } else {
-        onError("Đăng nhập Google không thành công.");
+        onError("failed");
       }
     },
     onError: (errorResponse) => {
       setLoading(false);
       console.error("Google Login Error:", errorResponse);
-      onError("Đăng nhập Google bị hủy hoặc thất bại.");
+      onError("cancelled");
     },
   });
 
@@ -77,7 +85,7 @@ function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButton
       className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-[#FAF9F7] text-[#191817] font-bold py-3 px-4 rounded-[12px] border-[1.5px] border-[#E4E1DC] hover:border-[#DDD9F6] shadow-[0_2px_6px_rgba(25,24,23,0.05)] transition-all disabled:opacity-50 text-[13px] btn-press"
     >
       <span className="w-[17px] height-[17px] h-[17px] rounded-full shrink-0 inline-block" style={{ background: "conic-gradient(from -30deg,#EA4335 0 25%,#FBBC05 0 50%,#34A853 0 75%,#4285F4 0)" }} />
-      {loading ? "Đang mở Google..." : label}
+      {loading ? loadingLabel : label}
     </button>
   );
 }

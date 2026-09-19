@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Op } from "@/types/pipeline";
 import type { Assumption, AssumptionStatus, Spine } from "@/types/spine";
 
@@ -37,6 +38,7 @@ export const buildDecisionOps = (id: string, status: Exclude<AssumptionStatus, "
  * đúng như vậy để không ai bấm nhầm cho gọn danh sách.
  */
 export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false }: AssumptionSweepPanelProps) {
+  const t = useTranslations("workspace.sweep");
   const [pending, setPending] = useState<string | null>(null);
 
   const unconfirmed = useMemo(() => spine.assumptions.filter((a) => a.status === "unconfirmed"), [spine.assumptions]);
@@ -55,7 +57,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
   };
 
   if (unconfirmed.length === 0) {
-    return <p className="text-[11.5px] text-[#6B6862]">Không còn giả định nào chờ xác nhận.</p>;
+    return <p className="text-[11.5px] text-[#6B6862]">{t("none")}</p>;
   }
 
   const row = (assumption: Assumption, solo: boolean) => (
@@ -70,7 +72,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
       {assumption.rationale && <p className="text-[10.5px] text-[#6B6862] italic">{assumption.rationale}</p>}
       {solo && (
         <span className="self-start text-[10px] font-bold text-[#B45309] bg-[#FEF3C7] px-1.5 py-0.5 rounded-full">
-          Cần duyệt riêng
+          {t("solo")}
         </span>
       )}
       <div className="flex gap-1.5 pt-0.5">
@@ -80,16 +82,16 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
           onClick={() => void decide([assumption.id], "confirmed")}
           className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
         >
-          Đúng
+          {t("right")}
         </button>
         <button
           type="button"
           disabled={busy || pending !== null}
           onClick={() => void decide([assumption.id], "rejected")}
           className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] disabled:opacity-50 cursor-pointer"
-          title="Giá trị đang dựa trên giả định này sai — cần sửa lại chỗ đó"
+          title={t("wrongHint")}
         >
-          Sai
+          {t("wrong")}
         </button>
       </div>
     </li>
@@ -98,8 +100,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
   return (
     <div className="flex flex-col gap-2.5">
       <p className="text-[11px] text-[#6B6862]">
-        {unconfirmed.length} giả định chờ xác nhận. Xác nhận đúng thì nội dung giữ nguyên; báo sai thì phần dựa trên nó
-        cần sửa lại.
+        {t("intro", { count: unconfirmed.length })}
       </p>
 
       {batchable.length > 0 && (
@@ -110,7 +111,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
             onClick={() => void decide(batchable.map((a) => a.id), "confirmed")}
             className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
           >
-            Xác nhận {batchable.length} giả định còn lại
+            {t("confirmRest", { count: batchable.length })}
           </button>
         </div>
       )}

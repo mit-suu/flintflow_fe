@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ExportPanel from "./ExportPanel";
 import * as exportApi from "@/lib/api/export";
@@ -49,7 +50,7 @@ describe("ExportPanel", () => {
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    render(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
+    renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
 
     await waitFor(() => expect(downloadWordExport).toHaveBeenCalledWith("p1", "draft", undefined));
@@ -67,7 +68,7 @@ describe("ExportPanel", () => {
     const onGoToStep = vi.fn();
     const onClose = vi.fn();
 
-    render(<ExportPanel projectId="p1" onClose={onClose} onGoToStep={onGoToStep} />);
+    renderWithIntl(<ExportPanel projectId="p1" onClose={onClose} onGoToStep={onGoToStep} />);
 
     expect(await screen.findByText(/Chưa ghép tài liệu/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Đi tới S-8.2/ }));
@@ -80,7 +81,7 @@ describe("ExportPanel", () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
     downloadWordExport.mockRejectedValue(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép — chạy S-8.2 (thông điệp thô từ BE)"));
 
-    render(<ExportPanel projectId="p1" onClose={vi.fn()} />);
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
 
     expect(await screen.findByText("Chưa ghép tài liệu — chạy S-8.2 trước.")).toBeInTheDocument();
@@ -91,7 +92,7 @@ describe("ExportPanel", () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
     listBaselines.mockRejectedValue(new Error("Không kết nối được máy chủ"));
 
-    render(<ExportPanel projectId="p1" onClose={vi.fn()} />);
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
 
     expect(await screen.findByText(/Không kiểm tra được baseline/)).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Word baseline" })).toBeDisabled();
@@ -100,7 +101,7 @@ describe("ExportPanel", () => {
   it("hiện số cờ đỏ sẽ in vào §I từ flagsAppendix", async () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
 
-    render(<ExportPanel projectId="p1" onClose={vi.fn()} />);
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
 
     expect(await screen.findByText("Số cờ đỏ sẽ in vào §I")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();

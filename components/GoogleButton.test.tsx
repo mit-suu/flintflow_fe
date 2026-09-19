@@ -23,7 +23,7 @@ describe("GoogleButton khi KHÔNG có client id", () => {
     vi.resetModules();
     const { default: GoogleButton } = await import("./GoogleButton");
 
-    const { container } = render(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" />);
+    const { container } = render(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" loadingLabel="…" />);
     expect(container).toBeEmptyDOMElement();
     // Gọi `useGoogleLogin` ngoài provider là chính cái ném lỗi — nó không được chạy
     expect(mockUseGoogleLogin).not.toHaveBeenCalled();
@@ -36,7 +36,7 @@ describe("GoogleButton khi CÓ client id", () => {
     vi.resetModules();
     const { default: GoogleButton } = await import("./GoogleButton");
 
-    render(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" />);
+    render(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" loadingLabel="…" />);
     expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
     expect(mockUseGoogleLogin).toHaveBeenCalled();
   });

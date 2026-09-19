@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { assembleDocument, getDocument } from "@/lib/api/export";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 import type { DocumentSource, DraftMeta, RenderedDocument } from "@/types/document";
 
 export interface UseDocumentResult {
@@ -61,7 +62,7 @@ export function useDocument(
           setError(err.message);
         } else {
           setNotAssembled(false);
-          setError(err instanceof Error ? err.message : "Không tải được tài liệu");
+          setError(err instanceof Error ? err.message : HOOK_ERROR.docLoadFailed);
         }
       })
       .finally(() => {
@@ -75,7 +76,7 @@ export function useDocument(
   const assemble = useCallback(
     async (baseVersion: number | null) => {
       if (baseVersion === null) {
-        setAssembleError("Spine chưa tải xong — thử lại sau giây lát.");
+        setAssembleError(HOOK_ERROR.spineNotReady);
         return;
       }
       setAssembling(true);
@@ -86,10 +87,10 @@ export function useDocument(
       } catch (err) {
         setAssembleError(
           err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT"
-            ? "Tài liệu vừa đổi ở phiên khác — tải lại trang rồi thử ghép lại."
+            ? HOOK_ERROR.docConflict
             : err instanceof Error
               ? err.message
-              : "Không ghép được tài liệu"
+              : HOOK_ERROR.assembleFailed
         );
       } finally {
         setAssembling(false);

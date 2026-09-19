@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Logo from "@/components/Logo";
 import { createProject } from "@/lib/api/projects";
 import { applyChanges, getSpine } from "@/lib/api/spine";
@@ -15,6 +16,8 @@ type Step = 1 | 2 | 3;
 /** Onboarding (UC 1.12): tên/mục tiêu → working mode mặc định → tạo dự án đầu tiên. */
 export default function OnboardingPage() {
   const router = useRouter();
+  const t = useTranslations("app.onboarding");
+  const tCommon = useTranslations("app.common");
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
@@ -40,7 +43,7 @@ export default function OnboardingPage() {
       if (!projectId) {
         const projectRes = await createProject(projectName.trim());
         const project = projectRes.data;
-        if (!project) throw new Error("Không tạo được dự án");
+        if (!project) throw new Error(t("errors.createFailed"));
         projectId = project._id;
         setCreatedProjectId(projectId);
       }
@@ -50,7 +53,7 @@ export default function OnboardingPage() {
       // thể khác 1). Lỗi ở bước này chặn tiếp tục, không nuốt lặng lẽ như trước.
       const spineRes = await getSpine(projectId);
       const spineVersion = spineRes.data?.spine_version;
-      if (spineVersion === undefined) throw new Error("Không đọc được Spine của dự án vừa tạo");
+      if (spineVersion === undefined) throw new Error(t("errors.spineFailed"));
       const ops: Op[] = [{ op: "set", path: "project.working_mode", value: workingMode, reason: "Onboarding" }];
       if (goal.trim()) {
         ops.push({ op: "set", path: "project.vision", value: goal.trim(), reason: "Onboarding — mục tiêu ban đầu" });
@@ -66,7 +69,7 @@ export default function OnboardingPage() {
 
       router.push(`/projects/${projectId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không hoàn tất được thiết lập ban đầu — bấm lại để thử tiếp");
+      setError(err instanceof Error ? err.message : t("errors.generic"));
       setSubmitting(false);
     }
   };
@@ -81,7 +84,7 @@ export default function OnboardingPage() {
             <span
               key={s}
               className={`w-2 h-2 rounded-full ${s <= step ? "bg-[#4F46E5]" : "bg-[#E4E1DC]"}`}
-              aria-label={`Bước ${s}${s === step ? " (hiện tại)" : ""}`}
+              aria-label={s === step ? t("stepAriaCurrent", { step: s }) : t("stepAria", { step: s })}
             />
           ))}
         </div>
@@ -95,25 +98,25 @@ export default function OnboardingPage() {
         {step === 1 && (
           <div className="w-full flex flex-col gap-4">
             <div className="text-center">
-              <h2 className="text-[18px] font-extrabold text-[#191817]">Chào mừng đến với FlintFlow</h2>
-              <p className="text-[12.5px] text-[#8A867E] mt-1">Vài bước để chuẩn bị không gian làm việc của bạn.</p>
+              <h2 className="text-[18px] font-extrabold text-[#191817]">{t("welcomeTitle")}</h2>
+              <p className="text-[12.5px] text-[#8A867E] mt-1">{t("welcomeBody")}</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold text-[#4B4842]">Tên của bạn</label>
+              <label className="text-[12px] font-bold text-[#4B4842]">{t("yourName")}</label>
               <input
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ví dụ: Hiệp"
+                placeholder={t("namePlaceholder")}
                 className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] outline-none text-[13.5px] bg-[#FAF9F7]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold text-[#4B4842]">Mục tiêu chính của bạn lúc này là gì?</label>
+              <label className="text-[12px] font-bold text-[#4B4842]">{t("goal")}</label>
               <input
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                placeholder="Ví dụ: Viết SRS cho app đặt xe cho đồ án tốt nghiệp"
+                placeholder={t("goalPlaceholder")}
                 className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] outline-none text-[13.5px] bg-[#FAF9F7]"
               />
             </div>
@@ -123,7 +126,7 @@ export default function OnboardingPage() {
               onClick={goToStep2}
               className="w-full py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              Tiếp tục →
+              {tCommon("continue")}
             </button>
           </div>
         )}
@@ -131,8 +134,8 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="w-full flex flex-col gap-4">
             <div className="text-center">
-              <h2 className="text-[18px] font-extrabold text-[#191817]">Chọn cách làm việc mặc định</h2>
-              <p className="text-[12.5px] text-[#8A867E] mt-1">Có thể đổi lại bất cứ lúc nào trong dự án.</p>
+              <h2 className="text-[18px] font-extrabold text-[#191817]">{t("modeTitle")}</h2>
+              <p className="text-[12.5px] text-[#8A867E] mt-1">{t("modeBody")}</p>
             </div>
             <div className="flex justify-center">
               <WorkingModeSelect value={workingMode} onChange={setWorkingMode} />
@@ -143,14 +146,14 @@ export default function OnboardingPage() {
                 onClick={() => setStep(1)}
                 className="px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] cursor-pointer"
               >
-                Quay lại
+                {tCommon("back")}
               </button>
               <button
                 type="button"
                 onClick={() => setStep(3)}
                 className="flex-1 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
               >
-                Tiếp tục →
+                {tCommon("continue")}
               </button>
             </div>
           </div>
@@ -159,16 +162,16 @@ export default function OnboardingPage() {
         {step === 3 && (
           <div className="w-full flex flex-col gap-4">
             <div className="text-center">
-              <h2 className="text-[18px] font-extrabold text-[#191817]">Tạo dự án đầu tiên</h2>
-              <p className="text-[12.5px] text-[#8A867E] mt-1">Bạn có thể đổi tên dự án sau.</p>
+              <h2 className="text-[18px] font-extrabold text-[#191817]">{t("createTitle")}</h2>
+              <p className="text-[12.5px] text-[#8A867E] mt-1">{t("createBody")}</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-bold text-[#4B4842]">Tên dự án</label>
+              <label className="text-[12px] font-bold text-[#4B4842]">{tCommon("projectName")}</label>
               <input
                 autoFocus
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="Ví dụ: App Đặt Xe Online"
+                placeholder={t("projectPlaceholder")}
                 className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] outline-none text-[13.5px] bg-[#FAF9F7]"
               />
             </div>
@@ -179,7 +182,7 @@ export default function OnboardingPage() {
                 onClick={() => setStep(2)}
                 className="px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
               >
-                Quay lại
+                {tCommon("back")}
               </button>
               <button
                 type="button"
@@ -187,7 +190,7 @@ export default function OnboardingPage() {
                 onClick={() => void finish()}
                 className="flex-1 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold disabled:opacity-50 cursor-pointer"
               >
-                {submitting ? "Đang tạo dự án…" : "Tạo dự án →"}
+                {submitting ? tCommon("creatingProject") : tCommon("createProject")}
               </button>
             </div>
           </div>

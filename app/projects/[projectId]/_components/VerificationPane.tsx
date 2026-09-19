@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import FlagsPanel from "./FlagsPanel";
 import ReadinessSummary from "./ReadinessSummary";
 import type { Readiness } from "@/types/pipeline";
@@ -31,6 +32,7 @@ export default function VerificationPane({
   onWaive,
   onRecompute,
 }: VerificationPaneProps) {
+  const t = useTranslations("workspace.verification");
   return (
     <aside className="w-[340px] flex-none bg-[#FAF9F7] border-l border-[#ECEAE5] flex flex-col overflow-hidden z-10">
       <div className="p-3.5 border-b border-[#ECEAE5] bg-white flex items-center justify-between shrink-0">
@@ -41,7 +43,7 @@ export default function VerificationPane({
         <button
           onClick={onClose}
           className="p-1 hover:bg-[#F5F3F0] rounded-[6px] text-[#8A867E] hover:text-[#191817] transition-colors cursor-pointer"
-          title="Đóng bảng đánh giá"
+          title={t("closeHint")}
         >
           ✕
         </button>
@@ -53,7 +55,7 @@ export default function VerificationPane({
         {flagsLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-[#8A867E]">
             <span className="w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs">Đang tải danh sách cờ…</span>
+            <span className="text-xs">{t("loadingFlags")}</span>
           </div>
         ) : (
           <FlagsPanel

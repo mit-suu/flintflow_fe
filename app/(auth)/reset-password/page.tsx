@@ -3,6 +3,9 @@
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
+import { localizeApiError } from "@/lib/api/error-messages";
 import Logo from "../../../components/Logo";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
@@ -10,6 +13,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const t = useTranslations("auth");
   const token = searchParams.get("token");
 
   const [password, setPassword] = useState("");
@@ -21,9 +25,9 @@ function ResetPasswordContent() {
 
   const getPasswordStrength = (pwd: string) => {
     if (!pwd) return { level: 0, text: "" };
-    if (pwd.length < 6) return { level: 1, text: "Yếu", color: "#B03030" };
-    if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, text: "Trung bình", color: "#E8A23D" };
-    return { level: 3, text: "Mạnh", color: "#1F7A45" };
+    if (pwd.length < 6) return { level: 1, text: t("common.strength.weak"), color: "#B03030" };
+    if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, text: t("common.strength.medium"), color: "#E8A23D" };
+    return { level: 3, text: t("common.strength.strong"), color: "#1F7A45" };
   };
 
   const strength = getPasswordStrength(password);
@@ -33,7 +37,7 @@ function ResetPasswordContent() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError(t("common.passwordMismatch"));
       return;
     }
 
@@ -48,12 +52,12 @@ function ResetPasswordContent() {
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Đặt lại mật khẩu thất bại");
+        throw new Error(localizeApiError(json.error?.code, json.error?.message ?? "") || t("reset.failed"));
       }
 
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : t("common.genericError"));
     } finally {
       setLoading(false);
     }
@@ -66,16 +70,16 @@ function ResetPasswordContent() {
           ⚠
         </div>
         <h1 className="text-[20px] font-extrabold text-[#191817]">
-          Liên kết không hợp lệ
+          {t("common.invalidLink")}
         </h1>
         <p className="text-[13px] text-[#8A867E] leading-[1.6]">
-          Liên kết đặt lại mật khẩu thiếu token hoặc không đúng định dạng.
+          {t("reset.invalidBody")}
         </p>
         <Link
           href="/forgot-password"
           className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold text-center"
         >
-          Yêu cầu liên kết mới →
+          {t("reset.requestNew")}
         </Link>
       </div>
     );
@@ -88,16 +92,16 @@ function ResetPasswordContent() {
           ✓
         </div>
         <h1 className="text-[20px] font-extrabold text-[#191817]">
-          Đặt lại mật khẩu thành công!
+          {t("reset.successTitle")}
         </h1>
         <p className="text-[13px] text-[#8A867E] leading-[1.65]">
-          Mật khẩu của bạn đã được cập nhật. Mọi phiên đăng nhập cũ đã được thu hồi an toàn.
+          {t("reset.successBody")}
         </p>
         <button
           onClick={() => router.push("/login")}
           className="w-full py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
         >
-          Đăng nhập ngay →
+          {t("reset.loginNow")}
         </button>
       </div>
     );
@@ -107,10 +111,10 @@ function ResetPasswordContent() {
     <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] flex flex-col gap-4">
       <div>
         <h1 className="text-[22px] font-extrabold text-[#191817] tracking-[-0.02em]">
-          Đặt lại mật khẩu
+          {t("reset.title")}
         </h1>
         <p className="text-[13px] text-[#8A867E] mt-1">
-          Tạo mật khẩu mới cho tài khoản của bạn.
+          {t("reset.subtitle")}
         </p>
       </div>
 
@@ -125,7 +129,7 @@ function ResetPasswordContent() {
         {/* New Password */}
         <div className="flex flex-col gap-1">
           <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="password">
-            Mật khẩu mới
+            {t("reset.newPassword")}
           </label>
           <div className="relative">
             <input
@@ -175,7 +179,7 @@ function ResetPasswordContent() {
         {/* Confirm New Password */}
         <div className="flex flex-col gap-1">
           <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="confirmPassword">
-            Xác nhận mật khẩu mới
+            {t("reset.confirmNewPassword")}
           </label>
           <input
             id="confirmPassword"
@@ -197,10 +201,10 @@ function ResetPasswordContent() {
           {loading ? (
             <>
               <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-              Đang cập nhật…
+              {t("reset.submitting")}
             </>
           ) : (
-            "Đặt lại mật khẩu →"
+            t("reset.submit")
           )}
         </button>
 
@@ -209,7 +213,7 @@ function ResetPasswordContent() {
             href="/login"
             className="text-[12.5px] font-semibold text-[#6B6862] hover:text-[#191817] transition-colors"
           >
-            ← Quay lại đăng nhập
+            {t("common.backToLogin")}
           </Link>
         </div>
       </form>
@@ -218,15 +222,20 @@ function ResetPasswordContent() {
 }
 
 export default function ResetPasswordPage() {
+  const t = useTranslations("auth");
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
       <div className="w-full max-w-[420px] flex flex-col gap-4">
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <div className="flex items-center justify-between">
+          <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+          <LocaleSwitcher tone="light" />
+        </div>
 
         <Suspense
           fallback={
             <div className="w-full bg-white rounded-[18px] p-7 border border-[#E4E1DC] text-center text-xs text-[#8A867E]">
-              Đang tải…
+              {t("common.loading")}
             </div>
           }
         >

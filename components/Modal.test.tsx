@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import Modal from "./Modal";
 
 describe("Modal", () => {
   it("không render gì khi đóng", () => {
-    const { container } = render(
+    const { container } = renderWithIntl(
       <Modal open={false} onClose={() => {}} title="Tạo dự án mới">
         <p>Nội dung</p>
       </Modal>
@@ -14,7 +15,7 @@ describe("Modal", () => {
   });
 
   it("hiện tiêu đề và nội dung khi mở", () => {
-    render(
+    renderWithIntl(
       <Modal open onClose={() => {}} title="Tạo dự án mới">
         <p>Nội dung</p>
       </Modal>
@@ -26,7 +27,7 @@ describe("Modal", () => {
 
   it("gọi onClose khi nhấn Escape", () => {
     const onClose = vi.fn();
-    render(
+    renderWithIntl(
       <Modal open onClose={onClose} title="Tạo dự án mới">
         <p>Nội dung</p>
       </Modal>
@@ -39,7 +40,7 @@ describe("Modal", () => {
 
   it("bấm vào nội dung không đóng, bấm nút Đóng thì đóng", () => {
     const onClose = vi.fn();
-    render(
+    renderWithIntl(
       <Modal open onClose={onClose} title="Tạo dự án mới">
         <p>Nội dung</p>
       </Modal>

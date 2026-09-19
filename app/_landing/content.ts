@@ -1,76 +1,78 @@
 /*
- * Nội dung tĩnh của landing page. Sửa copy ở đây, không phải trong JSX.
+ * Dữ liệu tĩnh của landing page — chỉ phần **không dịch**: href, id, số liệu. Chữ hiển thị nằm ở
+ * `messages/<locale>.json` → `landing.*` (T25); ở đây chỉ giữ key trỏ tới đó.
  * Số liệu gói cước khớp `flintflow_be/src/modules/billing/plan.config.ts` — đổi ở BE thì đổi ở đây.
  */
 
 export const NAV_LINKS = [
-  { href: "#cach-hoat-dong", label: "Cách hoạt động" },
-  { href: "#workspace", label: "Workspace" },
-  { href: "#bang-gia", label: "Bảng giá" },
+  { href: "#cach-hoat-dong", key: "how" },
+  { href: "#workspace", key: "workspace" },
+  { href: "#bang-gia", key: "pricing" },
 ] as const;
 
-export const HERO = {
-  eyebrow: "SRS · Verify · Change control",
-  headline: "Biến ý tưởng thô thành SRS chuẩn nghiệm thu.",
-  headlineMuted: "Không còn mâu thuẫn spec.",
-  subline:
-    "FlintFlow tự động phát hiện lỗ hổng logic, bắt mâu thuẫn giữa UC và NFR trước khi giao dev, tự cập nhật tài liệu khi khách hàng đổi yêu cầu.",
-  primaryCta: "Bắt đầu dùng thử miễn phí",
-  secondaryCta: "Xem Workspace mẫu",
-  proof: ["Import .docx", "Mẫu FPT hoặc mẫu khách", "Xuất Word · PDF"],
-} as const;
+export const HERO_PROOF = ["import", "template", "export"] as const;
+
+type SpecLabel =
+  | "credits"
+  | "flows"
+  | "export"
+  | "payment"
+  | "vsFree"
+  | "planChange"
+  | "packs"
+  | "appliesTo"
+  | "wallet"
+  | "activation";
+
+type SpecValueKey = "flows" | "noCard" | "inApp" | "allPlans" | "sharedOrg" | "onPayment";
+
+/**
+ * Giá trị một dòng thông số: `key` → chữ dịch (`landing.pricing.values.*`), `numbers` → số format theo
+ * locale (`1.000` / `1,000`) nối bằng ` · `, `text` → hiển thị nguyên (tên định dạng, ký hiệu).
+ */
+export type SpecValue = { key: SpecValueKey } | { numbers: readonly number[] } | { text: string };
 
 export type Plan = {
-  name: string;
-  tagline: string;
-  price: string;
-  unit: string;
-  specs: { label: string; value: string }[];
-  cta: string;
+  id: "free" | "pro" | "credit";
+  /** Giá theo nghìn đồng mỗi tháng; `null` = mua theo gói. */
+  priceK: number | null;
+  specs: { label: SpecLabel; value: SpecValue }[];
   recommended?: boolean;
 };
 
 export const PLANS: Plan[] = [
   {
-    name: "Free",
-    tagline: "Thử nghiệm cá nhân",
-    price: "0đ",
-    unit: "/tháng",
+    id: "free",
+    priceK: 0,
     specs: [
-      { label: "credit / tháng", value: "100" },
-      { label: "luồng", value: "import · tạo mới · CR" },
-      { label: "xuất file", value: ".docx · .pdf" },
-      { label: "thanh toán", value: "không cần thẻ" },
+      { label: "credits", value: { numbers: [100] } },
+      { label: "flows", value: { key: "flows" } },
+      { label: "export", value: { text: ".docx · .pdf" } },
+      { label: "payment", value: { key: "noCard" } },
     ],
-    cta: "Bắt đầu miễn phí",
   },
   {
-    name: "Pro",
-    tagline: "Cho BA / PM chạy dự án thật",
-    price: "199k",
-    unit: "/tháng",
+    id: "pro",
+    priceK: 199,
     specs: [
-      { label: "credit / tháng", value: "1.000" },
-      { label: "so với Free", value: "10×" },
-      { label: "luồng", value: "import · tạo mới · CR" },
-      { label: "đổi / huỷ gói", value: "ngay trong app" },
+      { label: "credits", value: { numbers: [1000] } },
+      { label: "vsFree", value: { text: "10×" } },
+      { label: "flows", value: { key: "flows" } },
+      { label: "planChange", value: { key: "inApp" } },
     ],
-    cta: "Dùng gói Pro",
     recommended: true,
   },
   {
-    name: "Gói Credit",
-    tagline: "Mua theo nhu cầu",
-    price: "Theo gói",
-    unit: "",
+    id: "credit",
+    priceK: null,
     specs: [
-      { label: "gói", value: "100 · 500 · 1.500" },
-      { label: "áp dụng", value: "mọi gói cước" },
-      { label: "ví", value: "chung cả tổ chức" },
-      { label: "kích hoạt", value: "ngay khi thanh toán" },
+      { label: "packs", value: { numbers: [100, 500, 1500] } },
+      { label: "appliesTo", value: { key: "allPlans" } },
+      { label: "wallet", value: { key: "sharedOrg" } },
+      { label: "activation", value: { key: "onPayment" } },
     ],
-    cta: "Xem gói credit",
   },
 ];
 
-export const STANDARDS = ["IEEE 830", "ISO/IEC/IEEE 29148", "Mẫu FPT"] as const;
+/** Tên chuẩn là tên riêng, không dịch. "Mẫu FPT" dịch được nên nằm ở `landing.cta.fptTemplate`. */
+export const STANDARDS = ["IEEE 830", "ISO/IEC/IEEE 29148"] as const;

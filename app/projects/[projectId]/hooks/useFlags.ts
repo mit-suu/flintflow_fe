@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 import type { Flag } from "@/types/flags";
 
 export interface UseFlagsResult {
@@ -34,7 +35,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
         setError(null);
       })
       .catch((err: unknown) => {
-        if (request === requestRef.current) setError(err instanceof Error ? err.message : "Không tải được danh sách cờ");
+        if (request === requestRef.current) setError(err instanceof Error ? err.message : HOOK_ERROR.flagsLoadFailed);
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);
@@ -59,7 +60,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
         }
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Waive cờ thất bại");
+        setError(err instanceof Error ? err.message : HOOK_ERROR.waiveFailed);
         throw err;
       } finally {
         setBusy(false);
@@ -75,7 +76,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
       setFlags(res.data ?? []);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Tính lại cờ thất bại");
+      setError(err instanceof Error ? err.message : HOOK_ERROR.recomputeFailed);
     } finally {
       setBusy(false);
     }

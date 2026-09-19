@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import PhaseNavBar, { phaseState } from "./PhaseNavBar";
 import type { StepSummary } from "@/types/pipeline";
@@ -30,7 +31,7 @@ describe("PhaseNavBar", () => {
   };
 
   it("hiển thị đủ 12 phase B-0…S-9, đánh dấu phase đang chạy và phase đã xong", () => {
-    render(<PhaseNavBar {...defaultProps} />);
+    renderWithIntl(<PhaseNavBar {...defaultProps} />);
     for (const phase of ["B-0", "B-1", "B-2", "S-1", "S-2", "S-3", "S-4", "S-5", "S-6", "S-7", "S-8", "S-9"]) {
       expect(screen.getByText(phase)).toBeInTheDocument();
     }
@@ -45,7 +46,7 @@ describe("PhaseNavBar", () => {
 
   it("Export & Handoff luôn bấm được và gọi onExportClick", () => {
     const onExportClick = vi.fn();
-    render(<PhaseNavBar {...defaultProps} onExportClick={onExportClick} />);
+    renderWithIntl(<PhaseNavBar {...defaultProps} onExportClick={onExportClick} />);
     const exportButton = screen.getByRole("button", { name: /Export & Handoff/i });
     expect(exportButton).not.toBeDisabled();
     fireEvent.click(exportButton);
@@ -53,7 +54,7 @@ describe("PhaseNavBar", () => {
   });
 
   it("Export đổi style khi active", () => {
-    const { rerender } = render(<PhaseNavBar {...defaultProps} />);
+    const { rerender } = renderWithIntl(<PhaseNavBar {...defaultProps} />);
     expect(screen.getByRole("button", { name: /Export & Handoff/i })).toHaveClass("bg-[#F4F3FE]");
     rerender(<PhaseNavBar {...defaultProps} exportActive />);
     expect(screen.getByRole("button", { name: /Export & Handoff/i })).toHaveClass("bg-[#191817]");

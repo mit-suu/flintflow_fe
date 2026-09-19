@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import type { DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
 import ChatBubble from "./ChatBubble";
@@ -75,6 +76,7 @@ export default function ChatPane({
   footer,
   onEditInstruction,
 }: ChatPaneProps) {
+  const t = useTranslations("workspace.chatPane");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
@@ -102,7 +104,7 @@ export default function ChatPane({
       <div className="px-5 py-3 border-b border-[#ECEAE5] flex justify-between items-center bg-white shrink-0 h-[52px]">
         <div className="flex items-center gap-2">
           <span className="text-[#4F46E5] text-sm">✦</span>
-          <h2 className="font-extrabold text-[#191817] text-[13px]">Hội thoại & Duyệt bước</h2>
+          <h2 className="font-extrabold text-[#191817] text-[13px]">{t("title")}</h2>
         </div>
         {stepLabel && (
           <div className="text-[11px] font-bold text-[#4F46E5] bg-[#F4F3FE] border border-[#DDD9F6] px-2.5 py-0.5 rounded-full truncate max-w-[200px]">
@@ -115,9 +117,9 @@ export default function ChatPane({
         {messages.length === 0 && !children && (
           <div className="my-auto max-w-sm text-center py-8 flex flex-col items-center gap-3 bg-white border border-[#ECEAE5] rounded-[20px] p-6 shadow-2xs">
             <div className="w-10 h-10 rounded-[12px] bg-[#F4F3FE] text-[#4F46E5] flex items-center justify-center text-[18px]">💡</div>
-            <h3 className="font-extrabold text-[#191817] text-[14px]">Bắt đầu bước hiện tại</h3>
+            <h3 className="font-extrabold text-[#191817] text-[14px]">{t("emptyTitle")}</h3>
             <p className="text-[#8A867E] text-[12px] leading-relaxed">
-              Bấm “Chạy bước này” để AI hỏi phần còn thiếu và soạn nháp, hoặc trò chuyện tự do và đính kèm tài liệu tham khảo.
+              {t("emptyBody")}
             </p>
           </div>
         )}
@@ -132,7 +134,7 @@ export default function ChatPane({
 
         {redirectToChangePanel && (
           <div className="bg-[#F4F3FE] border border-[#DDD9F6] rounded-[14px] p-3 text-[12px] text-[#3B34B0]">
-            Phiên này không phải phiên pipeline — lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.
+            {t("notPipeline")}
           </div>
         )}
 
@@ -167,7 +169,7 @@ export default function ChatPane({
             onSelectAttachment={onSelectAttachment}
             onRemoveAttachment={onRemoveAttachment}
             actionType="chat"
-            placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : undefined}
+            placeholder={redirectToChangePanel ? t("editPlaceholder") : undefined}
           />
         ))}
     </section>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Op } from "@/types/pipeline";
 import type { Addendum, Spine } from "@/types/spine";
 
@@ -13,15 +14,26 @@ interface AddendumTriagePanelProps {
 /** Phụ lục §5.4 Other Requirements — nơi những gì "để dành" đi về (S-7.4 sẽ nhặt). */
 export const PARKED_SECTION = "fixed:5.4";
 
-/** Section một addendum có thể nhắm tới ở pha Brief. */
-export const TARGET_OPTIONS: { id: string; label: string }[] = [
-  { id: "fixed:1", label: "§1 Tổng quan sản phẩm" },
-  { id: "fixed:2.1", label: "§2.1 Actor" },
-  { id: "fixed:3.1.2", label: "§3.1.2 Mô tả màn" },
-  { id: "fixed:4.2.2", label: "§4.2.2 Độ tin cậy" },
-  { id: "fixed:4.2.3", label: "§4.2.3 Hiệu năng" },
-  { id: PARKED_SECTION, label: "§5.4 Yêu cầu khác (để dành)" },
-];
+/**
+ * Section một addendum có thể nhắm tới ở pha Brief. Nhãn ở `workspace.brief.section.<key>` — id section có
+ * dấu chấm nên không làm khoá message được. `BriefSummaryCard` dùng chung bảng này.
+ */
+export const TARGET_OPTIONS = [
+  { id: "fixed:1", key: "overview" },
+  { id: "fixed:2.1", key: "actors" },
+  { id: "fixed:3.1.2", key: "screenDesc" },
+  { id: "fixed:4.2.2", key: "reliability" },
+  { id: "fixed:4.2.3", key: "performance" },
+  { id: PARKED_SECTION, key: "other" },
+] as const;
+
+export type BriefSectionKey = (typeof TARGET_OPTIONS)[number]["key"];
+
+export const sectionKeyOf = (sectionId: string): BriefSectionKey | undefined =>
+  TARGET_OPTIONS.find((option) => option.id === sectionId)?.key;
+
+/** `fixed:4.2.2` ⇒ `§4.2.2`. */
+const sectionNumber = (sectionId: string) => `§${sectionId.replace(/^fixed:/, "")}`;
 
 export const buildRetargetOp = (id: string, target: string): Op => ({
   op: "set",
@@ -48,6 +60,8 @@ export const buildDropOp = (id: string): Op => ({
  * tới tay step cần nó, và không có gì báo lỗi.
  */
 export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }: AddendumTriagePanelProps) {
+  const t = useTranslations("workspace.triage");
+  const tBrief = useTranslations("workspace.brief");
   const [pending, setPending] = useState<string | null>(null);
   const [confirmDrop, setConfirmDrop] = useState<string | null>(null);
 
@@ -67,7 +81,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
   };
 
   if (entries.length === 0) {
-    return <p className="text-[11.5px] text-[#6B6862]">Chưa có ghi chú nào từ pha Brief.</p>;
+    return <p className="text-[11.5px] text-[#6B6862]">{t("empty")}</p>;
   }
 
   const card = (entry: Addendum) => {
@@ -78,7 +92,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
           <span className="text-[11px] font-extrabold text-[#191817]">{entry.topic || entry.id}</span>
           {parked && (
             <span className="text-[10px] font-bold text-[#6B6862] bg-[#F5F4F1] px-1.5 py-0.5 rounded-full shrink-0">
-              Để dành
+              {t("parked")}
             </span>
           )}
         </div>
@@ -88,7 +102,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
         )}
 
         <label className="flex items-center gap-1.5 pt-0.5">
-          <span className="text-[10.5px] font-bold text-[#8A867E] shrink-0">Đưa vào</span>
+          <span className="text-[10.5px] font-bold text-[#8A867E] shrink-0">{t("moveTo")}</span>
           <select
             value={entry.target_section}
             disabled={busy || pending !== null}
@@ -100,7 +114,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
             )}
             {TARGET_OPTIONS.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.label}
+                {sectionNumber(o.id)} {tBrief(`section.${o.key}`)}
               </option>
             ))}
           </select>
@@ -108,21 +122,21 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
 
         {confirmDrop === entry.id ? (
           <div className="flex items-center gap-1.5">
-            <span className="text-[10.5px] text-[#B91C1C] font-bold">Bỏ hẳn vì nội dung sai?</span>
+            <span className="text-[10.5px] text-[#B91C1C] font-bold">{t("confirmDrop")}</span>
             <button
               type="button"
               disabled={busy || pending !== null}
               onClick={() => void run(entry.id, [buildDropOp(entry.id)])}
               className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-[#B91C1C] text-white disabled:opacity-50 cursor-pointer"
             >
-              Bỏ
+              {t("drop")}
             </button>
             <button
               type="button"
               onClick={() => setConfirmDrop(null)}
               className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] cursor-pointer"
             >
-              Thôi
+              {t("keep")}
             </button>
           </div>
         ) : (
@@ -131,9 +145,9 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
             disabled={busy || pending !== null}
             onClick={() => setConfirmDrop(entry.id)}
             className="self-start text-[10.5px] font-bold text-[#8A867E] underline disabled:opacity-50 cursor-pointer"
-            title="Chỉ bỏ khi nội dung sai — chưa làm bản này thì chọn Để dành ở ô trên"
+            title={t("dropHint")}
           >
-            Bỏ mục này
+            {t("dropEntry")}
           </button>
         )}
       </li>
@@ -143,8 +157,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
   return (
     <div className="flex flex-col gap-2.5">
       <p className="text-[11px] text-[#6B6862]">
-        {entries.length} ghi chú. Đổi đích nếu đang nhắm sai chỗ; chọn §5.4 để dành lại cho bản sau. Chỉ bỏ khi nội dung
-        sai.
+        {t("intro", { count: entries.length })}
       </p>
       <ul className="flex flex-col gap-2">{entries.map(card)}</ul>
     </div>

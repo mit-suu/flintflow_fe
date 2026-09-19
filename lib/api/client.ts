@@ -1,4 +1,5 @@
 import { clearAuthToken } from "../auth";
+import { localizeApiError } from "./error-messages";
 import {
   decodeJwt,
   getAccessToken,
@@ -15,14 +16,20 @@ export interface ApiResponse<T = unknown> {
   error: { code: string; message: string } | null;
 }
 
+/**
+ * Lỗi API. `message` đã được dịch theo `code` sang ngôn ngữ đang hiển thị (`localizeApiError`, T25); câu gốc
+ * của BE giữ ở `rawMessage` để log / debug.
+ */
 export class ApiClientError extends Error {
   code: string;
   status: number;
+  rawMessage: string;
 
   constructor(status: number, code: string, message: string) {
-    super(message);
+    super(localizeApiError(code, message));
     this.status = status;
     this.code = code;
+    this.rawMessage = message;
   }
 }
 
@@ -206,11 +213,24 @@ export const authFetch = async (
   return res;
 };
 
-/** Đọc thông điệp lỗi từ body JSON của response không OK (dùng cho SSE/file). */
-export const readErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+/**
+ * Câu lỗi **gốc** của BE (chưa dịch) — dùng khi còn dựng tiếp `ApiClientError`, vì constructor của nó tự dịch
+ * theo mã; đọc bản đã dịch ở đây sẽ làm mất câu gốc trong `rawMessage`.
+ */
+export const readRawErrorMessage = async (res: Response, fallback: string): Promise<string> => {
   try {
     const errJson = await res.json();
     return errJson.error?.message || errJson.message || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+/** Đọc thông điệp lỗi từ body JSON của response không OK, đã dịch theo mã (dùng cho SSE ném `Error` thường). */
+export const readErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+  try {
+    const errJson = await res.json();
+    return localizeApiError(errJson.error?.code, errJson.error?.message || errJson.message || fallback);
   } catch {
     return fallback;
   }

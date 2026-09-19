@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { formatNotificationTime } from "../lib/time-ago";
 import {
   fetchNotifications,
   fetchUnreadCount,
@@ -46,16 +48,6 @@ export function useUnreadNotificationCount(): number {
   return count;
 }
 
-export function formatNotificationTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return "Vừa xong";
-  if (minutes < 60) return `${minutes} phút trước`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  return new Date(iso).toLocaleDateString("vi-VN");
-}
-
 export default function NotificationBell() {
   const unreadCount = useUnreadNotificationCount();
   const [open, setOpen] = useState(false);
@@ -64,6 +56,10 @@ export default function NotificationBell() {
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const t = useTranslations("app.notifications");
+  const tCommon = useTranslations("app.common");
+  const tTime = useTranslations("app.time");
+  const locale = useLocale();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -82,7 +78,7 @@ export default function NotificationBell() {
       const { items: latest } = await fetchNotifications({ limit: PREVIEW_LIMIT });
       setItems(latest);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tải thông báo");
+      setError(err instanceof Error ? err.message : t("loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -117,7 +113,7 @@ export default function NotificationBell() {
       const now = new Date().toISOString();
       setItems((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: now })));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể đánh dấu đã đọc");
+      setError(err instanceof Error ? err.message : t("markFailed"));
     }
   };
 
@@ -126,7 +122,7 @@ export default function NotificationBell() {
       <button
         type="button"
         onClick={toggle}
-        aria-label={unreadCount > 0 ? `Thông báo (${unreadCount} chưa đọc)` : "Thông báo"}
+        aria-label={unreadCount > 0 ? t("unreadAria", { count: unreadCount }) : t("title")}
         className="relative w-[30px] h-[30px] rounded-[9px] bg-[#F5F3F0] border border-[#E4E1DC] flex items-center justify-center text-[13px] cursor-pointer hover:bg-[#FAF9F7] transition-colors"
       >
         🔔
@@ -140,24 +136,24 @@ export default function NotificationBell() {
       {open && (
         <div className="absolute right-0 top-[calc(100%+8px)] w-[340px] max-w-[calc(100vw-32px)] bg-white border border-[#ECEAE5] rounded-[14px] shadow-[0_16px_42px_rgba(25,24,23,0.18)] z-40 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#F0EEEA]">
-            <span className="text-[13px] font-extrabold text-[#191817]">Thông báo</span>
+            <span className="text-[13px] font-extrabold text-[#191817]">{t("title")}</span>
             <button
               type="button"
               onClick={handleMarkAll}
               disabled={unreadCount === 0}
               className="text-[11.5px] font-semibold text-[#4F46E5] hover:underline disabled:text-[#A8A49C] disabled:no-underline cursor-pointer"
             >
-              Đánh dấu tất cả đã đọc
+              {t("markAll")}
             </button>
           </div>
 
           <div className="max-h-[360px] overflow-y-auto">
             {loading ? (
-              <div className="px-4 py-6 text-center text-[12px] text-[#A8A49C]">Đang tải…</div>
+              <div className="px-4 py-6 text-center text-[12px] text-[#A8A49C]">{tCommon("loading")}</div>
             ) : error ? (
               <div className="px-4 py-6 text-center text-[12px] text-[#8A4141]">{error}</div>
             ) : items.length === 0 ? (
-              <div className="px-4 py-6 text-center text-[12px] text-[#A8A49C]">Chưa có thông báo nào</div>
+              <div className="px-4 py-6 text-center text-[12px] text-[#A8A49C]">{t("empty")}</div>
             ) : (
               items.map((n) => (
                 <button
@@ -175,7 +171,7 @@ export default function NotificationBell() {
                     <span className="block text-[12.5px] font-bold text-[#191817] truncate">{n.title}</span>
                     <span className="block text-[11.5px] text-[#6B6862] leading-[1.45] line-clamp-2">{n.body}</span>
                     <span className="block text-[10.5px] text-[#A8A49C] mt-0.5">
-                      {formatNotificationTime(n.createdAt)}
+                      {formatNotificationTime(n.createdAt, tTime, locale)}
                     </span>
                   </span>
                 </button>
@@ -188,7 +184,7 @@ export default function NotificationBell() {
             onClick={() => setOpen(false)}
             className="block text-center px-4 py-2.5 text-[12px] font-bold text-[#3B34B0] bg-[#FAF9F7] hover:bg-[#F4F3FE] transition-colors"
           >
-            Xem tất cả thông báo
+            {t("viewAll")}
           </Link>
         </div>
       )}

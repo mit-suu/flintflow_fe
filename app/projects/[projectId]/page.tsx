@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { applyChanges } from "@/lib/api/spine";
 import { ApiClientError } from "@/lib/api/client";
-import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
+import { localizeApiError } from "@/lib/api/error-messages";
+import { tStep } from "@/lib/i18n";
 import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 
@@ -35,6 +37,9 @@ import { useFlags } from "./hooks/useFlags";
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
 
+/** Lỗi runner do chính FE sinh (`useStepRunner`) dịch theo mã; lỗi từ BE hiện nguyên `message`. */
+const RUNNER_ERROR_KEYS = { NOT_PIPELINE_SESSION: "notPipelineSession", STREAM_CLOSED: "streamClosed" } as const;
+
 const DEFAULT_CHAT_PANE_WIDTH = 480;
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
 
@@ -48,6 +53,9 @@ const readSavedChatPaneWidth = (): number => {
 };
 
 export default function WorkspacePage() {
+  const t = useTranslations("workspace.shell");
+  const tRunner = useTranslations("workspace.runnerErrors");
+  const locale = useLocale();
   const params = useParams();
   const projectId = params?.projectId as string;
 
@@ -150,16 +158,16 @@ export default function WorkspacePage() {
         }
       } catch (err) {
         if (err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT") {
-          alert("Tài liệu vừa đổi ở phiên khác — đã tải lại, vui lòng thử lại.");
+          alert(t("conflict"));
           void reloadSpine();
         } else {
-          alert(err instanceof Error ? err.message : "Không lưu được thay đổi");
+          alert(err instanceof Error ? err.message : t("saveFailed"));
         }
       } finally {
         setSavingChange(false);
       }
     },
-    [projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine]
+    [projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine, t]
   );
 
   const changeWorkingMode = (mode: WorkingMode) =>
@@ -238,7 +246,7 @@ export default function WorkspacePage() {
       <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] animate-spin shrink-0" />
-          <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
+          <span className="text-[#8A867E] font-medium text-sm">{t("loading")}</span>
         </div>
       </div>
     );
@@ -300,7 +308,7 @@ export default function WorkspacePage() {
         <ChatPane
           width={chatPaneWidth}
           session={ws.activeSession}
-          stepLabel={viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
+          stepLabel={viewedStep ? `${viewedStep} · ${tStep(viewedStep, locale)}` : null}
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
           onSendMessage={(custom) => void ws.sendMessage(currentStep, custom)}
@@ -319,7 +327,12 @@ export default function WorkspacePage() {
         >
           {viewingAccepted && viewedStep && (
             <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-3 text-[12px] text-[#1F7A45]">
-              Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
+              {t.rich("acceptedNotice", {
+                step: viewedStep,
+                // Nhãn gốc không kèm khoá vòng: vòng S-5 đã nằm trong mã step.
+                label: tStep(viewedStep.split("@")[0], locale),
+                b: (chunks) => <strong>{chunks}</strong>,
+              })}
             </div>
           )}
           {runnerStep && runner.state.events.length > 0 && <StepEventLog events={runner.state.events} />}
@@ -335,10 +348,13 @@ export default function WorkspacePage() {
           {runner.state.error && (
             <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3 text-[12px] text-[#B03030] flex items-center justify-between gap-2">
               <span>
-                {runner.state.error.code}: {runner.state.error.message}
+                {runner.state.error.code}:{" "}
+                {runner.state.error.code in RUNNER_ERROR_KEYS
+                  ? tRunner(RUNNER_ERROR_KEYS[runner.state.error.code as keyof typeof RUNNER_ERROR_KEYS])
+                  : localizeApiError(runner.state.error.code, runner.state.error.message)}
               </span>
               <button type="button" onClick={runner.reset} className="text-[11.5px] font-bold underline cursor-pointer">
-                Đóng
+                {t("close")}
               </button>
             </div>
           )}
@@ -358,7 +374,7 @@ export default function WorkspacePage() {
             } catch {}
           }}
           className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center"
-          title="Kéo để thay đổi kích thước (nháy đúp để về mặc định)"
+          title={t("resizeHint")}
         >
           <div className={`h-full transition-all ${isResizing ? "w-[3px] bg-[#4F46E5]" : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#4F46E5]"}`} />
         </div>
@@ -380,44 +396,44 @@ export default function WorkspacePage() {
             className={`px-2 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${
               changePanelOpen ? "bg-[#191817] text-white border-[#191817]" : "bg-white border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7]"
             }`}
-            title="Sửa qua lệnh với xem trước diff"
+            title={t("editCommandHint")}
           >
-            {changePanelOpen ? "›" : "‹ Sửa lệnh"}
+            {changePanelOpen ? "›" : t("editCommand")}
           </button>
           <button
             type="button"
             onClick={() => setToolsOpen((v) => !v)}
             className="self-start px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
-            title="Tên riêng, thuật ngữ và hàng đợi màn"
+            title={t("toolsHint")}
           >
-            {toolsOpen ? "›" : "‹ Công cụ"}
+            {toolsOpen ? "›" : t("tools")}
           </button>
         </div>
 
         {toolsOpen && spine && (
-          <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label="Công cụ">
+          <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label={t("toolsAria")}>
             {inBriefPhase && (
               <>
                 <section className="flex flex-col gap-2">
-                  <h4 className="text-[12px] font-extrabold text-[#191817]">Tóm tắt Brief</h4>
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">{t("briefSummary")}</h4>
                   <BriefSummaryCard spine={spine} />
                 </section>
                 <section className="flex flex-col gap-2">
-                  <h4 className="text-[12px] font-extrabold text-[#191817]">Giả định chờ xác nhận (B-2.1)</h4>
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">{t("assumptions")}</h4>
                   <AssumptionSweepPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
                 </section>
                 <section className="flex flex-col gap-2">
-                  <h4 className="text-[12px] font-extrabold text-[#191817]">Ghi chú Brief (B-2.2)</h4>
+                  <h4 className="text-[12px] font-extrabold text-[#191817]">{t("briefNotes")}</h4>
                   <AddendumTriagePanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
                 </section>
               </>
             )}
             <section className="flex flex-col gap-2">
-              <h4 className="text-[12px] font-extrabold text-[#191817]">Tên riêng & thuật ngữ</h4>
+              <h4 className="text-[12px] font-extrabold text-[#191817]">{t("namesGlossary")}</h4>
               <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
             </section>
             <section className="flex flex-col gap-2">
-              <h4 className="text-[12px] font-extrabold text-[#191817]">Hàng đợi màn (S-5)</h4>
+              <h4 className="text-[12px] font-extrabold text-[#191817]">{t("screenQueue")}</h4>
               <ScreenQueuePanel spine={spine} onMarkPlaceholder={(id) => void markPlaceholder(id)} busy={savingChange} />
             </section>
           </aside>

@@ -29,7 +29,7 @@ export interface StepDef {
 
 export const STEP_REGISTRY: readonly StepDef[] = registry as unknown as StepDef[];
 
-/** Nhãn phase trên UI (tiếng Việt). */
+/** Nhãn phase tiếng Việt — **chỉ đọc qua `tPhase()`** (`lib/i18n.ts`); bản tiếng Anh nằm trong registry. */
 export const PHASE_LABELS_VI: Readonly<Record<PhaseId, string>> = {
   "B-0": "Tiếp nhận",
   "B-1": "Product Brief",
@@ -108,13 +108,5 @@ export const orderedSteps = (spine: LoopSource): ExpandedStep[] =>
   );
 
 export const totalSteps = (spine: LoopSource): number => FIXED_STEP_COUNT + STEPS_PER_LOOP * loopKeys(spine).length;
-
-/** `Actor` · `Chi tiết chức năng · S07` · `Chi tiết chức năng · không màn hình`. */
-export const stepLabel = (stepId: string): string => {
-  const def = getStepDef(stepId);
-  if (!def) return stepId;
-  if (!def.loop) return def.label_vi;
-  return `${def.label_vi} · ${def.loop === NONSCREEN_LOOP ? "không màn hình" : def.loop}`;
-};
 
 export const isStepDone = (status: StepStatus | undefined): boolean => status === "accepted";

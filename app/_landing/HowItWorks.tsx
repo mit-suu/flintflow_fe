@@ -1,12 +1,16 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { cardClass, SectionHeading } from "./ui";
 
 /*
  * Bento bất đối xứng: cột trái 1/3 xếp hai bước đầu, card lớn 2/3 bên phải cho bước 03
  * (Change Request + Track Changes). Trên mobile đọc tuần tự 01 → 02 → 03.
+ * Nội dung tài liệu mẫu (impact, đoạn Track Changes) luôn tiếng Anh như SRS thật — chỉ khung UI được dịch (T25).
  */
 
 export default function HowItWorks() {
+  const t = useTranslations("landing.how");
+
   return (
     <section
       id="cach-hoat-dong"
@@ -15,30 +19,33 @@ export default function HowItWorks() {
     >
       <div className="mx-auto max-w-6xl">
         <SectionHeading
-          eyebrow="Cách hoạt động"
-          title={<span id="how-title">Ba bước. Không bước nào để spec tự vỡ.</span>}
-          description="Scope creep không đến từ một yêu cầu lớn — nó đến từ hai mươi dòng email không ai đối chiếu lại với spec."
+          eyebrow={t("eyebrow")}
+          title={<span id="how-title">{t("title")}</span>}
+          description={t("description")}
         />
 
         <div className="mt-12 grid gap-4 lg:grid-cols-3 lg:grid-rows-2">
-          <StepCard step="01" title="Quét mâu thuẫn tài liệu có sẵn" body="Thả file .docx đang dùng. FlintFlow bóc từng UC, NFR, business rule và chỉ ra chỗ chúng đá nhau.">
+          <StepCard step="01" title={t("scan.title")} body={t("scan.body")}>
             <ul className="space-y-1.5 font-mono text-xs">
               <li className="flex gap-2 text-red-400">
-                <span aria-hidden="true">✕</span>UC-07 ↔ NFR-02 · thời hạn
+                <span aria-hidden="true">✕</span>
+                {t("scan.flagDeadline")}
               </li>
               <li className="flex gap-2 text-amber-400">
-                <span aria-hidden="true">!</span>UC-12 · thiếu actor
+                <span aria-hidden="true">!</span>
+                {t("scan.flagActor")}
               </li>
               <li className="flex gap-2 text-emerald-400">
-                <span aria-hidden="true">✓</span>142 yêu cầu nhất quán
+                <span aria-hidden="true">✓</span>
+                {t("scan.consistent", { count: 142 })}
               </li>
             </ul>
           </StepCard>
 
           <StepCard
             step="02"
-            title="Chuẩn hoá theo template"
-            body="Mẫu FPT hoặc mẫu bắt buộc của khách — nội dung vào đúng section, đúng cột, giữ nguyên định dạng gốc."
+            title={t("template.title")}
+            body={t("template.body")}
             className="lg:row-start-2"
           >
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 font-mono text-xs">
@@ -82,22 +89,21 @@ function StepCard({
 }
 
 const IMPACT = [
-  { id: "F-S04-01", note: "thêm validation PCCC" },
-  { id: "UC-03", note: "thêm điều kiện nộp" },
-  { id: "UC-07", note: "thêm bước thẩm định" },
+  { id: "F-S04-01", note: "add fire-safety validation" },
+  { id: "UC-03", note: "add submission precondition" },
+  { id: "UC-07", note: "add review step" },
 ];
 
 function ChangeRequestCard() {
+  const t = useTranslations("landing.how.change");
+
   return (
     <article
       className={`${cardClass} flex flex-col p-6 transition-colors hover:border-white/[0.14] sm:p-8 lg:col-span-2 lg:col-start-2 lg:row-span-2 lg:row-start-1`}
     >
       <span className="font-mono text-xs text-zinc-600">03</span>
-      <h3 className="mt-3 text-lg font-medium text-[#FAFAFA] sm:text-xl">Đổi yêu cầu không vỡ spec</h3>
-      <p className="mt-2 max-w-lg text-sm leading-relaxed text-zinc-400">
-        Khách thêm một dòng trong email? FlintFlow khoanh vùng mọi chỗ bị ảnh hưởng, soạn Change Request — bạn
-        duyệt rồi mới ghi. File trả về giữ nguyên Track Changes.
-      </p>
+      <h3 className="mt-3 text-lg font-medium text-[#FAFAFA] sm:text-xl">{t("title")}</h3>
+      <p className="mt-2 max-w-lg text-sm leading-relaxed text-zinc-400">{t("body")}</p>
 
       <div className="mt-8 grid flex-1 gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {/* Vùng ảnh hưởng */}
@@ -112,7 +118,7 @@ function ChangeRequestCard() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-zinc-600">47 section khác · không đổi</p>
+          <p className="mt-4 text-zinc-600">{t("untouched", { count: 47 })}</p>
         </div>
 
         {/* Track Changes */}
@@ -121,17 +127,17 @@ function ChangeRequestCard() {
             <span>srs_v2.4.docx</span>
             <span>Track Changes</span>
           </div>
-          <p className="font-medium text-zinc-900">UC-03 · Nộp hồ sơ — Điều kiện</p>
+          <p className="font-medium text-zinc-900">UC-03 · Submit application — Preconditions</p>
           <p className="mt-2">
-            Người nộp đã đăng nhập và có bản vẽ thiết kế hợp lệ
+            The applicant is logged in and has a valid design drawing
             <del className="text-red-600 decoration-red-600">.</del>
             <ins className="text-blue-600 decoration-blue-600">
-              ; công trình trên 7 tầng phải có văn bản thẩm duyệt PCCC.
+              ; buildings over 7 floors must have a fire-safety approval document.
             </ins>
           </p>
           <p className="mt-3 inline-flex items-center gap-1.5 rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">
             <span className="size-1.5 rounded-full bg-blue-600" aria-hidden="true" />
-            tác giả: CR-012
+            author: CR-012
           </p>
         </div>
       </div>

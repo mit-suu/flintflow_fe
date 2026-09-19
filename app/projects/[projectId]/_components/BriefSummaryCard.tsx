@@ -1,43 +1,23 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { Addendum, Spine } from "@/types/spine";
+import { sectionKeyOf } from "./AddendumTriagePanel";
 
 interface BriefSummaryCardProps {
   spine: Pick<Spine, "project" | "addendum" | "assumptions" | "other_requirements">;
 }
 
-/** Nhãn tiếng Việt cho section đích của addendum — khớp mục của tài liệu, không phải khoá thô. */
-const SECTION_LABEL: Record<string, string> = {
-  "fixed:1": "Tổng quan sản phẩm",
-  "fixed:2.1": "Actor",
-  "fixed:3.1.2": "Mô tả màn",
-  "fixed:4.2.2": "Độ tin cậy",
-  "fixed:4.2.3": "Hiệu năng",
-  "fixed:5.4": "Yêu cầu khác (để dành)",
-};
+/*
+ * Nhãn ở `workspace.brief.*`: section đích (bảng chung với `AddendumTriagePanel`), form factor, stakes, loại
+ * yêu cầu khác. Giá trị lạ từ Spine thì hiện nguyên khoá thô.
+ */
+const FORM_FACTORS = ["web_app", "mobile_app", "desktop_app", "api_service", "cli", "embedded"] as const;
+const STAKES = ["internal", "production", "regulated"] as const;
+const OTHER_KINDS = ["risk", "assumption", "open_question", "technical_risk"] as const;
 
-const FORM_FACTOR_LABEL: Record<string, string> = {
-  web_app: "Web",
-  mobile_app: "Mobile",
-  desktop_app: "Desktop",
-  api_service: "API",
-  cli: "CLI",
-  embedded: "Nhúng",
-};
-
-const STAKES_LABEL: Record<string, string> = {
-  internal: "Nội bộ",
-  production: "Chạy thật",
-  regulated: "Có quản lý ngành",
-};
-
-const OTHER_KIND_LABEL: Record<string, string> = {
-  risk: "Rủi ro",
-  assumption: "Giả định",
-  open_question: "Câu hỏi mở",
-  technical_risk: "Rủi ro kỹ thuật",
-};
+const oneOf = <T extends string>(list: readonly T[], value: string): value is T => (list as readonly string[]).includes(value);
 
 /** Nhóm addendum theo `target_section` — đúng cách chúng sẽ đi vào tài liệu. */
 export const groupByTarget = (addendum: Addendum[]): [string, Addendum[]][] => {
@@ -58,6 +38,7 @@ export const groupByTarget = (addendum: Addendum[]): [string, Addendum[]][] => {
  * Mục trống nghĩa là bước tương ứng chưa ghi op — hiện rõ chỗ thiếu thay vì im lặng lấp đầy.
  */
 export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
+  const t = useTranslations("workspace.brief");
   const groups = useMemo(() => groupByTarget(spine.addendum), [spine.addendum]);
   const unconfirmed = spine.assumptions.filter((a) => a.status === "unconfirmed").length;
   const { project } = spine;
@@ -69,25 +50,26 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
   );
 
   const missing = (label: string) => (
-    <p className="text-[11px] text-[#B45309] italic">Chưa có {label} — quay lại bước tương ứng để ghi.</p>
+    <p className="text-[11px] text-[#B45309] italic">{t("missing", { label })}</p>
   );
 
   return (
     <div className="flex flex-col gap-3 text-[#191817]">
       <div className="flex flex-wrap gap-1.5">
-        {project.form_factor && chip(FORM_FACTOR_LABEL[project.form_factor] ?? project.form_factor)}
-        {project.stakes && chip(STAKES_LABEL[project.stakes] ?? project.stakes)}
-        {project.working_mode && chip(project.working_mode === "fast" ? "Chế độ nhanh" : "Chế độ kèm cặp")}
-        {unconfirmed > 0 && chip(`${unconfirmed} giả định chờ xác nhận`)}
+        {project.form_factor &&
+          chip(oneOf(FORM_FACTORS, project.form_factor) ? t(`formFactor.${project.form_factor}`) : project.form_factor)}
+        {project.stakes && chip(oneOf(STAKES, project.stakes) ? t(`stakes.${project.stakes}`) : project.stakes)}
+        {project.working_mode && chip(project.working_mode === "fast" ? t("modeFast") : t("modeCoaching"))}
+        {unconfirmed > 0 && chip(t("unconfirmed", { count: unconfirmed }))}
       </div>
 
       <section className="flex flex-col gap-1">
-        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Tầm nhìn</h5>
-        {project.vision ? <p className="text-[12px]">{project.vision}</p> : missing("tầm nhìn (B-1.1)")}
+        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">{t("vision")}</h5>
+        {project.vision ? <p className="text-[12px]">{project.vision}</p> : missing(t("missingVision"))}
       </section>
 
       <section className="flex flex-col gap-1">
-        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Mục tiêu</h5>
+        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">{t("goals")}</h5>
         {project.goals.length > 0 ? (
           <ul className="list-disc pl-4 text-[12px] space-y-0.5">
             {project.goals.map((goal) => (
@@ -95,17 +77,19 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
             ))}
           </ul>
         ) : (
-          missing("mục tiêu (B-1.1)")
+          missing(t("missingGoals"))
         )}
       </section>
 
       <section className="flex flex-col gap-1.5">
-        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Ghi chú theo mục tài liệu</h5>
+        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">{t("notesBySection")}</h5>
         {groups.length === 0
-          ? missing("ghi chú nào (B-0.1 → B-1.6)")
-          : groups.map(([target, entries]) => (
+          ? missing(t("missingNotes"))
+          : groups.map(([target, entries]) => {
+              const sectionKey = sectionKeyOf(target);
+              return (
               <div key={target} className="flex flex-col gap-0.5">
-                <span className="text-[10.5px] font-bold text-[#6B6862]">{SECTION_LABEL[target] ?? target}</span>
+                <span className="text-[10.5px] font-bold text-[#6B6862]">{sectionKey ? t(`section.${sectionKey}`) : target}</span>
                 <ul className="list-disc pl-4 text-[11.5px] space-y-0.5">
                   {entries.map((entry) => (
                     <li key={entry.id}>
@@ -115,16 +99,17 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
                   ))}
                 </ul>
               </div>
-            ))}
+              );
+            })}
       </section>
 
       {spine.other_requirements.length > 0 && (
         <section className="flex flex-col gap-1">
-          <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Rủi ro & câu hỏi mở</h5>
+          <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">{t("risks")}</h5>
           <ul className="list-disc pl-4 text-[11.5px] space-y-0.5">
             {spine.other_requirements.map((item) => (
               <li key={item.id}>
-                <span className="font-bold">{OTHER_KIND_LABEL[item.kind] ?? item.kind}: </span>
+                <span className="font-bold">{oneOf(OTHER_KINDS, item.kind) ? t(`otherKind.${item.kind}`) : item.kind}: </span>
                 {item.statement}
               </li>
             ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import type { ChatMessage } from "@/types/chat";
 
 interface ChatBubbleProps {
@@ -18,6 +19,7 @@ export default function ChatBubble({
   disabled = false,
   isStreaming = false,
 }: ChatBubbleProps) {
+  const t = useTranslations("workspace.chatBubble");
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -182,7 +184,7 @@ export default function ChatBubble({
               type="button"
               onClick={handleCopy}
               className="p-1 hover:bg-[#E8E5F8] text-[#8A867E] hover:text-[#191817] rounded-[5px] transition-colors cursor-pointer flex items-center justify-center"
-              title={copied ? "Đã sao chép!" : "Sao chép tin nhắn"}
+              title={copied ? t("copied") : t("copy")}
             >
               {copied ? (
                 <span className="text-[#15803D] font-bold text-[11px] leading-none">✓</span>
@@ -209,7 +211,7 @@ export default function ChatBubble({
                 disabled={disabled}
                 onClick={() => onRequestRollback(messageIndex)}
                 className="p-1 hover:bg-[#E8E5F8] text-[#8A867E] hover:text-[#4F46E5] rounded-[5px] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                title="Hoàn tác về câu hỏi này"
+                title={t("rollback")}
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -250,7 +252,7 @@ export default function ChatBubble({
           {isStreaming && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#4F46E5] bg-[#F4F3FE] px-2 py-0.5 rounded-full border border-[#DDD9F6] animate-pulse">
               <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
-              Đang phản hồi...
+              {t("responding")}
             </span>
           )}
         </div>

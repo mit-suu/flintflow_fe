@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Op } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
 
@@ -12,12 +13,8 @@ interface NamesGlossaryPanelProps {
 
 type Tab = "actors" | "entities" | "screens" | "glossary";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "actors", label: "Actor" },
-  { id: "entities", label: "Thực thể" },
-  { id: "screens", label: "Màn hình" },
-  { id: "glossary", label: "Thuật ngữ" },
-];
+/** Nhãn ở `workspace.names.tab.<tab>`. */
+const TABS: Tab[] = ["actors", "entities", "screens", "glossary"];
 
 /** Lô op `set <collection>[id=X].<field>` cho các ô đã sửa (bỏ ô không đổi). */
 export const buildNameOps = (
@@ -35,6 +32,7 @@ export const buildNameOps = (
  * Chỉ sửa field có khoá; tên nhắc trong văn xuôi không tự đổi (S-8.4 Consistency Pass bắt phần đó).
  */
 export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }: NamesGlossaryPanelProps) {
+  const t = useTranslations("workspace.names");
   const [tab, setTab] = useState<Tab>("actors");
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [newTerm, setNewTerm] = useState({ term: "", definition: "" });
@@ -64,27 +62,27 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
   };
 
   return (
-    <div className="flex flex-col gap-2" aria-label="Tên riêng và thuật ngữ">
+    <div className="flex flex-col gap-2" aria-label={t("aria")}>
       <div role="tablist" className="flex gap-1">
-        {TABS.map((t) => (
+        {TABS.map((item) => (
           <button
-            key={t.id}
+            key={item}
             type="button"
             role="tab"
-            aria-selected={tab === t.id}
+            aria-selected={tab === item}
             onClick={() => {
-              setTab(t.id);
+              setTab(item);
               setEdited({});
             }}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer ${tab === t.id ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"}`}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer ${tab === item ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"}`}
           >
-            {t.label}
+            {t(`tab.${item}`)}
           </button>
         ))}
       </div>
 
       <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
-        {rows.length === 0 && <div className="text-[11.5px] text-[#A8A49C] italic">Chưa có mục nào.</div>}
+        {rows.length === 0 && <div className="text-[11.5px] text-[#A8A49C] italic">{t("empty")}</div>}
         {rows.map((row) => (
           <label key={row.id} className="flex items-center gap-2">
             <span className="font-mono text-[10.5px] text-[#8A867E] w-12 shrink-0">{row.id}</span>
@@ -99,13 +97,13 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
         {tab === "glossary" && (
           <div className="flex items-center gap-2 pt-1">
             <input
-              placeholder="Thuật ngữ mới"
+              placeholder={t("newTerm")}
               value={newTerm.term}
               onChange={(e) => setNewTerm((prev) => ({ ...prev, term: e.target.value }))}
               className="w-32 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[12px] outline-none"
             />
             <input
-              placeholder="Định nghĩa (tiếng Anh)"
+              placeholder={t("definition")}
               value={newTerm.definition}
               onChange={(e) => setNewTerm((prev) => ({ ...prev, definition: e.target.value }))}
               className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[12px] outline-none"
@@ -120,7 +118,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
         onClick={() => void save()}
         className="self-end px-3 py-1 rounded-full text-[11.5px] font-bold bg-[#4F46E5] text-white disabled:opacity-50 cursor-pointer"
       >
-        Lưu tên chuẩn
+        {t("save")}
       </button>
     </div>
   );

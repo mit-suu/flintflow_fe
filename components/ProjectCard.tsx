@@ -2,15 +2,16 @@
 
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import type { Project } from "@/types/project";
 import type { ProgressResponse } from "@/types/pipeline";
 import { tStep, type Locale } from "@/lib/i18n";
+import { timeAgo } from "@/lib/time-ago";
 
 interface Props {
   project: Project;
   /** `GET /projects/:id/progress`; `null` khi project chưa có Spine, `undefined` khi đang tải. */
   progress?: ProgressResponse | null;
-  locale?: Locale;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
   onHardDelete: (p: Project) => void;
@@ -18,7 +19,8 @@ interface Props {
 
 type Variant = {
   gradient: string;
-  badge: string;
+  /** Nhãn ở `app.projectCard.badge.<key>`. */
+  badge: "needsClarity" | "ready" | "analyzing" | "draft";
   badgeColor: string;
   nextBg: string;
   nextText: string;
@@ -36,7 +38,7 @@ function getVariant(progress: ProgressResponse | null | undefined): Variant {
   if (progress && progress.readiness.red_open > 0) {
     return {
       gradient: "linear-gradient(135deg,#F6D5D5,#E89090 50%,#B03030)",
-      badge: "Cần làm rõ",
+      badge: "needsClarity",
       badgeColor: "#B03030",
       nextBg: "#FBF4E4",
       nextText: "#8A6D1F",
@@ -47,7 +49,7 @@ function getVariant(progress: ProgressResponse | null | undefined): Variant {
   if (progress && accepted >= 80) {
     return {
       gradient: "linear-gradient(135deg,#DDF3E4,#9BD9B4 45%,#2FA45C)",
-      badge: "Sẵn sàng",
+      badge: "ready",
       badgeColor: "#1F7A45",
       nextBg: "#EAF6EE",
       nextText: "#1F7A45",
@@ -57,7 +59,7 @@ function getVariant(progress: ProgressResponse | null | undefined): Variant {
   if (progress && accepted >= 40) {
     return {
       gradient: "linear-gradient(135deg,#C7B8F5,#7C74F0 50%,#4F46E5)",
-      badge: "Đang phân tích",
+      badge: "analyzing",
       badgeColor: "#4F46E5",
       nextBg: "#F4F3FE",
       nextText: "#3B34B0",
@@ -66,7 +68,7 @@ function getVariant(progress: ProgressResponse | null | undefined): Variant {
   }
   return {
     gradient: "linear-gradient(135deg,#E4E1DC,#C9C5BD 50%,#8A867E)",
-    badge: "Bản nháp",
+    badge: "draft",
     badgeColor: "#6B6862",
     nextBg: "#F5F3F0",
     nextText: "#6B6862",
@@ -74,28 +76,29 @@ function getVariant(progress: ProgressResponse | null | undefined): Variant {
   };
 }
 
-/** Việc tiếp theo: step đang dở lấy từ registry. Chưa có Spine ⇒ nói thẳng là chưa bắt đầu. */
-export function nextStepLabel(progress: ProgressResponse | null | undefined, locale: Locale = "vi"): string {
-  if (progress === undefined) return "Đang tải…";
+/**
+ * Việc tiếp theo: step đang dở lấy từ registry. Chưa có Spine ⇒ nói thẳng là chưa bắt đầu.
+ * `t` là `useTranslations("app.projectCard")` — nhận vào để hàm vẫn thuần, test không cần provider.
+ */
+export function nextStepLabel(
+  progress: ProgressResponse | null | undefined,
+  locale: Locale,
+  t: (key: "loading" | "notStarted") => string
+): string {
+  if (progress === undefined) return t("loading");
   const stepId = progress?.progress.current_step;
-  if (!stepId) return "Chưa bắt đầu — mở để mô tả ý tưởng";
+  if (!stepId) return t("notStarted");
   return tStep(stepId, locale);
 }
 
-function timeAgo(dateStr: string): string {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 3600) return `${Math.max(1, Math.floor(seconds / 60))} phút trước`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`;
-  if (seconds < 172800) return "Hôm qua";
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} ngày trước`;
-  return `${Math.floor(seconds / 604800)} tuần trước`;
-}
-
-export default function ProjectCard({ project, progress, locale = "vi", onRename, onDelete, onHardDelete }: Props) {
+export default function ProjectCard({ project, progress, onRename, onDelete, onHardDelete }: Props) {
+  const t = useTranslations("app.projectCard");
+  const tTime = useTranslations("app.time");
+  const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const variant = getVariant(progress);
-  const stepLabel = nextStepLabel(progress, locale);
+  const stepLabel = nextStepLabel(progress, locale, t);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -138,7 +141,7 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
               <span className="material-symbols-outlined text-[16px] text-[#6B6862]">
                 edit
               </span>
-              Đổi tên
+              {t("rename")}
             </button>
             <button
               type="button"
@@ -150,7 +153,7 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
               className="flex items-center gap-2 px-3.5 py-2 text-[12.5px] font-semibold text-[#8A4141] hover:bg-[#FDEDED] transition-colors w-full text-left cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">archive</span>
-              Lưu trữ
+              {t("archive")}
             </button>
             <button
               type="button"
@@ -162,7 +165,7 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
               className="flex items-center gap-2 px-3.5 py-2 text-[12.5px] font-semibold text-[#B03030] hover:bg-[#FDEDED] transition-colors w-full text-left cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">delete</span>
-              Xoá vĩnh viễn
+              {t("hardDelete")}
             </button>
           </div>
         )}
@@ -179,14 +182,14 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
             style={{ color: variant.badgeColor }}
           >
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: variant.badgeColor }} />
-            {variant.badge}
+            {t(`badge.${variant.badge}`)}
           </div>
         </div>
 
         {/* Body */}
         <div className="flex flex-col gap-2 flex-1 p-4 pt-5">
           <div className="text-[11px] text-[#8A867E]">
-            {timeAgo(project.updatedAt)} · {project.domain || "general"}
+            {timeAgo(project.updatedAt, tTime)} · {project.domain || "general"}
           </div>
 
           <div className="font-extrabold text-[#191817] text-[14.5px] leading-snug line-clamp-1">

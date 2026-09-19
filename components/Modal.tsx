@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 interface ModalProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface ModalProps {
 }
 
 export default function Modal({ open, onClose, title, children }: ModalProps) {
+  const t = useTranslations("app.common");
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -36,7 +38,7 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
             type="button"
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F0EEEA] text-[#6B6862] transition-colors"
-            aria-label="Đóng"
+            aria-label={t("close")}
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>

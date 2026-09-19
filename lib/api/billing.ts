@@ -1,4 +1,4 @@
-import { apiCall } from "./client";
+import { ApiClientError, apiCall } from "./client";
 
 export type PlanId = "free" | "pro";
 export type CreditTransactionType = "reserve" | "deduct" | "release" | "monthly_reset" | "purchase";
@@ -73,7 +73,8 @@ export interface TransactionsMeta {
 }
 
 const unwrap = <T>(data: T | null, what: string): T => {
-  if (data === null) throw new Error(`Không nhận được dữ liệu ${what}`);
+  // `NO_DATA` được dịch theo ngôn ngữ (`errors.NO_DATA`); `what` chỉ còn trong `rawMessage` để debug.
+  if (data === null) throw new ApiClientError(500, "NO_DATA", `Không nhận được dữ liệu ${what}`);
   return data;
 };
 

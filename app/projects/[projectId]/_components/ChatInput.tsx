@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import { estimateActionCost } from "../../../../lib/api/chat";
 import type { ChatActionType } from "@/types/chat";
 
@@ -44,8 +45,9 @@ export default function ChatInput({
   onSelectAttachment,
   onRemoveAttachment,
   actionType,
-  placeholder = "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
+  placeholder,
 }: ChatInputProps) {
+  const t = useTranslations("workspace.chatInput");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [creditEstimate, setCreditEstimate] = useState<number | null>(null);
 
@@ -87,7 +89,7 @@ export default function ChatInput({
                 type="button"
                 onClick={() => onRemoveAttachment(file.name)}
                 className="hover:text-[#B03030] ml-0.5 cursor-pointer"
-                title="Bỏ file này"
+                title={t("removeFile")}
               >
                 ✕
               </button>
@@ -102,7 +104,7 @@ export default function ChatInput({
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("placeholder")}
           rows={2}
           disabled={sending}
           className="w-full resize-none outline-none text-[13px] text-[#191817] placeholder:text-[#A8A49C] bg-transparent leading-relaxed"
@@ -123,7 +125,7 @@ export default function ChatInput({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="p-1.5 hover:bg-[#F5F3F0] rounded-[8px] text-[#8A867E] hover:text-[#191817] transition-colors cursor-pointer"
-              title="Đính kèm tài liệu tham khảo (.pdf, .docx, .txt)"
+              title={t("attach")}
             >
               <span className="material-symbols-outlined text-[18px]">
                 attach_file
@@ -151,7 +153,7 @@ export default function ChatInput({
                   ? "bg-[#4F46E5] hover:bg-[#4338CA] shadow-[0_2px_8px_rgba(79,70,229,0.3)]"
                   : "bg-[#D6D2CB] cursor-not-allowed opacity-60"
               }`}
-              title="Gửi tin nhắn (Enter)"
+              title={t("send")}
             >
               {sending ? (
                 <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />

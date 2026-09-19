@@ -1,6 +1,8 @@
 "use client";
 
-import { PHASES, PHASE_LABELS_VI, stepLabel, type PhaseId } from "@/lib/constants/step-registry";
+import { useLocale, useTranslations } from "next-intl";
+import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
+import { tPhase, tStep } from "@/lib/i18n";
 import type { StepProgress, StepSummary } from "@/types/pipeline";
 
 interface StepProgressBarProps {
@@ -23,13 +25,15 @@ const DOT_STYLE: Record<StepSummary["status"], string> = {
  * Step đã accepted bấm để xem; step kế tiếp bấm để chạy; step chưa tới bị khoá.
  */
 export default function StepProgressBar({ steps, progress, selectedStepId, onSelectStep }: StepProgressBarProps) {
+  const t = useTranslations("workspace.stepBar");
+  const locale = useLocale();
   const current = progress?.current_step ?? null;
   const percent = progress && progress.total > 0 ? Math.round((progress.done * 100) / progress.total) : 0;
 
   return (
-    <div className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center gap-4 shrink-0 overflow-x-auto" aria-label="Tiến độ theo bước">
+    <div className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center gap-4 shrink-0 overflow-x-auto" aria-label={t("aria")}>
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-[10px] font-extrabold text-[#8A867E] tracking-wider uppercase">Bước</span>
+        <span className="text-[10px] font-extrabold text-[#8A867E] tracking-wider uppercase">{t("label")}</span>
         <span className="text-[12px] font-bold text-[#191817]" data-testid="step-count">
           {progress ? `${progress.done}/${progress.total}` : "—"}
         </span>
@@ -45,7 +49,7 @@ export default function StepProgressBar({ steps, progress, selectedStepId, onSel
           const phaseSteps = steps.filter((s) => s.phase === phase);
           if (phaseSteps.length === 0) return null;
           return (
-            <div key={phase} className="flex items-center gap-1 shrink-0" title={PHASE_LABELS_VI[phase]}>
+            <div key={phase} className="flex items-center gap-1 shrink-0" title={tPhase(phase, locale)}>
               <span className="text-[10px] font-bold text-[#8A867E] mr-0.5">{phase}</span>
               {phaseSteps.map((step) => {
                 const isCurrent = step.id === current;
@@ -56,9 +60,9 @@ export default function StepProgressBar({ steps, progress, selectedStepId, onSel
                     type="button"
                     disabled={!clickable}
                     onClick={() => onSelectStep(step.id)}
-                    aria-label={`${step.id} ${stepLabel(step.id)}`}
+                    aria-label={`${step.id} ${tStep(step.id, locale)}`}
                     aria-current={isCurrent ? "step" : undefined}
-                    title={`${step.id} · ${stepLabel(step.id)}`}
+                    title={`${step.id} · ${tStep(step.id, locale)}`}
                     className={`h-2.5 rounded-full transition-all ${isCurrent ? "w-5" : "w-2.5"} ${DOT_STYLE[step.status]} ${
                       selectedStepId === step.id ? "ring-2 ring-[#4F46E5] ring-offset-1" : ""
                     } ${clickable ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}

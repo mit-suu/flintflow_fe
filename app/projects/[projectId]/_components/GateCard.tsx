@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { REGENERATE_LIMIT, stepLabel } from "@/lib/constants/step-registry";
+import { useLocale, useTranslations } from "next-intl";
+import { REGENERATE_LIMIT } from "@/lib/constants/step-registry";
+import { tStep } from "@/lib/i18n";
 import type { GateAction } from "@/types/pipeline";
 
 interface GateCardProps {
@@ -29,6 +31,8 @@ export default function GateCard({
   phaseLabel,
   onAction,
 }: GateCardProps) {
+  const t = useTranslations("workspace.gate");
+  const locale = useLocale();
   const [mode, setMode] = useState<"revision" | "accept_as_is" | null>(null);
   const [note, setNote] = useState("");
 
@@ -45,11 +49,11 @@ export default function GateCard({
   };
 
   return (
-    <div className="bg-white border-2 border-[#DDD9F6] rounded-[16px] p-4 flex flex-col gap-3 shadow-[0_8px_24px_rgba(79,70,229,0.08)]" aria-label="Cổng chốt">
+    <div className="bg-white border-2 border-[#DDD9F6] rounded-[16px] p-4 flex flex-col gap-3 shadow-[0_8px_24px_rgba(79,70,229,0.08)]" aria-label={t("title")}>
       <div className="flex items-center justify-between gap-2">
         <div>
-          <div className="text-[10.5px] font-extrabold text-[#4F46E5] tracking-wider uppercase">Cổng chốt</div>
-          <h4 className="font-extrabold text-[13px] text-[#191817]">{phaseLabel ?? `${stepId} · ${stepLabel(stepId)}`}</h4>
+          <div className="text-[10.5px] font-extrabold text-[#4F46E5] tracking-wider uppercase">{t("title")}</div>
+          <h4 className="font-extrabold text-[13px] text-[#191817]">{phaseLabel ?? `${stepId} · ${tStep(stepId, locale)}`}</h4>
         </div>
         <span className="text-[11px] font-bold text-[#6B6862]" data-testid="regenerate-count">
           Regenerate {regenerateUsed}/{regenerateLimit}
@@ -78,7 +82,7 @@ export default function GateCard({
           type="button"
           disabled={busy || !regenerateLeft}
           onClick={() => onAction("regenerate")}
-          title={regenerateLeft ? undefined : "Đã hết lượt Regenerate"}
+          title={regenerateLeft ? undefined : t("noRegenerate")}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#DDD9F6] text-[#4F46E5] hover:bg-[#F4F3FE] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           ↻ Regenerate ({regenerateUsed}/{regenerateLimit})
@@ -99,7 +103,7 @@ export default function GateCard({
       {noteRequired && (
         <div className="flex flex-col gap-2">
           <label htmlFor={`gate-note-${stepId}`} className="text-[11.5px] font-semibold text-[#6B6862]">
-            {mode === "revision" ? "Cần sửa gì?" : "Lý do chấp nhận bản hiện tại (bắt buộc)"}
+            {mode === "revision" ? t("revisionLabel") : t("acceptAsIsLabel")}
           </label>
           <textarea
             id={`gate-note-${stepId}`}
@@ -114,7 +118,7 @@ export default function GateCard({
             onClick={submitNote}
             className="self-end px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {mode === "revision" ? "Gửi yêu cầu sửa" : "Xác nhận Accept as-is"}
+            {mode === "revision" ? t("sendRevision") : t("confirmAcceptAsIs")}
           </button>
         </div>
       )}

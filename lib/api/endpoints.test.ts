@@ -252,7 +252,13 @@ describe("lib/api wrappers", () => {
     const promise = exportApi.downloadWordExport("p1");
 
     await expect(promise).rejects.toBeInstanceOf(ApiClientError);
-    await expect(promise).rejects.toMatchObject({ status: 409, code: "NO_WORKING_DRAFT", message: "Chưa assemble (S-8.2)" });
+    await expect(promise).rejects.toMatchObject({
+      status: 409,
+      code: "NO_WORKING_DRAFT",
+      // T25: message dịch theo mã; câu gốc của BE (kèm hint) giữ ở rawMessage
+      message: "Chưa ghép tài liệu — chạy S-8.2 (Ghép tài liệu) trước.",
+      rawMessage: "Chưa assemble (S-8.2)",
+    });
   });
 
   it("downloadWordExport dùng EXPORT_FAILED khi body lỗi không phải JSON hợp lệ", async () => {

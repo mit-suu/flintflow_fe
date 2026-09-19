@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { DiscoveryQuestion } from "@/types/chat";
 
 interface QuestionStepperInputProps {
@@ -36,6 +37,7 @@ export default function QuestionStepperInput({
   onDismiss,
   sending = false,
 }: QuestionStepperInputProps) {
+  const t = useTranslations("workspace.questionStepper");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<
     Record<number, string[]>
@@ -95,7 +97,7 @@ export default function QuestionStepperInput({
     const custom = (customAnswers[qIdx] || "").trim();
 
     if (opts.length > 0 && custom.length > 0) {
-      return `${opts.join("; ")} (Bổ sung: ${custom})`;
+      return t("withExtra", { options: opts.join("; "), custom });
     }
     if (opts.length > 0) {
       return opts.join("; ");
@@ -148,7 +150,7 @@ export default function QuestionStepperInput({
               ✦
             </span>
             <span className="text-[11.5px] font-extrabold text-[#4F46E5] uppercase tracking-wider whitespace-nowrap">
-              Câu hỏi {clampedIndex + 1} / {totalQuestions}
+              {t("counter", { current: clampedIndex + 1, total: totalQuestions })}
             </span>
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
@@ -157,7 +159,7 @@ export default function QuestionStepperInput({
                   : "bg-[#F5F3F0] text-[#6B6862] border-[#E4E1DC]"
               }`}
             >
-              {isMultiple ? "✦ Chọn nhiều" : "◉ Chọn 1"}
+              {isMultiple ? t("multi") : t("single")}
             </span>
             <span className="text-[11px] text-[#8A867E] whitespace-nowrap">
               ({answeredCount}/{totalQuestions})
@@ -183,7 +185,7 @@ export default function QuestionStepperInput({
                           ? "bg-[#E0E7FF] text-[#4338CA]"
                           : "bg-white border border-[#E5E3DF] text-[#8A867E] hover:bg-[#F0EEEA]"
                       }`}
-                      title={`Câu ${idx + 1}`}
+                      title={t("questionN", { n: idx + 1 })}
                     >
                       {isDone && !isCurrent ? "✓" : idx + 1}
                     </button>
@@ -197,7 +199,7 @@ export default function QuestionStepperInput({
               type="button"
               onClick={onDismiss}
               className="w-5.5 h-5.5 rounded-full text-[#8A867E] hover:text-[#191817] hover:bg-[#E5E3DF] flex items-center justify-center text-xs transition-all cursor-pointer ml-1"
-              title="Đóng / Gõ tự do"
+              title={t("close")}
             >
               ✕
             </button>
@@ -214,8 +216,8 @@ export default function QuestionStepperInput({
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] font-semibold text-[#6B6862]">
               {isMultiple
-                ? "Gợi ý câu trả lời mẫu (chọn 1 hoặc nhiều đáp án):"
-                : "Gợi ý câu trả lời mẫu (chọn 1 đáp án phù hợp nhất):"}
+                ? t("suggestMulti")
+                : t("suggestSingle")}
             </span>
             <div className="flex flex-col gap-1.5">
               {currentQ.suggestedAnswers.map((suggestion, sIdx) => {
@@ -280,7 +282,7 @@ export default function QuestionStepperInput({
         {/* Custom Input Field (Separate & Independent) */}
         <div className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold text-[#6B6862]">
-            Phần tự trả lời của bạn:
+            {t("ownAnswer")}
           </span>
           <textarea
             rows={2}
@@ -294,8 +296,8 @@ export default function QuestionStepperInput({
             }}
             placeholder={
               hasSuggestions
-                ? "Nhập câu trả lời riêng hoặc bổ sung chi tiết..."
-                : "Nhập câu trả lời của bạn..."
+                ? t("placeholderExtra")
+                : t("placeholderOwn")
             }
             className="w-full px-3 py-2 bg-white border border-[#E5E3DF] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5]/20 rounded-[10px] text-[12px] text-[#191817] placeholder:text-[#A8A49C] outline-none transition-all resize-none leading-relaxed"
           />
@@ -311,7 +313,7 @@ export default function QuestionStepperInput({
                 className="px-3 py-1.5 rounded-full text-[11.5px] font-bold text-[#6B6862] hover:text-[#191817] bg-[#F0EEEA] hover:bg-[#E5E3DF] flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap active:scale-98"
               >
                 <span>←</span>
-                <span>Quay lại</span>
+                <span>{t("back")}</span>
               </button>
             )}
             <button
@@ -319,7 +321,7 @@ export default function QuestionStepperInput({
               onClick={onDismiss}
               className="text-[11.5px] font-semibold text-[#8A867E] hover:text-[#191817] hover:underline transition-colors cursor-pointer whitespace-nowrap py-1"
             >
-              Bỏ qua (gõ tự do)
+              {t("skip")}
             </button>
           </div>
 
@@ -330,7 +332,7 @@ export default function QuestionStepperInput({
                 onClick={handleNextOrSubmit}
                 className="px-4 py-1.5 rounded-full text-[12px] font-bold bg-[#4F46E5] hover:bg-[#4338CA] text-white flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98 whitespace-nowrap"
               >
-                <span>Tiếp tục</span>
+                <span>{t("next")}</span>
                 <span>→</span>
               </button>
             ) : (
@@ -348,7 +350,7 @@ export default function QuestionStepperInput({
                   <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
                 ) : (
                   <>
-                    <span>Gửi câu trả lời</span>
+                    <span>{t("submit")}</span>
                     <span className="text-[13px] font-bold">↵</span>
                   </>
                 )}

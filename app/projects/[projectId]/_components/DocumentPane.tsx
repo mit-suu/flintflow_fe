@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { fetchDiagramPng } from "@/lib/api/spine";
-import { stepLabel } from "@/lib/constants/step-registry";
+import { useLocale, useTranslations } from "next-intl";
+import { hookErrorText } from "@/lib/hook-errors";
+import { tStep } from "@/lib/i18n";
 import { useDocument } from "../hooks/useDocument";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
 import type { Flag } from "@/types/flags";
@@ -21,11 +23,12 @@ interface DocumentPaneProps {
   getBaseVersion?: () => number | null;
 }
 
-const STATUS_BADGE: Record<SectionStatus, { text: string; style: string }> = {
-  accepted: { text: "Accepted", style: "bg-[#E9F7EE] text-[#1F7A45]" },
-  draft: { text: "Draft", style: "bg-[#F4F3FE] text-[#3B34B0]" },
-  stale: { text: "Cũ", style: "bg-[#FBF4E4] text-[#8A6D1F]" },
-  derived: { text: "Dẫn xuất", style: "bg-[#F0EEEA] text-[#6B6862]" },
+/** Nhãn ở `workspace.document.status.<status>`. */
+const STATUS_STYLE: Record<SectionStatus, string> = {
+  accepted: "bg-[#E9F7EE] text-[#1F7A45]",
+  draft: "bg-[#F4F3FE] text-[#3B34B0]",
+  stale: "bg-[#FBF4E4] text-[#8A6D1F]",
+  derived: "bg-[#F0EEEA] text-[#6B6862]",
 };
 
 const runClass = (run: InlineRun): string =>
@@ -47,6 +50,7 @@ const Cell = ({ cell }: { cell: TableCell }) => <Runs runs={cell} />;
 
 /** Ảnh trong tài liệu: base64 thật hoặc tham chiếu `diagram-ref:<id>` (cache nội bộ BE lộ ra). */
 function DocumentImage({ projectId, png, caption }: { projectId: string; png: string; caption?: string }) {
+  const t = useTranslations("workspace.document");
   const isDiagramRef = png.startsWith("diagram-ref:");
   const directSrc = isDiagramRef ? null : `data:image/png;base64,${png}`;
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
@@ -68,7 +72,7 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
         objectUrl = url;
         setResolvedSrc(url);
       })
-      .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : "Không tải được ảnh diagram"));
+      .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : ""));
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -76,8 +80,10 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   }, [projectId, png, isDiagramRef]);
 
   const src = directSrc ?? resolvedSrc;
-  if (error) return <div className="text-[11px] text-[#B03030] italic">Không tải được ảnh: {error}</div>;
-  if (!src) return <div className="text-[11px] text-[#A8A49C] italic">Đang tải ảnh…</div>;
+  if (error !== null) {
+    return <div className="text-[11px] text-[#B03030] italic">{t("imageFailedWith", { error: error || t("imageFailed") })}</div>;
+  }
+  if (!src) return <div className="text-[11px] text-[#A8A49C] italic">{t("imageLoading")}</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
   return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
 }
@@ -169,7 +175,8 @@ function SectionView({
   changed: boolean;
   onSelectStep?: (stepId: string) => void;
 }) {
-  const badge = section.status ? STATUS_BADGE[section.status] : null;
+  const t = useTranslations("workspace.document");
+  const locale = useLocale();
   return (
     <article
       data-section-id={section.id}
@@ -183,16 +190,20 @@ function SectionView({
         </h5>
         <div className="flex items-center gap-1.5 flex-wrap">
           {section.awaiting_reaccept && (
-            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">Chờ duyệt lại</span>
+            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">{t("awaitingReaccept")}</span>
           )}
-          {badge && <span className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{badge.text}</span>}
+          {section.status && (
+            <span className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${STATUS_STYLE[section.status]}`}>
+              {t(`status.${section.status}`)}
+            </span>
+          )}
           {remediationStep && onSelectStep && (
             <button
               type="button"
               onClick={() => onSelectStep(remediationStep)}
               className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#F4F3FE] text-[#4F46E5] hover:bg-[#EDEAFB] cursor-pointer"
             >
-              xem tại {remediationStep} · {stepLabel(remediationStep)}
+              {t("viewAt", { step: remediationStep, label: tStep(remediationStep, locale) })}
             </button>
           )}
         </div>
@@ -200,7 +211,7 @@ function SectionView({
       {section.blocks.length > 0 ? (
         section.blocks.map((block, i) => <BlockView key={i} block={block} projectId={projectId} />)
       ) : (
-        <div className="text-[11.5px] text-[#A8A49C] italic">Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.</div>
+        <div className="text-[11.5px] text-[#A8A49C] italic">{t("incomplete")}</div>
       )}
     </article>
   );
@@ -209,13 +220,15 @@ function SectionView({
 /** Document pane thật (T16): render `GET /document` (RenderedDocument, T15) — chỉ đọc. */
 export default function DocumentPane({
   projectId,
-  projectName = "Dự án",
+  projectName,
   flags = [],
   changedSectionIds,
   onSelectStep,
   refreshToken = 0,
   getBaseVersion,
 }: DocumentPaneProps) {
+  const t = useTranslations("workspace.document");
+  const tErr = useTranslations("workspace.hookErrors");
   const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
     projectId,
     "draft",
@@ -231,7 +244,7 @@ export default function DocumentPane({
     <section className="flex-1 bg-white flex flex-col min-w-[320px] overflow-hidden">
       <div className="px-6 py-3 border-b border-[#ECEAE5] flex items-center justify-between shrink-0 h-[52px] bg-white">
         <div className="flex items-center gap-2.5">
-          <h3 className="font-extrabold text-[13.5px] text-[#191817]">SRS — {projectName}</h3>
+          <h3 className="font-extrabold text-[13.5px] text-[#191817]">SRS — {projectName ?? t("untitled")}</h3>
           {document && <span className="text-[10.5px] text-[#8A867E] bg-[#F5F3F0] px-2 py-0.5 rounded-full font-mono">{document.version}</span>}
           {document?.watermark && (
             <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">{document.watermark}</span>
@@ -239,7 +252,7 @@ export default function DocumentPane({
           {meta?.stale && (
             <span
               className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FDEDED] text-[#B03030]"
-              title="Spine đã đổi tiếp sau lần ghép gần nhất"
+              title={t("staleHint")}
             >
               stale
             </span>
@@ -253,7 +266,7 @@ export default function DocumentPane({
               disabled={assembling}
               className="px-3 py-1 rounded-full bg-[#191817] text-white text-[11.5px] font-bold cursor-pointer disabled:opacity-60"
             >
-              {assembling ? "Đang ghép…" : "Ghép lại"}
+              {assembling ? t("assembling") : t("reassemble")}
             </button>
           )}
           <button
@@ -261,18 +274,18 @@ export default function DocumentPane({
             onClick={() => void reload()}
             className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F4F3FE] border border-[#ECEAE5] text-[#4F46E5] text-[11.5px] font-bold cursor-pointer"
           >
-            ↻ Tải lại
+            {t("reload")}
           </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#FAF9F7]">
-        {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
+        {loading && <div className="text-[12px] text-[#A8A49C] italic">{t("loading")}</div>}
 
         {!loading && notAssembled && (
           <div className="bg-white border border-dashed border-[#E4E1DC] rounded-[14px] p-5 flex flex-col items-center gap-2 text-center">
-            <span className="text-[12.5px] font-bold text-[#4B4842]">Chưa có bản ghép tài liệu</span>
-            <span className="text-[11px] text-[#8A867E] leading-relaxed">{error}</span>
+            <span className="text-[12.5px] font-bold text-[#4B4842]">{t("notAssembled")}</span>
+            <span className="text-[11px] text-[#8A867E] leading-relaxed">{error && hookErrorText(error, tErr)}</span>
             {runAssemble ? (
               <button
                 type="button"
@@ -280,7 +293,7 @@ export default function DocumentPane({
                 disabled={assembling}
                 className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer disabled:opacity-60"
               >
-                {assembling ? "Đang ghép tài liệu…" : "Ghép tài liệu ngay"}
+                {assembling ? t("assemblingDoc") : t("assembleNow")}
               </button>
             ) : (
               onSelectStep && (
@@ -289,7 +302,7 @@ export default function DocumentPane({
                   onClick={() => onSelectStep("S-8.2")}
                   className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer"
                 >
-                  Đi tới S-8.2 · Ghép tài liệu
+                  {t("goToAssemble")}
                 </button>
               )
             )}
@@ -298,13 +311,13 @@ export default function DocumentPane({
 
         {assembleError && (
           <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
-            Không ghép được tài liệu: {assembleError}
+            {t("assembleFailedWith", { error: hookErrorText(assembleError, tErr) })}
           </div>
         )}
 
         {!loading && !notAssembled && error && (
           <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
-            Không tải được tài liệu: {error}
+            {t("loadFailedWith", { error: hookErrorText(error, tErr) })}
           </div>
         )}
 
