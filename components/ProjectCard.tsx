@@ -5,12 +5,15 @@ import Link from "next/link";
 import type { Project } from "@/types/project";
 import type { ProgressResponse } from "@/types/pipeline";
 import { tStep, type Locale } from "@/lib/i18n";
+import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[id]/_components/mode1/labels";
 
 interface Props {
   project: Project;
   /** `GET /projects/:id/progress`; `null` khi project chưa có Spine, `undefined` khi đang tải. */
   progress?: ProgressResponse | null;
   locale?: Locale;
+  /** Mode 1: số change request đang mở; `undefined` khi chưa tải / không áp dụng. */
+  openCrs?: number;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
   onHardDelete: (p: Project) => void;
@@ -82,6 +85,18 @@ export function nextStepLabel(progress: ProgressResponse | null | undefined, loc
   return tStep(stepId, locale);
 }
 
+/**
+ * Mode 1 (UC-14, UC-19): chưa import xong ⇒ trạng thái import; đã có baseline ⇒ số change request đang mở.
+ * Trạng thái lấy từ `project.import_state` do BE trả.
+ */
+export function mode1NextLabel(project: Project, openCrs?: number): string {
+  const state = project.import_state;
+  if (!state) return "Chưa tải SRS lên — mở để upload .docx";
+  if (!IMPORT_DONE_STATUSES.includes(state)) return `Nhập SRS: ${IMPORT_STATUS_LABELS[state]}`;
+  if (openCrs === undefined) return IMPORT_STATUS_LABELS[state];
+  return openCrs > 0 ? `${openCrs} change request đang mở` : IMPORT_STATUS_LABELS[state];
+}
+
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (seconds < 3600) return `${Math.max(1, Math.floor(seconds / 60))} phút trước`;
@@ -91,11 +106,12 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(seconds / 604800)} tuần trước`;
 }
 
-export default function ProjectCard({ project, progress, locale = "vi", onRename, onDelete, onHardDelete }: Props) {
+export default function ProjectCard({ project, progress, locale = "vi", openCrs, onRename, onDelete, onHardDelete }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const variant = getVariant(progress);
-  const stepLabel = nextStepLabel(progress, locale);
+  const isImport = project.mode === "import";
+  const stepLabel = isImport ? mode1NextLabel(project, openCrs) : nextStepLabel(progress, locale);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -187,6 +203,7 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
         <div className="flex flex-col gap-2 flex-1 p-4 pt-5">
           <div className="text-[11px] text-[#8A867E]">
             {timeAgo(project.updatedAt)} · {project.domain || "general"}
+            {isImport && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-[#F4F3FE] text-[#3B34B0] font-bold">Upload SRS</span>}
           </div>
 
           <div className="font-extrabold text-[#191817] text-[14.5px] leading-snug line-clamp-1">

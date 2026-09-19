@@ -39,6 +39,15 @@ const upload = (name: string) => {
 
 const state = () => stateModule.mode1State;
 
+/** Poll #4 như FE: tới khi rời `extracting` hoặc bị `paused` (I-4 chạy nền). */
+const pollExtraction = async (): Promise<GetImportResponse> => {
+  for (let i = 0; i < 50; i++) {
+    const got = (await call<GetImportResponse>("GET", `/projects/${P}/import`)).body.data!;
+    if (got.import?.status !== "extracting" || got.import.paused) return got;
+  }
+  throw new Error("I-4 không kết thúc sau 50 lần poll");
+};
+
 /** Đi từ upload tới gap_review, trả về import_id. */
 const importToGapReview = async (): Promise<string> => {
   const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS_Lumen.docx"));
@@ -46,6 +55,7 @@ const importToGapReview = async (): Promise<string> => {
   await call("POST", `/projects/${P}/import/confirm-latest`, { import_id: id });
   await call("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true });
   await call("POST", `/projects/${P}/import/extract`, { import_id: id });
+  await pollExtraction();
   await call("PATCH", `/projects/${P}/import/fields`, { import_id: id, confirm_all: true });
   await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
   return id;
@@ -122,8 +132,12 @@ describe("mock mode 1 — import (#2–#10)", () => {
 
     expect((await call<ImportStateResponse>("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true })).body.data!.import.status).toBe("extracting");
     const extracted = await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id });
-    expect(extracted.body.data!.import.status).toBe("fields_review");
-    expect((await call<GetImportResponse>("GET", `/projects/${P}/import`)).body.data!.extraction.review_fields).toHaveLength(1);
+    // #6 trả ngay: vẫn extracting, chưa section nào xong — tiến độ xem qua poll #4
+    expect(extracted.body.data!.import).toMatchObject({ status: "extracting", paused: null });
+    expect(extracted.body.data!.sections.every((s) => s.status === "pending")).toBe(true);
+    const polled = await pollExtraction();
+    expect(polled.import!.status).toBe("fields_review");
+    expect(polled.extraction.review_fields).toHaveLength(1);
 
     expect((await call<ImportStateResponse>("PATCH", `/projects/${P}/import/fields`, { import_id: id, confirm_all: true })).body.data!.import.status).toBe("baselining");
     expect((await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: 99 })).body.error?.code).toBe("SPINE_VERSION_CONFLICT");
@@ -145,16 +159,32 @@ describe("mock mode 1 — import (#2–#10)", () => {
     await call("POST", `/projects/${P}/import/confirm-latest`, { import_id: id });
     await call("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true });
     state().credits = 4; // đủ 2 section
-    const paused = (await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id })).body.data!;
-    expect(paused.import.paused?.reason).toBe("credits");
-    expect(paused.import.extract_cursor).toBe(paused.sections[2].section_id);
-    expect(paused.sections.filter((s) => s.status === "done")).toHaveLength(2);
+    expect((await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id })).body.data!.import.paused).toBeNull();
+    const paused = await pollExtraction();
+    expect(paused.import!.paused?.reason).toBe("credits");
+    const sections = paused.extraction.sections;
+    expect(paused.import!.extract_cursor).toBe(sections[2].section_id);
+    expect(sections.filter((s) => s.status === "done")).toHaveLength(2);
 
     state().credits = 100;
     const resumed = (await call<ExtractResponse>("POST", `/projects/${P}/import/resume`, { import_id: id })).body.data!;
-    expect(resumed.import.paused).toBeNull();
-    expect(resumed.sections.every((s) => s.status === "done")).toBe(true);
-    expect(state().credits).toBe(100 - 2 * (resumed.sections.length - 2));
+    expect(resumed.import).toMatchObject({ status: "extracting", paused: null });
+    const done = await pollExtraction();
+    expect(done.import!.paused).toBeNull();
+    expect(done.extraction.sections.every((s) => s.status === "done")).toBe(true);
+    expect(state().credits).toBe(100 - 2 * (sections.length - 2));
+  });
+
+  it("gọi #6 hai lần khi job đang chạy không bật job thứ hai, không trích lại", async () => {
+    const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS.docx"));
+    const id = up.body.data!.import.id;
+    await call("POST", `/projects/${P}/import/confirm-latest`, { import_id: id });
+    await call("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true });
+    await call("POST", `/projects/${P}/import/extract`, { import_id: id });
+    await call("GET", `/projects/${P}/import`);
+    await call("POST", `/projects/${P}/import/extract`, { import_id: id });
+    const done = await pollExtraction();
+    expect(state().credits).toBe(100 - 2 * done.extraction.sections.length);
   });
 
   it("đã có baseline thì /import từ chối, /reupload trả diff và không tạo version", async () => {

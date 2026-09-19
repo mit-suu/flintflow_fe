@@ -31,6 +31,12 @@ interface ChatPaneProps {
    * hướng vào Change panel (UC 6.8) thay vì gửi chat thường.
    */
   onEditInstruction?: (instruction: string) => void;
+  /** Tiêu đề pane — mặc định của workspace pipeline (mode 2). */
+  title?: string;
+  /** Thay khung gợi ý khi chưa có tin nhắn (vd mode 1: chat chỉ để hỏi đáp). */
+  emptyState?: ReactNode;
+  /** Placeholder ô nhập — mặc định của ChatInput. */
+  inputPlaceholder?: string;
 }
 
 /** Câu hỏi gợi ý trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step). */
@@ -74,6 +80,9 @@ export default function ChatPane({
   children,
   footer,
   onEditInstruction,
+  title = "Hội thoại & Duyệt bước",
+  emptyState,
+  inputPlaceholder,
 }: ChatPaneProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
@@ -102,7 +111,7 @@ export default function ChatPane({
       <div className="px-5 py-3 border-b border-[#ECEAE5] flex justify-between items-center bg-white shrink-0 h-[52px]">
         <div className="flex items-center gap-2">
           <span className="text-[#4F46E5] text-sm">✦</span>
-          <h2 className="font-extrabold text-[#191817] text-[13px]">Hội thoại & Duyệt bước</h2>
+          <h2 className="font-extrabold text-[#191817] text-[13px]">{title}</h2>
         </div>
         {stepLabel && (
           <div className="text-[11px] font-bold text-[#4F46E5] bg-[#F4F3FE] border border-[#DDD9F6] px-2.5 py-0.5 rounded-full truncate max-w-[200px]">
@@ -112,7 +121,7 @@ export default function ChatPane({
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4 flex flex-col">
-        {messages.length === 0 && !children && (
+        {messages.length === 0 && !children && (emptyState ?? (
           <div className="my-auto max-w-sm text-center py-8 flex flex-col items-center gap-3 bg-white border border-[#ECEAE5] rounded-[20px] p-6 shadow-2xs">
             <div className="w-10 h-10 rounded-[12px] bg-[#F4F3FE] text-[#4F46E5] flex items-center justify-center text-[18px]">💡</div>
             <h3 className="font-extrabold text-[#191817] text-[14px]">Bắt đầu bước hiện tại</h3>
@@ -120,7 +129,7 @@ export default function ChatPane({
               Bấm “Chạy bước này” để AI hỏi phần còn thiếu và soạn nháp, hoặc trò chuyện tự do và đính kèm tài liệu tham khảo.
             </p>
           </div>
-        )}
+        ))}
 
         {messages.map((msg, idx) => (
           <ChatBubble key={idx} message={msg} messageIndex={idx} onRequestRollback={onRequestRollback} disabled={sending} />
@@ -167,7 +176,7 @@ export default function ChatPane({
             onSelectAttachment={onSelectAttachment}
             onRemoveAttachment={onRemoveAttachment}
             actionType="chat"
-            placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : undefined}
+            placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : inputPlaceholder}
           />
         ))}
     </section>
