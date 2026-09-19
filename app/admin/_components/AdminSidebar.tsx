@@ -25,9 +25,8 @@ export default function AdminSidebar() {
     <aside className="shrink-0 w-[216px] bg-white border-r border-[#ECEAE5] flex flex-col gap-1 px-3.5 py-4.5 min-h-screen">
       <div className="flex items-center gap-2 px-2 pb-1">
         <Logo
-          sizeClassName="w-6.5 h-6.5"
-          showText
-          textClassName="text-[14px] font-extrabold text-[#191817] truncate"
+          variant="wordmark"
+          sizeClassName="h-4 w-auto"
           theme="light"
         />
       </div>
