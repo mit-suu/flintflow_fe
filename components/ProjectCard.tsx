@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Project } from "@/types/project";
 import type { ProgressResponse } from "@/types/pipeline";
 import { tStep, type Locale } from "@/lib/i18n";
-import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[projectId]/_components/mode1/labels";
+import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[id]/_components/mode1/labels";
 
 interface Props {
   project: Project;
