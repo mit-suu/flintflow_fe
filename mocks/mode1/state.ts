@@ -35,7 +35,27 @@ export interface Mode1MockState {
   reuploads: ReuploadDiff[];
   crs: Map<string, CrDetail>;
   crSeq: number;
+  /** FLF-186: phần tử Spine giả làm vị trí CR (path ⇒ section + giá trị). */
+  elements: MockElement[];
+  /** FLF-186: khoá phần tử theo path ⇒ CR đang giữ. */
+  locks: Map<string, string>;
 }
+
+export interface MockElement {
+  path: string;
+  section_id: string;
+  section_title: string;
+  value: Record<string, unknown>;
+}
+
+/** Phần tử Spine của tài liệu mock sau import (khớp nội dung `initialBlocks`). */
+export const initialElements = (): MockElement[] => [
+  { path: "project", section_id: "fixed:1", section_title: "Product Overview", value: { name: "Lumen LMS", vision: "Lumen helps small training centers run online courses.", goals: [] } },
+  { path: "actors[id=A01]", section_id: "fixed:2.1", section_title: "Actors", value: { id: "A01", name: "Student", kind: "human", description: "Learns online." } },
+  { path: "use_cases[id=UC-2.4]", section_id: "fixed:2.2.2", section_title: "Use Case Descriptions", value: { id: "UC-2.4", name: "Log out of system", actor_ids: ["A01"], description: "The user logs out." } },
+  { path: "nfrs[id=NFR-P02]", section_id: "fixed:4.2.3", section_title: "Performance", value: { id: "NFR-P02", category: "performance", statement: "The system responds quickly under load.", threshold: null } },
+  { path: "business_rules[id=BR-01]", section_id: "fixed:5.1", section_title: "Business Rules", value: { id: "BR-01", statement: "Passwords must have at least 8 characters.", tier: "detail" } }
+];
 
 const now = () => new Date().toISOString();
 
@@ -100,6 +120,8 @@ export const createMode1MockState = (): Mode1MockState => ({
   reuploads: [],
   crs: new Map(),
   crSeq: 0,
+  elements: initialElements(),
+  locks: new Map(),
 });
 
 export let mode1State: Mode1MockState = createMode1MockState();

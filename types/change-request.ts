@@ -2,7 +2,7 @@
  * Change request mode 1 — bám `flintflow_be/src/modules/change-request/change-request.dto.ts` (FLF-171).
  * Tên `Cr*` để không trùng `ChangeRequest` của `types/pipeline.ts` (body `POST /changes` ở mode 2).
  */
-import type { DocBlock, Paused } from "./import";
+import type { Paused } from "./import";
 import type { IsoDateTime } from "./spine";
 
 export const CR_STATUSES = [
@@ -22,7 +22,7 @@ export const CR_STATUSES = [
 export type CrStatus = (typeof CR_STATUSES)[number];
 
 export const CR_TERMINAL_STATUSES: readonly CrStatus[] = ["written", "rejected", "cancelled"];
-/** Trạng thái CR đang giữ khoá block (BE `CR_STATUSES_HOLDING_LOCKS`). */
+/** Trạng thái CR đang giữ khoá phần tử Spine (BE `CR_STATUSES_HOLDING_LOCKS`). */
 export const CR_LOCKING_STATUSES: readonly CrStatus[] = ["impact_review", "proposing", "verifying", "manual_fix", "ready_to_submit", "in_review"];
 
 /** `chat` (FLF-182): CR hệ thống tự tạo từ lệnh sửa trong chat sau baseline v1 — không chọn tay trong form. */
@@ -57,10 +57,16 @@ export interface Cr {
 export type LocationFoundBy = "spine_link" | "mention" | "keyword";
 export type LocationConclusion = "edit" | "comment" | "not_related";
 
+/**
+ * Vị trí CR — mode 1 v2 (FLF-186): phần tử Spine (`path`, vd `nfrs[id=NFR-01]`) + section hiển thị nó, thay block docx.
+ * `current_text` / `proposal.old_text` / `proposal.new_text` là giá trị phần tử dạng JSON (khoá sắp xếp).
+ */
 export interface CrLocation {
   location_id: string;
-  block_id: string;
-  block: DocBlock | null;
+  path: string;
+  section_id: string;
+  section_title: string;
+  current_text: string;
   found_by: LocationFoundBy[];
   entity_paths: string[];
   owner_step: string | null;
@@ -118,7 +124,10 @@ export interface AnswersRequest {
 export interface PatchLocationRequest {
   conclusion?: LocationConclusion;
   reason?: string;
-  new_text?: string;
+  /** FLF-186: giá trị mới của cả phần tử ⇒ op `set` tại `path`. */
+  new_value?: unknown;
+  /** FLF-186: op Spine tự viết thay `new_value`. */
+  spine_ops?: Record<string, unknown>[];
   comment_text?: string;
 }
 
@@ -134,14 +143,18 @@ export interface CloseCrRequest {
 
 // ─── meta lỗi ────────────────────────────────────────────────────
 
-/** 409 BLOCK_LOCKED */
-export interface BlockLockedMeta {
-  locked: { block_id: string; cr_id: string }[];
+/** 409 PATH_LOCKED (FLF-186) — phần tử Spine nào đang bị CR nào giữ. */
+export interface PathLockedMeta {
+  locked: { path: string; cr_id: string }[];
 }
 
-/** 409 CHANGE_REQUIRES_CR — chat / `POST /changes` / `POST /undo` ở project mode 1: mở form CR điền sẵn. */
+/**
+ * 409 CHANGE_REQUIRES_CR — project mode 1 sau baseline v1. `/changes`, `/undo` ⇒ chỉ `prefill` (mở form CR điền sẵn);
+ * lệnh sửa trong chat (FLF-186) ⇒ BE đã tạo CR nguồn `chat`, `change_request` trỏ tới nó.
+ */
 export interface ChangeRequiresCrMeta {
   prefill: { title: string; description: string };
+  change_request?: { cr_id: string; status: CrStatus };
 }
 
 /** 409 CR_LOCATION_UNCONCLUDED */
@@ -162,9 +175,9 @@ export type Mode1ErrorCode =
   | "IMPORT_INVALID_STATE"
   | "CR_REQUIRES_BASELINE"
   | "CR_INVALID_TRANSITION"
-  | "BLOCK_LOCKED"
+  | "PATH_LOCKED"
   | "CR_LOCATION_UNCONCLUDED"
-  | "CR_OLD_TEXT_MISMATCH"
+  | "CR_VALUE_CHANGED"
   | "CHANGE_REQUIRES_CR"
   | "IMPORT_FILE_REJECTED"
   | "IMPORT_STAMP_FOREIGN_PROJECT"

@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { estimateActionCost } from "@/lib/api/chat";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
-import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
+import { MODE1_PROJECT_ID, mode1State, resetMode1MockState } from "@/mocks/mode1/state";
 import { importToGapReview } from "@/mocks/mode1/flows";
 import { useWorkspace } from "../hooks/useWorkspace";
 import ChatPane from "./ChatPane";
@@ -129,7 +129,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
   };
 
-  it("lệnh sửa bị chặn ⇒ thẻ “Tạo change request” điền sẵn (nguồn verbal), không alert, tin nhắn tạm được gỡ", async () => {
+  it("FLF-186: lệnh sửa sau baseline ⇒ BE tạo CR nguồn chat, thẻ “Đã tạo CR-001” mở thẳng CR; không alert, tin nhắn tạm được gỡ", async () => {
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     const error = vi.spyOn(console, "error");
     render(<Mode1Chat />);
@@ -137,17 +137,10 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
 
     await send("Đổi tên actor Student thành Learner");
     const card = await screen.findByRole("status");
-    expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
+    expect(within(card).getByText("Đã tạo CR-001 từ lệnh sửa")).toBeInTheDocument();
     expect(within(card).getByText("Đổi tên actor Student thành Learner").tagName).toBe("BLOCKQUOTE");
-
-    const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}/change-requests?`)).toBe(true);
-    expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({
-      title: "Đổi tên actor Student thành Learner",
-      description: "Đổi tên actor Student thành Learner",
-      source: "verbal",
-      ref: undefined,
-    });
+    expect(within(card).getByRole("link", { name: "Mở CR-001" })).toHaveAttribute("href", `/projects/${MODE1_PROJECT_ID}/change-requests/CR-001`);
+    expect(mode1State.crs.get("CR-001")?.change_request).toMatchObject({ source: { kind: "chat" }, description: "Đổi tên actor Student thành Learner" });
 
     // tin nhắn tạm (optimistic) bị gỡ, ô nhập đã xoá, không alert / console.error cho luồng bình thường này
     await waitFor(() => expect(screen.getByRole("button", { name: "arrow_upward" })).toBeInTheDocument());
@@ -159,15 +152,25 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     error.mockRestore();
   });
 
-  it("Bỏ qua ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới", async () => {
+  it("Đóng ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới (CR mới)", async () => {
     render(<Mode1Chat />);
     await send("Thêm NFR thời gian phản hồi 2 giây");
     const card = await screen.findByRole("status");
-    fireEvent.click(within(card).getByRole("button", { name: "Bỏ qua" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Đóng" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await send("Sửa mô tả actor Guest");
     expect(await screen.findByText("Sửa mô tả actor Guest", { selector: "blockquote" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Mở CR-002" })).toBeInTheDocument();
     expect(screen.queryByText("Thêm NFR thời gian phản hồi 2 giây")).not.toBeInTheDocument();
+  });
+
+  it("BE không tạo được CR (chỉ prefill) ⇒ thẻ “Tạo change request” điền sẵn (nguồn verbal)", () => {
+    render(<CrPrefillCard projectId={MODE1_PROJECT_ID} prefill={{ title: "Đổi tên actor", description: "Đổi tên actor Student" }} onDismiss={vi.fn()} />);
+    const card = screen.getByRole("status");
+    expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
+    const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
+    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}/change-requests?`)).toBe(true);
+    expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({ title: "Đổi tên actor", description: "Đổi tên actor Student", source: "verbal", ref: undefined });
   });
 });
