@@ -33,10 +33,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <br />
             <span className="text-primary-fixed-dim">Bạn quyết định.</span>
           </p>
-          {/* Collage neo đáy và tràn khỏi mép dưới có chủ ý, nhưng đường cắt chỉ ăn vào phần đệm dưới của card
-              (`-mb-7` < đệm card 24px + đệm thẻ kiểm tra) ⇒ các nhãn Hình thức / Nội dung / Chất lượng luôn hiện trọn.
+          {/* Collage neo đáy và tràn khỏi mép dưới có chủ ý, nhưng chỉ ăn một nửa phần đệm dưới của khung trắng
+              (`-mb-3` = 12px < đệm 24px) ⇒ thẻ kiểm tra hiện đủ cả đệm và góc bo, không bị trông "co" lại.
               Màn thấp thì thu nhỏ bằng `zoom` (đổi kích thước layout thật) để phần trên không đẩy collage xuống. */}
-          <div className="-mb-7 mt-auto pt-8 [@media(max-height:860px)]:[zoom:0.86] [@media(max-height:740px)]:[zoom:0.74]">
+          <div className="-mb-3 mt-auto pt-8 [@media(max-height:860px)]:[zoom:0.86] [@media(max-height:740px)]:[zoom:0.74]">
             <DashboardCollage />
           </div>
         </aside>
