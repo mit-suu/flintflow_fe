@@ -117,7 +117,8 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
           aria-label={navOpen ? "Menu" : undefined}
           // Đóng trên mobile ⇒ `invisible` để link trong drawer ra khỏi thứ tự Tab; desktop luôn hiện.
           // Chỉ transition `visibility` khi đóng (giữ hiện lúc trượt ra); khi mở phải hiện ngay để focus vào được.
-          className={`fixed inset-y-0 left-0 z-50 duration-200 md:static md:z-auto md:translate-x-0 md:visible ${
+          // Desktop: `relative z-40` để tooltip của sidebar thu gọn nổi trên vùng nội dung (kể cả thanh sticky z-30 của trang), dưới modal (z-50)
+          className={`fixed inset-y-0 left-0 z-50 duration-200 md:relative md:z-40 md:translate-x-0 md:visible ${
             navOpen ? "translate-x-0 visible transition-transform" : "-translate-x-full invisible transition-[transform,visibility]"
           }`}
         >
