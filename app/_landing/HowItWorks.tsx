@@ -1,53 +1,38 @@
-import { PROCESS, STATEMENT } from "./content";
-import { GridBackdrop } from "./ui";
+import { PHASE_LABELS_VI } from "@/lib/constants/step-registry";
+import { HOW_HEADING, PHASE_GROUPS } from "./content";
+import { SectionHeading, TONE_FILL } from "./ui";
 
-/* Tuyên ngôn + 4 bước đánh số; bước 02 nổi bật bằng viền gradient. */
+/*
+ * Bốn bước BA trải trên 12 giai đoạn thật: mỗi bước là một khối màu pastel (bộ màu thư mục của dashboard),
+ * rộng theo số giai đoạn nó chứa, bên trong liệt kê từng giai đoạn.
+ */
 export default function HowItWorks() {
   return (
-    <section
-      id="cach-hoat-dong"
-      aria-labelledby="how-title"
-      className="relative scroll-mt-24 border-t border-outline-variant bg-white px-4 py-16 sm:px-8 lg:px-[72px] lg:pb-20 lg:pt-[72px]"
-    >
-      <GridBackdrop mask="radial-gradient(ellipse 70% 80% at 50% 0%, #000, transparent)" className="opacity-60" />
-      <div className="relative mx-auto max-w-[1136px]">
-        <h2
-          id="how-title"
-          className="max-w-[880px] text-2xl font-bold leading-[1.45] tracking-[-0.01em] text-on-surface sm:text-[34px]"
-        >
-          {STATEMENT.lead}
-          <span className="font-extrabold text-primary">{STATEMENT.highlight}</span>
-          {STATEMENT.middle}
-          <span className="landing-gradient-text-warm font-extrabold">{STATEMENT.gradient}</span>
-          {STATEMENT.tail}
-        </h2>
+    <section id="cach-hoat-dong" aria-labelledby="how-title" className="scroll-mt-20 bg-surface-sidebar px-4 py-20 sm:px-6 lg:py-28">
+      <div className="mx-auto max-w-[1200px]">
+        <SectionHeading id="how-title" eyebrow={HOW_HEADING.eyebrow} title={HOW_HEADING.title} subline={HOW_HEADING.subline} />
 
-        <ol className="mt-10 grid gap-3.5 sm:grid-cols-2 lg:mt-[52px] lg:grid-cols-4">
-          {PROCESS.map((item) => {
-            const featured = "featured" in item && item.featured;
-            return (
-              <li
-                key={item.step}
-                className={`flex flex-col gap-10 rounded-[20px] px-[22px] py-6 ${
-                  featured
-                    ? "landing-gradient-border shadow-[0_16px_44px_rgba(106,98,196,0.16)] [--landing-fill:#F8F7FC]"
-                    : "border border-outline-variant bg-surface"
-                }`}
-              >
-                <span className={`font-mono text-[22px] font-extrabold ${featured ? "text-primary" : "text-[#C9C5BD]"}`}>
-                  {item.step}
-                </span>
-                <div>
-                  <h3 className="text-[15px] font-extrabold text-on-surface">{item.title}</h3>
-                  <p className="mt-[7px] text-[12.5px] leading-relaxed text-on-surface-variant">
-                    {item.body}
-                    {"emphasis" in item && <span className="font-bold text-[#B8860B]">{item.emphasis}</span>}
-                    {"emphasis" in item && "."}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
+        <ol className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-[2fr_2fr_4fr_2fr]">
+          {PHASE_GROUPS.map((group, i) => (
+            <li key={group.title} className={`flex flex-col rounded-card p-5 sm:p-6 ${TONE_FILL[group.tone].body}`}>
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-[20px] font-bold tracking-tight text-on-surface">{group.title}</h3>
+                <span className="font-mono text-[12px] font-bold text-on-surface/50">0{i + 1}</span>
+              </div>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-on-surface-medium">{group.body}</p>
+              <ul className="mt-6 flex flex-wrap gap-1.5 pt-1" aria-label={`Giai đoạn thuộc bước ${group.title}`}>
+                {group.phases.map((phase) => (
+                  <li
+                    key={phase}
+                    className="inline-flex items-center gap-1.5 rounded-inner bg-surface-container-lowest/70 px-2.5 py-1.5 text-[11.5px] font-semibold text-on-surface-dark"
+                  >
+                    <span className="font-mono text-[10.5px] text-on-surface-muted">{phase}</span>
+                    {PHASE_LABELS_VI[phase]}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
         </ol>
       </div>
     </section>
