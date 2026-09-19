@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import { createProject } from "@/lib/api/projects";
-import type { Project, ProjectSourceMode } from "@/types/project";
+import type { Project, ProjectMode } from "@/types/project";
 import SourceModePicker from "./SourceModePicker";
 
 export const DEFAULT_PROJECT_NAME = "Dự án chưa đặt tên";
@@ -23,7 +23,7 @@ interface CreateProjectFormProps {
  * form và giữ nguyên lựa chọn để user thử lại.
  */
 export default function CreateProjectForm({ variant, onCreated, onCancel, folderId }: CreateProjectFormProps) {
-  const [mode, setMode] = useState<ProjectSourceMode | null>(null);
+  const [mode, setMode] = useState<ProjectMode | null>(null);
   const [name, setName] = useState(DEFAULT_PROJECT_NAME);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

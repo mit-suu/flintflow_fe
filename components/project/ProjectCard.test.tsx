@@ -50,20 +50,21 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     _id: "p1",
     name: "Lumen",
     status: "active",
-    sourceMode: "fpt_template",
+    mode: "fpt",
+    import_state: null,
     createdAt: "2026-09-01T00:00:00Z",
     updatedAt: "2026-09-01T00:00:00Z",
   };
   const noop = () => {};
 
   it.each([
-    ["edit_srs", "SRS có sẵn"],
+    ["import", "SRS có sẵn"],
     ["customer_template", "Template khách"],
-  ] as const)("%s ⇒ ghi tên nguồn %s ở dòng meta; card nền tím nhạt", (sourceMode, label) => {
+  ] as const)("%s ⇒ ghi tên nguồn %s ở dòng meta; card nền tím nhạt", (mode, label) => {
     const { container } = render(
-      <ProjectCard project={{ ...baseProject, sourceMode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
+      <ProjectCard project={{ ...baseProject, mode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
     );
-    expect(screen.getByTitle(getSourceModeOption(sourceMode).label)).toHaveTextContent(label);
+    expect(screen.getByTitle(getSourceModeOption(mode).label)).toHaveTextContent(label);
     expect(container.querySelector("article")?.className.split(/\s+/)).toContain("bg-surface-card");
   });
 
@@ -72,8 +73,8 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(screen.queryByText("Template FlintFlow")).toBeNull();
   });
 
-  it("dự án BE trả thiếu sourceMode ⇒ coi là mặc định, không ghi nhãn", () => {
-    const missing = { ...baseProject, sourceMode: undefined } as unknown as Project;
+  it("dự án BE trả thiếu mode ⇒ coi là mặc định, không ghi nhãn", () => {
+    const missing = { ...baseProject, mode: undefined } as unknown as Project;
     render(<ProjectCard project={missing} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
     expect(screen.queryByText("Template FlintFlow")).toBeNull();
   });

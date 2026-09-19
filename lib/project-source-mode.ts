@@ -1,11 +1,11 @@
 import type { IconName } from "@/components/ui/Icon";
-import type { ProjectSourceMode } from "@/types/project";
+import type { ProjectMode } from "@/types/project";
 
 /** Tone màu của mode — trùng tên với `BadgeTone` để truyền thẳng vào `Badge`. */
 export type SourceModeTone = "info" | "warning" | "primary";
 
 export interface SourceModeOption {
-  value: ProjectSourceMode;
+  value: ProjectMode;
   label: string;
   /** Nhãn ngắn trên card dự án. */
   shortLabel: string;
@@ -16,17 +16,17 @@ export interface SourceModeOption {
   status: "ready" | "soon";
 }
 
-/** Nguồn sự thật duy nhất ở FE cho 3 source mode (thứ tự = thứ tự hiện thẻ). */
+/** Nguồn sự thật duy nhất ở FE cho 3 `ProjectMode` của BE (thứ tự = thứ tự hiện thẻ). */
 export const SOURCE_MODE_OPTIONS = [
   {
-    value: "edit_srs",
+    value: "import",
     label: "Upload SRS có sẵn",
     shortLabel: "SRS có sẵn",
     description: "Có file .docx — FlintFlow kiểm tra lỗ hổng và giúp sửa",
     icon: "upload",
     tone: "info",
-    // Màn upload SRS (/projects/:id/import) đang ở nhánh khác — bật "ready" khi nhánh đó merge
-    status: "soon",
+    // Mode 1: tạo xong vào wizard /projects/:id/import
+    status: "ready",
   },
   {
     value: "customer_template",
@@ -38,9 +38,9 @@ export const SOURCE_MODE_OPTIONS = [
     status: "soon",
   },
   {
-    value: "fpt_template",
+    value: "fpt",
     label: "Chưa có template",
-    // BE vẫn là `fpt_template` (mẫu SRS gốc của FPT); với người dùng đây là template của chính FlintFlow
+    // BE vẫn là `fpt` (mẫu SRS gốc của FPT); với người dùng đây là template của chính FlintFlow
     shortLabel: "Template FlintFlow",
     description: "Dùng template SRS của FlintFlow, bắt đầu từ ý tưởng / ghi chú",
     icon: "sparkle",
@@ -49,15 +49,15 @@ export const SOURCE_MODE_OPTIONS = [
   },
 ] as const satisfies readonly SourceModeOption[];
 
-export const getSourceModeOption = (mode: ProjectSourceMode): SourceModeOption =>
+export const getSourceModeOption = (mode: ProjectMode): SourceModeOption =>
   SOURCE_MODE_OPTIONS.find((o) => o.value === mode) ?? SOURCE_MODE_OPTIONS[2];
 
-const START_SEGMENT: Record<ProjectSourceMode, string> = {
-  edit_srs: "/import",
+const START_SEGMENT: Record<ProjectMode, string> = {
+  import: "/import",
   customer_template: "/template",
-  fpt_template: "",
+  fpt: "",
 };
 
 /** Chỗ duy nhất map mode → route đầu tiên sau khi tạo dự án. */
-export const getProjectStartRoute = (projectId: string, mode: ProjectSourceMode) =>
+export const getProjectStartRoute = (projectId: string, mode: ProjectMode) =>
   `/projects/${projectId}${START_SEGMENT[mode]}`;

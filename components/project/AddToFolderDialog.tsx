@@ -104,7 +104,7 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
                 <legend className="sr-only">Dự án có thể thêm</legend>
                 {visible.map((p) => {
                   const checked = selected.has(p._id);
-                  const mode = getSourceModeOption(p.sourceMode);
+                  const mode = getSourceModeOption(p.mode);
                   return (
                     <label
                       key={p._id}

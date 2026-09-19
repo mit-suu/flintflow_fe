@@ -10,6 +10,8 @@ const SKELETON_COUNT = 6;
 interface ProjectGridProps {
   projects: readonly Project[];
   progressById: Record<string, ProgressResponse | null | undefined>;
+  /** Mode 1: số change request đang mở theo id dự án. */
+  openCrsById?: Record<string, number>;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
   onHardDelete: (p: Project) => void;
@@ -24,6 +26,7 @@ interface ProjectGridProps {
 export default function ProjectGrid({
   projects,
   progressById,
+  openCrsById,
   onRename,
   onDelete,
   onHardDelete,
@@ -38,6 +41,7 @@ export default function ProjectGrid({
           key={p._id}
           project={p}
           progress={progressById[p._id]}
+          openCrs={openCrsById?.[p._id]}
           onRename={onRename}
           onDelete={onDelete}
           onHardDelete={onHardDelete}
