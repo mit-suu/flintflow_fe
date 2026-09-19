@@ -12,7 +12,7 @@ import ReadOnlyDocumentPage from "./page";
 const P = MOCK_PROJECT_ID;
 
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ projectId: P }),
+  useParams: () => ({ id: P }),
 }));
 
 beforeAll(() => {

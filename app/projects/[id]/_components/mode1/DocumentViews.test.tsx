@@ -19,7 +19,7 @@ const P = MODE1_PROJECT_ID;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  useParams: () => ({ projectId: MODE1_PROJECT_ID }),
+  useParams: () => ({ id: MODE1_PROJECT_ID }),
 }));
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));

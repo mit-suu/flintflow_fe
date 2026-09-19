@@ -7,7 +7,7 @@ import { useMode1Project } from "../hooks/mode1/useMode1Project";
 
 /** Wizard import SRS có sẵn (mode 1, nút 1.1–1.12). */
 export default function ImportPage() {
-  const projectId = useParams()?.projectId as string;
+  const projectId = useParams()?.id as string;
   const { project, credits, error, reload } = useMode1Project(projectId);
 
   return (

@@ -12,7 +12,7 @@ const { router } = vi.hoisted(() => ({ router: { push: vi.fn(), replace: vi.fn()
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
-  useParams: () => ({ projectId: MODE1_PROJECT_ID }),
+  useParams: () => ({ id: MODE1_PROJECT_ID }),
 }));
 // Đã đăng nhập: AuthGuard/useWorkspace không gọi refresh
 vi.mock("@/lib/auth", async (importOriginal) => ({ ...(await importOriginal<object>()), isAuthenticated: () => true }));

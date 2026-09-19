@@ -15,7 +15,7 @@ function ChangeRequestsContent({ projectId }: { projectId: string }) {
 
 /** Danh sách + tạo change request (mode 1, UC-48, nút 3.1). */
 export default function ChangeRequestsPage() {
-  const projectId = useParams()?.projectId as string;
+  const projectId = useParams()?.id as string;
   const { project, credits, error } = useMode1Project(projectId);
 
   return (

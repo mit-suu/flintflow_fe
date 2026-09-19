@@ -8,7 +8,7 @@ import { useMode1Project } from "../../hooks/mode1/useMode1Project";
 /** Workspace một change request (mode 1, nút 3.1–3.14). */
 export default function ChangeRequestPage() {
   const params = useParams();
-  const projectId = params?.projectId as string;
+  const projectId = params?.id as string;
   const crId = decodeURIComponent(params?.crId as string);
   const { project, credits, error, reload } = useMode1Project(projectId);
 

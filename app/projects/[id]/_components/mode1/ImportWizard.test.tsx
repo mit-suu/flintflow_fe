@@ -13,7 +13,7 @@ const push = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
-  useParams: () => ({ projectId: MODE1_PROJECT_ID }),
+  useParams: () => ({ id: MODE1_PROJECT_ID }),
 }));
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));

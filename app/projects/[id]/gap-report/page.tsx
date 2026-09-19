@@ -7,7 +7,7 @@ import { useMode1Project } from "../hooks/mode1/useMode1Project";
 
 /** Gap report sau import (mode 1, nút 1.13, UC-23). */
 export default function GapReportPage() {
-  const projectId = useParams()?.projectId as string;
+  const projectId = useParams()?.id as string;
   const { project, credits, error, reload } = useMode1Project(projectId);
 
   return (

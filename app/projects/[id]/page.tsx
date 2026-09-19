@@ -65,7 +65,7 @@ const WorkspaceLoading = () => (
  * lỗi/đăng nhập như trước.
  */
 export default function WorkspacePage() {
-  const projectId = useParams()?.projectId as string;
+  const projectId = useParams()?.id as string;
   const [mode, setMode] = useState<ProjectMode | null>(null);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function WorkspacePage() {
 /** Workspace pipeline (mode 2, template FPT). */
 function FptWorkspace() {
   const params = useParams();
-  const projectId = params?.projectId as string;
+  const projectId = params?.id as string;
 
   const ws = useWorkspace(projectId);
   const spineState = useSpine(projectId, ws.ready);
