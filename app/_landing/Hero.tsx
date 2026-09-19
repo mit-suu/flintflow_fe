@@ -1,9 +1,9 @@
-import { HERO } from "./content";
+import { CHECK_CARD, HERO } from "./content";
 import { ArrowDot, Blob, ButtonLink, GridBackdrop } from "./ui";
 
 /*
- * Hero sáng: lưới + quầng tím/vàng phía trên, blob tím bên phải, thẻ Readiness nổi.
- * Dưới lg thẻ Readiness rơi xuống cuối luồng thay vì nổi tuyệt đối.
+ * Hero sáng: lưới + quầng tím/vàng phía trên, blob tím bên phải, thẻ kiểm tra 3 tầng nổi.
+ * Dưới lg thẻ kiểm tra rơi xuống cuối luồng thay vì nổi tuyệt đối.
  */
 export default function Hero() {
   return (
@@ -16,13 +16,13 @@ export default function Hero() {
         </p>
         <h1
           id="hero-title"
-          className="max-w-[640px] text-[56px] font-extrabold leading-[0.98] tracking-[-0.04em] text-on-surface sm:text-7xl lg:text-[88px]"
+          className="max-w-[720px] text-[42px] font-extrabold leading-[1.05] tracking-[-0.035em] text-on-surface sm:text-6xl lg:text-[68px]"
         >
           {HERO.headline}
           <br />
-          go <span className="landing-gradient-text">{HERO.headlineAccent}</span>
+          <span className="landing-gradient-text">{HERO.headlineAccent}</span>
         </h1>
-        <p className="max-w-[480px] text-base leading-[1.7] text-on-surface-variant sm:text-[17px]">{HERO.subline}</p>
+        <p className="max-w-[520px] text-base leading-[1.7] text-on-surface-variant sm:text-[17px]">{HERO.subline}</p>
 
         <div className="flex flex-wrap items-center gap-3.5">
           <ButtonLink href="/register">
@@ -50,7 +50,7 @@ export default function Hero() {
           ))}
         </ul>
 
-        <ReadinessCard />
+        <CheckCard />
       </div>
 
       <a
@@ -64,37 +64,34 @@ export default function Hero() {
   );
 }
 
-const READINESS_SEGMENTS = ["bg-[#8B5CF0]", "bg-[#8B5CF0]", "bg-success-dark"];
+const TIER_STYLES = {
+  ok: { bar: "bg-success-dark", tag: "bg-success-soft text-success" },
+  warn: { bar: "bg-accent-gold", tag: "bg-accent-gold-soft text-accent-gold-text" },
+} as const;
 
-const READINESS_TAGS = [
-  { label: "FACT ✓", className: "bg-success-soft text-success" },
-  { label: "ASSUMPTION ⚠", className: "bg-accent-gold-soft text-accent-gold-text" },
-  { label: "CONFLICT ✕", className: "bg-error-container text-error" },
-];
-
-/* Minh hoạ trạng thái Readiness của workspace — ví dụ tĩnh, không gọi API. */
-function ReadinessCard() {
+/* Minh hoạ kết quả kiểm tra 3 tầng — ví dụ tĩnh, không gọi API. */
+function CheckCard() {
   return (
     <figure
-      aria-label="Minh hoạ trạng thái readiness"
+      aria-label="Minh hoạ kết quả kiểm tra 3 tầng"
       className="mt-6 w-full max-w-[320px] rounded-[20px] border border-outline-variant bg-white/90 px-[22px] py-5 shadow-[0_30px_70px_rgba(91,46,196,0.16)] backdrop-blur-xl lg:absolute lg:right-8 lg:top-[324px] lg:mt-0"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-extrabold tracking-[0.08em] text-[#8B5CF0]">READINESS</span>
-        <span className="rounded-full bg-success-soft px-[11px] py-1 text-[10.5px] font-bold text-success">● Ready to plan</span>
+        <span className="text-[11px] font-extrabold tracking-[0.08em] text-[#8B5CF0]">{CHECK_CARD.title}</span>
+        <span className="rounded-full bg-success-soft px-[11px] py-1 text-[10.5px] font-bold text-success">{CHECK_CARD.status}</span>
       </div>
       <p className="mt-2.5 text-[26px] font-extrabold text-on-surface">
-        0 <span className="text-[13px] font-semibold text-on-surface-subtle">câu hỏi mở còn chặn</span>
+        {CHECK_CARD.count} <span className="text-[13px] font-semibold text-on-surface-subtle">{CHECK_CARD.countLabel}</span>
       </p>
       <div className="mt-3 flex gap-[5px]" aria-hidden="true">
-        {READINESS_SEGMENTS.map((color, i) => (
-          <span key={i} className={`h-[5px] flex-1 rounded-full ${color}`} />
+        {CHECK_CARD.tiers.map((tier) => (
+          <span key={tier.label} className={`h-[5px] flex-1 rounded-full ${TIER_STYLES[tier.tone].bar}`} />
         ))}
       </div>
       <div className="mt-3.5 flex flex-wrap gap-1.5">
-        {READINESS_TAGS.map((tag) => (
-          <span key={tag.label} className={`rounded-full px-[11px] py-[5px] text-[10px] font-bold ${tag.className}`}>
-            {tag.label}
+        {CHECK_CARD.tiers.map((tier) => (
+          <span key={tier.label} className={`rounded-full px-[11px] py-[5px] text-[10px] font-bold ${TIER_STYLES[tier.tone].tag}`}>
+            {tier.label}
           </span>
         ))}
       </div>

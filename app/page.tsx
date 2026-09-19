@@ -1,8 +1,8 @@
 import FinalCta from "./_landing/FinalCta";
 import Hero, { HeroBackdrop } from "./_landing/Hero";
 import HowItWorks from "./_landing/HowItWorks";
+import Modes from "./_landing/Modes";
 import Pricing from "./_landing/Pricing";
-import Services from "./_landing/Services";
 import SiteHeader from "./_landing/SiteHeader";
 import WorkspacePreview from "./_landing/WorkspacePreview";
 
@@ -19,7 +19,7 @@ export default function LandingPage() {
       <main>
         <Hero />
         <HowItWorks />
-        <Services />
+        <Modes />
         <WorkspacePreview />
         <Pricing />
         <FinalCta />

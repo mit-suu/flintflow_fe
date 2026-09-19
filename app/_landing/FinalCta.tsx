@@ -15,9 +15,10 @@ export default function FinalCta() {
       <div className="relative flex flex-col items-center gap-6 text-center">
         <h2
           id="cta-title"
-          className="whitespace-pre-line text-4xl font-extrabold leading-[1.06] tracking-[-0.035em] text-on-surface sm:text-5xl lg:text-[58px]"
+          className="text-4xl font-extrabold leading-[1.06] tracking-[-0.035em] text-on-surface sm:text-5xl lg:text-[58px]"
         >
-          {FINAL_CTA.headline}{" "}
+          {FINAL_CTA.headline}
+          <br />
           <span className="bg-[linear-gradient(95deg,#B98BF5,#8B5CF0_45%,#D9932B)] bg-clip-text text-transparent">
             {FINAL_CTA.headlineAccent}
           </span>
