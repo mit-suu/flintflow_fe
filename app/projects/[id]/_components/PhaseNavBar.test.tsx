@@ -29,11 +29,16 @@ describe("PhaseNavBar", () => {
     onExportClick: vi.fn(),
   };
 
-  it("hiển thị đủ 12 phase B-0…S-9, đánh dấu phase đang chạy và phase đã xong", () => {
-    render(<PhaseNavBar {...defaultProps} />);
+  it("chưa có danh sách step ⇒ hiển thị đủ 12 phase B-0…S-9", () => {
+    render(<PhaseNavBar {...defaultProps} steps={[]} />);
     for (const phase of ["B-0", "B-1", "B-2", "S-1", "S-2", "S-3", "S-4", "S-5", "S-6", "S-7", "S-8", "S-9"]) {
       expect(screen.getByText(phase)).toBeInTheDocument();
     }
+  });
+
+  it("chỉ hiện phase có step trong danh sách BE (mode 1: step không áp dụng bị bỏ — FLF-185); đánh dấu phase đang chạy và đã xong", () => {
+    render(<PhaseNavBar {...defaultProps} />);
+    for (const phase of ["B-0", "S-1", "S-5", "S-9"]) expect(screen.queryByText(phase)).not.toBeInTheDocument();
     expect(screen.getByText("S-3").closest("li")).toHaveAttribute("data-state", "active");
     expect(screen.getByText("S-2").closest("li")).toHaveAttribute("data-state", "completed");
     expect(screen.getByText("S-4").closest("li")).toHaveAttribute("data-state", "upcoming");

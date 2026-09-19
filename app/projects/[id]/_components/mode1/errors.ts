@@ -13,6 +13,9 @@ const FRIENDLY: Record<string, string> = {
   IMPORT_NEEDS_LATEST_CONFIRM: "Hãy xác nhận đây là bản mới nhất trước.",
   CR_REQUIRES_BASELINE: "Cần hoàn tất import (baseline 0.0) trước khi tạo change request.",
   RELEASE_RED_FLAGS_OPEN: "Còn cờ đỏ chưa xử lý — chưa release được.",
+  CORE_STEP_REQUIRED: "Step này thuộc đầu mục mẫu FPT hoặc đã có dữ liệu — không tắt được.",
+  STEP_NOT_IN_PLAN: "Step không có trong kế hoạch của dự án.",
+  BASELINE_BLOCKED: "Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.",
 };
 
 export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): string => {

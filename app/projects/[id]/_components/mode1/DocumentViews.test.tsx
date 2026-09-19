@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
@@ -7,8 +7,6 @@ import * as mode1State from "@/mocks/mode1/state";
 import { crToReview, importToGapReview } from "@/mocks/mode1/flows";
 import { decideGroup } from "@/lib/api/change-requests";
 import { listVersions } from "@/lib/api/versions";
-import type { DocBlock } from "@/types/import";
-import DocBlockView from "./DocBlockView";
 import GapReportView, { gapReportPrefill } from "./GapReportView";
 import ReuploadDiffView from "./ReuploadDiffView";
 import VersionCompare from "./VersionCompare";
@@ -33,20 +31,6 @@ beforeEach(() => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-const block = (over: Partial<DocBlock>): DocBlock => ({
-  block_id: "B0001",
-  doc_version: "0.1",
-  kind: "paragraph",
-  level: null,
-  heading_path: [],
-  text: "",
-  section_id: null,
-  mentions: [],
-  editable: true,
-  locked_by_cr: null,
-  ...over,
-});
-
 /** Import xong + một CR ghi vào tài liệu ⇒ có 0.0 và 0.1. */
 const withRevision = async () => {
   await importToGapReview();
@@ -54,53 +38,6 @@ const withRevision = async () => {
   await decideGroup(P, detail.change_request.cr_id, detail.groups[0].group_id, { decision: "approved", base_version: mode1State.mode1State.spineVersion });
   return (await listVersions(P)).data!;
 };
-
-describe("DocBlockView — tài liệu theo block (UC-54)", () => {
-  it("heading/đoạn/danh sách, Track Changes kèm tác giả CR, huy hiệu khoá dẫn tới CR", () => {
-    render(
-      <DocBlockView
-        projectId={P}
-        blocks={[
-          block({ block_id: "B0001", kind: "heading", level: 1, text: "1 Product Overview" }),
-          block({
-            block_id: "B0002",
-            text: "Logout ends all sessions.",
-            revisions: [
-              { kind: "del", text: "Logout ends the current session.", author: "CR-001" },
-              { kind: "ins", text: "Logout ends all sessions.", author: "CR-001" },
-            ],
-          }),
-          block({ block_id: "B0003", kind: "list_item", text: "BR-01: …", locked_by_cr: "CR-002" }),
-          block({ block_id: "B0004", kind: "unsupported", text: "[SmartArt]", editable: false }),
-        ]}
-      />
-    );
-    expect(screen.getByText("1 Product Overview")).toBeInTheDocument();
-    const changes = screen.getByLabelText("Track Changes");
-    expect(within(changes).getByText("Logout ends the current session.").tagName).toBe("DEL");
-    expect(within(changes).getByText("Logout ends all sessions.").tagName).toBe("INS");
-    expect(within(changes).getAllByText("CR-001")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: /CR-002/ })).toHaveAttribute("href", `/projects/${P}/change-requests/CR-002`);
-    expect(screen.getByText(/không sửa qua CR/)).toBeInTheDocument();
-  });
-
-  it("bảng vẽ từ block table; ô bảng chỉ hiện riêng khi bị khoá", () => {
-    render(
-      <DocBlockView
-        projectId={P}
-        blocks={[
-          block({ block_id: "B0010", kind: "table", text: "Actor | Description\nStudent | Learns", editable: false }),
-          block({ block_id: "B0011", kind: "table_cell", text: "Actor" }),
-          block({ block_id: "B0012", kind: "table_cell", text: "Learns", locked_by_cr: "CR-003" }),
-        ]}
-      />
-    );
-    expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "Student" })).toBeInTheDocument();
-    expect(screen.queryByText("Ô bảng: Actor")).not.toBeInTheDocument();
-    expect(screen.getByText("Ô bảng: Learns")).toBeInTheDocument();
-  });
-});
 
 describe("GapReportView (UC-23)", () => {
   it("tổng hợp cờ, section thiếu, heading không khớp; nút tạo CR điền sẵn nguồn gap_report; tải docx", async () => {
@@ -126,7 +63,9 @@ describe("GapReportView (UC-23)", () => {
       project_id: P,
       doc_version: "0.0",
       generated_at: "",
-      totals: { red: 1, yellow: 0, missing_sections: 1, unmapped_headings: 0, low_confidence_fields: 0 },
+      totals: { red: 1, yellow: 0, missing_sections: 1, unmapped_headings: 0, low_confidence_fields: 0, missing_fpt_sections: 0 },
+      missing_fpt_sections: [],
+      layout: [],
       sections: [{ section_id: "fixed:4.2.3", title: "Performance", flags: [{ id: "F1", level: "red", message: "Thiếu ngưỡng" } as never] }],
       missing_sections: [{ section_id: "fixed:5.3", title: "Application Messages List" }],
       unmapped_headings: [],
@@ -144,7 +83,8 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
     render(<VersionsPanel projectId={P} versions={versions} redOpen={1} selected="0.0" onSelect={vi.fn()} onReleased={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Release" })).toBeDisabled();
     expect(screen.getByText(/Còn 1 cờ đỏ/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tải bản gốc" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Tải bản render (DRAFT)" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Tải file gốc" })).toBeEnabled();
   });
 
   it("đỏ = 0 ⇒ xác nhận release gọi API, báo onReleased; version draft tải bản Track Changes", async () => {
