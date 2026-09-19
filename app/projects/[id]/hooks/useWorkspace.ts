@@ -166,7 +166,8 @@ export function useWorkspace(projectId: string) {
             refreshUser();
           },
           onError: (err) => {
-            console.error("[Chat] Stream error:", err);
+            // Mode 1 chặn lệnh sửa bằng 409 CHANGE_REQUIRES_CR — luồng bình thường, xử lý ở catch bên dưới
+            if (!(err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR")) console.error("[Chat] Stream error:", err);
             setStreamingMessage(null);
           },
         });

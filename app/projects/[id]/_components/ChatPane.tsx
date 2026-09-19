@@ -35,6 +35,8 @@ interface ChatPaneProps {
   title?: string;
   /** Thay khung gợi ý khi chưa có tin nhắn (vd mode 1: chat chỉ để hỏi đáp). */
   emptyState?: ReactNode;
+  /** Placeholder ô nhập — mặc định của ChatInput. */
+  inputPlaceholder?: string;
 }
 
 /** Câu hỏi gợi ý trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step). */
@@ -80,6 +82,7 @@ export default function ChatPane({
   onEditInstruction,
   title = "Hội thoại & Duyệt bước",
   emptyState,
+  inputPlaceholder,
 }: ChatPaneProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
@@ -173,7 +176,7 @@ export default function ChatPane({
             onSelectAttachment={onSelectAttachment}
             onRemoveAttachment={onRemoveAttachment}
             actionType="chat"
-            placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : undefined}
+            placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : inputPlaceholder}
           />
         ))}
     </section>
