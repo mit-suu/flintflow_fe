@@ -1,20 +1,59 @@
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+import * as motion from "motion/react-client";
+import Link from "next/link";
+import Logo from "@/components/Logo";
+import { DashboardCollage } from "../_landing/Hero";
+import LandingMotion from "../_landing/LandingMotion";
+import { fadeUp, onLoad } from "../_landing/motion";
+import { Diamond, Texture } from "../_landing/ui";
+
+/**
+ * Khung chung của các trang xác thực — cùng ngôn ngữ với landing: nền kem, phẳng, không viền.
+ * Trái: form (trang con chỉ render card). Phải (≥ lg): khối `primary` đặc với collage dashboard của landing
+ * — người dùng thấy ngay thứ họ sắp vào dùng.
+ */
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen w-full relative overflow-hidden bg-[#F5F3F0] flex flex-col justify-between">
-      {/* Decorative Orbs */}
-      <div className="pointer-events-none absolute -top-[190px] -left-[150px] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle_at_45%_45%,#C7B8F5,#8E87D6_50%,transparent_72%)] opacity-50 blur-[44px]" />
-      <div className="pointer-events-none absolute -bottom-[210px] -right-[130px] w-[560px] h-[560px] rounded-full bg-[radial-gradient(circle_at_45%_45%,#F2C572,#E8A23D_60%,transparent_78%)] opacity-30 blur-[52px]" />
-      <div className="pointer-events-none absolute top-[28%] right-[6%] w-[260px] h-[260px] rounded-full bg-[radial-gradient(circle,rgba(199,184,245,0.5),transparent_70%)] blur-[26px]" />
+    <LandingMotion>
+      <div className="relative isolate flex min-h-dvh flex-col bg-surface font-sans text-on-surface antialiased selection:bg-primary/20">
+        <Texture kind="dots" mask="radial-gradient(ellipse 45% 55% at 20% 40%, #000, transparent)" className="-z-10" />
 
-      {/* Grid pattern overlay */}
-      <div className="pointer-events-none absolute inset-0 grid-pattern" />
+        <header className="flex items-center justify-between px-5 py-5 sm:px-8">
+          <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" href="/" />
+          <Link
+            href="/"
+            className="rounded-full px-3.5 py-2 text-[13px] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-lowest hover:text-on-surface"
+          >
+            ← Trang chủ
+          </Link>
+        </header>
 
-      {/* Main Content Area */}
-      <div className="relative z-10 flex-1 flex flex-col">{children}</div>
-    </div>
+        <div className="flex flex-1 gap-6 px-4 pb-6 sm:px-6 lg:pl-8">
+          <main className="flex flex-1 items-center justify-center py-6 lg:py-10">
+            <motion.div {...onLoad} variants={fadeUp} className="w-full max-w-[440px]">
+              {children}
+            </motion.div>
+          </main>
+
+          <aside
+            aria-label="Giới thiệu FlintFlow"
+            className="relative isolate hidden w-[48%] max-w-[720px] flex-col justify-center overflow-hidden rounded-[32px] bg-primary px-10 py-12 lg:flex xl:px-14"
+          >
+            <Texture kind="dots-light" mask="linear-gradient(#000 20%, transparent 70%)" className="-z-10" />
+            <p className="inline-flex items-center gap-2.5 text-[13px] font-bold text-on-primary-container">
+              <Diamond />
+              AI Business Analyst
+            </p>
+            <p className="mt-3 max-w-md text-[34px] font-bold leading-[1.1] tracking-[-0.03em] text-on-primary xl:text-[40px]">
+              AI soạn nháp.
+              <br />
+              <span className="text-primary-fixed-dim">Bạn quyết định.</span>
+            </p>
+            <div className="mt-10">
+              <DashboardCollage />
+            </div>
+          </aside>
+        </div>
+      </div>
+    </LandingMotion>
   );
 }
