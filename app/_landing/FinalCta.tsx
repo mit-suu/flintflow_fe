@@ -37,7 +37,7 @@ export default function FinalCta() {
             <span>© 2026 FlintFlow</span>
           </div>
           <nav aria-label="Liên kết cuối trang" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-medium text-on-surface-variant">
-            {NAV_LINKS.map((link) => (
+            {NAV_LINKS.slice(1).map((link) => (
               <a key={link.href} href={link.href} className="transition-colors hover:text-on-surface">
                 {link.label}
               </a>

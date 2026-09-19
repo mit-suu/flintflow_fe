@@ -14,7 +14,7 @@ import WorkspacePreview from "./_landing/WorkspacePreview";
  */
 export default function LandingPage() {
   return (
-    <div className="min-h-screen overflow-x-clip bg-surface-container-lowest font-sans text-on-surface antialiased selection:bg-primary/20">
+    <div id="top" className="min-h-screen overflow-x-clip bg-surface-container-lowest font-sans text-on-surface antialiased selection:bg-primary/20">
       <SiteHeader />
       <main>
         <Hero />

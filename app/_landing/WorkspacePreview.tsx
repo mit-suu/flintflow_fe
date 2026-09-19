@@ -8,7 +8,7 @@ import { Diamond } from "./ui";
  */
 export default function WorkspacePreview() {
   return (
-    <section id="workspace" aria-labelledby="workspace-title" className="scroll-mt-20 px-4 sm:px-6">
+    <section id="workspace" aria-labelledby="workspace-title" className="scroll-mt-24 px-4 sm:px-6">
       <div className="mx-auto max-w-[1200px] rounded-[28px] bg-primary px-5 py-14 sm:px-10 lg:px-14 lg:py-20">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
           <div>
