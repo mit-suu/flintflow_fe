@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DECISION_REASON_MIN_LENGTH, type CrGroup, type CrLocation } from "@/types/change-request";
-import { Revisions } from "./DocBlockView";
+import { Revisions } from "./Revisions";
 import { CONCLUSION_LABELS, formatDateTime } from "./labels";
 
 interface ChangeGroupPanelProps {

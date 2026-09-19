@@ -100,7 +100,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   afterEach(() => mockServer.resetHandlers());
   afterAll(() => mockServer.close());
 
-  /** Nối ChatPane với useWorkspace thật (msw) như Mode1Workspace, bỏ phần tài liệu. */
+  /** Nối ChatPane với useWorkspace thật (msw) như workspace project mode 1, bỏ phần tài liệu. */
   function Mode1Chat() {
     const ws = useWorkspace(MODE1_PROJECT_ID);
     return (
