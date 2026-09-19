@@ -1,4 +1,4 @@
-import type { Project, ProjectSourceMode, ProjectStatus } from "@/types/project";
+import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
 import { apiCall } from "./client";
 
 export const listProjects = (status?: ProjectStatus) =>
@@ -6,11 +6,11 @@ export const listProjects = (status?: ProjectStatus) =>
 
 export const getProject = (projectId: string) => apiCall<Project>(`/projects/${projectId}`);
 
-/** `folderId` ⇒ tạo thẳng trong thư mục (BE kiểm thư mục thuộc user). */
-export const createProject = (name: string, sourceMode: ProjectSourceMode, folderId?: string) =>
+/** `mode` bỏ trống ⇒ BE mặc định `fpt` (mode 2); `folderId` ⇒ tạo thẳng trong thư mục (BE kiểm thư mục thuộc user). */
+export const createProject = (name: string, mode?: ProjectMode, folderId?: string) =>
   apiCall<Project>("/projects", {
     method: "POST",
-    body: JSON.stringify(folderId ? { name, sourceMode, folderId } : { name, sourceMode }),
+    body: JSON.stringify({ name, ...(mode ? { mode } : {}), ...(folderId ? { folderId } : {}) }),
   });
 
 export const renameProject = (projectId: string, name: string) =>

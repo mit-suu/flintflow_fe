@@ -24,6 +24,7 @@ import {
   Stack,
   Trash,
   UploadSimple,
+  User,
   Users,
   Wallet,
   X,
@@ -64,6 +65,7 @@ const ICONS = {
   sparkle: Sparkle,
   trash: Trash,
   upload: UploadSimple,
+  user: User,
   users: Users,
   wallet: Wallet,
 } as const satisfies Record<string, PhosphorIcon>;
