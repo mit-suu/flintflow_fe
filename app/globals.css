@@ -53,6 +53,11 @@
   --color-on-error: #ffffff;
   --color-on-error-container: #8a4141;
 
+  /* ── Info / Blue (mode "Upload SRS có sẵn" — docs/design-system.md "Edited manually") ── */
+  --color-info: #3b4fa8;
+  --color-info-soft: #eef1fb;
+  --color-info-border: #d5dcf3;
+
   /* ── Surface & Warm Backgrounds ── */
   --color-surface: #f5f3f0;
   --color-surface-dim: #e4e1dc;
