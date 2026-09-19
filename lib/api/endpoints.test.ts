@@ -73,6 +73,12 @@ const cases: EndpointCase[] = [
     { method: "PATCH", body: JSON.stringify({ name: "B" }) },
   ],
   ["deleteFolder", () => folders.deleteFolder("f1"), "/folders/f1", { method: "DELETE" }],
+  [
+    "addProjectsToFolder",
+    () => folders.addProjectsToFolder("f1", ["p1", "p2"]),
+    "/folders/f1/projects",
+    post({ projectIds: ["p1", "p2"] }),
+  ],
   ["listChatSessions", () => chat.listChatSessions("p1"), "/projects/p1/chats"],
   ["createChatSession", () => chat.createChatSession("p1"), "/projects/p1/chats", post()],
   ["getChatSession", () => chat.getChatSession("p1", "c1"), "/projects/p1/chats/c1"],

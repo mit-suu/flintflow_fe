@@ -132,7 +132,7 @@ export default function BillingPage() {
     <>
       <TopBar trail={["Tài khoản", "Thanh toán & credit"]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-[#F5F3F0]">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-surface-container-lowest">
         <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Thanh toán &amp; credit</h1>
 
         {error && (

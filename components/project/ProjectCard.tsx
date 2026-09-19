@@ -21,7 +21,14 @@ interface Props {
   onHardDelete: (p: Project) => void;
   /** Có ⇒ menu thêm "Chuyển vào thư mục". */
   onMoveToFolder?: (p: Project) => void;
+  /** Tên thư mục chứa dự án — hiện chip ở tab "Dự án" (nơi hiện cả dự án trong thư mục). */
+  folderName?: string | null;
+  /** Cho kéo card thả vào thẻ thư mục. */
+  draggable?: boolean;
 }
+
+/** Kiểu dữ liệu kéo thả: id dự án — thẻ thư mục chỉ nhận đúng kiểu này. */
+export const PROJECT_DRAG_TYPE = "application/x-flintflow-project";
 
 /**
  * T23: trạng thái thẻ đọc từ **readiness thật** của Spine, không phải phần trăm legacy trên document
@@ -77,7 +84,17 @@ const Dot = () => <span aria-hidden className="w-1 h-1 rounded-full bg-on-surfac
  * Card dự án kiểu Floe: bìa màu trơn theo mode, thân trắng bo lớn phủ lên bìa với một "tab" khoét ở góc phải chứa
  * nút ⋮, meta "thời gian • trạng thái", tên (font mono), vạch ngăn, footer việc tiếp theo + chip nguồn.
  */
-export default function ProjectCard({ project, progress, locale = "vi", onRename, onDelete, onHardDelete, onMoveToFolder }: Props) {
+export default function ProjectCard({
+  project,
+  progress,
+  locale = "vi",
+  onRename,
+  onDelete,
+  onHardDelete,
+  onMoveToFolder,
+  folderName,
+  draggable = false,
+}: Props) {
   const status = getStatusBadge(progress);
   const mode = getSourceModeOption(project.sourceMode);
   const archived = project.status === "archived";
@@ -93,18 +110,37 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
   return (
     <article
       data-mode={project.sourceMode}
-      className="relative flex flex-col rounded-[20px] transition-shadow shadow-[0_1px_3px_rgba(25,24,23,0.06)] hover:shadow-[0_14px_30px_rgba(25,24,23,0.10)]"
+      draggable={draggable || undefined}
+      onDragStart={
+        draggable
+          ? (e) => {
+              e.dataTransfer.setData(PROJECT_DRAG_TYPE, project._id);
+              e.dataTransfer.effectAllowed = "move";
+            }
+          : undefined
+      }
+      className={`relative flex flex-col rounded-[20px] border border-outline-variant transition-shadow shadow-[0_1px_3px_rgba(25,24,23,0.05)] hover:shadow-[0_14px_30px_rgba(25,24,23,0.10)] ${
+        draggable ? "cursor-grab active:cursor-grabbing" : ""
+      }`}
     >
       <Link
         href={`/projects/${project._id}`}
+        // Kéo cả card chứ không kéo URL của link
+        draggable={false}
         className="flex flex-col flex-1 rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
-        <ProjectCover seed={project._id} tone={mode.tone} className="h-[84px] rounded-t-[20px]" />
+        <ProjectCover seed={project._id} tone={mode.tone} className="h-[84px] rounded-t-[19px]" />
 
         <div className="relative -mt-5 flex flex-col flex-1 gap-1.5 rounded-[20px] rounded-tr-none bg-surface-container-lowest px-4 pt-3.5 pb-3.5">
-          {/* Tab nhô lên ở góc phải (chứa nút ⋮) + góc lõm nối tab với thân */}
-          <span aria-hidden className="absolute right-0 -top-[12px] h-[13px] w-[64px] rounded-tl-[12px] rounded-tr-[20px] bg-surface-container-lowest" />
-          <span aria-hidden className="absolute right-[64px] -top-[10px] h-[10px] w-[10px] rounded-br-[10px] shadow-[4px_4px_0_4px] shadow-surface-container-lowest" />
+          {/* Gờ nhô lên ở góc phải (chứa nút ⋮): cạnh trái đổ dốc chữ S xuống thân, góc phải bo — SVG cố định, tô màu thân */}
+          <svg
+            aria-hidden
+            viewBox="0 0 96 18"
+            fill="currentColor"
+            className="absolute right-0 -top-[16px] h-[18px] w-[96px] text-surface-container-lowest"
+          >
+            <path d="M0 18C12 18 14 16 17 11C20 5 24 0 34 0H78Q96 0 96 18Z" />
+          </svg>
 
           <div className="flex items-center gap-1.5 text-[11.5px] text-on-surface-muted pr-11">
             <span>{timeAgo(project.updatedAt)}</span>
@@ -117,6 +153,13 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
               </>
             )}
           </div>
+
+          {folderName && (
+            <span className="self-start inline-flex items-center gap-1 max-w-full text-[11px] font-semibold text-on-surface-variant">
+              <Icon name="folder" size={12} className="text-on-surface-muted" />
+              <span className="truncate">{folderName}</span>
+            </span>
+          )}
 
           <h3 className="font-mono text-[14.5px] font-medium text-on-surface leading-snug line-clamp-2">{project.name}</h3>
 
@@ -136,7 +179,7 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
       </Link>
 
       {/* Ngoài Link để bấm menu không điều hướng; nằm đúng trong tab khoét */}
-      <div className="absolute right-[14px] top-[54px] z-20">
+      <div className="absolute right-[16px] top-[53px] z-20">
         <DropdownMenu
           items={menuItems}
           trigger={(props) => (
@@ -145,7 +188,8 @@ export default function ProjectCard({ project, progress, locale = "vi", onRename
               icon="more"
               size="pill"
               label={`Tuỳ chọn cho ${project.name}`}
-              className="bg-surface-container-high hover:bg-surface-container-highest"
+              // Chấm dọc: xoay icon ngang có sẵn của Lineicons
+              className="bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low [&_svg]:rotate-90"
             />
           )}
         />

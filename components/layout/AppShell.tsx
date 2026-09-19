@@ -106,7 +106,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
 
   return (
     <AppShellContext.Provider value={value}>
-      <div className="flex h-dvh overflow-hidden bg-background">
+      <div className="flex h-dvh overflow-hidden bg-surface-container-lowest">
         {navOpen && (
           <div aria-hidden className="fixed inset-0 z-40 bg-inverse-surface/40 md:hidden" onClick={closeNav} />
         )}
