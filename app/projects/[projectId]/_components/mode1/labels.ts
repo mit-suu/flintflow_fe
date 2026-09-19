@@ -45,6 +45,8 @@ export const CR_SOURCE_LABELS: Record<CrSourceKind, string> = {
   verbal: "Trao đổi miệng",
 };
 
+export const CR_SOURCE_KINDS = Object.keys(CR_SOURCE_LABELS) as CrSourceKind[];
+
 export const FOUND_BY_LABELS: Record<LocationFoundBy, string> = {
   spine_link: "Liên kết field",
   mention: "Nhắc mã",

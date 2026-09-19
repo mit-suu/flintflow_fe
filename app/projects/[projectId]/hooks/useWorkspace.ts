@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { apiCall, refreshSession } from "@/lib/api";
+import { ApiClientError, apiCall, refreshSession } from "@/lib/api";
 import { streamChatMessage } from "@/lib/ai-stream";
 import { clearAuthToken, getStoredAuthToken, isAuthenticated } from "@/lib/auth";
+import type { ChangeRequiresCrMeta } from "@/types/change-request";
 import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
@@ -26,6 +27,8 @@ export function useWorkspace(projectId: string) {
   const [sending, setSending] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  /** Mode 1 (G9, BR-03): lệnh sửa trong chat bị BE chặn `409 CHANGE_REQUIRES_CR` ⇒ gợi ý tạo CR điền sẵn. */
+  const [crPrefill, setCrPrefill] = useState<(ChangeRequiresCrMeta["prefill"] & { instruction: string }) | null>(null);
   const didInit = useRef(false);
 
   const refreshUser = useCallback(() => {
@@ -136,6 +139,7 @@ export function useWorkspace(projectId: string) {
 
       setSending(true);
       setInputMessage("");
+      setCrPrefill(null);
       const content = text.trim() || "[Đính kèm tài liệu]";
       const step = currentStep ?? "chat";
       const optimistic: ChatMessage = { role: "user", content, step, createdAt: new Date().toISOString() };
@@ -169,7 +173,9 @@ export function useWorkspace(projectId: string) {
       } catch (err) {
         setStreamingMessage(null);
         setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
-        alert(errorMessage(err, "Không thể gửi tin nhắn"));
+        const prefill = err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR" ? (err.meta as ChangeRequiresCrMeta | undefined)?.prefill : undefined;
+        if (prefill) setCrPrefill({ ...prefill, instruction: content });
+        else alert(errorMessage(err, "Không thể gửi tin nhắn"));
       } finally {
         setSending(false);
       }
@@ -214,6 +220,8 @@ export function useWorkspace(projectId: string) {
       removeAttachment,
       refreshUser,
       logout,
+      crPrefill,
+      dismissCrPrefill: () => setCrPrefill(null),
     }),
     [
       ready,
@@ -233,6 +241,7 @@ export function useWorkspace(projectId: string) {
       removeAttachment,
       refreshUser,
       logout,
+      crPrefill,
     ]
   );
 }
