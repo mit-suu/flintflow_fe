@@ -64,11 +64,13 @@ test("mode 1 đi trọn luồng trên BE thật", async ({ page }) => {
   await page.getByRole("button", { name: /đăng nhập/i }).click();
   await page.waitForURL(/\/home/, { timeout: 30_000 });
 
-  await page.getByRole("button", { name: "+ Dự án mới" }).first().click();
+  // Tài khoản đã có dự án ⇒ mở dialog "Dự án mới"; chưa có ⇒ form tạo nằm sẵn trên trang
+  const newProject = page.getByRole("button", { name: /Dự án mới/ }).first();
+  if (await newProject.isVisible()) await newProject.click();
+  await page.getByRole("radio", { name: /Upload SRS có sẵn/ }).click();
   await page.getByLabel("Tên dự án").fill(PROJECT_NAME);
-  await page.getByText("Upload SRS có sẵn rồi sửa").click();
   await snap(page, "create-project");
-  await page.getByRole("button", { name: "Tạo dự án và tải SRS lên →" }).click();
+  await page.getByRole("button", { name: "Bắt đầu" }).click();
   await page.waitForURL(/\/projects\/[a-f0-9]{24}\/import$/, { timeout: 30_000 });
   const projectId = page.url().match(/projects\/([a-f0-9]{24})/)![1];
   console.log(`[e2e] project ${projectId}`);
@@ -218,8 +220,9 @@ test("mode 1 đi trọn luồng trên BE thật", async ({ page }) => {
 
   // ── 12. Danh sách dự án: thẻ mode 1 (3.14) ─────────────────────────────────────────
   await page.goto("/home");
-  const card = page.getByRole("link").filter({ hasText: PROJECT_NAME }).first();
-  await expect(card).toContainText("Upload SRS", { timeout: 30_000 });
+  // Chỉ tìm trong vùng nội dung: sidebar "Gần đây" cũng có link mang tên dự án
+  const card = page.getByRole("main").getByRole("link").filter({ hasText: PROJECT_NAME }).first();
+  await expect(card).toContainText("SRS có sẵn", { timeout: 30_000 });
   await snap(page, "home-card");
 
   fs.writeFileSync(path.join(OUT, "problems.txt"), problems.join("\n"));

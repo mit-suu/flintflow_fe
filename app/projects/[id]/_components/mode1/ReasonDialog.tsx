@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Modal from "@/components/Modal";
+import Modal from "@/components/ui/Modal";
 import { DECISION_REASON_MIN_LENGTH } from "@/types/change-request";
 
 interface ReasonDialogProps {
