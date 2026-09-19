@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
 import AddToFolderDialog from "@/components/project/AddToFolderDialog";
@@ -37,13 +37,34 @@ const SORT_OPTIONS = [
   { value: "opened", label: "Mới mở" },
 ] as const satisfies readonly { value: ProjectSort; label: string }[];
 
-function SectionTitle({ id, title, count }: { id: string; title: string; count?: number }) {
+/**
+ * Mép dưới mềm cho phần tử dính (sticky): một dải nền trắng đặc 40% rồi dốc đều về trong suốt, để nội dung cuộn
+ * qua mờ dần thay vì bị cắt thẳng. Không có điểm `via` — ép độ mờ ở giữa làm gãy dốc, nhìn ra thành một đường.
+ * Dải cao 16px ≈ khoảng cách tiêu đề→card, nên lúc chưa dính không phủ lên nội dung.
+ */
+const STICKY_FADE =
+  "after:content-[''] after:absolute after:inset-x-0 after:top-full after:h-4 after:pointer-events-none after:bg-linear-to-b after:from-surface-container-lowest after:from-40% after:to-transparent";
+
+/**
+ * Nền của phần tử dính tràn ra cả lề ngang của vùng cuộn (âm margin = padding của vùng cuộn), để bóng đổ của card
+ * cuộn qua bên dưới không lộ ở hai lề thành một viền mờ quanh thanh. Đổi padding vùng cuộn thì đổi cả chỗ này.
+ */
+const STICKY_BLEED = "-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8";
+
+/**
+ * Tiêu đề mục dính ngay dưới thanh tab khi cuộn, và nhả ra khi cuộn hết mục (sticky trong `<section>` cha).
+ * `--toolbar-h` do trang đo từ thanh tab thật (xuống dòng trên mobile ⇒ cao hơn). z trên nút ⋮ của card (z-20).
+ * Chỉ âm margin phía trên: đệm dưới 8px + gap của mục chứa trọn dải mờ `STICKY_FADE`, nên lúc chưa dính dải mờ
+ * không phủ lên nội dung. Gợi ý (`hint`) nằm cùng hàng tiêu đề vì lý do đó.
+ */
+function SectionTitle({ id, title, count, hint }: { id: string; title: string; count?: number; hint?: string }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className={`sticky top-[var(--toolbar-h,0px)] z-[25] -mt-2 py-2 bg-surface-container-lowest flex items-center gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
       <h2 id={id} className="text-[20px] sm:text-[22px] font-semibold text-on-surface tracking-tight">
         {title}
       </h2>
       {count !== undefined && <CountBadge count={count} max={999} />}
+      {hint && <p className="hidden sm:block ml-2 text-[12px] text-on-surface-muted truncate">{hint}</p>}
     </div>
   );
 }
@@ -62,6 +83,8 @@ export default function HomePage() {
   const [mode, setMode] = useState<ModeFilter>("all");
   const [query, setQuery] = useState("");
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [addTarget, setAddTarget] = useState<Folder | null>(null);
   const [actionTarget, setActionTarget] = useState<ProjectActionTarget | null>(null);
@@ -115,6 +138,18 @@ export default function HomePage() {
   const initialLoading = loading && projects.length === 0 && folders.length === 0;
   // Chưa có dự án lẫn thư mục ⇒ tạo dự án ngay trên trang
   const showOnboarding = !initialLoading && !error && projects.length === 0 && folders.length === 0;
+  // Đo chiều cao thật của thanh tab dính ⇒ `--toolbar-h` để tiêu đề mục dính ngay bên dưới (ghi thẳng CSS, không re-render)
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    const scroller = scrollRef.current;
+    if (!toolbar || !scroller) return;
+    const sync = () => scroller.style.setProperty("--toolbar-h", `${toolbar.offsetHeight}px`);
+    sync();
+    if (typeof ResizeObserver === "undefined") return; // jsdom/trình duyệt cũ: đo một lần là đủ
+    const observer = new ResizeObserver(sync);
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, [showOnboarding]);
   const showFolders = !openFolder && tab !== "projects";
   // Tab Thư mục mà có từ khoá ⇒ hiện luôn dự án khớp (kể cả trong thư mục)
   const showProjects = openFolder !== null || tab !== "folders" || normalizedQuery.length > 0;
@@ -173,29 +208,34 @@ export default function HomePage() {
       }
     />
   ) : (
-    <EmptyState
-      icon="folder"
-      title={
-        openFolder
-          ? "Thư mục này chưa có dự án"
-          : tab === "all" && projects.some((p) => inFolder(p) && p.status === status)
-            ? "Mọi dự án đều đã nằm trong thư mục"
-            : "Chưa có dự án đang làm"
-      }
-      description={openFolder ? "Thêm dự án có sẵn hoặc tạo dự án mới ngay trong thư mục." : "Tạo dự án mới, hoặc mở lại các dự án đã lưu trữ."}
-      action={
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button size="sm" icon="plus" onClick={() => (openFolder ? setAddTarget(openFolder) : setCreateOpen(true))}>
-            {openFolder ? "Thêm dự án" : "Dự án mới"}
-          </Button>
-          {!openFolder && (
-            <Button variant="secondary" size="sm" onClick={() => setStatus("archived")}>
-              Xem lưu trữ
-            </Button>
-          )}
+    // Rỗng mà không lọc gì ⇒ hiện sẵn form tạo dự án (chọn cách bắt đầu + tên) ngay tại chỗ, không bắt user tự tìm nút "Dự án mới"
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[15px] font-extrabold text-on-surface">
+            {openFolder
+              ? "Thư mục này chưa có dự án"
+              : tab === "all" && projects.some((p) => inFolder(p) && p.status === status)
+                ? "Mọi dự án đều đã nằm trong thư mục"
+                : "Chưa có dự án đang làm"}
+          </h3>
+          <p className="text-[12.5px] text-on-surface-muted leading-[1.55]">
+            {openFolder
+              ? "Chọn cách bắt đầu để tạo dự án mới ngay trong thư mục, hoặc thêm dự án có sẵn."
+              : "Chọn cách bắt đầu để tạo dự án mới, hoặc mở lại các dự án đã lưu trữ."}
+          </p>
         </div>
-      }
-    />
+        <Button
+          variant="secondary"
+          size="sm"
+          className="self-start shrink-0"
+          onClick={() => (openFolder ? setAddTarget(openFolder) : setStatus("archived"))}
+        >
+          {openFolder ? "Thêm dự án có sẵn" : "Xem lưu trữ"}
+        </Button>
+      </div>
+      <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />
+    </div>
   );
 
   return (
@@ -211,9 +251,12 @@ export default function HomePage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 p-4 sm:p-6 lg:p-8 bg-surface-container-lowest">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-4 sm:px-6 lg:px-8 pb-8 bg-surface-container-lowest"
+      >
         {showOnboarding ? (
-          <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 py-2 sm:py-6">
+          <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 pt-6 pb-2 sm:pt-12 sm:pb-6">
             <div className="flex flex-col gap-2">
               <h1 id="onboarding-title" className="text-[22px] sm:text-[26px] font-extrabold text-on-surface tracking-tight">
                 Bắt đầu dự án SRS đầu tiên
@@ -226,14 +269,17 @@ export default function HomePage() {
           </section>
         ) : (
           <>
-            {/* Thanh điều hướng: tab ở gốc, hoặc quay lại + thêm dự án khi đang trong thư mục */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            {/* Thanh điều hướng (dính khi cuộn): tab ở gốc, hoặc quay lại + thêm dự án khi đang trong thư mục */}
+            <div
+              ref={toolbarRef}
+              className={`sticky top-0 z-30 py-3 bg-surface-container-lowest flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${STICKY_BLEED} ${STICKY_FADE}`}
+            >
               {openFolder ? (
                 <div className="flex items-center gap-3 min-w-0">
                   <button
                     type="button"
                     onClick={() => setOpenFolderId(null)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12.5px] font-semibold text-on-surface-variant hover:bg-surface-container-high cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-control text-[12.5px] font-semibold text-on-surface-variant hover:bg-surface-container-high cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <Icon name="arrow-right" size={14} className="rotate-180" />
                     Tất cả dự án
@@ -268,7 +314,7 @@ export default function HomePage() {
             </div>
 
             {(error || dropError) && (
-              <div role="alert" className="flex items-center gap-3 bg-error-container border border-error-border text-on-error-container px-4 py-3 rounded-[12px] text-[12.5px] font-medium">
+              <div role="alert" className="flex items-center gap-3 bg-error-container border border-error-border text-on-error-container px-4 py-3 rounded-control text-[12.5px] font-medium">
                 <Icon name="error-circle" size={18} />
                 <span className="flex-1">{error ?? dropError}</span>
                 <Button size="sm" variant="secondary" onClick={() => (error ? void reload() : setDropError(null))}>
@@ -285,16 +331,20 @@ export default function HomePage() {
             >
               {showFolders && !initialLoading && (
                 <section aria-labelledby="folders-title" className="flex flex-col gap-3">
-                  <SectionTitle id="folders-title" title="Thư mục" count={folders.length} />
+                  <SectionTitle
+                    id="folders-title"
+                    title="Thư mục"
+                    count={folders.length}
+                    hint={folders.length > 0 && tab === "all" ? "Kéo thẻ dự án thả vào thư mục để sắp xếp." : undefined}
+                  />
                   {foldersError && (
                     <p role="alert" className="text-[12.5px] text-on-error-container">
                       Không tải được thư mục: {foldersError}
                     </p>
                   )}
-                  {folders.length > 0 && tab === "all" && (
-                    <p className="text-[12px] text-on-surface-muted -mt-1">Kéo thẻ dự án thả vào thư mục để sắp xếp.</p>
-                  )}
                   <div className={CARD_GRID}>
+                    {/* Ô tạo mới đứng đầu: luôn ở cùng một chỗ, không bị đẩy xuống khi thư mục nhiều lên */}
+                    <NewFolderTile onCreate={() => setFolderTarget({ kind: "create" })} />
                     {visibleFolders.map((folder) => (
                       <FolderCard
                         key={folder._id}
@@ -305,7 +355,6 @@ export default function HomePage() {
                         onDropProject={(f, id) => void handleDropProject(f, id)}
                       />
                     ))}
-                    <NewFolderTile onCreate={() => setFolderTarget({ kind: "create" })} />
                   </div>
                 </section>
               )}

@@ -10,16 +10,23 @@ import { PROJECT_DRAG_TYPE } from "./ProjectCard";
 /**
  * Màu thư mục → class token (màu trơn): thân trước, tấm lưng phía sau, tab (SVG tô bằng `currentColor` ⇒ class `text-*`),
  * ô chọn màu. Class viết đủ để Tailwind sinh ra.
+ * Cặp màu pastel thân/lưng là token `folder-*` trong `app/globals.css` (chọn tay, không pha trắng); ô chọn màu = màu lưng.
  */
 export const FOLDER_COLORS: Record<FolderColor, { label: string; body: string; back: string; tab: string; swatch: string }> = {
-  violet: { label: "Tím", body: "bg-brand-50", back: "bg-brand-200", tab: "text-brand-200", swatch: "bg-brand-300" },
-  blue: { label: "Xanh dương", body: "bg-info-soft", back: "bg-info-border", tab: "text-info-border", swatch: "bg-info" },
-  amber: { label: "Vàng", body: "bg-accent-gold-soft", back: "bg-accent-gold-border", tab: "text-accent-gold-border", swatch: "bg-accent-gold" },
-  green: { label: "Xanh lá", body: "bg-success-soft", back: "bg-success-border", tab: "text-success-border", swatch: "bg-success-dark" },
-  rose: { label: "Hồng", body: "bg-error-container", back: "bg-error-border", tab: "text-error-border", swatch: "bg-error" },
+  // Tím dành riêng cho card dự án ⇒ thư mục không còn màu tím. BE vẫn có `violet` (hợp đồng API): thư mục cũ mang
+  // màu này hiển thị như xanh dương và không có trong bảng chọn — xem `pickableFolderColor`.
+  violet: { label: "Xanh dương", body: "bg-folder-blue", back: "bg-folder-blue-back", tab: "text-folder-blue-back", swatch: "bg-folder-blue-back" },
+  blue: { label: "Xanh dương", body: "bg-folder-blue", back: "bg-folder-blue-back", tab: "text-folder-blue-back", swatch: "bg-folder-blue-back" },
+  amber: { label: "Vàng", body: "bg-folder-amber", back: "bg-folder-amber-back", tab: "text-folder-amber-back", swatch: "bg-folder-amber-back" },
+  green: { label: "Xanh lá", body: "bg-folder-green", back: "bg-folder-green-back", tab: "text-folder-green-back", swatch: "bg-folder-green-back" },
+  rose: { label: "Hồng", body: "bg-folder-rose", back: "bg-folder-rose-back", tab: "text-folder-rose-back", swatch: "bg-folder-rose-back" },
 };
 
-export const FOLDER_COLOR_ORDER = Object.keys(FOLDER_COLORS) as FolderColor[];
+/** Màu cho chọn trong dialog (không có tím). */
+export const FOLDER_COLOR_ORDER: readonly FolderColor[] = ["blue", "amber", "green", "rose"];
+
+/** Màu thư mục dùng trong bảng chọn: `violet` cũ quy về xanh dương (cách nó đang hiển thị). */
+export const pickableFolderColor = (color: FolderColor): FolderColor => (color === "violet" ? "blue" : color);
 
 interface FolderCardProps {
   folder: Folder;
@@ -32,17 +39,24 @@ interface FolderCardProps {
 
 /**
  * Thẻ thư mục kiểu Floe: phía sau là bóng thư mục (tab bên trái đổ dốc chữ S xuống tấm lưng), phía trước là thân màu
- * nhạt hơn đặt thấp xuống để lộ một dải lưng; tên (mono), vạch ngăn, số dự án. Chỗ avatar thành viên để trống tới khi
+ * nhạt hơn đặt thấp xuống để lộ một dải lưng; tên, vạch ngăn, số dự án. Chỗ avatar thành viên để trống tới khi
  * có tổ chức.
  */
 export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropProject }: FolderCardProps) {
-  const color = FOLDER_COLORS[folder.color] ?? FOLDER_COLORS.violet;
+  const color = FOLDER_COLORS[folder.color] ?? FOLDER_COLORS.blue;
   const [dragOver, setDragOver] = useState(false);
   const acceptsDrag = (e: React.DragEvent) => Boolean(onDropProject) && e.dataTransfer.types.includes(PROJECT_DRAG_TYPE);
 
   return (
     <article
-      className="relative pt-[22px]"
+      // Đang kéo dự án qua ⇒ cả thư mục (lưng + tab + thân) phóng to, đổ bóng theo đúng hình thư mục (drop-shadow, không ring), nổi trên tiêu đề mục dính (z-25)
+      // Đang mở menu ⋮ ⇒ giữ nổi như lúc hover, để menu không bị nút ⋮ (z-20) của thẻ bên cạnh đè lên khi chuột rời thẻ
+      className={`relative pt-[22px] transition-[transform,filter] duration-200 has-[[aria-expanded=true]]:z-[26] ${
+        // Hover: bóng đổ theo hình cả thư mục (có tab) và nổi trên tiêu đề mục dính (z-25) để bóng không bị nền tiêu đề cắt
+        dragOver
+          ? "z-[26] scale-[1.04] drop-shadow-[0_14px_22px_rgba(25,24,23,0.16)]"
+          : "hover:z-[26] hover:drop-shadow-[0_10px_18px_rgba(25,24,23,0.10)]"
+      }`}
       data-drop-target={dragOver || undefined}
       onDragOver={(e) => {
         if (!acceptsDrag(e)) return;
@@ -63,7 +77,7 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
       }}
     >
       {/* Bóng thư mục phía sau: tấm lưng (góc trái trên do tab che) + tab kích thước cố định, cạnh phải dốc chữ S */}
-      <span aria-hidden className={`absolute inset-x-0 top-[14px] bottom-0 rounded-[20px] rounded-tl-none ${color.back}`} />
+      <span aria-hidden className={`absolute inset-x-0 top-[14px] bottom-0 rounded-card rounded-tl-none ${color.back}`} />
       <svg aria-hidden viewBox="0 0 128 24" className={`absolute left-0 top-0 h-[24px] w-[128px] ${color.tab}`} fill="currentColor">
         <path d="M0 24V16Q0 0 16 0H84C96 0 100 5 105 9.5C110 14 114 14 128 14V24Z" />
       </svg>
@@ -71,19 +85,17 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
       <button
         type="button"
         onClick={() => onOpen(folder)}
-        className={`relative w-full min-h-[104px] flex flex-col gap-3 text-left rounded-[20px] px-4 pt-4 pb-3.5 transition-[box-shadow,transform] hover:shadow-[0_14px_30px_rgba(25,24,23,0.08)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${color.body} ${
-          dragOver ? "ring-2 ring-primary ring-offset-2 ring-offset-surface-container-lowest scale-[1.02]" : ""
-        }`}
+        className={`relative w-full min-h-[136px] flex flex-col gap-3 text-left rounded-card px-5 pt-5 pb-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${color.body}`}
       >
-        <span className="font-mono text-[14.5px] font-medium text-on-surface line-clamp-1 pr-11">{folder.name}</span>
-        <span aria-hidden className="h-px bg-on-surface/10" />
+        <span className="text-[15px] font-semibold text-on-surface line-clamp-1 pr-11">{folder.name}</span>
+        <span aria-hidden className="mt-auto h-px bg-on-surface/10" />
         <span className="flex items-center justify-end text-[12px] text-on-surface-variant">
           {/* Trái: chỗ avatar thành viên — thêm khi có tổ chức */}
           <span>{folder.projectCount} dự án</span>
         </span>
       </button>
 
-      <div className="absolute right-3.5 top-[35px] z-20">
+      <div className="absolute right-4 top-[40px] z-20">
         <DropdownMenu
           items={[
             { label: "Đổi tên", icon: "pencil", onSelect: () => onRename(folder) },
@@ -95,7 +107,7 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
               icon="more"
               size="pill"
               label={`Tuỳ chọn cho thư mục ${folder.name}`}
-              className="border border-on-surface/15 hover:bg-surface-container-lowest/60 [&_svg]:rotate-90"
+              className="hover:bg-surface-container-lowest/70"
             />
           )}
         />
@@ -104,14 +116,14 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
   );
 }
 
-/** Ô viền đứt "+ Thư mục mới" ở cuối hàng thư mục. */
+/** Ô viền đứt "+ Thư mục mới" ở đầu lưới thư mục — cao bằng cả thẻ thư mục (tính cả tab), không chỉ phần thân. */
 export function NewFolderTile({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="pt-[22px]">
+    <div className="h-full">
       <button
         type="button"
         onClick={onCreate}
-        className="w-full min-h-[104px] rounded-[20px] border-2 border-dashed border-outline flex flex-col items-center justify-center gap-1.5 text-[12.5px] font-semibold text-on-surface-muted hover:border-outline-purple hover:text-primary hover:bg-surface-container-lowest transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="w-full h-full min-h-[158px] rounded-card border-2 border-dashed border-outline flex flex-col items-center justify-center gap-1.5 text-[12.5px] font-semibold text-on-surface-muted hover:border-outline-purple hover:text-primary hover:bg-surface-container-lowest transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <Icon name="plus" size={18} />
         Thư mục mới

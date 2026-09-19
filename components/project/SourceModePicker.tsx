@@ -6,11 +6,11 @@ import Icon from "@/components/ui/Icon";
 import { SOURCE_MODE_OPTIONS, type SourceModeTone } from "@/lib/project-source-mode";
 import type { ProjectSourceMode } from "@/types/project";
 
-// Màu theo tone của mode — chỉ token
+// Màu theo tone của mode — chỉ token. Thẻ phẳng không viền (cùng ngôn ngữ với card dự án): chọn ⇒ nền ngả màu tone
 const TONE: Record<SourceModeTone, { icon: string; selected: string }> = {
-  info: { icon: "bg-info-soft text-info", selected: "border-info ring-info/20" },
-  warning: { icon: "bg-accent-gold-soft text-accent-gold-text", selected: "border-accent-gold ring-accent-gold/20" },
-  primary: { icon: "bg-primary-soft text-primary", selected: "border-primary ring-primary/20" },
+  info: { icon: "text-info", selected: "bg-info-soft" },
+  warning: { icon: "text-accent-gold-text", selected: "bg-accent-gold-soft" },
+  primary: { icon: "text-primary", selected: "bg-surface-card" },
 };
 
 interface SourceModePickerProps {
@@ -66,33 +66,39 @@ export default function SourceModePicker({ value, onChange, disabled = false }: 
             tabIndex={!soon && !disabled && option.value === tabStop ? 0 : -1}
             onClick={() => select(option.value)}
             onKeyDown={(e) => onKeyDown(e, option.value)}
-            className={`relative flex flex-col gap-2.5 p-4 rounded-[16px] border bg-surface-container-lowest text-left transition-all outline-none ${
+            // Phẳng, không viền, không bóng: phân biệt bằng nền — thường xám ấm, hover đậm một nấc, chọn ⇒ nền màu tone
+            className={`relative flex flex-col gap-2.5 p-4 rounded-card text-left transition-colors duration-200 outline-none ${
               soon
-                ? "border-outline-variant opacity-70 cursor-not-allowed"
-                : `cursor-pointer hover:shadow-[0_10px_26px_rgba(25,24,23,0.07)] focus-visible:ring-4 focus-visible:ring-primary/20 ${
-                    checked ? `ring-4 ${tone.selected}` : "border-outline hover:border-outline-purple"
+                ? "bg-surface-container-low cursor-not-allowed"
+                : `cursor-pointer focus-visible:ring-2 focus-visible:ring-primary ${
+                    checked ? tone.selected : "bg-surface-container hover:bg-surface-container-high"
                   }`
             }`}
           >
             <div className="flex items-start justify-between gap-2">
-              <span className={`w-9 h-9 rounded-[11px] flex items-center justify-center ${tone.icon}`}>
+              {/* Chip trắng nổi trên nền thẻ; thẻ "Sắp có" nhạt hẳn để mắt bỏ qua */}
+              <span
+                className={`w-9 h-9 rounded-control flex items-center justify-center bg-surface-container-lowest ${
+                  soon ? "text-on-surface-subtle" : tone.icon
+                }`}
+              >
                 <Icon name={option.icon} size={18} />
               </span>
               {soon ? (
                 <Badge tone="soon" />
               ) : (
-                <span
-                  aria-hidden
-                  className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center ${
-                    checked ? "border-primary bg-primary text-on-primary" : "border-outline"
-                  }`}
-                >
-                  {checked && <Icon name="check" size={11} />}
-                </span>
+                // Chỉ hiện dấu chọn khi đã chọn — không vẽ vòng tròn rỗng (lại thành một đường viền)
+                checked && (
+                  <span aria-hidden className="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center">
+                    <Icon name="check" size={12} />
+                  </span>
+                )
               )}
             </div>
-            <span className="text-[13.5px] font-extrabold text-on-surface">{option.label}</span>
-            <span className="text-[12px] leading-[1.5] text-on-surface-muted">{option.description}</span>
+            <span className={`text-[13.5px] font-bold ${soon ? "text-on-surface-muted" : "text-on-surface"}`}>{option.label}</span>
+            <span className={`text-[12px] leading-[1.5] ${soon ? "text-on-surface-subtle" : "text-on-surface-variant"}`}>
+              {option.description}
+            </span>
           </div>
         );
       })}
