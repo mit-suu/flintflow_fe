@@ -74,7 +74,7 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
   };
 
   const errorBox = error && (
-    <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-[10px] px-3 py-2">
+    <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
       {error}
     </p>
   );
@@ -100,7 +100,7 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
               value={name}
               maxLength={100}
               onChange={(e) => setName(e.target.value)}
-              className="h-10 px-3.5 rounded-[12px] border border-outline bg-surface-container-low text-[13.5px] text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+              className="h-10 px-3.5 rounded-control border border-outline bg-surface-container-low text-[13.5px] text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </div>
           {errorBox}
@@ -121,7 +121,7 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
   return (
     <Modal open onClose={close} title={copy.title}>
       <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-3 bg-error-container border border-error-border rounded-[12px] p-4 text-on-error-container">
+        <div className="flex items-start gap-3 bg-error-container border border-error-border rounded-control p-4 text-on-error-container">
           <Icon name={copy.icon} size={20} className="mt-0.5" />
           <div>
             <p className="text-[13.5px] font-bold text-on-surface">

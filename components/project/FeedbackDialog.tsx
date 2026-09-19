@@ -69,7 +69,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
               {CATEGORIES.map((c) => (
                 <label
                   key={c.value}
-                  className={`px-3.5 h-8 inline-flex items-center rounded-full border text-[12.5px] font-semibold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
+                  className={`px-3.5 h-8 inline-flex items-center rounded-control border text-[12.5px] font-semibold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
                     category === c.value
                       ? "bg-primary-soft border-outline-purple text-primary-hover"
                       : "bg-surface-container-lowest border-outline text-on-surface-variant hover:bg-surface-container-low"
@@ -100,7 +100,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
               maxLength={FEEDBACK_MESSAGE_MAX}
               rows={5}
               placeholder="Bạn gặp vấn đề gì hoặc muốn FlintFlow có thêm gì?"
-              className="w-full px-3.5 py-2.5 rounded-[12px] border border-outline bg-surface-container-low text-[13px] text-on-surface outline-none resize-y focus:border-primary focus:ring-2 focus:ring-primary/15"
+              className="w-full px-3.5 py-2.5 rounded-control border border-outline bg-surface-container-low text-[13px] text-on-surface outline-none resize-y focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
             <span className="self-end text-[11px] text-on-surface-subtle tabular-nums">
               {message.length}/{FEEDBACK_MESSAGE_MAX}
@@ -108,7 +108,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
           </div>
 
           {error && (
-            <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-[10px] px-3 py-2">
+            <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
               {error}
             </p>
           )}

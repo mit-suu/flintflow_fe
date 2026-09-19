@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import ProjectCard, { getStatusBadge, nextStepLabel } from "./ProjectCard";
+import ProjectCard, { getStatusBadge, nextStepLabel, phasePosition } from "./ProjectCard";
 import { tStep } from "@/lib/i18n";
+import { getSourceModeOption } from "@/lib/project-source-mode";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project } from "@/types/project";
 
@@ -22,6 +23,11 @@ describe("nextStepLabel — việc tiếp theo lấy từ step registry", () => 
 
   it("có Spine nhưng chưa chạy step nào ⇒ vẫn là chưa bắt đầu", () => {
     expect(nextStepLabel(progress())).toContain("Chưa bắt đầu");
+  });
+
+  it("không có step đang chạy nhưng đã làm dở ⇒ không nói là chưa bắt đầu", () => {
+    expect(nextStepLabel(progress({ done: 66, total: 81 }))).toBe("Mở để tiếp tục");
+    expect(nextStepLabel(progress({ done: 81, total: 81 }))).toBe("Đã hoàn tất");
   });
 
   it("đang ở một step ⇒ đúng nhãn của registry, không phải bảng cứng cũ", () => {
@@ -52,15 +58,44 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
   const noop = () => {};
 
   it.each([
-    ["import", "SRS có sẵn", /bg-(info|brand|success)-/],
-    ["customer_template", "Template khách", /bg-(accent-gold|error)-/],
-    ["fpt", "Mẫu FPT", /bg-(brand|primary)-/],
-  ] as const)("%s ⇒ nhãn %s, bìa theo tone của mode", (mode, label, stripe) => {
+    ["import", "SRS có sẵn"],
+    ["customer_template", "Template khách"],
+  ] as const)("%s ⇒ ghi tên nguồn %s ở dòng meta; card nền tím nhạt", (mode, label) => {
     const { container } = render(
       <ProjectCard project={{ ...baseProject, mode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
     );
-    expect(screen.getAllByText(label, { exact: false }).length).toBeGreaterThan(0);
-    expect(container.querySelector("[data-cover-variant]")?.className).toMatch(stripe);
+    expect(screen.getByTitle(getSourceModeOption(mode).label)).toHaveTextContent(label);
+    expect(container.querySelector("article")?.className.split(/\s+/)).toContain("bg-surface-card");
+  });
+
+  it("nguồn mặc định (Template FlintFlow) không ghi nhãn — gần như mọi dự án đều là nó", () => {
+    render(<ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
+    expect(screen.queryByText("Template FlintFlow")).toBeNull();
+  });
+
+  it("dự án BE trả thiếu mode ⇒ coi là mặc định, không ghi nhãn", () => {
+    const missing = { ...baseProject, mode: undefined } as unknown as Project;
+    render(<ProjectCard project={missing} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
+    expect(screen.queryByText("Template FlintFlow")).toBeNull();
+  });
+
+  it("thanh 12 giai đoạn: phase đã qua tô đậm, phase đang làm tô nhạt, kèm số bước từ BE", () => {
+    render(
+      <ProjectCard
+        project={baseProject}
+        progress={progress({ done: 12, total: 51, current_phase: "S-2", current_step: "S-2.1" })}
+        onRename={noop}
+        onDelete={noop}
+        onHardDelete={noop}
+      />
+    );
+    const bar = screen.getByRole("progressbar", { name: "Tiến độ theo giai đoạn" });
+    expect(bar).toHaveAttribute("aria-valuenow", "4");
+    expect(bar).toHaveAttribute("aria-valuetext", expect.stringMatching(/Giai đoạn 5\/12/));
+    // 4/12 giai đoạn đã qua tô đậm, giai đoạn thứ 5 nối tiếp tô nhạt
+    expect((bar.querySelector("[data-part='done']") as HTMLElement).style.width).toMatch(/^33\.33/);
+    expect((bar.querySelector("[data-part='current']") as HTMLElement).style.width).toMatch(/^41\.66/);
+    expect(screen.getByText("12/51")).toBeInTheDocument();
   });
 
   it("luôn link vào /projects/:id; badge trạng thái theo readiness (cờ đỏ thắng %)", () => {
@@ -95,6 +130,19 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
   });
 });
 
+describe("phasePosition — đếm theo phase để thanh không thụt lùi khi tổng bước được chốt", () => {
+  it.each([
+    [undefined, { done: 0, current: -1 }],
+    [null, { done: 0, current: -1 }],
+    [progress(), { done: 0, current: -1 }],
+    [progress({ current_phase: "B-0" }), { done: 0, current: 0 }],
+    [progress({ current_phase: "S-5", done: 30, total: 66 }), { done: 7, current: 7 }],
+    [progress({ done: 66, total: 66 }), { done: 12, current: -1 }],
+  ])("%# ⇒ %o", (p, expected) => {
+    expect(phasePosition(p)).toEqual(expected);
+  });
+});
+
 describe("getStatusBadge", () => {
   it.each([
     [undefined, "Bản nháp"],
@@ -104,5 +152,9 @@ describe("getStatusBadge", () => {
     [progress({}, { accepted_pct: 85, red_open: 2 }), "Cần làm rõ"],
   ])("%# ⇒ %s", (p, label) => {
     expect(getStatusBadge(p).label).toBe(label);
+  });
+
+  it("cờ đỏ là việc cần làm, không phải lỗi ⇒ tone warning", () => {
+    expect(getStatusBadge(progress({}, { red_open: 1 })).tone).toBe("warning");
   });
 });

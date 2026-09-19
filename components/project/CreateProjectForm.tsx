@@ -65,12 +65,17 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
             onFocus={(e) => {
               if (name === DEFAULT_PROJECT_NAME) e.target.select();
             }}
-            className="h-10 px-3.5 rounded-[12px] border border-outline bg-surface-container-low text-[13.5px] text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            // Không viền, cùng nền với thẻ chọn mode; focus ⇒ nền trắng + vòng tím
+            className="h-10 px-3.5 rounded-control bg-surface-container text-[13.5px] text-on-surface outline-none transition-colors hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30"
           />
         </div>
-        <div className={`flex gap-2 ${variant === "dialog" ? "justify-end" : ""}`}>
+        <div className={`flex items-center gap-2 ${variant === "dialog" ? "justify-end" : ""}`}>
+          {/* Gợi ý nằm cạnh nút đang mờ — giải thích vì sao chưa bấm được, không thêm một dòng riêng ở đáy */}
+          {!mode && variant === "dialog" && (
+            <p className="mr-auto text-[12px] text-on-surface-muted">Chọn một cách bắt đầu ở trên để tiếp tục.</p>
+          )}
           {onCancel && (
-            <Button variant="secondary" onClick={onCancel} disabled={submitting}>
+            <Button variant="ghost" onClick={onCancel} disabled={submitting}>
               Huỷ
             </Button>
           )}
@@ -80,9 +85,9 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
         </div>
       </div>
 
-      {!mode && <p className="text-[12px] text-on-surface-muted -mt-2">Chọn một cách bắt đầu ở trên để tiếp tục.</p>}
+      {!mode && variant === "inline" && <p className="text-[12px] text-on-surface-muted -mt-2">Chọn một cách bắt đầu ở trên để tiếp tục.</p>}
       {error && (
-        <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-[10px] px-3 py-2">
+        <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container rounded-control px-3 py-2">
           {error}
         </p>
       )}
