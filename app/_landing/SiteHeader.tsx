@@ -42,8 +42,8 @@ export default function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 flex justify-center px-4 pt-4 sm:px-6 sm:pt-5">
-      <div className="flex w-full max-w-[1120px] items-center gap-2 rounded-full bg-surface-container-lowest/90 py-2 pl-5 pr-2 shadow-[0_1px_2px_rgba(25,24,23,0.04),0_10px_30px_rgba(25,24,23,0.07)] backdrop-blur-lg">
-        <Logo variant="wordmark" sizeClassName="h-5 w-auto" theme="light" href="/" className="mr-3" />
+      <div className="flex w-full max-w-[1120px] items-center gap-3 rounded-full bg-surface-container-lowest/90 py-2.5 pl-7 pr-2.5 shadow-[0_1px_2px_rgba(25,24,23,0.04),0_10px_30px_rgba(25,24,23,0.07)] backdrop-blur-lg">
+        <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" href="/" className="mr-4" />
         <nav aria-label="Điều hướng chính" className="mx-auto hidden items-center gap-0.5 rounded-full bg-surface-sidebar p-1 md:flex">
           {NAV_LINKS.map((link) => {
             const current = link.href === active;
