@@ -82,7 +82,7 @@ export default function PhaseNavBar({
       <button
         onClick={onExportClick}
         className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
-          exportActive ? "bg-[#191817] text-white shadow-sm" : "bg-[#F4F3FE] text-[#4F46E5] border border-[#DDD9F6] hover:bg-[#EDEAFB]"
+          exportActive ? "bg-[#191817] text-white shadow-sm" : "bg-[#F2F1FB] text-[#6A62C4] border border-[#DCD8F0] hover:bg-[#EDEAFB]"
         }`}
         title="Mở luồng hoàn tất và xuất tài liệu"
       >

@@ -48,7 +48,7 @@ function CheckEmailContent() {
   return (
     <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
       {/* Mail Icon */}
-      <div className="w-12 h-12 rounded-[14px] bg-[#F4F3FE] flex items-center justify-center text-[22px] mx-auto">
+      <div className="w-12 h-12 rounded-[14px] bg-[#F2F1FB] flex items-center justify-center text-[22px] mx-auto">
         ✉️
       </div>
 

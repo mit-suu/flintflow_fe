@@ -13,7 +13,7 @@ interface StepProgressBarProps {
 
 const DOT_STYLE: Record<StepSummary["status"], string> = {
   accepted: "bg-[#1F7A45] text-white",
-  in_progress: "bg-[#4F46E5] text-white animate-pulse",
+  in_progress: "bg-[#6A62C4] text-white animate-pulse",
   revision_requested: "bg-[#C7811B] text-white",
   pending: "bg-[#F0EEEA] text-[#A8A49C]",
 };
@@ -34,7 +34,7 @@ export default function StepProgressBar({ steps, progress, selectedStepId, onSel
           {progress ? `${progress.done}/${progress.total}` : "—"}
         </span>
         {progress?.show_percent && (
-          <span className="text-[11px] font-bold text-[#4F46E5]" data-testid="step-percent">
+          <span className="text-[11px] font-bold text-[#6A62C4]" data-testid="step-percent">
             {percent}%
           </span>
         )}
@@ -60,7 +60,7 @@ export default function StepProgressBar({ steps, progress, selectedStepId, onSel
                     aria-current={isCurrent ? "step" : undefined}
                     title={`${step.id} · ${stepLabel(step.id)}`}
                     className={`h-2.5 rounded-full transition-all ${isCurrent ? "w-5" : "w-2.5"} ${DOT_STYLE[step.status]} ${
-                      selectedStepId === step.id ? "ring-2 ring-[#4F46E5] ring-offset-1" : ""
+                      selectedStepId === step.id ? "ring-2 ring-[#6A62C4] ring-offset-1" : ""
                     } ${clickable ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
                   />
                 );

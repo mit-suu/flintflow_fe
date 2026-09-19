@@ -13,7 +13,7 @@ interface SearchInputProps {
 export default function SearchInput({ value, onChange, placeholder, label, className }: SearchInputProps) {
   return (
     <div
-      className={`flex items-center gap-2 h-9 bg-surface-container-lowest border border-outline rounded-full px-3.5 text-on-surface-subtle focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-colors ${className ?? ""}`}
+      className={`flex items-center gap-2 h-9 bg-surface-container-lowest border border-outline rounded-control px-3.5 text-on-surface-subtle focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-colors ${className ?? ""}`}
     >
       <Icon name="search" size={15} />
       <input

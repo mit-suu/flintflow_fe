@@ -42,7 +42,7 @@ export default function Modal({ open, onClose, title, children, size = "md" }: M
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`bg-surface-container-lowest rounded-[20px] p-6 sm:p-7 w-full max-h-[calc(100vh-32px)] overflow-y-auto shadow-[0_30px_80px_rgba(25,24,23,0.3)] ${
+        className={`bg-surface-container-lowest rounded-dialog p-6 sm:p-7 w-full max-h-[calc(100vh-32px)] overflow-y-auto shadow-[0_30px_80px_rgba(25,24,23,0.3)] ${
           size === "lg" ? "max-w-[760px]" : "max-w-[480px]"
         } outline-none`}
         onClick={(e) => e.stopPropagation()}

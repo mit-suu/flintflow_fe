@@ -31,7 +31,7 @@ export default function PhaseHeader({
         {currentPhase ? `${currentPhase} · ${phaseLabel}` : phaseLabel}
       </span>
       {currentStep && (
-        <span className="text-[11.5px] font-semibold text-[#4F46E5] bg-[#F4F3FE] border border-[#DDD9F6] px-2 py-0.5 rounded-full">
+        <span className="text-[11.5px] font-semibold text-[#6A62C4] bg-[#F2F1FB] border border-[#DCD8F0] px-2 py-0.5 rounded-full">
           {currentStep} · {stepLabel(currentStep)}
         </span>
       )}

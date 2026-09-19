@@ -91,7 +91,7 @@ function VerifyEmailContent() {
       {/* Loading State */}
       {status === "loading" && (
         <div className="flex flex-col items-center gap-3.5 py-4">
-          <span className="w-10 h-10 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
+          <span className="w-10 h-10 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
           <h1 className="text-[20px] font-extrabold text-[#191817]">
             Đang xác thực email…
           </h1>

@@ -18,7 +18,7 @@ export default function IconButton({ icon, label, size = "md", className, type =
       type={type}
       aria-label={label}
       title={label}
-      className={`inline-flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${SIZE[size]} ${className ?? ""}`}
+      className={`inline-flex items-center justify-center rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${SIZE[size]} ${className ?? ""}`}
       {...rest}
     >
       <Icon name={icon} size={size === "md" ? 18 : size === "sm" ? 15 : 14} />
