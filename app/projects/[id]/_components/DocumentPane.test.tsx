@@ -167,4 +167,38 @@ describe("DocumentPane", () => {
 
     expect(await screen.findByText(/xem tại S-3.1/)).toBeInTheDocument();
   });
+
+  it("mode 1 v2 (FLF-185): heading nhóm chỉ tiêu đề; mục riêng có nhãn; số hiệu rỗng không in §; section rỗng gợi ý step sở hữu", async () => {
+    const onSelectStep = vi.fn();
+    getDocument.mockResolvedValueOnce({
+      data: {
+        ...fixture,
+        sections: [
+          { id: "group:2", number: "2", heading: "Yêu cầu người dùng", level: 1, blocks: [] },
+          { id: "fixed:5.1", number: "2.1", heading: "Quy tắc nghiệp vụ", level: 2, status: "draft", blocks: [] },
+          { id: "fixed:4.2.4", number: "2.2", heading: "Bảo mật", level: 2, status: "draft", blocks: [] },
+          { id: "custom:CS02", number: "", heading: "Phụ lục A Biên bản họp", level: 1, blocks: [{ type: "paragraph", runs: [{ text: "Họp 12/09" }] }] },
+        ],
+      },
+      error: null,
+      meta: { assembled_at_version: 5, spine_version: 5, stale: false },
+    });
+    const hints: Record<string, { stepId: string; missing: boolean }> = {
+      "fixed:5.1": { stepId: "S-7.1", missing: true },
+      "fixed:4.2.4": { stepId: "S-6.5", missing: false },
+    };
+    render(<DocumentPane projectId="p1" onSelectStep={onSelectStep} emptyHintOf={(id) => hints[id]} />);
+
+    expect(await screen.findByText("§2 Yêu cầu người dùng")).toBeInTheDocument();
+    expect(document.querySelector("[data-section-id=\"group:2\"]")?.textContent).not.toContain("Chưa hoàn thiện");
+    const rules = document.querySelector("[data-section-id=\"fixed:5.1\"]") as HTMLElement;
+    expect(rules).toHaveTextContent("Thiếu");
+    expect(rules).toHaveTextContent("Chưa có nội dung — chạy step S-7.1");
+    expect(document.querySelector("[data-section-id=\"fixed:4.2.4\"]")).not.toHaveTextContent("Thiếu");
+    const appendix = document.querySelector("[data-section-id=\"custom:CS02\"]") as HTMLElement;
+    expect(appendix).toHaveTextContent("Mục riêng");
+    expect(appendix.querySelector("h5")?.textContent).toBe("Phụ lục A Biên bản họp");
+    screen.getAllByRole("button", { name: "Mở step" })[0].click();
+    expect(onSelectStep).toHaveBeenCalledWith("S-7.1");
+  });
 });
