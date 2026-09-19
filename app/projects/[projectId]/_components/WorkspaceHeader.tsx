@@ -41,7 +41,7 @@ export default function WorkspaceHeader({
 
         {project?.domain && (
           <div className="ml-2 px-2.5 py-0.5 rounded-full bg-[#EEF1FB] text-[#3B4FA8] text-[11px] font-bold flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
             domain: {project.domain}
           </div>
         )}
@@ -57,7 +57,7 @@ export default function WorkspaceHeader({
       <div className="flex items-center gap-3">
         {user && (
           <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-[12px] font-semibold gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
             {user.balance ?? 0} credits
           </div>
         )}

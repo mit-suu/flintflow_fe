@@ -10,7 +10,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export default function Card({ interactive = false, className, children, ...rest }: CardProps) {
   return (
     <div
-      className={`bg-surface-container-lowest border border-outline-variant rounded-[16px] ${
+      className={`bg-surface-container-lowest border border-outline-variant rounded-card ${
         interactive ? "transition-shadow hover:shadow-[0_12px_32px_rgba(25,24,23,0.08)]" : ""
       } ${className ?? ""}`}
       {...rest}
