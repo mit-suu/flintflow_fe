@@ -1,5 +1,5 @@
 import FinalCta from "./_landing/FinalCta";
-import Hero, { HeroBackdrop } from "./_landing/Hero";
+import Hero from "./_landing/Hero";
 import HowItWorks from "./_landing/HowItWorks";
 import Modes from "./_landing/Modes";
 import Pricing from "./_landing/Pricing";
@@ -7,14 +7,14 @@ import SiteHeader from "./_landing/SiteHeader";
 import WorkspacePreview from "./_landing/WorkspacePreview";
 
 /*
- * Landing page — bản sáng theo mock L1 (flintflow-ui-design `_src/screens/02-L1.html`).
+ * Landing page — cùng ngôn ngữ hình ảnh với dashboard: phẳng, không viền, nền trắng / xám nhạt, màu pastel của thẻ
+ * thư mục, card dự án + thanh 12 giai đoạn, tím `primary` của hệ thống. Điểm nhấn riêng của landing: khối `primary`
+ * đặc, thẻ thư mục cỡ lớn và hạt kim cương vàng lấy từ logo.
  * Mỗi section là một component trong `app/_landing/`; nội dung tĩnh ở `content.ts`.
- * Nền kem `surface`, tím indigo hệ thống (primary-light → primary → primary-hover) cho điểm nhấn; utility ở globals.css (`.landing-*`).
  */
 export default function LandingPage() {
   return (
-    <div id="top" className="relative min-h-screen overflow-x-clip bg-surface font-sans text-on-surface antialiased selection:bg-primary/20">
-      <HeroBackdrop />
+    <div className="min-h-screen overflow-x-clip bg-surface-container-lowest font-sans text-on-surface antialiased selection:bg-primary/20">
       <SiteHeader />
       <main>
         <Hero />

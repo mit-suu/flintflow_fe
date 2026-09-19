@@ -1,16 +1,23 @@
-import { PLANS, type Plan } from "./content";
-import { ButtonLink } from "./ui";
+import { PLANS, PRICING_HEADING, type Plan } from "./content";
+import { ButtonLink, Diamond, SectionHeading } from "./ui";
 
+/* Hai gói phẳng: Free nền xám ấm, Pro nền mực đậm để nổi — nhãn "Phổ biến nhất" vàng như hạt kim cương logo. */
 export default function Pricing() {
   return (
-    <section id="bang-gia" aria-labelledby="pricing-title" className="relative scroll-mt-24 px-4 py-16 sm:px-8 lg:px-[72px] lg:pb-[88px] lg:pt-[72px]">
-      <h2 id="pricing-title" className="sr-only">
-        Bảng giá
-      </h2>
-      <div className="mx-auto grid max-w-[760px] items-stretch gap-[18px] sm:grid-cols-2">
-        {PLANS.map((plan) => (
-          <PlanCard key={plan.name} plan={plan} />
-        ))}
+    <section id="bang-gia" aria-labelledby="pricing-title" className="scroll-mt-20 px-4 py-20 sm:px-6 lg:py-28">
+      <div className="mx-auto max-w-[1200px]">
+        <SectionHeading
+          id="pricing-title"
+          eyebrow={PRICING_HEADING.eyebrow}
+          title={PRICING_HEADING.title}
+          subline={PRICING_HEADING.subline}
+          align="center"
+        />
+        <div className="mx-auto mt-12 grid max-w-[820px] gap-4 sm:grid-cols-2">
+          {PLANS.map((plan) => (
+            <PlanCard key={plan.name} plan={plan} />
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -19,29 +26,28 @@ export default function Pricing() {
 function PlanCard({ plan }: { plan: Plan }) {
   const featured = plan.recommended;
   return (
-    <article
-      className={`relative flex flex-col gap-3 rounded-[22px] p-[30px] ${
-        featured
-          ? "landing-gradient-border shadow-[0_24px_60px_rgba(106,98,196,0.18)]"
-          : "border border-outline-variant bg-white"
-      }`}
-    >
-      {featured && (
-        <span className="absolute -top-3 right-6 rounded-full bg-[linear-gradient(135deg,#8E87D6,#6A62C4)] px-3.5 py-[5px] text-[10.5px] font-extrabold text-white shadow-[0_8px_20px_rgba(106,98,196,0.4)]">
-          PHỔ BIẾN NHẤT
-        </span>
-      )}
-      <h3 className={`text-sm font-extrabold ${featured ? "text-primary-hover" : "text-on-surface-variant"}`}>{plan.name}</h3>
-      <p className="text-4xl font-extrabold text-on-surface">
-        {plan.price}
-        <span className="text-sm font-semibold text-on-surface-subtle">{plan.unit}</span>
+    <article className={`flex flex-col rounded-dialog p-7 sm:p-8 ${featured ? "bg-on-surface text-surface" : "bg-surface-container"}`}>
+      <header className="flex items-center justify-between gap-2">
+        <h3 className={`text-[15px] font-bold ${featured ? "text-surface" : "text-on-surface"}`}>{plan.name}</h3>
+        {featured && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-gold px-2.5 py-1 text-[11px] font-bold text-on-surface">
+            Phổ biến nhất
+          </span>
+        )}
+      </header>
+      <p className="mt-4 flex items-baseline gap-1">
+        <span className={`text-5xl font-bold tracking-tight ${featured ? "text-surface" : "text-on-surface"}`}>{plan.price}</span>
+        <span className={`text-[14px] font-medium ${featured ? "text-surface/60" : "text-on-surface-muted"}`}>{plan.unit}</span>
       </p>
-      <p className="text-[13px] leading-[1.8] text-on-surface-variant">{plan.summary}</p>
-      <ButtonLink
-        href="/register"
-        variant={featured ? "solid" : "secondary"}
-        className="mt-auto w-full py-[13px] text-[13.5px]"
-      >
+      <ul className="mt-6 flex-1 space-y-2.5">
+        {plan.features.map((feature) => (
+          <li key={feature} className={`flex items-center gap-2.5 text-[14px] ${featured ? "text-surface/85" : "text-on-surface-medium"}`}>
+            <Diamond className="size-1.5" />
+            {feature}
+          </li>
+        ))}
+      </ul>
+      <ButtonLink href="/register" variant={featured ? "primary" : "inverse"} className="mt-8 w-full">
         {plan.cta}
       </ButtonLink>
     </article>

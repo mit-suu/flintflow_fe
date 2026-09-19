@@ -21,7 +21,7 @@ describe("LandingPage", () => {
 
   it("bảng giá khớp plan.config của BE (Free 100 credit, Pro 199k)", () => {
     render(<LandingPage />);
-    const pricing = screen.getByRole("region", { name: "Bảng giá" });
+    const pricing = screen.getByRole("region", { name: "Dùng thử không tốn gì." });
     expect(within(pricing).getByText(/^100 credit mỗi tháng/)).toBeInTheDocument();
     expect(within(pricing).getByText("199k")).toBeInTheDocument();
   });
