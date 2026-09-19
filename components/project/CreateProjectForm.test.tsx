@@ -37,7 +37,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
     fireEvent.click(submit());
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
-    expect(createProject).toHaveBeenCalledWith("Lumen", "fpt_template");
+    expect(createProject).toHaveBeenCalledWith("Lumen", "fpt_template", undefined);
   });
 
   it("lỗi hiện dưới form, giữ nguyên mode và tên để thử lại", async () => {
@@ -62,5 +62,17 @@ describe("CreateProjectForm (UC-13/14)", () => {
 
     expect(onCancel).toHaveBeenCalledOnce();
     expect(createProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("CreateProjectForm trong thư mục", () => {
+  it("có folderId ⇒ tạo thẳng trong thư mục (một request)", async () => {
+    vi.mocked(createProject).mockReset().mockResolvedValue({ data: { _id: "p1", sourceMode: "fpt_template" }, error: null } as never);
+    render(<CreateProjectForm variant="dialog" onCreated={() => {}} folderId="f1" />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
+
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "fpt_template", "f1"));
   });
 });

@@ -4,12 +4,16 @@ import { listProjects } from "@/lib/api/projects";
 import { ProjectsProvider, useProjects } from "./use-projects";
 
 vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
+vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
+
+import { listFolders } from "@/lib/api/folders";
 
 function Probe() {
-  const { loading, error, projects, reload } = useProjects();
+  const { loading, error, foldersError, projects, reload } = useProjects();
   return (
     <>
       <p>{loading ? "loading" : error ?? `${projects.length} dự án`}</p>
+      {foldersError && <p>folders: {foldersError}</p>}
       <button type="button" onClick={() => void reload()}>
         reload
       </button>
@@ -44,5 +48,14 @@ describe("ProjectsProvider", () => {
     vi.mocked(listProjects).mockRejectedValueOnce(new Error("BE sập"));
     renderProbe();
     await waitFor(() => expect(screen.getByText("BE sập")).toBeInTheDocument());
+  });
+
+  it("chỉ thư mục lỗi ⇒ dự án vẫn hiện, lỗi thư mục tách riêng", async () => {
+    vi.mocked(listProjects).mockResolvedValueOnce({ data: [{ _id: "p1" }], error: null } as never);
+    vi.mocked(listFolders).mockRejectedValueOnce(new Error("folders sập"));
+    renderProbe();
+
+    expect(await screen.findByText("1 dự án")).toBeInTheDocument();
+    expect(screen.getByText("folders: folders sập")).toBeInTheDocument();
   });
 });

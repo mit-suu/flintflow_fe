@@ -483,6 +483,7 @@ export const handlers = [
     const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", sourceMode: body.sourceMode, createdAt: now, updatedAt: now };
     return ok(project, { status: 201 });
   }),
+  http.get(api("/folders"), () => ok([])),
   http.post(api("/feedback"), async ({ request }) => {
     const body = (await request.json()) as { category: string; message: string };
     return ok({ _id: "650000000000000000000098", ...body, createdAt: new Date().toISOString() }, { status: 201 });

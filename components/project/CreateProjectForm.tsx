@@ -14,13 +14,15 @@ interface CreateProjectFormProps {
   variant: "inline" | "dialog";
   onCreated: (project: Project) => void | Promise<void>;
   onCancel?: () => void;
+  /** Đang ở trong một thư mục ⇒ dự án tạo thẳng trong đó. */
+  folderId?: string;
 }
 
 /**
  * Tạo dự án theo source mode (UC-13/14) — một component cho cả empty state và dialog. Lỗi hiện ngay dưới
  * form và giữ nguyên lựa chọn để user thử lại.
  */
-export default function CreateProjectForm({ variant, onCreated, onCancel }: CreateProjectFormProps) {
+export default function CreateProjectForm({ variant, onCreated, onCancel, folderId }: CreateProjectFormProps) {
   const [mode, setMode] = useState<ProjectSourceMode | null>(null);
   const [name, setName] = useState(DEFAULT_PROJECT_NAME);
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +37,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel }: Crea
     setSubmitting(true);
     setError(null);
     try {
-      const res = await createProject(name.trim(), mode);
+      const res = await createProject(name.trim(), mode, folderId);
       if (!res.data) throw new Error("Không nhận được dự án vừa tạo");
       await onCreated(res.data);
     } catch (err) {
