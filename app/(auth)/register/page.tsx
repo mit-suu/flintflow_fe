@@ -6,6 +6,7 @@ import Link from "next/link";
 import GoogleButton from "../../../components/GoogleButton";
 import Logo from "../../../components/Logo";
 import { saveAuthToken } from "../../../lib/auth";
+import { buildVerifyEmailHref } from "../../../lib/otp";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -16,6 +17,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +30,8 @@ export default function RegisterPage() {
   };
 
   const strength = getPasswordStrength(password);
+  // Chỉ báo khi user đã gõ vào ô xác nhận, tránh đỏ ngay từ lúc mới vào trang
+  const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +57,8 @@ export default function RegisterPage() {
         throw new Error(json.error?.message || "Đăng ký thất bại");
       }
 
-      // Success -> Redirect to check-email
-      router.push(`/check-email?email=${encodeURIComponent(email)}`);
+      // Success -> nhập OTP vừa gửi tới email
+      router.push(buildVerifyEmailHref(email.trim().toLowerCase(), json.data?.otpExpiresIn));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
     } finally {
@@ -99,7 +103,7 @@ export default function RegisterPage() {
                   throw new Error(json.error?.message || "Đăng ký Google thất bại");
                 }
                 if (json.data?.accessToken) {
-                  saveAuthToken(json.data.accessToken);
+                  saveAuthToken(json.data.accessToken, undefined, { persistent: true });
                 }
                 window.location.href = "/home";
               } catch (err) {
@@ -178,6 +182,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   className="absolute right-3 top-2.5 text-[#A8A49C] hover:text-[#191817] transition-colors"
                 >
                   <span className="material-symbols-outlined text-[18px]">
@@ -215,21 +220,45 @@ export default function RegisterPage() {
               <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="confirmPassword">
                 Xác nhận mật khẩu
               </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
-              />
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  aria-invalid={passwordMismatch}
+                  aria-describedby={passwordMismatch ? "confirmPassword-error" : undefined}
+                  className={`w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] outline-none transition-all text-[#191817] text-[13.5px] focus:ring-1 ${
+                    passwordMismatch
+                      ? "border-[#B03030] bg-[#FDF6F6] focus:border-[#B03030] focus:ring-[#B03030]"
+                      : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#4F46E5] focus:ring-[#4F46E5]"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Ẩn mật khẩu xác nhận" : "Hiện mật khẩu xác nhận"}
+                  className="absolute right-3 top-2.5 text-[#A8A49C] hover:text-[#191817] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {showConfirmPassword ? "visibility_off" : "visibility"}
+                  </span>
+                </button>
+              </div>
+              {passwordMismatch && (
+                <p id="confirmPassword-error" className="text-[11.5px] font-semibold text-[#B03030] flex items-center gap-1 pt-0.5">
+                  <span className="material-symbols-outlined text-[14px]">error</span>
+                  Mật khẩu xác nhận không giống với mật khẩu.
+                </p>
+              )}
             </div>
 
             {/* Submit CTA */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || passwordMismatch}
               className="w-full mt-2 py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {loading ? (

@@ -6,8 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import AuthGuard from "./AuthGuard";
 
-const { mockReplace, mockRefreshSession, mockIsAuthenticated } = vi.hoisted(() => ({
+const { mockReplace, mockRefreshSession, mockIsAuthenticated, mockLogoutAndRedirect } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
+  mockLogoutAndRedirect: vi.fn(),
   mockRefreshSession: vi.fn(),
   mockIsAuthenticated: vi.fn(),
 }));
@@ -16,7 +17,11 @@ const { mockReplace, mockRefreshSession, mockIsAuthenticated } = vi.hoisted(() =
 const router = { replace: mockReplace };
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("../lib/api", () => ({ refreshSession: mockRefreshSession }));
-vi.mock("../lib/auth", () => ({ isAuthenticated: mockIsAuthenticated, getUserRole: () => "user" }));
+vi.mock("../lib/auth", () => ({
+  isAuthenticated: mockIsAuthenticated,
+  getUserRole: () => "user",
+  logoutAndRedirect: mockLogoutAndRedirect,
+}));
 
 const flushRetries = () => act(() => vi.advanceTimersByTimeAsync(10_000));
 
@@ -25,6 +30,7 @@ describe("AuthGuard", () => {
     vi.useFakeTimers();
     mockReplace.mockReset();
     mockRefreshSession.mockReset();
+    mockLogoutAndRedirect.mockReset().mockResolvedValue(undefined);
     mockIsAuthenticated.mockReset().mockReturnValue(false);
   });
 
@@ -42,13 +48,13 @@ describe("AuthGuard", () => {
     expect(mockRefreshSession).not.toHaveBeenCalled();
   });
 
-  it("BE từ chối refresh ⇒ về /login", async () => {
+  it("BE từ chối refresh ⇒ đăng xuất hẳn (xoá cookie HttpOnly) rồi về /login", async () => {
     mockRefreshSession.mockResolvedValue("rejected");
 
     render(<AuthGuard>nội dung</AuthGuard>);
     await flushRetries();
 
-    expect(mockReplace).toHaveBeenCalledWith("/login");
+    expect(mockLogoutAndRedirect).toHaveBeenCalledTimes(1);
     expect(mockRefreshSession).toHaveBeenCalledTimes(1);
   });
 
@@ -58,7 +64,7 @@ describe("AuthGuard", () => {
     render(<AuthGuard>nội dung</AuthGuard>);
     await flushRetries();
 
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockLogoutAndRedirect).not.toHaveBeenCalled();
     expect(mockRefreshSession).toHaveBeenCalledTimes(3);
     expect(screen.getByText(/Không kết nối được máy chủ/)).toBeInTheDocument();
   });
