@@ -221,18 +221,19 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(clear.change_request.clarifications[0].answers).toHaveLength(2);
   });
 
-  it("đi trọn CR: khoá block, CR thứ hai chạm cùng block ⇒ BLOCK_LOCKED; duyệt ⇒ 0.1 có Track Changes, mở khoá", async () => {
+  it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; duyệt ⇒ phần tử đổi, 0.1, mở khoá", async () => {
     const detail = await crToReview("Log out of all devices");
     expect(detail.change_request.status).toBe("in_review");
-    const locked = detail.locations.map((l) => l.block_id);
+    const locked = detail.locations.map((l) => l.path);
     expect(locked.length).toBeGreaterThan(0);
-    expect(detail.locations.every((l) => l.block?.locked_by_cr === detail.change_request.cr_id)).toBe(true);
+    expect(locked.every((p) => state().locks.get(p) === detail.change_request.cr_id)).toBe(true);
+    expect(detail.locations[0].current_text).toContain("\"id\"");
 
     const other = (await createCr("Log out of all devices again")).change_request.cr_id;
     await call("POST", `/projects/${P}/change-requests/${other}/clarify`, {});
     const conflict = await call("POST", `/projects/${P}/change-requests/${other}/impact`, {});
     expect(conflict.status).toBe(409);
-    expect(conflict.body.error?.code).toBe("BLOCK_LOCKED");
+    expect(conflict.body.error?.code).toBe("PATH_LOCKED");
     expect(conflict.body.meta?.locked).toEqual(expect.arrayContaining([expect.objectContaining({ cr_id: detail.change_request.cr_id })]));
 
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
@@ -240,12 +241,12 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     const written = (await call<CrDetail>("POST", `${base}/groups/G01/decision`, { decision: "approved", base_version: state().spineVersion })).body.data!;
     expect(written.change_request).toMatchObject({ status: "written", result_doc_version: "0.1" });
 
-    const blocks = (await call<DocBlock[]>("GET", `/projects/${P}/versions/0.1/blocks`)).body.data!;
-    expect(blocks.some((b) => b.revisions?.some((r) => r.author === detail.change_request.cr_id && r.kind === "ins"))).toBe(true);
-    expect(blocks.every((b) => b.locked_by_cr === null)).toBe(true);
-
-    const cmp = (await call<CompareResponse>("GET", `/projects/${P}/versions/compare?from=0.0&to=0.1`)).body.data!;
-    expect(cmp.summary.modified).toBeGreaterThan(0);
+    // giá trị phần tử đã đổi theo đề xuất; khoá của CR mở hết
+    const edited = written.locations.find((l) => l.conclusion === "edit")!;
+    expect(written.locations.find((l) => l.location_id === edited.location_id)?.current_text).toBe(edited.proposal?.new_text);
+    expect([...state().locks.values()]).not.toContain(detail.change_request.cr_id);
+    expect((await call<DocBlock[]>("GET", `/projects/${P}/versions/0.1/blocks`)).status).toBe(200);
+    expect((await call<CompareResponse>("GET", `/projects/${P}/versions/compare?from=0.0&to=0.1`)).status).toBe(200);
     const dl = await call("GET", `/projects/${P}/versions/0.1/download`);
     expect(dl.headers.get("content-disposition")).toContain("_v0.1_DRAFT.docx");
   });
@@ -271,7 +272,7 @@ describe("mock mode 1 — change request (#16–#30)", () => {
       if (res.change_request.status === "proposing") await call("POST", `${base}/propose`, {});
     }
     expect(statuses).toEqual(["proposing", "proposing", "manual_fix"]);
-    const fixed = await call<CrDetail>("PATCH", `${base}/locations/L001`, { conclusion: "edit", new_text: "3.2.4 Sign out of all devices" });
+    const fixed = await call<CrDetail>("PATCH", `${base}/locations/L001`, { conclusion: "edit", new_value: { id: "NFR-P02", statement: "Sign out of all devices" } });
     expect(fixed.body.data!.locations[0].manual).toBe(true);
     expect((await call<CrDetail>("POST", `${base}/verify`, {})).body.data!.change_request.status).toBe("ready_to_submit");
   });
@@ -279,19 +280,18 @@ describe("mock mode 1 — change request (#16–#30)", () => {
   it("mọi group bị từ chối ⇒ đóng (rejected) và mở khoá; huỷ CR khác cũng mở khoá", async () => {
     const detail = await crToReview("Log out of all devices");
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
-    const groupBlocks = detail.locations.filter((l) => l.group_id === "G01").map((l) => l.block_id);
+    const groupPaths = detail.locations.filter((l) => l.group_id === "G01").map((l) => l.path);
     await call("POST", `${base}/groups/G01/decision`, { decision: "rejected", reason: "Ngoài phạm vi bản 1.0", base_version: state().spineVersion });
-    const afterReject = (await call<DocBlock[]>("GET", `/projects/${P}/versions/0.0/blocks`)).body.data!;
     // Group bị từ chối mở khoá ngay; vị trí not_related vẫn thuộc CR tới khi đóng
-    expect(afterReject.filter((b) => groupBlocks.includes(b.block_id)).every((b) => b.locked_by_cr === null)).toBe(true);
+    expect(groupPaths.every((p) => !state().locks.has(p))).toBe(true);
     const closed = (await call<CrDetail>("POST", `${base}/close`, { reason: "Khách rút yêu cầu này" })).body.data!;
     expect(closed.change_request.status).toBe("rejected");
-    expect((await call<DocBlock[]>("GET", `/projects/${P}/versions/0.0/blocks`)).body.data!.every((b) => b.locked_by_cr === null)).toBe(true);
+    expect(state().locks.size).toBe(0);
 
     const second = await crToReview("Log out of all devices v2");
     const cancelled = (await call<CrDetail>("POST", `/projects/${P}/change-requests/${second.change_request.cr_id}/cancel`, { reason: "Tạo nhầm change request" })).body.data!;
     expect(cancelled.change_request.status).toBe("cancelled");
-    expect((await call<DocBlock[]>("GET", `/projects/${P}/versions/0.0/blocks`)).body.data!.every((b) => b.locked_by_cr === null)).toBe(true);
+    expect(state().locks.size).toBe(0);
     expect((await call("POST", `/projects/${P}/change-requests/${second.change_request.cr_id}/cancel`, { reason: "Huỷ lần hai nữa" })).body.error?.code).toBe("CR_INVALID_TRANSITION");
   });
 
