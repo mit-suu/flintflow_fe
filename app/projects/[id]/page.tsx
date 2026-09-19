@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { applyChanges } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
 import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
-import type { ProjectMode } from "@/types/project";
+import type { Project } from "@/types/project";
 
 import WorkspaceHeader from "./_components/WorkspaceHeader";
 import PhaseNavBar from "./_components/PhaseNavBar";
@@ -16,7 +16,7 @@ import PhaseHeader from "./_components/PhaseHeader";
 import StepProgressBar from "./_components/StepProgressBar";
 import ChatSessionSidebar from "./_components/ChatSessionSidebar";
 import ChatPane from "./_components/ChatPane";
-import DocumentPane from "./_components/DocumentPane";
+import DocumentPane, { type EmptyHint } from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
 import ChangePanel, { type ChangeSeed } from "./_components/ChangePanel";
 import ExportPanel from "./_components/ExportPanel";
@@ -28,7 +28,10 @@ import NamesGlossaryPanel from "./_components/NamesGlossaryPanel";
 import BriefSummaryCard from "./_components/BriefSummaryCard";
 import AssumptionSweepPanel from "./_components/AssumptionSweepPanel";
 import AddendumTriagePanel from "./_components/AddendumTriagePanel";
-import Mode1Workspace from "./_components/mode1/Mode1Workspace";
+import CrPrefillCard from "./_components/mode1/CrPrefillCard";
+import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
+import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
+import { useStepPlan } from "./hooks/mode1/useStepPlan";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -60,30 +63,37 @@ const WorkspaceLoading = () => (
 );
 
 /**
- * Rẽ nhánh theo `project.mode` (FLF-172): mode 1 (`import`, upload SRS có sẵn rồi sửa) có workspace riêng;
- * mode 2 (`fpt`) giữ nguyên workspace pipeline bên dưới. Không đọc được project ⇒ workspace mode 2 tự xử lý
- * lỗi/đăng nhập như trước.
+ * Rẽ nhánh theo `project.mode`: mode 2 (`fpt`) ⇒ workspace pipeline. Mode 1 (`import`, upload SRS có sẵn) v2
+ * (FLF-185): chưa import xong ⇒ wizard `/import`; import xong ⇒ **cùng workspace** (step theo template người dùng,
+ * sửa qua chat tới baseline v1) + công cụ mode 1. Không đọc được project ⇒ workspace mode 2 tự xử lý lỗi/đăng nhập.
  */
 export default function WorkspacePage() {
   const projectId = useParams()?.id as string;
-  const [mode, setMode] = useState<ProjectMode | null>(null);
+  const router = useRouter();
+  const [project, setProject] = useState<Pick<Project, "mode" | "import_state"> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     getProject(projectId)
-      .then((res) => !cancelled && setMode(res.data?.mode ?? "fpt"))
-      .catch(() => !cancelled && setMode("fpt"));
+      .then((res) => !cancelled && setProject(res.data ?? { mode: "fpt", import_state: null }))
+      .catch(() => !cancelled && setProject({ mode: "fpt", import_state: null }));
     return () => {
       cancelled = true;
     };
   }, [projectId]);
 
-  if (mode === null) return <WorkspaceLoading />;
-  return mode === "import" ? <Mode1Workspace projectId={projectId} /> : <FptWorkspace />;
+  const mode1 = project?.mode === "import";
+  const importDone = !!project?.import_state && IMPORT_DONE_STATUSES.includes(project.import_state);
+  useEffect(() => {
+    if (mode1 && !importDone) router.replace(`/projects/${projectId}/import`);
+  }, [mode1, importDone, projectId, router]);
+
+  if (project === null || (mode1 && !importDone)) return <WorkspaceLoading />;
+  return <FptWorkspace mode1={mode1} />;
 }
 
-/** Workspace pipeline (mode 2, template FPT). */
-function FptWorkspace() {
+/** Workspace pipeline — mode 2 (template FPT) và mode 1 v2 sau import (`mode1`: step theo template người dùng). */
+function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const params = useParams();
   const projectId = params?.id as string;
 
@@ -103,7 +113,7 @@ function FptWorkspace() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [verificationOpen, setVerificationOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(mode1);
   const [exportOpen, setExportOpen] = useState(false);
   const [changePanelOpen, setChangePanelOpen] = useState(false);
   const [changeSeed, setChangeSeed] = useState<ChangeSeed | undefined>(undefined);
@@ -164,7 +174,25 @@ function FptWorkspace() {
     onGateDone: (res) => setSelectedStepId(res.next_step),
   });
 
+  // ─── mode 1 v2: kế hoạch step theo template (thiếu / ẩn / bật) ─────
+  const onPlanChanged = useCallback(() => {
+    void reloadSpine();
+    void reloadProgress();
+    setDocumentRefreshToken((v) => v + 1);
+  }, [reloadSpine, reloadProgress]);
+  const stepPlan = useStepPlan(projectId, mode1, spineState.version, onPlanChanged);
+  const missingStepIds = new Set((stepPlan.steps ?? []).filter((p) => p.missing && p.state !== "hidden").map((p) => p.step_id));
+  const emptyHintOf = (sectionId: string): EmptyHint | undefined => {
+    const owner = (stepPlan.steps ?? []).find(
+      (p) => p.state !== "hidden" && p.section_ids.some((id) => id === sectionId || (id === "feature:*" && sectionId.startsWith("feature:")))
+    );
+    if (!owner || steps?.steps.find((s) => s.id === owner.step_id)?.status === "accepted") return undefined;
+    return { stepId: owner.step_id, missing: owner.missing };
+  };
+
   const spine = spineState.spine;
+  // Mode 1: baseline v1 = baseline ký (`generated`) hoặc release — baseline `imported` (0.0) không tính
+  const signedOff = !!spine?.baselines.some((b) => b.type !== "imported");
   const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
   const currentPhase = progress?.progress.current_phase ?? steps?.current_phase ?? spine?.progress.current_phase ?? null;
   const runnerStep = runner.state.stepId;
@@ -320,6 +348,7 @@ function FptWorkspace() {
         progress={progress?.progress ?? null}
         selectedStepId={viewedStep}
         onSelectStep={setSelectedStepId}
+        missingStepIds={mode1 ? missingStepIds : undefined}
       />
 
       <main ref={mainRef} className="flex-1 flex overflow-hidden bg-[#F5F3F0]">
@@ -353,6 +382,7 @@ function FptWorkspace() {
             ) : undefined
           }
         >
+          {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {viewingAccepted && viewedStep && (
             <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-3 text-[12px] text-[#1F7A45]">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
@@ -407,6 +437,7 @@ function FptWorkspace() {
           onSelectStep={setSelectedStepId}
           refreshToken={documentRefreshToken}
           getBaseVersion={getBaseVersion}
+          emptyHintOf={mode1 ? emptyHintOf : undefined}
         />
 
         <div className="flex flex-col gap-1.5 m-2 shrink-0">
@@ -424,14 +455,30 @@ function FptWorkspace() {
             type="button"
             onClick={() => setToolsOpen((v) => !v)}
             className="self-start px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
-            title="Tên riêng, thuật ngữ và hàng đợi màn"
+            title={mode1 ? "Kế hoạch step, version, change request" : "Tên riêng, thuật ngữ và hàng đợi màn"}
           >
-            {toolsOpen ? "›" : "‹ Công cụ"}
+            {toolsOpen ? "›" : mode1 ? "‹ Kế hoạch & version" : "‹ Công cụ"}
           </button>
         </div>
 
         {toolsOpen && spine && (
           <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label="Công cụ">
+            {mode1 && (
+              <Mode1WorkspaceTools
+                projectId={projectId}
+                projectName={ws.project?.name}
+                plan={stepPlan.steps}
+                planError={stepPlan.error}
+                busyStep={stepPlan.busyStep}
+                onToggleStep={(stepId, on) => void stepPlan.toggle(stepId, on)}
+                steps={steps?.steps ?? []}
+                flags={flags}
+                signedOff={signedOff}
+                onSelectStep={setSelectedStepId}
+                getBaseVersion={getBaseVersion}
+                onSpineChanged={() => onSpineChanged()}
+              />
+            )}
             {inBriefPhase && (
               <>
                 <section className="flex flex-col gap-2">

@@ -47,7 +47,9 @@ const REPORT: GapReport = {
   project_id: P,
   doc_version: "0.0",
   generated_at: "2026-09-19T00:00:00.000Z",
-  totals: { red: 1, yellow: 2, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 1 },
+  totals: { red: 1, yellow: 2, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 1, missing_fpt_sections: 1 },
+  missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
+  layout: [],
   sections: [
     { section_id: "fixed:4.2.3", title: "fixed:4.2.3", flags: [flag("F1", "red", "fixed:4.2.3", "NFR-P02 thiếu ngưỡng đo được", "NFR-MEASURABLE")] },
     { section_id: "fixed:2.1", title: "Actors (tên riêng BE)", flags: [flag("F2", "yellow", "fixed:2.1", "Actor A03 không có use case")] },
@@ -113,7 +115,8 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     serveReport({
       ...REPORT,
       doc_version: "0.2",
-      totals: { red: 0, yellow: 0, missing_sections: 0, unmapped_headings: 0, low_confidence_fields: 0 },
+      totals: { red: 0, yellow: 0, missing_sections: 0, unmapped_headings: 0, low_confidence_fields: 0, missing_fpt_sections: 0 },
+      missing_fpt_sections: [],
       sections: [],
       missing_sections: [],
       unmapped_headings: [],
