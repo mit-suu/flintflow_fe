@@ -1,48 +1,120 @@
 import { HERO } from "./content";
-import { ArrowRight, ButtonLink } from "./ui";
-import WorkspaceMockup from "./WorkspaceMockup";
+import { ArrowDot, Blob, ButtonLink, GridBackdrop } from "./ui";
 
+/*
+ * Hero sáng: lưới + quầng tím/vàng phía trên, blob tím bên phải, thẻ Readiness nổi.
+ * Dưới lg thẻ Readiness rơi xuống cuối luồng thay vì nổi tuyệt đối.
+ */
 export default function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="relative px-4 pb-20 pt-16 sm:px-6 sm:pt-24 md:pb-28">
-      <div className="mx-auto max-w-6xl">
-        <div className="max-w-3xl">
-          <p className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.02] px-3 py-1 font-mono text-xs text-zinc-400">
-            <span className="size-1.5 rounded-full bg-blue-500" aria-hidden="true" />
-            {HERO.eyebrow}
-          </p>
-          <h1
-            id="hero-title"
-            className="mt-6 text-balance text-4xl font-semibold leading-[1.08] tracking-[-0.03em] text-[#FAFAFA] sm:text-5xl lg:text-6xl"
-          >
-            {HERO.headline} <span className="text-zinc-500">{HERO.headlineMuted}</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-zinc-400 sm:text-lg">{HERO.subline}</p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/register" className="h-11 px-5">
-              {HERO.primaryCta}
-              <ArrowRight />
-            </ButtonLink>
-            <ButtonLink href="#workspace" variant="secondary" className="h-11 px-5">
-              {HERO.secondaryCta}
-            </ButtonLink>
-          </div>
-          <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2 font-mono text-xs text-zinc-500">
-            {HERO.proof.map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <span className="text-emerald-500" aria-hidden="true">
-                  ✓
-                </span>
-                {item}
-              </li>
-            ))}
-          </ul>
+    <section aria-labelledby="hero-title" className="relative px-4 pb-16 pt-16 sm:px-8 sm:pt-20 lg:min-h-[740px] lg:px-[72px] lg:pb-24 lg:pt-[88px]">
+      <Blob className="-right-24 top-4 hidden h-[500px] w-[540px] rotate-12 md:block lg:right-11 lg:top-12" />
+
+      <div className="relative mx-auto flex max-w-[1136px] flex-col gap-6 lg:gap-[26px]">
+        <p className="self-start rounded-full border border-outline-purple bg-white px-[18px] py-2 text-[12.5px] font-bold tracking-[0.04em] text-[#5B2EC4] shadow-[0_4px_14px_rgba(139,92,240,0.1)]">
+          {HERO.eyebrow}
+        </p>
+        <h1
+          id="hero-title"
+          className="max-w-[640px] text-[56px] font-extrabold leading-[0.98] tracking-[-0.04em] text-on-surface sm:text-7xl lg:text-[88px]"
+        >
+          {HERO.headline}
+          <br />
+          go <span className="landing-gradient-text">{HERO.headlineAccent}</span>
+        </h1>
+        <p className="max-w-[480px] text-base leading-[1.7] text-on-surface-variant sm:text-[17px]">{HERO.subline}</p>
+
+        <div className="flex flex-wrap items-center gap-3.5">
+          <ButtonLink href="/register">
+            {HERO.primaryCta}
+            <ArrowDot />
+          </ButtonLink>
+          <ButtonLink href="#workspace" variant="secondary">
+            <span aria-hidden="true">▶</span>
+            {HERO.secondaryCta}
+          </ButtonLink>
         </div>
 
-        <div id="workspace" className="mt-14 scroll-mt-20 sm:mt-20">
-          <WorkspaceMockup />
-        </div>
+        <ul className="mt-4 flex flex-wrap gap-3.5 lg:mt-[22px]" aria-label="Số liệu nổi bật">
+          {HERO.stats.map((stat) => (
+            <li
+              key={stat.label}
+              className="min-w-[150px] rounded-[18px] border border-outline-variant bg-white/90 px-[22px] py-[18px] shadow-[0_6px_20px_rgba(25,24,23,0.05)] backdrop-blur-md"
+            >
+              <p className="text-[30px] font-extrabold text-on-surface">
+                {stat.value}
+                {stat.accent && <span className="text-[#8B5CF0]">{stat.accent}</span>}
+              </p>
+              <p className="mt-1 whitespace-pre-line text-[11.5px] leading-normal text-on-surface-muted">{stat.label}</p>
+            </li>
+          ))}
+        </ul>
+
+        <ReadinessCard />
       </div>
+
+      <a
+        href="#cach-hoat-dong"
+        aria-label="Cuộn xuống phần Cách hoạt động"
+        className="absolute bottom-5 left-1/2 hidden size-[52px] -translate-x-1/2 place-items-center rounded-full border-[1.5px] border-outline bg-white text-on-surface-variant shadow-[0_6px_18px_rgba(25,24,23,0.06)] transition-colors hover:text-on-surface lg:grid"
+      >
+        <span aria-hidden="true">↓</span>
+      </a>
     </section>
+  );
+}
+
+const READINESS_SEGMENTS = ["bg-[#8B5CF0]", "bg-[#8B5CF0]", "bg-success-dark"];
+
+const READINESS_TAGS = [
+  { label: "FACT ✓", className: "bg-success-soft text-success" },
+  { label: "ASSUMPTION ⚠", className: "bg-accent-gold-soft text-accent-gold-text" },
+  { label: "CONFLICT ✕", className: "bg-error-container text-error" },
+];
+
+/* Minh hoạ trạng thái Readiness của workspace — ví dụ tĩnh, không gọi API. */
+function ReadinessCard() {
+  return (
+    <figure
+      aria-label="Minh hoạ trạng thái readiness"
+      className="mt-6 w-full max-w-[320px] rounded-[20px] border border-outline-variant bg-white/90 px-[22px] py-5 shadow-[0_30px_70px_rgba(91,46,196,0.16)] backdrop-blur-xl lg:absolute lg:right-8 lg:top-[324px] lg:mt-0"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-extrabold tracking-[0.08em] text-[#8B5CF0]">READINESS</span>
+        <span className="rounded-full bg-success-soft px-[11px] py-1 text-[10.5px] font-bold text-success">● Ready to plan</span>
+      </div>
+      <p className="mt-2.5 text-[26px] font-extrabold text-on-surface">
+        0 <span className="text-[13px] font-semibold text-on-surface-subtle">câu hỏi mở còn chặn</span>
+      </p>
+      <div className="mt-3 flex gap-[5px]" aria-hidden="true">
+        {READINESS_SEGMENTS.map((color, i) => (
+          <span key={i} className={`h-[5px] flex-1 rounded-full ${color}`} />
+        ))}
+      </div>
+      <div className="mt-3.5 flex flex-wrap gap-1.5">
+        {READINESS_TAGS.map((tag) => (
+          <span key={tag.label} className={`rounded-full px-[11px] py-[5px] text-[10px] font-bold ${tag.className}`}>
+            {tag.label}
+          </span>
+        ))}
+      </div>
+    </figure>
+  );
+}
+
+/* Lưới + quầng sáng phía trên cùng trang; đặt ở page để phủ cả header. */
+export function HeroBackdrop() {
+  return (
+    <>
+      <GridBackdrop mask="linear-gradient(#000 55%, transparent 100%)" className="bottom-auto h-[1150px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-44 left-1/2 h-[640px] w-[1000px] max-w-[160vw] -translate-x-1/2 blur-[44px]"
+        style={{
+          background:
+            "radial-gradient(ellipse at 55% 35%, rgba(185,139,245,0.3), rgba(242,197,114,0.14) 55%, transparent 75%)",
+        }}
+      />
+    </>
   );
 }

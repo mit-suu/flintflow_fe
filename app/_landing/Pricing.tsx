@@ -1,63 +1,46 @@
 import { PLANS, type Plan } from "./content";
-import { ButtonLink, cardClass, SectionHeading } from "./ui";
+import { ButtonLink } from "./ui";
 
 export default function Pricing() {
   return (
-    <section
-      id="bang-gia"
-      aria-labelledby="pricing-title"
-      className="scroll-mt-20 border-t border-white/[0.06] px-4 py-20 sm:px-6 md:py-28"
-    >
-      <div className="mx-auto max-w-6xl">
-        <SectionHeading
-          eyebrow="Bảng giá"
-          title={<span id="pricing-title">Bắt đầu miễn phí. Nâng cấp khi dự án thật sự chạy.</span>}
-          description="Credit dùng chung cho cả tổ chức. Không tính theo số ghế."
-        />
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
-          {PLANS.map((plan) => (
-            <PlanCard key={plan.name} plan={plan} />
-          ))}
-        </div>
+    <section id="bang-gia" aria-labelledby="pricing-title" className="relative scroll-mt-24 px-4 py-16 sm:px-8 lg:px-[72px] lg:pb-[88px] lg:pt-[72px]">
+      <h2 id="pricing-title" className="sr-only">
+        Bảng giá
+      </h2>
+      <div className="mx-auto grid max-w-[760px] items-stretch gap-[18px] sm:grid-cols-2">
+        {PLANS.map((plan) => (
+          <PlanCard key={plan.name} plan={plan} />
+        ))}
       </div>
     </section>
   );
 }
 
 function PlanCard({ plan }: { plan: Plan }) {
-  const highlight = plan.recommended
-    ? "border-white/25 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-    : "hover:border-white/[0.14]";
-
+  const featured = plan.recommended;
   return (
-    <article className={`${cardClass} relative flex flex-col p-6 transition-colors ${highlight}`}>
-      <header className="flex items-center justify-between gap-2">
-        <h3 className="text-base font-medium text-[#FAFAFA]">{plan.name}</h3>
-        {plan.recommended && (
-          <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 font-mono text-[11px] text-blue-400">
-            Khuyên dùng
-          </span>
-        )}
-      </header>
-      <p className="mt-1 text-sm text-zinc-500">{plan.tagline}</p>
-      <p className="mt-6 flex items-baseline gap-1">
-        <span className="text-3xl font-semibold tracking-tight text-[#FAFAFA]">{plan.price}</span>
-        {plan.unit && <span className="text-sm text-zinc-500">{plan.unit}</span>}
+    <article
+      className={`relative flex flex-col gap-3 rounded-[22px] p-[30px] ${
+        featured
+          ? "landing-gradient-border shadow-[0_24px_60px_rgba(139,92,240,0.18)]"
+          : "border border-outline-variant bg-white"
+      }`}
+    >
+      {featured && (
+        <span className="absolute -top-3 right-6 rounded-full bg-[linear-gradient(135deg,#B98BF5,#8B5CF0)] px-3.5 py-[5px] text-[10.5px] font-extrabold text-white shadow-[0_8px_20px_rgba(139,92,240,0.4)]">
+          PHỔ BIẾN NHẤT
+        </span>
+      )}
+      <h3 className={`text-sm font-extrabold ${featured ? "text-[#5B2EC4]" : "text-on-surface-variant"}`}>{plan.name}</h3>
+      <p className="text-4xl font-extrabold text-on-surface">
+        {plan.price}
+        <span className="text-sm font-semibold text-on-surface-subtle">{plan.unit}</span>
       </p>
-
-      <dl className="mt-6 flex-1 divide-y divide-white/[0.06] border-y border-white/[0.06]">
-        {plan.specs.map((spec) => (
-          <div key={spec.label} className="flex items-center justify-between gap-4 py-2.5">
-            <dt className="text-sm text-zinc-500">{spec.label}</dt>
-            <dd className="text-right font-mono text-[13px] text-zinc-200">{spec.value}</dd>
-          </div>
-        ))}
-      </dl>
-
+      <p className="text-[13px] leading-[1.8] text-on-surface-variant">{plan.summary}</p>
       <ButtonLink
         href="/register"
-        variant={plan.recommended ? "primary" : "secondary"}
-        className="mt-6 w-full"
+        variant={featured ? "solid" : "secondary"}
+        className="mt-auto w-full py-[13px] text-[13.5px]"
       >
         {plan.cta}
       </ButtonLink>
