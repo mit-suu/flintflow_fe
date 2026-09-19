@@ -105,7 +105,7 @@ export default function LoginPage() {
     <div className="flex-1 flex flex-col min-h-screen">
       {/* Top Header */}
       <header className="px-6 sm:px-10 py-5 flex items-center justify-between z-20">
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" href="/" />
         <div className="flex items-center gap-4">
           <Link
             href="/#pricing"
