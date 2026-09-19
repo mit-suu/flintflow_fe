@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { estimateActionCost } from "@/lib/api/chat";
 import ChatPane from "./ChatPane";
@@ -25,7 +26,7 @@ const baseSession: ChatSession = {
 const withPipelineFlag = (isPipeline: boolean): ChatSession => ({ ...baseSession, is_pipeline: isPipeline }) as ChatSession;
 
 const renderPane = (session: ChatSession, onEditInstruction = vi.fn(), onSendMessage = vi.fn()) => {
-  render(
+  renderWithIntl(
     <ChatPane
       session={session}
       inputMessage="Đổi tên actor A03 thành Administrator"

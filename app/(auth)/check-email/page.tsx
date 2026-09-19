@@ -3,6 +3,8 @@
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "../../../components/Logo";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
@@ -10,6 +12,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 function CheckEmailContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const t = useTranslations("auth");
 
   const [cooldown, setCooldown] = useState(60);
   const [resending, setResending] = useState(false);
@@ -33,13 +36,13 @@ function CheckEmailContent() {
         body: JSON.stringify({ email }),
       });
       if (res.ok) {
-        setMessage("Đã gửi lại email xác thực thành công!");
+        setMessage(t("common.resendVerifySuccess"));
         setCooldown(60);
       } else {
-        setMessage("Không thể gửi lại email. Vui lòng thử lại sau.");
+        setMessage(t("checkEmail.resendFailed"));
       }
     } catch {
-      setMessage("Đã xảy ra lỗi kết nối.");
+      setMessage(t("checkEmail.connectionError"));
     } finally {
       setResending(false);
     }
@@ -53,17 +56,15 @@ function CheckEmailContent() {
       </div>
 
       <h1 className="text-[20px] font-extrabold text-[#191817]">
-        Kiểm tra email của bạn
+        {t("checkEmail.title")}
       </h1>
 
       <p className="text-[13px] text-[#8A867E] leading-[1.65]">
-        Chúng tôi đã gửi một liên kết xác nhận đến{" "}
-        {email ? (
-          <strong className="text-[#191817] font-bold">{email}</strong>
-        ) : (
-          "email của bạn"
-        )}
-        . Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam) để hoàn tất đăng ký.
+        {t.rich("checkEmail.body", {
+          target: email || t("checkEmail.yourEmail"),
+          // Chỉ in đậm khi có email thật; không có thì là cụm "email của bạn" bình thường.
+          strong: (chunks) => (email ? <strong className="text-[#191817] font-bold">{chunks}</strong> : chunks),
+        })}
       </p>
 
       {/* Status Message */}
@@ -83,12 +84,12 @@ function CheckEmailContent() {
         {resending ? (
           <>
             <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-            Đang gửi…
+            {t("common.sending")}
           </>
         ) : cooldown > 0 ? (
-          `Gửi lại sau (${cooldown}s)`
+          t("checkEmail.resendIn", { seconds: cooldown })
         ) : (
-          "Gửi lại email xác thực →"
+          t("checkEmail.resend")
         )}
       </button>
 
@@ -98,7 +99,7 @@ function CheckEmailContent() {
           href="/login"
           className="text-[12.5px] font-semibold text-[#6B6862] hover:text-[#191817] transition-colors"
         >
-          ← Trở lại trang đăng nhập
+          {t("checkEmail.back")}
         </Link>
       </div>
     </div>
@@ -106,15 +107,20 @@ function CheckEmailContent() {
 }
 
 export default function CheckEmailPage() {
+  const t = useTranslations("auth");
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
       <div className="w-full max-w-[420px] flex flex-col gap-4">
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <div className="flex items-center justify-between">
+          <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+          <LocaleSwitcher tone="light" />
+        </div>
 
         <Suspense
           fallback={
             <div className="w-full bg-white rounded-[18px] p-7 border border-[#E4E1DC] text-center text-xs text-[#8A867E]">
-              Đang tải…
+              {t("common.loading")}
             </div>
           }
         >

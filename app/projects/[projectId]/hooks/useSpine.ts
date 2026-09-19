@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resumeProject } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 import type { Spine } from "@/types/spine";
 
 export interface UseSpineResult {
@@ -37,7 +38,7 @@ export function useSpine(projectId: string, enabled = true): UseSpineResult {
         setError(null);
       })
       .catch((err: unknown) => {
-        if (request === requestRef.current) setError(err instanceof Error ? err.message : "Không tải được Spine");
+        if (request === requestRef.current) setError(err instanceof Error ? err.message : HOOK_ERROR.spineLoadFailed);
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { PreviewResult } from "@/types/pipeline";
 
 interface DiffPreviewModalProps {
@@ -9,16 +10,17 @@ interface DiffPreviewModalProps {
   onConfirm: () => void;
 }
 
-const short = (value: unknown): string => {
+const short = (value: unknown, deletedLabel: string): string => {
   if (value === undefined) return "—";
   if (value === null) return "null";
-  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return "(xoá)";
+  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return deletedLabel;
   const text = typeof value === "string" ? value : JSON.stringify(value);
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 };
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
 export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm }: DiffPreviewModalProps) {
+  const t = useTranslations("workspace.diff");
   const hasViolations = preview.violations.length > 0;
   const canConfirm = preview.ok && !hasViolations && Boolean(preview.preview_id) && !busy;
 
@@ -29,7 +31,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-extrabold text-[15px] text-[#191817]">Xem trước thay đổi</h3>
+          <h3 className="font-extrabold text-[15px] text-[#191817]">{t("title")}</h3>
           <div className="flex items-center gap-2">
             {preview.branch && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F4F3FE] text-[#4F46E5]">{preview.branch}</span>
@@ -52,7 +54,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
         )}
 
         {preview.changes.length === 0 ? (
-          <div className="text-[11.5px] text-[#A8A49C] italic py-4 text-center">Không có thay đổi nào.</div>
+          <div className="text-[11.5px] text-[#A8A49C] italic py-4 text-center">{t("none")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[11px]">
@@ -67,8 +69,8 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
                 {preview.changes.map((change, i) => (
                   <tr key={i}>
                     <td className="border border-[#ECEAE5] px-2 py-1 font-mono align-top">{change.path}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, t("deleted"))}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, t("deleted"))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -78,7 +80,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
 
         {preview.impact && (
           <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 flex flex-col gap-2 text-[11px] text-[#4B4842]">
-            <div className="font-extrabold text-[10px] text-[#8A867E] tracking-wider uppercase">Phạm vi ảnh hưởng</div>
+            <div className="font-extrabold text-[10px] text-[#8A867E] tracking-wider uppercase">{t("impact")}</div>
             {preview.impact.sections.length > 0 && (
               <div>
                 Section:{" "}
@@ -91,11 +93,11 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
               </div>
             )}
             {preview.impact.diagrams.length > 0 && (
-              <div>Diagram render lại: {preview.impact.diagrams.join(", ")}</div>
+              <div>{t("rerender", { ids: preview.impact.diagrams.join(", ") })}</div>
             )}
             {preview.impact.referrers.length > 0 && (
               <div className="text-[#8A6D1F]">
-                Đang bị tham chiếu bởi: {preview.impact.referrers.map((r) => `${r.path}→${r.id}`).join(", ")}
+                {t("referrers", { refs: preview.impact.referrers.map((r) => `${r.path}→${r.id}`).join(", ") })}
               </div>
             )}
           </div>
@@ -108,7 +110,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
             disabled={busy}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7] cursor-pointer disabled:opacity-50"
           >
-            Huỷ
+            {t("cancel")}
           </button>
           <button
             type="button"
@@ -116,7 +118,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
             onClick={onConfirm}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {busy ? "Đang áp dụng…" : "Xác nhận"}
+            {busy ? t("applying") : t("confirm")}
           </button>
         </div>
       </div>

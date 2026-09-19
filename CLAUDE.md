@@ -115,5 +115,8 @@ muộn cũng làm ai đó debug nhầm nửa ngày. Chạy app nghĩa là chạy
 
 ## Quy ước ngôn ngữ
 
-Nhãn UI và thông báo lỗi cho user: **tiếng Việt**. Nội dung tài liệu SRS (do BE sinh): tiếng Anh — FE chỉ
-hiển thị, không dịch.
+Nhãn UI và thông báo lỗi cho user: **tiếng Việt là bản chuẩn**, có bản tiếng Anh qua `next-intl`
+(`messages/vi.json` + `messages/en.json`) cho mọi UI người dùng (landing, auth, home, workspace — xem
+`docs/fe-architecture.md` mục "Đa ngôn ngữ"). Không viết chữ thẳng vào JSX; thêm chuỗi thì thêm key vào **cả
+hai** file. Nhãn step/phase qua `tStep`/`tPhase`. Admin chỉ tiếng Việt. Nội dung tài liệu SRS (do BE sinh): tiếng Anh — FE chỉ hiển
+thị, không dịch.

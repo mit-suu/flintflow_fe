@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createProject } from "@/lib/api/projects";
@@ -36,7 +37,7 @@ describe("OnboardingPage (UC 1.12)", () => {
   });
 
   it("bước 1 khoá 'Tiếp tục' khi chưa nhập tên", () => {
-    render(<OnboardingPage />);
+    renderWithIntl(<OnboardingPage />);
     expect(screen.getByRole("button", { name: "Tiếp tục →" })).toBeDisabled();
   });
 
@@ -46,7 +47,7 @@ describe("OnboardingPage (UC 1.12)", () => {
     vi.mocked(applyChanges).mockResolvedValue({ data: { spine_version: 8 } as never, error: null });
     vi.mocked(patchMe).mockResolvedValue({ data: null, error: null });
 
-    render(<OnboardingPage />);
+    renderWithIntl(<OnboardingPage />);
     fillStep1AndGoTo2();
     goToStep3();
 
@@ -78,7 +79,7 @@ describe("OnboardingPage (UC 1.12)", () => {
         : Promise.resolve({ data: null, error: null })
     );
 
-    render(<OnboardingPage />);
+    renderWithIntl(<OnboardingPage />);
     fillStep1AndGoTo2();
     goToStep3();
     fireEvent.change(screen.getByPlaceholderText("Ví dụ: App Đặt Xe Online"), { target: { value: "Dự án của Hiệp" } });
@@ -100,7 +101,7 @@ describe("OnboardingPage (UC 1.12)", () => {
     vi.mocked(createProject).mockResolvedValue({ data: { _id: "proj1" } as never, error: null });
     vi.mocked(getSpine).mockRejectedValue(new Error("Không đọc được Spine"));
 
-    render(<OnboardingPage />);
+    renderWithIntl(<OnboardingPage />);
     fillStep1AndGoTo2();
     goToStep3();
     fireEvent.change(screen.getByPlaceholderText("Ví dụ: App Đặt Xe Online"), { target: { value: "Dự án của Hiệp" } });

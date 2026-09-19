@@ -8,7 +8,6 @@ import {
   loopKeys,
   orderedSteps,
   phaseOfStep,
-  stepLabel,
   totalSteps,
 } from "./step-registry";
 
@@ -33,14 +32,11 @@ describe("step registry FE (đồng bộ BE)", () => {
     expect(orderedSteps(twenty)).toHaveLength(151);
   });
 
-  it("getStepDef / stepLabel / phaseOfStep", () => {
+  it("getStepDef / phaseOfStep", () => {
     expect(getStepDef("S-5.4@S01")).toMatchObject({ id: "S-5.4@S01", loop: "S01", phase: "S-5" });
     expect(getStepDef("S-5.4")).toBeUndefined();
     expect(getStepDef("S-3.1@S01")).toBeUndefined();
     expect(getStepDef("S-5.4@")).toBeUndefined();
-    expect(stepLabel("S-3.1")).toBe("Actor");
-    expect(stepLabel("S-5.2@nonscreen")).toBe("Kích hoạt & mô tả · không màn hình");
-    expect(stepLabel("X-1")).toBe("X-1");
     expect(phaseOfStep("B-1.4")).toBe("B-1");
   });
 });

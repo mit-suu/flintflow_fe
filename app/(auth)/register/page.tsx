@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeApiError } from "@/lib/api/error-messages";
+import { applyAccountLocale } from "@/lib/i18n";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import GoogleButton from "../../../components/GoogleButton";
 import Logo from "../../../components/Logo";
 import { saveAuthToken } from "../../../lib/auth";
@@ -11,6 +15,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
+  // Ngôn ngữ đang dùng lúc đăng ký thành ngôn ngữ của tài khoản và của email xác thực (T25).
+  const locale = useLocale();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,9 +29,9 @@ export default function RegisterPage() {
   // Password strength calculation
   const getPasswordStrength = (pwd: string) => {
     if (!pwd) return { level: 0, text: "" };
-    if (pwd.length < 6) return { level: 1, text: "Yếu", color: "#B03030" };
-    if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, text: "Trung bình", color: "#E8A23D" };
-    return { level: 3, text: "Mạnh", color: "#1F7A45" };
+    if (pwd.length < 6) return { level: 1, text: t("common.strength.weak"), color: "#B03030" };
+    if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, text: t("common.strength.medium"), color: "#E8A23D" };
+    return { level: 3, text: t("common.strength.strong"), color: "#1F7A45" };
   };
 
   const strength = getPasswordStrength(password);
@@ -34,7 +41,7 @@ export default function RegisterPage() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError(t("common.passwordMismatch"));
       return;
     }
 
@@ -44,19 +51,19 @@ export default function RegisterPage() {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() || undefined, email, password }),
+        body: JSON.stringify({ name: name.trim() || undefined, email, password, locale }),
       });
 
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Đăng ký thất bại");
+        throw new Error(localizeApiError(json.error?.code, json.error?.message ?? "") || t("register.failed"));
       }
 
       // Success -> Redirect to check-email
       router.push(`/check-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : t("common.genericError"));
     } finally {
       setLoading(false);
     }
@@ -67,22 +74,26 @@ export default function RegisterPage() {
       <div className="w-full max-w-[440px] flex flex-col gap-4">
         
         {/* Logo Top */}
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <div className="flex items-center justify-between">
+          <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+          <LocaleSwitcher tone="light" />
+        </div>
 
         {/* Card (A2 Design) */}
         <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] flex flex-col gap-4">
           <div>
             <h1 className="text-[24px] font-extrabold text-[#191817] tracking-[-0.02em]">
-              Tạo tài khoản
+              {t("register.title")}
             </h1>
             <p className="text-[13px] text-[#8A867E] mt-1">
-              Miễn phí 50 credit mỗi tháng · không cần thẻ.
+              {t("register.subtitle")}
             </p>
           </div>
 
           {/* Google Sign Up Button */}
           <GoogleButton
-            label="Tiếp tục với Google"
+            label={t("google.continue")}
+            loadingLabel={t("google.opening")}
             disabled={loading}
             onSuccess={async (idToken) => {
               setLoading(true);
@@ -91,30 +102,31 @@ export default function RegisterPage() {
                 const res = await fetch(`${API_BASE_URL}/auth/google`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ idToken }),
+                  body: JSON.stringify({ idToken, locale }),
                   credentials: "include",
                 });
                 const json = await res.json();
                 if (!res.ok || json.error) {
-                  throw new Error(json.error?.message || "Đăng ký Google thất bại");
+                  throw new Error(localizeApiError(json.error?.code, json.error?.message ?? "") || t("register.googleFailed"));
                 }
                 if (json.data?.accessToken) {
                   saveAuthToken(json.data.accessToken);
                 }
+                applyAccountLocale(json.data?.user?.locale);
                 window.location.href = "/home";
               } catch (err) {
-                setError(err instanceof Error ? err.message : "Đăng ký Google thất bại");
+                setError(err instanceof Error ? err.message : t("register.googleFailed"));
               } finally {
                 setLoading(false);
               }
             }}
-            onError={(msg) => setError(msg)}
+            onError={(reason) => setError(t(`google.${reason}`))}
           />
 
           {/* Divider */}
           <div className="flex items-center gap-3 text-[#A8A49C] text-[11px]">
             <div className="flex-1 h-[1px] bg-[#E4E1DC]" />
-            hoặc
+            {t("register.or")}
             <div className="flex-1 h-[1px] bg-[#E4E1DC]" />
           </div>
 
@@ -131,14 +143,14 @@ export default function RegisterPage() {
             {/* Full Name */}
             <div className="flex flex-col gap-1">
               <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="name">
-                Họ và tên
+                {t("register.name")}
               </label>
               <input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nguyễn Văn A"
+                placeholder={t("register.namePlaceholder")}
                 className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
               />
             </div>
@@ -146,7 +158,7 @@ export default function RegisterPage() {
             {/* Email */}
             <div className="flex flex-col gap-1">
               <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="email">
-                Email
+                {t("common.email")}
               </label>
               <input
                 id="email"
@@ -154,7 +166,7 @@ export default function RegisterPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="mai@studio.vn"
+                placeholder={t("common.emailPlaceholder")}
                 className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
               />
             </div>
@@ -162,7 +174,7 @@ export default function RegisterPage() {
             {/* Password */}
             <div className="flex flex-col gap-1">
               <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="password">
-                Mật khẩu
+                {t("register.password")}
               </label>
               <div className="relative">
                 <input
@@ -213,7 +225,7 @@ export default function RegisterPage() {
             {/* Confirm Password */}
             <div className="flex flex-col gap-1">
               <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="confirmPassword">
-                Xác nhận mật khẩu
+                {t("register.confirmPassword")}
               </label>
               <input
                 id="confirmPassword"
@@ -235,11 +247,11 @@ export default function RegisterPage() {
               {loading ? (
                 <>
                   <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-                  Đang tạo tài khoản…
+                  {t("register.submitting")}
                 </>
               ) : (
                 <>
-                  Tạo tài khoản →
+                  {t("register.submit")}
                 </>
               )}
             </button>
@@ -247,9 +259,9 @@ export default function RegisterPage() {
 
           {/* Footer */}
           <div className="text-center text-[12px] text-[#8A867E] pt-1">
-            Đã có tài khoản?{" "}
+            {t("register.haveAccount")}{" "}
             <Link href="/login" className="text-[#4F46E5] font-bold hover:underline">
-              Đăng nhập
+              {t("register.login")}
             </Link>
           </div>
         </div>

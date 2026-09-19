@@ -5,6 +5,8 @@ export interface User {
   name?: string;
   /** UC 1.12: ISO khi đã onboarding, `null` khi chưa. */
   onboardedAt?: string | null;
+  /** T25: ngôn ngữ giao diện + email; BE mặc định `vi`. */
+  locale?: "vi" | "en";
   balance?: number;
   createdAt?: string;
   updatedAt?: string;

@@ -3,7 +3,8 @@
  * trước đây cũng gọi `clearAuthToken()` ⇒ `/auth/logout` thu hồi luôn một phiên còn hợp lệ.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import AuthGuard from "./AuthGuard";
 
 const { mockReplace, mockRefreshSession, mockIsAuthenticated } = vi.hoisted(() => ({
@@ -35,7 +36,7 @@ describe("AuthGuard", () => {
   it("token còn hạn ⇒ render nội dung, không refresh", async () => {
     mockIsAuthenticated.mockReturnValue(true);
 
-    render(<AuthGuard>nội dung</AuthGuard>);
+    renderWithIntl(<AuthGuard>nội dung</AuthGuard>);
     await flushRetries();
 
     expect(screen.getByText("nội dung")).toBeInTheDocument();
@@ -45,7 +46,7 @@ describe("AuthGuard", () => {
   it("BE từ chối refresh ⇒ về /login", async () => {
     mockRefreshSession.mockResolvedValue("rejected");
 
-    render(<AuthGuard>nội dung</AuthGuard>);
+    renderWithIntl(<AuthGuard>nội dung</AuthGuard>);
     await flushRetries();
 
     expect(mockReplace).toHaveBeenCalledWith("/login");
@@ -55,7 +56,7 @@ describe("AuthGuard", () => {
   it("refresh lỗi mạng ⇒ thử lại, rồi báo lỗi kết nối — KHÔNG về /login", async () => {
     mockRefreshSession.mockResolvedValue("failed");
 
-    render(<AuthGuard>nội dung</AuthGuard>);
+    renderWithIntl(<AuthGuard>nội dung</AuthGuard>);
     await flushRetries();
 
     expect(mockReplace).not.toHaveBeenCalled();
@@ -65,7 +66,7 @@ describe("AuthGuard", () => {
 
   it("bấm Thử lại khi máy chủ đã lên ⇒ render nội dung", async () => {
     mockRefreshSession.mockResolvedValue("failed");
-    render(<AuthGuard>nội dung</AuthGuard>);
+    renderWithIntl(<AuthGuard>nội dung</AuthGuard>);
     await flushRetries();
 
     mockRefreshSession.mockResolvedValue("ok");

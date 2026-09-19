@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { stepLabel } from "@/lib/constants/step-registry";
+import { useLocale, useTranslations } from "next-intl";
+import { hookErrorText } from "@/lib/hook-errors";
+import { tStep } from "@/lib/i18n";
 import { isFlagWaivable } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 
@@ -16,6 +18,7 @@ interface WaiveModalProps {
 }
 
 function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) {
+  const t = useTranslations("workspace.flags");
   const [reason, setReason] = useState("");
   const canSubmit = reason.trim().length >= WAIVE_REASON_MIN_LENGTH && !busy;
 
@@ -25,10 +28,10 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
         className="bg-white rounded-[18px] p-5 w-[420px] max-w-[90vw] shadow-[0_30px_80px_rgba(0,0,0,0.3)] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <h4 className="font-extrabold text-[13.5px] text-[#191817]">Waive cờ {flag.rule_id}</h4>
+        <h4 className="font-extrabold text-[13.5px] text-[#191817]">{t("waiveTitle", { rule: flag.rule_id })}</h4>
         <p className="text-[11.5px] text-[#6B6862] leading-relaxed">{flag.message}</p>
         <label htmlFor="waive-reason" className="text-[11.5px] font-semibold text-[#4B4842]">
-          Lý do (tối thiểu {WAIVE_REASON_MIN_LENGTH} ký tự)
+          {t("reasonLabel", { min: WAIVE_REASON_MIN_LENGTH })}
         </label>
         <textarea
           id="waive-reason"
@@ -36,7 +39,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#4F46E5] rounded-[10px] text-[12px] outline-none resize-none"
-          placeholder="Vì sao chấp nhận bỏ qua cờ này?"
+          placeholder={t("reasonPlaceholder")}
         />
         <div className="flex items-center justify-between text-[10.5px] text-[#A8A49C]">
           <span>{reason.trim().length}/{WAIVE_REASON_MIN_LENGTH}</span>
@@ -49,7 +52,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             disabled={busy}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7] cursor-pointer disabled:opacity-50"
           >
-            Huỷ
+            {t("cancel")}
           </button>
           <button
             type="button"
@@ -57,7 +60,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             onClick={() => onSubmit(reason.trim())}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {busy ? "Đang lưu…" : "Xác nhận waive"}
+            {busy ? t("saving") : t("confirmWaive")}
           </button>
         </div>
       </div>
@@ -83,6 +86,9 @@ const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_use
 
 /** Bảng cờ đỏ/vàng (`GET /flags`); waive luật `array_empty`/`dead_reference`/`render_error` bị khoá. */
 export default function FlagsPanel({ flags, busy = false, error, onWaive, onRecompute, onSelectStep }: FlagsPanelProps) {
+  const t = useTranslations("workspace.flags");
+  const tErr = useTranslations("workspace.hookErrors");
+  const locale = useLocale();
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
   const openFlags = flags.filter(isOpen);
@@ -108,15 +114,15 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
       await onWaive(waivingFlag.id, reason);
       setWaivingId(null);
     } catch (err) {
-      setWaiveError(err instanceof Error ? err.message : "Waive cờ thất bại");
+      setWaiveError(err instanceof Error ? err.message : tErr("waiveFailed"));
     }
   };
 
   return (
-    <div className="flex flex-col gap-2" aria-label="Danh sách cờ">
+    <div className="flex flex-col gap-2" aria-label={t("aria")}>
       <div className="flex items-center justify-between">
         <h4 className="text-[11px] font-extrabold text-[#8A867E] tracking-wider uppercase">
-          Cờ đang mở ({openFlags.length})
+          {t("openCount", { count: openFlags.length })}
         </h4>
         <button
           type="button"
@@ -129,10 +135,10 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
         </button>
       </div>
 
-      {error && <div className="text-[11px] text-[#B03030]">{error}</div>}
+      {error && <div className="text-[11px] text-[#B03030]">{hookErrorText(error, tErr)}</div>}
 
       {openFlags.length === 0 ? (
-        <div className="text-[11.5px] text-[#A8A49C] italic py-2">Không có cờ nào đang mở.</div>
+        <div className="text-[11.5px] text-[#A8A49C] italic py-2">{t("none")}</div>
       ) : (
         <div className="flex flex-col gap-2">
           {openFlags.map((flag) => (
@@ -154,7 +160,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                     onClick={() => onSelectStep(flag.remediation_step)}
                     className="text-[10.5px] font-bold text-[#4F46E5] hover:underline cursor-pointer"
                   >
-                    → {flag.remediation_step} · {stepLabel(flag.remediation_step)}
+                    → {flag.remediation_step} · {tStep(flag.remediation_step, locale)}
                   </button>
                 ) : (
                   <span className="text-[10.5px] text-[#8A867E]">{flag.remediation_step}</span>
@@ -169,8 +175,8 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                     Waive
                   </button>
                 ) : (
-                  <span className="text-[10px] text-[#A8A49C] italic" title="Luật này không cho waive">
-                    Không thể waive
+                  <span className="text-[10px] text-[#A8A49C] italic" title={t("notWaivableHint")}>
+                    {t("notWaivable")}
                   </span>
                 )}
               </div>
@@ -182,7 +188,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
       {waivedFlags.length > 0 && (
         <details className="mt-1">
           <summary className="text-[10.5px] font-bold text-[#8A867E] cursor-pointer">
-            Đã waive ({waivedFlags.length})
+            {t("waivedCount", { count: waivedFlags.length })}
           </summary>
           <div className="flex flex-col gap-1.5 mt-1.5">
             {waivedFlags.map((flag) => (

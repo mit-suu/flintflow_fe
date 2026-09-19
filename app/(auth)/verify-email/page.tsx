@@ -3,6 +3,10 @@
 import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
+import { localizeApiError } from "@/lib/api/error-messages";
+import { applyAccountLocale } from "@/lib/i18n";
 import Logo from "../../../components/Logo";
 import { saveAuthToken } from "../../../lib/auth";
 
@@ -13,6 +17,7 @@ type VerifyStatus = "loading" | "success" | "error";
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const t = useTranslations("auth");
   const token = searchParams.get("token");
 
   const [status, setStatus] = useState<VerifyStatus>("loading");
@@ -35,18 +40,19 @@ function VerifyEmailContent() {
         const json = await res.json();
 
         if (!res.ok || json.error) {
-          throw new Error(json.error?.message || "Xác thực thất bại");
+          throw new Error(localizeApiError(json.error?.code, json.error?.message ?? "") || "");
         }
 
         const userRole = json.data?.user?.role || json.data?.role;
         if (json.data?.accessToken) {
           saveAuthToken(json.data.accessToken, userRole);
         }
+        applyAccountLocale(json.data?.user?.locale);
 
         setStatus("success");
       } catch (err) {
         setStatus("error");
-        setErrorMessage(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+        setErrorMessage(err instanceof Error ? err.message : "");
       }
     };
 
@@ -71,16 +77,16 @@ function VerifyEmailContent() {
           ⚠
         </div>
         <h1 className="text-[20px] font-extrabold text-[#191817]">
-          Liên kết không hợp lệ
+          {t("common.invalidLink")}
         </h1>
         <p className="text-[13px] text-[#8A867E] leading-[1.6]">
-          Liên kết xác thực thiếu token hoặc không đúng định dạng.
+          {t("verify.invalidBody")}
         </p>
         <Link
           href="/login"
           className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold text-center"
         >
-          Về trang Đăng nhập →
+          {t("verify.toLogin")}
         </Link>
       </div>
     );
@@ -93,10 +99,10 @@ function VerifyEmailContent() {
         <div className="flex flex-col items-center gap-3.5 py-4">
           <span className="w-10 h-10 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
           <h1 className="text-[20px] font-extrabold text-[#191817]">
-            Đang xác thực email…
+            {t("verify.verifying")}
           </h1>
           <p className="text-[13px] text-[#8A867E]">
-            Vui lòng đợi trong giây lát.
+            {t("verify.wait")}
           </p>
         </div>
       )}
@@ -108,18 +114,21 @@ function VerifyEmailContent() {
             ✓
           </div>
           <h1 className="text-[20px] font-extrabold text-[#191817]">
-            Xác thực thành công!
+            {t("verify.successTitle")}
           </h1>
           <p className="text-[13px] text-[#8A867E] leading-[1.65]">
-            Tài khoản của bạn đã được kích hoạt và tự động đăng nhập.
+            {t("verify.successBody")}
             <br />
-            Đang chuyển hướng trong <strong className="text-[#191817] font-bold">{countdown}s</strong>…
+            {t.rich("verify.redirecting", {
+              seconds: countdown,
+              b: (chunks) => <strong className="text-[#191817] font-bold">{chunks}</strong>,
+            })}
           </p>
           <button
             onClick={() => router.push("/home")}
             className="w-full py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
           >
-            Vào ứng dụng ngay →
+            {t("verify.enterApp")}
           </button>
         </div>
       )}
@@ -131,19 +140,19 @@ function VerifyEmailContent() {
             ⚠
           </div>
           <h1 className="text-[20px] font-extrabold text-[#191817]">
-            Xác thực thất bại
+            {t("verify.failedTitle")}
           </h1>
           <p className="text-[13px] text-[#8A867E] leading-[1.6]">
-            {errorMessage}
+            {errorMessage || t("verify.failedTitle")}
           </p>
           <p className="text-[11.5px] text-[#A8A49C] bg-[#FAF9F7] p-2.5 rounded-[8px] border border-[#ECEAE5]">
-            Liên kết có thể đã hết hạn (24h) hoặc đã được sử dụng. Hãy đăng nhập để gửi lại link mới.
+            {t("verify.expiredHint")}
           </p>
           <Link
             href="/login"
             className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold text-center"
           >
-            Về trang Đăng nhập →
+            {t("verify.toLogin")}
           </Link>
         </div>
       )}
@@ -152,15 +161,20 @@ function VerifyEmailContent() {
 }
 
 export default function VerifyEmailPage() {
+  const t = useTranslations("auth");
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
       <div className="w-full max-w-[420px] flex flex-col gap-4">
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <div className="flex items-center justify-between">
+          <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+          <LocaleSwitcher tone="light" />
+        </div>
 
         <Suspense
           fallback={
             <div className="w-full bg-white rounded-[18px] p-7 border border-[#E4E1DC] text-center text-xs text-[#8A867E]">
-              Đang tải…
+              {t("common.loading")}
             </div>
           }
         >

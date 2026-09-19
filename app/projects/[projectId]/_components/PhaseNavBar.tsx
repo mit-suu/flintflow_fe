@@ -1,6 +1,8 @@
 "use client";
 
-import { PHASES, PHASE_LABELS_VI, type PhaseId } from "@/lib/constants/step-registry";
+import { useLocale, useTranslations } from "next-intl";
+import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
+import { tPhase } from "@/lib/i18n";
 import type { StepSummary } from "@/types/pipeline";
 
 interface PhaseNavBarProps {
@@ -40,12 +42,15 @@ export default function PhaseNavBar({
   verificationFlagsCount = 0,
   readinessPercent,
 }: PhaseNavBarProps) {
+  const t = useTranslations("workspace.phaseNav");
+  const locale = useLocale();
+
   return (
     <nav className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center gap-3 shrink-0 h-[52px] overflow-x-auto scrollbar-hide z-10">
       <button
         onClick={onToggleSidebar}
         className="p-1.5 hover:bg-[#FAF9F7] rounded-[8px] text-[#6B6862] transition-colors shrink-0 cursor-pointer"
-        title="Toggle Lịch sử phiên chat"
+        title={t("toggleSidebar")}
       >
         <span className="material-symbols-outlined text-[18px]">{sidebarOpen ? "menu_open" : "menu"}</span>
       </button>
@@ -64,7 +69,7 @@ export default function PhaseNavBar({
           return (
             <li
               key={phase}
-              title={PHASE_LABELS_VI[phase]}
+              title={tPhase(phase, locale)}
               aria-current={state === "active" ? "step" : undefined}
               data-state={state}
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 ${style}`}
@@ -84,7 +89,7 @@ export default function PhaseNavBar({
         className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
           exportActive ? "bg-[#191817] text-white shadow-sm" : "bg-[#F4F3FE] text-[#4F46E5] border border-[#DDD9F6] hover:bg-[#EDEAFB]"
         }`}
-        title="Mở luồng hoàn tất và xuất tài liệu"
+        title={t("exportHint")}
       >
         <span>★</span>
         <span>Export & Handoff</span>
@@ -97,7 +102,7 @@ export default function PhaseNavBar({
             className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
               verificationOpen ? "bg-[#FBF4E4] border border-[#F0DFB4] text-[#8A6D1F]" : "bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7]"
             }`}
-            title="Đánh giá chất lượng & độ sẵn sàng"
+            title={t("verificationHint")}
           >
             <span>{verificationFlagsCount > 0 ? "⚠" : "✓"}</span>
             <span>
@@ -107,7 +112,7 @@ export default function PhaseNavBar({
           </button>
         )}
         {readinessPercent !== undefined && (
-          <span className="text-[11.5px] font-bold text-[#6B6862]" title="Điểm sẵn sàng: % section bắt buộc đã accepted">
+          <span className="text-[11.5px] font-bold text-[#6B6862]" title={t("readinessHint")}>
             {readinessPercent}% accepted
           </span>
         )}

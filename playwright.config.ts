@@ -27,6 +27,9 @@ export default defineConfig({
   reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
   use: {
     baseURL,
+    // Kịch bản tìm theo chữ tiếng Việt; không đặt thì Chromium gửi `Accept-Language: en-US` và app hiện
+    // tiếng Anh (T25 chọn locale theo header khi chưa có cookie).
+    locale: "vi-VN",
     // `apiURL` cho `request` fixture — test gọi thẳng BE để gieo dữ liệu, không giả lập gì
     extraHTTPHeaders: {},
     trace: "retain-on-failure",

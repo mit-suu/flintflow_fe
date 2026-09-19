@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import type { ChatSession } from "@/types/chat";
 
 interface ChatSessionSidebarProps {
@@ -18,6 +19,7 @@ export default function ChatSessionSidebar({
   onCreateSession,
   onDeleteSession,
 }: ChatSessionSidebarProps) {
+  const t = useTranslations("workspace.chatSessions");
   const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(
     null
   );
@@ -51,12 +53,12 @@ export default function ChatSessionSidebar({
       <div className="p-3.5 border-b border-[#ECEAE5] flex justify-between items-center bg-white shrink-0">
         <span className="font-bold text-[#191817] text-[13px] flex items-center gap-1.5">
           <span className="text-[#4F46E5]">💬</span>
-          Lịch sử phiên chat
+          {t("title")}
         </span>
         <button
           onClick={onCreateSession}
           className="p-1 text-[#4F46E5] hover:bg-[#F4F3FE] rounded-[8px] transition-colors cursor-pointer"
-          title="Tạo phiên chat mới"
+          title={t("newSession")}
         >
           <span className="material-symbols-outlined text-[18px] font-bold">
             add
@@ -67,7 +69,7 @@ export default function ChatSessionSidebar({
       <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
         {sessions.length === 0 ? (
           <div className="text-center text-[12px] text-[#A8A49C] py-8">
-            Chưa có phiên chat nào
+            {t("empty")}
           </div>
         ) : (
           sessions.map((session) => {
@@ -77,7 +79,7 @@ export default function ChatSessionSidebar({
                 ? session.messages[session.messages.length - 1]
                 : null;
 
-            let previewText = "Phiên mới";
+            let previewText = t("newPreview");
             if (lastMsg) {
               previewText = parseAiPreview(lastMsg.content);
             }
@@ -102,7 +104,7 @@ export default function ChatSessionSidebar({
                   className="flex-1 text-left min-w-0 cursor-pointer"
                 >
                   <div className="font-bold text-[12px] truncate">
-                    Phiên #{session._id.substring(session._id.length - 4)}
+                    {t("sessionName", { id: session._id.substring(session._id.length - 4) })}
                   </div>
                   <div
                     className={`text-[10.5px] truncate mt-0.5 ${
@@ -127,7 +129,7 @@ export default function ChatSessionSidebar({
                         ? "opacity-100 bg-[#ECEAE5]"
                         : "opacity-0 group-hover:opacity-100 text-[#8A867E] hover:bg-[#ECEAE5]"
                     }`}
-                    title="Tùy chọn"
+                    title={t("options")}
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       more_horiz
@@ -147,7 +149,7 @@ export default function ChatSessionSidebar({
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-[12px] font-bold text-[#B03030] hover:bg-[#FDEDED] transition-colors text-left cursor-pointer"
                       >
-                        Xoá phiên chat
+                        {t("delete")}
                       </button>
                     </div>
                   )}
@@ -167,12 +169,11 @@ export default function ChatSessionSidebar({
                 warning
               </span>
               <h3 className="font-extrabold text-[15px] text-[#191817]">
-                Xác nhận xoá phiên chat?
+                {t("confirmTitle")}
               </h3>
             </div>
             <p className="text-[12.5px] text-[#6B6862] leading-relaxed">
-              Lịch sử hội thoại trong phiên này sẽ bị xoá vĩnh viễn. Các đặc tả
-              đã sinh trong dự án vẫn được giữ nguyên.
+              {t("confirmBody")}
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
@@ -180,7 +181,7 @@ export default function ChatSessionSidebar({
                 onClick={() => setDeleteConfirmSessionId(null)}
                 className="px-4 py-1.5 rounded-full border border-[#ECEAE5] text-[12px] font-semibold text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
               >
-                Huỷ
+                {t("cancel")}
               </button>
               <button
                 type="button"
@@ -192,7 +193,7 @@ export default function ChatSessionSidebar({
                 }}
                 className="px-4 py-1.5 rounded-full bg-[#B03030] text-white text-[12px] font-bold hover:bg-[#9B2A2A] transition-colors cursor-pointer"
               >
-                Xoá phiên
+                {t("confirmDelete")}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { PHASE_LABELS_VI, stepLabel, type PhaseId } from "@/lib/constants/step-registry";
+import { useLocale, useTranslations } from "next-intl";
+import { tPhase, tStep } from "@/lib/i18n";
 import type { WorkingMode } from "@/types/spine";
 import WorkingModeSelect from "./WorkingModeSelect";
 
@@ -22,7 +23,9 @@ export default function PhaseHeader({
   onRunCurrentStep,
   busy = false,
 }: PhaseHeaderProps) {
-  const phaseLabel = currentPhase ? (PHASE_LABELS_VI[currentPhase as PhaseId] ?? currentPhase) : "Hoàn tất";
+  const t = useTranslations("workspace.phaseHeader");
+  const locale = useLocale();
+  const phaseLabel = currentPhase ? tPhase(currentPhase, locale) : t("done");
 
   return (
     <div className="bg-[#FAF9F7] border-b border-[#ECEAE5] px-6 py-2 flex items-center gap-3 shrink-0 flex-wrap">
@@ -32,7 +35,7 @@ export default function PhaseHeader({
       </span>
       {currentStep && (
         <span className="text-[11.5px] font-semibold text-[#4F46E5] bg-[#F4F3FE] border border-[#DDD9F6] px-2 py-0.5 rounded-full">
-          {currentStep} · {stepLabel(currentStep)}
+          {currentStep} · {tStep(currentStep, locale)}
         </span>
       )}
       {currentStep && onRunCurrentStep && (
@@ -42,18 +45,18 @@ export default function PhaseHeader({
           disabled={busy}
           className="px-3 py-1 rounded-full text-[11.5px] font-bold bg-[#191817] text-white hover:bg-[#33312D] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          ▶ Chạy bước này
+          {t("runStep")}
         </button>
       )}
 
       <div className="ml-auto flex items-center gap-2">
-        <button type="button" disabled title="Đào sâu (vòng sau)" className="px-2 py-0.5 rounded-[6px] text-[11px] font-bold border border-[#ECEAE5] text-[#A8A49C] cursor-not-allowed">
+        <button type="button" disabled title={t("deepDive")} className="px-2 py-0.5 rounded-[6px] text-[11px] font-bold border border-[#ECEAE5] text-[#A8A49C] cursor-not-allowed">
           [A]
         </button>
-        <button type="button" disabled title="Party Mode (vòng sau)" className="px-2 py-0.5 rounded-[6px] text-[11px] font-bold border border-[#ECEAE5] text-[#A8A49C] cursor-not-allowed">
+        <button type="button" disabled title={t("partyMode")} className="px-2 py-0.5 rounded-[6px] text-[11px] font-bold border border-[#ECEAE5] text-[#A8A49C] cursor-not-allowed">
           [P]
         </button>
-        <span className="text-[11px] font-bold text-[#6B6862]" title="Đổi cách làm việc ở ranh giới phase">
+        <span className="text-[11px] font-bold text-[#6B6862]" title={t("changeModeHint")}>
           [C]
         </span>
         <WorkingModeSelect value={workingMode} onChange={onChangeWorkingMode} disabled={busy} />

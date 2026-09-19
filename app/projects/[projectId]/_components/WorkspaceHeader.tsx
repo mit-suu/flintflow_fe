@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "../../../../components/Logo";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
@@ -21,6 +23,7 @@ export default function WorkspaceHeader({
   onExportClick,
   onLogout,
 }: WorkspaceHeaderProps) {
+  const t = useTranslations("workspace.header");
 
   return (
     <header className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[58px] z-20">
@@ -31,11 +34,11 @@ export default function WorkspaceHeader({
             href="/home"
             className="hover:text-[#191817] font-semibold transition-colors"
           >
-            Dự án
+            {t("projects")}
           </Link>
           <span className="text-[#D6D2CB]">/</span>
           <span className="font-bold text-[#191817] truncate max-w-[220px]">
-            {project?.name || "Dự án SRS"}
+            {project?.name || t("untitled")}
           </span>
         </div>
 
@@ -55,6 +58,7 @@ export default function WorkspaceHeader({
       </div>
 
       <div className="flex items-center gap-3">
+        <LocaleSwitcher tone="light" />
         {user && (
           <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-[12px] font-semibold gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
@@ -65,7 +69,7 @@ export default function WorkspaceHeader({
         <button
           type="button"
           onClick={onExportClick}
-          title="Xuất tài liệu SRS"
+          title={t("exportHint")}
           className="px-3.5 py-1 rounded-full text-[12px] font-bold flex items-center gap-1 transition-all bg-[#191817] text-white hover:bg-[#33312D] cursor-pointer shadow-sm"
         >
           <span>Export</span>
@@ -75,11 +79,11 @@ export default function WorkspaceHeader({
         <button
           type="button"
           onClick={onLogout}
-          title="Đăng xuất"
+          title={t("logout")}
           className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-bold text-[#B03030] hover:bg-[#FDEDED] border border-[#F2CACA] transition-colors cursor-pointer"
         >
           <span className="text-sm leading-none">⏻</span>
-          <span className="hidden md:inline">Đăng xuất</span>
+          <span className="hidden md:inline">{t("logout")}</span>
         </button>
       </div>
     </header>

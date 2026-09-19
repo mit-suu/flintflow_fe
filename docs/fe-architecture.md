@@ -49,17 +49,69 @@ Chạy step là **SSE** (`lib/ai-stream.ts`): `intake · elicit · answer_needed
 render · flags · gate_ready · error`. Luôn huỷ luồng khi rời trang hoặc chạy lại; luồng đóng sớm phải
 thành lỗi rõ ràng, không im lặng.
 
-## Nhãn quy trình và i18n (`lib/i18n.ts`)
+## Đa ngôn ngữ (vi / en)
 
-Nguồn duy nhất là `lib/constants/step-registry.json` — **bản sao** của
-`flintflow_be/assets/step-registry.json` (hợp đồng đóng băng). Đừng sửa tay, chạy `npm run sync:registry`.
+Kế hoạch đầy đủ: `claude_plan/task-25-i18n-ui.md`. Đã chuyển **toàn bộ UI người dùng**: landing
+(`app/_landing/`), auth (`app/(auth)/`), khu vực đã đăng nhập (`app/home/**`, `components/`) và workspace
+(`app/projects/**`, namespace `workspace`), lỗi BE (theo mã) và email (BE, theo `user.locale`). Không chuyển:
+admin (xem dưới).
 
-`tStep(stepId, locale)` và `tPhase(phase, locale)` đọc `label_vi` / `label_en` có sẵn trong registry, nên
-không có bảng dịch thứ hai để lệch. Phạm vi cố ý hẹp: **chỉ nhãn step và phase**; chuỗi UI còn lại viết
-thẳng tiếng Việt trong component. Dựng cả framework i18n cho một sản phẩm đang dùng một ngôn ngữ là chi
-phí không đổi lấy được gì — khi cần ngôn ngữ thứ hai cho toàn UI thì thay ruột, giữ nguyên chữ ký `t*()`.
+**Admin chỉ tiếng Việt** — trang admin không đưa vào messages. `app/admin/layout.tsx` bọc
+`NextIntlClientProvider` ghim `locale="vi"` (`getMessages({ locale: "vi" })`), nên component dùng chung đã
+dịch (`AuthGuard`…) vẫn hiện tiếng Việt trong admin dù cookie là `en`. `i18n/request.ts` phải tôn trọng
+`locale` do nơi gọi xin — bỏ qua nó thì admin nhận nhầm bản `en` (có test ở `i18n/request.test.ts`).
 
-`localeOf(user)` hiện luôn trả `vi` vì BE chưa có field `locale` trên user.
+**Chọn locale.** Không prefix URL. `i18n/request.ts` gọi `resolveLocale()` (`lib/i18n.ts`): cookie
+`NEXT_LOCALE` → header `Accept-Language` → `vi`. `components/LocaleSwitcher.tsx` ghi cookie rồi
+`router.refresh()` (`tone="dark"` cho landing, `"light"` cho nền sáng). Vì layout đọc cookie nên mọi route
+render động.
+
+**Chuỗi UI** nằm ở `messages/vi.json` (bản chuẩn) và `messages/en.json`, chia namespace theo khu vực
+(`landing`, `auth`, `app`, `workspace`, `common`, `metadata`). Component dùng `useTranslations("<namespace>")` — được cả ở
+server component không async. Khi sửa:
+
+- Sửa câu chữ ⇒ sửa **cả hai** file messages, không đụng `.tsx`.
+- Thêm chuỗi ⇒ thêm key vào cả hai file, gọi `t("…")`; không viết chữ thẳng vào JSX.
+- Số liệu, giá, href ⇒ để trong code/data (vd `app/_landing/content.ts`), không nằm trong messages. Số
+  format qua `useFormatter()`.
+- Chữ có định dạng ⇒ `t.rich("key", { strong: (c) => <strong>{c}</strong> })`. Tên thẻ không được trùng
+  tên tham số.
+- Ngày / số ⇒ `useFormatter()` (`format.number`, `format.dateTime`), không `toLocaleString("vi-VN")` cứng.
+  "x phút trước" ⇒ `lib/time-ago.ts` (nhận `useTranslations("app.time")` làm tham số, giữ hàm thuần để test).
+- Câu dự phòng khi lỗi nằm **trong `useEffect`** ⇒ ghi `""` vào state rồi dịch lúc render
+  (`error || t("…")`, hiện khối lỗi khi `error !== null`). Đưa `t` vào dependency sẽ chạy lại effect (vd
+  polling checkout) mỗi lần đổi ngôn ngữ.
+- Hàm thuần cần chữ đã dịch (vd `nextStepLabel` của `ProjectCard`, `describeEvent` của `StepEventLog`) ⇒ nhận
+  `t` làm tham số; test dùng `createTranslator({ locale, messages: MESSAGES[locale], namespace })`.
+- Hook báo lỗi trong callback mà effect gọi (`useDocument`, `useFlags`, `useChanges`…) ⇒ **không** gọi
+  `useTranslations` trong hook: lưu mã `HOOK_ERROR.<key>` (`@<key>`, `lib/hook-errors.ts`), component dịch lúc
+  render bằng `hookErrorText(error, useTranslations("workspace.hookErrors"))`. Message từ BE đi qua nguyên văn.
+- Hook chỉ cần `t` cho một lần báo lỗi trong effect chạy-một-lần (`useWorkspace`) ⇒ `useEffectEvent`.
+- Lỗi runner do FE sinh (`NOT_PIPELINE_SESSION`, `STREAM_CLOSED`) dịch theo mã ở `page.tsx`; lỗi BE hiện `message`.
+- **Không dịch:** dữ liệu (nội dung tài liệu, tin nhắn chat, `flag.message`, `reason` của op ghi vào Spine), và
+  danh sách từ khoá tiếng Việt trong `isQuestionMultiple` (heuristic đọc câu hỏi của AI, không phải chữ UI).
+- Test: `renderWithIntl` bọc qua `wrapper` (`rerender` giữ provider); `renderHookWithIntl` cho hook dùng `t`.
+
+**Lưới an toàn:** `global.d.ts` khai kiểu messages từ `vi.json` ⇒ key sai là lỗi `tsc`;
+`messages/messages.test.ts` bắt lệch key / thiếu tham số / chuỗi rỗng giữa vi và en; test render từng khu
+vực ở `en` bằng `vietnameseLeftovers()` (`test/intl.tsx`) để bắt chữ tiếng Việt còn sót. Component test dùng
+`renderWithIntl(ui, locale)`. e2e chạy `locale: "vi-VN"` (`playwright.config.ts`).
+
+**Lỗi từ BE** dịch theo `error.code` ngay trong constructor của `ApiClientError` (`lib/api/error-messages.ts`,
+namespace `errors`) — mọi chỗ hiện `err.message` tự đúng ngôn ngữ, câu gốc BE ở `err.rawMessage`. Ngôn ngữ lấy từ
+`<html lang>`; trong `/admin` luôn `vi`. Mã không có trong `errors` (mơ hồ / chi tiết động) giữ nguyên message BE.
+Trang auth dùng `fetch` thô thì gọi `localizeApiError(json.error?.code, …)`. Dựng tiếp `ApiClientError` từ response
+thì đọc `readRawErrorMessage` (constructor tự dịch), không phải `readErrorMessage` (đã dịch).
+
+**Ngôn ngữ tài khoản:** `User.locale` ở BE. Đăng ký / Google gửi `locale` đang dùng; đăng nhập xong
+`applyAccountLocale(user.locale)` ghi cookie (tài khoản thắng lựa chọn tạm trên trang đăng nhập); `LocaleSwitcher` khi
+đã đăng nhập gọi `patchMe({ locale })` (`lib/api/users.ts`). Email xác thực / đặt lại mật khẩu gửi theo ngôn ngữ này.
+
+**Nhãn step/phase** chỉ đi qua `tStep(stepId, locale)` / `tPhase(phase, locale)` (`stepLabel()` đã xoá; `PHASE_LABELS_VI`
+chỉ đọc qua `tPhase`), đọc `label_vi` /
+`label_en` từ `lib/constants/step-registry.json` — **bản sao** của `flintflow_be/assets/step-registry.json`
+(hợp đồng đóng băng; đừng sửa tay, chạy `npm run sync:registry`). `localeOf(user)` hiện luôn trả `vi` vì
+BE chưa có field `locale` trên user.
 
 Nội dung tài liệu SRS luôn là tiếng Anh (BE sinh) và **không** đi qua i18n — FE chỉ hiển thị.
 

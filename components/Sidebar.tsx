@@ -3,8 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { clearAuthToken } from "../lib/auth";
 import { fetchBalance } from "../lib/api/billing";
+import LocaleSwitcher from "./LocaleSwitcher";
 import Logo from "./Logo";
 import { useUnreadNotificationCount } from "./NotificationBell";
 
@@ -21,7 +23,8 @@ interface SidebarUser {
 }
 
 interface NavItem {
-  label: string;
+  /** Nhãn ở `app.sidebar.nav.<key>`. */
+  key: "home" | "projects" | "notifications" | "billing";
   href: string;
   icon: string;
 }
@@ -34,10 +37,10 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Trang chủ", href: "/home", icon: "⌂" },
-  { label: "Dự án của tôi", href: "/home", icon: "◫" },
-  { label: "Thông báo", href: "/home/notifications", icon: "◉" },
-  { label: "Thanh toán & credit", href: "/home/billing", icon: "◎" },
+  { key: "home", href: "/home", icon: "⌂" },
+  { key: "projects", href: "/home", icon: "◫" },
+  { key: "notifications", href: "/home/notifications", icon: "◉" },
+  { key: "billing", href: "/home/billing", icon: "◎" },
 ];
 
 const AVATAR_GRADIENTS = [
@@ -63,6 +66,7 @@ export default function Sidebar({
   const [planLabel, setPlanLabel] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const t = useTranslations("app.sidebar");
   const liveUnreadCount = useUnreadNotificationCount();
   const unreadCount = notificationCount ?? liveUnreadCount;
   // Nhãn plan lấy từ /billing/balance; admin giữ nhãn "Admin"
@@ -122,7 +126,7 @@ export default function Sidebar({
           type="button"
           onClick={() => setCollapsed(!collapsed)}
           className="text-[#A8A49C] hover:text-[#191817] transition-colors select-none text-[13px] ml-auto cursor-pointer"
-          title={collapsed ? "Mở rộng" : "Thu gọn"}
+          title={collapsed ? t("expand") : t("collapse")}
         >
           {collapsed ? "»" : "«"}
         </button>
@@ -131,11 +135,12 @@ export default function Sidebar({
       {/* Nav items */}
       {NAV_ITEMS.map((item, idx) => {
         const isActive = idx === 1 ? activePath === "/home" || activePath.startsWith("/home/projects") : activePath === item.href;
+        const label = t(`nav.${item.key}`);
         return (
           <Link
-            key={item.label}
+            key={item.key}
             href={item.href}
-            title={collapsed ? item.label : undefined}
+            title={collapsed ? label : undefined}
             className={`flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
               isActive
                 ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
@@ -147,14 +152,14 @@ export default function Sidebar({
             }}
           >
             <span className="text-[13px] leading-none shrink-0">{item.icon}</span>
-            {!collapsed && item.label}
+            {!collapsed && label}
           </Link>
         );
       })}
 
       <Link
         href="/home/notifications"
-        title={collapsed ? "Thông báo" : undefined}
+        title={collapsed ? t("nav.notifications") : undefined}
         className={`relative flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
           activePath === "/home/notifications"
             ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
@@ -166,7 +171,7 @@ export default function Sidebar({
         }}
       >
         <span className="text-[13px] leading-none shrink-0">◉</span>
-        {!collapsed && "Thông báo"}
+        {!collapsed && t("nav.notifications")}
         {unreadCount > 0 && (
           <span
             className={`min-w-[16px] h-[16px] rounded-full bg-[#B03030] text-white text-[9.5px] font-extrabold flex items-center justify-center px-1 ${
@@ -185,7 +190,7 @@ export default function Sidebar({
       {!collapsed && (
         <>
           <div className="text-[10px] font-extrabold text-[#A8A49C] tracking-[0.06em] px-2.5 pt-0.5 pb-1.5 uppercase">
-            Dự án yêu thích
+            {t("favourites")}
           </div>
           {favourites.length > 0 ? (
             favourites.map((project) => (
@@ -208,7 +213,7 @@ export default function Sidebar({
             ))
           ) : (
             <div className="px-2.5 py-1 text-[11px] text-[#A8A49C] italic">
-              Chưa có dự án yêu thích
+              {t("noFavourites")}
             </div>
           )}
         </>
@@ -239,11 +244,16 @@ export default function Sidebar({
               onClick={() => router.push("/home/billing")}
               className="flex items-center gap-2.5 p-2 rounded-[9px] text-[12px] text-[#33312D] font-semibold hover:bg-[#FAF9F7] transition-colors w-full text-left"
             >
-              ◎ Thanh toán
+              ◎ {t("billing")}
               <span className="ml-auto px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[10px] font-bold text-[#6B6862]">
                 {displayPlan}
               </span>
             </button>
+
+            <div className="flex items-center gap-2.5 p-2 text-[12px] text-[#33312D] font-semibold">
+              {t("language")}
+              <LocaleSwitcher tone="light" className="ml-auto" />
+            </div>
 
             <div className="h-px bg-[#F0EEEA] mx-1.5 my-1" />
 
@@ -252,7 +262,7 @@ export default function Sidebar({
               onClick={handleLogout}
               className="flex items-center gap-2.5 p-2 rounded-[9px] text-[12px] text-[#B03030] font-bold hover:bg-[#FDEDED] transition-colors w-full text-left"
             >
-              ⏻ Đăng xuất
+              ⏻ {t("logout")}
             </button>
           </div>
         )}

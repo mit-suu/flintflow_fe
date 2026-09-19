@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "../../../components/Logo";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -27,12 +30,12 @@ export default function ForgotPasswordPage() {
       const json = await res.json();
 
       if (!res.ok || json.status === "error") {
-        throw new Error(json.message || "Không thể gửi yêu cầu đặt lại mật khẩu");
+        throw new Error(json.message || t("forgot.failed"));
       }
 
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : t("common.genericError"));
     } finally {
       setLoading(false);
     }
@@ -43,7 +46,10 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-[420px] flex flex-col gap-4">
         
         {/* Logo Top */}
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <div className="flex items-center justify-between">
+          <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+          <LocaleSwitcher tone="light" />
+        </div>
 
         {/* Card (A3 Design) */}
         <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] flex flex-col gap-4">
@@ -53,33 +59,36 @@ export default function ForgotPasswordPage() {
                 ✉️
               </div>
               <h1 className="text-[20px] font-extrabold text-[#191817]">
-                Đã gửi liên kết
+                {t("forgot.sentTitle")}
               </h1>
               <p className="text-[13px] text-[#8A867E] leading-[1.65]">
-                Nếu <strong className="text-[#4B4842]">{email}</strong> có tài khoản, bạn sẽ nhận được liên kết đặt lại mật khẩu trong vài phút. Kiểm tra cả hộp thư spam.
+                {t.rich("forgot.sentBody", {
+                  email,
+                  strong: (chunks) => <strong className="text-[#4B4842]">{chunks}</strong>,
+                })}
               </p>
               <button
                 type="button"
                 onClick={() => setSubmitted(false)}
                 className="w-full py-2.5 px-4 rounded-[8px] border-[1.5px] border-[#E4E1DC] text-center text-[13px] font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] transition-colors"
               >
-                Gửi lại email khác
+                {t("forgot.tryAnother")}
               </button>
               <Link
                 href="/login"
                 className="text-[12.5px] font-semibold text-[#4F46E5] hover:underline pt-1"
               >
-                ← Quay lại đăng nhập
+                {t("common.backToLogin")}
               </Link>
             </div>
           ) : (
             <>
               <div>
                 <h1 className="text-[22px] font-extrabold text-[#191817] tracking-[-0.02em]">
-                  Quên mật khẩu
+                  {t("forgot.title")}
                 </h1>
                 <p className="text-[13px] text-[#8A867E] mt-1 leading-[1.6]">
-                  Nhập email tài khoản để nhận liên kết đặt lại mật khẩu.
+                  {t("forgot.subtitle")}
                 </p>
               </div>
 
@@ -94,7 +103,7 @@ export default function ForgotPasswordPage() {
               <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-1">
                   <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="email">
-                    Email
+                    {t("common.email")}
                   </label>
                   <input
                     id="email"
@@ -102,7 +111,7 @@ export default function ForgotPasswordPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="mai@studio.vn"
+                    placeholder={t("common.emailPlaceholder")}
                     className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
                   />
                 </div>
@@ -115,10 +124,10 @@ export default function ForgotPasswordPage() {
                   {loading ? (
                     <>
                       <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-                      Đang gửi…
+                      {t("common.sending")}
                     </>
                   ) : (
-                    "Gửi liên kết đặt lại →"
+                    t("forgot.submit")
                   )}
                 </button>
 
@@ -127,7 +136,7 @@ export default function ForgotPasswordPage() {
                     href="/login"
                     className="text-[12.5px] font-semibold text-[#6B6862] hover:text-[#191817] transition-colors"
                   >
-                    ← Quay lại đăng nhập
+                    {t("common.backToLogin")}
                   </Link>
                 </div>
               </form>

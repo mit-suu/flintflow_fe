@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } from "@/lib/api/spine";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 import type { ApplyResult, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 
@@ -49,7 +50,7 @@ export function useChanges(
   const [history, setHistory] = useState<Change[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  const failureMessage = (err: unknown) => (err instanceof Error ? err.message : "Thao tác thất bại");
+  const failureMessage = (err: unknown) => (err instanceof Error ? err.message : HOOK_ERROR.actionFailed);
 
   const requestPreview = useCallback(
     async (instruction: string) => {

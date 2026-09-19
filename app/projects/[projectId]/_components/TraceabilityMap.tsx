@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { getTraceability } from "@/lib/api/spine";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
 
@@ -21,6 +22,7 @@ const ENTITIES: { id: TraceabilityEntity; label: string }[] = [
 
 /** `GET /traceability?entity&id` — bảng actor/use case/function/screen/entity liên quan tới một id. */
 export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
+  const t = useTranslations("workspace.trace");
   const [entity, setEntity] = useState<TraceabilityEntity>("actor");
   const [id, setId] = useState("");
   const [result, setResult] = useState<TraceabilityResponse | null>(null);
@@ -36,7 +38,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
       setResult(res.data);
     } catch (err) {
       setResult(null);
-      setError(err instanceof Error ? err.message : "Không tra được traceability");
+      setError(err instanceof Error ? err.message : t("failed"));
     } finally {
       setLoading(false);
     }
@@ -60,7 +62,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
           value={id}
           onChange={(e) => setId(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void search()}
-          placeholder="ID (vd A01)"
+          placeholder={t("placeholder")}
           className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[11.5px] outline-none focus:border-[#4F46E5]"
         />
         <button
@@ -69,7 +71,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
           disabled={loading || !id.trim()}
           className="px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
         >
-          {loading ? "…" : "Tra"}
+          {loading ? "…" : t("search")}
         </button>
       </div>
 
@@ -78,14 +80,14 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
       {result && (
         <div className="flex flex-col gap-2">
           {result.nodes.length === 0 ? (
-            <div className="text-[11px] text-[#A8A49C] italic">Không có liên kết nào.</div>
+            <div className="text-[11px] text-[#A8A49C] italic">{t("none")}</div>
           ) : (
             <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Loại</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">{t("colKind")}</th>
                   <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">ID</th>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Nhãn</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">{t("colLabel")}</th>
                 </tr>
               </thead>
               <tbody>
