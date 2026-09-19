@@ -25,13 +25,7 @@ export default function LandingPage() {
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo */}
-          <Logo
-            sizeClassName="w-8 h-8"
-            theme="dark"
-            showText={true}
-            textClassName="text-white font-extrabold text-lg tracking-tight"
-            href="/"
-          />
+          <Logo variant="wordmark" sizeClassName="h-5 w-auto" theme="dark" href="/" />
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-1 bg-[#1a1921] rounded-full px-1 py-1 border border-white/5">
             <Link
@@ -616,7 +610,7 @@ export default function LandingPage() {
       >
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Logo sizeClassName="w-6 h-6" theme="dark" showText={false} />
+            <Logo sizeClassName="w-4 h-4" theme="dark" />
             <span className="text-sm text-gray-500 font-medium">© 2024 FlintFlow</span>
           </div>
           <div className="flex items-center gap-6">

@@ -25,7 +25,7 @@ export default function WorkspaceHeader({
   return (
     <header className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[58px] z-20">
       <div className="flex items-center gap-3">
-        <Logo sizeClassName="w-7 h-7" theme="light" showText={false} href="/home" />
+        <Logo sizeClassName="w-5 h-5" theme="light" href="/home" />
         <div className="flex items-center text-[13px] text-[#8A867E] gap-1.5">
           <Link
             href="/home"
