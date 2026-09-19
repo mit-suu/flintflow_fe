@@ -44,7 +44,7 @@ describe("Mode1Workspace", () => {
     expect(screen.getByRole("button", { name: "Xem bản 0.0" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Release" })).toBeDisabled(); // mock còn 1 cờ đỏ
 
-    fireEvent.change(await screen.findByPlaceholderText(/./, { selector: "textarea" }), {
+    fireEvent.change(document.querySelector("textarea")!, {
       target: { value: "Đổi tên actor Student thành Learner" },
     });
     fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
