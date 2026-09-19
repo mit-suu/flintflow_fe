@@ -286,7 +286,7 @@ export default function HomePage() {
           /* Empty / Onboarding State (B1 Design) */
           <div className="flex-1 flex items-center justify-center relative py-12">
             <div className="w-full max-w-[560px] bg-white border border-[#ECEAE5] rounded-[24px] p-8 sm:p-10 custom-shadow-card flex flex-col items-center gap-4 text-center">
-              <Logo sizeClassName="w-14 h-14" theme="light" showText={false} />
+              <Logo sizeClassName="w-9 h-9" theme="light" />
               <h2 className="text-[20px] font-extrabold text-[#191817]">
                 Bắt đầu dự án đầu tiên của bạn
               </h2>

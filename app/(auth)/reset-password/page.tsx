@@ -221,7 +221,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
       <div className="w-full max-w-[420px] flex flex-col gap-4">
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+        <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" href="/" />
 
         <Suspense
           fallback={

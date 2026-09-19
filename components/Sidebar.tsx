@@ -113,9 +113,8 @@ export default function Sidebar({
         style={{ paddingLeft: collapsed ? 4 : 8, paddingRight: collapsed ? 4 : 8 }}
       >
         <Logo
-          sizeClassName="w-6.5 h-6.5"
-          showText={!collapsed}
-          textClassName="text-[14px] font-extrabold text-[#191817] truncate"
+          variant={collapsed ? "icon" : "wordmark"}
+          sizeClassName={collapsed ? "w-5 h-5" : "h-4 w-auto"}
           theme="light"
         />
         <button
