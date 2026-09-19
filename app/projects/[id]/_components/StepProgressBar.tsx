@@ -16,6 +16,7 @@ const DOT_STYLE: Record<StepSummary["status"], string> = {
   in_progress: "bg-[#4F46E5] text-white animate-pulse",
   revision_requested: "bg-[#C7811B] text-white",
   pending: "bg-[#F0EEEA] text-[#A8A49C]",
+  skipped: "bg-transparent border border-dashed border-[#D8D4CC] text-[#C9C4BA]",
 };
 
 /**
