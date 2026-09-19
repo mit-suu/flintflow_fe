@@ -23,7 +23,7 @@ Cửa duy nhất gọi BE. Không `fetch` trực tiếp trong component.
 | `token-store.ts` | Nơi duy nhất giữ/đọc token |
 | `projects.ts` `chat.ts` `documents.ts` | Dự án, phiên chat, tài liệu upload |
 | `spine.ts` `pipeline.ts` `flags.ts` `export.ts` | Spine, step runner, cờ, assemble/export/baseline |
-| `notifications.ts` `billing.ts` `admin.ts` | Nền tảng |
+| `notifications.ts` `billing.ts` `admin.ts` `feedback.ts` | Nền tảng (`feedback.ts`: `POST /feedback`, UC-12) |
 
 `types/` phản chiếu kiểu của BE và giữ **snake_case** y như field Spine — đổi sang camelCase là tự tạo
 một tầng dịch phải bảo trì mãi.
@@ -131,12 +131,44 @@ là không hỗ trợ lấy image nhỏ hơn.
 
 ```
 /(auth)/{login,register,verify-email,forgot-password,reset-password,check-email}
-/home                     lưới dự án (thẻ đọc tiến độ thật), tìm kiếm, tạo/đổi tên/lưu trữ
-/home/{notifications,billing,onboarding}
-/projects/[projectId]     workspace
+/home                     Project Dashboard: chưa có dự án ⇒ chọn source mode + tên ngay trên trang;
+                          có dự án ⇒ lưới card, lọc Trạng thái/Nguồn, tìm kiếm, "+ Dự án mới" (dialog)
+/home/{notifications,billing}
+/projects/[projectId]     workspace — cửa vào duy nhất của một dự án (card luôn link tới đây)
 /projects/[projectId]/view  bản đọc read-only
 /admin/{users,metrics,ai-cost,feedback}
 ```
+
+Tạo dự án xong đi tới `getProjectStartRoute(id, sourceMode)` (`lib/project-source-mode.ts`) — chỗ duy nhất
+map mode → route: `edit_srs → /projects/:id/import`, `customer_template → /projects/:id/template`,
+`fpt_template → /projects/:id`. Hai route đầu thuộc nhánh upload SRS / template khách; route đổi thì chỉ
+sửa hàm này.
+
+## Source mode của dự án
+
+`Project.sourceMode` (`edit_srs | fpt_template | customer_template`) do BE lưu khi tạo, bắt buộc và không đổi
+được; dự án cũ đã được migrate thành `fpt_template`. Khác `WorkingMode` (fast/coaching) của Spine — đừng
+gọi nó là "working mode". Nhãn, mô tả, icon, tone và `status: "ready" | "soon"` của 3 mode chỉ khai báo ở
+`SOURCE_MODE_OPTIONS`; mode `soon` hiện nhưng không chọn được.
+
+## Component dùng chung (`components/`)
+
+| Thư mục | Chứa gì |
+| --- | --- |
+| `ui/` | Primitive không biết domain: `Icon`, `Button`, `IconButton`, `Badge`, `CountBadge`, `SearchInput`, `FilterSelect`, `DropdownMenu`, `Card`, `Skeleton`, `EmptyState`, `Modal` (import qua `@/components/ui`) |
+| `layout/` | Khung `/home/*`: `AppShell` (drawer mobile, số dư credits, trạng thái thu gọn), `AppSidebar` dựng từ `sidebar-config.ts`, `SidebarNavItem`, `TopBar`, `RecentProjects` |
+| `project/` | Feature dùng ở nhiều trang: `SourceModePicker`, `CreateProjectForm` (một component cho empty state và dialog), `ProjectCard`, `ProjectGrid`, `ProjectActionDialogs`, `FeedbackDialog` |
+
+Quy tắc:
+
+- **Icon chỉ qua `components/ui/Icon.tsx`** (Lineicons Free). Không emoji, ký tự hay Material Symbols làm icon.
+  `Icon` tự dựng `<svg>` từ dữ liệu của `@lineiconshq/free-icons`; thêm icon = thêm một dòng vào bảng `ICONS`.
+- **Màu chỉ qua token** trong `app/globals.css` (`bg-surface`, `text-on-surface`, `bg-primary`, `bg-info-soft`…),
+  không hex trong component mới. Thiếu màu thì thêm token.
+- **Tính năng chưa có BE** hiện nhưng disabled kèm `<Badge tone="soon" />` ("Sắp có") — không ẩn, không dữ liệu
+  giả. Sidebar: đổi `status` trong `sidebar-config.ts` sang `"ready"` + `href` khi có BE.
+- Danh sách dự án tải một lần ở `app/home/layout.tsx` qua `ProjectsProvider` (`lib/hooks/use-projects.tsx`);
+  sidebar ("Gần đây") và dashboard dùng chung, gọi `reload()` sau khi tạo/đổi tên/lưu trữ/xoá.
 
 ## Đăng nhập Google là tuỳ chọn
 
