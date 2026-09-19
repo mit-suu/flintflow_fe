@@ -28,7 +28,7 @@ Cửa duy nhất gọi BE. Không `fetch` trực tiếp trong component.
 `types/` phản chiếu kiểu của BE và giữ **snake_case** y như field Spine — đổi sang camelCase là tự tạo
 một tầng dịch phải bảo trì mãi.
 
-## Workspace (`app/projects/[projectId]/`)
+## Workspace (`app/projects/[id]/`)
 
 `page.tsx` ghép mọi thứ; state nằm trong hook:
 
@@ -133,8 +133,8 @@ là không hỗ trợ lấy image nhỏ hơn.
 /(auth)/{login,register,verify-email,forgot-password,reset-password,check-email}
 /home                     lưới dự án (thẻ đọc tiến độ thật), tìm kiếm, tạo/đổi tên/lưu trữ
 /home/{notifications,billing,onboarding}
-/projects/[projectId]     workspace
-/projects/[projectId]/view  bản đọc read-only
+/projects/[id]     workspace
+/projects/[id]/view  bản đọc read-only
 /admin/{users,metrics,ai-cost,feedback}
 ```
 
