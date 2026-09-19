@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import type { CrLocation, LocationConclusion, PatchLocationRequest } from "@/types/change-request";
-import { Revisions } from "./Revisions";
+import FieldChanges from "./FieldChanges";
 import { CONCLUSION_LABELS, FOUND_BY_LABELS } from "./labels";
+import { valueSummary } from "./value-diff";
 import VerifyResult from "./VerifyResult";
 
 interface ProposalCardProps {
@@ -20,16 +21,29 @@ const CONCLUSION_TONE: Record<LocationConclusion, string> = {
   not_related: "bg-[#F0EEEA] text-[#6B6862]",
 };
 
-/** Form sửa tay một vị trí: kết luận + nội dung tương ứng. `not_related` bắt buộc lý do (như BE). */
+const parseJson = (text: string): { ok: true; value: unknown } | { ok: false } => {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
+};
+
+/**
+ * Form sửa tay một vị trí: kết luận + nội dung tương ứng. Sửa (`edit`) = giá trị mới của cả phần tử Spine dạng JSON
+ * (FLF-186 — BE đổi thành op `set` tại path; không được đổi `id`). `not_related` bắt buộc lý do (như BE).
+ */
 function ManualEditForm({ location, onPatch, onClose, busy }: { location: CrLocation; onPatch: ProposalCardProps["onPatch"]; onClose: () => void; busy: boolean }) {
-  const oldText = location.proposal?.old_text ?? location.block?.text ?? "";
+  const current = location.proposal?.old_text ?? location.current_text;
   const [conclusion, setConclusion] = useState<LocationConclusion>(location.conclusion ?? "edit");
-  const [newText, setNewText] = useState(location.proposal?.new_text ?? oldText);
+  const [newValue, setNewValue] = useState(location.proposal?.new_text ?? current);
   const [comment, setComment] = useState(location.proposal?.comment_text ?? "");
   const [reason, setReason] = useState(location.reason ?? "");
 
+  const parsed = parseJson(newValue);
+  const jsonError = conclusion === "edit" && !parsed.ok;
   const invalid =
-    (conclusion === "edit" && (!newText.trim() || newText === oldText)) ||
+    (conclusion === "edit" && (jsonError || newValue.trim() === current.trim())) ||
     (conclusion === "comment" && !comment.trim()) ||
     (conclusion === "not_related" && !reason.trim());
 
@@ -37,7 +51,7 @@ function ManualEditForm({ location, onPatch, onClose, busy }: { location: CrLoca
     onPatch({
       conclusion,
       ...(reason.trim() ? { reason: reason.trim() } : {}),
-      ...(conclusion === "edit" ? { new_text: newText } : {}),
+      ...(conclusion === "edit" && parsed.ok ? { new_value: parsed.value } : {}),
       ...(conclusion === "comment" ? { comment_text: comment.trim() } : {}),
     });
 
@@ -52,7 +66,18 @@ function ManualEditForm({ location, onPatch, onClose, busy }: { location: CrLoca
         ))}
       </div>
       {conclusion === "edit" && (
-        <textarea aria-label="Nội dung mới" value={newText} onChange={(e) => setNewText(e.target.value)} rows={3} className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-[12.5px]" />
+        <>
+          <textarea
+            aria-label="Giá trị mới (JSON)"
+            value={newValue}
+            onChange={(e) => setNewValue(e.target.value)}
+            rows={8}
+            spellCheck={false}
+            className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-[12px] font-mono"
+          />
+          {jsonError && <p className="text-[11.5px] text-[#B03030]">JSON chưa hợp lệ.</p>}
+          {!jsonError && <FieldChanges oldText={current} newText={newValue} />}
+        </>
       )}
       {conclusion === "comment" && (
         <textarea aria-label="Nội dung comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-[12.5px]" />
@@ -77,13 +102,14 @@ function ManualEditForm({ location, onPatch, onClose, busy }: { location: CrLoca
 }
 
 /**
- * Một vị trí ảnh hưởng (C-3) và đề xuất cho nó (C-4, UC-81): nguồn tìm thấy, block, kết luận + lý do, diff
- * cũ/mới, comment, kết quả kiểm; sửa tay khi AI trượt (3.9).
+ * Một vị trí ảnh hưởng (C-3) và đề xuất cho nó (C-4, UC-81) — mode 1 v2: phần tử Spine (path + section), nguồn tìm
+ * thấy, kết luận + lý do, thay đổi theo field, comment, kết quả kiểm; sửa tay khi AI trượt (3.9).
  */
 export default function ProposalCard({ location, editable, onPatch, busy = false }: ProposalCardProps) {
   const [editing, setEditing] = useState(false);
   const p = location.proposal;
   const failed = location.verify && !location.verify.code_ok;
+  const summary = valueSummary(p?.old_text ?? location.current_text);
 
   return (
     <article
@@ -91,7 +117,7 @@ export default function ProposalCard({ location, editable, onPatch, busy = false
       aria-label={`Vị trí ${location.location_id}`}
     >
       <header className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
-        <code className="font-bold text-[#191817]">{location.block_id}</code>
+        <code className="font-bold text-[#191817]">{location.path}</code>
         {location.found_by.map((f) => (
           <span key={f} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold">
             {FOUND_BY_LABELS[f]}
@@ -104,19 +130,11 @@ export default function ProposalCard({ location, editable, onPatch, busy = false
         )}
       </header>
 
-      {location.block?.heading_path.length ? <p className="text-[11px] text-[#A8A49C]">{location.block.heading_path.join(" › ")}</p> : null}
-      {location.entity_paths.length > 0 && <p className="text-[11px] text-[#8A867E] font-mono">{location.entity_paths.join(", ")}</p>}
+      {location.section_title && <p className="text-[11px] text-[#A8A49C]">Mục: {location.section_title}</p>}
+      {summary && <p className="text-[12.5px] text-[#33312D] whitespace-pre-wrap">{summary}</p>}
+      {location.entity_paths.length > 0 && <p className="text-[11px] text-[#8A867E] font-mono">liên quan: {location.entity_paths.join(", ")}</p>}
 
-      {location.conclusion === "edit" && p?.new_text ? (
-        <Revisions
-          revisions={[
-            { kind: "del", text: p.old_text, author: "Cũ" },
-            { kind: "ins", text: p.new_text, author: "Mới" },
-          ]}
-        />
-      ) : (
-        <p className="text-[12.5px] text-[#33312D] whitespace-pre-wrap">{p?.old_text ?? location.block?.text ?? ""}</p>
-      )}
+      {location.conclusion === "edit" && p && <FieldChanges oldText={p.old_text} newText={p.new_text} />}
       {location.conclusion === "comment" && p?.comment_text && (
         <p className="text-[12px] text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {p.comment_text}</p>
       )}

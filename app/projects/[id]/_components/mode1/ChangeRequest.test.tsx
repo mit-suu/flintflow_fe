@@ -58,7 +58,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
 
     await click("Tìm vị trí ảnh hưởng & khoá");
     expect(await screen.findByText(/Vị trí ảnh hưởng \(/)).toBeInTheDocument();
-    expect(S().blocks.get("0.0")!.some((b) => b.locked_by_cr === "CR-001")).toBe(true);
+    expect([...S().locks.values()]).toContain("CR-001");
 
     await click("AI đề xuất sửa");
     await click("Kiểm đề xuất");
@@ -67,7 +67,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
 
     expect(await screen.findByText(/vào bản 0.1/)).toBeInTheDocument();
     expect(S().crs.get("CR-001")!.change_request.status).toBe("written");
-    expect(S().blocks.get("0.1")!.every((b) => b.locked_by_cr === null)).toBe(true);
+    expect(S().locks.size).toBe(0);
   });
 
   it("sửa tay vẫn trượt kiểm ⇒ manual_fix; sửa lại đúng thì kiểm đạt", async () => {
@@ -75,9 +75,14 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await crSteps(change_request.cr_id, ["clarify", "impact", "propose"]);
     render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
+    // FLF-186: sửa tay = giá trị mới của cả phần tử (JSON)
+    const setStatement = (article: HTMLElement, statement: string) => {
+      const box = within(article).getByLabelText("Giá trị mới (JSON)") as HTMLTextAreaElement;
+      fireEvent.change(box, { target: { value: JSON.stringify({ ...JSON.parse(box.value), statement }) } });
+    };
     const first = (await screen.findAllByRole("article"))[0];
     fireEvent.click(within(first).getByRole("button", { name: "Sửa tay" }));
-    fireEvent.change(within(first).getByLabelText("Nội dung mới"), { target: { value: "FAIL text" } });
+    setStatement(first, "FAIL text");
     fireEvent.click(within(first).getByRole("button", { name: "Lưu sửa tay" }));
     await click("Kiểm đề xuất");
     expect(await screen.findByText(/AI đã làm lại 2 lần mà vẫn trượt/)).toBeInTheDocument();
@@ -85,7 +90,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
 
     const again = (await screen.findAllByRole("article"))[0];
     fireEvent.click(within(again).getByRole("button", { name: "Sửa tay" }));
-    fireEvent.change(within(again).getByLabelText("Nội dung mới"), { target: { value: "The user is signed out of every device." } });
+    setStatement(again, "The user is signed out of every device.");
     fireEvent.click(within(again).getByRole("button", { name: "Lưu sửa tay" }));
     await click("Kiểm lại");
     expect(await screen.findByRole("button", { name: "Nộp để duyệt" })).toBeInTheDocument();
@@ -110,10 +115,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await waitFor(() => expect(S().crs.get(change_request.cr_id)!.change_request.status).toBe("rejected"));
   });
 
-  it("huỷ CR mở khoá block", async () => {
+  it("huỷ CR mở khoá phần tử", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact"]);
-    expect(S().blocks.get("0.0")!.some((b) => b.locked_by_cr)).toBe(true);
+    expect(S().locks.size).toBeGreaterThan(0);
     render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Huỷ CR");
@@ -121,10 +126,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     const buttons = screen.getAllByRole("button", { name: "Huỷ CR" });
     fireEvent.click(buttons[buttons.length - 1]);
     await waitFor(() => expect(S().crs.get(change_request.cr_id)!.change_request.status).toBe("cancelled"));
-    expect(S().blocks.get("0.0")!.some((b) => b.locked_by_cr)).toBe(false);
+    expect(S().locks.size).toBe(0);
   });
 
-  it("CR thứ hai chạm block đang khoá ⇒ báo CR đang giữ (409 BLOCK_LOCKED)", async () => {
+  it("CR thứ hai chạm phần tử đang khoá ⇒ báo CR đang giữ (409 PATH_LOCKED)", async () => {
     const first = await newCr();
     await crSteps(first.change_request.cr_id, ["clarify", "impact"]);
     const second = await newCr("Đăng xuất mọi thiết bị (lần 2)");
@@ -132,7 +137,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     render(<CrWorkspace projectId={P} crId={second.change_request.cr_id} />);
 
     await click("Tìm vị trí ảnh hưởng & khoá");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/đang bị change request khác giữ: B\d{4} \(CR-001\)/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Phần tử đang bị change request khác giữ: \S+\[id=[^\]]+\] \(CR-001\)/);
   });
 
   it("hết credit lúc đề xuất ⇒ banner paused, nạp xong tiếp tục", async () => {

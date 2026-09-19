@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DECISION_REASON_MIN_LENGTH, type CrGroup, type CrLocation } from "@/types/change-request";
-import { Revisions } from "./Revisions";
+import FieldChanges from "./FieldChanges";
 import { CONCLUSION_LABELS, formatDateTime } from "./labels";
 
 interface ChangeGroupPanelProps {
@@ -37,15 +37,10 @@ function GroupCard({ group, locations, canDecide, onDecide, busy }: { group: CrG
       {locations.map((l) => (
         <div key={l.location_id} className="text-[12px] border-l-2 border-[#ECEAE5] pl-2.5">
           <p className="text-[11px] text-[#8A867E]">
-            {l.block_id} · {l.conclusion ? CONCLUSION_LABELS[l.conclusion] : "—"}
+            <code>{l.path}</code> · {l.conclusion ? CONCLUSION_LABELS[l.conclusion] : "—"}
           </p>
-          {l.conclusion === "edit" && l.proposal?.new_text ? (
-            <Revisions
-              revisions={[
-                { kind: "del", text: l.proposal.old_text, author: "Cũ" },
-                { kind: "ins", text: l.proposal.new_text, author: "Mới" },
-              ]}
-            />
+          {l.conclusion === "edit" && l.proposal ? (
+            <FieldChanges oldText={l.proposal.old_text} newText={l.proposal.new_text} />
           ) : l.proposal?.comment_text ? (
             <p className="text-[#3B4FA8]">💬 {l.proposal.comment_text}</p>
           ) : null}
@@ -102,8 +97,8 @@ function GroupCard({ group, locations, canDecide, onDecide, busy }: { group: CrG
 }
 
 /**
- * 3.11–3.12 Duyệt từng change group (UC-51, UC-52): duyệt / từ chối có lý do. Group bị từ chối mở khoá block
- * ngay; group cuối được quyết mà có group duyệt ⇒ BE ghi Track Changes + comment (author = CR id) thành minor mới.
+ * 3.11–3.12 Duyệt từng change group (UC-51, UC-52): duyệt / từ chối có lý do. Group bị từ chối mở khoá phần tử
+ * ngay; group cuối được quyết mà có group duyệt ⇒ BE ghi op vào Spine và render version minor mới (FLF-186).
  */
 export default function ChangeGroupPanel({ groups, locations, canDecide, onDecide, busy = false }: ChangeGroupPanelProps) {
   if (groups.length === 0) return null;

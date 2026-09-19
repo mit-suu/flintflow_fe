@@ -3,7 +3,7 @@
  * (đã là tiếng Việt), không nuốt lỗi.
  */
 import { ApiClientError } from "@/lib/api/client";
-import type { BlockLockedMeta } from "@/types/change-request";
+import type { PathLockedMeta } from "@/types/change-request";
 
 const FRIENDLY: Record<string, string> = {
   INSUFFICIENT_CREDIT: "Không đủ credit cho bước AI này — nạp thêm rồi thử lại.",
@@ -13,6 +13,7 @@ const FRIENDLY: Record<string, string> = {
   IMPORT_NEEDS_LATEST_CONFIRM: "Hãy xác nhận đây là bản mới nhất trước.",
   CR_REQUIRES_BASELINE: "Cần hoàn tất import (baseline 0.0) trước khi tạo change request.",
   RELEASE_RED_FLAGS_OPEN: "Còn cờ đỏ chưa xử lý — chưa release được.",
+  CR_VALUE_CHANGED: "Phần tử vừa bị sửa ở chỗ khác sau khi đề xuất — chạy lại đề xuất rồi kiểm lại.",
   CORE_STEP_REQUIRED: "Step này thuộc đầu mục mẫu FPT hoặc đã có dữ liệu — không tắt được.",
   STEP_NOT_IN_PLAN: "Step không có trong kế hoạch của dự án.",
   BASELINE_BLOCKED: "Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.",
@@ -20,10 +21,10 @@ const FRIENDLY: Record<string, string> = {
 
 export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): string => {
   if (err instanceof ApiClientError) {
-    if (err.code === "BLOCK_LOCKED") {
-      const locked = (err.meta as BlockLockedMeta | undefined)?.locked ?? [];
+    if (err.code === "PATH_LOCKED") {
+      const locked = (err.meta as PathLockedMeta | undefined)?.locked ?? [];
       if (locked.length) {
-        return `Block đang bị change request khác giữ: ${locked.map((l) => `${l.block_id} (${l.cr_id})`).join(", ")}. Chờ CR đó xong hoặc huỷ rồi thử lại.`;
+        return `Phần tử đang bị change request khác giữ: ${locked.map((l) => `${l.path} (${l.cr_id})`).join(", ")}. Chờ CR đó xong hoặc huỷ rồi thử lại.`;
       }
     }
     return FRIENDLY[err.code] ?? err.message ?? fallback;

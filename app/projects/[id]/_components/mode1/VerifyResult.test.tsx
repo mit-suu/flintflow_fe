@@ -26,8 +26,10 @@ afterAll(() => mockServer.close());
 const AT = "2026-09-19T00:00:00.000Z";
 const location = (over: Partial<CrLocation> = {}): CrLocation => ({
   location_id: "L001",
-  block_id: "B0008",
-  block: null,
+  path: "nfrs[id=NFR-P02]",
+  section_id: "fixed:4.2.3",
+  section_title: "Performance",
+  current_text: "",
   found_by: ["mention"],
   entity_paths: [],
   owner_step: null,
@@ -106,7 +108,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     const cr = change_request.cr_id;
     const proposed = await crSteps(cr, ["clarify", "impact", "propose"]);
     const target = proposed.locations.find((l) => l.conclusion === "edit") ?? proposed.locations[0];
-    await patchLocation(P, cr, target.location_id, { conclusion: "edit", new_text: "FAIL text" });
+    await patchLocation(P, cr, target.location_id, { conclusion: "edit", new_value: { id: "NFR-P02", statement: "FAIL text" } });
     await runCrAction(P, cr, "verify");
 
     const detail = (await getCr(P, cr)).data!;
