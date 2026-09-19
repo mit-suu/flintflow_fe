@@ -192,6 +192,14 @@ const cases: EndpointCase[] = [
   ["finalizeImport", () => importApi.finalizeImport("p1", "i1", 7), "/projects/p1/import/finalize", post({ import_id: "i1", base_version: 7 })],
   ["resumeImport", () => importApi.resumeImport("p1", "i1"), "/projects/p1/import/resume", post({ import_id: "i1" })],
   ["getGapReport", () => importApi.getGapReport("p1"), "/projects/p1/gap-report"],
+  // ─── mode 1 v2: step-plan (#32–#33, FLF-182) ───
+  ["getStepPlan", () => importApi.getStepPlan("p1"), "/projects/p1/step-plan"],
+  [
+    "patchStepPlan",
+    () => importApi.patchStepPlan("p1", { step_id: "B-0.1", enabled: true }),
+    "/projects/p1/step-plan",
+    { method: "PATCH", body: JSON.stringify({ step_id: "B-0.1", enabled: true }) },
+  ],
   // ─── mode 1: version + release (#12, #13, #15, #31) ───
   ["listVersions", () => versions.listVersions("p1"), "/projects/p1/versions"],
   ["getVersionBlocks", () => versions.getVersionBlocks("p1", "0.1"), "/projects/p1/versions/0.1/blocks"],
