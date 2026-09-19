@@ -26,7 +26,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
         className="flex h-screen overflow-hidden bg-[#F5F3F0]"
         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       >
-        <Sidebar activePath="/home" user={user} />
+        <Sidebar user={user} />
         <main className="flex-1 min-w-0 flex flex-col overflow-hidden">{children}</main>
       </div>
     </AuthGuard>
