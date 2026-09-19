@@ -32,6 +32,7 @@ const profile = (over: Partial<TemplateProfile> = {}): TemplateProfile => ({
   table_map: [column("B0005", 0, "Actor", "actors[].name"), column("B0005", 1, "Description", "actors[].description", 0.55)],
   required_sections: ["fixed:1", "fixed:2.1", "fixed:5.3"],
   language: "en",
+  layout: [],
   ...over,
 });
 

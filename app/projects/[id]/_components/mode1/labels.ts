@@ -43,9 +43,11 @@ export const CR_SOURCE_LABELS: Record<CrSourceKind, string> = {
   reupload: "File tải lại (khác biệt)",
   viewer_comment: "Góp ý của người xem",
   verbal: "Trao đổi miệng",
+  chat: "Lệnh sửa trong chat",
 };
 
-export const CR_SOURCE_KINDS = Object.keys(CR_SOURCE_LABELS) as CrSourceKind[];
+/** Nguồn người dùng chọn được khi tạo CR tay — `chat` chỉ do hệ thống gán. */
+export const CR_SOURCE_KINDS = (Object.keys(CR_SOURCE_LABELS) as CrSourceKind[]).filter((k) => k !== "chat");
 
 export const FOUND_BY_LABELS: Record<LocationFoundBy, string> = {
   spine_link: "Liên kết field",

@@ -11,6 +11,8 @@ import type {
   ImportStateResponse,
   MappingPatchRequest,
   ReuploadDiff,
+  StepPlanPatchRequest,
+  StepPlanResponse,
 } from "@/types/import";
 import { apiCall } from "./client";
 import { fetchFile } from "./files";
@@ -67,3 +69,10 @@ export const downloadGapReport = (projectId: string) => fetchFile(`${base(projec
 /** Không tạo version — chỉ trả khác biệt so với version mới nhất. */
 export const reuploadDocument = (projectId: string, file: File) =>
   apiCall<ReuploadDiff>(`${base(projectId)}/reupload`, { method: "POST", body: docxForm(file) });
+
+/** #32 (FLF-182): step nào chạy / ẩn / thiếu theo template của file upload. */
+export const getStepPlan = (projectId: string) => apiCall<StepPlanResponse>(`${base(projectId)}/step-plan`);
+
+/** #33: bật step ẩn / tắt step đã bật. 409 `CORE_STEP_REQUIRED` khi tắt step của đầu mục FPT; 404 `STEP_NOT_IN_PLAN`. */
+export const patchStepPlan = (projectId: string, body: StepPlanPatchRequest) =>
+  apiCall<StepPlanResponse>(`${base(projectId)}/step-plan`, { method: "PATCH", body: JSON.stringify(body) });
