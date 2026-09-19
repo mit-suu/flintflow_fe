@@ -142,6 +142,12 @@ describe("Trang auth — bản vi giữ nguyên chữ cũ", () => {
     expect(screen.getByRole("heading", { name: "Tạo tài khoản" })).toBeInTheDocument();
   });
 
+  it("register: email từ form cuối landing (?email=) được điền sẵn", () => {
+    nav.params = new URLSearchParams({ email: " mai@congty.vn " });
+    renderWithIntl(<RegisterPage />, "vi");
+    expect(screen.getByLabelText("Email")).toHaveValue("mai@congty.vn");
+  });
+
   it("check-email: câu gốc giữ nguyên", () => {
     nav.params = new URLSearchParams({ email: "a@b.co" });
     const { container } = renderWithIntl(<CheckEmailPage />, "vi");

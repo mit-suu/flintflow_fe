@@ -103,6 +103,10 @@ namespace `errors`) — mọi chỗ hiện `err.message` tự đúng ngôn ngữ
 Trang auth dùng `fetch` thô thì gọi `localizeApiError(json.error?.code, …)`. Dựng tiếp `ApiClientError` từ response
 thì đọc `readRawErrorMessage` (constructor tự dịch), không phải `readErrorMessage` (đã dịch).
 
+**Thông báo** (chuông + trang Thông báo): BE ghi `title`/`body` tiếng Việt kèm `type` + tham số trong `meta`; FE dựng lại câu
+theo ngôn ngữ bằng `useNotificationText()` (`lib/notification-text.ts`, `app.notificationTypes`). Thiếu tham số / `type` lạ
+(vd `admin_new_user`) ⇒ hiện nguyên câu đã lưu. Thêm loại thông báo mới ⇒ thêm case + key ở cả hai file messages.
+
 **Ngôn ngữ tài khoản:** `User.locale` ở BE. Đăng ký / Google gửi `locale` đang dùng; đăng nhập xong
 `applyAccountLocale(user.locale)` ghi cookie (tài khoản thắng lựa chọn tạm trên trang đăng nhập); `LocaleSwitcher` khi
 đã đăng nhập gọi `patchMe({ locale })` (`lib/api/users.ts`). Email xác thực / đặt lại mật khẩu gửi theo ngôn ngữ này.

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import NotificationBell from "../../../components/NotificationBell";
 import { formatNotificationTime } from "../../../lib/time-ago";
+import { useNotificationText } from "../../../lib/notification-text";
 import {
   fetchNotifications,
   markAllNotificationsRead,
@@ -24,6 +25,7 @@ export default function NotificationsPage() {
   const tCommon = useTranslations("app.common");
   const tTime = useTranslations("app.time");
   const locale = useLocale();
+  const textOf = useNotificationText();
   const [filter, setFilter] = useState<Filter>("all");
   const [items, setItems] = useState<AppNotification[]>([]);
   const [meta, setMeta] = useState<NotificationListMeta | null>(null);
@@ -177,12 +179,12 @@ export default function NotificationsPage() {
                 <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.readAt ? "bg-[#E4E1DC]" : "bg-[#4F46E5]"}`} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[13.5px] font-bold text-[#191817]">{n.title}</span>
+                    <span className="text-[13.5px] font-bold text-[#191817]">{textOf(n).title}</span>
                     <span className="text-[11px] text-[#A8A49C] ml-auto shrink-0">
                       {formatNotificationTime(n.createdAt, tTime, locale)}
                     </span>
                   </div>
-                  <p className="text-[12.5px] text-[#6B6862] leading-[1.55] mt-0.5">{n.body}</p>
+                  <p className="text-[12.5px] text-[#6B6862] leading-[1.55] mt-0.5">{textOf(n).body}</p>
                   <div className="flex gap-3 mt-2">
                     {n.link && (
                       <button

@@ -180,6 +180,28 @@ describe("Thông báo (en)", () => {
     expect(vietnameseLeftovers(container)).toEqual([]);
   });
 
+  it("thông báo từ BE hiện theo ngôn ngữ đang dùng (type + meta)", async () => {
+    api.fetchNotifications.mockResolvedValue({
+      items: [
+        {
+          _id: "n2",
+          type: "payment_success",
+          title: "Thanh toán thành công",
+          body: "Đã cộng 500 credit vào tài khoản của bạn.",
+          link: "/home/billing",
+          readAt: null,
+          createdAt: minutesAgo(5),
+          meta: { credits: 500, amount: 49000 },
+        },
+      ],
+      meta: { page: 1, totalPages: 1, unreadCount: 1 },
+    });
+    const { container } = renderWithIntl(<NotificationsPage />, "en");
+    expect(await screen.findByText("Payment successful")).toBeInTheDocument();
+    expect(screen.getByText("500 credits have been added to your account.")).toBeInTheDocument();
+    expect(vietnameseLeftovers(container)).toEqual([]);
+  });
+
   it("chuông: mở xem trước", async () => {
     const { container } = renderWithIntl(<NotificationBell />, "en");
     const bell = await screen.findByRole("button", { name: "Notifications (1 unread)" });
@@ -250,5 +272,16 @@ describe("Sidebar (en)", () => {
     expect(screen.getByRole("group", { name: "Language" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Log out/ })).toBeInTheDocument();
     expect(vietnameseLeftovers(container)).toEqual([]);
+  });
+
+  it("chỉ một mục Thông báo, badge số chưa đọc nằm trên chính mục đó", async () => {
+    const { container } = renderWithIntl(<Sidebar activePath="/home" user={{ name: "alex", plan: "Free Plan" }} />, "vi");
+    const links = () => [...container.querySelectorAll('a[href="/home/notifications"]')];
+    await waitFor(() => expect(links()[0]).toHaveTextContent("1"));
+    expect(links()).toHaveLength(1);
+    expect(links()[0]).toHaveTextContent("Thông báo");
+    // Thứ tự: Trang chủ · Dự án của tôi · Thông báo · Thanh toán & credit
+    const nav = [...container.querySelectorAll("aside > a")].map((a) => a.textContent?.replace(/\d+$/, "").trim());
+    expect(nav.slice(0, 4)).toEqual(["⌂Trang chủ", "◫Dự án của tôi", "◉Thông báo", "◎Thanh toán & credit"]);
   });
 });

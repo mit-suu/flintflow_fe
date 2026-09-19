@@ -120,10 +120,10 @@
     "cta": {
       "title": "Clients will keep changing requirements.",
       "titleMuted": "Your spec doesn't have to break with them.",
-      "body": "Enter your work email to open a sample workspace — it comes with an SRS so you can try conflict scanning and create a Change Request.",
+      "body": "Enter your work email to create a free trial account, then try conflict scanning and Change Requests on your own SRS.",
       "emailLabel": "Work email",
       "emailPlaceholder": "you@company.com",
-      "submit": "Get a demo",
+      "submit": "Get started",
       "fptTemplate": "FPT template",
       "automatic": "automatic",
       "checklist": {
@@ -450,6 +450,38 @@
       "recheck": "Check again",
       "waiting": "Waiting for payment confirmation…",
       "missingIntent": "Missing transaction id (intentId)."
+    },
+    "notificationTypes": {
+      "welcome": {
+        "title": "Welcome to FlintFlow",
+        "body": "Your account is ready with {credits} free credits."
+      },
+      "payment_success": {
+        "title": "Payment successful",
+        "body": "{credits} credits have been added to your account."
+      },
+      "payment_failed": {
+        "title": "Payment failed",
+        "body": "The credit top-up transaction didn't go through."
+      },
+      "low_credit": {
+        "title": "Credits running low",
+        "body": "Your balance is down to {balance} credits. Top up to keep using AI."
+      },
+      "plan_changed": {
+        "title": "Switched to the {plan} plan",
+        "bodyUntil": "The {plan} plan is valid until {date}.",
+        "bodyActive": "The {plan} plan has been activated."
+      },
+      "phase_accepted": {
+        "title": "Phase {phase} completed",
+        "body": "Every step of phase {phase} has been accepted. You can move on to the next phase."
+      },
+      "baseline_created": {
+        "title": "Baseline {version} recorded",
+        "bodyWaived": "The document was signed off at {version} with {count, plural, one {# flag} other {# flags}} waived with a reason.",
+        "bodyClean": "The document was signed off at {version} with no red flags left."
+      }
     }
   },
   "workspace": {

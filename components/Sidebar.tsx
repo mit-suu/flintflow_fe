@@ -136,12 +136,14 @@ export default function Sidebar({
       {NAV_ITEMS.map((item, idx) => {
         const isActive = idx === 1 ? activePath === "/home" || activePath.startsWith("/home/projects") : activePath === item.href;
         const label = t(`nav.${item.key}`);
+        // Badge số chưa đọc nằm ngay trên mục "Thông báo" — trước đây là một link riêng nên mục này hiện hai lần.
+        const badge = item.key === "notifications" && unreadCount > 0 ? unreadCount : 0;
         return (
           <Link
             key={item.key}
             href={item.href}
             title={collapsed ? label : undefined}
-            className={`flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
+            className={`relative flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
               isActive
                 ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
                 : "text-[#6B6862] font-semibold hover:bg-[#FAF9F7]"
@@ -153,35 +155,18 @@ export default function Sidebar({
           >
             <span className="text-[13px] leading-none shrink-0">{item.icon}</span>
             {!collapsed && label}
+            {badge > 0 && (
+              <span
+                className={`min-w-[16px] h-[16px] rounded-full bg-[#B03030] text-white text-[9.5px] font-extrabold flex items-center justify-center px-1 ${
+                  collapsed ? "absolute top-0.5 right-1" : "ml-auto"
+                }`}
+              >
+                {badge > 99 ? "99+" : badge}
+              </span>
+            )}
           </Link>
         );
       })}
-
-      <Link
-        href="/home/notifications"
-        title={collapsed ? t("nav.notifications") : undefined}
-        className={`relative flex items-center gap-2.5 rounded-[10px] text-[12px] transition-colors ${
-          activePath === "/home/notifications"
-            ? "bg-[#F4F3FE] text-[#3B34B0] font-bold"
-            : "text-[#6B6862] font-semibold hover:bg-[#FAF9F7]"
-        }`}
-        style={{
-          padding: collapsed ? "8px 0" : "8px 10px",
-          justifyContent: collapsed ? "center" : undefined,
-        }}
-      >
-        <span className="text-[13px] leading-none shrink-0">◉</span>
-        {!collapsed && t("nav.notifications")}
-        {unreadCount > 0 && (
-          <span
-            className={`min-w-[16px] h-[16px] rounded-full bg-[#B03030] text-white text-[9.5px] font-extrabold flex items-center justify-center px-1 ${
-              collapsed ? "absolute top-0.5 right-1" : "ml-auto"
-            }`}
-          >
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </Link>
 
       {/* Divider */}
       <div className="h-px bg-[#F0EEEA] mx-2 my-2.5" />

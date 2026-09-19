@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { localizeApiError } from "@/lib/api/error-messages";
@@ -15,11 +15,13 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("auth");
   // Ngôn ngữ đang dùng lúc đăng ký thành ngôn ngữ của tài khoản và của email xác thực (T25).
   const locale = useLocale();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  // Form cuối landing gửi GET /register?email=… — điền sẵn để khỏi gõ lại.
+  const [email, setEmail] = useState(() => searchParams.get("email")?.trim() ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
