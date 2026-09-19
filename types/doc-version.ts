@@ -14,12 +14,17 @@ export interface DocVersion {
   cr_ids: string[];
   baseline_id: string | null;
   has_clean_file: boolean;
+  /** Có file gốc người dùng upload (bản import 0.0 — FLF-184), tải qua `variant=original`. */
+  has_original_file: boolean;
   created_by: string;
   created_at: IsoDateTime;
 }
 
-/** `auto`: release ⇒ bản sạch, draft ⇒ Track Changes + DRAFT. `tracked`: luôn bản có Track Changes. */
-export type DownloadVariant = "auto" | "tracked";
+/**
+ * `auto`: release ⇒ bản sạch, draft ⇒ Track Changes + DRAFT (bản 0.0 là bản render từ Spine — FLF-184).
+ * `tracked`: luôn bản có Track Changes. `original`: file người dùng upload (chỉ bản 0.0).
+ */
+export type DownloadVariant = "auto" | "tracked" | "original";
 
 export interface CompareResponse {
   from: string;

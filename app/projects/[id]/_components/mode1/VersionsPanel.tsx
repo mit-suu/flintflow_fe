@@ -18,8 +18,9 @@ interface VersionsPanelProps {
   versions: DocVersion[];
   /** Cờ đỏ đang mở — `null` khi chưa tải. */
   redOpen: number | null;
-  selected: string | null;
-  onSelect: (version: string) => void;
+  /** Version đang xem — bỏ trống khi panel chỉ liệt kê (workspace mode 1 v2 xem tài liệu ở DocumentPane). */
+  selected?: string | null;
+  onSelect?: (version: string) => void;
   /** Sau release: tải lại danh sách, header. */
   onReleased: () => void;
 }
@@ -50,7 +51,8 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
     setError(null);
     try {
       const { blob, filename } = await downloadVersion(projectId, version, variant);
-      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${isReleaseVersion(version) && variant === "auto" ? "" : "_DRAFT"}.docx`);
+      const suffix = variant === "original" ? "_original" : isReleaseVersion(version) && variant === "auto" ? "" : "_DRAFT";
+      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.docx`);
     } catch (err) {
       setError(errorText(err, "Không tải được file"));
     } finally {
@@ -139,9 +141,13 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                 className={`rounded-[12px] border px-3 py-2.5 flex flex-col gap-1.5 ${selected === v.version ? "border-[#4F46E5] bg-[#F4F3FE]" : "border-[#ECEAE5] bg-white"}`}
               >
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => onSelect(v.version)} className="font-extrabold text-[#191817] text-[14px] hover:underline" aria-label={`Xem bản ${v.version}`}>
-                    {v.version}
-                  </button>
+                  {onSelect ? (
+                    <button type="button" onClick={() => onSelect(v.version)} className="font-extrabold text-[#191817] text-[14px] hover:underline" aria-label={`Xem bản ${v.version}`}>
+                      {v.version}
+                    </button>
+                  ) : (
+                    <span className="font-extrabold text-[#191817] text-[14px]">{v.version}</span>
+                  )}
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                       release ? "bg-[#E9F7EE] text-[#1F7A45]" : v.kind === "imported" ? "bg-[#F0EEEA] text-[#4B4842]" : "bg-[#FBF4E4] text-[#8A6D1F]"
@@ -167,8 +173,19 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                     disabled={busy !== null}
                     className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50"
                   >
-                    {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? "Tải bản gốc" : "Tải bản draft (Track Changes)"}
+                    {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản draft (Track Changes)"}
                   </button>
+                  {v.has_original_file && (
+                    <button
+                      type="button"
+                      onClick={() => void download(v.version, "original")}
+                      disabled={busy !== null}
+                      title="File .docx người dùng upload lúc import"
+                      className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
+                    >
+                      {busy === `download:${v.version}:original` ? "Đang tải…" : "Tải file gốc"}
+                    </button>
+                  )}
                   {release && (
                     <button
                       type="button"

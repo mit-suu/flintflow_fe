@@ -21,6 +21,7 @@ import { CR_TERMINAL_STATUSES, DECISION_REASON_MIN_LENGTH, MAX_CLARIFY_ROUNDS, M
 import { compareDocVersions, isReleaseVersion } from "@/types/doc-version";
 import { MODE1_PROJECT_ID, MODE1_USER_ID, initialBlocks } from "./state";
 import * as stateModule from "./state";
+import * as mode2State from "../state";
 
 const api = (path: string) => `${API_BASE_URL}${path}`;
 const now = () => new Date().toISOString();
@@ -348,7 +349,7 @@ const writeCr = (detail: CrDetail) => {
   });
   S().blocks.set(to, blocks);
   unlock(cr.cr_id);
-  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false });
+  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_original_file: false });
   S().spineVersion += 1;
   cr.result_doc_version = to;
   cr.decided_by = MODE1_USER_ID;
@@ -532,7 +533,7 @@ export const mode1Handlers = [
       S().spineVersion += 1;
       const baseline = newBaseline("imported", "0.0");
       S().baselines.push(baseline);
-      addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false });
+      addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_original_file: true });
       setImportStatus("checking");
       setImportStatus("gap_review");
       return ok({ import: doc, doc_version: "0.0", baseline, spine_version: S().spineVersion, flags: { red: S().redFlags, yellow: 1 } });
@@ -565,7 +566,12 @@ export const mode1Handlers = [
         project_id: MODE1_PROJECT_ID,
         doc_version: "0.0",
         generated_at: now(),
-        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0 },
+        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1 },
+        missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
+        layout: [
+          { order: 0, section_id: "fixed:1", heading: "1 Giới thiệu", level: 1, kind: "fpt", red: 0, yellow: 0 },
+          { order: 1, section_id: "custom:CS01", heading: "Phụ lục B — Biên bản họp", level: 1, kind: "custom", red: 0, yellow: 0 },
+        ],
         sections: [...new Set(flags.map((f) => f.section_id))].map((section_id) => ({ section_id, title: section_id, flags: flags.filter((f) => f.section_id === section_id) })),
         missing_sections: [{ section_id: "fixed:5.3", title: "Application Messages List" }],
         unmapped_headings: [{ block_id: "B0011", text: "Phụ lục B — Biên bản họp" }],
@@ -643,7 +649,12 @@ export const mode1Handlers = [
     mode1(({ params, request }) => {
       const v = String(params.v);
       if (!S().versions.some((x) => x.version === v)) return fail(404, "DOC_VERSION_NOT_FOUND", `Không có version ${v}`);
-      const tracked = new URL(request.url).searchParams.get("variant") === "tracked";
+      const variant = new URL(request.url).searchParams.get("variant");
+      if (variant === "original") {
+        if (!S().versions.find((x) => x.version === v)?.has_original_file) return fail(404, "DOC_VERSION_NOT_FOUND", `Version ${v} không có file gốc`);
+        return docxFile(`${S().project.name}_v${v}_original.docx`);
+      }
+      const tracked = variant === "tracked";
       const draft = tracked || !isReleaseVersion(v);
       return docxFile(`${S().project.name}_v${v}${draft && !isReleaseVersion(v) ? "_DRAFT" : ""}.docx`);
     }),
@@ -949,7 +960,7 @@ export const mode1Handlers = [
       const baseline = newBaseline("release", to);
       S().baselines.push(baseline);
       S().blocks.set(to, latestBlocks().map((b) => ({ ...b, doc_version: to, revisions: undefined })));
-      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true });
+      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_original_file: false });
       return ok({ version, baseline, cr_ids: crIds, spine_version: S().spineVersion });
     }),
   ),
@@ -958,7 +969,8 @@ export const mode1Handlers = [
   // Project khác trả `undefined` ⇒ rơi xuống mock pipeline.
   http.get(api("/projects/:projectId/spine"), ({ params }) =>
     isMode1(params.projectId)
-      ? ok({ projectId: MODE1_PROJECT_ID, spine_version: S().spineVersion, flags: openFlags(), baselines: S().baselines, sections: [], steps: [] })
+      ? // Spine đầy đủ của mock mode 2 + phần mode 1 — workspace mode 1 v2 (FLF-185) dùng chung FptWorkspace
+        ok({ ...mode2State.mockState.spine, projectId: MODE1_PROJECT_ID, spine_version: S().spineVersion, flags: openFlags(), baselines: S().baselines, sections: [], steps: [] })
       : undefined,
   ),
   http.get(api("/projects/:projectId/flags"), ({ params, request }) => {
