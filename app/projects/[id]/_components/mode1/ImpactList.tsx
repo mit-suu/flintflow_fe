@@ -12,7 +12,7 @@ interface ImpactListProps {
 }
 
 /**
- * 3.4–3.6 Vị trí ảnh hưởng (C-3, UC-50) — tìm tất định qua liên kết field, mã được nhắc và từ khoá; block đã
+ * 3.4–3.6 Vị trí ảnh hưởng (C-3, UC-50) — phần tử Spine tìm tất định qua liên kết, mã/tên được nhắc và từ khoá; phần tử đã
  * khoá cho CR này. Khi AI đã đề xuất, mỗi vị trí mang kết luận sửa / chỉ comment / không liên quan.
  */
 export default function ImpactList({ locations, editable, onPatch, busy = false }: ImpactListProps) {
