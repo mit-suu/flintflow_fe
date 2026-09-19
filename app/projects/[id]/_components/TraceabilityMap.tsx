@@ -61,7 +61,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
           onChange={(e) => setId(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void search()}
           placeholder="ID (vd A01)"
-          className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[11.5px] outline-none focus:border-[#4F46E5]"
+          className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[11.5px] outline-none focus:border-[#6A62C4]"
         />
         <button
           type="button"

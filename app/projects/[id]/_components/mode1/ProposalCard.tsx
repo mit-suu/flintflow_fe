@@ -16,7 +16,7 @@ interface ProposalCardProps {
 }
 
 const CONCLUSION_TONE: Record<LocationConclusion, string> = {
-  edit: "bg-[#F4F3FE] text-[#3B34B0]",
+  edit: "bg-[#F2F1FB] text-[#554DB0]",
   comment: "bg-[#EEF1FB] text-[#3B4FA8]",
   not_related: "bg-[#F0EEEA] text-[#6B6862]",
 };

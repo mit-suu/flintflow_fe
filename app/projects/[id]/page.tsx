@@ -56,7 +56,7 @@ const readSavedChatPaneWidth = (): number => {
 const WorkspaceLoading = () => (
   <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
     <div className="flex flex-col items-center gap-3">
-      <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] animate-spin shrink-0" />
+      <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] animate-spin shrink-0" />
       <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
     </div>
   </div>
@@ -301,7 +301,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     return (
       <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] animate-spin shrink-0" />
+          <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] animate-spin shrink-0" />
           <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
         </div>
       </div>
@@ -426,7 +426,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center"
           title="Kéo để thay đổi kích thước (nháy đúp để về mặc định)"
         >
-          <div className={`h-full transition-all ${isResizing ? "w-[3px] bg-[#4F46E5]" : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#4F46E5]"}`} />
+          <div className={`h-full transition-all ${isResizing ? "w-[3px] bg-[#6A62C4]" : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#6A62C4]"}`} />
         </div>
 
         <DocumentPane

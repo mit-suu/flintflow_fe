@@ -43,6 +43,12 @@ const renderPage = () =>
 
 const ok = (data: unknown) => ({ data, error: null }) as never;
 
+/** Chọn một mục trong bộ lọc (FilterSelect tự dựng): mở combobox rồi chọn option theo nhãn. */
+const pickFilter = (name: string, option: string) => {
+  fireEvent.click(screen.getByRole("combobox", { name }));
+  fireEvent.mouseDown(screen.getByRole("option", { name: option }));
+};
+
 describe("Project Dashboard", () => {
   beforeEach(() => {
     push.mockReset();
@@ -90,11 +96,11 @@ describe("Project Dashboard", () => {
     expect(screen.queryByRole("link", { name: /Dự án c/ })).toBeNull();
     await waitFor(() => expect(getProgress).toHaveBeenCalled());
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Nguồn" }), { target: { value: "import" } });
+    pickFilter("Nguồn", "SRS có sẵn");
     expect(screen.queryByRole("link", { name: /Dự án b/ })).toBeNull();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Nguồn" }), { target: { value: "all" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "Trạng thái" }), { target: { value: "archived" } });
+    pickFilter("Nguồn", "Tất cả");
+    pickFilter("Trạng thái", "Lưu trữ");
     expect(screen.getByRole("link", { name: /Dự án c/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Dự án a/ })).toBeNull();
   });

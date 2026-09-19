@@ -11,7 +11,7 @@ import type { User } from "../../../types/user";
 
 const cardClass = "bg-white border border-[#ECEAE5] rounded-[16px] p-5 sm:p-6 flex flex-col gap-4";
 const inputClass =
-  "w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]";
+  "w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]";
 const primaryButtonClass =
   "px-4 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60";
 
@@ -128,7 +128,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
                   setEditing(true);
                   setSaved(false);
                 }}
-                className="ml-auto text-[12px] font-bold text-[#4F46E5] hover:underline shrink-0"
+                className="ml-auto text-[12px] font-bold text-[#6A62C4] hover:underline shrink-0"
               >
                 Chỉnh sửa
               </button>
@@ -163,7 +163,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
         <InfoRow label="Credit hiện có">
           <div className="flex items-center gap-3">
             <span className="font-bold">{(user.balance ?? 0).toLocaleString("vi-VN")} credit</span>
-            <Link href="/home/billing" className="ml-auto text-[12px] font-bold text-[#4F46E5] hover:underline shrink-0">
+            <Link href="/home/billing" className="ml-auto text-[12px] font-bold text-[#6A62C4] hover:underline shrink-0">
               Thanh toán &amp; credit →
             </Link>
           </div>
@@ -318,7 +318,7 @@ function ChangePasswordCard({ user }: { user: User }) {
           <div className="flex flex-col">
             <Link
               href={`/forgot-password?email=${encodeURIComponent(user.email)}`}
-              className="text-[12.5px] font-semibold text-[#4F46E5] hover:underline"
+              className="text-[12.5px] font-semibold text-[#6A62C4] hover:underline"
             >
               Quên mật khẩu hiện tại?
             </Link>
@@ -361,7 +361,7 @@ export default function ProfilePage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
+            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
             <span className="text-[13px] font-medium">Đang tải hồ sơ…</span>
           </div>
         ) : error || !user ? (

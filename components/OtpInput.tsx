@@ -81,7 +81,7 @@ export default function OtpInput({ digits, onChange, disabled = false }: OtpInpu
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
           onFocus={(e) => e.target.select()}
-          className="w-11 h-12 sm:w-12 sm:h-14 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-center text-[20px] font-bold text-[#191817] bg-[#FAF9F7] disabled:opacity-50"
+          className="w-11 h-12 sm:w-12 sm:h-14 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-center text-[20px] font-bold text-[#191817] bg-[#FAF9F7] disabled:opacity-50"
         />
       ))}
     </div>

@@ -56,7 +56,7 @@ export default function ReadOnlyDocumentPage() {
           <span className="text-[13px] font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
           <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
         </div>
-        <Link href={`/projects/${projectId}`} className="text-[11.5px] font-bold text-[#4F46E5] hover:underline">
+        <Link href={`/projects/${projectId}`} className="text-[11.5px] font-bold text-[#6A62C4] hover:underline">
           ← Về không gian làm việc
         </Link>
       </header>

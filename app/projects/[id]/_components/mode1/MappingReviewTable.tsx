@@ -115,7 +115,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                       value={value}
                       onChange={(e) => setHeadings((prev) => ({ ...prev, [h.block_id]: e.target.value }))}
                       className={`w-full px-2 py-1.5 rounded-[8px] border bg-[#FAF9F7] text-[12.5px] ${
-                        headings[h.block_id] ? "border-[#4F46E5]" : "border-[#E4E1DC]"
+                        headings[h.block_id] ? "border-[#6A62C4]" : "border-[#E4E1DC]"
                       }`}
                     >
                       {options.map((id) => (

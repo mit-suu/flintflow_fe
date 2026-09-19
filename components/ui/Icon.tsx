@@ -1,70 +1,74 @@
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import {
-  AngleDoubleLeftOutlined,
-  AngleDoubleRightOutlined,
-  ArrowRightOutlined,
-  Bell1Outlined,
-  BoxArchive1Outlined,
-  Buildings1Outlined,
-  CheckOutlined,
-  ChevronDownOutlined,
-  Comment1TextOutlined,
-  CreditCardMultipleOutlined,
-  ExitOutlined,
-  FilePencilOutlined,
-  Folder1Outlined,
-  HourglassOutlined,
-  Layers1Outlined,
-  MagicOutlined,
-  MenuHamburger1Outlined,
-  MenuMeatballs1Outlined,
-  Pencil1Outlined,
-  PlusOutlined,
-  Search1Outlined,
-  Trash3Outlined,
-  Upload1Outlined,
-  UserMultiple4Outlined,
-  Wallet1Outlined,
-  XmarkCircleOutlined,
-  XmarkOutlined,
-} from "@lineiconshq/free-icons";
+  Archive,
+  ArrowRight,
+  Bell,
+  Buildings,
+  CaretLeft,
+  CaretRight,
+  CaretUpDown,
+  CaretDown,
+  ChatText,
+  Check,
+  CreditCard,
+  DotsThreeVertical,
+  FilePlus,
+  FileText,
+  Folder,
+  List,
+  MagnifyingGlass,
+  PencilSimple,
+  Plus,
+  SignOut,
+  Sparkle,
+  Stack,
+  Trash,
+  UploadSimple,
+  User,
+  Users,
+  Wallet,
+  X,
+  XCircle,
+} from "@phosphor-icons/react/dist/ssr";
 
 /**
- * Nơi duy nhất app chạm vào thư viện icon (Lineicons Free, MIT). Đổi thư viện chỉ sửa file này.
- * Tên icon là union ⇒ gõ sai tên bị typecheck bắt.
+ * Nơi duy nhất app chạm vào thư viện icon (Phosphor Icons, MIT). Đổi thư viện chỉ sửa file này.
+ * Tên icon là tên MIỀN của app (ánh xạ sang tên Phosphor) ⇒ đổi bộ icon không phải sửa nơi gọi;
+ * tên là union ⇒ gõ sai bị typecheck bắt.
  *
- * Mỗi icon của `@lineiconshq/free-icons` là dữ liệu tĩnh `{ svg, viewBox }` (màu là placeholder `{color}`),
- * nên tự dựng `<svg>` thay vì dùng `@lineiconshq/react-lineicons` — bản 1.0.5 thiếu file CJS `main`,
- * Vite/vitest không resolve được.
+ * Import từ `dist/ssr`: bản không dùng React context, chạy được cả Server lẫn Client Component.
  */
 const ICONS = {
-  "angle-double-left": AngleDoubleLeftOutlined,
-  "angle-double-right": AngleDoubleRightOutlined,
-  "arrow-right": ArrowRightOutlined,
-  archive: BoxArchive1Outlined,
-  bell: Bell1Outlined,
-  building: Buildings1Outlined,
-  check: CheckOutlined,
-  "chevron-down": ChevronDownOutlined,
-  close: XmarkOutlined,
-  "credit-card": CreditCardMultipleOutlined,
-  "error-circle": XmarkCircleOutlined,
-  feedback: Comment1TextOutlined,
-  "file-template": FilePencilOutlined,
-  folder: Folder1Outlined,
-  hourglass: HourglassOutlined,
-  layers: Layers1Outlined,
-  logout: ExitOutlined,
-  menu: MenuHamburger1Outlined,
-  more: MenuMeatballs1Outlined,
-  pencil: Pencil1Outlined,
-  plus: PlusOutlined,
-  search: Search1Outlined,
-  sparkle: MagicOutlined,
-  trash: Trash3Outlined,
-  upload: Upload1Outlined,
-  users: UserMultiple4Outlined,
-  wallet: Wallet1Outlined,
-} as const;
+  "arrow-right": ArrowRight,
+  "caret-left": CaretLeft,
+  "caret-right": CaretRight,
+  "caret-up-down": CaretUpDown,
+  archive: Archive,
+  bell: Bell,
+  building: Buildings,
+  check: Check,
+  "chevron-down": CaretDown,
+  close: X,
+  "credit-card": CreditCard,
+  "error-circle": XCircle,
+  feedback: ChatText,
+  file: FileText,
+  "file-template": FilePlus,
+  folder: Folder,
+  layers: Stack,
+  logout: SignOut,
+  menu: List,
+  more: DotsThreeVertical,
+  pencil: PencilSimple,
+  plus: Plus,
+  search: MagnifyingGlass,
+  sparkle: Sparkle,
+  trash: Trash,
+  upload: UploadSimple,
+  user: User,
+  users: Users,
+  wallet: Wallet,
+} as const satisfies Record<string, PhosphorIcon>;
 
 export type IconName = keyof typeof ICONS;
 
@@ -74,25 +78,20 @@ interface IconProps {
   className?: string;
   /** Có nhãn ⇒ icon mang nghĩa (role="img"); không có ⇒ trang trí, ẩn khỏi trình đọc màn hình. */
   label?: string;
+  /** Độ nét của Phosphor. `fill` dùng cho mục đang chọn (vd. nav active); mặc định "regular". */
+  weight?: "regular" | "bold" | "fill";
 }
 
-// Markup chỉ đến từ gói icon tĩnh ở trên (không bao giờ từ dữ liệu người dùng); màu theo `currentColor`.
-const MARKUP = Object.fromEntries(
-  Object.entries(ICONS).map(([key, icon]) => [key, icon.svg.replaceAll("{color}", "currentColor")])
-) as Record<IconName, string>;
-
-export default function Icon({ name, size = 18, className, label }: IconProps) {
+export default function Icon({ name, size = 18, className, label, weight = "regular" }: IconProps) {
+  const Glyph = ICONS[name];
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox={ICONS[name].viewBox}
-      width={size}
-      height={size}
-      fill="none"
+    <Glyph
+      size={size}
+      weight={weight}
+      // Màu theo `currentColor` (mặc định của Phosphor) ⇒ tô bằng class `text-*`
       className={`shrink-0 ${className ?? ""}`}
       data-icon={name}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true, focusable: false })}
-      dangerouslySetInnerHTML={{ __html: MARKUP[name] }}
     />
   );
 }

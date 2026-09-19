@@ -15,7 +15,7 @@ interface ChangeRequestFormProps {
 }
 
 const inputClass =
-  "w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] outline-none text-[13px] text-[#191817] bg-[#FAF9F7]";
+  "w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] outline-none text-[13px] text-[#191817] bg-[#FAF9F7]";
 
 /**
  * 3.1 Log change request (UC-48). Nguồn và người yêu cầu **bắt buộc** — mỗi thay đổi sau baseline phải truy

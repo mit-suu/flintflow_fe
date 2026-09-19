@@ -140,20 +140,20 @@ export default function QuestionStepperInput({
   return (
     <div className="p-3.5 bg-white border-t border-[#ECEAE5] shrink-0 flex flex-col gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.03)]">
       {/* Stepper Card */}
-      <div className="border border-[#DDD9F6] bg-[#FAF9F7] rounded-[14px] p-3.5 flex flex-col gap-3">
+      <div className="border border-[#DCD8F0] bg-[#FAF9F7] rounded-[14px] p-3.5 flex flex-col gap-3">
         {/* Header: Question Counter & Step Indicator */}
         <div className="flex items-center justify-between pb-2 border-b border-[#ECEAE5]">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="w-5 h-5 rounded-[6px] bg-[#EEF2FF] text-[#4F46E5] font-extrabold text-[11px] flex items-center justify-center shrink-0">
+            <span className="w-5 h-5 rounded-[6px] bg-[#F2F1FB] text-[#6A62C4] font-extrabold text-[11px] flex items-center justify-center shrink-0">
               ✦
             </span>
-            <span className="text-[11.5px] font-extrabold text-[#4F46E5] uppercase tracking-wider whitespace-nowrap">
+            <span className="text-[11.5px] font-extrabold text-[#6A62C4] uppercase tracking-wider whitespace-nowrap">
               Câu hỏi {clampedIndex + 1} / {totalQuestions}
             </span>
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
                 isMultiple
-                  ? "bg-[#EEF2FF] text-[#4F46E5] border-[#DDD9F6]"
+                  ? "bg-[#F2F1FB] text-[#6A62C4] border-[#DCD8F0]"
                   : "bg-[#F5F3F0] text-[#6B6862] border-[#E4E1DC]"
               }`}
             >
@@ -178,9 +178,9 @@ export default function QuestionStepperInput({
                       onClick={() => setCurrentIndex(idx)}
                       className={`w-5.5 h-5.5 rounded-full text-[10.5px] font-bold flex items-center justify-center transition-all cursor-pointer ${
                         isCurrent
-                          ? "bg-[#4F46E5] text-white shadow-xs"
+                          ? "bg-[#6A62C4] text-white shadow-xs"
                           : isDone
-                          ? "bg-[#E0E7FF] text-[#4338CA]"
+                          ? "bg-[#E4E1F6] text-[#554DB0]"
                           : "bg-white border border-[#E5E3DF] text-[#8A867E] hover:bg-[#F0EEEA]"
                       }`}
                       title={`Câu ${idx + 1}`}
@@ -230,8 +230,8 @@ export default function QuestionStepperInput({
                     }
                     className={`w-full px-3 py-2 rounded-[10px] text-left text-[12px] flex items-start gap-2.5 transition-all cursor-pointer border ${
                       isSelected
-                        ? "bg-[#EEF2FF] text-[#312E81] border-[#6366F1] shadow-2xs font-semibold"
-                        : "bg-white hover:bg-[#F4F3FE] text-[#33312D] border-[#ECEAE5] hover:border-[#DDD9F6]"
+                        ? "bg-[#F2F1FB] text-[#312E81] border-[#6A62C4] shadow-2xs font-semibold"
+                        : "bg-white hover:bg-[#F2F1FB] text-[#33312D] border-[#ECEAE5] hover:border-[#DCD8F0]"
                     }`}
                   >
                     {/* Selection Indicator: Checkbox if multi, Radio if single */}
@@ -239,8 +239,8 @@ export default function QuestionStepperInput({
                       <div
                         className={`w-4.5 h-4.5 rounded-[4px] flex items-center justify-center shrink-0 mt-0.5 transition-all ${
                           isSelected
-                            ? "bg-[#4F46E5] text-white shadow-2xs"
-                            : "border-2 border-[#C7C4BE] bg-white hover:border-[#4F46E5]"
+                            ? "bg-[#6A62C4] text-white shadow-2xs"
+                            : "border-2 border-[#C7C4BE] bg-white hover:border-[#6A62C4]"
                         }`}
                       >
                         {isSelected && (
@@ -260,12 +260,12 @@ export default function QuestionStepperInput({
                       <div
                         className={`w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-all ${
                           isSelected
-                            ? "border-2 border-[#4F46E5] bg-white shadow-2xs"
-                            : "border-2 border-[#C7C4BE] bg-white hover:border-[#4F46E5]"
+                            ? "border-2 border-[#6A62C4] bg-white shadow-2xs"
+                            : "border-2 border-[#C7C4BE] bg-white hover:border-[#6A62C4]"
                         }`}
                       >
                         {isSelected && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-[#4F46E5]" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#6A62C4]" />
                         )}
                       </div>
                     )}
@@ -297,7 +297,7 @@ export default function QuestionStepperInput({
                 ? "Nhập câu trả lời riêng hoặc bổ sung chi tiết..."
                 : "Nhập câu trả lời của bạn..."
             }
-            className="w-full px-3 py-2 bg-white border border-[#E5E3DF] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5]/20 rounded-[10px] text-[12px] text-[#191817] placeholder:text-[#A8A49C] outline-none transition-all resize-none leading-relaxed"
+            className="w-full px-3 py-2 bg-white border border-[#E5E3DF] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4]/20 rounded-[10px] text-[12px] text-[#191817] placeholder:text-[#A8A49C] outline-none transition-all resize-none leading-relaxed"
           />
         </div>
 
@@ -328,7 +328,7 @@ export default function QuestionStepperInput({
               <button
                 type="button"
                 onClick={handleNextOrSubmit}
-                className="px-4 py-1.5 rounded-full text-[12px] font-bold bg-[#4F46E5] hover:bg-[#4338CA] text-white flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98 whitespace-nowrap"
+                className="px-4 py-1.5 rounded-full text-[12px] font-bold bg-[#6A62C4] hover:bg-[#554DB0] text-white flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98 whitespace-nowrap"
               >
                 <span>Tiếp tục</span>
                 <span>→</span>
@@ -340,7 +340,7 @@ export default function QuestionStepperInput({
                 disabled={!hasAnyAnswer || sending}
                 className={`px-4 py-1.5 rounded-full text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-xs whitespace-nowrap ${
                   hasAnyAnswer && !sending
-                    ? "bg-[#4F46E5] hover:bg-[#4338CA] text-white cursor-pointer active:scale-98"
+                    ? "bg-[#6A62C4] hover:bg-[#554DB0] text-white cursor-pointer active:scale-98"
                     : "bg-[#E5E3DF] text-[#A8A49C] cursor-not-allowed"
                 }`}
               >

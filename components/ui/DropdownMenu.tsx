@@ -84,7 +84,7 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
           id={menuId}
           role="menu"
           onKeyDown={moveFocus}
-          className={`absolute z-40 bg-surface-container-lowest border border-outline-variant rounded-[14px] shadow-[0_16px_42px_rgba(25,24,23,0.16)] p-1.5 flex flex-col gap-0.5 ${
+          className={`absolute z-40 bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-1.5 flex flex-col gap-0.5 ${
             // `top`: rộng bằng trigger nhưng tối thiểu 232px (sidebar thu gọn chỉ ~48px)
             placement === "top" ? "bottom-[calc(100%+8px)] left-0 w-[max(100%,232px)]" : "right-0 top-[calc(100%+6px)] min-w-[168px]"
           }`}
@@ -106,10 +106,10 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
                 setOpen(false);
                 item.onSelect();
               }}
-              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[12.5px] font-semibold text-left w-full cursor-pointer transition-colors focus-visible:outline-none ${
+              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-inner text-[12.5px] font-semibold text-left w-full cursor-pointer transition-colors focus-visible:outline-none ${
                 item.tone === "danger"
                   ? "text-error hover:bg-error-container focus-visible:bg-error-container"
-                  : "text-on-surface-dark hover:bg-surface-container-low focus-visible:bg-surface-container-low"
+                  : "text-on-surface-dark hover:bg-surface-container focus-visible:bg-surface-container"
               }`}
             >
               {item.icon && <Icon name={item.icon} size={15} />}

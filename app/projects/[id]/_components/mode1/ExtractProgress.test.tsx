@@ -103,7 +103,7 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
     expect(items[0]).toHaveTextContent("1 Product Overview");
     expect(items[0]).toHaveTextContent("3 field");
     expect(items[1]).toHaveTextContent("6 field · 2 cần xem");
-    expect(items[2].className).toContain("bg-[#F4F3FE]"); // section đang trích được làm nổi
+    expect(items[2].className).toContain("bg-[#F2F1FB]"); // section đang trích được làm nổi
     expect(within(items[2]).getByLabelText("Chờ")).toBeInTheDocument();
     expect(within(items[3]).getByLabelText("Lỗi")).toBeInTheDocument();
     expect(items[3]).toHaveTextContent("AI trả sai schema");

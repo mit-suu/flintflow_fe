@@ -52,7 +52,7 @@ export default function VerificationPane({
 
         {flagsLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-[#8A867E]">
-            <span className="w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin" />
+            <span className="w-6 h-6 border-2 border-[#6A62C4] border-t-transparent rounded-full animate-spin" />
             <span className="text-xs">Đang tải danh sách cờ…</span>
           </div>
         ) : (

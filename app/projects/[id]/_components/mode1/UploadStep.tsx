@@ -55,10 +55,10 @@ export default function UploadStep({
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={`rounded-[18px] border-2 border-dashed px-6 py-10 flex flex-col items-center gap-2 text-center transition-colors cursor-pointer ${
-          dragging ? "border-[#4F46E5] bg-[#F4F3FE]" : "border-[#D6D2CB] bg-white hover:border-[#4F46E5]"
+          dragging ? "border-[#6A62C4] bg-[#F2F1FB]" : "border-[#D6D2CB] bg-white hover:border-[#6A62C4]"
         } ${busy ? "opacity-60 cursor-wait" : ""}`}
       >
-        <span className="material-symbols-outlined text-[34px] text-[#4F46E5]">upload_file</span>
+        <span className="material-symbols-outlined text-[34px] text-[#6A62C4]">upload_file</span>
         <p className="font-extrabold text-[#191817] text-[14px]">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
         <p className="text-[12px] text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
         <input

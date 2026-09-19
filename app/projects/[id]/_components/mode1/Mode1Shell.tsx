@@ -47,7 +47,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
               <span className="text-[#D6D2CB]">/</span>
               <span className="font-bold text-[#191817] truncate max-w-[260px]">{project?.name ?? "Đang tải…"}</span>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-[#F4F3FE] text-[#3B34B0] text-[11px] font-bold shrink-0">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#F2F1FB] text-[#554DB0] text-[11px] font-bold shrink-0">
               Upload SRS có sẵn
             </span>
             {importState && (
@@ -57,7 +57,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
             )}
           </div>
           <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-[12px] font-semibold gap-1.5 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
             {credits ?? "…"} credits
           </div>
         </header>
@@ -67,7 +67,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
             const disabled = tab.needsBaseline && !hasBaseline;
             const className = `px-3.5 py-2.5 text-[12.5px] font-bold border-b-2 transition-colors ${
               active === tab.id
-                ? "border-[#4F46E5] text-[#191817]"
+                ? "border-[#6A62C4] text-[#191817]"
                 : disabled
                   ? "border-transparent text-[#C9C5BD] cursor-not-allowed"
                   : "border-transparent text-[#8A867E] hover:text-[#191817]"

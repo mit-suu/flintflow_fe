@@ -35,7 +35,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
           rows={3}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#4F46E5] rounded-[10px] text-[12px] outline-none resize-none"
+          className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#6A62C4] rounded-[10px] text-[12px] outline-none resize-none"
           placeholder="Vì sao chấp nhận bỏ qua cờ này?"
         />
         <div className="flex items-center justify-between text-[10.5px] text-[#A8A49C]">
@@ -152,7 +152,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                   <button
                     type="button"
                     onClick={() => onSelectStep(flag.remediation_step)}
-                    className="text-[10.5px] font-bold text-[#4F46E5] hover:underline cursor-pointer"
+                    className="text-[10.5px] font-bold text-[#6A62C4] hover:underline cursor-pointer"
                   >
                     → {flag.remediation_step} · {stepLabel(flag.remediation_step)}
                   </button>

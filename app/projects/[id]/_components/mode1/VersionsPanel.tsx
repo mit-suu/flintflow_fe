@@ -87,18 +87,18 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
           lần release trước.
         </p>
         {confirming ? (
-          <div className="flex flex-col gap-2 bg-[#F4F3FE] border border-[#DDD9F6] rounded-[10px] p-3 text-[12px] text-[#3B34B0]">
+          <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3 text-[12px] text-[#554DB0]">
             <p>Release từ bản {latest?.version}? Sau khi release, sửa tiếp phải qua change request mới.</p>
             {alreadyReleased && <p className="text-[#8A6D1F]">Bản mới nhất đã là bản release và chưa có change request nào ghi sau đó — release lại chỉ đóng số mới.</p>}
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setConfirming(false)} disabled={busy === "release"} className="px-3 py-1 rounded-[8px] border border-[#DDD9F6] bg-white font-semibold">
+              <button type="button" onClick={() => setConfirming(false)} disabled={busy === "release"} className="px-3 py-1 rounded-[8px] border border-[#DCD8F0] bg-white font-semibold">
                 Huỷ
               </button>
               <button
                 type="button"
                 onClick={() => void release()}
                 disabled={busy === "release"}
-                className="px-3 py-1 rounded-[8px] bg-[#4F46E5] text-white font-bold disabled:opacity-50"
+                className="px-3 py-1 rounded-[8px] bg-[#6A62C4] text-white font-bold disabled:opacity-50"
               >
                 {busy === "release" ? "Đang release…" : "Xác nhận release"}
               </button>
@@ -138,7 +138,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
             return (
               <li
                 key={v.version}
-                className={`rounded-[12px] border px-3 py-2.5 flex flex-col gap-1.5 ${selected === v.version ? "border-[#4F46E5] bg-[#F4F3FE]" : "border-[#ECEAE5] bg-white"}`}
+                className={`rounded-[12px] border px-3 py-2.5 flex flex-col gap-1.5 ${selected === v.version ? "border-[#6A62C4] bg-[#F2F1FB]" : "border-[#ECEAE5] bg-white"}`}
               >
                 <div className="flex items-center gap-2">
                   {onSelect ? (

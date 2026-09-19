@@ -65,7 +65,7 @@ export default function ExtractProgress({ doc, sections, running, credits, onSta
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-[12px] font-semibold text-[#4B4842]">
             <span>
-              {running && <span className="inline-block w-3 h-3 mr-1.5 align-middle rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner" />}
+              {running && <span className="inline-block w-3 h-3 mr-1.5 align-middle rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />}
               {running ? `Đang trích${doc.extract_cursor ? ` ${sectionLabel(doc.extract_cursor)}` : ""}…` : "Đã dừng"}
             </span>
             <span>
@@ -73,7 +73,7 @@ export default function ExtractProgress({ doc, sections, running, credits, onSta
             </span>
           </div>
           <div className="h-2 rounded-full bg-[#ECEAE5] overflow-hidden" role="progressbar" aria-valuenow={done} aria-valuemin={0} aria-valuemax={total}>
-            <div className="h-full bg-[#4F46E5] transition-all" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
+            <div className="h-full bg-[#6A62C4] transition-all" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
           </div>
         </div>
       )}
@@ -84,7 +84,7 @@ export default function ExtractProgress({ doc, sections, running, credits, onSta
             const st = STATUS_ICON[s.status];
             const current = running && s.section_id === doc.extract_cursor;
             return (
-              <li key={s.section_id} className={`px-3 py-2 flex items-center gap-3 text-[12.5px] ${current ? "bg-[#F4F3FE]" : ""}`}>
+              <li key={s.section_id} className={`px-3 py-2 flex items-center gap-3 text-[12.5px] ${current ? "bg-[#F2F1FB]" : ""}`}>
                 <span className="material-symbols-outlined text-[18px]" style={{ color: st.color }} aria-label={st.label}>
                   {st.icon}
                 </span>
