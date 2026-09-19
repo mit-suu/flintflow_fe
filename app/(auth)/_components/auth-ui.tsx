@@ -275,7 +275,7 @@ export function BackLink({ href = "/login", children = "Quay lại đăng nhập
   );
 }
 
-/** Link chữ tím trong câu ("Đăng ký miễn phí", "Quên mật khẩu?"). */
+/** Link chữ tím trong câu ("Tạo tài khoản", "Quên mật khẩu?"). */
 export function InlineLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link href={href} className="font-bold text-primary hover:text-primary-hover hover:underline">
