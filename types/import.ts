@@ -118,12 +118,44 @@ export interface TableMapEntry {
   confirmed: boolean;
 }
 
+/** Mục của layout tài liệu người dùng (FLF-182): `section_id` = section FPT hoặc `custom:<id>`. */
+export interface LayoutEntry {
+  order: number;
+  heading_text: string;
+  level: number;
+  section_id: string;
+}
+
 export interface TemplateProfile {
   doc_version: string;
   heading_map: HeadingMapEntry[];
   table_map: TableMapEntry[];
   required_sections: string[];
   language: string;
+  /** FLF-182 — rỗng với import trước mode 1 v2. */
+  layout: LayoutEntry[];
+}
+
+// ─── kế hoạch step theo template (#32–#33, FLF-182) ─────────────
+
+export type StepPlanState = "applied" | "hidden" | "enabled";
+
+export interface StepPlanEntry {
+  step_id: string;
+  state: StepPlanState;
+  /** Đầu mục mẫu FPT mà file không có ⇒ "Thiếu" + cờ đỏ `core_section_missing`. */
+  missing: boolean;
+  section_ids: string[];
+  reason: string;
+}
+
+export interface StepPlanResponse {
+  steps: StepPlanEntry[];
+}
+
+export interface StepPlanPatchRequest {
+  step_id: string;
+  enabled: boolean;
 }
 
 export interface ReviewField {

@@ -25,7 +25,8 @@ export const CR_TERMINAL_STATUSES: readonly CrStatus[] = ["written", "rejected",
 /** Trạng thái CR đang giữ khoá block (BE `CR_STATUSES_HOLDING_LOCKS`). */
 export const CR_LOCKING_STATUSES: readonly CrStatus[] = ["impact_review", "proposing", "verifying", "manual_fix", "ready_to_submit", "in_review"];
 
-export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal";
+/** `chat` (FLF-182): CR hệ thống tự tạo từ lệnh sửa trong chat sau baseline v1 — không chọn tay trong form. */
+export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat";
 
 export interface CrSource {
   kind: CrSourceKind;

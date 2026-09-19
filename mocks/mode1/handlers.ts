@@ -89,6 +89,7 @@ const parseDocument = () => {
     doc_version: "0.0",
     language: "en",
     required_sections: ["fixed:5.3"],
+    layout: [],
     heading_map: blocks
       .filter((b) => b.kind === "heading")
       .map((b) => ({
@@ -535,6 +536,20 @@ export const mode1Handlers = [
       setImportStatus("checking");
       setImportStatus("gap_review");
       return ok({ import: doc, doc_version: "0.0", baseline, spine_version: S().spineVersion, flags: { red: S().redFlags, yellow: 1 } });
+    }),
+  ),
+
+  // #32–#33 Step-plan (FLF-182)
+  http.get(api("/projects/:projectId/step-plan"), mode1(() => ok({ steps: S().stepPlan }))),
+  http.patch(
+    api("/projects/:projectId/step-plan"),
+    mode1(async ({ request }) => {
+      const body = (await request.json()) as { step_id: string; enabled: boolean };
+      const entry = S().stepPlan.find((s) => s.step_id === body.step_id);
+      if (!entry) return fail(404, "STEP_NOT_IN_PLAN", `Step ${body.step_id} không có trong kế hoạch`);
+      if (!body.enabled && entry.state === "applied") return fail(409, "CORE_STEP_REQUIRED", "Không tắt được step của đầu mục mẫu FPT");
+      entry.state = body.enabled ? "enabled" : "hidden";
+      return ok({ steps: S().stepPlan });
     }),
   ),
 
