@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { applyChanges } from "@/lib/api/spine";
+import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
 import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
+import type { ProjectMode } from "@/types/project";
 
 import WorkspaceHeader from "./_components/WorkspaceHeader";
 import PhaseNavBar from "./_components/PhaseNavBar";
@@ -26,6 +28,7 @@ import NamesGlossaryPanel from "./_components/NamesGlossaryPanel";
 import BriefSummaryCard from "./_components/BriefSummaryCard";
 import AssumptionSweepPanel from "./_components/AssumptionSweepPanel";
 import AddendumTriagePanel from "./_components/AddendumTriagePanel";
+import Mode1Workspace from "./_components/mode1/Mode1Workspace";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -47,7 +50,40 @@ const readSavedChatPaneWidth = (): number => {
   return DEFAULT_CHAT_PANE_WIDTH;
 };
 
+const WorkspaceLoading = () => (
+  <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#4F46E5] animate-spin shrink-0" />
+      <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
+    </div>
+  </div>
+);
+
+/**
+ * Rẽ nhánh theo `project.mode` (FLF-172): mode 1 (`import`, upload SRS có sẵn rồi sửa) có workspace riêng;
+ * mode 2 (`fpt`) giữ nguyên workspace pipeline bên dưới. Không đọc được project ⇒ workspace mode 2 tự xử lý
+ * lỗi/đăng nhập như trước.
+ */
 export default function WorkspacePage() {
+  const projectId = useParams()?.projectId as string;
+  const [mode, setMode] = useState<ProjectMode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProject(projectId)
+      .then((res) => !cancelled && setMode(res.data?.mode ?? "fpt"))
+      .catch(() => !cancelled && setMode("fpt"));
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  if (mode === null) return <WorkspaceLoading />;
+  return mode === "import" ? <Mode1Workspace projectId={projectId} /> : <FptWorkspace />;
+}
+
+/** Workspace pipeline (mode 2, template FPT). */
+function FptWorkspace() {
   const params = useParams();
   const projectId = params?.projectId as string;
 
