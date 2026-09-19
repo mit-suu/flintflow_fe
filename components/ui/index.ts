@@ -11,3 +11,4 @@ export { default as IconButton } from "./IconButton";
 export { default as Modal } from "./Modal";
 export { default as SearchInput } from "./SearchInput";
 export { default as Skeleton } from "./Skeleton";
+export { default as Tabs, type TabOption } from "./Tabs";

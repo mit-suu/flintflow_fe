@@ -57,3 +57,37 @@ describe("ProjectCover", () => {
     expect(cls).not.toContain("gradient");
   });
 });
+
+describe("FolderCard — thả dự án vào", () => {
+  const dataTransfer = (types: string[], data: Record<string, string> = {}) => ({
+    types,
+    getData: (t: string) => data[t] ?? "",
+    dropEffect: "none",
+  });
+
+  it("kéo card dự án qua ⇒ sáng viền; thả ⇒ gọi onDropProject với id", () => {
+    const onDropProject = vi.fn();
+    const { container } = render(
+      <FolderCard folder={folder} onOpen={() => {}} onRename={() => {}} onDelete={() => {}} onDropProject={onDropProject} />
+    );
+    const target = container.querySelector("article") as HTMLElement;
+
+    fireEvent.dragOver(target, { dataTransfer: dataTransfer(["application/x-flintflow-project"]) });
+    expect(target).toHaveAttribute("data-drop-target", "true");
+
+    fireEvent.drop(target, { dataTransfer: dataTransfer(["application/x-flintflow-project"], { "application/x-flintflow-project": "p9" }) });
+    expect(onDropProject).toHaveBeenCalledWith(folder, "p9");
+    expect(target).not.toHaveAttribute("data-drop-target");
+  });
+
+  it("kéo thứ khác (file, link) ⇒ không nhận", () => {
+    const onDropProject = vi.fn();
+    const { container } = render(
+      <FolderCard folder={folder} onOpen={() => {}} onRename={() => {}} onDelete={() => {}} onDropProject={onDropProject} />
+    );
+    const target = container.querySelector("article") as HTMLElement;
+    fireEvent.dragOver(target, { dataTransfer: dataTransfer(["Files"]) });
+    fireEvent.drop(target, { dataTransfer: dataTransfer(["Files"]) });
+    expect(onDropProject).not.toHaveBeenCalled();
+  });
+});
