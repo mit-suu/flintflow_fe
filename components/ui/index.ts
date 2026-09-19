@@ -1,4 +1,5 @@
 // Primitive UI dùng chung — không biết gì về domain. Màu chỉ lấy từ token trong `app/globals.css`.
+export { default as BackLink } from "./BackLink";
 export { default as Badge, SOON_LABEL, type BadgeTone } from "./Badge";
 export { default as Button, type ButtonSize, type ButtonVariant } from "./Button";
 export { default as Card } from "./Card";

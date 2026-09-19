@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
+import UiBackLink from "../../../../components/ui/BackLink";
 import { useSearchParams } from "next/navigation";
 import { fetchCheckout, formatVnd, type PaymentIntentDTO } from "../../../../lib/api/billing";
 import { emitNotificationsChanged } from "../../../../lib/api/notifications";
@@ -20,11 +20,7 @@ function CenteredCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-const BackLink = () => (
-  <Link href="/home/billing" className="text-[12.5px] font-bold text-[#6A62C4] hover:underline">
-    ← Quay lại trang thanh toán
-  </Link>
-);
+const BackLink = () => <UiBackLink href="/home/billing">Quay lại trang thanh toán</UiBackLink>;
 
 function Checkout({ intentId }: { intentId: string }) {
   const [detail, setDetail] = useState<PaymentIntentDTO | null>(null);

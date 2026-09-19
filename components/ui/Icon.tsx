@@ -12,6 +12,9 @@ import {
   Check,
   CreditCard,
   DotsThreeVertical,
+  EnvelopeSimple,
+  Eye,
+  EyeSlash,
   FilePlus,
   FileText,
   Folder,
@@ -27,6 +30,7 @@ import {
   User,
   Users,
   Wallet,
+  WarningCircle,
   X,
   XCircle,
 } from "@phosphor-icons/react/dist/ssr";
@@ -51,11 +55,14 @@ const ICONS = {
   close: X,
   "credit-card": CreditCard,
   "error-circle": XCircle,
+  eye: Eye,
+  "eye-off": EyeSlash,
   feedback: ChatText,
   file: FileText,
   "file-template": FilePlus,
   folder: Folder,
   layers: Stack,
+  mail: EnvelopeSimple,
   logout: SignOut,
   menu: List,
   more: DotsThreeVertical,
@@ -68,6 +75,7 @@ const ICONS = {
   user: User,
   users: Users,
   wallet: Wallet,
+  warning: WarningCircle,
 } as const satisfies Record<string, PhosphorIcon>;
 
 export type IconName = keyof typeof ICONS;
