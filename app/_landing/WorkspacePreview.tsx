@@ -1,5 +1,5 @@
 import { WORKSPACE_HEADING } from "./content";
-import { Diamond } from "./ui";
+import { Diamond, Texture } from "./ui";
 
 /*
  * Khối màu `primary` đặc — điểm nhấn mạnh nhất trang — chứa cửa sổ workspace phẳng: chat làm rõ bên trái,
@@ -9,7 +9,8 @@ import { Diamond } from "./ui";
 export default function WorkspacePreview() {
   return (
     <section id="workspace" aria-labelledby="workspace-title" className="scroll-mt-24 px-4 sm:px-6">
-      <div className="mx-auto max-w-[1200px] rounded-[28px] bg-primary px-5 py-14 sm:px-10 lg:px-14 lg:py-20">
+      <div className="relative isolate mx-auto max-w-[1200px] overflow-hidden rounded-[28px] bg-primary px-5 py-14 sm:px-10 lg:px-14 lg:py-20">
+        <Texture kind="dots-light" mask="linear-gradient(#000 30%, transparent 75%)" className="-z-10" />
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
           <div>
             <p className="inline-flex items-center gap-2.5 text-[13px] font-bold text-on-primary-container">

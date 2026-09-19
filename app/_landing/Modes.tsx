@@ -1,11 +1,12 @@
 import { MODES, MODES_HEADING } from "./content";
-import { FolderShape, SectionHeading } from "./ui";
+import { FolderShape, SectionHeading, Texture } from "./ui";
 
 /* Ba cách bắt đầu dự án, vẽ bằng thẻ thư mục của dashboard — mỗi chế độ một màu, cùng tone với bước tạo dự án. */
 export default function Modes() {
   return (
-    <section id="che-do" aria-labelledby="modes-title" className="scroll-mt-24 px-4 py-20 sm:px-6 lg:py-28">
-      <div className="mx-auto max-w-[1200px]">
+    <section id="che-do" aria-labelledby="modes-title" className="relative scroll-mt-24 px-4 py-20 sm:px-6 lg:py-28">
+      <Texture kind="dots" mask="radial-gradient(ellipse 45% 70% at 100% 40%, #000, transparent)" />
+      <div className="relative mx-auto max-w-[1200px]">
         <SectionHeading id="modes-title" eyebrow={MODES_HEADING.eyebrow} title={MODES_HEADING.title} />
 
         <div className="mt-12 grid gap-5 md:grid-cols-3">
