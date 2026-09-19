@@ -229,23 +229,39 @@ body {
     linear-gradient(to bottom, rgba(25, 24, 23, 0.04) 1px, transparent 1px);
 }
 
-
-/* ── Landing page (app/page.tsx) ── */
-/* Lưới 1px trắng ~4.5%, mờ dần về cuối trang để không tranh chỗ với nội dung. */
-/* isolation + z-index:-1: lưới nằm trên nền của container nhưng dưới mọi con, không đụng position của con. */
-.landing-grid {
-  isolation: isolate;
-}
-.landing-grid::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
+/* ── Landing page (app/page.tsx, app/_landing/) — bản sáng theo mock L1 ── */
+/* Lưới 1px mực 5%; mỗi section tự đặt mask-image riêng để lưới mờ dần theo bố cục. */
+.landing-grid-bg {
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 56px 56px;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 40%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 40%, transparent 100%);
+    linear-gradient(rgba(25, 24, 23, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(25, 24, 23, 0.05) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+
+/* Tím landing (sáng hơn primary của app) — nút chính, badge, card nổi bật. */
+.landing-gradient {
+  background-image: linear-gradient(135deg, #b98bf5, #8b5cf0 55%, #5b2ec4);
+}
+
+.landing-gradient-text {
+  background-image: linear-gradient(95deg, #b98bf5, #8b5cf0 50%, #5b2ec4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Tím → vàng ấm, dùng cho cụm chữ nhấn thứ hai. */
+.landing-gradient-text-warm {
+  background-image: linear-gradient(95deg, #8b5cf0, #d9932b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Viền gradient tím → vàng cho card nổi bật; nền card đặt qua biến --landing-fill. */
+.landing-gradient-border {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--landing-fill, #ffffff), var(--landing-fill, #ffffff)) padding-box,
+    linear-gradient(120deg, #b98bf5, #8b5cf0 50%, #e8a23d) border-box;
 }

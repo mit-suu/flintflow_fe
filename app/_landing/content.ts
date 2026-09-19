@@ -1,31 +1,68 @@
 /*
- * Nội dung tĩnh của landing page. Sửa copy ở đây, không phải trong JSX.
+ * Nội dung tĩnh của landing page (mock L1 — flintflow-ui-design `_src/screens/02-L1.html`).
+ * Sửa copy ở đây, không phải trong JSX.
  * Số liệu gói cước khớp `flintflow_be/src/modules/billing/plan.config.ts` — đổi ở BE thì đổi ở đây.
  */
 
 export const NAV_LINKS = [
+  { href: "#top", label: "Trang chủ" },
   { href: "#cach-hoat-dong", label: "Cách hoạt động" },
-  { href: "#workspace", label: "Workspace" },
   { href: "#bang-gia", label: "Bảng giá" },
 ] as const;
 
 export const HERO = {
-  eyebrow: "SRS · Verify · Change control",
-  headline: "Biến ý tưởng thô thành SRS chuẩn nghiệm thu.",
-  headlineMuted: "Không còn mâu thuẫn spec.",
+  eyebrow: "✦ AI BUSINESS ANALYST",
+  headline: "Ideas that",
+  headlineAccent: "deeper.",
   subline:
-    "FlintFlow tự động phát hiện lỗ hổng logic, bắt mâu thuẫn giữa UC và NFR trước khi giao dev, tự cập nhật tài liệu khi khách hàng đổi yêu cầu.",
-  primaryCta: "Bắt đầu dùng thử miễn phí",
-  secondaryCta: "Xem Workspace mẫu",
-  proof: ["Import .docx", "Mẫu FPT hoặc mẫu khách", "Xuất Word · PDF"],
+    "FlintFlow phản biện ý tưởng của bạn như một BA thực thụ — đặt câu hỏi đúng, bắt giả định và mâu thuẫn, bàn giao SRS chuẩn IEEE mà dev thật sự dùng được. Trước khi bạn tốn một dòng code.",
+  primaryCta: "Bắt đầu miễn phí",
+  secondaryCta: "Xem workspace",
+  stats: [
+    { value: "100", accent: "", label: "credit miễn phí\nmỗi tháng" },
+    { value: "< 3s", accent: "", label: "AI bắt đầu\nphản hồi" },
+    { value: "100", accent: "%", label: "nội dung do\nbạn duyệt" },
+  ],
 } as const;
+
+export const STATEMENT = {
+  lead: "FlintFlow là một ",
+  highlight: "AI Business Analyst full-cycle",
+  middle: " — đào sâu vào ý tưởng của bạn và ",
+  gradient: "làm việc như một cộng sự",
+  tail: ", không phải một cái máy sinh văn bản.",
+} as const;
+
+export const PROCESS = [
+  {
+    step: "01",
+    title: "Làm rõ có cấu trúc",
+    body: "Hỏi theo nhóm user · pain · scope · metrics — kèm lý do vì sao câu hỏi quan trọng.",
+  },
+  {
+    step: "02",
+    title: "Xác minh mọi thứ",
+    body: "Fact tách khỏi giả định, mâu thuẫn bị bắt, ",
+    emphasis: "“nhanh” phải thành con số",
+    featured: true,
+  },
+  {
+    step: "03",
+    title: "Không template rác",
+    body: "Chỉ những gì business của bạn thật sự cần — không filler, không đoán bừa.",
+  },
+  {
+    step: "04",
+    title: "Bàn giao linh hoạt",
+    body: "SRS theo mẫu FPT hoặc mẫu của khách, gap report chỉ rõ chỗ thiếu — xuất file Word.",
+  },
+] as const;
 
 export type Plan = {
   name: string;
-  tagline: string;
   price: string;
   unit: string;
-  specs: { label: string; value: string }[];
+  summary: string;
   cta: string;
   recommended?: boolean;
 };
@@ -33,44 +70,24 @@ export type Plan = {
 export const PLANS: Plan[] = [
   {
     name: "Free",
-    tagline: "Thử nghiệm cá nhân",
     price: "0đ",
     unit: "/tháng",
-    specs: [
-      { label: "credit / tháng", value: "100" },
-      { label: "luồng", value: "import · tạo mới · CR" },
-      { label: "xuất file", value: ".docx · .pdf" },
-      { label: "thanh toán", value: "không cần thẻ" },
-    ],
+    summary: "100 credit/tháng · Import, tạo mới, Change Request · Xuất Word",
     cta: "Bắt đầu miễn phí",
   },
   {
     name: "Pro",
-    tagline: "Cho BA / PM chạy dự án thật",
     price: "199k",
     unit: "/tháng",
-    specs: [
-      { label: "credit / tháng", value: "1.000" },
-      { label: "so với Free", value: "10×" },
-      { label: "luồng", value: "import · tạo mới · CR" },
-      { label: "đổi / huỷ gói", value: "ngay trong app" },
-    ],
-    cta: "Dùng gói Pro",
+    summary: "1.000 credit/tháng (10× Free) · Mọi luồng như Free · Đổi / huỷ gói ngay trong app",
+    cta: "Nâng cấp Pro",
     recommended: true,
-  },
-  {
-    name: "Gói Credit",
-    tagline: "Mua theo nhu cầu",
-    price: "Theo gói",
-    unit: "",
-    specs: [
-      { label: "gói", value: "100 · 500 · 1.500" },
-      { label: "áp dụng", value: "mọi gói cước" },
-      { label: "ví", value: "chung cả tổ chức" },
-      { label: "kích hoạt", value: "ngay khi thanh toán" },
-    ],
-    cta: "Xem gói credit",
   },
 ];
 
-export const STANDARDS = ["IEEE 830", "ISO/IEC/IEEE 29148", "Mẫu FPT"] as const;
+export const FINAL_CTA = {
+  headline: "Ý tưởng tiếp theo của bạn\nxứng đáng một BA",
+  headlineAccent: "không bao giờ ngủ.",
+  cta: "Tạo project đầu tiên — miễn phí",
+  note: "Không cần thẻ · 100 credit tặng sẵn",
+} as const;
