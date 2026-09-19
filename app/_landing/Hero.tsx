@@ -87,8 +87,8 @@ const sheet = (rotate: number, x: number, y: number) => ({
   show: { rotate, x, y, transition: { delay: 0.35, duration: 0.55, ease: EASE_OUT } },
 });
 
-/* Minh hoạ tĩnh, không gọi API. Số giai đoạn lấy từ step registry thật. */
-function DashboardCollage() {
+/* Minh hoạ tĩnh, không gọi API. Số giai đoạn lấy từ step registry thật. Dùng lại ở panel thương hiệu của trang xác thực. */
+export function DashboardCollage() {
   return (
     <motion.figure {...onLoad} variants={stagger(0.12, 0.2)} aria-label="Minh hoạ dashboard FlintFlow" className="relative mx-2 sm:mx-4">
       {/* Hai tờ "tài liệu" nằm gọn sau card rồi xoè ra, lệch góc nhẹ */}
