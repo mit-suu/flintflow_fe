@@ -72,7 +72,7 @@ export default function AdminUserDetailPage() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${
-                      user.role === "admin" ? "bg-[#EEEDFD] text-[#3B34B0]" : "bg-[#F0EEEA] text-[#6B6862]"
+                      user.role === "admin" ? "bg-[#EFEEF9] text-[#554DB0]" : "bg-[#F0EEEA] text-[#6B6862]"
                     }`}
                   >
                     {user.role}

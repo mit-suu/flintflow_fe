@@ -23,12 +23,20 @@ Cửa duy nhất gọi BE. Không `fetch` trực tiếp trong component.
 | `token-store.ts` | Nơi duy nhất giữ/đọc token |
 | `projects.ts` `chat.ts` `documents.ts` | Dự án, phiên chat, tài liệu upload |
 | `spine.ts` `pipeline.ts` `flags.ts` `export.ts` | Spine, step runner, cờ, assemble/export/baseline |
+<<<<<<< HEAD
 | `notifications.ts` `billing.ts` `admin.ts` | Nền tảng |
+=======
+| `notifications.ts` `billing.ts` `admin.ts` `feedback.ts` `folders.ts` | Nền tảng (`feedback.ts`: `POST /feedback`, UC-12; `folders.ts`: CRUD thư mục) |
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 
 `types/` phản chiếu kiểu của BE và giữ **snake_case** y như field Spine — đổi sang camelCase là tự tạo
 một tầng dịch phải bảo trì mãi.
 
+<<<<<<< HEAD
 ## Workspace (`app/projects/[projectId]/`)
+=======
+## Workspace (`app/projects/[id]/`)
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 
 `page.tsx` ghép mọi thứ; state nằm trong hook:
 
@@ -131,6 +139,7 @@ là không hỗ trợ lấy image nhỏ hơn.
 
 ```
 /(auth)/{login,register,verify-email,forgot-password,reset-password,check-email}
+<<<<<<< HEAD
 /home                     lưới dự án (thẻ đọc tiến độ thật), tìm kiếm, tạo/đổi tên/lưu trữ
 /home/{notifications,billing,onboarding}
 /projects/[projectId]     workspace
@@ -138,6 +147,50 @@ là không hỗ trợ lấy image nhỏ hơn.
 /admin/{users,metrics,ai-cost,feedback}
 ```
 
+=======
+/home                     Project Dashboard: chưa có dự án/thư mục ⇒ chọn cách làm SRS (`Project.mode`) + tên ngay trên trang;
+                          còn lại ⇒ tab Tất cả (thư mục + dự án ngoài thư mục) · Thư mục · Dự án (mọi dự án, chia vùng
+                          Hôm nay/7/30 ngày theo "Mới cập nhật" hoặc "Mới mở" = Project.lastOpenedAt); kéo card thả vào
+                          thẻ thư mục để chuyển; bấm thư mục ⇒ dự án trong thư mục + "Thêm dự án" (chọn có sẵn / tạo mới).
+                          Tạo dự án `import` (mode 1) ⇒ vào thẳng wizard `/projects/[id]/import`
+/home/{notifications,billing,profile}
+/projects/[id]            workspace — cửa vào duy nhất của một dự án (card luôn link tới đây)
+/projects/[id]/view       bản đọc read-only
+/admin/{users,metrics,ai-cost,feedback}
+```
+
+Tạo dự án xong đi tới `getProjectStartRoute(id, mode)` (`lib/project-source-mode.ts`) — chỗ duy nhất
+map mode → route: `import → /projects/:id/import` (wizard mode 1), `customer_template → /projects/:id/template`
+(chưa có, BE trả 501), `fpt → /projects/:id`. Route đổi thì chỉ sửa hàm này.
+
+## Cách làm SRS của dự án (`Project.mode`)
+
+`Project.mode` (`import | fpt | customer_template`, BE `project.model.ts`) chọn khi tạo, không đổi được; không gửi
+⇒ `fpt`, dự án cũ BE đọc ra `fpt`. Khác `WorkingMode` (fast/coaching) của Spine — đừng gọi nó là "working mode".
+Nhãn, mô tả, icon, tone và `status: "ready" | "soon"` của 3 mode chỉ khai báo ở `SOURCE_MODE_OPTIONS`; mode `soon`
+hiện nhưng không chọn được. Card dự án `import` hiện trạng thái import (`import_state`) hoặc số change request đang mở
+thay cho step tiếp theo.
+
+## Component dùng chung (`components/`)
+
+| Thư mục | Chứa gì |
+| --- | --- |
+| `ui/` | Primitive không biết domain: `Icon`, `Button`, `IconButton`, `Badge`, `CountBadge`, `SearchInput`, `FilterSelect`, `DropdownMenu`, `Card`, `Skeleton`, `EmptyState`, `Modal`, `Tabs` (import qua `@/components/ui`) |
+| `layout/` | Khung `/home/*`: `AppShell` (drawer mobile, số dư credits, trạng thái thu gọn), `AppSidebar` dựng từ `sidebar-config.ts`, `SidebarNavItem`, `TopBar`, `RecentProjects` |
+| `project/` | Feature dùng ở nhiều trang: `SourceModePicker`, `CreateProjectForm` (một component cho empty state và dialog), `ProjectCard` (kéo được, nền trắng; chip nguồn mang màu theo mode), `ProjectGrid`, `ProjectActionDialogs`, `FolderCard` (nhận thả card), `FolderDialogs` (tạo/sửa/xoá thư mục, chuyển dự án), `AddToFolderDialog`, `ProjectTimeline`, `FeedbackDialog` |
+
+Quy tắc:
+
+- **Icon chỉ qua `components/ui/Icon.tsx`** (Phosphor Icons, `@phosphor-icons/react`). Không emoji, ký tự hay Material Symbols làm icon.
+  `Icon` map tên miền của app sang component Phosphor (import `dist/ssr`, chạy cả Server Component); thêm icon = thêm một dòng vào bảng `ICONS`. Độ nét dùng prop `weight` (`regular` mặc định, `bold`, `fill`).
+- **Màu chỉ qua token** trong `app/globals.css` (`bg-surface`, `text-on-surface`, `bg-primary`, `bg-info-soft`…),
+  không hex trong component mới. Thiếu màu thì thêm token.
+- **Tính năng chưa có BE** hiện nhưng disabled kèm `<Badge tone="soon" />` ("Sắp có") — không ẩn, không dữ liệu
+  giả. Sidebar: đổi `status` trong `sidebar-config.ts` sang `"ready"` + `href` khi có BE.
+- Dự án và thư mục tải một lần ở `app/home/layout.tsx` qua `ProjectsProvider` (`lib/hooks/use-projects.tsx`);
+  sidebar ("Gần đây") và dashboard dùng chung, gọi `reload()` sau khi tạo/đổi tên/lưu trữ/xoá.
+
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 ## Đăng nhập Google là tuỳ chọn
 
 `lib/google-auth.ts` là nơi duy nhất đọc `NEXT_PUBLIC_GOOGLE_CLIENT_ID`. Không có client id thì

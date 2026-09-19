@@ -49,7 +49,11 @@ Mọi lời gọi BE đi qua `lib/api/` — **không `fetch` trực tiếp trong
 Hợp đồng endpoint là `flintflow_be/docs/api/pipeline-contract.md`. Endpoint không có trong đó thì
 không gọi; cần thêm thì phải sửa contract trước (PR `contract-change`, 4/4 duyệt).
 
+<<<<<<< HEAD
 ## Workspace (`app/projects/[projectId]/`)
+=======
+## Workspace (`app/projects/[id]/`)
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 
 - `page.tsx` ghép mọi thứ; state lấy qua hook trong `hooks/`:
   `useWorkspace`, `useSpine`, `useProgress`, `useStepRunner`, `useDocument`, `useFlags`, `useChanges`.
