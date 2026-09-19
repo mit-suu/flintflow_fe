@@ -8,7 +8,7 @@ import { Diamond, Texture } from "../_landing/ui";
 
 /**
  * Khung chung của các trang xác thực — cùng ngôn ngữ với landing: nền kem, phẳng, không viền.
- * Trái (≥ lg): khối `primary` với collage dashboard của landing, collage tràn khỏi mép dưới có chủ ý.
+ * Trái (≥ lg): khối `primary` với collage dashboard của landing, neo đáy, tràn nhẹ khỏi mép dưới, thu nhỏ theo chiều cao màn hình.
  * Phải: form (trang con chỉ render card). Từ lg khung vừa đúng một màn hình, không cuộn trang.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -19,12 +19,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         <aside
           aria-label="Giới thiệu FlintFlow"
-          className="relative isolate hidden w-[46%] max-w-[680px] flex-col overflow-hidden rounded-[32px] bg-primary px-10 pt-10 lg:flex xl:px-12"
+          className="relative isolate hidden w-[46%] max-w-[680px] flex-col overflow-hidden rounded-[32px] bg-primary px-10 pt-10 lg:flex xl:px-12 [@media(max-height:760px)]:pt-8"
         >
           <Texture kind="dots-light" mask="linear-gradient(#000 20%, transparent 70%)" className="-z-10" />
           {/* Logo bản trắng trên nền tím */}
           <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="dark" href="/" />
-          <p className="mt-12 inline-flex items-center gap-2.5 text-[13px] font-bold text-on-primary-container">
+          <p className="mt-12 inline-flex items-center gap-2.5 [@media(max-height:760px)]:mt-8 text-[13px] font-bold text-on-primary-container">
             <Diamond />
             Trợ lý BA bằng AI
           </p>
@@ -33,11 +33,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <br />
             <span className="text-primary-fixed-dim">Bạn quyết định.</span>
           </p>
-          {/* Collage neo đáy, tràn khỏi mép dưới — khung cao thấp thế nào cũng không đẩy trang cuộn */}
-          <div className="relative mt-10 min-h-0 flex-1">
-            <div className="absolute inset-x-0 top-0">
-              <DashboardCollage />
-            </div>
+          {/* Collage neo đáy và tràn khỏi mép dưới có chủ ý, nhưng đường cắt chỉ ăn vào phần đệm dưới của card
+              (`-mb-7` < đệm card 24px + đệm thẻ kiểm tra) ⇒ các nhãn Hình thức / Nội dung / Chất lượng luôn hiện trọn.
+              Màn thấp thì thu nhỏ bằng `zoom` (đổi kích thước layout thật) để phần trên không đẩy collage xuống. */}
+          <div className="-mb-7 mt-auto pt-8 [@media(max-height:860px)]:[zoom:0.86] [@media(max-height:740px)]:[zoom:0.74]">
+            <DashboardCollage />
           </div>
         </aside>
 
