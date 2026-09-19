@@ -140,10 +140,11 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
               {profile.table_map.map((t) => {
                 const key = tableKey(t.block_id, t.column_index);
                 const value = key in tables ? tables[key] : t.field_path;
+                const header = t.header.trim() || `Cột ${t.column_index + 1} (không có tiêu đề)`;
                 return (
                   <tr key={key} className="border-t border-[#F0EEEA]">
                     <td className="px-3 py-2">
-                      <div className="font-semibold text-[#191817]">{t.header}</div>
+                      <div className="font-semibold text-[#191817]">{header}</div>
                       <div className="text-[11px] text-[#A8A49C]">
                         {t.block_id} · cột {t.column_index + 1}
                       </div>
@@ -153,7 +154,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                     </td>
                     <td className="px-3 py-2 w-[300px]">
                       <input
-                        aria-label={`Field cho cột ${t.header}`}
+                        aria-label={`Field cho cột ${header}`}
                         value={value ?? ""}
                         placeholder="Bỏ trống = không trích cột này"
                         onChange={(e) => setTables((prev) => ({ ...prev, [key]: e.target.value.trim() || null }))}
