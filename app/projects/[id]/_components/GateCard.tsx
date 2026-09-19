@@ -45,10 +45,10 @@ export default function GateCard({
   };
 
   return (
-    <div className="bg-white border-2 border-[#DDD9F6] rounded-[16px] p-4 flex flex-col gap-3 shadow-[0_8px_24px_rgba(79,70,229,0.08)]" aria-label="Cổng chốt">
+    <div className="bg-white border-2 border-[#DCD8F0] rounded-[16px] p-4 flex flex-col gap-3 shadow-[0_8px_24px_rgba(106,98,196,0.08)]" aria-label="Cổng chốt">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <div className="text-[10.5px] font-extrabold text-[#4F46E5] tracking-wider uppercase">Cổng chốt</div>
+          <div className="text-[10.5px] font-extrabold text-[#6A62C4] tracking-wider uppercase">Cổng chốt</div>
           <h4 className="font-extrabold text-[13px] text-[#191817]">{phaseLabel ?? `${stepId} · ${stepLabel(stepId)}`}</h4>
         </div>
         <span className="text-[11px] font-bold text-[#6B6862]" data-testid="regenerate-count">
@@ -79,7 +79,7 @@ export default function GateCard({
           disabled={busy || !regenerateLeft}
           onClick={() => onAction("regenerate")}
           title={regenerateLeft ? undefined : "Đã hết lượt Regenerate"}
-          className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#DDD9F6] text-[#4F46E5] hover:bg-[#F4F3FE] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#DCD8F0] text-[#6A62C4] hover:bg-[#F2F1FB] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           ↻ Regenerate ({regenerateUsed}/{regenerateLimit})
         </button>
@@ -106,7 +106,7 @@ export default function GateCard({
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-[#E5E3DF] focus:border-[#4F46E5] rounded-[10px] text-[12px] outline-none resize-none"
+            className="w-full px-3 py-2 bg-white border border-[#E5E3DF] focus:border-[#6A62C4] rounded-[10px] text-[12px] outline-none resize-none"
           />
           <button
             type="button"

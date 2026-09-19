@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import Icon from "./Icon";
 
 describe("Icon", () => {
-  it("render SVG Lineicons, mặc định là trang trí (ẩn khỏi trình đọc màn hình)", () => {
+  it("render SVG Phosphor, mặc định là trang trí (ẩn khỏi trình đọc màn hình)", () => {
     const { container } = render(<Icon name="bell" size={20} />);
     const svg = container.querySelector("svg");
 

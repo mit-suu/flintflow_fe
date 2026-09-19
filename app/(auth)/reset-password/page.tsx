@@ -225,7 +225,7 @@ function ResetPasswordContent() {
     return (
       <div className={cardClass}>
         <div>
-          <p className="text-[11px] font-bold text-[#4F46E5] uppercase tracking-wide">Bước 1/2</p>
+          <p className="text-[11px] font-bold text-[#6A62C4] uppercase tracking-wide">Bước 1/2</p>
           <h1 className="text-[22px] font-extrabold text-[#191817] tracking-[-0.02em]">
             Nhập mã xác nhận
           </h1>
@@ -299,7 +299,7 @@ function ResetPasswordContent() {
   return (
     <div className={cardClass}>
       <div>
-        <p className="text-[11px] font-bold text-[#4F46E5] uppercase tracking-wide">Bước 2/2</p>
+        <p className="text-[11px] font-bold text-[#6A62C4] uppercase tracking-wide">Bước 2/2</p>
         <h1 className="text-[22px] font-extrabold text-[#191817] tracking-[-0.02em]">
           Đặt mật khẩu mới
         </h1>
@@ -327,7 +327,7 @@ function ResetPasswordContent() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
+              className="w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
             />
             <button
               type="button"
@@ -382,7 +382,7 @@ function ResetPasswordContent() {
               className={`w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] outline-none transition-all text-[#191817] text-[13.5px] focus:ring-1 ${
                 passwordMismatch
                   ? "border-[#B03030] bg-[#FDF6F6] focus:border-[#B03030] focus:ring-[#B03030]"
-                  : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#4F46E5] focus:ring-[#4F46E5]"
+                  : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#6A62C4] focus:ring-[#6A62C4]"
               }`}
             />
             <button

@@ -55,7 +55,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
           const text = edits[key] ?? valueToText(f.value);
           const changed = key in edits && edits[key] !== valueToText(f.value);
           return (
-            <li key={key} className={`bg-white border rounded-[14px] p-3 flex flex-col gap-2 ${changed ? "border-[#4F46E5]" : "border-[#ECEAE5]"}`}>
+            <li key={key} className={`bg-white border rounded-[14px] p-3 flex flex-col gap-2 ${changed ? "border-[#6A62C4]" : "border-[#ECEAE5]"}`}>
               <div className="flex flex-wrap items-center gap-2 text-[12px]">
                 <code className="font-mono font-bold text-[#191817]">{f.path}</code>
                 <span className="text-[#8A867E]">· {sectionLabel(f.section_id)}</span>
@@ -72,7 +72,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
               />
               <div className="text-[11px] text-[#A8A49C]">
                 Nguồn: {f.source_block_ids.length ? f.source_block_ids.join(", ") : "—"} · {f.origin === "ai" ? "AI trích" : "trích tất định"}
-                {changed && <strong className="text-[#4F46E5]"> · đã sửa</strong>}
+                {changed && <strong className="text-[#6A62C4]"> · đã sửa</strong>}
               </div>
             </li>
           );

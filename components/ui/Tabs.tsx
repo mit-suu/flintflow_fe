@@ -41,7 +41,7 @@ export default function Tabs<T extends string>({ label, value, options, onChange
   };
 
   return (
-    <div role="tablist" aria-label={label} className={`inline-flex items-center gap-1 p-1 rounded-full bg-surface-container-high ${className ?? ""}`}>
+    <div role="tablist" aria-label={label} className={`inline-flex items-center gap-1 p-1 rounded-control bg-surface-container-high ${className ?? ""}`}>
       {options.map((option, index) => {
         const selected = option.value === value;
         return (
@@ -59,7 +59,7 @@ export default function Tabs<T extends string>({ label, value, options, onChange
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
-            className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-[12.5px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-inner text-[12.5px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               selected ? "bg-surface-container-lowest text-on-surface shadow-[0_1px_3px_rgba(25,24,23,0.10)]" : "text-on-surface-variant hover:text-on-surface"
             }`}
           >

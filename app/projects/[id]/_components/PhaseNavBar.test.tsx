@@ -59,7 +59,7 @@ describe("PhaseNavBar", () => {
 
   it("Export đổi style khi active", () => {
     const { rerender } = render(<PhaseNavBar {...defaultProps} />);
-    expect(screen.getByRole("button", { name: /Export & Handoff/i })).toHaveClass("bg-[#F4F3FE]");
+    expect(screen.getByRole("button", { name: /Export & Handoff/i })).toHaveClass("bg-[#F2F1FB]");
     rerender(<PhaseNavBar {...defaultProps} exportActive />);
     expect(screen.getByRole("button", { name: /Export & Handoff/i })).toHaveClass("bg-[#191817]");
   });

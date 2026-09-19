@@ -25,7 +25,7 @@ export const statusTone = (status: Cr["status"]): string =>
       ? "bg-[#F0EEEA] text-[#8A867E]"
       : status === "manual_fix" || status === "awaiting_answers" || status === "in_review"
         ? "bg-[#FBF4E4] text-[#8A6D1F]"
-        : "bg-[#F4F3FE] text-[#3B34B0]";
+        : "bg-[#F2F1FB] text-[#554DB0]";
 
 /** Danh sách change request + tạo mới (UC-48). */
 export default function ChangeRequestList({ projectId, prefill }: ChangeRequestListProps) {
@@ -106,7 +106,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
                 href={`/projects/${projectId}/change-requests/${c.cr_id}`}
                 className="bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-3 flex flex-wrap items-center gap-3 hover:shadow-[0_8px_20px_rgba(25,24,23,0.06)] transition-shadow"
               >
-                <code className="text-[12px] font-bold text-[#4F46E5]">{c.cr_id}</code>
+                <code className="text-[12px] font-bold text-[#6A62C4]">{c.cr_id}</code>
                 <span className="flex-1 min-w-[200px] font-bold text-[#191817] text-[13.5px] truncate">{c.title}</span>
                 <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusTone(c.status)}`}>{CR_STATUS_LABELS[c.status]}</span>
                 {c.paused && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FDEDED] text-[#B03030]">Tạm dừng</span>}

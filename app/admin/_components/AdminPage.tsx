@@ -35,7 +35,7 @@ export function ErrorBanner({ message, onClose }: { message: string; onClose?: (
 export function LoadingBlock({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-center py-16 text-[#A8A49C] gap-3">
-      <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
+      <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
       <span className="text-[13px] font-medium">{label}</span>
     </div>
   );
@@ -54,4 +54,4 @@ export function StatCard({ label, value, hint }: { label: string; value: ReactNo
 export const tableHeadClass = "py-2.5 px-4 text-[11px] font-bold text-[#8A867E] uppercase tracking-[0.04em]";
 export const tableCellClass = "py-3 px-4 text-[12.5px] text-[#33312D]";
 export const inputClass =
-  "h-9 px-3 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#4F46E5]";
+  "h-9 px-3 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#6A62C4]";

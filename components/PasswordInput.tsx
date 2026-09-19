@@ -48,7 +48,7 @@ export default function PasswordInput({
           className={`w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] outline-none transition-all text-[#191817] text-[13.5px] focus:ring-1 ${
             error
               ? "border-[#B03030] bg-[#FDF6F6] focus:border-[#B03030] focus:ring-[#B03030]"
-              : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#4F46E5] focus:ring-[#4F46E5]"
+              : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#6A62C4] focus:ring-[#6A62C4]"
           }`}
         />
         <button

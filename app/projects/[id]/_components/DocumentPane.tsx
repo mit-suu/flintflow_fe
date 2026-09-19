@@ -33,7 +33,7 @@ export interface EmptyHint {
 
 const STATUS_BADGE: Record<SectionStatus, { text: string; style: string }> = {
   accepted: { text: "Accepted", style: "bg-[#E9F7EE] text-[#1F7A45]" },
-  draft: { text: "Draft", style: "bg-[#F4F3FE] text-[#3B34B0]" },
+  draft: { text: "Draft", style: "bg-[#F2F1FB] text-[#554DB0]" },
   stale: { text: "Cũ", style: "bg-[#FBF4E4] text-[#8A6D1F]" },
   derived: { text: "Dẫn xuất", style: "bg-[#F0EEEA] text-[#6B6862]" },
 };
@@ -187,7 +187,7 @@ function EmptySection({ hint, onSelectStep }: { hint?: EmptyHint; onSelectStep?:
         Chưa có nội dung — chạy step {hint.stepId} · {stepLabel(hint.stepId)}
       </span>
       {onSelectStep && (
-        <button type="button" onClick={() => onSelectStep(hint.stepId)} className="not-italic text-[10.5px] font-bold text-[#4F46E5] hover:underline cursor-pointer">
+        <button type="button" onClick={() => onSelectStep(hint.stepId)} className="not-italic text-[10.5px] font-bold text-[#6A62C4] hover:underline cursor-pointer">
           Mở step
         </button>
       )}
@@ -217,7 +217,7 @@ function SectionView({
     <article
       data-section-id={section.id}
       className={`p-4 rounded-[12px] border bg-white flex flex-col gap-2 transition-colors ${
-        changed ? "border-[#4F46E5] ring-1 ring-[#DDD9F6]" : "border-[#ECEAE5]"
+        changed ? "border-[#6A62C4] ring-1 ring-[#DCD8F0]" : "border-[#ECEAE5]"
       }`}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -239,7 +239,7 @@ function SectionView({
             <button
               type="button"
               onClick={() => onSelectStep(remediationStep)}
-              className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#F4F3FE] text-[#4F46E5] hover:bg-[#EDEAFB] cursor-pointer"
+              className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#F2F1FB] text-[#6A62C4] hover:bg-[#EDEAFB] cursor-pointer"
             >
               xem tại {remediationStep} · {stepLabel(remediationStep)}
             </button>
@@ -309,7 +309,7 @@ export default function DocumentPane({
           <button
             type="button"
             onClick={() => void reload()}
-            className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F4F3FE] border border-[#ECEAE5] text-[#4F46E5] text-[11.5px] font-bold cursor-pointer"
+            className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F2F1FB] border border-[#ECEAE5] text-[#6A62C4] text-[11.5px] font-bold cursor-pointer"
           >
             ↻ Tải lại
           </button>

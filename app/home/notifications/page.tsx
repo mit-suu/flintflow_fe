@@ -103,20 +103,20 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Thông báo</h1>
             {unreadCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#EEEDFD] text-[11.5px] font-bold text-[#3B34B0]">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#EFEEF9] text-[11.5px] font-bold text-[#554DB0]">
                 {unreadCount} chưa đọc
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex bg-white border border-[#E4E1DC] rounded-full p-0.5">
+            <div className="flex bg-white border border-[#E4E1DC] rounded-control p-0.5">
               {(["all", "unread"] as const).map((f) => (
                 <button
                   key={f}
                   type="button"
                   onClick={() => changeFilter(f)}
-                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-inner text-[12px] font-semibold transition-colors cursor-pointer ${
                     filter === f ? "bg-[#191817] text-white" : "text-[#6B6862] hover:text-[#191817]"
                   }`}
                 >
@@ -128,7 +128,7 @@ export default function NotificationsPage() {
               type="button"
               onClick={handleMarkAll}
               disabled={unreadCount === 0}
-              className="px-3.5 py-1.5 rounded-full border border-[#E4E1DC] bg-white text-[12px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-control border border-[#E4E1DC] bg-white text-[12px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
             >
               Đánh dấu tất cả đã đọc
             </button>
@@ -136,7 +136,7 @@ export default function NotificationsPage() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
+          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-control text-xs font-medium">
             <span className="flex-1">{error}</span>
             <button type="button" onClick={() => setError(null)} className="font-bold hover:opacity-75">
               ✕
@@ -144,10 +144,10 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
+        <div className="bg-white border border-[#ECEAE5] rounded-card overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-[#A8A49C] gap-3">
-              <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
+              <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
               <span className="text-[13px] font-medium">Đang tải thông báo…</span>
             </div>
           ) : items.length === 0 ? (
@@ -160,7 +160,7 @@ export default function NotificationsPage() {
                 key={n._id}
                 className={`flex gap-3 px-5 py-4 border-b border-[#F3F1EE] last:border-b-0 ${n.readAt ? "" : "bg-[#F8F7FF]"}`}
               >
-                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.readAt ? "bg-[#E4E1DC]" : "bg-[#4F46E5]"}`} />
+                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.readAt ? "bg-[#E4E1DC]" : "bg-[#6A62C4]"}`} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
                     <span className="text-[13.5px] font-bold text-[#191817]">{n.title}</span>
@@ -174,7 +174,7 @@ export default function NotificationsPage() {
                       <button
                         type="button"
                         onClick={() => handleOpen(n)}
-                        className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
+                        className="text-[12px] font-semibold text-[#6A62C4] hover:underline cursor-pointer"
                       >
                         Xem chi tiết
                       </button>
@@ -200,7 +200,7 @@ export default function NotificationsPage() {
             type="button"
             onClick={loadMore}
             disabled={loadingMore}
-            className="self-center px-5 py-2 rounded-full border border-[#E4E1DC] bg-white text-[12.5px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+            className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-[12.5px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
           >
             {loadingMore ? "Đang tải…" : "Tải thêm"}
           </button>

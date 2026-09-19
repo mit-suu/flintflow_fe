@@ -121,7 +121,7 @@ export default function LoginPage() {
           </Link>
           <Link
             href="/register"
-            className="px-3.5 py-1.5 rounded-full border-[1.5px] border-[#E4E1DC] hover:border-[#DDD9F6] text-[#191817] text-[12px] font-bold bg-white transition-all shadow-sm"
+            className="px-3.5 py-1.5 rounded-full border-[1.5px] border-[#E4E1DC] hover:border-[#DCD8F0] text-[#191817] text-[12px] font-bold bg-white transition-all shadow-sm"
           >
             Đăng ký miễn phí
           </Link>
@@ -133,7 +133,7 @@ export default function LoginPage() {
         <div className="w-full max-w-[1080px] grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center justify-between">
           {/* Left Hero (A1 Design) */}
           <div className="lg:col-span-6 flex flex-col gap-5 lg:pr-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F4F3FE] border border-[#DDD9F6] text-[#4F46E5] text-[12px] font-bold self-start">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F2F1FB] border border-[#DCD8F0] text-[#6A62C4] text-[12px] font-bold self-start">
               ✦ AI Business Analyst
             </div>
             <h1 className="text-[38px] sm:text-[48px] lg:text-[50px] font-extrabold leading-[1.06] tracking-[-0.03em] text-[#191817]">
@@ -152,7 +152,7 @@ export default function LoginPage() {
             <div className="hidden sm:flex flex-col gap-3 pt-2 max-w-[430px]">
               {/* Card 1 */}
               <div className="bg-white border border-[#ECEAE5] rounded-[15px] p-3 px-4 flex items-center gap-2.5 shadow-[0_12px_30px_rgba(25,24,23,0.10)] -rotate-[1.4deg] transition-transform hover:rotate-0">
-                <div className="w-6 h-6 rounded-[8px] bg-gradient-to-br from-[#7C74F0] to-[#4F46E5] text-white text-[11px] font-extrabold flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-[8px] bg-gradient-to-br from-[#8E87D6] to-[#6A62C4] text-white text-[11px] font-extrabold flex items-center justify-center shrink-0">
                   F
                 </div>
                 <div className="text-[12.5px] text-[#33312D]">
@@ -194,7 +194,7 @@ export default function LoginPage() {
                   Chưa có tài khoản?{" "}
                   <Link
                     href="/register"
-                    className="text-[#4F46E5] hover:underline font-bold"
+                    className="text-[#6A62C4] hover:underline font-bold"
                   >
                     Đăng ký miễn phí
                   </Link>
@@ -267,7 +267,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleResendVerify}
                     disabled={resending}
-                    className="self-start px-3 py-1 bg-[#4F46E5] hover:bg-[#3B34B0] text-white rounded-[8px] text-[11.5px] font-bold transition disabled:opacity-50"
+                    className="self-start px-3 py-1 bg-[#6A62C4] hover:bg-[#554DB0] text-white rounded-[8px] text-[11.5px] font-bold transition disabled:opacity-50"
                   >
                     {resending ? "Đang gửi..." : "Gửi mã OTP xác thực"}
                   </button>
@@ -287,7 +287,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="mai@studio.vn"
-                    className="w-full px-3.5 py-3 rounded-[12px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13px]"
+                    className="w-full px-3.5 py-3 rounded-[12px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13px]"
                   />
                 </div>
 
@@ -302,7 +302,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••"
-                    className="w-full px-3.5 py-3 pr-10 rounded-[12px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13px]"
+                    className="w-full px-3.5 py-3 pr-10 rounded-[12px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13px]"
                   />
                   <button
                     type="button"
@@ -339,13 +339,13 @@ export default function LoginPage() {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded-[4px] accent-[#4F46E5] cursor-pointer"
+                    className="w-3.5 h-3.5 rounded-[4px] accent-[#6A62C4] cursor-pointer"
                   />
                   Ghi nhớ tài khoản
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-[12px] text-[#4F46E5] hover:underline font-semibold"
+                  className="text-[12px] text-[#6A62C4] hover:underline font-semibold"
                 >
                   Quên mật khẩu?
                 </Link>

@@ -32,14 +32,14 @@ describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
     const target = zone();
 
     fireEvent.dragOver(target);
-    expect(target.className).toContain("border-[#4F46E5] bg-[#F4F3FE]");
+    expect(target.className).toContain("border-[#6A62C4] bg-[#F2F1FB]");
     fireEvent.dragLeave(target);
-    expect(target.className).not.toContain("bg-[#F4F3FE]");
+    expect(target.className).not.toContain("bg-[#F2F1FB]");
 
     const file = docx("SRS_keo_tha.docx");
     drop(target, file);
     expect(onUpload).toHaveBeenCalledWith(file);
-    expect(target.className).not.toContain("bg-[#F4F3FE]");
+    expect(target.className).not.toContain("bg-[#F2F1FB]");
   });
 
   it("file lớn hơn 10MB (kéo thả hoặc chọn) ⇒ báo lỗi, không gọi upload; chọn lại file hợp lệ thì xoá lỗi", () => {

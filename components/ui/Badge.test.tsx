@@ -10,10 +10,10 @@ describe("Badge", () => {
     expect(screen.getByText(`Nhãn ${tone}`)).toBeInTheDocument();
   });
 
-  it('tone "soon" mặc định hiện "Sắp có" kèm icon đồng hồ cát', () => {
+  it('tone "soon" mặc định chỉ hiện chữ "Sắp có", không kèm icon', () => {
     const { container } = render(<Badge tone="soon" />);
     expect(screen.getByText(SOON_LABEL)).toHaveTextContent("Sắp có");
-    expect(container.querySelector("[data-icon='hourglass']")).not.toBeNull();
+    expect(container.querySelector("svg")).toBeNull();
   });
 
   it("dot ⇒ có chấm màu, tone soon thì không", () => {

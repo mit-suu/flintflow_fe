@@ -103,7 +103,7 @@ export default function Mode1PlanPanel({
                 <button
                   type="button"
                   onClick={() => onSelectStep(p.step_id)}
-                  className="text-[11px] font-bold text-[#4F46E5] hover:underline shrink-0 cursor-pointer"
+                  className="text-[11px] font-bold text-[#6A62C4] hover:underline shrink-0 cursor-pointer"
                 >
                   Mở step
                 </button>
@@ -130,7 +130,7 @@ export default function Mode1PlanPanel({
                   onClick={() => onToggleStep(p.step_id, !on)}
                   disabled={busyStep !== null || signedOff}
                   className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold border shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                    on ? "bg-white border-[#ECEAE5] text-[#6B6862]" : "bg-[#F4F3FE] border-[#DDD9F6] text-[#4F46E5]"
+                    on ? "bg-white border-[#ECEAE5] text-[#6B6862]" : "bg-[#F2F1FB] border-[#DCD8F0] text-[#6A62C4]"
                   }`}
                 >
                   {busyStep === p.step_id ? "…" : on ? "Tắt" : "Bật"}

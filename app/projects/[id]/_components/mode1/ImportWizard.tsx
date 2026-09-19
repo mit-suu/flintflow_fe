@@ -49,7 +49,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
   if (imp.loading) {
     return (
       <div className="flex items-center gap-3 text-[13px] text-[#8A867E] p-8">
-        <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner" />
+        <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
         Đang tải trạng thái import…
       </div>
     );
@@ -107,9 +107,9 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
 
       {(status === "uploaded" || status === "parsing") && (
         <div className="flex items-center gap-3 text-[13px] text-[#4B4842] bg-white border border-[#ECEAE5] rounded-[14px] p-5">
-          <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner" />
+          <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
           Đang tách tài liệu thành block…
-          <button type="button" onClick={() => void imp.reload()} className="ml-auto text-[12px] font-bold text-[#4F46E5] underline">
+          <button type="button" onClick={() => void imp.reload()} className="ml-auto text-[12px] font-bold text-[#6A62C4] underline">
             Tải lại
           </button>
         </div>

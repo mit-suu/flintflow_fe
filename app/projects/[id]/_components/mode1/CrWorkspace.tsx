@@ -147,7 +147,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
               Change request
             </Link>
             <span className="text-[#D6D2CB]"> / </span>
-            <code className="font-bold text-[#4F46E5]">{c.cr_id}</code>
+            <code className="font-bold text-[#6A62C4]">{c.cr_id}</code>
           </p>
           <h2 className="text-[20px] font-extrabold text-[#191817]">{c.title}</h2>
           <p className="text-[11.5px] text-[#8A867E]">
@@ -232,7 +232,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
 
 function Step({ text, tone = "info", children }: { text: string; tone?: "info" | "warn" | "ok" | "muted"; children?: ReactNode }) {
   const cls = {
-    info: "bg-[#F4F3FE] border-[#DDD9F6] text-[#3B34B0]",
+    info: "bg-[#F2F1FB] border-[#DCD8F0] text-[#554DB0]",
     warn: "bg-[#FBF4E4] border-[#EFD9A6] text-[#8A6D1F]",
     ok: "bg-[#E9F7EE] border-[#BFE6CE] text-[#1F7A45]",
     muted: "bg-[#F0EEEA] border-[#E4E1DC] text-[#6B6862]",
