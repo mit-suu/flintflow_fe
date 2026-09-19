@@ -54,6 +54,7 @@ export const createMockState = (): MockState => ({
     name: "FlintFlow (mock)",
     domain: "SaaS",
     status: "active",
+    sourceMode: "fpt_template",
     createdAt: now(),
     updatedAt: now(),
   },

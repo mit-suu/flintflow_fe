@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import NotificationBell from "../../../components/NotificationBell";
+import TopBar from "@/components/layout/TopBar";
 import {
   createCheckout,
   fetchBalance,
@@ -130,16 +130,7 @@ export default function BillingPage() {
 
   return (
     <>
-      <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
-        <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
-          <span>Tài khoản</span>
-          <span className="text-[#D6D2CB]">/</span>
-          <span className="text-[#191817] font-bold">Thanh toán &amp; credit</span>
-        </div>
-        <div className="ml-auto">
-          <NotificationBell />
-        </div>
-      </div>
+      <TopBar trail={["Tài khoản", "Thanh toán & credit"]} />
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-[#F5F3F0]">
         <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Thanh toán &amp; credit</h1>

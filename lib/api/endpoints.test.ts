@@ -32,7 +32,12 @@ type EndpointCase = [name: string, call: () => unknown, path: string, init?: Req
 const cases: EndpointCase[] = [
   ["listProjects", () => projects.listProjects("active"), "/projects?status=active"],
   ["getProject", () => projects.getProject("p1"), "/projects/p1"],
-  ["createProject", () => projects.createProject("App"), "/projects", post({ name: "App" })],
+  [
+    "createProject",
+    () => projects.createProject("App", "edit_srs"),
+    "/projects",
+    post({ name: "App", sourceMode: "edit_srs" }),
+  ],
   [
     "renameProject",
     () => projects.renameProject("p1", "Mới"),

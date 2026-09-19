@@ -1,37 +1,40 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import ProjectCard from "../../components/ProjectCard";
-import type { Project } from "@/types/project";
-import Modal from "../../components/Modal";
-import Logo from "../../components/Logo";
-import NotificationBell from "../../components/NotificationBell";
-import { apiCall } from "../../lib/api";
-import { fetchBalance, type BalanceResponse } from "../../lib/api/billing";
-import { getProgress } from "../../lib/api/pipeline";
+import TopBar from "@/components/layout/TopBar";
+import CreateProjectForm from "@/components/project/CreateProjectForm";
+import ProjectActionDialogs, { type ProjectActionTarget } from "@/components/project/ProjectActionDialogs";
+import ProjectGrid, { ProjectGridSkeleton } from "@/components/project/ProjectGrid";
+import { Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput } from "@/components/ui";
+import { getProgress } from "@/lib/api/pipeline";
+import { useProjects } from "@/lib/hooks/use-projects";
+import { SOURCE_MODE_OPTIONS, getProjectStartRoute } from "@/lib/project-source-mode";
 import type { ProgressResponse } from "@/types/pipeline";
-import type { User } from "@/types/user";
+import type { Project, ProjectSourceMode, ProjectStatus } from "@/types/project";
 
+type ModeFilter = ProjectSourceMode | "all";
+
+const STATUS_OPTIONS = [
+  { value: "active", label: "Đang làm" },
+  { value: "archived", label: "Lưu trữ" },
+] as const satisfies readonly { value: ProjectStatus; label: string }[];
+
+const MODE_OPTIONS: readonly { value: ModeFilter; label: string }[] = [
+  { value: "all", label: "Tất cả" },
+  ...SOURCE_MODE_OPTIONS.map((o) => ({ value: o.value, label: o.shortLabel })),
+];
+
+/** Project Dashboard (UC-13/14/15/16/19/75): 3 trạng thái — đang tải, chưa có dự án, lưới dự án. */
 export default function HomePage() {
   const router = useRouter();
+  const { projects, loading, error, reload } = useProjects();
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [billing, setBilling] = useState<BalanceResponse | null>(null);
-
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showRenameModal, setShowRenameModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showHardDeleteConfirm, setShowHardDeleteConfirm] = useState(false);
-  const [targetProject, setTargetProject] = useState<Project | null>(null);
-
-  const [createName, setCreateName] = useState("");
-  const [renameName, setRenameName] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const [searchQuery, setSearchQuery] = useState("");
+  const [status, setStatus] = useState<ProjectStatus>("active");
+  const [mode, setMode] = useState<ModeFilter>("all");
+  const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [actionTarget, setActionTarget] = useState<ProjectActionTarget | null>(null);
   /**
    * T23: thẻ dự án hiện việc tiếp theo và trạng thái theo Spine thật. `GET /projects` chỉ trả document
    * Project (không có tiến độ), nên nạp `progress` riêng cho từng dự án — song song, và **lỗi của một
@@ -39,461 +42,143 @@ export default function HomePage() {
    */
   const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>({});
 
-  const loadProgress = useCallback((list: Project[]) => {
-    if (list.length === 0) {
-      setProgressById({});
-      return;
-    }
+  useEffect(() => {
+    if (projects.length === 0) return;
+    let cancelled = false;
     void Promise.all(
-      list.map((project) =>
+      projects.map((project) =>
         getProgress(project._id)
           .then((res) => [project._id, res.data ?? null] as const)
           .catch(() => [project._id, null] as const)
       )
-    ).then((entries) => setProgressById(Object.fromEntries(entries)));
-  }, []);
-
-  // setState chỉ nằm trong callback của promise để effect gọi hàm này không set state đồng bộ
-  const loadProjects = useCallback(
-    () =>
-      apiCall<Project[]>("/projects?status=active")
-        .then((res) => {
-          const list = res.data ?? [];
-          setProjects(list);
-          loadProgress(list);
-        })
-        .catch((err: unknown) =>
-          setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án")
-        )
-        .finally(() => setLoading(false)),
-    [loadProgress]
-  );
-
-  // Tải lại sau khi tạo/đổi tên/xoá: bật loading và xoá lỗi cũ trước khi gọi
-  const fetchProjects = async () => {
-    setLoading(true);
-    setError(null);
-    await loadProjects();
-  };
-
-  // Lần tải đầu: state khởi tạo sẵn loading=true, error=null
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  // UC 1.12: user chưa qua onboarding (`onboardedAt === null`) ⇒ đưa vào /home/onboarding —
-  // NHƯNG chỉ khi user CHƯA có project nào. `onboarding/page.tsx` gọi `patchMe({onboardedAt})`
-  // SAU khi tạo project; nếu cú `patchMe` đó lỗi, `onboardedAt` vẫn null mãi mãi, và nếu ta chỉ xét
-  // `onboardedAt` thì mỗi lần user quay lại /home sẽ bị đẩy lại vào onboarding dù đã có project —
-  // vòng lặp tạo project vô hạn. Chờ danh sách project tải xong rồi mới xét cả hai điều kiện.
-  useEffect(() => {
-    if (loading) return;
-    if (projects.length > 0) return;
-    let cancelled = false;
-    apiCall<User>("/users/me")
-      .then((res) => {
-        if (!cancelled && res.data && res.data.onboardedAt === null) router.replace("/home/onboarding");
-      })
-      .catch(() => undefined);
+    ).then((entries) => {
+      if (!cancelled) setProgressById(Object.fromEntries(entries));
+    });
     return () => {
       cancelled = true;
     };
-  }, [loading, projects, router]);
+  }, [projects]);
 
-  const normalizedQuery = searchQuery.trim().toLocaleLowerCase("vi");
-  const filteredProjects = normalizedQuery
-    ? projects.filter((p) => p.name.toLocaleLowerCase("vi").includes(normalizedQuery))
-    : projects;
+  const normalizedQuery = query.trim().toLocaleLowerCase("vi");
+  const inStatus = useMemo(() => projects.filter((p) => p.status === status), [projects, status]);
+  const visible = inStatus.filter(
+    (p) => (mode === "all" || p.sourceMode === mode) && (!normalizedQuery || p.name.toLocaleLowerCase("vi").includes(normalizedQuery))
+  );
+  const filtersActive = status !== "active" || mode !== "all" || normalizedQuery.length > 0;
+  const initialLoading = loading && projects.length === 0;
+  // Chưa có dự án nào (kể cả lưu trữ) ⇒ tạo dự án ngay trên trang. Còn dự án lưu trữ thì giữ bộ lọc để
+  // user vẫn mở được chúng.
+  const showOnboarding = !initialLoading && !error && projects.length === 0;
 
-  useEffect(() => {
-    const loadBilling = async () => {
-      try {
-        setBilling(await fetchBalance());
-      } catch (err) {
-        console.error("Failed to fetch billing balance:", err);
-      }
-    };
-    loadBilling();
-  }, []);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createName.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall("/projects", {
-        method: "POST",
-        body: JSON.stringify({ name: createName.trim() }),
-      });
-      setShowCreateModal(false);
-      setCreateName("");
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tạo dự án");
-    } finally {
-      setSubmitting(false);
-    }
+  const clearFilters = () => {
+    setStatus("active");
+    setMode("all");
+    setQuery("");
   };
 
-  const handleRename = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!targetProject || !renameName.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall(`/projects/${targetProject._id}/name`, {
-        method: "PATCH",
-        body: JSON.stringify({ name: renameName.trim() }),
-      });
-      setShowRenameModal(false);
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể đổi tên dự án");
-    } finally {
-      setSubmitting(false);
-    }
+  const handleCreated = async (project: Project) => {
+    await reload();
+    router.push(getProjectStartRoute(project._id, project.sourceMode));
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!targetProject) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall(`/projects/${targetProject._id}`, { method: "DELETE" });
-      setShowDeleteConfirm(false);
-      setTargetProject(null);
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể lưu trữ dự án");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleHardDeleteConfirm = async () => {
-    if (!targetProject) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall(`/projects/${targetProject._id}?hard=true`, { method: "DELETE" });
-      setShowHardDeleteConfirm(false);
-      setTargetProject(null);
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể xoá vĩnh viễn dự án");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openRename = (p: Project) => {
-    setTargetProject(p);
-    setRenameName(p.name);
-    setShowRenameModal(true);
-  };
-
-  const openDelete = (p: Project) => {
-    setTargetProject(p);
-    setShowDeleteConfirm(true);
-  };
+  const openAction = (action: ProjectActionTarget["action"]) => (project: Project) => setActionTarget({ action, project });
 
   return (
     <>
-      {/* Top Header Bar (B1 Design) */}
-      <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
-          <span>Dự án của tôi</span>
-          <span className="text-[#D6D2CB]">/</span>
-          <span className="text-[#191817] font-bold">Tất cả dự án</span>
-        </div>
+      <TopBar
+        trail={["Dự án"]}
+        search={<SearchInput value={query} onChange={setQuery} label="Tìm dự án theo tên" placeholder="Tìm dự án…" />}
+        actions={
+          <Button size="sm" icon="plus" onClick={() => setCreateOpen(true)}>
+            <span className="hidden sm:inline">Dự án mới</span>
+            <span className="sm:hidden">Mới</span>
+          </Button>
+        }
+      />
 
-        {/* Right actions */}
-        <div className="ml-auto flex items-center gap-2.5">
-          {/* Notification Bell */}
-          <NotificationBell />
-
-          {/* Credits chip */}
-          <div className="flex items-center gap-2 bg-[#F0EEEA] rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[#191817]">
-            <span className="w-2 h-2 rounded-full bg-[#4F46E5] shrink-0" />
-            {billing?.balance ?? 0} credits · {billing?.planLabel ?? "Free"}
-          </div>
-
-          {/* New Project button */}
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-full btn-gradient-primary text-white text-[12.5px] font-bold flex items-center gap-1 cursor-pointer"
-          >
-            + Dự án mới
-          </button>
-        </div>
-      </div>
-
-      {/* Main scroll area */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-[#F5F3F0]">
-        
-        {/* Search & Filter Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">
-              Dự án của tôi
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-[#E4E1DC] text-[11.5px] font-bold text-[#6B6862]">
-              {projects.length}
-            </span>
-          </div>
-
-          {/* Search input & filters */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-white border border-[#E4E1DC] rounded-full px-3.5 py-1.5 text-[12.5px] text-[#A8A49C] w-full sm:w-[240px]">
-              <span>🔍</span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm dự án…"
-                aria-label="Tìm kiếm dự án theo tên"
-                className="w-full bg-transparent outline-none text-[#191817] text-[12px] placeholder:text-[#A8A49C]"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Error banner */}
-        {error && (
-          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
-            <span className="material-symbols-outlined text-lg">error</span>
-            <span className="flex-1">{error}</span>
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="text-[#8A4141] font-bold hover:opacity-75"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* Projects Section */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
-            <span className="text-[13px] font-medium">Đang tải danh sách dự án…</span>
-          </div>
-        ) : projects.length === 0 ? (
-          /* Empty / Onboarding State (B1 Design) */
-          <div className="flex-1 flex items-center justify-center relative py-12">
-            <div className="w-full max-w-[560px] bg-white border border-[#ECEAE5] rounded-[24px] p-8 sm:p-10 custom-shadow-card flex flex-col items-center gap-4 text-center">
-              <Logo sizeClassName="w-9 h-9" theme="light" />
-              <h2 className="text-[20px] font-extrabold text-[#191817]">
-                Bắt đầu dự án đầu tiên của bạn
-              </h2>
-              <p className="text-[13.5px] text-[#8A867E] max-w-[380px] leading-[1.6]">
-                Tạo tài liệu SRS hoàn chỉnh chuẩn IEEE/FPT chỉ trong vài phút thông qua hội thoại tương tác cùng AI.
+      <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-5 p-4 sm:p-6 lg:p-8 bg-background">
+        {showOnboarding ? (
+          <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 py-2 sm:py-6">
+            <div className="flex flex-col gap-2">
+              <h1 id="onboarding-title" className="text-[22px] sm:text-[26px] font-extrabold text-on-surface tracking-tight">
+                Bắt đầu dự án SRS đầu tiên
+              </h1>
+              <p className="text-[13.5px] text-on-surface-muted leading-[1.6] max-w-[560px]">
+                Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="mt-2 px-6 py-3 rounded-full btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
-              >
-                + Tạo dự án mới
-              </button>
             </div>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="py-16 text-center text-[13px] text-[#8A867E]">
-            Không tìm thấy dự án nào khớp “{searchQuery.trim()}”.
-          </div>
+            <CreateProjectForm variant="inline" onCreated={handleCreated} />
+          </section>
         ) : (
-          /* Populated Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredProjects.map((p) => (
-              <ProjectCard
-                key={p._id}
-                project={p}
-                progress={progressById[p._id]}
-                onRename={openRename}
-                onDelete={openDelete}
-                onHardDelete={(project) => {
-                  setTargetProject(project);
-                  setShowHardDeleteConfirm(true);
-                }}
+          <>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h1 className="text-[22px] sm:text-[24px] font-extrabold text-on-surface tracking-tight">Dự án</h1>
+                {!initialLoading && <CountBadge count={inStatus.length} max={999} />}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <FilterSelect label="Trạng thái" value={status} options={STATUS_OPTIONS} onChange={setStatus} />
+                <FilterSelect label="Nguồn" value={mode} options={MODE_OPTIONS} onChange={setMode} />
+              </div>
+            </div>
+
+            {error && (
+              <div role="alert" className="flex items-center gap-3 bg-error-container border border-error-border text-on-error-container px-4 py-3 rounded-[12px] text-[12.5px] font-medium">
+                <Icon name="error-circle" size={18} />
+                <span className="flex-1">{error}</span>
+                <Button size="sm" variant="secondary" onClick={() => void reload()}>
+                  Thử lại
+                </Button>
+              </div>
+            )}
+
+            {initialLoading ? (
+              <ProjectGridSkeleton />
+            ) : visible.length > 0 ? (
+              <ProjectGrid
+                projects={visible}
+                progressById={progressById}
+                onRename={openAction("rename")}
+                onDelete={openAction("archive")}
+                onHardDelete={openAction("delete")}
               />
-            ))}
-          </div>
+            ) : error ? null : filtersActive ? (
+              <EmptyState
+                icon="search"
+                title="Không có dự án khớp bộ lọc"
+                description="Thử đổi trạng thái, nguồn hoặc từ khoá tìm kiếm."
+                action={
+                  <Button variant="secondary" size="sm" onClick={clearFilters}>
+                    Xoá bộ lọc
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon="folder"
+                title="Chưa có dự án đang làm"
+                description="Tạo dự án mới, hoặc mở lại các dự án đã lưu trữ."
+                action={
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button size="sm" icon="plus" onClick={() => setCreateOpen(true)}>
+                      Dự án mới
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setStatus("archived")}>
+                      Xem lưu trữ
+                    </Button>
+                  </div>
+                }
+              />
+            )}
+          </>
         )}
       </div>
 
-      {/* Create Modal */}
-      <Modal
-        open={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setCreateName("");
-        }}
-        title="Tạo dự án mới"
-      >
-        <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[#4B4842]">Tên dự án</label>
-            <input
-              autoFocus
-              type="text"
-              required
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              placeholder="Ví dụ: App Đặt Xe Online, E-Learning Platform…"
-              className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[13.5px] text-[#191817] bg-[#FAF9F7] transition-all"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting || !createName.trim()}
-            className="w-full mt-2 py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {submitting ? (
-              <>
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-                Đang tạo dự án…
-              </>
-            ) : (
-              "Tạo dự án →"
-            )}
-          </button>
-        </form>
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo dự án mới" size="lg">
+        <CreateProjectForm variant="dialog" onCreated={handleCreated} onCancel={() => setCreateOpen(false)} />
       </Modal>
 
-      {/* Delete / Archive Modal */}
-      <Modal
-        open={showDeleteConfirm}
-        onClose={() => {
-          if (!submitting) {
-            setShowDeleteConfirm(false);
-            setTargetProject(null);
-          }
-        }}
-        title="Lưu trữ dự án"
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-4 text-[#8A4141]">
-            <span className="material-symbols-outlined text-[20px] mt-0.5 shrink-0">warning</span>
-            <div>
-              <p className="text-[13.5px] font-bold text-[#191817]">
-                Lưu trữ &ldquo;{targetProject?.name}&rdquo;?
-              </p>
-              <p className="text-[12.5px] text-[#8A4141] mt-1 leading-[1.55]">
-                Dự án sẽ bị ẩn khỏi dashboard chính và có thể khôi phục lại sau.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2.5 justify-end pt-2">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => {
-                setShowDeleteConfirm(false);
-                setTargetProject(null);
-              }}
-              className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] transition-colors disabled:opacity-50"
-            >
-              Huỷ
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleDeleteConfirm}
-              className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-[13px] font-bold hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
-            >
-              {submitting ? "Đang lưu trữ…" : "Lưu trữ"}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Permanent Delete Modal */}
-      <Modal
-        open={showHardDeleteConfirm}
-        onClose={() => {
-          if (!submitting) {
-            setShowHardDeleteConfirm(false);
-            setTargetProject(null);
-          }
-        }}
-        title="Xoá vĩnh viễn dự án"
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-4 text-[#8A4141]">
-            <span className="material-symbols-outlined text-[20px] mt-0.5 shrink-0">delete_forever</span>
-            <div>
-              <p className="text-[13.5px] font-bold text-[#191817]">
-                Xoá vĩnh viễn &ldquo;{targetProject?.name}&rdquo;?
-              </p>
-              <p className="text-[12.5px] text-[#8A4141] mt-1 leading-[1.55]">
-                Toàn bộ hội thoại, tài liệu SRS và dữ liệu đính kèm sẽ bị xoá hoàn toàn. Hành động này **không thể hoàn tác**.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2.5 justify-end pt-2">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => {
-                setShowHardDeleteConfirm(false);
-                setTargetProject(null);
-              }}
-              className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] transition-colors disabled:opacity-50"
-            >
-              Huỷ
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleHardDeleteConfirm}
-              className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-[13px] font-bold hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
-            >
-              {submitting ? "Đang xoá…" : "Xoá vĩnh viễn"}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Rename Modal */}
-      <Modal
-        open={showRenameModal}
-        onClose={() => setShowRenameModal(false)}
-        title="Đổi tên dự án"
-      >
-        <form onSubmit={handleRename} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[#4B4842]">Tên dự án mới</label>
-            <input
-              autoFocus
-              type="text"
-              required
-              value={renameName}
-              onChange={(e) => setRenameName(e.target.value)}
-              placeholder="Nhập tên mới…"
-              className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[13.5px] text-[#191817] bg-[#FAF9F7] transition-all"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting || !renameName.trim()}
-            className="w-full mt-2 py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {submitting ? (
-              <>
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-                Đang lưu…
-              </>
-            ) : (
-              "Lưu thay đổi"
-            )}
-          </button>
-        </form>
-      </Modal>
+      <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} />
     </>
   );
 }
