@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
 import { ApiClientError, apiCall, refreshSession } from "@/lib/api";
 import { streamChatMessage } from "@/lib/ai-stream";
-import { clearAuthToken, getStoredAuthToken, isAuthenticated } from "@/lib/auth";
+import { getStoredAuthToken, isAuthenticated, logoutAndRedirect } from "@/lib/auth";
 import type { ChangeRequiresCrMeta } from "@/types/change-request";
 import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
@@ -17,7 +16,6 @@ const errorMessage = (error: unknown, fallback: string) => (error instanceof Err
  * Pipeline (step, gate) nằm ở `useStepRunner`; Spine ở `useSpine`.
  */
 export function useWorkspace(projectId: string) {
-  const router = useRouter();
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -62,7 +60,7 @@ export function useWorkspace(projectId: string) {
       // vẫn thử tải dữ liệu — apiCall sẽ tự refresh lại; đăng xuất ở đây sẽ gọi /auth/logout và thu hồi
       // một phiên còn hợp lệ (FLF-137).
       if (!isAuthenticated() && (await refreshSession()) === "rejected") {
-        router.push("/login");
+        await logoutAndRedirect();
         return;
       }
 
@@ -83,11 +81,10 @@ export function useWorkspace(projectId: string) {
         console.error("Workspace init failed:", err);
         if ((err as { status?: number }).status === 401) {
           if (!getStoredAuthToken()) {
-            router.push("/login");
+            await logoutAndRedirect();
           } else if (isAuthenticated()) {
             // Token còn hạn mà BE vẫn 401 ⇒ phiên thật sự không hợp lệ
-            clearAuthToken();
-            router.push("/login");
+            await logoutAndRedirect();
           } else {
             // Token hết hạn nhưng refresh chỉ lỗi mạng / 5xx ⇒ giữ phiên
             alert("Không kết nối được máy chủ. Vui lòng tải lại trang.");
@@ -98,7 +95,7 @@ export function useWorkspace(projectId: string) {
       }
     };
     void init();
-  }, [projectId, router, createSession]);
+  }, [projectId, createSession]);
 
   const selectSession = useCallback(
     async (session: ChatSession) => {
@@ -198,9 +195,8 @@ export function useWorkspace(projectId: string) {
   );
 
   const logout = useCallback(() => {
-    clearAuthToken();
-    router.push("/login");
-  }, [router]);
+    void logoutAndRedirect();
+  }, []);
 
   return useMemo(
     () => ({
