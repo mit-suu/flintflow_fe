@@ -75,7 +75,7 @@ function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButton
       onClick={handleClick}
       disabled={disabled || loading}
       // Phẳng như nút phụ của app: nền xám ấm, hover đậm một nấc, không viền / bóng
-      className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-control bg-surface-container px-4 text-[14px] font-bold text-on-surface transition-[background-color,transform] duration-150 hover:bg-surface-container-high active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 rounded-control bg-surface-container px-4 text-[14px] font-bold text-on-surface transition-[background-color,transform] duration-150 hover:bg-surface-container-high active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
     >
       {GOOGLE_G_LOGO}
       {loading ? "Đang mở Google..." : label}

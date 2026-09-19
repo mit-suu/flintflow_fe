@@ -119,18 +119,21 @@ export default function RegisterPage() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="mai@studio.vn"
         />
-        <PasswordField id="password" label="Mật khẩu" value={password} onChange={setPassword} minLength={8} autoComplete="new-password">
-          <StrengthMeter password={password} />
-        </PasswordField>
-        <PasswordField
-          id="confirmPassword"
-          label="Xác nhận mật khẩu"
-          toggleName="mật khẩu xác nhận"
-          value={confirmPassword}
-          onChange={setConfirmPassword}
-          autoComplete="new-password"
-          error={passwordMismatch ? "Mật khẩu xác nhận không giống với mật khẩu." : null}
-        />
+        {/* Hai ô mật khẩu cạnh nhau (≥ sm) để form đăng ký vừa một màn hình */}
+        <div className="grid items-start gap-4 sm:grid-cols-2 sm:gap-3">
+          <PasswordField id="password" label="Mật khẩu" value={password} onChange={setPassword} minLength={8} autoComplete="new-password">
+            <StrengthMeter password={password} />
+          </PasswordField>
+          <PasswordField
+            id="confirmPassword"
+            label="Xác nhận mật khẩu"
+            toggleName="mật khẩu xác nhận"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            autoComplete="new-password"
+            error={passwordMismatch ? "Mật khẩu xác nhận không giống với mật khẩu." : null}
+          />
+        </div>
 
         <SubmitButton loading={loading} loadingLabel="Đang tạo tài khoản…" disabled={passwordMismatch}>
           Tạo tài khoản →

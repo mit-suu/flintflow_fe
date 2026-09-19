@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
+import UiBackLink from "@/components/ui/BackLink";
 import Icon, { type IconName } from "@/components/ui/Icon";
 
 /*
@@ -13,7 +14,7 @@ import Icon, { type IconName } from "@/components/ui/Icon";
 export function AuthCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`flex w-full flex-col gap-5 rounded-dialog bg-surface-container-lowest p-6 shadow-[0_1px_2px_rgba(25,24,23,0.04),0_12px_32px_rgba(25,24,23,0.07)] sm:p-8 ${className}`}
+      className={`flex w-full flex-col gap-4 rounded-dialog bg-surface-container-lowest p-6 shadow-[0_1px_2px_rgba(25,24,23,0.04),0_12px_32px_rgba(25,24,23,0.07)] sm:p-7 ${className}`}
     >
       {children}
     </div>
@@ -25,8 +26,8 @@ export function AuthHeading({ eyebrow, title, children }: { eyebrow?: string; ti
   return (
     <div>
       {eyebrow && <p className="mb-1.5 text-[12px] font-bold text-primary">{eyebrow}</p>}
-      <h1 className="text-[26px] font-bold leading-tight tracking-[-0.025em] text-on-surface">{title}</h1>
-      {children && <div className="mt-2 text-[14px] leading-relaxed text-on-surface-variant">{children}</div>}
+      <h1 className="text-[24px] font-bold leading-tight tracking-[-0.025em] text-on-surface">{title}</h1>
+      {children && <div className="mt-1.5 text-[14px] leading-relaxed text-on-surface-variant">{children}</div>}
     </div>
   );
 }
@@ -46,7 +47,7 @@ export function StatusIcon({ icon, tone }: { icon: IconName; tone: "primary" | "
 }
 
 const inputBase =
-  "h-12 w-full rounded-control px-4 text-[14px] text-on-surface outline-none transition-[background-color,box-shadow] placeholder:text-on-surface-subtle focus:ring-2";
+  "h-11 w-full rounded-control px-4 text-[14px] text-on-surface outline-none transition-[background-color,box-shadow] placeholder:text-on-surface-subtle focus:ring-2";
 
 /** Class ô nhập: nền xám ấm, focus nền trắng + ring tím; lỗi ⇒ nền đỏ nhạt + ring đỏ. */
 export function inputClass(invalid = false) {
@@ -211,7 +212,7 @@ export function SubmitButton({
       onClick={onClick}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-control bg-primary px-4 text-[14px] font-bold text-on-primary transition-[background-color,transform] duration-150 hover:bg-primary-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-control bg-primary px-4 text-[14px] font-bold text-on-primary transition-[background-color,transform] duration-150 hover:bg-primary-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? (
         <>
@@ -230,7 +231,7 @@ export function PrimaryLink({ href, children }: { href: string; children: ReactN
   return (
     <Link
       href={href}
-      className="flex h-12 w-full items-center justify-center rounded-control bg-primary px-4 text-[14px] font-bold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="flex h-11 w-full items-center justify-center rounded-control bg-primary px-4 text-[14px] font-bold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       {children}
     </Link>
@@ -265,13 +266,11 @@ export function Divider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Link phụ quay về một trang (mặc định trang đăng nhập). */
-export function BackLink({ href = "/login", children = "← Quay lại đăng nhập" }: { href?: string; children?: ReactNode }) {
+/** Nút quay về một trang (mặc định trang đăng nhập), căn giữa cuối card — dùng `BackLink` chung của app. */
+export function BackLink({ href = "/login", children = "Quay lại đăng nhập" }: { href?: string; children?: ReactNode }) {
   return (
-    <div className="text-center">
-      <Link href={href} className="text-[13px] font-semibold text-on-surface-variant transition-colors hover:text-on-surface">
-        {children}
-      </Link>
+    <div className="flex justify-center">
+      <UiBackLink href={href}>{children}</UiBackLink>
     </div>
   );
 }

@@ -190,7 +190,7 @@ function VerifyEmailContent() {
         )}
       </form>
 
-      <BackLink>← Trở lại trang đăng nhập</BackLink>
+      <BackLink>Trở lại trang đăng nhập</BackLink>
     </AuthCard>
   );
 }
