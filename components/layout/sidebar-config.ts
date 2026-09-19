@@ -24,13 +24,10 @@ export type SidebarItem = ReadySidebarItem | SoonSidebarItem;
 
 export interface SidebarSection {
   id: string;
-  /** Tiêu đề nhóm (in hoa); không có ⇒ nhóm nav chính. */
+  /** Tiêu đề nhóm (chữ thường, nhỏ, nhạt); không có ⇒ nhóm nav chính. */
   label?: string;
   items: readonly SidebarItem[];
 }
-
-/** Ô đổi tổ chức dưới logo — BE chưa có module org. */
-export const ORG_SWITCHER: SidebarItem = { id: "org-switcher", label: "Đổi tổ chức", icon: "building", status: "soon" };
 
 export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   {
@@ -43,7 +40,9 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   {
     id: "org",
     label: "Tổ chức",
+    // Đổi tổ chức nằm trong nhóm Tổ chức (BE chưa có module org) — không chiếm vị trí đầu sidebar
     items: [
+      { id: "org-switcher", label: "Đổi tổ chức", icon: "building", status: "soon" },
       { id: "members", label: "Thành viên", icon: "users", status: "soon" },
       { id: "billing", label: "Credits & Thanh toán", icon: "credit-card", status: "ready", href: "/home/billing" },
     ],
