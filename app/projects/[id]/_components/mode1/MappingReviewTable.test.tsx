@@ -128,3 +128,15 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
     expect(screen.getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
   });
 });
+
+describe("MappingReviewTable — cột bảng không có tiêu đề (FLF-179)", () => {
+  it("header rỗng ⇒ hiện \"Cột N (không có tiêu đề)\" và vẫn gán field được", () => {
+    const onSubmit = vi.fn();
+    render(<MappingReviewTable profile={profile({ table_map: [column("B0005", 2, "", null, 0.3)] })} onSubmit={onSubmit} />);
+    expect(screen.getByText("Cột 3 (không có tiêu đề)")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Field cho cột Cột 3 (không có tiêu đề)"), { target: { value: "use_cases[].name" } });
+    submit();
+    expect(onSubmit.mock.calls[0][0].tables).toEqual([{ block_id: "B0005", column_index: 2, field_path: "use_cases[].name" }]);
+  });
+});
+
