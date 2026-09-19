@@ -21,7 +21,7 @@ import type { ProgressResponse } from "@/types/pipeline";
  */
 export default function ReadOnlyDocumentPage() {
   const params = useParams();
-  const projectId = params?.projectId as string;
+  const projectId = params?.id as string;
 
   const [doc, setDoc] = useState<RenderedDocument | null>(null);
   const [progress, setProgress] = useState<ProgressResponse | null>(null);
