@@ -14,19 +14,36 @@ interface ProjectTimelineProps extends GridProps {
 }
 
 /** Tab "Dự án": mọi dự án chia vùng Hôm nay · 7 ngày · 30 ngày · Cũ hơn theo mốc cập nhật hoặc mốc mở gần nhất. */
-export default function ProjectTimeline({ projects, sortBy, ...gridProps }: ProjectTimelineProps) {
-  const groups = groupByRecency(projects, (p) => (sortBy === "opened" ? p.lastOpenedAt : p.updatedAt));
+export default function ProjectTimeline({
+  projects,
+  sortBy,
+  ...gridProps
+}: ProjectTimelineProps) {
+  const groups = groupByRecency(projects, (p) =>
+    sortBy === "opened" ? p.lastOpenedAt : p.updatedAt
+  );
   return (
     <div className="flex flex-col gap-7">
       {groups.map((group) => (
-        <section key={group.bucket} aria-labelledby={`recency-${group.bucket}`} className="flex flex-col gap-3">
+        <section
+          key={group.bucket}
+          aria-labelledby={`recency-${group.bucket}`}
+          className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <h3 id={`recency-${group.bucket}`} className="text-[13px] font-bold uppercase tracking-[0.06em] text-on-surface-muted">
+            <h3
+              id={`recency-${group.bucket}`}
+              className="text-[13px] font-bold tracking-[0.06em] text-on-surface-muted">
               {group.label}
             </h3>
-            <CountBadge count={group.items.length} max={999} />
+            <CountBadge
+              count={group.items.length}
+              max={999}
+            />
           </div>
-          <ProjectGrid projects={group.items} {...gridProps} />
+          <ProjectGrid
+            projects={group.items}
+            {...gridProps}
+          />
         </section>
       ))}
     </div>

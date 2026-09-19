@@ -40,8 +40,9 @@ export const SOURCE_MODE_OPTIONS = [
   {
     value: "fpt_template",
     label: "Chưa có template",
-    shortLabel: "Mẫu FPT",
-    description: "Dùng mẫu SRS FPT, bắt đầu từ ý tưởng / ghi chú",
+    // BE vẫn là `fpt_template` (mẫu SRS gốc của FPT); với người dùng đây là template của chính FlintFlow
+    shortLabel: "Template FlintFlow",
+    description: "Dùng template SRS của FlintFlow, bắt đầu từ ý tưởng / ghi chú",
     icon: "sparkle",
     tone: "primary",
     status: "ready",
