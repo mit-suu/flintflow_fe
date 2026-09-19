@@ -18,6 +18,11 @@ describe("Landing page — song ngữ (T25)", () => {
     expect(screen.getByText("100 · 500 · 1.500")).toBeInTheDocument();
     expect(screen.getByText("142 yêu cầu nhất quán")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("ban@congty.vn")).toBeInTheDocument();
+    // Form cuối gửi GET /register?email=… và không còn hứa "workspace mẫu" (chưa có tính năng đó)
+    const form = screen.getByPlaceholderText("ban@congty.vn").closest("form")!;
+    expect(form).toHaveAttribute("action", "/register");
+    expect(screen.getByRole("button", { name: /Bắt đầu/ })).toBeInTheDocument();
+    expect(screen.queryByText(/workspace mẫu/)).not.toBeInTheDocument();
   });
 
   it("en: dịch đủ, không còn ký tự tiếng Việt nào (kể cả aria-label, placeholder)", () => {

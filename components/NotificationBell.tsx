@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { formatNotificationTime } from "../lib/time-ago";
+import { useNotificationText } from "../lib/notification-text";
 import {
   fetchNotifications,
   fetchUnreadCount,
@@ -60,6 +61,7 @@ export default function NotificationBell() {
   const tCommon = useTranslations("app.common");
   const tTime = useTranslations("app.time");
   const locale = useLocale();
+  const textOf = useNotificationText();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -168,8 +170,8 @@ export default function NotificationBell() {
                     className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.readAt ? "bg-transparent" : "bg-[#4F46E5]"}`}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[12.5px] font-bold text-[#191817] truncate">{n.title}</span>
-                    <span className="block text-[11.5px] text-[#6B6862] leading-[1.45] line-clamp-2">{n.body}</span>
+                    <span className="block text-[12.5px] font-bold text-[#191817] truncate">{textOf(n).title}</span>
+                    <span className="block text-[11.5px] text-[#6B6862] leading-[1.45] line-clamp-2">{textOf(n).body}</span>
                     <span className="block text-[10.5px] text-[#A8A49C] mt-0.5">
                       {formatNotificationTime(n.createdAt, tTime, locale)}
                     </span>

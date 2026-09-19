@@ -120,10 +120,10 @@
     "cta": {
       "title": "Khách sẽ còn đổi yêu cầu.",
       "titleMuted": "Spec của bạn không cần vỡ theo.",
-      "body": "Nhập email công việc để mở workspace mẫu — có sẵn một SRS để bạn thử quét mâu thuẫn và tạo Change Request.",
+      "body": "Nhập email công việc để tạo tài khoản dùng thử miễn phí, rồi thử quét mâu thuẫn và tạo Change Request trên SRS của chính bạn.",
       "emailLabel": "Email công việc",
       "emailPlaceholder": "ban@congty.vn",
-      "submit": "Nhận demo",
+      "submit": "Bắt đầu",
       "fptTemplate": "Mẫu FPT",
       "automatic": "tự động",
       "checklist": {
@@ -450,6 +450,38 @@
       "recheck": "Kiểm tra lại",
       "waiting": "Đang chờ xác nhận thanh toán…",
       "missingIntent": "Thiếu mã giao dịch (intentId)."
+    },
+    "notificationTypes": {
+      "welcome": {
+        "title": "Chào mừng bạn đến với FlintFlow",
+        "body": "Tài khoản của bạn đã sẵn sàng với {credits} credit miễn phí."
+      },
+      "payment_success": {
+        "title": "Thanh toán thành công",
+        "body": "Đã cộng {credits} credit vào tài khoản của bạn."
+      },
+      "payment_failed": {
+        "title": "Thanh toán thất bại",
+        "body": "Giao dịch nạp credit không thành công."
+      },
+      "low_credit": {
+        "title": "Credit sắp hết",
+        "body": "Số dư của bạn còn {balance} credit. Nạp thêm để tiếp tục sử dụng AI."
+      },
+      "plan_changed": {
+        "title": "Đã chuyển sang gói {plan}",
+        "bodyUntil": "Gói {plan} có hiệu lực đến {date}.",
+        "bodyActive": "Gói {plan} đã được kích hoạt."
+      },
+      "phase_accepted": {
+        "title": "Đã hoàn tất phase {phase}",
+        "body": "Mọi step của phase {phase} đã được accept. Có thể tiếp tục sang phase kế tiếp."
+      },
+      "baseline_created": {
+        "title": "Đã chốt baseline {version}",
+        "bodyWaived": "Tài liệu đã được ký ở mức {version} với {count} cờ được bỏ qua có lý do.",
+        "bodyClean": "Tài liệu đã được ký ở mức {version}, không còn cờ đỏ nào."
+      }
     }
   },
   "workspace": {
