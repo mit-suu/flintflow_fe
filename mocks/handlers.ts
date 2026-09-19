@@ -34,6 +34,10 @@ import type {
   StepsResponse,
 } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
+<<<<<<< HEAD
+=======
+import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
@@ -471,6 +475,25 @@ export const handlers = [
     return ok({ actionType: body.actionType ?? "chat", cost: 1 });
   }),
 
+<<<<<<< HEAD
+=======
+  // Dashboard: một dự án mock; tạo mới trả lại đúng mode đã gửi (không gửi ⇒ fpt như BE)
+  http.get(api("/projects"), ({ request }) => {
+    const status = new URL(request.url).searchParams.get("status") as ProjectStatus | null;
+    return ok([mockState.project].filter((p) => !status || p.status === status));
+  }),
+  http.post(api("/projects"), async ({ request }) => {
+    const body = (await request.json()) as { name: string; mode?: ProjectMode };
+    const now = new Date().toISOString();
+    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode: body.mode ?? "fpt", import_state: null, createdAt: now, updatedAt: now };
+    return ok(project, { status: 201 });
+  }),
+  http.get(api("/folders"), () => ok([])),
+  http.post(api("/feedback"), async ({ request }) => {
+    const body = (await request.json()) as { category: string; message: string };
+    return ok({ _id: "650000000000000000000098", ...body, createdAt: new Date().toISOString() }, { status: 201 });
+  }),
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
   http.get(api("/projects/:projectId"), () => ok(mockState.project)),
   http.get(api("/projects/:projectId/documents"), () => ok([])),
   http.get(api("/verification/projects/:projectId"), () => ok({})),

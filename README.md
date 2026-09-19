@@ -27,7 +27,11 @@ Bật mock BE (msw) khi phát triển UI chưa có endpoint: `NEXT_PUBLIC_API_MO
 ```
 app/
 ├── (auth)/                     # đăng nhập, đăng ký, quên mật khẩu, Google OAuth
+<<<<<<< HEAD
 ├── home/                       # danh sách dự án, billing, notifications, onboarding
+=======
+├── home/                       # Project Dashboard (chọn source mode), billing, notifications
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 ├── admin/                      # chỉ đọc: users, metrics, chi phí AI, feedback
 └── projects/[projectId]/
     ├── page.tsx                # workspace: chat + tài liệu + panel công cụ
@@ -37,7 +41,11 @@ app/
     └── _components/            # ChatPane, StepProgressBar, GateCard, ElicitPanel, DocumentPane,
                                 # FlagsPanel, ChangePanel, DiffPreviewModal, ExportPanel,
                                 # BriefSummaryCard, AssumptionSweepPanel, AddendumTriagePanel…
+<<<<<<< HEAD
 components/                     # Sidebar, ProjectCard, NotificationBell, AuthGuard, Logo, Modal
+=======
+components/                     # ui/ (primitive), layout/ (app shell), project/ (dashboard), AuthGuard, Logo
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 lib/
 ├── api/                        # một file một nhóm endpoint; client.ts giữ envelope + refresh token
 ├── ai-stream.ts                # đọc SSE của step runner

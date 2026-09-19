@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< HEAD
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ProjectCard from "../../components/ProjectCard";
@@ -20,17 +21,43 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [billing, setBilling] = useState<BalanceResponse | null>(null);
+=======
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import TopBar from "@/components/layout/TopBar";
+import AddToFolderDialog from "@/components/project/AddToFolderDialog";
+import CreateProjectForm from "@/components/project/CreateProjectForm";
+import FolderCard, { NewFolderTile } from "@/components/project/FolderCard";
+import FolderDialogs, { type FolderDialogTarget } from "@/components/project/FolderDialogs";
+import ProjectActionDialogs, { type ProjectActionTarget } from "@/components/project/ProjectActionDialogs";
+import ProjectGrid, { CARD_GRID, ProjectGridSkeleton } from "@/components/project/ProjectGrid";
+import ProjectTimeline, { type ProjectSort } from "@/components/project/ProjectTimeline";
+import { Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, Tabs } from "@/components/ui";
+import { listCrs } from "@/lib/api/change-requests";
+import { getProgress } from "@/lib/api/pipeline";
+import { moveProjectToFolder } from "@/lib/api/projects";
+import { useProjects } from "@/lib/hooks/use-projects";
+import { SOURCE_MODE_OPTIONS, getProjectStartRoute } from "@/lib/project-source-mode";
+import { CR_TERMINAL_STATUSES } from "@/types/change-request";
+import type { Folder } from "@/types/folder";
+import type { ProgressResponse } from "@/types/pipeline";
+import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showRenameModal, setShowRenameModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showHardDeleteConfirm, setShowHardDeleteConfirm] = useState(false);
-  const [targetProject, setTargetProject] = useState<Project | null>(null);
+type ModeFilter = ProjectMode | "all";
+type DashboardTab = "all" | "folders" | "projects";
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 
-  const [createName, setCreateName] = useState("");
-  const [renameName, setRenameName] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+const STATUS_OPTIONS = [
+  { value: "active", label: "Đang làm" },
+  { value: "archived", label: "Lưu trữ" },
+] as const satisfies readonly { value: ProjectStatus; label: string }[];
 
+const MODE_OPTIONS: readonly { value: ModeFilter; label: string }[] = [
+  { value: "all", label: "Tất cả" },
+  ...SOURCE_MODE_OPTIONS.map((o) => ({ value: o.value, label: o.shortLabel })),
+];
+
+<<<<<<< HEAD
   const [searchQuery, setSearchQuery] = useState("");
   /**
    * T23: thẻ dự án hiện việc tiếp theo và trạng thái theo Spine thật. `GET /projects` chỉ trả document
@@ -67,15 +94,54 @@ export default function HomePage() {
         )
         .finally(() => setLoading(false)),
     [loadProgress]
+=======
+const SORT_OPTIONS = [
+  { value: "updated", label: "Mới cập nhật" },
+  { value: "opened", label: "Mới mở" },
+] as const satisfies readonly { value: ProjectSort; label: string }[];
+
+/**
+ * Mép dưới mềm cho phần tử dính (sticky): một dải nền trắng đặc 40% rồi dốc đều về trong suốt, để nội dung cuộn
+ * qua mờ dần thay vì bị cắt thẳng. Không có điểm `via` — ép độ mờ ở giữa làm gãy dốc, nhìn ra thành một đường.
+ * Dải cao 16px ≈ khoảng cách tiêu đề→card, nên lúc chưa dính không phủ lên nội dung.
+ */
+const STICKY_FADE =
+  "after:content-[''] after:absolute after:inset-x-0 after:top-full after:h-4 after:pointer-events-none after:bg-linear-to-b after:from-surface-container-lowest after:from-40% after:to-transparent";
+
+/**
+ * Nền của phần tử dính tràn ra cả lề ngang của vùng cuộn (âm margin = padding của vùng cuộn), để bóng đổ của card
+ * cuộn qua bên dưới không lộ ở hai lề thành một viền mờ quanh thanh. Đổi padding vùng cuộn thì đổi cả chỗ này.
+ */
+const STICKY_BLEED = "-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8";
+
+/**
+ * Tiêu đề mục dính ngay dưới thanh tab khi cuộn, và nhả ra khi cuộn hết mục (sticky trong `<section>` cha).
+ * `--toolbar-h` do trang đo từ thanh tab thật (xuống dòng trên mobile ⇒ cao hơn). z trên nút ⋮ của card (z-20).
+ * Chỉ âm margin phía trên: đệm dưới 8px + gap của mục chứa trọn dải mờ `STICKY_FADE`, nên lúc chưa dính dải mờ
+ * không phủ lên nội dung. Gợi ý (`hint`) nằm cùng hàng tiêu đề vì lý do đó.
+ */
+function SectionTitle({ id, title, count, hint }: { id: string; title: string; count?: number; hint?: string }) {
+  return (
+    <div className={`sticky top-[var(--toolbar-h,0px)] z-[25] -mt-2 py-2 bg-surface-container-lowest flex items-center gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
+      <h2 id={id} className="text-[20px] sm:text-[22px] font-semibold text-on-surface tracking-tight">
+        {title}
+      </h2>
+      {count !== undefined && <CountBadge count={count} max={999} />}
+      {hint && <p className="hidden sm:block ml-2 text-[12px] text-on-surface-muted truncate">{hint}</p>}
+    </div>
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
   );
+}
 
-  // Tải lại sau khi tạo/đổi tên/xoá: bật loading và xoá lỗi cũ trước khi gọi
-  const fetchProjects = async () => {
-    setLoading(true);
-    setError(null);
-    await loadProjects();
-  };
+/**
+ * Project Dashboard (UC-13/14/15/16/19/75). Tab: **Tất cả** = thư mục + dự án ngoài thư mục; **Thư mục**; **Dự án** =
+ * mọi dự án chia vùng thời gian. Mở một thư mục ⇒ chỉ dự án trong đó + "Thêm dự án". Kéo card vào thẻ thư mục để chuyển.
+ */
+export default function HomePage() {
+  const router = useRouter();
+  const { projects, folders, loading, error, foldersError, reload } = useProjects();
 
+<<<<<<< HEAD
   // Lần tải đầu: state khởi tạo sẵn loading=true, error=null
   useEffect(() => {
     loadProjects();
@@ -104,209 +170,213 @@ export default function HomePage() {
   const filteredProjects = normalizedQuery
     ? projects.filter((p) => p.name.toLocaleLowerCase("vi").includes(normalizedQuery))
     : projects;
+=======
+  const [tab, setTab] = useState<DashboardTab>("all");
+  const [sortBy, setSortBy] = useState<ProjectSort>("updated");
+  const [status, setStatus] = useState<ProjectStatus>("active");
+  const [mode, setMode] = useState<ModeFilter>("all");
+  const [query, setQuery] = useState("");
+  const [openFolderId, setOpenFolderId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [addTarget, setAddTarget] = useState<Folder | null>(null);
+  const [actionTarget, setActionTarget] = useState<ProjectActionTarget | null>(null);
+  const [folderTarget, setFolderTarget] = useState<FolderDialogTarget | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
+  /**
+   * T23: thẻ dự án hiện việc tiếp theo và trạng thái theo Spine thật. `GET /projects` chỉ trả document
+   * Project (không có tiến độ), nên nạp `progress` riêng cho từng dự án — song song, và **lỗi của một
+   * dự án không làm hỏng lưới**: dự án chưa có Spine trả `null` và hiện "Chưa bắt đầu".
+   */
+  const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>({});
+  /** Mode 1: số change request đang mở (UC-14) — lỗi của một dự án không làm hỏng lưới. */
+  const [openCrsById, setOpenCrsById] = useState<Record<string, number>>({});
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 
   useEffect(() => {
-    const loadBilling = async () => {
-      try {
-        setBilling(await fetchBalance());
-      } catch (err) {
-        console.error("Failed to fetch billing balance:", err);
-      }
+    if (projects.length === 0) return;
+    let cancelled = false;
+    void Promise.all(
+      projects.map((project) =>
+        getProgress(project._id)
+          .then((res) => [project._id, res.data ?? null] as const)
+          .catch(() => [project._id, null] as const)
+      )
+    ).then((entries) => {
+      if (!cancelled) setProgressById(Object.fromEntries(entries));
+    });
+    const imported = projects.filter((p) => p.mode === "import" && p.import_state !== null);
+    void Promise.all(
+      imported.map((project) =>
+        listCrs(project._id)
+          .then((res) => [project._id, (res.data ?? []).filter((c) => !CR_TERMINAL_STATUSES.includes(c.status)).length] as const)
+          .catch(() => [project._id, 0] as const)
+      )
+    ).then((entries) => {
+      if (!cancelled) setOpenCrsById(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
     };
-    loadBilling();
-  }, []);
+  }, [projects]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createName.trim()) return;
-    setSubmitting(true);
-    setError(null);
+  const folderById = useMemo(() => new Map(folders.map((f) => [f._id, f])), [folders]);
+  // Thư mục đang mở bị xoá (ở tab khác / vừa xoá) ⇒ tự về dashboard
+  const openFolder = openFolderId ? folderById.get(openFolderId) ?? null : null;
+  const inFolder = (p: Project) => Boolean(p.folderId && folderById.has(p.folderId));
+
+  const normalizedQuery = query.trim().toLocaleLowerCase("vi");
+  const matches = (p: Project) =>
+    p.status === status &&
+    (mode === "all" || p.mode === mode) &&
+    (!normalizedQuery || p.name.toLocaleLowerCase("vi").includes(normalizedQuery));
+
+  // Phạm vi dự án theo ngữ cảnh: trong thư mục · tab Dự án (mọi dự án) · tab Tất cả (ngoài thư mục; có từ khoá ⇒ tìm cả trong thư mục)
+  const scoped = openFolder
+    ? projects.filter((p) => p.folderId === openFolder._id)
+    : tab === "projects" || normalizedQuery
+      ? projects
+      : projects.filter((p) => !inFolder(p));
+  const visible = scoped.filter(matches);
+  const scopedCount = scoped.filter((p) => p.status === status).length;
+
+  const filtersActive = status !== "active" || mode !== "all" || normalizedQuery.length > 0;
+  const initialLoading = loading && projects.length === 0 && folders.length === 0;
+  // Chưa có dự án lẫn thư mục ⇒ tạo dự án ngay trên trang
+  const showOnboarding = !initialLoading && !error && projects.length === 0 && folders.length === 0;
+  // Đo chiều cao thật của thanh tab dính ⇒ `--toolbar-h` để tiêu đề mục dính ngay bên dưới (ghi thẳng CSS, không re-render)
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    const scroller = scrollRef.current;
+    if (!toolbar || !scroller) return;
+    const sync = () => scroller.style.setProperty("--toolbar-h", `${toolbar.offsetHeight}px`);
+    sync();
+    if (typeof ResizeObserver === "undefined") return; // jsdom/trình duyệt cũ: đo một lần là đủ
+    const observer = new ResizeObserver(sync);
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, [showOnboarding]);
+  const showFolders = !openFolder && tab !== "projects";
+  // Tab Thư mục mà có từ khoá ⇒ hiện luôn dự án khớp (kể cả trong thư mục)
+  const showProjects = openFolder !== null || tab !== "folders" || normalizedQuery.length > 0;
+  const visibleFolders = normalizedQuery ? folders.filter((f) => f.name.toLocaleLowerCase("vi").includes(normalizedQuery)) : folders;
+  // Tab Dự án hiện cả dự án trong thư mục ⇒ ghi tên thư mục trên card
+  const folderNameOf = (p: Project) => (p.folderId ? folderById.get(p.folderId)?.name ?? null : null);
+
+  const clearFilters = () => {
+    setStatus("active");
+    setMode("all");
+    setQuery("");
+  };
+
+  const handleCreated = async (project: Project) => {
+    await reload();
+    router.push(getProjectStartRoute(project._id, project.mode));
+  };
+
+  const handleDropProject = async (folder: Folder, projectId: string) => {
+    if (projects.find((p) => p._id === projectId)?.folderId === folder._id) return;
+    setDropError(null);
     try {
-      await apiCall("/projects", {
-        method: "POST",
-        body: JSON.stringify({ name: createName.trim() }),
-      });
-      setShowCreateModal(false);
-      setCreateName("");
-      await fetchProjects();
+      await moveProjectToFolder(projectId, folder._id);
+      await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tạo dự án");
-    } finally {
-      setSubmitting(false);
+      setDropError(err instanceof Error ? err.message : "Không thể chuyển dự án vào thư mục");
     }
   };
 
-  const handleRename = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!targetProject || !renameName.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall(`/projects/${targetProject._id}/name`, {
-        method: "PATCH",
-        body: JSON.stringify({ name: renameName.trim() }),
-      });
-      setShowRenameModal(false);
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể đổi tên dự án");
-    } finally {
-      setSubmitting(false);
-    }
+  const openAction = (action: ProjectActionTarget["action"]) => (project: Project) => setActionTarget({ action, project });
+  const gridProps = {
+    progressById,
+    openCrsById,
+    onRename: openAction("rename"),
+    onDelete: openAction("archive"),
+    onHardDelete: openAction("delete"),
+    onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", project }),
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!targetProject) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall(`/projects/${targetProject._id}`, { method: "DELETE" });
-      setShowDeleteConfirm(false);
-      setTargetProject(null);
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể lưu trữ dự án");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleHardDeleteConfirm = async () => {
-    if (!targetProject) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiCall(`/projects/${targetProject._id}?hard=true`, { method: "DELETE" });
-      setShowHardDeleteConfirm(false);
-      setTargetProject(null);
-      await fetchProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể xoá vĩnh viễn dự án");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openRename = (p: Project) => {
-    setTargetProject(p);
-    setRenameName(p.name);
-    setShowRenameModal(true);
-  };
-
-  const openDelete = (p: Project) => {
-    setTargetProject(p);
-    setShowDeleteConfirm(true);
-  };
+  const projectsBody = initialLoading ? (
+    <ProjectGridSkeleton />
+  ) : visible.length > 0 ? (
+    tab === "projects" && !openFolder ? (
+      <ProjectTimeline projects={visible} sortBy={sortBy} folderNameOf={folderNameOf} {...gridProps} />
+    ) : (
+      <ProjectGrid projects={visible} draggable={!openFolder && folders.length > 0} folderNameOf={normalizedQuery ? folderNameOf : undefined} {...gridProps} />
+    )
+  ) : error ? null : filtersActive ? (
+    <EmptyState
+      icon="search"
+      title="Không có dự án khớp bộ lọc"
+      description="Thử đổi trạng thái, nguồn hoặc từ khoá tìm kiếm."
+      action={
+        <Button variant="secondary" size="sm" onClick={clearFilters}>
+          Xoá bộ lọc
+        </Button>
+      }
+    />
+  ) : (
+    // Rỗng mà không lọc gì ⇒ hiện sẵn form tạo dự án (chọn cách bắt đầu + tên) ngay tại chỗ, không bắt user tự tìm nút "Dự án mới"
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[15px] font-extrabold text-on-surface">
+            {openFolder
+              ? "Thư mục này chưa có dự án"
+              : tab === "all" && projects.some((p) => inFolder(p) && p.status === status)
+                ? "Mọi dự án đều đã nằm trong thư mục"
+                : "Chưa có dự án đang làm"}
+          </h3>
+          <p className="text-[12.5px] text-on-surface-muted leading-[1.55]">
+            {openFolder
+              ? "Chọn cách bắt đầu để tạo dự án mới ngay trong thư mục, hoặc thêm dự án có sẵn."
+              : "Chọn cách bắt đầu để tạo dự án mới, hoặc mở lại các dự án đã lưu trữ."}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="self-start shrink-0"
+          onClick={() => (openFolder ? setAddTarget(openFolder) : setStatus("archived"))}
+        >
+          {openFolder ? "Thêm dự án có sẵn" : "Xem lưu trữ"}
+        </Button>
+      </div>
+      <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />
+    </div>
+  );
 
   return (
     <>
-      {/* Top Header Bar (B1 Design) */}
-      <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
-          <span>Dự án của tôi</span>
-          <span className="text-[#D6D2CB]">/</span>
-          <span className="text-[#191817] font-bold">Tất cả dự án</span>
-        </div>
+      <TopBar
+        trail={openFolder ? ["Dự án", openFolder.name] : ["Dự án"]}
+        search={<SearchInput value={query} onChange={setQuery} label="Tìm dự án theo tên" placeholder="Tìm dự án…" />}
+        actions={
+          <Button size="sm" icon="plus" onClick={() => setCreateOpen(true)}>
+            <span className="hidden sm:inline">Dự án mới</span>
+            <span className="sm:hidden">Mới</span>
+          </Button>
+        }
+      />
 
-        {/* Right actions */}
-        <div className="ml-auto flex items-center gap-2.5">
-          {/* Notification Bell */}
-          <NotificationBell />
-
-          {/* Credits chip */}
-          <div className="flex items-center gap-2 bg-[#F0EEEA] rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[#191817]">
-            <span className="w-2 h-2 rounded-full bg-[#4F46E5] shrink-0" />
-            {billing?.balance ?? 0} credits · {billing?.planLabel ?? "Free"}
-          </div>
-
-          {/* New Project button */}
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-full btn-gradient-primary text-white text-[12.5px] font-bold flex items-center gap-1 cursor-pointer"
-          >
-            + Dự án mới
-          </button>
-        </div>
-      </div>
-
-      {/* Main scroll area */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-[#F5F3F0]">
-        
-        {/* Search & Filter Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">
-              Dự án của tôi
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-[#E4E1DC] text-[11.5px] font-bold text-[#6B6862]">
-              {projects.length}
-            </span>
-          </div>
-
-          {/* Search input & filters */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-white border border-[#E4E1DC] rounded-full px-3.5 py-1.5 text-[12.5px] text-[#A8A49C] w-full sm:w-[240px]">
-              <span>🔍</span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm dự án…"
-                aria-label="Tìm kiếm dự án theo tên"
-                className="w-full bg-transparent outline-none text-[#191817] text-[12px] placeholder:text-[#A8A49C]"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Error banner */}
-        {error && (
-          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
-            <span className="material-symbols-outlined text-lg">error</span>
-            <span className="flex-1">{error}</span>
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="text-[#8A4141] font-bold hover:opacity-75"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* Projects Section */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
-            <span className="text-[13px] font-medium">Đang tải danh sách dự án…</span>
-          </div>
-        ) : projects.length === 0 ? (
-          /* Empty / Onboarding State (B1 Design) */
-          <div className="flex-1 flex items-center justify-center relative py-12">
-            <div className="w-full max-w-[560px] bg-white border border-[#ECEAE5] rounded-[24px] p-8 sm:p-10 custom-shadow-card flex flex-col items-center gap-4 text-center">
-              <Logo sizeClassName="w-14 h-14" theme="light" showText={false} />
-              <h2 className="text-[20px] font-extrabold text-[#191817]">
-                Bắt đầu dự án đầu tiên của bạn
-              </h2>
-              <p className="text-[13.5px] text-[#8A867E] max-w-[380px] leading-[1.6]">
-                Tạo tài liệu SRS hoàn chỉnh chuẩn IEEE/FPT chỉ trong vài phút thông qua hội thoại tương tác cùng AI.
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-4 sm:px-6 lg:px-8 pb-8 bg-surface-container-lowest"
+      >
+        {showOnboarding ? (
+          <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 pt-6 pb-2 sm:pt-12 sm:pb-6">
+            <div className="flex flex-col gap-2">
+              <h1 id="onboarding-title" className="text-[22px] sm:text-[26px] font-extrabold text-on-surface tracking-tight">
+                Bắt đầu dự án SRS đầu tiên
+              </h1>
+              <p className="text-[13.5px] text-on-surface-muted leading-[1.6] max-w-[560px]">
+                Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="mt-2 px-6 py-3 rounded-full btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
-              >
-                + Tạo dự án mới
-              </button>
             </div>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="py-16 text-center text-[13px] text-[#8A867E]">
-            Không tìm thấy dự án nào khớp “{searchQuery.trim()}”.
-          </div>
+            <CreateProjectForm variant="inline" onCreated={handleCreated} />
+          </section>
         ) : (
+<<<<<<< HEAD
           /* Populated Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredProjects.map((p) => (
@@ -323,177 +393,121 @@ export default function HomePage() {
               />
             ))}
           </div>
+=======
+          <>
+            {/* Thanh điều hướng (dính khi cuộn): tab ở gốc, hoặc quay lại + thêm dự án khi đang trong thư mục */}
+            <div
+              ref={toolbarRef}
+              className={`sticky top-0 z-30 py-3 bg-surface-container-lowest flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${STICKY_BLEED} ${STICKY_FADE}`}
+            >
+              {openFolder ? (
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setOpenFolderId(null)}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-control text-[12.5px] font-semibold text-on-surface-variant hover:bg-surface-container-high cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <Icon name="arrow-right" size={14} className="rotate-180" />
+                    Tất cả dự án
+                  </button>
+                  <Button size="sm" variant="secondary" icon="plus" onClick={() => setAddTarget(openFolder)}>
+                    Thêm dự án
+                  </Button>
+                </div>
+              ) : (
+                <Tabs
+                  label="Xem theo"
+                  idBase="dashboard"
+                  value={tab}
+                  onChange={setTab}
+                  options={[
+                    { value: "all", label: "Tất cả" },
+                    { value: "folders", label: "Thư mục", count: folders.length },
+                    { value: "projects", label: "Dự án", count: projects.filter((p) => p.status === "active").length },
+                  ]}
+                  className="self-start"
+                />
+              )}
+              {showProjects && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {tab === "projects" && !openFolder && (
+                    <FilterSelect label="Sắp xếp" value={sortBy} options={SORT_OPTIONS} onChange={setSortBy} />
+                  )}
+                  <FilterSelect label="Trạng thái" value={status} options={STATUS_OPTIONS} onChange={setStatus} />
+                  <FilterSelect label="Nguồn" value={mode} options={MODE_OPTIONS} onChange={setMode} />
+                </div>
+              )}
+            </div>
+
+            {(error || dropError) && (
+              <div role="alert" className="flex items-center gap-3 bg-error-container border border-error-border text-on-error-container px-4 py-3 rounded-control text-[12.5px] font-medium">
+                <Icon name="error-circle" size={18} />
+                <span className="flex-1">{error ?? dropError}</span>
+                <Button size="sm" variant="secondary" onClick={() => (error ? void reload() : setDropError(null))}>
+                  {error ? "Thử lại" : "Đóng"}
+                </Button>
+              </div>
+            )}
+
+            <div
+              role={openFolder ? undefined : "tabpanel"}
+              id={openFolder ? undefined : "dashboard-panel"}
+              aria-labelledby={openFolder ? undefined : `dashboard-tab-${tab}`}
+              className="flex flex-col gap-8"
+            >
+              {showFolders && !initialLoading && (
+                <section aria-labelledby="folders-title" className="flex flex-col gap-3">
+                  <SectionTitle
+                    id="folders-title"
+                    title="Thư mục"
+                    count={folders.length}
+                    hint={folders.length > 0 && tab === "all" ? "Kéo thẻ dự án thả vào thư mục để sắp xếp." : undefined}
+                  />
+                  {foldersError && (
+                    <p role="alert" className="text-[12.5px] text-on-error-container">
+                      Không tải được thư mục: {foldersError}
+                    </p>
+                  )}
+                  <div className={CARD_GRID}>
+                    {/* Ô tạo mới đứng đầu: luôn ở cùng một chỗ, không bị đẩy xuống khi thư mục nhiều lên */}
+                    <NewFolderTile onCreate={() => setFolderTarget({ kind: "create" })} />
+                    {visibleFolders.map((folder) => (
+                      <FolderCard
+                        key={folder._id}
+                        folder={folder}
+                        onOpen={(f) => setOpenFolderId(f._id)}
+                        onRename={(f) => setFolderTarget({ kind: "rename", folder: f })}
+                        onDelete={(f) => setFolderTarget({ kind: "delete", folder: f })}
+                        onDropProject={(f, id) => void handleDropProject(f, id)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {showProjects && (
+                <section aria-labelledby="projects-title" className="flex flex-col gap-4">
+                  <SectionTitle
+                    id="projects-title"
+                    title={openFolder ? openFolder.name : tab === "all" && !normalizedQuery ? "Dự án ngoài thư mục" : "Dự án"}
+                    count={initialLoading ? undefined : scopedCount}
+                  />
+                  {projectsBody}
+                </section>
+              )}
+            </div>
+          </>
+>>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
         )}
       </div>
 
-      {/* Create Modal */}
-      <Modal
-        open={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setCreateName("");
-        }}
-        title="Tạo dự án mới"
-      >
-        <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[#4B4842]">Tên dự án</label>
-            <input
-              autoFocus
-              type="text"
-              required
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              placeholder="Ví dụ: App Đặt Xe Online, E-Learning Platform…"
-              className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[13.5px] text-[#191817] bg-[#FAF9F7] transition-all"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting || !createName.trim()}
-            className="w-full mt-2 py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {submitting ? (
-              <>
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-                Đang tạo dự án…
-              </>
-            ) : (
-              "Tạo dự án →"
-            )}
-          </button>
-        </form>
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={openFolder ? `Dự án mới trong “${openFolder.name}”` : "Tạo dự án mới"} size="lg">
+        <CreateProjectForm variant="dialog" onCreated={handleCreated} onCancel={() => setCreateOpen(false)} folderId={openFolder?._id} />
       </Modal>
 
-      {/* Delete / Archive Modal */}
-      <Modal
-        open={showDeleteConfirm}
-        onClose={() => {
-          if (!submitting) {
-            setShowDeleteConfirm(false);
-            setTargetProject(null);
-          }
-        }}
-        title="Lưu trữ dự án"
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-4 text-[#8A4141]">
-            <span className="material-symbols-outlined text-[20px] mt-0.5 shrink-0">warning</span>
-            <div>
-              <p className="text-[13.5px] font-bold text-[#191817]">
-                Lưu trữ &ldquo;{targetProject?.name}&rdquo;?
-              </p>
-              <p className="text-[12.5px] text-[#8A4141] mt-1 leading-[1.55]">
-                Dự án sẽ bị ẩn khỏi dashboard chính và có thể khôi phục lại sau.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2.5 justify-end pt-2">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => {
-                setShowDeleteConfirm(false);
-                setTargetProject(null);
-              }}
-              className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] transition-colors disabled:opacity-50"
-            >
-              Huỷ
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleDeleteConfirm}
-              className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-[13px] font-bold hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
-            >
-              {submitting ? "Đang lưu trữ…" : "Lưu trữ"}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Permanent Delete Modal */}
-      <Modal
-        open={showHardDeleteConfirm}
-        onClose={() => {
-          if (!submitting) {
-            setShowHardDeleteConfirm(false);
-            setTargetProject(null);
-          }
-        }}
-        title="Xoá vĩnh viễn dự án"
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-4 text-[#8A4141]">
-            <span className="material-symbols-outlined text-[20px] mt-0.5 shrink-0">delete_forever</span>
-            <div>
-              <p className="text-[13.5px] font-bold text-[#191817]">
-                Xoá vĩnh viễn &ldquo;{targetProject?.name}&rdquo;?
-              </p>
-              <p className="text-[12.5px] text-[#8A4141] mt-1 leading-[1.55]">
-                Toàn bộ hội thoại, tài liệu SRS và dữ liệu đính kèm sẽ bị xoá hoàn toàn. Hành động này **không thể hoàn tác**.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2.5 justify-end pt-2">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => {
-                setShowHardDeleteConfirm(false);
-                setTargetProject(null);
-              }}
-              className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-[13px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] transition-colors disabled:opacity-50"
-            >
-              Huỷ
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleHardDeleteConfirm}
-              className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-[13px] font-bold hover:brightness-90 transition disabled:opacity-50 flex items-center gap-2"
-            >
-              {submitting ? "Đang xoá…" : "Xoá vĩnh viễn"}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Rename Modal */}
-      <Modal
-        open={showRenameModal}
-        onClose={() => setShowRenameModal(false)}
-        title="Đổi tên dự án"
-      >
-        <form onSubmit={handleRename} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12.5px] font-bold text-[#4B4842]">Tên dự án mới</label>
-            <input
-              autoFocus
-              type="text"
-              required
-              value={renameName}
-              onChange={(e) => setRenameName(e.target.value)}
-              placeholder="Nhập tên mới…"
-              className="w-full px-3.5 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none text-[13.5px] text-[#191817] bg-[#FAF9F7] transition-all"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting || !renameName.trim()}
-            className="w-full mt-2 py-3 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {submitting ? (
-              <>
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-                Đang lưu…
-              </>
-            ) : (
-              "Lưu thay đổi"
-            )}
-          </button>
-        </form>
-      </Modal>
+      <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} onCreated={handleCreated} />
+      <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} />
+      <FolderDialogs target={folderTarget} folders={folders} onClose={() => setFolderTarget(null)} onDone={reload} />
     </>
   );
 }

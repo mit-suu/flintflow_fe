@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import NotificationBell from "../../../components/NotificationBell";
+import TopBar from "@/components/layout/TopBar";
 import {
   createCheckout,
   fetchBalance,
@@ -130,22 +130,13 @@ export default function BillingPage() {
 
   return (
     <>
-      <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
-        <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
-          <span>Tài khoản</span>
-          <span className="text-[#D6D2CB]">/</span>
-          <span className="text-[#191817] font-bold">Thanh toán &amp; credit</span>
-        </div>
-        <div className="ml-auto">
-          <NotificationBell />
-        </div>
-      </div>
+      <TopBar trail={["Tài khoản", "Thanh toán & credit"]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-[#F5F3F0]">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-surface-container-lowest">
         <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Thanh toán &amp; credit</h1>
 
         {error && (
-          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
+          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-control text-xs font-medium">
             <span className="flex-1">{error}</span>
             <button type="button" onClick={() => setError(null)} className="font-bold hover:opacity-75">
               ✕
@@ -155,7 +146,7 @@ export default function BillingPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#4F46E5] ff-spinner shrink-0" />
+            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
             <span className="text-[13px] font-medium">Đang tải thông tin thanh toán…</span>
           </div>
         ) : (
@@ -164,11 +155,11 @@ export default function BillingPage() {
             {balance && (
               <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Khả dụng", value: balance.available, accent: lowCredit ? "#B03030" : "#4F46E5" },
+                  { label: "Khả dụng", value: balance.available, accent: lowCredit ? "#B03030" : "#6A62C4" },
                   { label: "Số dư", value: balance.balance, accent: "#191817" },
                   { label: "Đang giữ", value: balance.reserved, accent: "#8A867E" },
                 ].map((card) => (
-                  <div key={card.label} className="bg-white border border-[#ECEAE5] rounded-[16px] p-5">
+                  <div key={card.label} className="bg-white border border-[#ECEAE5] rounded-card p-5">
                     <div className="text-[11.5px] font-bold text-[#8A867E] uppercase tracking-[0.04em]">
                       {card.label}
                     </div>
@@ -178,7 +169,7 @@ export default function BillingPage() {
                     <div className="text-[11.5px] text-[#A8A49C]">credit</div>
                   </div>
                 ))}
-                <div className="bg-white border border-[#ECEAE5] rounded-[16px] p-5">
+                <div className="bg-white border border-[#ECEAE5] rounded-card p-5">
                   <div className="text-[11.5px] font-bold text-[#8A867E] uppercase tracking-[0.04em]">Gói hiện tại</div>
                   <div className="text-[28px] font-extrabold mt-1 text-[#191817]">{balance.planLabel}</div>
                   <div className="text-[11.5px] text-[#A8A49C]">
@@ -191,7 +182,7 @@ export default function BillingPage() {
             )}
 
             {lowCredit && (
-              <div className="bg-[#FFF6E5] border border-[#F2DDB0] text-[#7A5A12] px-4 py-3 rounded-[12px] text-[12.5px] font-medium">
+              <div className="bg-[#FFF6E5] border border-[#F2DDB0] text-[#7A5A12] px-4 py-3 rounded-control text-[12.5px] font-medium">
                 Credit khả dụng sắp hết. Nạp thêm để tiếp tục sử dụng các tính năng AI.
               </div>
             )}
@@ -201,7 +192,7 @@ export default function BillingPage() {
               <h2 className="text-[15px] font-extrabold text-[#191817]">Nạp credit</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {packages.map((pkg) => (
-                  <div key={pkg.id} className="bg-white border border-[#ECEAE5] rounded-[16px] p-5 flex flex-col gap-3">
+                  <div key={pkg.id} className="bg-white border border-[#ECEAE5] rounded-card p-5 flex flex-col gap-3">
                     <div>
                       <div className="text-[13px] font-bold text-[#4B4842]">{pkg.label}</div>
                       <div className="text-[26px] font-extrabold text-[#191817]">
@@ -214,7 +205,7 @@ export default function BillingPage() {
                       type="button"
                       onClick={() => handleBuy(pkg)}
                       disabled={busy !== null}
-                      className="mt-auto py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
+                      className="mt-auto py-2.5 rounded-control btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
                     >
                       {busy === pkg.id ? "Đang tạo giao dịch…" : "Mua ngay"}
                     </button>
@@ -235,8 +226,8 @@ export default function BillingPage() {
                   return (
                     <div
                       key={plan.id}
-                      className={`bg-white rounded-[16px] p-5 flex items-center gap-4 border ${
-                        isCurrent ? "border-[#4F46E5]" : "border-[#ECEAE5]"
+                      className={`bg-white rounded-card p-5 flex items-center gap-4 border ${
+                        isCurrent ? "border-[#6A62C4]" : "border-[#ECEAE5]"
                       }`}
                     >
                       <div className="flex-1">
@@ -247,7 +238,7 @@ export default function BillingPage() {
                         </div>
                       </div>
                       {isCurrent ? (
-                        <span className="px-3 py-1 rounded-full bg-[#EEEDFD] text-[11.5px] font-bold text-[#3B34B0]">
+                        <span className="px-3 py-1 rounded-full bg-[#EFEEF9] text-[11.5px] font-bold text-[#554DB0]">
                           Đang dùng
                         </span>
                       ) : (
@@ -255,7 +246,7 @@ export default function BillingPage() {
                           type="button"
                           onClick={() => handleUpgrade(plan)}
                           disabled={busy !== null}
-                          className="px-4 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-white text-[12.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+                          className="px-4 py-2 rounded-control border-[1.5px] border-[#E4E1DC] bg-white text-[12.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
                         >
                           {busy === `plan:${plan.id}`
                             ? plan.priceVnd > 0
@@ -275,7 +266,7 @@ export default function BillingPage() {
             {/* Ledger */}
             <section className="flex flex-col gap-3">
               <h2 className="text-[15px] font-extrabold text-[#191817]">Lịch sử giao dịch</h2>
-              <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-x-auto">
+              <div className="bg-white border border-[#ECEAE5] rounded-card overflow-x-auto">
                 {ledger.length === 0 ? (
                   <div className="py-10 text-center text-[13px] text-[#A8A49C]">Chưa có giao dịch nào</div>
                 ) : (
@@ -323,7 +314,7 @@ export default function BillingPage() {
                   type="button"
                   onClick={handleLoadMore}
                   disabled={busy !== null}
-                  className="self-center px-5 py-2 rounded-full border border-[#E4E1DC] bg-white text-[12.5px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+                  className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-[12.5px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
                 >
                   {busy === "ledger" ? "Đang tải…" : "Tải thêm"}
                 </button>
