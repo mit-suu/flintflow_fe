@@ -25,7 +25,7 @@ export const readCrPrefill = (params: URLSearchParams): CrPrefill | null => {
   return {
     title: params.get("title") ?? undefined,
     description: params.get("description") ?? undefined,
-    source: CR_SOURCE_KINDS.includes(source as CrSourceKind) ? (source as CrSourceKind) : undefined,
+    source: (CR_SOURCE_KINDS as readonly CrSourceKind[]).includes(source as CrSourceKind) ? (source as CrSourceKind) : undefined,
     ref: params.get("ref") ?? undefined,
   };
 };
