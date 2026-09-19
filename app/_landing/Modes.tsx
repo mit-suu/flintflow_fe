@@ -31,7 +31,7 @@ function ModeCard({ mode }: { mode: Mode }) {
     <article
       className={`flex min-h-[250px] flex-col gap-3.5 rounded-[22px] px-[26px] py-7 ${
         featured
-          ? "bg-[linear-gradient(165deg,#5B2EC4,#8B5CF0_75%,#B98BF5)] shadow-[0_24px_60px_rgba(91,46,196,0.3)]"
+          ? "bg-[linear-gradient(165deg,#554DB0,#6A62C4_75%,#8E87D6)] shadow-[0_24px_60px_rgba(85,77,176,0.3)]"
           : "border border-outline-variant bg-white shadow-[0_8px_26px_rgba(25,24,23,0.05)]"
       }`}
     >
@@ -39,8 +39,8 @@ function ModeCard({ mode }: { mode: Mode }) {
       <p className={`text-[12.5px] leading-[1.65] ${featured ? "text-white/80" : "text-on-surface-variant"}`}>{mode.body}</p>
       <div className="mt-auto">
         {mode.quote && (
-          <p className="rounded-xl bg-[#F4F3FE] px-3.5 py-[11px] text-[11.5px] font-semibold text-[#5B2EC4]">
-            {mode.quote.text} <span className="text-[#B0A6D0]">{mode.quote.tag}</span>
+          <p className="rounded-xl bg-primary-soft px-3.5 py-[11px] text-[11.5px] font-semibold text-primary-hover">
+            {mode.quote.text} <span className="text-[#A7A2CF]">{mode.quote.tag}</span>
           </p>
         )}
         {mode.chips && (
