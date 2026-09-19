@@ -52,9 +52,9 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
 
   it.each([
     ["edit_srs", "SRS có sẵn", "from-info-border"],
-    ["customer_template", "Template khách", "from-accent-gold-border"],
-    ["fpt_template", "Mẫu FPT", "from-primary-fixed"],
-  ] as const)("%s ⇒ nhãn %s, dải màu tone của mode", (sourceMode, label, stripe) => {
+    ["customer_template", "Template khách", "from-accent-gold-light"],
+    ["fpt_template", "Mẫu FPT", "from-brand-300"],
+  ] as const)("%s ⇒ nhãn %s, bìa theo tone của mode", (sourceMode, label, stripe) => {
     const { container } = render(
       <ProjectCard project={{ ...baseProject, sourceMode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
     );

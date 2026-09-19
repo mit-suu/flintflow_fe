@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/layout/AppShell";
 import { getProgress } from "@/lib/api/pipeline";
 import { createProject, listProjects } from "@/lib/api/projects";
+import { listFolders } from "@/lib/api/folders";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
 import HomePage from "./page";
@@ -15,6 +16,7 @@ vi.mock("@/lib/api/projects", () => ({
   renameProject: vi.fn(),
   deleteProject: vi.fn(),
 }));
+vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn() }));
 vi.mock("@/lib/api/pipeline", () => ({ getProgress: vi.fn(async () => ({ data: null, error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 10, planLabel: "Free" })) }));
 
@@ -44,6 +46,7 @@ describe("Project Dashboard", () => {
     push.mockReset();
     vi.mocked(listProjects).mockReset();
     vi.mocked(createProject).mockReset();
+    vi.mocked(listFolders).mockReset().mockResolvedValue(ok([]));
   });
 
   it("đang tải ⇒ skeleton, không hiện trạng thái rỗng", () => {
@@ -69,7 +72,7 @@ describe("Project Dashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p9"));
-    expect(createProject).toHaveBeenCalledWith("Dự án chưa đặt tên", "fpt_template");
+    expect(createProject).toHaveBeenCalledWith("Dự án chưa đặt tên", "fpt_template", undefined);
     expect(listProjects).toHaveBeenCalledTimes(2);
   });
 
@@ -114,6 +117,26 @@ describe("Project Dashboard", () => {
     expect(screen.queryByText("Bắt đầu dự án SRS đầu tiên")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Xem lưu trữ" }));
     expect(screen.getByRole("link", { name: /Dự án c/ })).toBeInTheDocument();
+  });
+
+  it("hàng Thư mục: bấm thư mục ⇒ chỉ dự án bên trong, breadcrumb đổi, quay lại được", async () => {
+    vi.mocked(listProjects).mockResolvedValue(ok([project("a", { folderId: "f1" }), project("b")]));
+    vi.mocked(listFolders).mockResolvedValue(
+      ok([{ _id: "f1", name: "Khách A", color: "blue", projectCount: 1, createdAt: "", updatedAt: "" }])
+    );
+    renderPage();
+
+    const folders = await screen.findByRole("region", { name: /Thư mục/ });
+    expect(within(folders).getByRole("button", { name: /Thư mục mới/ })).toBeInTheDocument();
+    fireEvent.click(within(folders).getByRole("button", { name: /^Khách A/ }));
+
+    expect(screen.getByRole("link", { name: /Dự án a/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Dự án b/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: /^Thư mục/ })).toBeNull();
+    expect(screen.getByText("Khách A", { selector: "[aria-current='page']" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Tất cả dự án" }));
+    expect(screen.getByRole("link", { name: /Dự án b/ })).toBeInTheDocument();
   });
 
   it('"+ Dự án mới" mở dialog chứa cùng picker; Huỷ không tạo gì', async () => {

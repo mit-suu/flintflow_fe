@@ -11,3 +11,4 @@ export * from "./notifications";
 export * from "./billing";
 export * from "./admin";
 export * from "./feedback";
+export * from "./folders";
