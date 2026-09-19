@@ -39,7 +39,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
       <div className="h-screen flex flex-col overflow-hidden bg-[#F5F3F0] font-sans">
         <header className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[58px] z-20">
           <div className="flex items-center gap-3 min-w-0">
-            <Logo sizeClassName="w-7 h-7" theme="light" showText={false} href="/home" />
+            <Logo variant="icon" sizeClassName="w-7 h-7" theme="light" href="/home" />
             <div className="flex items-center text-[13px] text-[#8A867E] gap-1.5 min-w-0">
               <Link href="/home" className="hover:text-[#191817] font-semibold transition-colors">
                 Dự án
