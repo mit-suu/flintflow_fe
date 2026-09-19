@@ -1,6 +1,22 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import LandingPage from "../page";
+
+// jsdom không có IntersectionObserver; `whileInView` của motion và scroll-spy của header cần nó.
+// Stub không bao giờ báo giao cắt ⇒ phần tử giữ trạng thái ban đầu, vẫn nằm trong DOM để truy vấn.
+beforeAll(() => {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    }
+  );
+});
 
 describe("LandingPage", () => {
   it("dẫn các CTA chính tới đăng ký / đăng nhập", () => {

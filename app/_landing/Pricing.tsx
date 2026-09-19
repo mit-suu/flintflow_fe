@@ -1,4 +1,6 @@
 import { PLANS, PRICING_HEADING, type Plan } from "./content";
+import * as motion from "motion/react-client";
+import { fadeUp, inView, stagger } from "./motion";
 import { ButtonLink, Diamond, SectionHeading, Texture } from "./ui";
 
 /* Hai gói phẳng: Free nền xám ấm, Pro nền mực đậm để nổi — nhãn "Phổ biến nhất" vàng như hạt kim cương logo. */
@@ -14,11 +16,11 @@ export default function Pricing() {
           subline={PRICING_HEADING.subline}
           align="center"
         />
-        <div className="mx-auto mt-12 grid max-w-[820px] gap-4 sm:grid-cols-2">
+        <motion.div {...inView} variants={stagger(0.1)} className="mx-auto mt-12 grid max-w-[820px] gap-4 sm:grid-cols-2">
           {PLANS.map((plan) => (
             <PlanCard key={plan.name} plan={plan} />
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -27,7 +29,7 @@ export default function Pricing() {
 function PlanCard({ plan }: { plan: Plan }) {
   const featured = plan.recommended;
   return (
-    <article className={`flex flex-col rounded-dialog p-7 sm:p-8 ${featured ? "bg-on-surface text-surface" : "bg-surface-container"}`}>
+    <motion.article variants={fadeUp} className={`flex flex-col rounded-dialog p-7 sm:p-8 ${featured ? "bg-on-surface text-surface" : "bg-surface-container"}`}>
       <header className="flex items-center justify-between gap-2">
         <h3 className={`text-[15px] font-bold ${featured ? "text-surface" : "text-on-surface"}`}>{plan.name}</h3>
         {featured && (
@@ -51,6 +53,6 @@ function PlanCard({ plan }: { plan: Plan }) {
       <ButtonLink href="/register" variant={featured ? "primary" : "inverse"} className="mt-8 w-full">
         {plan.cta}
       </ButtonLink>
-    </article>
+    </motion.article>
   );
 }

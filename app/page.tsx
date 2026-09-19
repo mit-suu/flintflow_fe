@@ -3,6 +3,7 @@ import Hero from "./_landing/Hero";
 import HowItWorks from "./_landing/HowItWorks";
 import Modes from "./_landing/Modes";
 import Pricing from "./_landing/Pricing";
+import LandingMotion from "./_landing/LandingMotion";
 import SiteHeader from "./_landing/SiteHeader";
 import WorkspacePreview from "./_landing/WorkspacePreview";
 
@@ -14,16 +15,18 @@ import WorkspacePreview from "./_landing/WorkspacePreview";
  */
 export default function LandingPage() {
   return (
-    <div id="top" className="relative min-h-screen overflow-x-clip bg-surface font-sans text-on-surface antialiased selection:bg-primary/20">
-      <SiteHeader />
-      <main className="relative">
-        <Hero />
-        <HowItWorks />
-        <Modes />
-        <WorkspacePreview />
-        <Pricing />
-        <FinalCta />
-      </main>
-    </div>
+    <LandingMotion>
+      <div id="top" className="relative min-h-screen overflow-x-clip bg-surface font-sans text-on-surface antialiased selection:bg-primary/20">
+        <SiteHeader />
+        <main className="relative">
+          <Hero />
+          <HowItWorks />
+          <Modes />
+          <WorkspacePreview />
+          <Pricing />
+          <FinalCta />
+        </main>
+      </div>
+    </LandingMotion>
   );
 }
