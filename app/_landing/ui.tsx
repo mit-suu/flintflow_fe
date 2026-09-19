@@ -1,7 +1,9 @@
+import * as motion from "motion/react-client";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PHASES } from "@/lib/constants/step-registry";
 import type { GroupTone } from "./content";
+import { fadeUp, growX, inView, stagger } from "./motion";
 
 /*
  * Primitive dùng chung của landing — cùng ngôn ngữ với dashboard: phẳng, không viền, phân biệt bằng nền,
@@ -101,13 +103,16 @@ export function FolderShape({
   );
 }
 
-/** Thanh tiến độ liền theo 12 giai đoạn như card dự án: phần đã qua tô `primary`, giai đoạn đang làm tô nhạt. */
+/**
+ * Thanh tiến độ liền theo 12 giai đoạn như card dự án: phần đã qua tô `primary`, giai đoạn đang làm tô nhạt.
+ * Chạy từ trái sang khi phần tử cha (motion) chuyển sang trạng thái `show`.
+ */
 export function PhaseBar({ done }: { done: number }) {
   const width = (n: number) => `${(Math.min(n, PHASES.length) / PHASES.length) * 100}%`;
   return (
     <div aria-hidden="true" className="relative h-2 overflow-hidden rounded-full bg-card-track">
-      <span className="absolute inset-y-0 left-0 rounded-full bg-primary/35" style={{ width: width(done + 1) }} />
-      <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: width(done) }} />
+      <motion.span variants={growX} className="absolute inset-y-0 left-0 rounded-full bg-primary/35" style={{ width: width(done + 1), originX: 0 }} />
+      <motion.span variants={growX} className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: width(done), originX: 0 }} />
     </div>
   );
 }
@@ -128,18 +133,25 @@ export function Texture({ kind, mask, className = "" }: { kind: keyof typeof TEX
   );
 }
 
-/** Dải 12 đoạn màu theo bốn bước BA — "vạch giai đoạn" làm đường phân cách section. */
+/** Dải 12 đoạn màu theo bốn bước BA — "vạch giai đoạn" làm đường phân cách section; cuộn tới thì chạy lần lượt từng đoạn. */
 export function PhaseRibbon({ groups, className = "" }: { groups: { tone: GroupTone; phases: readonly string[] }[]; className?: string }) {
   return (
-    <div aria-hidden="true" className={`flex gap-1 ${className}`}>
+    <motion.div aria-hidden="true" {...inView} variants={stagger(0.045)} className={`flex gap-1 ${className}`}>
       {groups.flatMap((group) =>
-        group.phases.map((phase) => <span key={phase} className={`h-full flex-1 rounded-full ${TONE_FILL[group.tone].back}`} />)
+        group.phases.map((phase) => (
+          <motion.span
+            key={phase}
+            variants={growX}
+            style={{ originX: 0 }}
+            className={`h-full flex-1 rounded-full ${TONE_FILL[group.tone].back}`}
+          />
+        ))
       )}
-    </div>
+    </motion.div>
   );
 }
 
-/** Tiêu đề section: eyebrow + h2 + mô tả ngắn. */
+/** Tiêu đề section: eyebrow + h2 + mô tả ngắn; hiện dần khi cuộn tới. */
 export function SectionHeading({
   id,
   eyebrow,
@@ -155,12 +167,12 @@ export function SectionHeading({
 }) {
   const center = align === "center";
   return (
-    <div className={center ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
+    <motion.div {...inView} variants={fadeUp} className={center ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
       <Eyebrow>{eyebrow}</Eyebrow>
       <h2 id={id} className="mt-3 text-balance text-3xl font-bold tracking-[-0.025em] text-on-surface sm:text-[42px] sm:leading-[1.1]">
         {title}
       </h2>
       {subline && <p className="mt-4 text-pretty text-base leading-relaxed text-on-surface-variant sm:text-[17px]">{subline}</p>}
-    </div>
+    </motion.div>
   );
 }

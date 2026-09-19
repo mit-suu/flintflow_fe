@@ -1,5 +1,7 @@
 import { PHASE_LABELS_VI } from "@/lib/constants/step-registry";
 import { HOW_HEADING, PHASE_GROUPS } from "./content";
+import * as motion from "motion/react-client";
+import { fadeUp, fadeUpThen, inView, stagger } from "./motion";
 import { PhaseRibbon, SectionHeading, TONE_FILL, Texture } from "./ui";
 
 /*
@@ -14,9 +16,9 @@ export default function HowItWorks() {
       <div className="relative mx-auto max-w-[1200px] pt-16 lg:pt-24">
         <SectionHeading id="how-title" eyebrow={HOW_HEADING.eyebrow} title={HOW_HEADING.title} subline={HOW_HEADING.subline} />
 
-        <ol className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-[2fr_2fr_4fr_2fr]">
+        <motion.ol {...inView} variants={stagger(0.08)} className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-[2fr_2fr_4fr_2fr]">
           {PHASE_GROUPS.map((group, i) => (
-            <li key={group.title} className={`flex flex-col rounded-card p-5 sm:p-6 ${TONE_FILL[group.tone].body}`}>
+            <motion.li key={group.title} variants={fadeUpThen(0.04, 0.2)} className={`flex flex-col rounded-card p-5 sm:p-6 ${TONE_FILL[group.tone].body}`}>
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-[20px] font-bold tracking-tight text-on-surface">{group.title}</h3>
                 <span className="font-mono text-[12px] font-bold text-on-surface/50">0{i + 1}</span>
@@ -24,18 +26,19 @@ export default function HowItWorks() {
               <p className="mt-2 text-[13.5px] leading-relaxed text-on-surface-medium">{group.body}</p>
               <ul className="mt-6 flex flex-wrap gap-1.5 pt-1" aria-label={`Giai đoạn thuộc bước ${group.title}`}>
                 {group.phases.map((phase) => (
-                  <li
+                  <motion.li
                     key={phase}
+                    variants={fadeUp}
                     className="inline-flex items-center gap-1.5 rounded-inner bg-surface-container-lowest/70 px-2.5 py-1.5 text-[11.5px] font-semibold text-on-surface-dark"
                   >
                     <span className="font-mono text-[10.5px] text-on-surface-muted">{phase}</span>
                     {PHASE_LABELS_VI[phase]}
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
-            </li>
+            </motion.li>
           ))}
-        </ol>
+        </motion.ol>
       </div>
     </section>
   );
