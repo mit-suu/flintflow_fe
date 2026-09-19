@@ -33,6 +33,7 @@ const version = (v: string, kind: DocVersion["kind"], cr_ids: string[] = []): Do
   cr_ids,
   baseline_id: null,
   has_clean_file: kind === "release",
+  has_original_file: kind === "imported",
   created_by: "u1",
   created_at: "2026-09-19T00:00:00.000Z",
 });
@@ -181,7 +182,19 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     expect(within(items[0]).getByRole("button", { name: "Bản có Track Changes" })).toBeInTheDocument();
     expect(within(items[1]).getByRole("button", { name: "Tải bản draft (Track Changes)" })).toBeInTheDocument();
     expect(within(items[1]).queryByRole("button", { name: "Bản có Track Changes" })).not.toBeInTheDocument();
-    expect(within(items[3]).getByRole("button", { name: "Tải bản gốc" })).toBeInTheDocument();
+    // FLF-185: bản 0.0 lưu bản render từ Spine; file người dùng upload tải riêng
+    expect(within(items[3]).getByRole("button", { name: "Tải bản render (DRAFT)" })).toBeInTheDocument();
+    expect(within(items[3]).getByRole("button", { name: "Tải file gốc" })).toBeInTheDocument();
+    expect(within(items[1]).queryByRole("button", { name: "Tải file gốc" })).not.toBeInTheDocument();
+  });
+
+  it("tải file gốc của bản 0.0 ⇒ variant=original, tên mặc định _original", async () => {
+    const seen = serveDownload();
+    renderPanel({ versions: RELEASED });
+    fireEvent.click(screen.getByRole("button", { name: "Tải file gốc" }));
+    await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
+    expect(seen).toEqual(["0.0?variant=original"]);
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_v0.0_original.docx");
   });
 
   it("tải: gửi variant đúng; BE không gửi tên ⇒ tên mặc định (_DRAFT cho draft và bản tracked của release)", async () => {
@@ -212,7 +225,7 @@ describe("VersionsPanel — danh sách version và tải file", () => {
         HttpResponse.json({ data: null, error: { code: "DOC_VERSION_NOT_FOUND", message: "Không có version 0.0" } }, { status: 404 })
       )
     );
-    fireEvent.click(screen.getByRole("button", { name: "Tải bản gốc" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản render (DRAFT)" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Không có version 0.0");
   });
 });
