@@ -19,6 +19,8 @@ export interface Project {
   status: ProjectStatus;
   /** Luôn có: dự án tạo trước khi có field được BE migrate thành `fpt_template`. */
   sourceMode: ProjectSourceMode;
+  /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */
+  folderId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -7,6 +7,7 @@ import { ApiClientError, apiCall, authFetch } from "./client";
 import * as documents from "./documents";
 import * as exportApi from "./export";
 import * as flags from "./flags";
+import * as folders from "./folders";
 import * as notifications from "./notifications";
 import * as pipeline from "./pipeline";
 import * as projects from "./projects";
@@ -51,6 +52,27 @@ const cases: EndpointCase[] = [
     "/projects/p1?hard=true",
     { method: "DELETE" },
   ],
+  [
+    "moveProjectToFolder",
+    () => projects.moveProjectToFolder("p1", "f1"),
+    "/projects/p1/folder",
+    { method: "PATCH", body: JSON.stringify({ folderId: "f1" }) },
+  ],
+  [
+    "createProject (trong thư mục)",
+    () => projects.createProject("App", "fpt_template", "f1"),
+    "/projects",
+    post({ name: "App", sourceMode: "fpt_template", folderId: "f1" }),
+  ],
+  ["listFolders", () => folders.listFolders(), "/folders"],
+  ["createFolder", () => folders.createFolder({ name: "A", color: "blue" }), "/folders", post({ name: "A", color: "blue" })],
+  [
+    "updateFolder",
+    () => folders.updateFolder("f1", { name: "B" }),
+    "/folders/f1",
+    { method: "PATCH", body: JSON.stringify({ name: "B" }) },
+  ],
+  ["deleteFolder", () => folders.deleteFolder("f1"), "/folders/f1", { method: "DELETE" }],
   ["listChatSessions", () => chat.listChatSessions("p1"), "/projects/p1/chats"],
   ["createChatSession", () => chat.createChatSession("p1"), "/projects/p1/chats", post()],
   ["getChatSession", () => chat.getChatSession("p1", "c1"), "/projects/p1/chats/c1"],

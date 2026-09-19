@@ -10,6 +10,7 @@ import AppSidebar from "./AppSidebar";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: vi.fn(), useRouter: () => ({ push }) }));
 vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
+vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 120, planLabel: "Pro" })) }));
 vi.mock("@/lib/api/notifications", () => ({
   fetchUnreadCount: vi.fn(async () => 3),
