@@ -50,5 +50,5 @@ describe("WorkspacePage — project mode 1 v2 (FLF-185)", () => {
     fireEvent.click(within(tools).getByRole("button", { name: "Bật" }));
     await waitFor(() => expect(mode1State.stepPlan.find((s) => s.step_id === "B-0.1")?.state).toBe("enabled"));
     expect(await within(tools).findByRole("button", { name: "Tắt" })).toBeInTheDocument();
-  });
+  }, 20_000); // dựng cả workspace trên msw — chậm khi chạy cùng cả suite
 });
