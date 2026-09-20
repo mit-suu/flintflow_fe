@@ -36,6 +36,36 @@ describe("LocaleSwitcher", () => {
     expect(refresh).toHaveBeenCalledOnce();
   });
 
+  it("trình duyệt có View Transitions ⇒ cross-fade quanh lần refresh", async () => {
+    let captured: (() => void | Promise<void>) | null = null;
+    const startViewTransition = vi.fn((cb: () => void | Promise<void>) => {
+      captured = cb;
+      return { finished: Promise.resolve() };
+    });
+    Object.defineProperty(document, "startViewTransition", { value: startViewTransition, configurable: true });
+
+    renderWithIntl(<LocaleSwitcher />, "vi");
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+
+    expect(startViewTransition).toHaveBeenCalledOnce();
+    // Refresh chạy TRONG callback: ảnh chụp "trước" phải lấy xong rồi cây mới được tráo
+    expect(refresh).not.toHaveBeenCalled();
+    const done = captured!();
+    expect(refresh).toHaveBeenCalledOnce();
+    // startTransition trong test chạy đồng bộ ⇒ promise chốt ngay, không chờ hết timeout dự phòng
+    await expect(done).resolves.toBeUndefined();
+
+    Reflect.deleteProperty(document, "startViewTransition");
+  });
+
+  it("trình duyệt không có View Transitions ⇒ vẫn đổi, chỉ không có hiệu ứng", () => {
+    expect((document as { startViewTransition?: unknown }).startViewTransition).toBeUndefined();
+    renderWithIntl(<LocaleSwitcher />, "vi");
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(document.cookie).toContain("NEXT_LOCALE=en");
+  });
+
   it("chưa đăng nhập ⇒ chỉ ghi cookie, không gọi BE", () => {
     renderWithIntl(<LocaleSwitcher />, "vi");
     fireEvent.click(screen.getByRole("button", { name: "English" }));

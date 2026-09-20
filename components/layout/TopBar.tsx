@@ -3,6 +3,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import { useAppShell } from "./AppShell";
@@ -16,7 +17,11 @@ interface TopBarProps {
   actions?: ReactNode;
 }
 
-/** Thanh trên của mọi trang `/home/*`: nút mở menu (mobile), breadcrumb, search, chip credits, action. */
+/**
+ * Thanh trên của mọi trang `/home/*`: nút mở menu (mobile), breadcrumb, search, nút đổi ngôn ngữ, chip
+ * credits, action. Nút ngôn ngữ đặt ở đây (không phải trong menu user) để mọi trang đã đăng nhập đổi được
+ * ngay, giống chỗ nó đứng trên landing và trang xác thực.
+ */
 export default function TopBar({ trail, search, actions }: TopBarProps) {
   const t = useTranslations("app.shell");
   const format = useFormatter();
@@ -44,6 +49,7 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
         {search && <div className="order-last w-full md:order-none md:w-auto md:flex-1 md:max-w-[320px] md:ml-4">{search}</div>}
 
         <div className="ml-auto flex items-center gap-2 shrink-0">
+          <LocaleSwitcher />
           {balance && (
             <Link
               href="/home/billing"

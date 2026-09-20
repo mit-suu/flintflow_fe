@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { getStoredAuthToken } from "@/lib/api/token-store";
 import { updateMyLocale } from "@/lib/api/users";
 import { LOCALES, persistLocale, type Locale } from "@/lib/i18n";
@@ -10,8 +10,24 @@ import { LOCALES, persistLocale, type Locale } from "@/lib/i18n";
 export { persistLocale };
 
 /**
+ * Chặn trên cho lúc chờ `router.refresh()` bên trong một view transition. Trong lúc transition chạy, trình
+ * duyệt hiển thị ảnh chụp và đóng băng trang — mạng chậm mà chờ vô hạn thì trang như treo. Hết hạn này thì
+ * cứ cross-fade, chữ mới hiện ngay sau đó.
+ */
+const REFRESH_TIMEOUT_MS = 800;
+
+type WithViewTransition = Document & {
+  startViewTransition?: (callback: () => void | Promise<void>) => { finished: Promise<void> };
+};
+
+/**
  * Nút chuyển VI / EN. Đổi cookie rồi `router.refresh()` — server render lại bằng locale mới, URL và vị trí
  * cuộn giữ nguyên.
+ *
+ * `router.refresh()` tráo cả cây server component trong một nhịp nên chữ nhảy thẳng sang ngôn ngữ mới, nhìn
+ * ra thành một cú nháy. Bọc trong `document.startViewTransition()`: trình duyệt chụp trang trước và sau khi
+ * tráo rồi **cross-fade** giữa hai ảnh — bản cũ mờ đi, bản mới hiện lên (thời lượng ở `app/globals.css`).
+ * Trình duyệt không có API này thì chạy thẳng như cũ; bật "giảm chuyển động" thì CSS tắt phần động.
  *
  * Hình thức theo segmented control của nav landing / mục sidebar dashboard: rãnh xám ấm, mục đang chọn tô
  * `primary-fixed` + chữ `primary`. Phẳng, không viền.
@@ -22,12 +38,39 @@ export default function LocaleSwitcher({ className = "" }: { className?: string 
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
+  /** Kết thúc lần chờ hiện tại — gọi khi `router.refresh()` đã commit xong cây mới. */
+  const settleRefresh = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (pending) return;
+    settleRefresh.current?.();
+    settleRefresh.current = null;
+  }, [pending]);
+
   const choose = (locale: Locale) => {
     if (locale === current) return;
     persistLocale(locale);
     // Đã đăng nhập ⇒ lưu vào tài khoản (email + lần đăng nhập sau theo lựa chọn này). Lỗi mạng không chặn đổi.
     if (getStoredAuthToken()) void updateMyLocale(locale).catch(() => undefined);
-    startTransition(() => router.refresh());
+
+    const refresh = () => startTransition(() => router.refresh());
+    const startViewTransition = (document as WithViewTransition).startViewTransition;
+    if (!startViewTransition) {
+      refresh();
+      return;
+    }
+
+    // Ảnh chụp "sau" chỉ đúng khi cây mới đã lên màn hình ⇒ giữ promise tới lúc `pending` về false.
+    startViewTransition.call(document, () => {
+      refresh();
+      return new Promise<void>((resolve) => {
+        const timer = window.setTimeout(resolve, REFRESH_TIMEOUT_MS);
+        settleRefresh.current = () => {
+          window.clearTimeout(timer);
+          resolve();
+        };
+      });
+    });
   };
 
   return (
