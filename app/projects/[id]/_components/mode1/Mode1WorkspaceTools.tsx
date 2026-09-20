@@ -19,6 +19,7 @@ interface Mode1WorkspaceToolsProps {
   flags: Flag[];
   signedOff: boolean;
   onSelectStep: (stepId: string) => void;
+  onReopenStep?: (stepId: string) => void;
   getBaseVersion: () => number | null;
   /** Spine đổi ngoài luồng step (ký v1, release) — tải lại Spine/tiến độ/tài liệu. */
   onSpineChanged: () => void;
@@ -39,6 +40,7 @@ export default function Mode1WorkspaceTools({
   flags,
   signedOff,
   onSelectStep,
+  onReopenStep,
   getBaseVersion,
   onSpineChanged,
 }: Mode1WorkspaceToolsProps) {
@@ -59,6 +61,7 @@ export default function Mode1WorkspaceTools({
           busyStep={busyStep}
           onToggleStep={onToggleStep}
           onSelectStep={onSelectStep}
+          onReopenStep={onReopenStep}
           getBaseVersion={getBaseVersion}
           onSignedOff={() => {
             onSpineChanged();

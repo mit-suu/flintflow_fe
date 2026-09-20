@@ -112,6 +112,19 @@ describe("Mode1PlanPanel — kế hoạch step theo template (FLF-185)", () => {
     expect(props.onSelectStep).toHaveBeenCalledWith("S-7.1");
   });
 
+  it("cờ đỏ trỏ tới step ĐÃ CHỐT ⇒ nút 'Mở lại' (BE chặn chạy lại step accepted), chưa chốt ⇒ 'Chạy'", () => {
+    // S-7.1 pending ⇒ Chạy; S-2.1 accepted ⇒ Mở lại
+    const onReopenStep = vi.fn();
+    const props = renderPanel({ flags: [redFlag("FL01"), { ...redFlag("FL02"), section_id: "fixed:1", remediation_step: "S-2.1" }], onReopenStep });
+    const panel = screen.getByRole("region", { name: "Cờ đỏ đang chặn" });
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Chạy S-7.1" }));
+    expect(props.onSelectStep).toHaveBeenCalledWith("S-7.1");
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Mở lại S-2.1" }));
+    expect(onReopenStep).toHaveBeenCalledWith("S-2.1");
+  });
+
   it("hết cờ đỏ ⇒ bảng cờ nói rõ không còn gì chặn", () => {
     renderPanel({ flags: [] });
     expect(within(screen.getByRole("region", { name: "Cờ đỏ đang chặn" })).getByText("Không còn cờ đỏ nào.")).toBeInTheDocument();
