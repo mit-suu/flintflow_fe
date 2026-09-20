@@ -114,18 +114,28 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
       </Step>
     );
   } else if (c.status === "in_review") {
-    next = allRejected ? (
-      <Step tone="warn" text="Mọi nhóm đều bị từ chối. Sửa lại CR (khoá lại block, AI đề xuất lại) hoặc đóng CR.">
-        <div className="flex gap-2">
-          <button type="button" disabled={busy} onClick={() => setDialog("close")} className="px-4 py-2 rounded-[10px] border border-[#F2CACA] bg-white text-[13px] font-bold text-[#B03030] disabled:opacity-50">
-            Đóng CR
-          </button>
-          {primary("Sửa lại CR", () => after(cr.action("revise")), "Đang khoá lại…")}
-        </div>
-      </Step>
-    ) : (
-      <Step text="Duyệt hoặc từ chối từng nhóm. Nhóm cuối được quyết mà có nhóm duyệt ⇒ ghi Track Changes thành bản nháp mới." />
-    );
+    // 0 nhóm ⇒ không có gì để duyệt (mọi vị trí "không liên quan", hoặc CR nộp trước khi BE chặn việc này).
+    // Không chỉ lối ra thì màn duyệt trống trơn, không một cái nút — CR kẹt vĩnh viễn ở in_review.
+    next =
+      allRejected || groups.length === 0 ? (
+        <Step
+          tone="warn"
+          text={
+            groups.length === 0
+              ? 'Không có nhóm thay đổi nào để duyệt — mọi vị trí đều kết luận "không liên quan". Sửa lại CR để kết luận lại từng vị trí, hoặc đóng CR.'
+              : "Mọi nhóm đều bị từ chối. Sửa lại CR (khoá lại phần tử, AI đề xuất lại) hoặc đóng CR."
+          }
+        >
+          <div className="flex gap-2">
+            <button type="button" disabled={busy} onClick={() => setDialog("close")} className="px-4 py-2 rounded-[10px] border border-[#F2CACA] bg-white text-[13px] font-bold text-[#B03030] disabled:opacity-50">
+              Đóng CR
+            </button>
+            {primary("Sửa lại CR", () => after(cr.action("revise")), "Đang khoá lại…")}
+          </div>
+        </Step>
+      ) : (
+        <Step text="Duyệt hoặc từ chối từng nhóm. Nhóm cuối được quyết mà có nhóm duyệt ⇒ ghi op vào Spine và render bản mới." />
+      );
   } else if (c.status === "written") {
     next = (
       <Step tone="ok" text={`Đã ghi Track Changes + comment (tác giả ${c.cr_id}) vào bản ${c.result_doc_version ?? "mới"}.`}>
