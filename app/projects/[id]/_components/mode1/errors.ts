@@ -3,7 +3,7 @@
  * (đã là tiếng Việt), không nuốt lỗi.
  */
 import { ApiClientError } from "@/lib/api/client";
-import type { PathLockedMeta } from "@/types/change-request";
+import type { CrNoLocationsMeta, PathLockedMeta } from "@/types/change-request";
 
 const FRIENDLY: Record<string, string> = {
   INSUFFICIENT_CREDIT: "Không đủ credit cho bước AI này — nạp thêm rồi thử lại.",
@@ -26,6 +26,15 @@ export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): s
       if (locked.length) {
         return `Phần tử đang bị change request khác giữ: ${locked.map((l) => `${l.path} (${l.cr_id})`).join(", ")}. Chờ CR đó xong hoặc huỷ rồi thử lại.`;
       }
+    }
+    if (err.code === "CR_NO_LOCATIONS") {
+      // C-3 ra 0 vị trí: mục còn trống thì không có gì để sửa — chỉ sang step thay vì để nút "Tìm vị trí" trông như hỏng
+      const empty = (err.meta as CrNoLocationsMeta | undefined)?.empty_sections ?? [];
+      if (empty.length) {
+        const steps = empty.map((s) => `"${s.title}"${s.step_id ? ` → chạy step ${s.step_id}` : ""}`).join("; ");
+        return `Không có phần tử nào để sửa — mục còn trống: ${steps}. Về workspace chạy step cho AI soạn nội dung, hoặc sửa mô tả CR cho trỏ vào phần tử cụ thể rồi làm rõ lại.`;
+      }
+      return "Không tìm được phần tử nào khớp với change request. Sửa mô tả (nêu mã hoặc tên phần tử, ví dụ UC-01, actor Learner) rồi bấm làm rõ lại.";
     }
     return FRIENDLY[err.code] ?? err.message ?? fallback;
   }

@@ -41,13 +41,18 @@ const FlagRow = ({ flag }: { flag: Flag }) => (
   </li>
 );
 
-/** Mô tả CR điền sẵn từ gap report: liệt kê cờ đỏ + section thiếu (người dùng sửa lại trước khi gửi). */
+/**
+ * Mô tả CR điền sẵn từ gap report: chỉ cờ đỏ trên **nội dung đã có** (người dùng sửa lại trước khi gửi).
+ * Mục còn thiếu (`section_empty`, `missing_sections`) KHÔNG đưa vào: CR sửa phần tử Spine đang có, mục trống thì
+ * không có gì để sửa — C-3 sẽ trả 0 vị trí. Mục thiếu đi đường step (AI soạn nội dung, D6), gap report chỉ lối riêng.
+ */
 export const gapReportPrefill = (report: GapReport): { title: string; description: string } => {
-  const reds = report.sections.flatMap((s) => s.flags.filter((f) => f.level === "red").map((f) => `- ${sectionLabel(s.section_id)}: ${f.message}`));
-  const missing = report.missing_sections.map((m) => `- Thiếu mục ${sectionLabel(m.section_id)}`);
+  const reds = report.sections.flatMap((s) =>
+    s.flags.filter((f) => f.level === "red" && f.rule_id !== "section_empty").map((f) => `- ${sectionLabel(s.section_id)}: ${f.message}`)
+  );
   return {
     title: "Sửa theo gap report",
-    description: ["Xử lý các vấn đề trong gap report của bản " + report.doc_version + ":", ...reds, ...missing].join("\n"),
+    description: ["Xử lý các vấn đề trong gap report của bản " + report.doc_version + ":", ...reds].join("\n"),
   };
 };
 
@@ -118,10 +123,35 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
         <Tile label="Field độ tin thấp" value={report.totals.low_confidence_fields} tone="yellow" />
       </div>
 
+      {report.missing_fpt_sections.length > 0 && (
+        <section className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-4 flex flex-col gap-2" aria-label="Đầu mục FPT còn thiếu">
+          <h3 className="font-extrabold text-[#8A4141] text-[14px]">Đầu mục mẫu FPT còn thiếu — soạn bằng step, không qua change request</h3>
+          <p className="text-[12px] text-[#8A4141]">
+            Mục trống thì không có phần tử nào để sửa, nên change request không tìm được vị trí. Về workspace, chạy step tương ứng cho AI soạn
+            nội dung (hoặc viết tay), cờ đỏ sẽ tự đóng.
+          </p>
+          <ul className="flex flex-col gap-1 text-[12.5px] text-[#33312D]">
+            {report.missing_fpt_sections.map((m) => (
+              <li key={m.section_id} className="flex items-center gap-2">
+                <span className="font-semibold">{m.title}</span>
+                <span className="text-[#8A867E]">— {m.in_layout ? "có heading, chưa có nội dung" : "file không có"}</span>
+                <code className="ml-auto text-[11px] text-[#6A62C4] shrink-0">chạy {m.step_id}</code>
+              </li>
+            ))}
+          </ul>
+          <Link href={`/projects/${projectId}`} className="self-start px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold">
+            Về workspace để chạy step
+          </Link>
+        </section>
+      )}
+
       <div className="flex flex-wrap gap-3 bg-white border border-[#ECEAE5] rounded-[14px] p-4">
         <div className="flex-1 min-w-[240px] text-[12.5px] text-[#4B4842]">
           <p className="font-bold text-[#191817]">Bước tiếp theo</p>
-          <p>Không cần sửa ⇒ tải báo cáo để gửi. Cần sửa ⇒ tạo change request (nguồn: gap report) — tài liệu đã có baseline nên không sửa trực tiếp.</p>
+          <p>
+            Không cần sửa ⇒ tải báo cáo để gửi. Cần sửa <strong>nội dung đã có</strong> ⇒ tạo change request (nguồn: gap report). Mục còn thiếu
+            thì chạy step ở workspace, không đưa vào CR.
+          </p>
         </div>
         <button
           type="button"

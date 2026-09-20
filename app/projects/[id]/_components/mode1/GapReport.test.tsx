@@ -187,14 +187,13 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
 });
 
 describe("gapReportPrefill", () => {
-  it("chỉ lấy cờ đỏ (bỏ vàng), kèm section thiếu, theo thứ tự", () => {
-    const { title, description } = gapReportPrefill(REPORT);
+  it("chỉ lấy cờ đỏ trên nội dung đã có (bỏ vàng, bỏ section_empty), không đưa mục thiếu vào CR", () => {
+    const { title, description } = gapReportPrefill({
+      ...REPORT,
+      sections: [...REPORT.sections, { section_id: "fixed:3.1.1", title: "Screens Flow", flags: [flag("F9", "red", "fixed:3.1.1", "Mục trống", "section_empty")] }],
+    });
     expect(title).toBe("Sửa theo gap report");
-    expect(description.split("\n")).toEqual([
-      "Xử lý các vấn đề trong gap report của bản 0.0:",
-      "- 4.2.3 Performance: NFR-P02 thiếu ngưỡng đo được",
-      "- Thiếu mục 5.3 Application Messages List",
-      "- Thiếu mục custom:x",
-    ]);
+    // mục thiếu / mục trống đi đường step (D6) — CR chỉ sửa phần tử đang có, kẻo C-3 ra 0 vị trí
+    expect(description.split("\n")).toEqual(["Xử lý các vấn đề trong gap report của bản 0.0:", "- 4.2.3 Performance: NFR-P02 thiếu ngưỡng đo được"]);
   });
 });
