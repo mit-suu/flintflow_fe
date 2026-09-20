@@ -130,7 +130,8 @@ describe("DocumentPane", () => {
     render(<DocumentPane projectId="p1" onSelectStep={onSelectStep} />);
 
     expect(await screen.findByText("Chưa có bản ghép tài liệu")).toBeInTheDocument();
-    expect(screen.getByText("Chưa ghép tài liệu.")).toBeInTheDocument();
+    // `ApiClientError` dịch message theo mã, nên hiện câu của `messages/vi.json → errors.NO_WORKING_DRAFT`.
+    expect(screen.getByText("Chưa ghép tài liệu — chạy S-8.2 (Ghép tài liệu) trước.")).toBeInTheDocument();
     screen.getByRole("button", { name: /Đi tới S-8.2/ }).click();
     expect(onSelectStep).toHaveBeenCalledWith("S-8.2");
   });

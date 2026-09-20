@@ -1,5 +1,6 @@
 /** `/users/me` (BE `modules/user`) — hồ sơ của user đang đăng nhập. */
 import { apiCall } from "./client";
+import type { Locale } from "@/lib/i18n";
 import type { User } from "@/types/user";
 
 export const fetchMe = async (): Promise<User> => {
@@ -9,6 +10,12 @@ export const fetchMe = async (): Promise<User> => {
 
 export const updateMyName = async (name: string): Promise<User> => {
   const res = await apiCall<User>("/users/me", { method: "PATCH", body: JSON.stringify({ name }) });
+  return res.data as User;
+};
+
+/** Ngôn ngữ giao diện + email của tài khoản — `LocaleSwitcher` gọi khi user đã đăng nhập. */
+export const updateMyLocale = async (locale: Locale): Promise<User> => {
+  const res = await apiCall<User>("/users/me", { method: "PATCH", body: JSON.stringify({ locale }) });
   return res.data as User;
 };
 
