@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
@@ -30,7 +31,7 @@ const click = async (name: string | RegExp) => fireEvent.click(await screen.find
 describe("ChangeRequestForm (UC-48)", () => {
   it("thiếu nguồn hoặc người yêu cầu ⇒ chặn ở FE, không tạo CR", async () => {
     const onCreated = vi.fn();
-    render(<ChangeRequestForm projectId={P} prefill={{ title: "Sửa theo gap report", description: "- Thiếu mục 5.3" }} onCreated={onCreated} onCancel={vi.fn()} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "Sửa theo gap report", description: "- Thiếu mục 5.3" }} onCreated={onCreated} onCancel={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Tạo change request" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Chọn nguồn");
 
@@ -49,7 +50,7 @@ describe("ChangeRequestForm (UC-48)", () => {
 describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
   it("làm rõ (hỏi lại) → trả lời → tìm vị trí + khoá → đề xuất → kiểm → nộp → duyệt ⇒ ghi bản 0.1", async () => {
     const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
-    render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Bắt đầu làm rõ (AI)");
     const form = await screen.findByRole("form", { name: "Trả lời câu hỏi làm rõ" });
@@ -73,7 +74,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
   it("sửa tay vẫn trượt kiểm ⇒ manual_fix; sửa lại đúng thì kiểm đạt", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact", "propose"]);
-    render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     // FLF-186: sửa tay = giá trị mới của cả phần tử (JSON)
     const setStatement = (article: HTMLElement, statement: string) => {
@@ -99,7 +100,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
   it("từ chối group cần lý do ≥ 10 ký tự; mọi group bị từ chối ⇒ đóng CR có lý do", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
-    render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Từ chối");
     const confirm = screen.getByRole("button", { name: "Xác nhận từ chối" });
@@ -119,7 +120,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact"]);
     expect(S().locks.size).toBeGreaterThan(0);
-    render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Huỷ CR");
     fireEvent.change(screen.getByLabelText("Lý do"), { target: { value: "Tạo nhầm change request" } });
@@ -134,7 +135,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await crSteps(first.change_request.cr_id, ["clarify", "impact"]);
     const second = await newCr("Đăng xuất mọi thiết bị (lần 2)");
     await crSteps(second.change_request.cr_id, ["clarify"]);
-    render(<CrWorkspace projectId={P} crId={second.change_request.cr_id} />);
+    renderWithIntl(<CrWorkspace projectId={P} crId={second.change_request.cr_id} />);
 
     await click("Tìm vị trí ảnh hưởng & khoá");
     expect(await screen.findByRole("alert")).toHaveTextContent(/Phần tử đang bị change request khác giữ: \S+\[id=[^\]]+\] \(CR-001\)/);
@@ -143,7 +144,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
   it("hết credit lúc đề xuất ⇒ banner paused, nạp xong tiếp tục", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact"]);
-    render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
     S().credits = 0;
     await click("AI đề xuất sửa");
     expect(await screen.findByText(/Đề xuất sửa đang tạm dừng — hết credit/)).toBeInTheDocument();

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import AppShell from "./AppShell";
 import TopBar from "./TopBar";
@@ -7,7 +8,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/home" }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 1250, planLabel: "Pro" })) }));
 
 const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) =>
-  render(
+  renderWithIntl(
     <AppShell sidebar={<nav aria-label="Điều hướng chính">sidebar</nav>}>
       <TopBar trail={["Tài khoản", "Thông báo"]} {...props} />
     </AppShell>

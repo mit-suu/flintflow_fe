@@ -313,19 +313,6 @@
     }
   },
   "app": {
-    "common": {
-      "loading": "Đang tải…",
-      "loadMore": "Tải thêm",
-      "cancel": "Huỷ",
-      "back": "Quay lại",
-      "continue": "Tiếp tục →",
-      "account": "Tài khoản",
-      "projectName": "Tên dự án",
-      "creatingProject": "Đang tạo dự án…",
-      "createProject": "Tạo dự án →",
-      "close": "Đóng",
-      "credit": "credit"
-    },
     "time": {
       "justNow": "Vừa xong",
       "minutesAgo": "{count} phút trước",
@@ -338,21 +325,6 @@
       "offline": "Không kết nối được máy chủ. Phiên đăng nhập của bạn vẫn được giữ.",
       "retry": "Thử lại",
       "checking": "Đang kiểm tra quyền truy cập..."
-    },
-    "sidebar": {
-      "nav": {
-        "home": "Trang chủ",
-        "projects": "Dự án của tôi",
-        "notifications": "Thông báo",
-        "billing": "Thanh toán & credit"
-      },
-      "expand": "Mở rộng",
-      "collapse": "Thu gọn",
-      "favourites": "Dự án yêu thích",
-      "noFavourites": "Chưa có dự án yêu thích",
-      "billing": "Thanh toán",
-      "language": "Ngôn ngữ",
-      "logout": "Đăng xuất"
     },
     "notifications": {
       "title": "Thông báo",
@@ -370,86 +342,6 @@
       "loadFailed": "Không thể tải thông báo",
       "loadMoreFailed": "Không thể tải thêm thông báo",
       "markFailed": "Không thể đánh dấu đã đọc"
-    },
-    "projectCard": {
-      "badge": {
-        "needsClarity": "Cần làm rõ",
-        "ready": "Sẵn sàng",
-        "analyzing": "Đang phân tích",
-        "draft": "Bản nháp"
-      },
-      "loading": "Đang tải…",
-      "notStarted": "Chưa bắt đầu — mở để mô tả ý tưởng",
-      "rename": "Đổi tên",
-      "archive": "Lưu trữ",
-      "hardDelete": "Xoá vĩnh viễn"
-    },
-    "home": {
-      "breadcrumbAll": "Tất cả dự án",
-      "myProjects": "Dự án của tôi",
-      "newProject": "+ Dự án mới",
-      "searchPlaceholder": "Tìm kiếm dự án…",
-      "searchAria": "Tìm kiếm dự án theo tên",
-      "loadingList": "Đang tải danh sách dự án…",
-      "emptyTitle": "Bắt đầu dự án đầu tiên của bạn",
-      "emptyBody": "Tạo tài liệu SRS hoàn chỉnh chuẩn IEEE/FPT chỉ trong vài phút thông qua hội thoại tương tác cùng AI.",
-      "createNew": "+ Tạo dự án mới",
-      "noMatch": "Không tìm thấy dự án nào khớp “{query}”.",
-      "createTitle": "Tạo dự án mới",
-      "createPlaceholder": "Ví dụ: App Đặt Xe Online, E-Learning Platform…",
-      "archiveTitle": "Lưu trữ dự án",
-      "archiveConfirm": "Lưu trữ “{name}”?",
-      "archiveBody": "Dự án sẽ bị ẩn khỏi dashboard chính và có thể khôi phục lại sau.",
-      "archiving": "Đang lưu trữ…",
-      "archive": "Lưu trữ",
-      "hardDeleteTitle": "Xoá vĩnh viễn dự án",
-      "hardDeleteConfirm": "Xoá vĩnh viễn “{name}”?",
-      "hardDeleteBody": "Toàn bộ hội thoại, tài liệu SRS và dữ liệu đính kèm sẽ bị xoá hoàn toàn. Hành động này <b>không thể hoàn tác</b>.",
-      "deleting": "Đang xoá…",
-      "hardDelete": "Xoá vĩnh viễn",
-      "renameTitle": "Đổi tên dự án",
-      "newName": "Tên dự án mới",
-      "renamePlaceholder": "Nhập tên mới…",
-      "saving": "Đang lưu…",
-      "save": "Lưu thay đổi",
-      "errors": {
-        "load": "Không thể tải danh sách dự án",
-        "create": "Không thể tạo dự án",
-        "rename": "Không thể đổi tên dự án",
-        "archive": "Không thể lưu trữ dự án",
-        "hardDelete": "Không thể xoá vĩnh viễn dự án"
-      }
-    },
-    "onboarding": {
-      "stepAria": "Bước {step}",
-      "stepAriaCurrent": "Bước {step} (hiện tại)",
-      "welcomeTitle": "Chào mừng đến với FlintFlow",
-      "welcomeBody": "Vài bước để chuẩn bị không gian làm việc của bạn.",
-      "yourName": "Tên của bạn",
-      "namePlaceholder": "Ví dụ: Hiệp",
-      "goal": "Mục tiêu chính của bạn lúc này là gì?",
-      "goalPlaceholder": "Ví dụ: Viết SRS cho app đặt xe cho đồ án tốt nghiệp",
-      "modeTitle": "Chọn cách làm việc mặc định",
-      "modeBody": "Có thể đổi lại bất cứ lúc nào trong dự án.",
-      "createTitle": "Tạo dự án đầu tiên",
-      "createBody": "Bạn có thể đổi tên dự án sau.",
-      "projectPlaceholder": "Ví dụ: App Đặt Xe Online",
-      "errors": {
-        "createFailed": "Không tạo được dự án",
-        "spineFailed": "Không đọc được Spine của dự án vừa tạo",
-        "generic": "Không hoàn tất được thiết lập ban đầu — bấm lại để thử tiếp"
-      }
-    },
-    "workingMode": {
-      "aria": "Cách làm việc",
-      "fast": {
-        "label": "Nhanh",
-        "hint": "Gom câu hỏi, duyệt một lần cuối phase"
-      },
-      "coaching": {
-        "label": "Kèm cặp",
-        "hint": "Hỏi kỹ từng bước, duyệt từng bước"
-      }
     },
     "billing": {
       "title": "Thanh toán & credit",
@@ -552,6 +444,239 @@
         "bodyWaived": "Tài liệu đã được ký ở mức {version} với {count} cờ được bỏ qua có lý do.",
         "bodyClean": "Tài liệu đã được ký ở mức {version}, không còn cờ đỏ nào."
       }
+    },
+    "common": {
+      "loading": "Đang tải…",
+      "cancel": "Huỷ",
+      "close": "Đóng",
+      "save": "Lưu",
+      "retry": "Thử lại",
+      "clearSearch": "Xoá tìm kiếm",
+      "soon": "Sắp có"
+    },
+    "shell": {
+      "nav": "Điều hướng chính",
+      "menu": "Menu",
+      "openMenu": "Mở menu",
+      "closeMenu": "Đóng menu",
+      "expand": "Mở rộng thanh bên",
+      "collapse": "Thu gọn thanh bên",
+      "sectionMain": "Chính",
+      "sectionOrg": "Tổ chức",
+      "items": {
+        "projects": "Dự án",
+        "notifications": "Thông báo",
+        "orgSwitcher": "Đổi tổ chức",
+        "members": "Thành viên",
+        "billing": "Credits & Thanh toán"
+      },
+      "soonItem": "{label} · {soon}",
+      "soonItemSr": "{label} ({soon})",
+      "soonItemTitle": "{label} — {soon}",
+      "recentTitle": "Gần đây",
+      "recentNav": "Dự án gần đây",
+      "feedback": "Gửi góp ý",
+      "account": "Tài khoản {name}",
+      "profile": "Hồ sơ cá nhân",
+      "billing": "Thanh toán",
+      "logout": "Đăng xuất",
+      "planAdmin": "Admin",
+      "plan": "Gói {plan}",
+      "planFree": "Gói Free",
+      "breadcrumb": "Breadcrumb",
+      "credits": "credits · {plan}",
+      "creditsTitle": "Credits & Thanh toán"
+    },
+    "recency": {
+      "today": "Hôm nay",
+      "week": "7 ngày qua",
+      "month": "30 ngày qua",
+      "older": "Cũ hơn",
+      "never": "Chưa mở"
+    },
+    "sourceMode": {
+      "groupLabel": "Bạn bắt đầu từ đâu?",
+      "import": {
+        "label": "Upload SRS có sẵn",
+        "shortLabel": "SRS có sẵn",
+        "description": "Có file .docx — FlintFlow kiểm tra lỗ hổng và giúp sửa"
+      },
+      "customerTemplate": {
+        "label": "Có template của khách",
+        "shortLabel": "Template khách",
+        "description": "Upload mẫu của khách, viết SRS mới theo mẫu đó"
+      },
+      "fpt": {
+        "label": "Chưa có template",
+        "shortLabel": "Template FlintFlow",
+        "description": "Dùng template SRS của FlintFlow, bắt đầu từ ý tưởng / ghi chú"
+      }
+    },
+    "projectCard": {
+      "status": {
+        "draft": "Bản nháp",
+        "analyzing": "Đang phân tích",
+        "clarify": "Cần làm rõ",
+        "ready": "Sẵn sàng"
+      },
+      "next": {
+        "loading": "Đang tải…",
+        "done": "Đã hoàn tất",
+        "resume": "Mở để tiếp tục",
+        "notStarted": "Chưa bắt đầu — mở để mô tả ý tưởng"
+      },
+      "mode1": {
+        "notUploaded": "Chưa tải SRS lên — mở để upload .docx",
+        "importing": "Nhập SRS: {state}",
+        "openCrs": "{count, plural, other {# change request}} đang mở"
+      },
+      "progressLabel": "Tiến độ theo giai đoạn",
+      "phaseOf": "Giai đoạn {current}/{total}: {phase}",
+      "allPhases": "Đã qua đủ {total} giai đoạn",
+      "notStarted": "Chưa bắt đầu",
+      "folderTitle": "Thư mục {name}",
+      "archived": "Đã lưu trữ",
+      "options": "Tuỳ chọn cho {name}",
+      "menu": {
+        "rename": "Đổi tên",
+        "moveToFolder": "Chuyển vào thư mục",
+        "archive": "Lưu trữ",
+        "hardDelete": "Xoá vĩnh viễn"
+      },
+      "gridLoading": "Đang tải danh sách dự án"
+    },
+    "folderCard": {
+      "projectCount": "{count, plural, other {# dự án}}",
+      "options": "Tuỳ chọn cho thư mục {name}",
+      "rename": "Đổi tên",
+      "delete": "Xoá thư mục",
+      "new": "Thư mục mới",
+      "colors": {
+        "blue": "Xanh dương",
+        "amber": "Vàng",
+        "green": "Xanh lá",
+        "rose": "Hồng"
+      }
+    },
+    "createProject": {
+      "defaultName": "Dự án chưa đặt tên",
+      "nameLabel": "Tên dự án",
+      "pickMode": "Chọn một cách bắt đầu ở trên để tiếp tục.",
+      "submitting": "Đang tạo…",
+      "submit": "Bắt đầu",
+      "missingProject": "Không nhận được dự án vừa tạo",
+      "failed": "Không thể tạo dự án"
+    },
+    "projectDialogs": {
+      "archive": {
+        "title": "Lưu trữ dự án",
+        "question": "Lưu trữ",
+        "detail": "Dự án sẽ bị ẩn khỏi danh sách đang làm; xem lại bằng bộ lọc Trạng thái: Lưu trữ.",
+        "cta": "Lưu trữ",
+        "busy": "Đang lưu trữ…",
+        "failed": "Không thể lưu trữ dự án"
+      },
+      "delete": {
+        "title": "Xoá vĩnh viễn dự án",
+        "question": "Xoá vĩnh viễn",
+        "detail": "Toàn bộ hội thoại, tài liệu SRS và dữ liệu đính kèm sẽ bị xoá hoàn toàn. Hành động này không thể hoàn tác.",
+        "cta": "Xoá vĩnh viễn",
+        "busy": "Đang xoá…",
+        "failed": "Không thể xoá vĩnh viễn dự án"
+      },
+      "renameTitle": "Đổi tên dự án",
+      "renameFailed": "Không thể đổi tên dự án",
+      "renameLabel": "Tên dự án mới",
+      "saveChanges": "Lưu thay đổi",
+      "confirm": "{action} “{name}”?"
+    },
+    "folderDialogs": {
+      "deleteTitle": "Xoá thư mục",
+      "deleteFailed": "Không thể xoá thư mục",
+      "moveTitle": "Chuyển vào thư mục",
+      "moveFailed": "Không thể chuyển dự án",
+      "noFolder": "Không thuộc thư mục",
+      "noFolders": "Chưa có thư mục nào — tạo ở hàng Thư mục trên dashboard.",
+      "createTitle": "Thư mục mới",
+      "editTitle": "Sửa thư mục",
+      "createFailed": "Không thể tạo thư mục",
+      "updateFailed": "Không thể sửa thư mục",
+      "namePlaceholder": "Ví dụ: Khách hàng A",
+      "colorLegend": "Màu",
+      "create": "Tạo thư mục",
+      "deleteBody": "Xoá thư mục “{name}”? Mọi dự án bên trong (kể cả dự án lưu trữ) vẫn được giữ và chuyển ra ngoài thư mục.",
+      "moveLegend": "Dự án “{name}”",
+      "move": "Chuyển",
+      "nameLabel": "Tên thư mục"
+    },
+    "addToFolder": {
+      "modeLabel": "Cách thêm dự án",
+      "existing": "Chọn dự án có sẵn",
+      "create": "Tạo mới",
+      "searchLabel": "Tìm dự án để thêm",
+      "searchPlaceholder": "Tìm dự án…",
+      "legend": "Dự án có thể thêm",
+      "inOtherFolder": " · đang ở thư mục khác",
+      "noneMoved": "Không có dự án nào được chuyển — có thể dự án đã bị xoá hoặc chuyển nơi khác.",
+      "failed": "Không thể thêm dự án vào thư mục",
+      "title": "Thêm dự án vào “{folder}”",
+      "allInFolder": "Mọi dự án đang làm đã nằm trong thư mục này. Chuyển sang “Tạo mới” để thêm dự án.",
+      "noMatch": "Không có dự án khớp “{query}”.",
+      "selected": "Đã chọn {count}",
+      "selectedMax": "Đã chọn {count} (tối đa {max} mỗi lần)",
+      "add": "Thêm vào thư mục"
+    },
+    "feedback": {
+      "title": "Gửi góp ý",
+      "kindLegend": "Loại góp ý",
+      "bug": "Báo lỗi",
+      "suggestion": "Đề xuất",
+      "other": "Khác",
+      "placeholder": "Bạn gặp vấn đề gì hoặc muốn FlintFlow có thêm gì?",
+      "failed": "Không gửi được góp ý, thử lại sau",
+      "sent": "Cảm ơn bạn! Góp ý đã được gửi tới đội FlintFlow.",
+      "messageLabel": "Nội dung",
+      "submit": "Gửi góp ý"
+    },
+    "home": {
+      "onboardingTitle": "Bắt đầu dự án SRS đầu tiên",
+      "onboardingBody": "Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.",
+      "searchLabel": "Tìm dự án theo tên",
+      "searchPlaceholder": "Tìm dự án…",
+      "newProject": "Dự án mới",
+      "newProjectShort": "Mới",
+      "createTitle": "Tạo dự án mới",
+      "createInFolderTitle": "Dự án mới trong “{folder}”",
+      "allProjects": "Tất cả dự án",
+      "addProject": "Thêm dự án",
+      "tabsLabel": "Xem theo",
+      "tabAll": "Tất cả",
+      "tabFolders": "Thư mục",
+      "tabProjects": "Dự án",
+      "sortLabel": "Sắp xếp",
+      "sortUpdated": "Mới cập nhật",
+      "sortOpened": "Mới mở",
+      "statusLabel": "Trạng thái",
+      "statusActive": "Đang làm",
+      "statusArchived": "Lưu trữ",
+      "modeLabel": "Nguồn",
+      "modeAll": "Tất cả",
+      "foldersTitle": "Thư mục",
+      "foldersHint": "Kéo thẻ dự án thả vào thư mục để sắp xếp.",
+      "foldersError": "Không tải được thư mục: {message}",
+      "projectsTitle": "Dự án",
+      "looseProjectsTitle": "Dự án ngoài thư mục",
+      "noMatchTitle": "Không có dự án khớp bộ lọc",
+      "noMatchBody": "Thử đổi trạng thái, nguồn hoặc từ khoá tìm kiếm.",
+      "clearFilters": "Xoá bộ lọc",
+      "emptyFolderTitle": "Thư mục này chưa có dự án",
+      "allInFoldersTitle": "Mọi dự án đều đã nằm trong thư mục",
+      "emptyTitle": "Chưa có dự án đang làm",
+      "emptyFolderBody": "Chọn cách bắt đầu để tạo dự án mới ngay trong thư mục, hoặc thêm dự án có sẵn.",
+      "emptyBody": "Chọn cách bắt đầu để tạo dự án mới, hoặc mở lại các dự án đã lưu trữ.",
+      "addExisting": "Thêm dự án có sẵn",
+      "viewArchived": "Xem lưu trữ",
+      "moveFailed": "Không thể chuyển dự án vào thư mục"
     }
   },
   "workspace": {

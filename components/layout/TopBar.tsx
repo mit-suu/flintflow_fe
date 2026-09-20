@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
@@ -17,15 +18,17 @@ interface TopBarProps {
 
 /** Thanh trên của mọi trang `/home/*`: nút mở menu (mobile), breadcrumb, search, chip credits, action. */
 export default function TopBar({ trail, search, actions }: TopBarProps) {
+  const t = useTranslations("app.shell");
+  const format = useFormatter();
   const { openNav, balance } = useAppShell();
   const current = trail[trail.length - 1];
 
   return (
     <header className="shrink-0 bg-surface-container-lowest">
       <div className="min-h-[58px] flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-6 py-2.5">
-        <IconButton icon="menu" label="Mở menu" onClick={openNav} className="md:hidden -ml-1" />
+        <IconButton icon="menu" label={t("openMenu")} onClick={openNav} className="md:hidden -ml-1" />
 
-        <nav aria-label="Breadcrumb" className="min-w-0 flex items-center gap-1.5 text-[13px]">
+        <nav aria-label={t("breadcrumb")} className="min-w-0 flex items-center gap-1.5 text-[13px]">
           {trail.slice(0, -1).map((part) => (
             <span key={part} className="hidden sm:flex items-center gap-1.5 text-on-surface-muted">
               {part}
@@ -44,12 +47,12 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
           {balance && (
             <Link
               href="/home/billing"
-              title="Credits & Thanh toán"
+              title={t("creditsTitle")}
               className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-control bg-surface-container-high text-[12px] font-semibold text-on-surface hover:bg-surface-container-highest transition-colors"
             >
               <Icon name="wallet" size={14} className="text-primary" />
-              <span className="tabular-nums">{balance.balance.toLocaleString("vi-VN")}</span>
-              <span className="text-on-surface-muted">credits · {balance.planLabel}</span>
+              <span className="tabular-nums">{format.number(balance.balance)}</span>
+              <span className="text-on-surface-muted">{t("credits", { plan: balance.planLabel })}</span>
             </Link>
           )}
           {actions}

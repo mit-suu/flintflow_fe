@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
@@ -61,6 +62,9 @@ const ErrorBox = ({ error }: { error: string | null }) =>
   ) : null;
 
 function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps & { target: FolderDialogTarget }) {
+  const t = useTranslations("app.folderDialogs");
+  const tc = useTranslations("app.common");
+  const tColor = useTranslations("app.folderCard.colors");
   const { submitting, error, run } = useSubmit(onDone, onClose);
   const close = () => {
     if (!submitting) onClose();
@@ -73,19 +77,18 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
 
   if (target.kind === "delete") {
     return (
-      <Modal open onClose={close} title="Xoá thư mục">
+      <Modal open onClose={close} title={t("deleteTitle")}>
         <div className="flex flex-col gap-4">
           <p className="text-[13.5px] text-on-surface-medium leading-[1.6]">
-            Xoá thư mục &ldquo;{target.folder.name}&rdquo;? Mọi dự án bên trong (kể cả dự án lưu trữ) vẫn được giữ và chuyển ra
-            ngoài thư mục.
+            {t("deleteBody", { name: target.folder.name })}
           </p>
           <ErrorBox error={error} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={close} disabled={submitting}>
               Huỷ
             </Button>
-            <Button variant="danger" loading={submitting} onClick={() => void run(() => deleteFolder(target.folder._id), "Không thể xoá thư mục")}>
-              Xoá thư mục
+            <Button variant="danger" loading={submitting} onClick={() => void run(() => deleteFolder(target.folder._id), t("deleteFailed"))}>
+              {t("deleteTitle")}
             </Button>
           </div>
         </div>
@@ -94,19 +97,19 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
   }
 
   if (target.kind === "move") {
-    const options = [{ _id: null as string | null, name: "Không thuộc thư mục" }, ...folders.map((f) => ({ _id: f._id as string | null, name: f.name }))];
+    const options = [{ _id: null as string | null, name: t("noFolder") }, ...folders.map((f) => ({ _id: f._id as string | null, name: f.name }))];
     return (
-      <Modal open onClose={close} title="Chuyển vào thư mục">
+      <Modal open onClose={close} title={t("moveTitle")}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void run(() => moveProjectToFolder(target.project._id, folderId), "Không thể chuyển dự án");
+            void run(() => moveProjectToFolder(target.project._id, folderId), t("moveFailed"));
           }}
           className="flex flex-col gap-4"
         >
           <fieldset className="flex flex-col gap-1.5">
             <legend className="text-[12.5px] text-on-surface-muted mb-2">
-              Dự án &ldquo;{target.project.name}&rdquo;
+              {t("moveLegend", { name: target.project.name })}
             </legend>
             {options.map((o) => (
               <label
@@ -120,7 +123,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
                 {o.name}
               </label>
             ))}
-            {folders.length === 0 && <p className="text-[12px] text-on-surface-muted">Chưa có thư mục nào — tạo ở hàng Thư mục trên dashboard.</p>}
+            {folders.length === 0 && <p className="text-[12px] text-on-surface-muted">{t("noFolders")}</p>}
           </fieldset>
           <ErrorBox error={error} />
           <div className="flex justify-end gap-2">
@@ -128,7 +131,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
               Huỷ
             </Button>
             <Button type="submit" loading={submitting} disabled={folderId === (target.project.folderId ?? null)}>
-              Chuyển
+              {t("move")}
             </Button>
           </div>
         </form>
@@ -139,21 +142,21 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
   const isCreate = target.kind === "create";
   const unchanged = !isCreate && name.trim() === target.folder.name && color === pickableFolderColor(target.folder.color);
   return (
-    <Modal open onClose={close} title={isCreate ? "Thư mục mới" : "Sửa thư mục"}>
+    <Modal open onClose={close} title={isCreate ? t("createTitle") : t("editTitle")}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           const trimmed = name.trim();
           if (!trimmed) return;
           void (isCreate
-            ? run(() => createFolder({ name: trimmed, color }), "Không thể tạo thư mục")
-            : run(() => updateFolder(target.folder._id, { name: trimmed, color }), "Không thể sửa thư mục"));
+            ? run(() => createFolder({ name: trimmed, color }), t("createFailed"))
+            : run(() => updateFolder(target.folder._id, { name: trimmed, color }), t("updateFailed")));
         }}
         className="flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1.5">
           <label htmlFor="folder-name" className="text-[12.5px] font-bold text-on-surface-medium">
-            Tên thư mục
+            {t("nameLabel")}
           </label>
           <input
             id="folder-name"
@@ -161,17 +164,17 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
             type="text"
             value={name}
             maxLength={FOLDER_NAME_MAX}
-            placeholder="Ví dụ: Khách hàng A"
+            placeholder={t("namePlaceholder")}
             onChange={(e) => setName(e.target.value)}
             className="h-10 px-3.5 rounded-control border border-outline bg-surface-container-low text-[13.5px] text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </div>
         <fieldset>
-          <legend className="text-[12.5px] font-bold text-on-surface-medium mb-2">Màu</legend>
+          <legend className="text-[12.5px] font-bold text-on-surface-medium mb-2">{t("colorLegend")}</legend>
           <div className="flex gap-2.5">
             {FOLDER_COLOR_ORDER.map((c) => (
-              <label key={c} title={FOLDER_COLORS[c].label} className="cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary rounded-full">
-                <input type="radio" name="folder-color" className="sr-only" checked={color === c} onChange={() => setColor(c)} aria-label={FOLDER_COLORS[c].label} />
+              <label key={c} title={tColor(FOLDER_COLORS[c].colorKey)} className="cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary rounded-full">
+                <input type="radio" name="folder-color" className="sr-only" checked={color === c} onChange={() => setColor(c)} aria-label={tColor(FOLDER_COLORS[c].colorKey)} />
                 <span
                   aria-hidden
                   className={`block w-7 h-7 rounded-full ${FOLDER_COLORS[c].swatch} ${color === c ? "ring-2 ring-offset-2 ring-on-surface" : ""}`}
@@ -183,10 +186,10 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
         <ErrorBox error={error} />
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={close} disabled={submitting}>
-            Huỷ
+            {tc("cancel")}
           </Button>
           <Button type="submit" loading={submitting} disabled={!name.trim() || unchanged}>
-            {isCreate ? "Tạo thư mục" : "Lưu"}
+            {isCreate ? t("create") : tc("save")}
           </Button>
         </div>
       </form>

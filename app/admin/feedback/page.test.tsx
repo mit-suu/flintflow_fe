@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import { fetchAdminFeedback } from "@/lib/api/admin";
 import AdminFeedbackPage from "./page";
@@ -14,7 +15,7 @@ describe("AdminFeedbackPage", () => {
       { _id: "f1", category: "bug", message: "Nút lưu không chạy", createdAt: "2026-09-19T03:00:00Z", user: { _id: "u1", email: "a@x.vn", name: "An" } },
       { _id: "f2", category: "other", message: "Hi", createdAt: "2026-09-18T03:00:00Z", user: null },
     ]);
-    render(<AdminFeedbackPage />);
+    renderWithIntl(<AdminFeedbackPage />);
 
     expect(await screen.findByText("Nút lưu không chạy")).toBeInTheDocument();
     expect(screen.getByText("Báo lỗi")).toBeInTheDocument();
@@ -24,7 +25,7 @@ describe("AdminFeedbackPage", () => {
 
   it("rỗng ⇒ thông báo chưa có phản hồi", async () => {
     vi.mocked(fetchAdminFeedback).mockResolvedValue([]);
-    render(<AdminFeedbackPage />);
+    renderWithIntl(<AdminFeedbackPage />);
     expect(await screen.findByText("Chưa có phản hồi nào.")).toBeInTheDocument();
   });
 });

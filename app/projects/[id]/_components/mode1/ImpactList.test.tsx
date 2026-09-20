@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import type { CrLocation } from "@/types/change-request";
 import ImpactList from "./ImpactList";
@@ -37,24 +38,24 @@ const tagsOf = (id: string) =>
 
 describe("ImpactList — vị trí ảnh hưởng (C-3, UC-50)", () => {
   it("không có vị trí ⇒ không render", () => {
-    const { container } = render(<ImpactList locations={[]} editable onPatch={vi.fn()} />);
+    const { container } = renderWithIntl(<ImpactList locations={[]} editable onPatch={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("tiêu đề đếm vị trí + tóm tắt theo kết luận, kể cả số chưa kết luận", () => {
-    render(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
+    renderWithIntl(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "Vị trí ảnh hưởng (5)" })).toBeInTheDocument();
     expect(screen.getByText("2 sửa · 1 chỉ comment · 1 không liên quan · 1 chưa kết luận")).toBeInTheDocument();
     expect(screen.getAllByRole("article")).toHaveLength(5);
   });
 
   it("vừa tìm xong (chưa AI đề xuất) ⇒ chỉ đếm chưa kết luận", () => {
-    render(<ImpactList locations={[location("L001"), location("L002")]} editable onPatch={vi.fn()} />);
+    renderWithIntl(<ImpactList locations={[location("L001"), location("L002")]} editable onPatch={vi.fn()} />);
     expect(screen.getByText("2 chưa kết luận")).toBeInTheDocument();
   });
 
   it("tag found_by của từng vị trí theo nguồn tìm thấy (liên kết field / nhắc mã / từ khoá)", () => {
-    render(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
+    renderWithIntl(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
     expect(tagsOf("L001")).toEqual(["Liên kết field", "Nhắc mã"]);
     expect(tagsOf("L002")).toEqual(["Nhắc mã"]);
     expect(tagsOf("L003")).toEqual(["Từ khoá"]);
@@ -63,7 +64,7 @@ describe("ImpactList — vị trí ảnh hưởng (C-3, UC-50)", () => {
 
   it("CR đang giữ khoá ở trạng thái sửa được ⇒ mỗi vị trí có “Sửa tay”, lưu gửi kèm location_id đúng", () => {
     const onPatch = vi.fn();
-    render(<ImpactList locations={LOCATIONS} editable onPatch={onPatch} />);
+    renderWithIntl(<ImpactList locations={LOCATIONS} editable onPatch={onPatch} />);
     expect(screen.getAllByRole("button", { name: "Sửa tay" })).toHaveLength(5);
 
     const third = screen.getByRole("article", { name: "Vị trí L003" });
@@ -75,12 +76,12 @@ describe("ImpactList — vị trí ảnh hưởng (C-3, UC-50)", () => {
   });
 
   it("CR không cho sửa (paused / đang kiểm / đã khoá duyệt) ⇒ không có nút sửa tay", () => {
-    render(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
+    renderWithIntl(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Sửa tay" })).not.toBeInTheDocument();
   });
 
   it("đang lưu sửa tay ⇒ nút lưu trong form bị khoá", () => {
-    render(<ImpactList locations={[location("L001")]} editable busy onPatch={vi.fn()} />);
+    renderWithIntl(<ImpactList locations={[location("L001")]} editable busy onPatch={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Sửa tay" }));
     expect(screen.getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
   });
