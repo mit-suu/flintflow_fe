@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { answerStep, runStep, submitGate } from "@/lib/api/pipeline";
+import { getSpine } from "@/lib/api/spine";
 import type { GateAction, GateResponse, Question, StepAnswer, StepEvent } from "@/types/pipeline";
 
 export type RunnerStatus =
@@ -20,6 +21,10 @@ export interface RunnerGate {
   actions: GateAction[];
   regenerate_used: number;
   calls_used: number;
+  /** Lượt chạy có ghi được op nào không (L11b) — `false` = model trả lô rỗng, accept sẽ không đổi gì. */
+  wroteOps: boolean;
+  /** Mục step này nuôi mà chạy xong vẫn trống — cờ `section_empty` sẽ còn treo sau khi accept (L11b). */
+  emptySections: { section_id: string; title: string }[];
 }
 
 export interface RunnerState {
@@ -80,7 +85,14 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         case "gate_ready":
           return {
             ...next,
-            gate: { actions: event.actions, regenerate_used: event.regenerate_used, calls_used: event.calls_used },
+            gate: {
+              actions: event.actions,
+              regenerate_used: event.regenerate_used,
+              calls_used: event.calls_used,
+              // BE cũ không gửi hai field này: coi như "có ghi, không mục nào trống" để không doạ nhầm.
+              wroteOps: event.wrote_ops ?? true,
+              emptySections: event.empty_sections ?? [],
+            },
             busy: false,
           };
         case "error":
@@ -132,6 +144,13 @@ const BUSY_RETRIES = 3;
 const BUSY_DELAY_MS = 1500;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * L11: `base_version` của FE đi sau BE mà không phải vì ai đó sửa tài liệu — lượt chạy trước còn render diagram
+ * và recompute cờ SAU `ops_applied`, waive cờ hay bật/tắt step cũng tăng version. Đọc lại version rồi chạy lại
+ * đúng một lần; lệch thật (tab khác vừa ghi) thì lần hai cũng 409 và lúc đó mới báo lỗi.
+ */
+const isVersionConflict = (err: unknown): boolean => err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT";
+
 export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
@@ -142,11 +161,12 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
 
   const run = useCallback(
     async (stepId: string, options: { reopen?: boolean } = {}) => {
-      const baseVersion = getBaseVersion();
+      let baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
         return;
       }
+      let versionRetried = false;
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -165,7 +185,9 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
                 if (isTerminalEvent(event)) terminated = true;
                 dispatch({ type: "event", event });
                 if (event.type === "ops_applied") onSpineChanged(event.spine_version);
-                if (event.type === "gate_ready") onSpineChanged();
+                // gate_ready mang version CUỐI (sau render + recompute cờ) — cao hơn ops_applied. Nhận nó ở đây
+                // thì lượt `/run` kế tiếp không còn gửi base_version cũ rồi ăn 409 (L11).
+                if (event.type === "gate_ready") onSpineChanged(event.spine_version);
               },
             });
             if (!controller.signal.aborted && !terminated) {
@@ -179,6 +201,21 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
               if (controller.signal.aborted) return;
               dispatch({ type: "start", stepId });
               continue;
+            }
+            // L11: version của FE đi sau BE (recompute cờ cuối lượt trước, waive cờ, bật/tắt step, tab khác).
+            // Đọc lại version thật rồi chạy lại đúng một lần; lệch thật thì lần hai cũng 409 và mới báo lỗi.
+            if (isVersionConflict(err) && !versionRetried) {
+              versionRetried = true;
+              const fresh = await getSpine(projectId)
+                .then((res) => res.data?.spine_version ?? null)
+                .catch(() => null);
+              if (controller.signal.aborted) return;
+              if (fresh !== null && fresh !== baseVersion) {
+                baseVersion = fresh;
+                onSpineChanged(fresh);
+                dispatch({ type: "start", stepId });
+                continue;
+              }
             }
             dispatch({ type: "failed", ...toFailure(err) });
             return;
