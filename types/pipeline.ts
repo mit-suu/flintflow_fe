@@ -158,6 +158,8 @@ export type StepEventType = StepEvent["type"];
 export interface RunStepRequest {
   session_id: string;
   base_version: number;
+  /** Chạy lại step đã chốt (B7 reopen) — BE đặt lại `revision_requested` rồi chạy như thường. */
+  reopen?: boolean;
 }
 
 export interface StepAnswer {

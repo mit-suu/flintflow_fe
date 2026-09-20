@@ -483,6 +483,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 flags={flags}
                 signedOff={signedOff}
                 onSelectStep={setSelectedStepId}
+                onReopenStep={(stepId) => {
+                  setSelectedStepId(stepId);
+                  void runner.run(stepId, { reopen: true });
+                }}
                 getBaseVersion={getBaseVersion}
                 onSpineChanged={() => onSpineChanged()}
               />

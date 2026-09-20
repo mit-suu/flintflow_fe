@@ -23,6 +23,8 @@ interface Mode1PlanPanelProps {
   busyStep: string | null;
   onToggleStep: (stepId: string, enabled: boolean) => void;
   onSelectStep: (stepId: string) => void;
+  /** Cờ đỏ trỏ tới step ĐÃ CHỐT (file có đầu mục nhưng Spine trống) ⇒ mở lại bước rồi chạy (B7 reopen). */
+  onReopenStep?: (stepId: string) => void;
   getBaseVersion: () => number | null;
   /** Sau khi ký (hoặc 409 lệch version): tải lại Spine/tiến độ/cờ. */
   onSignedOff: () => void;
@@ -46,6 +48,7 @@ export default function Mode1PlanPanel({
   busyStep,
   onToggleStep,
   onSelectStep,
+  onReopenStep,
   getBaseVersion,
   onSignedOff,
 }: Mode1PlanPanelProps) {
@@ -127,13 +130,22 @@ export default function Mode1PlanPanel({
                 <span className="flex items-center gap-2">
                   <code className="text-[10.5px] text-[#8A4141]">{f.rule_id}</code>
                   {f.remediation_step ? (
-                    <button
-                      type="button"
-                      onClick={() => onSelectStep(f.remediation_step as string)}
-                      className="ml-auto text-[11px] font-bold text-[#6A62C4] hover:underline shrink-0 cursor-pointer"
-                    >
-                      Chạy {f.remediation_step}
-                    </button>
+                    (() => {
+                      const step = f.remediation_step as string;
+                      // Step đã chốt mà mục vẫn trống (trích không ra dữ liệu) ⇒ bấm "Chạy" sẽ bị BE từ chối;
+                      // phải mở lại bước (B7) thì mới chạy lại được.
+                      const done = statusOf(step) === "accepted";
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => (done && onReopenStep ? onReopenStep(step) : onSelectStep(step))}
+                          title={done ? `${step} đã chốt nhưng mục vẫn trống — mở lại bước để AI soạn lại` : `Mở ${step}`}
+                          className="ml-auto text-[11px] font-bold text-[#6A62C4] hover:underline shrink-0 cursor-pointer"
+                        >
+                          {done ? `Mở lại ${step}` : `Chạy ${step}`}
+                        </button>
+                      );
+                    })()
                   ) : null}
                 </span>
               </li>

@@ -141,7 +141,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const run = useCallback(
-    async (stepId: string) => {
+    async (stepId: string, options: { reopen?: boolean } = {}) => {
       const baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
@@ -157,7 +157,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         for (let attempt = 0; ; attempt++) {
           let terminated = false;
           try {
-            await runStep(projectId, stepId, { session_id: sessionId, base_version: baseVersion }, {
+            await runStep(projectId, stepId, { session_id: sessionId, base_version: baseVersion, ...(options.reopen ? { reopen: true } : {}) }, {
               signal: controller.signal,
               onEvent: (event) => {
                 // Luồng cũ đã bị huỷ, hoặc sự kiện của step khác: bỏ qua
