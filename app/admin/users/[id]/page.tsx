@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import BackLink from "@/components/ui/BackLink";
 import { useParams } from "next/navigation";
 import { fetchAdminUser, formatDateTime, formatNumber, type AdminUserDetail } from "@/lib/api/admin";
 import type { CreditTransaction } from "@/lib/api/billing";
@@ -50,9 +50,7 @@ export default function AdminUserDetailPage() {
     <>
       <AdminTopBar trail={["Người dùng", user?.email ?? "Chi tiết"]} />
       <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8">
-        <Link href="/admin/users" className="text-[12px] font-semibold text-[#6B6862] hover:text-[#191817] self-start">
-          ← Danh sách người dùng
-        </Link>
+        <BackLink href="/admin/users">Danh sách người dùng</BackLink>
 
         {error && <ErrorBanner message={error} />}
 
@@ -72,7 +70,7 @@ export default function AdminUserDetailPage() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${
-                      user.role === "admin" ? "bg-[#EEEDFD] text-[#3B34B0]" : "bg-[#F0EEEA] text-[#6B6862]"
+                      user.role === "admin" ? "bg-[#EFEEF9] text-[#554DB0]" : "bg-[#F0EEEA] text-[#6B6862]"
                     }`}
                   >
                     {user.role}

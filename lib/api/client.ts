@@ -1,4 +1,5 @@
 import { clearAuthToken } from "../auth";
+import { localizeApiError } from "./error-messages";
 import {
   decodeJwt,
   getAccessToken,
@@ -15,14 +16,23 @@ export interface ApiResponse<T = unknown> {
   error: { code: string; message: string } | null;
 }
 
+/**
+ * Lỗi API. `message` đã được dịch theo `code` sang ngôn ngữ đang hiển thị (`localizeApiError`); câu gốc của BE
+ * giữ ở `rawMessage` để log / debug.
+ */
 export class ApiClientError extends Error {
   code: string;
   status: number;
+  rawMessage: string;
+  /** `meta` của envelope lỗi (vd `issues[]` của `IMPORT_FILE_REJECTED`, `prefill` của `CHANGE_REQUIRES_CR`). */
+  meta?: Record<string, unknown>;
 
-  constructor(status: number, code: string, message: string) {
-    super(message);
+  constructor(status: number, code: string, message: string, meta?: Record<string, unknown>) {
+    super(localizeApiError(code, message));
     this.status = status;
     this.code = code;
+    this.rawMessage = message;
+    this.meta = meta;
   }
 }
 
@@ -206,11 +216,24 @@ export const authFetch = async (
   return res;
 };
 
-/** Đọc thông điệp lỗi từ body JSON của response không OK (dùng cho SSE/file). */
-export const readErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+/**
+ * Câu lỗi **gốc** của BE (chưa dịch) — dùng khi còn dựng tiếp `ApiClientError`, vì constructor của nó tự dịch
+ * theo mã; đọc bản đã dịch ở đây sẽ làm mất câu gốc trong `rawMessage`.
+ */
+export const readRawErrorMessage = async (res: Response, fallback: string): Promise<string> => {
   try {
     const errJson = await res.json();
     return errJson.error?.message || errJson.message || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+/** Đọc thông điệp lỗi từ body JSON của response không OK, đã dịch theo mã (dùng cho SSE/file ném `Error` thường). */
+export const readErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+  try {
+    const errJson = await res.json();
+    return localizeApiError(errJson.error?.code, errJson.error?.message || errJson.message || fallback);
   } catch {
     return fallback;
   }
@@ -240,7 +263,8 @@ export const apiCall = async <T = unknown>(
     throw new ApiClientError(
       res.status,
       json.error?.code || "UNKNOWN_ERROR",
-      json.error?.message || `HTTP ${res.status}`
+      json.error?.message || `HTTP ${res.status}`,
+      json.meta
     );
   }
 

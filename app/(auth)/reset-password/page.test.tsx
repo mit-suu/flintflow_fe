@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logoutAndRedirect } from "../../../lib/auth";
@@ -15,7 +16,7 @@ const renderWith = (params: Record<string, string>) => {
   vi.mocked(useSearchParams).mockReturnValue(
     new URLSearchParams(params) as unknown as ReturnType<typeof useSearchParams>
   );
-  return render(<ResetPasswordPage />);
+  return renderWithIntl(<ResetPasswordPage />);
 };
 
 const jsonResponse = (status: number, body: unknown) =>
@@ -64,7 +65,7 @@ describe("ResetPasswordPage (OTP 2 bước)", () => {
 
     fireEvent.change(screen.getByLabelText("Mật khẩu mới"), { target: { value: "new-password-456" } });
     fireEvent.change(screen.getByLabelText("Xác nhận mật khẩu mới"), { target: { value: "new-password-456" } });
-    fireEvent.click(screen.getByRole("button", { name: /Đặt lại mật khẩu →/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Đặt lại mật khẩu$/ }));
 
     await waitFor(() => expect(screen.getByText("Đặt lại mật khẩu thành công!")).toBeInTheDocument());
     expect(fetchMock.mock.calls[1][0]).toMatch(/\/auth\/reset-password$/);
@@ -87,7 +88,7 @@ describe("ResetPasswordPage (OTP 2 bước)", () => {
     await waitFor(() => expect(screen.getByText("Bước 2/2")).toBeInTheDocument());
 
     const confirmInput = screen.getByLabelText("Xác nhận mật khẩu mới") as HTMLInputElement;
-    const submit = screen.getByRole("button", { name: /Đặt lại mật khẩu →/ });
+    const submit = screen.getByRole("button", { name: /^Đặt lại mật khẩu$/ });
     expect(screen.queryByText(/không giống với mật khẩu mới/)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Mật khẩu mới"), { target: { value: "new-password-456" } });
@@ -132,7 +133,7 @@ describe("ResetPasswordPage (OTP 2 bước)", () => {
 
     fireEvent.change(screen.getByLabelText("Mật khẩu mới"), { target: { value: "new-password-456" } });
     fireEvent.change(screen.getByLabelText("Xác nhận mật khẩu mới"), { target: { value: "new-password-456" } });
-    fireEvent.click(screen.getByRole("button", { name: /Đặt lại mật khẩu →/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Đặt lại mật khẩu$/ }));
 
     await waitFor(() => expect(screen.getByText("Bước 1/2")).toBeInTheDocument());
     expect(screen.getByText(/Phiên đặt lại mật khẩu đã hết hạn/)).toBeInTheDocument();
