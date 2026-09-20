@@ -10,6 +10,7 @@ export { default as FilterSelect, type FilterOption } from "./FilterSelect";
 export { default as Icon, type IconName } from "./Icon";
 export { default as IconButton } from "./IconButton";
 export { default as Modal } from "./Modal";
+export { default as PageSkeleton, type PageSkeletonVariant } from "./PageSkeleton";
 export { default as SearchInput } from "./SearchInput";
 export { default as Skeleton } from "./Skeleton";
 export { default as Tabs, type TabOption } from "./Tabs";

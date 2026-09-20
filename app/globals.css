@@ -123,9 +123,8 @@
   --radius-dialog: 18px;
 
   /* ── Typography ── */
-  --font-sans:
-    "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
 /* ── Base Styles ── */
@@ -247,6 +246,37 @@ body {
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none;
+  }
+}
+
+/* ── Skeleton: vệt gradient quét ngang ──
+   Dùng qua `components/ui/Skeleton.tsx`, đừng gắn class này thẳng vào JSX.
+   Nền = `surface-container-high`, vệt sáng = `surface-container-lowest` (trắng) ⇒ cùng tông với nền trang.
+   `background-size: 200%` để vệt có chỗ mà quét; quét từ trái sang phải. */
+@keyframes ff-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.ff-skeleton {
+  background-color: var(--color-surface-container-high);
+  background-image: linear-gradient(
+    90deg,
+    var(--color-surface-container-high) 0%,
+    var(--color-surface-container-high) 30%,
+    var(--color-surface-container-lowest) 50%,
+    var(--color-surface-container-high) 70%,
+    var(--color-surface-container-high) 100%
+  );
+  background-size: 200% 100%;
+}
+/* Tôn trọng "giảm chuyển động": bỏ vệt quét, giữ khối xám tĩnh. */
+@media (prefers-reduced-motion: no-preference) {
+  .ff-skeleton {
+    animation: ff-shimmer 1.6s linear infinite;
   }
 }
 
