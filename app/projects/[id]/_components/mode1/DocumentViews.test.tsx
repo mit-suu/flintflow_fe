@@ -52,28 +52,34 @@ describe("GapReportView (UC-23)", () => {
     const link = screen.getByRole("link", { name: "Cần sửa → Tạo change request" });
     const prefill = readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams);
     expect(prefill).toMatchObject({ source: "gap_report", title: "Sửa theo gap report" });
-    expect(prefill?.description).toContain("Application Messages List");
+    // mục thiếu không vào CR (đi đường step) — gap report có khối riêng chỉ lối
+    expect(prefill?.description).not.toContain("Application Messages List");
+    expect(screen.getByRole("region", { name: "Đầu mục FPT còn thiếu" })).toHaveTextContent(/chạy S-7\.1/);
 
     fireEvent.click(screen.getByRole("button", { name: "Tải gap report (.docx)" }));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
   });
 
-  it("gapReportPrefill liệt kê cờ đỏ và section thiếu", () => {
+  it("gapReportPrefill chỉ liệt kê cờ đỏ trên nội dung đã có — bỏ section_empty và mục thiếu (mục trống đi đường step, không phải CR)", () => {
     const text = gapReportPrefill({
       project_id: P,
       doc_version: "0.0",
       generated_at: "",
-      totals: { red: 1, yellow: 0, missing_sections: 1, unmapped_headings: 0, low_confidence_fields: 0, missing_fpt_sections: 0, unrendered_diagrams: 0 },
-      missing_fpt_sections: [],
+      totals: { red: 2, yellow: 0, missing_sections: 1, unmapped_headings: 0, low_confidence_fields: 0, missing_fpt_sections: 1, unrendered_diagrams: 0 },
+      missing_fpt_sections: [{ section_id: "fixed:3.1.1", title: "Screens Flow", step_id: "S-4.2", in_layout: false }],
       unrendered_diagrams: [],
       layout: [],
-      sections: [{ section_id: "fixed:4.2.3", title: "Performance", flags: [{ id: "F1", level: "red", message: "Thiếu ngưỡng" } as never] }],
+      sections: [
+        { section_id: "fixed:4.2.3", title: "Performance", flags: [{ id: "F1", level: "red", rule_id: "nfr_missing_number", message: "Thiếu ngưỡng" } as never] },
+        { section_id: "fixed:3.1.1", title: "Screens Flow", flags: [{ id: "F2", level: "red", rule_id: "section_empty", message: "Mục trống" } as never] },
+      ],
       missing_sections: [{ section_id: "fixed:5.3", title: "Application Messages List" }],
       unmapped_headings: [],
       low_confidence_fields: [],
     }).description;
     expect(text).toContain("4.2.3 Performance: Thiếu ngưỡng");
-    expect(text).toContain("Thiếu mục 5.3 Application Messages List");
+    expect(text).not.toContain("Mục trống");
+    expect(text).not.toContain("Application Messages List");
   });
 });
 

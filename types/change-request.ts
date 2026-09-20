@@ -164,6 +164,15 @@ export interface LocationUnconcludedMeta {
   location_ids: string[];
 }
 
+/**
+ * 409 CR_NO_LOCATIONS — C-3 không tìm được phần tử Spine nào. `empty_sections`: đích của C-2 là mục còn trống
+ * (không có gì để sửa — chạy `step_id` để AI soạn nội dung; mục riêng thì `step_id = null`).
+ */
+export interface CrNoLocationsMeta {
+  targets: { entity_paths: string[]; keywords: string[] };
+  empty_sections: { section_id: string; title: string; step_id: string | null }[];
+}
+
 /** Mã lỗi mode 1 (`docs/api/import-change-contract.md` §0.3). */
 export type Mode1ErrorCode =
   | "CR_SOURCE_REQUIRED"
@@ -179,6 +188,7 @@ export type Mode1ErrorCode =
   | "CR_INVALID_TRANSITION"
   | "PATH_LOCKED"
   | "CR_LOCATION_UNCONCLUDED"
+  | "CR_NO_LOCATIONS"
   | "CR_VALUE_CHANGED"
   | "CHANGE_REQUIRES_CR"
   | "IMPORT_FILE_REJECTED"
