@@ -546,7 +546,8 @@
         "archive": "Lưu trữ",
         "hardDelete": "Xoá vĩnh viễn"
       },
-      "gridLoading": "Đang tải danh sách dự án"
+      "gridLoading": "Đang tải danh sách dự án",
+      "select": "Chọn dự án {name}"
     },
     "folderCard": {
       "projectCount": "{count, plural, other {# dự án}}",
@@ -598,7 +599,7 @@
       "deleteFailed": "Không thể xoá thư mục",
       "moveTitle": "Chuyển vào thư mục",
       "moveFailed": "Không thể chuyển dự án",
-      "noFolder": "Không thuộc thư mục",
+      "noFolder": "Để ngoài thư mục",
       "noFolders": "Chưa có thư mục nào — tạo ở hàng Thư mục trên dashboard.",
       "createTitle": "Thư mục mới",
       "editTitle": "Sửa thư mục",
@@ -610,20 +611,18 @@
       "deleteBody": "Xoá thư mục “{name}”? Mọi dự án bên trong (kể cả dự án lưu trữ) vẫn được giữ và chuyển ra ngoài thư mục.",
       "moveLegend": "Dự án “{name}”",
       "move": "Chuyển",
-      "nameLabel": "Tên thư mục"
+      "nameLabel": "Tên thư mục",
+      "moveLegendMany": "{count} dự án đã chọn"
     },
     "addToFolder": {
-      "modeLabel": "Cách thêm dự án",
-      "existing": "Chọn dự án có sẵn",
-      "create": "Tạo mới",
       "searchLabel": "Tìm dự án để thêm",
       "searchPlaceholder": "Tìm dự án…",
       "legend": "Dự án có thể thêm",
       "inOtherFolder": " · đang ở thư mục khác",
       "noneMoved": "Không có dự án nào được chuyển — có thể dự án đã bị xoá hoặc chuyển nơi khác.",
       "failed": "Không thể thêm dự án vào thư mục",
-      "title": "Thêm dự án vào “{folder}”",
-      "allInFolder": "Mọi dự án đang làm đã nằm trong thư mục này. Chuyển sang “Tạo mới” để thêm dự án.",
+      "title": "Thêm dự án có sẵn vào “{folder}”",
+      "allInFolder": "Mọi dự án đang làm đã nằm trong thư mục này. Dùng “Dự án mới” để tạo dự án ngay trong thư mục.",
       "noMatch": "Không có dự án khớp “{query}”.",
       "selected": "Đã chọn {count}",
       "selectedMax": "Đã chọn {count} (tối đa {max} mỗi lần)",
@@ -651,7 +650,6 @@
       "createTitle": "Tạo dự án mới",
       "createInFolderTitle": "Dự án mới trong “{folder}”",
       "allProjects": "Tất cả dự án",
-      "addProject": "Thêm dự án",
       "tabsLabel": "Xem theo",
       "tabAll": "Tất cả",
       "tabFolders": "Thư mục",
@@ -675,11 +673,18 @@
       "emptyFolderTitle": "Thư mục này chưa có dự án",
       "allInFoldersTitle": "Mọi dự án đều đã nằm trong thư mục",
       "emptyTitle": "Chưa có dự án đang làm",
-      "emptyFolderBody": "Chọn cách bắt đầu để tạo dự án mới ngay trong thư mục, hoặc thêm dự án có sẵn.",
+      "emptyFolderBody": "Chọn cách bắt đầu để tạo dự án mới ngay trong thư mục.",
       "emptyBody": "Chọn cách bắt đầu để tạo dự án mới, hoặc mở lại các dự án đã lưu trữ.",
       "addExisting": "Thêm dự án có sẵn",
       "viewArchived": "Xem lưu trữ",
-      "moveFailed": "Không thể chuyển dự án vào thư mục"
+      "moveFailed": "Không thể chuyển dự án vào thư mục",
+      "select": "Chọn",
+      "selectAll": "Chọn tất cả",
+      "selectedCount": "Đã chọn {count}",
+      "moveSelected": "Chuyển vào thư mục",
+      "removeFromFolder": "Để ra ngoài",
+      "doneSelecting": "Xong",
+      "removeFailed": "Không thể đưa dự án ra ngoài thư mục"
     },
     "profile": {
       "title": "Hồ sơ cá nhân",

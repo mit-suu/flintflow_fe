@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/layout/AppShell";
 import { getProgress } from "@/lib/api/pipeline";
 import { createProject, listProjects, moveProjectToFolder } from "@/lib/api/projects";
-import { listFolders } from "@/lib/api/folders";
+import { listFolders, moveProjectsToFolder } from "@/lib/api/folders";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
 import HomePage from "./page";
@@ -18,7 +18,7 @@ vi.mock("@/lib/api/projects", () => ({
   deleteProject: vi.fn(),
   moveProjectToFolder: vi.fn(async () => ({ data: null, error: null })),
 }));
-vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn() }));
+vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(), moveProjectsToFolder: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/pipeline", () => ({ getProgress: vi.fn(async () => ({ data: null, error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 10, planLabel: "Free" })) }));
 
@@ -190,6 +190,44 @@ describe("Project Dashboard", () => {
 
     await waitFor(() => expect(moveProjectToFolder).toHaveBeenCalledWith("a", "f1"));
     await waitFor(() => expect(listProjects).toHaveBeenCalledTimes(2));
+  });
+
+  it("trong thư mục: chọn nhiều ⇒ đưa cả nhóm ra ngoài một lượt, xong thì thoát chế độ chọn", async () => {
+    const inFolder = { folderId: "f1" };
+    vi.mocked(listProjects).mockResolvedValue(ok([project("a", inFolder), project("b", inFolder)]));
+    vi.mocked(listFolders).mockResolvedValue(ok([{ _id: "f1", name: "Khách A", color: "blue", projectCount: 2, createdAt: "", updatedAt: "" }]));
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /^Khách A/ }));
+    await screen.findByRole("link", { name: /Dự án a/ });
+
+    fireEvent.click(screen.getByRole("button", { name: "Chọn" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn dự án Dự án a" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn dự án Dự án b" }));
+    expect(screen.getByText("Đã chọn 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Để ra ngoài" }));
+    await waitFor(() =>
+      expect(moveProjectsToFolder).toHaveBeenCalledWith(
+        [expect.objectContaining({ _id: "a" }), expect.objectContaining({ _id: "b" })],
+        null
+      )
+    );
+    await waitFor(() => expect(listProjects).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Chọn" })).toBeInTheDocument());
+  });
+
+  it("ngoài thư mục: chọn nhiều ⇒ khoá nút đưa ra ngoài, vẫn mở được dialog chuyển vào", async () => {
+    vi.mocked(listProjects).mockResolvedValue(ok([project("a")]));
+    vi.mocked(listFolders).mockResolvedValue(ok([{ _id: "f1", name: "Khách A", color: "blue", projectCount: 0, createdAt: "", updatedAt: "" }]));
+    renderPage();
+    await screen.findByRole("link", { name: /Dự án a/ });
+
+    fireEvent.click(screen.getByRole("button", { name: "Chọn" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn dự án Dự án a" }));
+
+    expect(screen.getByRole("button", { name: "Để ra ngoài" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Chuyển vào thư mục" }));
+    expect(screen.getByRole("dialog", { name: "Chuyển vào thư mục" })).toBeInTheDocument();
   });
 
   it('"+ Dự án mới" mở dialog chứa cùng picker; Huỷ không tạo gì', async () => {
