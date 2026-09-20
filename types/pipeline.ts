@@ -95,6 +95,8 @@ export interface StepSummary {
   regenerate_used: number;
   regenerate_limit: 3;
   accepted_at: string | null;
+  /** Step đang chạy dở ở một request khác (vd tab cũ chưa xong sau khi reload) — khoá nút chạy thay vì để nhận 409. */
+  running: boolean;
 }
 
 /** `GET /projects/:id/steps`. */

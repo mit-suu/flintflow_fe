@@ -11,6 +11,8 @@ interface PhaseHeaderProps {
   onChangeWorkingMode: (mode: WorkingMode) => void;
   onRunCurrentStep?: () => void;
   busy?: boolean;
+  /** BE báo step đang chạy dở ở request khác (lần chạy trước chưa dứt sau khi reload). */
+  stepRunningElsewhere?: boolean;
 }
 
 /** Phase hiện tại + menu đào sâu: [A]/[P] vòng sau, [C] đổi cách làm việc. */
@@ -21,6 +23,7 @@ export default function PhaseHeader({
   onChangeWorkingMode,
   onRunCurrentStep,
   busy = false,
+  stepRunningElsewhere = false,
 }: PhaseHeaderProps) {
   const phaseLabel = currentPhase ? (PHASE_LABELS_VI[currentPhase as PhaseId] ?? currentPhase) : "Hoàn tất";
 
@@ -39,10 +42,11 @@ export default function PhaseHeader({
         <button
           type="button"
           onClick={onRunCurrentStep}
-          disabled={busy}
+          disabled={busy || stepRunningElsewhere}
+          title={stepRunningElsewhere ? "Lần chạy trước của bước này chưa dứt — chờ vài giây rồi thử lại" : undefined}
           className="px-3 py-1 rounded-full text-[11.5px] font-bold bg-[#191817] text-white hover:bg-[#33312D] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          ▶ Chạy bước này
+          {stepRunningElsewhere ? "⏳ Đang chạy…" : "▶ Chạy bước này"}
         </button>
       )}
 
