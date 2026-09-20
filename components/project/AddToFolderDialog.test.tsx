@@ -7,7 +7,6 @@ import type { Project } from "@/types/project";
 import AddToFolderDialog from "./AddToFolderDialog";
 
 vi.mock("@/lib/api/folders", () => ({ addProjectsToFolder: vi.fn() }));
-vi.mock("@/lib/api/projects", () => ({ createProject: vi.fn() }));
 
 const folder: Folder = { _id: "f1", name: "Khách A", color: "blue", projectCount: 1, createdAt: "", updatedAt: "" };
 const project = (id: string, over: Partial<Project> = {}): Project => ({
@@ -29,7 +28,7 @@ describe("AddToFolderDialog", () => {
   });
 
   it("chỉ liệt kê dự án đang làm chưa ở thư mục này; tìm lọc danh sách", () => {
-    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} onCreated={() => {}} />);
+    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} />);
 
     expect(screen.getAllByRole("checkbox")).toHaveLength(2);
     fireEvent.change(screen.getByRole("searchbox", { name: "Tìm dự án để thêm" }), { target: { value: "dự án b" } });
@@ -39,7 +38,7 @@ describe("AddToFolderDialog", () => {
   it("chọn nhiều ⇒ một request, tải lại rồi đóng", async () => {
     const onAdded = vi.fn();
     const onClose = vi.fn();
-    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={onClose} onAdded={onAdded} onCreated={() => {}} />);
+    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={onClose} onAdded={onAdded} />);
 
     expect(screen.getByRole("button", { name: "Thêm vào thư mục" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: /Dự án a/ }));
@@ -52,10 +51,10 @@ describe("AddToFolderDialog", () => {
     expect(onAdded).toHaveBeenCalled();
   });
 
-  it('tab "Tạo mới" hiện form tạo dự án', () => {
-    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} onCreated={() => {}} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Tạo mới" }));
-    expect(screen.getByLabelText("Tên dự án")).toBeInTheDocument();
-    expect(screen.getAllByRole("radio")).toHaveLength(3);
+  it("thư mục đã chứa hết dự án đang làm ⇒ chỉ dẫn sang lối tạo dự án mới", () => {
+    renderWithIntl(<AddToFolderDialog folder={folder} projects={[project("in", { folderId: "f1" })]} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} />);
+
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByText(/Dùng “Dự án mới”/)).toBeInTheDocument();
   });
 });
