@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import { GOOGLE_CLIENT_ID, isGoogleAuthEnabled } from "@/lib/google-auth";
 import "./globals.css";
 
@@ -10,21 +12,25 @@ const inter = Inter({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "FlintFlow — AI Software Specification Platform",
-  description: "Enterprise-grade AI-powered software specification engine",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("metadata");
+  return { title: t("title"), description: t("description") };
+}
 
 // Không có client id ⇒ KHÔNG bọc provider. Xem `lib/google-auth.ts` (T24): bọc với client id rỗng
 // làm script gsi của Google ném lỗi và cả app thành trang trắng.
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Locale do `i18n/request.ts` chọn (cookie → Accept-Language → vi). Provider v4 tự nhận messages từ server.
+  const locale = await getLocale();
+  const app = <NextIntlClientProvider>{children}</NextIntlClientProvider>;
+
   return (
-    <html lang="vi" className={`${inter.variable} light`}>
+    <html lang={locale} className={`${inter.variable} light`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -39,9 +45,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen flex flex-col">
         {isGoogleAuthEnabled ? (
-          <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{children}</GoogleOAuthProvider>
+          <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{app}</GoogleOAuthProvider>
         ) : (
-          children
+          app
         )}
       </body>
     </html>

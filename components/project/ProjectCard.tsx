@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { BadgeTone } from "@/components/ui/Badge";
 import DropdownMenu, {
@@ -9,11 +10,9 @@ import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[id]/_components/mode1/labels";
 import { tStep, type Locale } from "@/lib/i18n";
-import {
-  PHASES,
-  PHASE_LABELS_VI,
-  type PhaseId
-} from "@/lib/constants/step-registry";
+import { timeAgo, type TimeTranslator } from "@/lib/time-ago";
+import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
+import { tPhase } from "@/lib/i18n";
 import { getSourceModeOption } from "@/lib/project-source-mode";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project, ProjectMode } from "@/types/project";
@@ -46,33 +45,37 @@ export const PROJECT_DRAG_TYPE = "application/x-flintflow-project";
  * Thứ tự quyết định có chủ ý: **cờ đỏ thắng phần trăm**. Một tài liệu 90% section đã chấp nhận mà còn
  * khoá chết thì không "sẵn sàng" — đó đúng là điều kiện chặn baseline ở S-9.5.
  */
+export type ProjectStatusKey = "clarify" | "ready" | "analyzing" | "draft";
+
 export function getStatusBadge(progress: ProgressResponse | null | undefined): {
-  label: string;
+  key: ProjectStatusKey;
   tone: BadgeTone;
 } {
   // Amber chứ không đỏ: đây là việc cần làm trong luồng bình thường, không phải lỗi
-  if (progress && progress.readiness.red_open > 0)
-    return { label: "Cần làm rõ", tone: "warning" };
+  if (progress && progress.readiness.red_open > 0) return { key: "clarify", tone: "warning" };
   const accepted = progress?.readiness.accepted_pct ?? 0;
-  if (progress && accepted >= 80) return { label: "Sẵn sàng", tone: "success" };
-  if (progress && accepted >= 40)
-    return { label: "Đang phân tích", tone: "primary" };
-  return { label: "Bản nháp", tone: "neutral" };
+  if (progress && accepted >= 80) return { key: "ready", tone: "success" };
+  if (progress && accepted >= 40) return { key: "analyzing", tone: "primary" };
+  return { key: "draft", tone: "neutral" };
 }
+
+/** Hàm dịch của `app.projectCard.next` — truyền vào để `nextStepLabel` giữ nguyên tính thuần. */
+export type NextTranslator = (key: "loading" | "done" | "resume" | "notStarted") => string;
 
 /** Việc tiếp theo: step đang dở lấy từ registry. Chưa có Spine ⇒ nói thẳng là chưa bắt đầu. */
 export function nextStepLabel(
   progress: ProgressResponse | null | undefined,
+  t: NextTranslator,
   locale: Locale = "vi"
 ): string {
-  if (progress === undefined) return "Đang tải…";
+  if (progress === undefined) return t("loading");
   const stepId = progress?.progress.current_step;
   if (!stepId) {
     // Không có step đang chạy chưa chắc là chưa bắt đầu: có thể đã xong hết, hoặc đang dừng giữa chừng (vd. chờ gate)
     const p = progress?.progress;
-    if (p && p.total > 0 && p.done >= p.total) return "Đã hoàn tất";
-    if (p && p.done > 0) return "Mở để tiếp tục";
-    return "Chưa bắt đầu — mở để mô tả ý tưởng";
+    if (p && p.total > 0 && p.done >= p.total) return t("done");
+    if (p && p.done > 0) return t("resume");
+    return t("notStarted");
   }
   return tStep(stepId, locale);
 }
@@ -81,22 +84,18 @@ export function nextStepLabel(
  * Mode 1 (UC-14, UC-19): chưa import xong ⇒ trạng thái import; đã có baseline ⇒ số change request đang mở.
  * Trạng thái lấy từ `project.import_state` do BE trả.
  */
-export function mode1NextLabel(project: Project, openCrs?: number): string {
-  const state = project.import_state;
-  if (!state) return "Chưa tải SRS lên — mở để upload .docx";
-  if (!IMPORT_DONE_STATUSES.includes(state)) return `Nhập SRS: ${IMPORT_STATUS_LABELS[state]}`;
-  if (openCrs === undefined) return IMPORT_STATUS_LABELS[state];
-  return openCrs > 0 ? `${openCrs} change request đang mở` : IMPORT_STATUS_LABELS[state];
-}
+/** Hàm dịch của `app.projectCard.mode1`. */
+export type Mode1Translator = (
+  key: "notUploaded" | "importing" | "openCrs",
+  values?: { state?: string; count?: number }
+) => string;
 
-function timeAgo(dateStr: string): string {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 3600)
-    return `${Math.max(1, Math.floor(seconds / 60))} phút trước`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`;
-  if (seconds < 172800) return "Hôm qua";
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} ngày trước`;
-  return `${Math.floor(seconds / 604800)} tuần trước`;
+export function mode1NextLabel(project: Project, t: Mode1Translator, openCrs?: number): string {
+  const state = project.import_state;
+  if (!state) return t("notUploaded");
+  if (!IMPORT_DONE_STATUSES.includes(state)) return t("importing", { state: IMPORT_STATUS_LABELS[state] });
+  if (openCrs === undefined) return IMPORT_STATUS_LABELS[state];
+  return openCrs > 0 ? t("openCrs", { count: openCrs }) : IMPORT_STATUS_LABELS[state];
 }
 
 /** Nguồn mặc định (gần như mọi dự án) — không ghi nhãn trên card; chỉ nguồn khác mới hiện tên. */
@@ -125,22 +124,25 @@ export function phasePosition(progress: ProgressResponse | null | undefined): {
  * đổi màu card thì phải đổi cả màu rãnh/chữ cho phù hợp.
  */
 function PhaseBar({
-  progress
+  progress,
+  locale
 }: {
   progress: ProgressResponse | null | undefined;
+  locale: Locale;
 }) {
+  const t = useTranslations("app.projectCard");
   const { done, current } = phasePosition(progress);
   const label =
     current >= 0
-      ? `Giai đoạn ${current + 1}/${PHASES.length}: ${PHASE_LABELS_VI[PHASES[current]]}`
+      ? t("phaseOf", { current: current + 1, total: PHASES.length, phase: tPhase(PHASES[current], locale) })
       : done === PHASES.length
-        ? "Đã qua đủ 12 giai đoạn"
-        : "Chưa bắt đầu";
+        ? t("allPhases", { total: PHASES.length })
+        : t("notStarted");
   const width = (phases: number) => `${(phases / PHASES.length) * 100}%`;
   return (
     <div
       role="progressbar"
-      aria-label="Tiến độ theo giai đoạn"
+      aria-label={t("progressLabel")}
       aria-valuemin={0}
       aria-valuemax={PHASES.length}
       aria-valuenow={done}
@@ -200,16 +202,21 @@ export default function ProjectCard({
   folderName,
   draggable = false
 }: Props) {
+  const t = useTranslations("app.projectCard");
+  const tTime = useTranslations("app.time");
+  const tMode = useTranslations("app.sourceMode");
+  const tNext = useTranslations("app.projectCard.next");
+  const tMode1 = useTranslations("app.projectCard.mode1");
   const status = getStatusBadge(progress);
   const mode = getSourceModeOption(project.mode);
   const archived = project.status === "archived";
 
   const menuItems: DropdownMenuItem[] = [
-    { label: "Đổi tên", icon: "pencil", onSelect: () => onRename(project) },
+    { label: t("menu.rename"), icon: "pencil", onSelect: () => onRename(project) },
     ...(onMoveToFolder
       ? [
           {
-            label: "Chuyển vào thư mục",
+            label: t("menu.moveToFolder"),
             icon: "folder",
             onSelect: () => onMoveToFolder(project)
           } as const
@@ -220,13 +227,13 @@ export default function ProjectCard({
       ? []
       : [
           {
-            label: "Lưu trữ",
+            label: t("menu.archive"),
             icon: "archive",
             onSelect: () => onDelete(project)
           } as const
         ]),
     {
-      label: "Xoá vĩnh viễn",
+      label: t("menu.hardDelete"),
       icon: "trash",
       tone: "danger",
       onSelect: () => onHardDelete(project)
@@ -260,14 +267,14 @@ export default function ProjectCard({
 
         <div className="mt-2 flex items-center gap-1.5 text-[11.5px] text-on-card-variant">
           <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[status.tone]}`} />
-          <span className="shrink-0 whitespace-nowrap">{status.label}</span>
+          <span className="shrink-0 whitespace-nowrap">{t(`status.${status.key}`)}</span>
           <Dot />
-          <span className="shrink-0 whitespace-nowrap">{timeAgo(project.updatedAt)}</span>
+          <span className="shrink-0 whitespace-nowrap">{timeAgo(project.updatedAt, tTime as TimeTranslator)}</span>
           {/* Thư mục nằm trong dòng meta, không thêm hàng riêng (chỉ vài card có ⇒ làm lệch hàng) */}
           {folderName && (
             <>
               <Dot />
-              <span className="min-w-0 inline-flex items-center gap-1" title={`Thư mục ${folderName}`}>
+              <span className="min-w-0 inline-flex items-center gap-1" title={t("folderTitle", { name: folderName })}>
                 <Icon name="folder" size={12} className="shrink-0" />
                 <span className="truncate">{folderName}</span>
               </span>
@@ -277,15 +284,15 @@ export default function ProjectCard({
           {mode.value !== DEFAULT_SOURCE_MODE && (
             <>
               <Dot />
-              <span title={mode.label} className="min-w-0 truncate">
-                {mode.shortLabel}
+              <span title={tMode(`${mode.key}.label`)} className="min-w-0 truncate">
+                {tMode(`${mode.key}.shortLabel`)}
               </span>
             </>
           )}
           {archived && (
             <>
               <Dot />
-              <span className="shrink-0 whitespace-nowrap">Đã lưu trữ</span>
+              <span className="shrink-0 whitespace-nowrap">{t("archived")}</span>
             </>
           )}
         </div>
@@ -295,11 +302,15 @@ export default function ProjectCard({
           {/* Khác hẳn dòng meta (nhạt, thường): đậm vừa, màu đậm, mũi tên tím = "việc tiếp theo" */}
           <span className="flex items-center gap-1.5 min-w-0 text-[12.5px] font-medium text-on-card-strong">
             <Icon name="arrow-right" size={13} className="shrink-0 text-primary" />
-            <span className="truncate">{project.mode === "import" ? mode1NextLabel(project, openCrs) : nextStepLabel(progress, locale)}</span>
+            <span className="truncate">
+              {project.mode === "import"
+                ? mode1NextLabel(project, tMode1 as Mode1Translator, openCrs)
+                : nextStepLabel(progress, tNext as NextTranslator, locale)}
+            </span>
           </span>
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <PhaseBar progress={progress} />
+              <PhaseBar progress={progress} locale={locale} />
             </div>
             {progress && progress.progress.total > 0 && (
               <span className="shrink-0 tabular-nums text-[11.5px] font-semibold text-on-card-strong">
@@ -319,7 +330,7 @@ export default function ProjectCard({
               {...props}
               icon="more"
               size="pill"
-              label={`Tuỳ chọn cho ${project.name}`}
+              label={t("options", { name: project.name })}
               // Nền trắng; hover không đổi màu mà chỉ phóng nhẹ. `!` để thắng hover xám + transition-colors mặc định của IconButton
               className="bg-surface-container-lowest text-on-card-variant! hover:bg-surface-container-lowest! hover:text-on-card-variant! transition-transform! duration-150 hover:scale-110 active:scale-100"
             />

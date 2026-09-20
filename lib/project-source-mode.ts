@@ -4,12 +4,12 @@ import type { ProjectMode } from "@/types/project";
 /** Tone màu của mode — trùng tên với `BadgeTone` để truyền thẳng vào `Badge`. */
 export type SourceModeTone = "info" | "warning" | "primary";
 
+export type SourceModeKey = "import" | "customerTemplate" | "fpt";
+
 export interface SourceModeOption {
   value: ProjectMode;
-  label: string;
-  /** Nhãn ngắn trên card dự án. */
-  shortLabel: string;
-  description: string;
+  /** Key nhóm chữ trong `app.sourceMode.*` (`label`, `shortLabel`, `description`). */
+  key: SourceModeKey;
   icon: IconName;
   tone: SourceModeTone;
   /** `soon`: màn của nhánh này chưa có — hiện nhưng không chọn được, kèm `Badge tone="soon"`. */
@@ -20,9 +20,7 @@ export interface SourceModeOption {
 export const SOURCE_MODE_OPTIONS = [
   {
     value: "import",
-    label: "Upload SRS có sẵn",
-    shortLabel: "SRS có sẵn",
-    description: "Có file .docx — FlintFlow kiểm tra lỗ hổng và giúp sửa",
+    key: "import",
     icon: "upload",
     tone: "info",
     // Mode 1: tạo xong vào wizard /projects/:id/import
@@ -30,19 +28,15 @@ export const SOURCE_MODE_OPTIONS = [
   },
   {
     value: "customer_template",
-    label: "Có template của khách",
-    shortLabel: "Template khách",
-    description: "Upload mẫu của khách, viết SRS mới theo mẫu đó",
+    key: "customerTemplate",
     icon: "file-template",
     tone: "warning",
     status: "soon",
   },
   {
-    value: "fpt",
-    label: "Chưa có template",
     // BE vẫn là `fpt` (mẫu SRS gốc của FPT); với người dùng đây là template của chính FlintFlow
-    shortLabel: "Template FlintFlow",
-    description: "Dùng template SRS của FlintFlow, bắt đầu từ ý tưởng / ghi chú",
+    value: "fpt",
+    key: "fpt",
     icon: "sparkle",
     tone: "primary",
     status: "ready",

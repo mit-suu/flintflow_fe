@@ -1,7 +1,7 @@
 "use client";
 
-// Số chưa đọc (mục "Thông báo" ở sidebar) + định dạng thời gian dùng chung. Dropdown chuông cũ đã bỏ:
-// sidebar của app shell có mục Thông báo kèm số chưa đọc.
+// Số chưa đọc cho mục "Thông báo" ở sidebar. Dropdown chuông cũ đã bỏ: sidebar của app shell có mục Thông báo
+// kèm số chưa đọc. Định dạng thời gian dùng `lib/time-ago.ts` (theo ngôn ngữ đang hiển thị).
 import { useEffect, useState } from "react";
 import { fetchUnreadCount, onNotificationsChanged } from "../lib/api/notifications";
 
@@ -36,14 +36,4 @@ export function useUnreadNotificationCount(): number {
   }, []);
 
   return count;
-}
-
-export function formatNotificationTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return "Vừa xong";
-  if (minutes < 60) return `${minutes} phút trước`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  return new Date(iso).toLocaleDateString("vi-VN");
 }

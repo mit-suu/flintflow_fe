@@ -1,14 +1,6 @@
 /** Vùng thời gian của tab "Dự án" (theo lịch ngày địa phương). */
 export type RecencyBucket = "today" | "week" | "month" | "older" | "never";
 
-export const RECENCY_LABELS: Record<RecencyBucket, string> = {
-  today: "Hôm nay",
-  week: "7 ngày qua",
-  month: "30 ngày qua",
-  older: "Cũ hơn",
-  never: "Chưa mở",
-};
-
 const ORDER: readonly RecencyBucket[] = ["today", "week", "month", "older", "never"];
 const DAY = 86_400_000;
 
@@ -32,7 +24,7 @@ export function groupByRecency<T>(
   items: readonly T[],
   dateOf: (item: T) => string | null | undefined,
   now: Date = new Date()
-): { bucket: RecencyBucket; label: string; items: T[] }[] {
+): { bucket: RecencyBucket; items: T[] }[] {
   const sorted = [...items].sort((a, b) => {
     const ta = dateOf(a) ? new Date(dateOf(a) as string).getTime() : -Infinity;
     const tb = dateOf(b) ? new Date(dateOf(b) as string).getTime() : -Infinity;
@@ -43,5 +35,5 @@ export function groupByRecency<T>(
     const bucket = recencyBucket(dateOf(item), now);
     groups.set(bucket, [...(groups.get(bucket) ?? []), item]);
   }
-  return ORDER.filter((b) => groups.has(b)).map((bucket) => ({ bucket, label: RECENCY_LABELS[bucket], items: groups.get(bucket)! }));
+  return ORDER.filter((b) => groups.has(b)).map((bucket) => ({ bucket, items: groups.get(bucket)! }));
 }

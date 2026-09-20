@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/layout/AppShell";
 import { getProgress } from "@/lib/api/pipeline";
@@ -33,7 +34,7 @@ const project = (id: string, over: Partial<Project> = {}): Project => ({
 });
 
 const renderPage = () =>
-  render(
+  renderWithIntl(
     <ProjectsProvider>
       <AppShell sidebar={null}>
         <HomePage />

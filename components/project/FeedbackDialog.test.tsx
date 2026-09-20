@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { submitFeedback } from "@/lib/api/feedback";
 import FeedbackDialog from "./FeedbackDialog";
@@ -14,13 +15,13 @@ describe("FeedbackDialog (UC-12)", () => {
   });
 
   it("nút gửi khoá khi nội dung rỗng", () => {
-    render(<FeedbackDialog open onClose={() => {}} />);
+    renderWithIntl(<FeedbackDialog open onClose={() => {}} />);
     expect(screen.getByRole("button", { name: "Gửi góp ý" })).toBeDisabled();
   });
 
   it("gửi category + message đã trim, xong hiện lời cảm ơn", async () => {
     vi.mocked(submitFeedback).mockResolvedValue({ data: null, error: null } as never);
-    render(<FeedbackDialog open onClose={() => {}} />);
+    renderWithIntl(<FeedbackDialog open onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole("radio", { name: "Báo lỗi" }));
     fireEvent.change(screen.getByLabelText("Nội dung"), { target: { value: "  Nút lưu không chạy  " } });
@@ -32,7 +33,7 @@ describe("FeedbackDialog (UC-12)", () => {
 
   it("lỗi BE hiện ngay trong form, giữ nội dung đã nhập", async () => {
     vi.mocked(submitFeedback).mockRejectedValue(new Error("Mất kết nối"));
-    render(<FeedbackDialog open onClose={() => {}} />);
+    renderWithIntl(<FeedbackDialog open onClose={() => {}} />);
 
     fireEvent.change(screen.getByLabelText("Nội dung"), { target: { value: "Ý kiến" } });
     fireEvent.click(screen.getByRole("button", { name: "Gửi góp ý" }));

@@ -3,12 +3,12 @@
  */
 import type { DocumentSource, RenderedDocument } from "@/types/document";
 import type { Baseline } from "@/types/spine";
-import { ApiClientError, apiCall, authFetch, readErrorMessage } from "./client";
+import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
 
 /**
- * Đọc `error.code` từ envelope lỗi — cùng mục đích với `readErrorMessage` (client.ts) nhưng đặt
+ * Đọc `error.code` từ envelope lỗi — cùng mục đích với `readRawErrorMessage` (client.ts) nhưng đặt
  * cục bộ ở đây vì `client.ts` bị đóng băng ngoài vùng sở hữu T16. Dùng `res.clone()` ở nơi gọi để
- * không tranh đọc body với `readErrorMessage`/`readErrorHint`.
+ * không tranh đọc body với `readRawErrorMessage`/`readErrorHint`.
  */
 const readErrorCode = async (res: Response, fallback: string): Promise<string> => {
   try {
@@ -34,7 +34,7 @@ const readErrorAsApiClientError = async (res: Response, fallbackMessage: string)
   const forMessage = res.clone();
   const forHint = res.clone();
   const [message, code, hint] = await Promise.all([
-    readErrorMessage(forMessage, fallbackMessage),
+    readRawErrorMessage(forMessage, fallbackMessage),
     readErrorCode(res, "EXPORT_FAILED"),
     readErrorHint(forHint),
   ]);

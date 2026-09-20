@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFolder, deleteFolder, updateFolder } from "@/lib/api/folders";
 import { moveProjectToFolder } from "@/lib/api/projects";
@@ -21,7 +22,7 @@ describe("FolderDialogs", () => {
   it("tạo: tên đã trim + màu chọn, xong tải lại và đóng", async () => {
     const onDone = vi.fn();
     const onClose = vi.fn();
-    render(<FolderDialogs target={{ kind: "create" }} folders={[]} onClose={onClose} onDone={onDone} />);
+    renderWithIntl(<FolderDialogs target={{ kind: "create" }} folders={[]} onClose={onClose} onDone={onDone} />);
 
     expect(screen.getByRole("button", { name: "Tạo thư mục" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Tên thư mục"), { target: { value: "  Khách B " } });
@@ -34,7 +35,7 @@ describe("FolderDialogs", () => {
   });
 
   it("sửa: điền sẵn, chưa đổi gì thì khoá nút Lưu", async () => {
-    render(<FolderDialogs target={{ kind: "rename", folder }} folders={[folder]} onClose={() => {}} onDone={() => {}} />);
+    renderWithIntl(<FolderDialogs target={{ kind: "rename", folder }} folders={[folder]} onClose={() => {}} onDone={() => {}} />);
     expect(screen.getByLabelText("Tên thư mục")).toHaveValue("Khách A");
     expect(screen.getByRole("button", { name: "Lưu" })).toBeDisabled();
 
@@ -44,14 +45,14 @@ describe("FolderDialogs", () => {
   });
 
   it("xoá: nói rõ dự án bên trong được giữ", async () => {
-    render(<FolderDialogs target={{ kind: "delete", folder }} folders={[folder]} onClose={() => {}} onDone={() => {}} />);
+    renderWithIntl(<FolderDialogs target={{ kind: "delete", folder }} folders={[folder]} onClose={() => {}} onDone={() => {}} />);
     expect(screen.getByText(/Mọi dự án bên trong .* vẫn được giữ/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xoá thư mục" }));
     await waitFor(() => expect(deleteFolder).toHaveBeenCalledWith("f1"));
   });
 
   it("chuyển dự án: chọn thư mục ⇒ PATCH folder; chưa đổi thì khoá nút", async () => {
-    render(<FolderDialogs target={{ kind: "move", project }} folders={[folder]} onClose={() => {}} onDone={() => {}} />);
+    renderWithIntl(<FolderDialogs target={{ kind: "move", project }} folders={[folder]} onClose={() => {}} onDone={() => {}} />);
     expect(screen.getByRole("button", { name: "Chuyển" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("radio", { name: /Khách A/ }));
@@ -62,7 +63,7 @@ describe("FolderDialogs", () => {
   it("lỗi BE hiện trong dialog, không đóng", async () => {
     vi.mocked(createFolder).mockRejectedValue(new Error("Trùng tên"));
     const onClose = vi.fn();
-    render(<FolderDialogs target={{ kind: "create" }} folders={[]} onClose={onClose} onDone={() => {}} />);
+    renderWithIntl(<FolderDialogs target={{ kind: "create" }} folders={[]} onClose={onClose} onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText("Tên thư mục"), { target: { value: "X" } });
     fireEvent.click(screen.getByRole("button", { name: "Tạo thư mục" }));
 

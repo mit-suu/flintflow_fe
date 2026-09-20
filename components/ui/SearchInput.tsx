@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import Icon from "./Icon";
 
 interface SearchInputProps {
@@ -11,6 +14,7 @@ interface SearchInputProps {
 
 /** Ô tìm kiếm bo tròn có icon; nút xoá hiện khi có nội dung. */
 export default function SearchInput({ value, onChange, placeholder, label, className }: SearchInputProps) {
+  const t = useTranslations("app.common");
   return (
     <div
       className={`flex items-center gap-2 h-9 bg-surface-container-lowest border border-outline rounded-control px-3.5 text-on-surface-subtle focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-colors ${className ?? ""}`}
@@ -28,7 +32,7 @@ export default function SearchInput({ value, onChange, placeholder, label, class
         <button
           type="button"
           onClick={() => onChange("")}
-          aria-label="Xoá tìm kiếm"
+          aria-label={t("clearSearch")}
           className="text-on-surface-subtle hover:text-on-surface cursor-pointer"
         >
           <Icon name="close" size={14} />

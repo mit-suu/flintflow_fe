@@ -1,8 +1,10 @@
 import type { IconName } from "@/components/ui/Icon";
 
+/** `id` vừa là khoá React vừa là key nhãn trong `app.shell.items.*` — thêm mục thì thêm key ở cả hai bản messages. */
+export type SidebarItemId = "projects" | "notifications" | "orgSwitcher" | "members" | "billing";
+
 interface SidebarItemBase {
-  id: string;
-  label: string;
+  id: SidebarItemId;
   icon: IconName;
 }
 
@@ -24,8 +26,8 @@ export type SidebarItem = ReadySidebarItem | SoonSidebarItem;
 
 export interface SidebarSection {
   id: string;
-  /** Tiêu đề nhóm (chữ thường, nhỏ, nhạt); không có ⇒ nhóm nav chính. */
-  label?: string;
+  /** Key tiêu đề nhóm trong `app.shell` (vd `sectionOrg`); không có ⇒ nhóm nav chính. */
+  labelKey?: "sectionOrg";
   items: readonly SidebarItem[];
 }
 
@@ -33,18 +35,18 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   {
     id: "main",
     items: [
-      { id: "projects", label: "Dự án", icon: "layers", status: "ready", href: "/home", match: "exact" },
-      { id: "notifications", label: "Thông báo", icon: "bell", status: "ready", href: "/home/notifications", badge: "unread" },
+      { id: "projects", icon: "layers", status: "ready", href: "/home", match: "exact" },
+      { id: "notifications", icon: "bell", status: "ready", href: "/home/notifications", badge: "unread" },
     ],
   },
   {
     id: "org",
-    label: "Tổ chức",
+    labelKey: "sectionOrg",
     // Đổi tổ chức nằm trong nhóm Tổ chức (BE chưa có module org) — không chiếm vị trí đầu sidebar
     items: [
-      { id: "org-switcher", label: "Đổi tổ chức", icon: "building", status: "soon" },
-      { id: "members", label: "Thành viên", icon: "users", status: "soon" },
-      { id: "billing", label: "Credits & Thanh toán", icon: "credit-card", status: "ready", href: "/home/billing" },
+      { id: "orgSwitcher", icon: "building", status: "soon" },
+      { id: "members", icon: "users", status: "soon" },
+      { id: "billing", icon: "credit-card", status: "ready", href: "/home/billing" },
     ],
   },
 ];

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { OTP_LENGTH } from "../lib/otp";
 
@@ -11,6 +12,7 @@ interface OtpInputProps {
 
 /** 6 ô nhập OTP: tự nhảy ô, Backspace/mũi tên để di chuyển, dán cả mã vào một ô. */
 export default function OtpInput({ digits, onChange, disabled = false }: OtpInputProps) {
+  const t = useTranslations("auth.otp");
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
   // Ô bị disable khi đang gửi/hết hạn; mở lại thì đưa con trỏ về ô trống đầu tiên.
@@ -76,7 +78,7 @@ export default function OtpInput({ digits, onChange, disabled = false }: OtpInpu
           maxLength={OTP_LENGTH}
           value={digit}
           disabled={disabled}
-          aria-label={`Chữ số thứ ${i + 1}`}
+          aria-label={t("digitLabel", { index: i + 1 })}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
@@ -92,10 +94,10 @@ export const emptyOtp = (): string[] => Array(OTP_LENGTH).fill("");
 
 /** Nhắc user tìm trong Thư rác: email OTP gửi từ Gmail cá nhân đôi khi bị lọc nhầm. */
 export function OtpSpamHint() {
+  const t = useTranslations("auth.otp");
   return (
     <p className="rounded-control bg-accent-gold-soft px-3.5 py-2.5 text-left text-[12px] leading-[1.55] text-accent-gold-text">
-      Không thấy email? Hãy kiểm tra mục <strong>Thư rác (Spam)</strong> hoặc <strong>Quảng cáo</strong>. Nếu
-      thấy ở đó, bấm <strong>&ldquo;Không phải thư rác&rdquo;</strong> để lần sau email vào Hộp thư đến.
+      {t.rich("spamHint", { b: (chunks) => <strong>{chunks}</strong> })}
     </p>
   );
 }
