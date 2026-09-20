@@ -39,7 +39,7 @@ describe("WorkspacePage — project mode 1 v2 (FLF-185)", () => {
     await importToGapReview();
     render(<WorkspacePage />);
 
-    const tools = await screen.findByRole("complementary", { name: "Công cụ" }, { timeout: 5000 });
+    const tools = await screen.findByRole("complementary", { name: "Công cụ" });
     expect(router.replace).not.toHaveBeenCalled();
     const missing = await within(tools).findByRole("region", { name: "Đầu mục FPT còn thiếu" });
     expect(within(missing).getByText(/S-7\.1/)).toBeInTheDocument();
@@ -50,5 +50,5 @@ describe("WorkspacePage — project mode 1 v2 (FLF-185)", () => {
     fireEvent.click(within(tools).getByRole("button", { name: "Bật" }));
     await waitFor(() => expect(mode1State.stepPlan.find((s) => s.step_id === "B-0.1")?.state).toBe("enabled"));
     expect(await within(tools).findByRole("button", { name: "Tắt" })).toBeInTheDocument();
-  }, 20_000); // dựng cả workspace trên msw — chậm khi chạy cùng cả suite
+  }, 30_000); // dựng cả workspace trên msw — chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts)
 });
