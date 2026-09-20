@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { estimateActionCost } from "../../../../lib/api/chat";
 import type { ChatActionType } from "@/types/chat";
+import Icon from "@/components/ui/Icon";
 
 interface ChatInputProps {
   inputMessage: string;
@@ -79,9 +80,7 @@ export default function ChatInput({
               key={file.name}
               className="flex items-center gap-1.5 px-3 py-1 bg-[#F2F1FB] border border-[#DCD8F0] rounded-full text-[11.5px] font-semibold text-[#554DB0]"
             >
-              <span className="material-symbols-outlined text-[14px]">
-                description
-              </span>
+              <Icon name="file" size={14} />
               <span className="truncate max-w-[150px]">{file.name}</span>
               <button
                 type="button"
@@ -125,9 +124,7 @@ export default function ChatInput({
               className="p-1.5 hover:bg-[#F5F3F0] rounded-[8px] text-[#8A867E] hover:text-[#191817] transition-colors cursor-pointer"
               title="Đính kèm tài liệu tham khảo (.pdf, .docx, .txt)"
             >
-              <span className="material-symbols-outlined text-[18px]">
-                attach_file
-              </span>
+              <Icon name="attach" size={18} />
             </button>
           </div>
 
@@ -156,9 +153,7 @@ export default function ChatInput({
               {sending ? (
                 <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
               ) : (
-                <span className="material-symbols-outlined text-[16px] font-bold">
-                  arrow_upward
-                </span>
+                <Icon name="arrow-up" size={16} weight="bold" />
               )}
             </button>
           </div>

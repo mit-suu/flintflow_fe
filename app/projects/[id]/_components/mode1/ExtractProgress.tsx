@@ -3,6 +3,7 @@
 import { sectionLabel } from "@/lib/constants/fpt-sections";
 import type { ExtractionSection, ImportedDocument } from "@/types/import";
 import PausedBanner from "./PausedBanner";
+import Icon, { type IconName } from "@/components/ui/Icon";
 
 interface ExtractProgressProps {
   doc: ImportedDocument;
@@ -15,10 +16,10 @@ interface ExtractProgressProps {
   busy?: boolean;
 }
 
-const STATUS_ICON: Record<ExtractionSection["status"], { icon: string; color: string; label: string }> = {
-  pending: { icon: "schedule", color: "#A8A49C", label: "Chờ" },
-  done: { icon: "check_circle", color: "#1F7A45", label: "Xong" },
-  failed: { icon: "error", color: "#B03030", label: "Lỗi" },
+const STATUS_ICON: Record<ExtractionSection["status"], { icon: IconName; color: string; label: string }> = {
+  pending: { icon: "clock", color: "#A8A49C", label: "Chờ" },
+  done: { icon: "check-circle", color: "#1F7A45", label: "Xong" },
+  failed: { icon: "warning", color: "#B03030", label: "Lỗi" },
 };
 
 /**
@@ -85,9 +86,7 @@ export default function ExtractProgress({ doc, sections, running, credits, onSta
             const current = running && s.section_id === doc.extract_cursor;
             return (
               <li key={s.section_id} className={`px-3 py-2 flex items-center gap-3 text-[12.5px] ${current ? "bg-[#F2F1FB]" : ""}`}>
-                <span className="material-symbols-outlined text-[18px]" style={{ color: st.color }} aria-label={st.label}>
-                  {st.icon}
-                </span>
+                <Icon name={st.icon} size={18} style={{ color: st.color }} label={st.label} />
                 <span className="flex-1 font-semibold text-[#191817]">{sectionLabel(s.section_id)}</span>
                 {s.status === "done" && (
                   <span className="text-[11.5px] text-[#8A867E]">
