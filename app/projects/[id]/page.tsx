@@ -9,6 +9,8 @@ import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
 import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 import type { Project } from "@/types/project";
+import PageSkeleton from "@/components/ui/PageSkeleton";
+import Skeleton from "@/components/ui/Skeleton";
 
 import WorkspaceHeader from "./_components/WorkspaceHeader";
 import PhaseNavBar from "./_components/PhaseNavBar";
@@ -54,11 +56,16 @@ const readSavedChatPaneWidth = (): number => {
 };
 
 const WorkspaceLoading = () => (
-  <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
-    <div className="flex flex-col items-center gap-3">
-      <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] animate-spin shrink-0" />
-      <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
+  <div className="h-screen bg-[#F5F3F0] flex flex-col overflow-hidden p-4 gap-4">
+    {/* Giữ chỗ thanh phase trên cùng */}
+    <div className="h-[52px] bg-white border border-[#ECEAE5] rounded-card flex items-center gap-3 px-6 shrink-0">
+      <Skeleton className="size-5 shrink-0" />
+      <Skeleton className="h-3 w-14 shrink-0" />
+      {Array.from({ length: 6 }, (_, i) => (
+        <Skeleton key={i} className="h-6 w-16 rounded-full shrink-0" />
+      ))}
     </div>
+    <PageSkeleton variant="workspace" label="Đang tải không gian làm việc SRS" className="flex-1 min-h-0" />
   </div>
 );
 
@@ -298,14 +305,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   }, [isResizing, verificationOpen, toolsOpen, sidebarOpen]);
 
   if (!ws.ready) {
-    return (
-      <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] animate-spin shrink-0" />
-          <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
-        </div>
-      </div>
-    );
+    return <WorkspaceLoading />;
   }
 
   const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
