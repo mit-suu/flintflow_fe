@@ -55,7 +55,7 @@ export default function AdminUserDetailPage() {
         {error && <ErrorBanner message={error} />}
 
         {loading ? (
-          <LoadingBlock label="Đang tải người dùng…" />
+          <LoadingBlock label="Đang tải người dùng…" variant="page" />
         ) : (
           user && (
             <>
