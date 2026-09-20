@@ -149,8 +149,10 @@ export interface PathLockedMeta {
 }
 
 /**
- * 409 CHANGE_REQUIRES_CR — project mode 1 sau baseline v1. `/changes`, `/undo` ⇒ chỉ `prefill` (mở form CR điền sẵn);
- * lệnh sửa trong chat (FLF-186) ⇒ BE đã tạo CR nguồn `chat`, `change_request` trỏ tới nó.
+ * 409 CHANGE_REQUIRES_CR — project mode 1 sau baseline v1.
+ * - Lời gọi có ghi (`/changes`, `/reconcile`, `/undo`) và lệnh sửa trong chat ⇒ BE tạo sẵn CR (nguồn `chat` khi từ
+ *   chat, `verbal` khi từ workspace), `change_request` trỏ tới CR đó.
+ * - `/changes/preview` (chỉ xem trước) ⇒ chỉ `prefill` để mở form CR điền sẵn.
  */
 export interface ChangeRequiresCrMeta {
   prefill: { title: string; description: string };
