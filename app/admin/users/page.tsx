@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Người dùng</h1>
             {meta && (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#EEEDFD] text-[11.5px] font-bold text-[#3B34B0]">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#EFEEF9] text-[11.5px] font-bold text-[#554DB0]">
                 {formatNumber(meta.total)}
               </span>
             )}
@@ -145,7 +145,7 @@ export default function AdminUsersPage() {
                     items.map((u) => (
                       <tr key={u._id} className="hover:bg-[#FAF9F7]">
                         <td className={tableCellClass}>
-                          <Link href={`/admin/users/${u._id}`} className="font-semibold text-[#3B34B0] hover:underline">
+                          <Link href={`/admin/users/${u._id}`} className="font-semibold text-[#554DB0] hover:underline">
                             {u.email}
                           </Link>
                           {u.name && <div className="text-[11px] text-[#8A867E]">{u.name}</div>}
@@ -153,7 +153,7 @@ export default function AdminUsersPage() {
                         <td className={tableCellClass}>
                           <span
                             className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                              u.role === "admin" ? "bg-[#EEEDFD] text-[#3B34B0]" : "bg-[#F0EEEA] text-[#6B6862]"
+                              u.role === "admin" ? "bg-[#EFEEF9] text-[#554DB0]" : "bg-[#F0EEEA] text-[#6B6862]"
                             }`}
                           >
                             {u.role}

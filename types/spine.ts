@@ -35,7 +35,8 @@ export interface Progress {
   elicit_turns_this_phase: number;
 }
 
-export type StepStatus = "pending" | "in_progress" | "accepted" | "revision_requested";
+/** `skipped` (FLF-182): step không áp dụng cho template của project mode 1 — ẩn, không tính tiến độ. */
+export type StepStatus = "pending" | "in_progress" | "accepted" | "revision_requested" | "skipped";
 
 export interface StepState {
   /** Step id theo registry, kèm `@<screen_id>` cho vòng S-5. */
@@ -191,6 +192,23 @@ export interface Addendum {
   captured_at: IsoDateTime;
 }
 
+/** Khối nguyên văn của mục riêng (FLF-182). */
+export interface CustomBlock {
+  kind: "paragraph" | "list_item" | "table" | "image";
+  text: string;
+  rows: string[][] | null;
+  image_ref: string | null;
+}
+
+/** Mục ngoài mẫu FPT của template người dùng (mode 1 v2) — render ở section `custom:<id>`. */
+export interface CustomSection {
+  id: string;
+  heading: string;
+  level: number;
+  blocks: CustomBlock[];
+  source: "import" | "manual";
+}
+
 export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "screen_layout";
 
 export interface Diagram {
@@ -266,9 +284,16 @@ export interface SectionState {
   asset_version: string;
 }
 
+/** Nguồn gốc baseline (FLF-171): mode 2 ký ở S-9.5 = `generated`; mode 1 import = `imported`, release = `release`. */
+export type BaselineType = "generated" | "imported" | "release";
+
 export interface Baseline {
   id: string;
+  /** Mode 2: `v1.0`, `v1.0-conditional`… Mode 1: `0.0`, `1.0`… */
   version: string;
+  type: BaselineType;
+  /** Mode 1: version tài liệu baseline chụp; mode 2 luôn `null`. */
+  doc_version: string | null;
   at: IsoDateTime;
   snapshot_ref: string;
   checked_at_version: number;
@@ -335,6 +360,7 @@ export interface Spine {
   other_requirements: OtherRequirement[];
   glossary: GlossaryTerm[];
   addendum: Addendum[];
+  custom_sections: CustomSection[];
   diagrams: Diagram[];
   assumptions: Assumption[];
   flags: Flag[];

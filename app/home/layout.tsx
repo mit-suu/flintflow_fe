@@ -1,20 +1,20 @@
 "use client";
 
 import AuthGuard from "@/components/AuthGuard";
-import Sidebar from "@/components/Sidebar";
+import AppShell from "@/components/layout/AppShell";
+import AppSidebar, { type SidebarUser } from "@/components/layout/AppSidebar";
 import { getStoredAuthToken, decodeJwt } from "@/lib/auth";
+import { ProjectsProvider } from "@/lib/hooks/use-projects";
 
-function getUserInfo() {
+function getUserInfo(): SidebarUser {
   const token = getStoredAuthToken();
-  if (!token) return { name: "User", plan: "Free Plan" };
-
-  const payload = decodeJwt(token);
+  const payload = token ? decodeJwt(token) : null;
   const email = payload?.email ?? "";
-  const name = email ? email.split("@")[0] : "User";
-  const role = payload?.role ?? "user";
-  const plan = role === "admin" ? "Admin" : "Free Plan";
-
-  return { name, plan };
+  return {
+    name: email ? email.split("@")[0] : "User",
+    email,
+    isAdmin: payload?.role === "admin",
+  };
 }
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {
@@ -22,13 +22,9 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <AuthGuard>
-      <div
-        className="flex h-screen overflow-hidden bg-[#F5F3F0]"
-        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-      >
-        <Sidebar activePath="/home" user={user} />
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">{children}</main>
-      </div>
+      <ProjectsProvider>
+        <AppShell sidebar={<AppSidebar user={user} />}>{children}</AppShell>
+      </ProjectsProvider>
     </AuthGuard>
   );
 }
