@@ -11,8 +11,9 @@ import FolderDialogs, { type FolderDialogTarget } from "@/components/project/Fol
 import ProjectActionDialogs, { type ProjectActionTarget } from "@/components/project/ProjectActionDialogs";
 import ProjectGrid, { CARD_GRID, ProjectGridSkeleton } from "@/components/project/ProjectGrid";
 import ProjectTimeline, { type ProjectSort } from "@/components/project/ProjectTimeline";
-import { Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, Tabs } from "@/components/ui";
+import { BackLink, Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, Tabs } from "@/components/ui";
 import { listCrs } from "@/lib/api/change-requests";
+import { moveProjectsToFolder } from "@/lib/api/folders";
 import { getProgress } from "@/lib/api/pipeline";
 import { moveProjectToFolder } from "@/lib/api/projects";
 import { useProjects } from "@/lib/hooks/use-projects";
@@ -84,6 +85,9 @@ export default function HomePage() {
   const [actionTarget, setActionTarget] = useState<ProjectActionTarget | null>(null);
   const [folderTarget, setFolderTarget] = useState<FolderDialogTarget | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
+  /** Chọn nhiều: bật bằng nút "Chọn"; tắt khi rời thư mục / đổi bộ lọc để không giữ lựa chọn đã khuất mắt. */
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   /**
    * T23: thẻ dự án hiện việc tiếp theo và trạng thái theo Spine thật. `GET /projects` chỉ trả document
    * Project (không có tiến độ), nên nạp `progress` riêng cho từng dự án — song song, và **lỗi của một
@@ -192,6 +196,25 @@ export default function HomePage() {
     }
   };
 
+  // Chỉ thao tác trên dự án đang thấy: lọc/tìm đổi thì lựa chọn khuất mắt cũng biến mất theo
+  const selectedProjects = visible.filter((p) => selectedIds.has(p._id));
+
+  const endSelecting = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const removeSelectedFromFolder = async () => {
+    setDropError(null);
+    try {
+      await moveProjectsToFolder(selectedProjects, null);
+      await reload();
+      endSelecting();
+    } catch (err) {
+      setDropError(err instanceof Error ? err.message : t("removeFailed"));
+    }
+  };
+
   const openAction = (action: ProjectActionTarget["action"]) => (project: Project) => setActionTarget({ action, project });
   const gridProps = {
     progressById,
@@ -199,7 +222,15 @@ export default function HomePage() {
     onRename: openAction("rename"),
     onDelete: openAction("archive"),
     onHardDelete: openAction("delete"),
-    onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", project }),
+    onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", projects: [project] }),
+    selectable: selectMode,
+    selectedIds,
+    onToggleSelect: (project: Project) =>
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(project._id)) next.add(project._id);
+        return next;
+      }),
   };
 
   const projectsBody = initialLoading ? (
@@ -237,14 +268,11 @@ export default function HomePage() {
             {openFolder ? t("emptyFolderBody") : t("emptyBody")}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="self-start shrink-0"
-          onClick={() => (openFolder ? setAddTarget(openFolder) : setStatus("archived"))}
-        >
-          {openFolder ? t("addExisting") : t("viewArchived")}
-        </Button>
+        {!openFolder && (
+          <Button variant="secondary" size="sm" className="self-start shrink-0" onClick={() => setStatus("archived")}>
+            {t("viewArchived")}
+          </Button>
+        )}
       </div>
       <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />
     </div>
@@ -286,42 +314,68 @@ export default function HomePage() {
               ref={toolbarRef}
               className={`sticky top-0 z-30 py-3 bg-surface-container-lowest flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${STICKY_BLEED} ${STICKY_FADE}`}
             >
-              {openFolder ? (
-                <div className="flex items-center gap-3 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setOpenFolderId(null)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-control text-[12.5px] font-semibold text-on-surface-variant hover:bg-surface-container-high cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    <Icon name="arrow-right" size={14} className="rotate-180" />
-                    {t("allProjects")}
-                  </button>
-                  <Button size="sm" variant="secondary" icon="plus" onClick={() => setAddTarget(openFolder)}>
-                    {t("addProject")}
-                  </Button>
-                </div>
+              {selectMode ? (
+                <>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[13px] font-semibold text-on-surface" aria-live="polite">
+                      {t("selectedCount", { count: selectedIds.size })}
+                    </span>
+                    <Button size="sm" variant="secondary" onClick={() => setSelectedIds(new Set(visible.map((p) => p._id)))} disabled={selectedIds.size === visible.length}>
+                      {t("selectAll")}
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="secondary" icon="folder" onClick={() => setFolderTarget({ kind: "move", projects: selectedProjects })} disabled={selectedProjects.length === 0}>
+                      {t("moveSelected")}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => void removeSelectedFromFolder()} disabled={!selectedProjects.some((p) => p.folderId)}>
+                      {t("removeFromFolder")}
+                    </Button>
+                    <Button size="sm" onClick={endSelecting}>
+                      {t("doneSelecting")}
+                    </Button>
+                  </div>
+                </>
               ) : (
-                <Tabs
-                  label={t("tabsLabel")}
-                  idBase="dashboard"
-                  value={tab}
-                  onChange={setTab}
-                  options={[
-                    { value: "all", label: t("tabAll") },
-                    { value: "folders", label: t("tabFolders"), count: folders.length },
-                    { value: "projects", label: t("tabProjects"), count: projects.filter((p) => p.status === "active").length },
-                  ]}
-                  className="self-start"
-                />
-              )}
-              {showProjects && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {tab === "projects" && !openFolder && (
-                    <FilterSelect label={t("sortLabel")} value={sortBy} options={sortOptions} onChange={setSortBy} />
+                <>
+                  {openFolder ? (
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BackLink tone="white" onClick={() => { setOpenFolderId(null); endSelecting(); }}>
+                        {t("allProjects")}
+                      </BackLink>
+                      <Button size="sm" variant="secondary" icon="plus" onClick={() => setAddTarget(openFolder)}>
+                        {t("addExisting")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Tabs
+                      label={t("tabsLabel")}
+                      idBase="dashboard"
+                      value={tab}
+                      onChange={(next) => { setTab(next); endSelecting(); }}
+                      options={[
+                        { value: "all", label: t("tabAll") },
+                        { value: "folders", label: t("tabFolders"), count: folders.length },
+                        { value: "projects", label: t("tabProjects"), count: projects.filter((p) => p.status === "active").length },
+                      ]}
+                      className="self-start"
+                    />
                   )}
-                  <FilterSelect label={t("statusLabel")} value={status} options={statusOptions} onChange={setStatus} />
-                  <FilterSelect label={t("modeLabel")} value={mode} options={modeOptions} onChange={setMode} />
-                </div>
+                  {showProjects && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {visible.length > 0 && (
+                        <Button size="sm" variant="secondary" icon="check" onClick={() => setSelectMode(true)}>
+                          {t("select")}
+                        </Button>
+                      )}
+                      {tab === "projects" && !openFolder && (
+                        <FilterSelect label={t("sortLabel")} value={sortBy} options={sortOptions} onChange={setSortBy} />
+                      )}
+                      <FilterSelect label={t("statusLabel")} value={status} options={statusOptions} onChange={setStatus} />
+                      <FilterSelect label={t("modeLabel")} value={mode} options={modeOptions} onChange={setMode} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -361,7 +415,7 @@ export default function HomePage() {
                       <FolderCard
                         key={folder._id}
                         folder={folder}
-                        onOpen={(f) => setOpenFolderId(f._id)}
+                        onOpen={(f) => { setOpenFolderId(f._id); endSelecting(); }}
                         onRename={(f) => setFolderTarget({ kind: "rename", folder: f })}
                         onDelete={(f) => setFolderTarget({ kind: "delete", folder: f })}
                         onDropProject={(f, id) => void handleDropProject(f, id)}
@@ -395,9 +449,17 @@ export default function HomePage() {
         <CreateProjectForm variant="dialog" onCreated={handleCreated} onCancel={() => setCreateOpen(false)} folderId={openFolder?._id} />
       </Modal>
 
-      <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} onCreated={handleCreated} />
+      <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} />
       <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} />
-      <FolderDialogs target={folderTarget} folders={folders} onClose={() => setFolderTarget(null)} onDone={reload} />
+      <FolderDialogs
+        target={folderTarget}
+        folders={folders}
+        onClose={() => setFolderTarget(null)}
+        onDone={async () => {
+          await reload();
+          endSelecting();
+        }}
+      />
     </>
   );
 }

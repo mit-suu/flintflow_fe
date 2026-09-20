@@ -5,8 +5,7 @@ import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
-import { createFolder, deleteFolder, updateFolder } from "@/lib/api/folders";
-import { moveProjectToFolder } from "@/lib/api/projects";
+import { createFolder, deleteFolder, moveProjectsToFolder, updateFolder } from "@/lib/api/folders";
 import type { Folder, FolderColor } from "@/types/folder";
 import type { Project } from "@/types/project";
 import { FOLDER_COLORS, FOLDER_COLOR_ORDER, pickableFolderColor } from "./FolderCard";
@@ -15,7 +14,7 @@ export type FolderDialogTarget =
   | { kind: "create" }
   | { kind: "rename"; folder: Folder }
   | { kind: "delete"; folder: Folder }
-  | { kind: "move"; project: Project };
+  | { kind: "move"; projects: readonly Project[] };
 
 interface FolderDialogsProps {
   target: FolderDialogTarget | null;
@@ -27,11 +26,17 @@ interface FolderDialogsProps {
 
 const FOLDER_NAME_MAX = 60; // khớp BE
 
+/** Thư mục chung của cả nhóm, hoặc null khi nhóm đang nằm rải ở nhiều nơi — dùng để chọn sẵn và khoá nút "Chuyển". */
+const sharedFolderId = (projects: readonly Project[]): string | null => {
+  const first = projects[0]?.folderId ?? null;
+  return projects.every((p) => (p.folderId ?? null) === first) ? first : null;
+};
+
 /** Dialog thư mục: tạo, đổi tên/màu, xoá, chuyển dự án vào thư mục. */
 export default function FolderDialogs({ target, folders, onClose, onDone }: FolderDialogsProps) {
   if (!target) return null;
   // `key` ⇒ mỗi lần mở là form mới
-  const key = target.kind === "create" ? "create" : target.kind === "move" ? `move:${target.project._id}` : `${target.kind}:${target.folder._id}`;
+  const key = target.kind === "create" ? "create" : target.kind === "move" ? `move:${target.projects.map((p) => p._id).join(",")}` : `${target.kind}:${target.folder._id}`;
   return <FolderDialog key={key} target={target} folders={folders} onClose={onClose} onDone={onDone} />;
 }
 
@@ -73,7 +78,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
   const [name, setName] = useState(initial?.name ?? "");
   // Thư mục mới mặc định xanh dương (tím dành cho card dự án); thư mục `violet` cũ mở ra là xanh dương
   const [color, setColor] = useState<FolderColor>(pickableFolderColor(initial?.color ?? "blue"));
-  const [folderId, setFolderId] = useState<string | null>(target.kind === "move" ? target.project.folderId ?? null : null);
+  const [folderId, setFolderId] = useState<string | null>(target.kind === "move" ? sharedFolderId(target.projects) : null);
 
   if (target.kind === "delete") {
     return (
@@ -103,13 +108,15 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void run(() => moveProjectToFolder(target.project._id, folderId), t("moveFailed"));
+            void run(() => moveProjectsToFolder(target.projects, folderId), t("moveFailed"));
           }}
           className="flex flex-col gap-4"
         >
           <fieldset className="flex flex-col gap-1.5">
             <legend className="text-[12.5px] text-on-surface-muted mb-2">
-              {t("moveLegend", { name: target.project.name })}
+              {target.projects.length === 1
+                ? t("moveLegend", { name: target.projects[0].name })
+                : t("moveLegendMany", { count: target.projects.length })}
             </legend>
             {options.map((o) => (
               <label
@@ -130,7 +137,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
             <Button variant="secondary" onClick={close} disabled={submitting}>
               Huỷ
             </Button>
-            <Button type="submit" loading={submitting} disabled={folderId === (target.project.folderId ?? null)}>
+            <Button type="submit" loading={submitting} disabled={folderId === sharedFolderId(target.projects)}>
               {t("move")}
             </Button>
           </div>

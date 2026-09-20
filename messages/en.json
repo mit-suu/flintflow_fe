@@ -546,7 +546,8 @@
         "archive": "Archive",
         "hardDelete": "Delete permanently"
       },
-      "gridLoading": "Loading projects"
+      "gridLoading": "Loading projects",
+      "select": "Select project {name}"
     },
     "folderCard": {
       "projectCount": "{count, plural, one {# project} other {# projects}}",
@@ -598,7 +599,7 @@
       "deleteFailed": "Could not delete the folder",
       "moveTitle": "Move to folder",
       "moveFailed": "Could not move the project",
-      "noFolder": "No folder",
+      "noFolder": "Keep outside folders",
       "noFolders": "No folders yet — create one in the Folders row on the dashboard.",
       "createTitle": "New folder",
       "editTitle": "Edit folder",
@@ -610,20 +611,18 @@
       "deleteBody": "Delete the folder “{name}”? Every project inside it (archived ones included) is kept and moved out of the folder.",
       "moveLegend": "Project “{name}”",
       "move": "Move",
-      "nameLabel": "Folder name"
+      "nameLabel": "Folder name",
+      "moveLegendMany": "{count} selected projects"
     },
     "addToFolder": {
-      "modeLabel": "How to add projects",
-      "existing": "Pick existing projects",
-      "create": "Create new",
       "searchLabel": "Search projects to add",
       "searchPlaceholder": "Search projects…",
       "legend": "Projects you can add",
       "inOtherFolder": " · currently in another folder",
       "noneMoved": "No project was moved — it may have been deleted or moved elsewhere.",
       "failed": "Could not add the projects to the folder",
-      "title": "Add projects to “{folder}”",
-      "allInFolder": "Every active project is already in this folder. Switch to “Create new” to add one.",
+      "title": "Add existing projects to “{folder}”",
+      "allInFolder": "Every active project is already in this folder. Use “New project” to create one right here.",
       "noMatch": "No project matches “{query}”.",
       "selected": "{count} selected",
       "selectedMax": "{count} selected ({max} max per batch)",
@@ -651,7 +650,6 @@
       "createTitle": "Create a project",
       "createInFolderTitle": "New project in “{folder}”",
       "allProjects": "All projects",
-      "addProject": "Add projects",
       "tabsLabel": "View by",
       "tabAll": "All",
       "tabFolders": "Folders",
@@ -675,11 +673,18 @@
       "emptyFolderTitle": "This folder has no projects yet",
       "allInFoldersTitle": "Every project is already in a folder",
       "emptyTitle": "No active projects yet",
-      "emptyFolderBody": "Pick a way to start a new project right in this folder, or add existing ones.",
+      "emptyFolderBody": "Pick a way to start a new project right in this folder.",
       "emptyBody": "Pick a way to start a new project, or reopen an archived one.",
       "addExisting": "Add existing projects",
       "viewArchived": "View archive",
-      "moveFailed": "Could not move the project into the folder"
+      "moveFailed": "Could not move the project into the folder",
+      "select": "Select",
+      "selectAll": "Select all",
+      "selectedCount": "{count} selected",
+      "moveSelected": "Move to folder",
+      "removeFromFolder": "Move out of folder",
+      "doneSelecting": "Done",
+      "removeFailed": "Could not move the projects out of the folder"
     },
     "profile": {
       "title": "Your profile",
