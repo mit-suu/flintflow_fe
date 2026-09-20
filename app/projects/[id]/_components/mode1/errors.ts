@@ -17,6 +17,7 @@ const FRIENDLY: Record<string, string> = {
   CORE_STEP_REQUIRED: "Step này thuộc đầu mục mẫu FPT hoặc đã có dữ liệu — không tắt được.",
   STEP_NOT_IN_PLAN: "Step không có trong kế hoạch của dự án.",
   BASELINE_BLOCKED: "Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.",
+  CR_NOTHING_TO_APPROVE: 'Mọi vị trí đều là "không liên quan" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút "Sửa tay"), hoặc huỷ change request.',
 };
 
 export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): string => {
