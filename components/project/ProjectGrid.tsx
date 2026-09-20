@@ -21,6 +21,10 @@ interface ProjectGridProps {
   draggable?: boolean;
   /** Tên thư mục của dự án (chip trên card) — chỉ truyền ở nơi hiện cả dự án trong thư mục. */
   folderNameOf?: (p: Project) => string | null;
+  /** Chế độ chọn nhiều: mọi card hiện ô tích. */
+  selectable?: boolean;
+  selectedIds?: ReadonlySet<string>;
+  onToggleSelect?: (p: Project) => void;
 }
 
 /** Lưới card dự án responsive 1/2/3/4 cột (4 cột từ màn desktop xl). */
@@ -34,6 +38,9 @@ export default function ProjectGrid({
   onMoveToFolder,
   draggable,
   folderNameOf,
+  selectable,
+  selectedIds,
+  onToggleSelect,
 }: ProjectGridProps) {
   return (
     <div className={CARD_GRID}>
@@ -49,6 +56,9 @@ export default function ProjectGrid({
           onMoveToFolder={onMoveToFolder}
           draggable={draggable}
           folderName={folderNameOf?.(p)}
+          selectable={selectable}
+          selected={selectedIds?.has(p._id)}
+          onToggleSelect={onToggleSelect}
         />
       ))}
     </div>

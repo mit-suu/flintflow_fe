@@ -33,6 +33,10 @@ interface Props {
   folderName?: string | null;
   /** Cho kéo card thả vào thẻ thư mục. */
   draggable?: boolean;
+  /** Đang ở chế độ chọn nhiều: card hiện ô tích, bấm card là tích chứ không mở dự án. */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (p: Project) => void;
 }
 
 /** Kiểu dữ liệu kéo thả: id dự án — thẻ thư mục chỉ nhận đúng kiểu này. */
@@ -200,7 +204,10 @@ export default function ProjectCard({
   onHardDelete,
   onMoveToFolder,
   folderName,
-  draggable = false
+  draggable = false,
+  selectable = false,
+  selected = false,
+  onToggleSelect
 }: Props) {
   const t = useTranslations("app.projectCard");
   const tTime = useTranslations("app.time");
@@ -243,9 +250,9 @@ export default function ProjectCard({
   return (
     <article
       data-mode={project.mode}
-      draggable={draggable || undefined}
+      draggable={(draggable && !selectable) || undefined}
       onDragStart={
-        draggable
+        draggable && !selectable
           ? (e) => {
               e.dataTransfer.setData(PROJECT_DRAG_TYPE, project._id);
               e.dataTransfer.effectAllowed = "move";
@@ -254,13 +261,14 @@ export default function ProjectCard({
       }
       // Nền phẳng tím nhạt như thẻ thư mục (đổi màu này thì đổi cả màu chữ/rãnh tiến độ — xem PhaseBar), không viền, không bóng; hover ngả tím nhạt.
       // Đang mở menu ⋮ ⇒ nâng cả card (z-21 > nút ⋮ z-20 của card khác, < tiêu đề mục dính z-25), để menu không bị nút ⋮ của card bên dưới đè lên
-      className={`relative flex flex-col rounded-card bg-surface-card transition-colors duration-200 hover:bg-surface-card-hover has-[[aria-expanded=true]]:z-[21] ${
-        draggable ? "cursor-grab active:cursor-grabbing" : ""
-      }`}>
+      className={`relative flex flex-col rounded-card transition-colors duration-200 has-[[aria-expanded=true]]:z-[21] ${
+        selected ? "bg-primary-soft" : "bg-surface-card hover:bg-surface-card-hover"
+      } ${draggable && !selectable ? "cursor-grab active:cursor-grabbing" : ""}`}>
       <Link
         href={`/projects/${project._id}`}
         // Kéo cả card chứ không kéo URL của link
         draggable={false}
+        onClick={selectable ? (e) => { e.preventDefault(); onToggleSelect?.(project); } : undefined}
         // Thứ bậc: tên (đậm, đậm màu nhất) → meta nhạt → tiến độ ở đáy. Chỉ tên được in đậm để mắt biết đọc gì trước.
         className="flex flex-col flex-1 min-h-[156px] rounded-card p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         <h3 className="pr-8 text-[15px] font-semibold text-on-card leading-[1.4] line-clamp-2">{project.name}</h3>
@@ -323,6 +331,25 @@ export default function ProjectCard({
 
       {/* Ngoài Link để bấm menu không điều hướng; top căn giữa dòng tên (p-5 + nửa line-height − nửa nút) */}
       <div className="absolute right-3 top-[18px] z-20">
+        {selectable ? (
+          <label className="flex items-center justify-center size-8 rounded-full cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary">
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={selected}
+              onChange={() => onToggleSelect?.(project)}
+              aria-label={t("select", { name: project.name })}
+            />
+            <span
+              aria-hidden
+              className={`w-[18px] h-[18px] rounded-[6px] flex items-center justify-center ${
+                selected ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-transparent"
+              }`}
+            >
+              <Icon name="check" size={11} />
+            </span>
+          </label>
+        ) : (
         <DropdownMenu
           items={menuItems}
           trigger={(props) => (
@@ -336,6 +363,7 @@ export default function ProjectCard({
             />
           )}
         />
+        )}
       </div>
     </article>
   );
