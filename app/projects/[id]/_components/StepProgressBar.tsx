@@ -13,6 +13,37 @@ interface StepProgressBarProps {
   missingStepIds?: ReadonlySet<string>;
 }
 
+/** Số bước mỗi vòng S-5 (S-5.1 → S-5.5) — chỉ để giải thích trong tooltip. */
+const STEPS_PER_LOOP = 5;
+
+/** Khoá vòng của step mở rộng: `S-5.2@SCR-01` ⇒ `SCR-01`; step thường ⇒ null. */
+const loopKeyOf = (stepId: string): string | null => {
+  const at = stepId.indexOf("@");
+  return at === -1 ? null : stepId.slice(at + 1);
+};
+
+/**
+ * Tách step của một phase thành phần **hiện** và số vòng **đang ngủ**. Vòng ngủ = mọi bước còn `pending` và
+ * không chứa bước hiện tại — đúng các màn `placeholder` mà `nextStep` của BE cũng bỏ qua.
+ */
+export const splitLoops = (phaseSteps: StepSummary[], current: string | null): { open: StepSummary[]; dormantLoops: number } => {
+  const byLoop = new Map<string, StepSummary[]>();
+  const plain: StepSummary[] = [];
+  for (const step of phaseSteps) {
+    const key = loopKeyOf(step.id);
+    if (key === null) plain.push(step);
+    else byLoop.set(key, [...(byLoop.get(key) ?? []), step]);
+  }
+  const open = [...plain];
+  let dormantLoops = 0;
+  for (const [, loopSteps] of byLoop) {
+    const touched = loopSteps.some((s) => s.status !== "pending" || s.id === current);
+    if (touched) open.push(...loopSteps);
+    else dormantLoops++;
+  }
+  return { open, dormantLoops };
+};
+
 const DOT_STYLE: Record<StepSummary["status"], string> = {
   accepted: "bg-[#1F7A45] text-white",
   in_progress: "bg-[#6A62C4] text-white animate-pulse",
@@ -57,11 +88,25 @@ export default function StepProgressBar({ steps, progress, selectedStepId, onSel
 
       <div className="flex items-center gap-3">
         {PHASES.map((phase: PhaseId) => {
-          const phaseSteps = steps.filter((s) => s.phase === phase);
-          if (phaseSteps.length === 0) return null;
+          const all = steps.filter((s) => s.phase === phase);
+          if (all.length === 0) return null;
+          // Vòng S-5 mở rộng theo từng màn: tài liệu import ra 61 màn "để lại" ⇒ 300+ chấm không ai chạy.
+          // Chỉ vẽ chấm cho vòng đã động tới (có bước chạy/chốt, hoặc đang là bước hiện tại); phần còn lại gom
+          // thành một chip cho thấy "ở đó có step" — mở ra khi màn có function (người dùng thêm feature/function).
+          const { open, dormantLoops } = splitLoops(all, current);
+          const phaseSteps = open;
           return (
             <div key={phase} className="flex items-center gap-1 shrink-0" title={PHASE_LABELS_VI[phase]}>
               <span className="text-[10px] font-bold text-[#8A867E] mr-0.5">{phase}</span>
+              {dormantLoops > 0 && (
+                <span
+                  data-testid="dormant-loops"
+                  title={`${dormantLoops} màn đang để lại (placeholder) — mỗi màn có ${STEPS_PER_LOOP} bước S-5, chỉ mở khi màn có function. Thêm feature/function cho màn để chạy các bước này.`}
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F0EEEA] text-[#8A867E] border border-[#E4E1DC] shrink-0"
+                >
+                  +{dormantLoops} màn để lại
+                </span>
+              )}
               {phaseSteps.map((step) => {
                 const isCurrent = step.id === current;
                 const clickable = step.status === "accepted" || isCurrent || step.status === "revision_requested";

@@ -17,6 +17,8 @@ const FRIENDLY: Record<string, string> = {
   CORE_STEP_REQUIRED: "Step này thuộc đầu mục mẫu FPT hoặc đã có dữ liệu — không tắt được.",
   STEP_NOT_IN_PLAN: "Step không có trong kế hoạch của dự án.",
   BASELINE_BLOCKED: "Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.",
+  RATE_LIMIT_EXCEEDED: "Máy chủ AI từ chối phục vụ (hết hạn mức, chưa gắn thanh toán, hoặc gọi quá nhanh). Kiểm tra tài khoản nhà cung cấp AI rồi thử lại.",
+  AI_PROVIDER_ERROR: "Máy chủ AI lỗi hoặc trả về rỗng — thử lại; còn lặp lại thì xem log máy chủ.",
   CR_NOTHING_TO_APPROVE: 'Mọi vị trí đều là "không liên quan" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút "Sửa tay"), hoặc huỷ change request.',
 };
 

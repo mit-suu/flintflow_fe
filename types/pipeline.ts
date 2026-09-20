@@ -137,6 +137,8 @@ export type PipelineErrorCode =
   | "CHANGE_RANGE_INVALID"
   | "NOTHING_TO_UNDO"
   | "BASELINE_BLOCKED"
+  | "RATE_LIMIT_EXCEEDED"
+  | "AI_PROVIDER_ERROR"
   | "NOT_IMPLEMENTED";
 
 /** Sự kiện SSE của `POST /projects/:id/steps/:stepId/run` (`event: <type>` + `data: <JSON>`). */
