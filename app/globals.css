@@ -228,3 +228,14 @@ body {
     linear-gradient(to right, rgba(25, 24, 23, 0.04) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(25, 24, 23, 0.04) 1px, transparent 1px);
 }
+
+/* ── Landing page (app/_landing/) — hoạ tiết nền phẳng, không blur ── */
+/* Lưới chấm nhỏ; nền `primary` dùng bản trắng. Mỗi chỗ dùng tự đặt mask để mờ dần. */
+.landing-dots-light {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+.landing-dots {
+  background-image: radial-gradient(rgba(25, 24, 23, 0.14) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}

@@ -81,7 +81,7 @@ export default function OtpInput({ digits, onChange, disabled = false }: OtpInpu
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
           onFocus={(e) => e.target.select()}
-          className="w-11 h-12 sm:w-12 sm:h-14 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-center text-[20px] font-bold text-[#191817] bg-[#FAF9F7] disabled:opacity-50"
+          className="h-12 w-11 rounded-control bg-surface-container text-center text-[20px] font-bold text-on-surface outline-none transition-[background-color,box-shadow] hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary disabled:opacity-50 sm:h-14 sm:w-12"
         />
       ))}
     </div>
@@ -93,7 +93,7 @@ export const emptyOtp = (): string[] => Array(OTP_LENGTH).fill("");
 /** Nhắc user tìm trong Thư rác: email OTP gửi từ Gmail cá nhân đôi khi bị lọc nhầm. */
 export function OtpSpamHint() {
   return (
-    <p className="text-[11.5px] text-[#8A6D1F] bg-[#FBF4E4] border border-[#F0DFB4] rounded-[8px] px-3 py-2 leading-[1.55] text-left">
+    <p className="rounded-control bg-accent-gold-soft px-3.5 py-2.5 text-left text-[12px] leading-[1.55] text-accent-gold-text">
       Không thấy email? Hãy kiểm tra mục <strong>Thư rác (Spam)</strong> hoặc <strong>Quảng cáo</strong>. Nếu
       thấy ở đó, bấm <strong>&ldquo;Không phải thư rác&rdquo;</strong> để lần sau email vào Hộp thư đến.
     </p>
