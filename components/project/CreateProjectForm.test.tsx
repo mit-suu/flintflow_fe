@@ -1,0 +1,81 @@
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createProject } from "@/lib/api/projects";
+import { MESSAGES, renderWithIntl } from "@/test/intl";
+import CreateProjectForm from "./CreateProjectForm";
+
+const DEFAULT_PROJECT_NAME = MESSAGES.vi.app.createProject.defaultName;
+
+vi.mock("@/lib/api/projects", () => ({ createProject: vi.fn() }));
+
+const submit = () => screen.getByRole("button", { name: /Bắt đầu|Đang tạo/ });
+
+describe("CreateProjectForm (UC-13/14)", () => {
+  beforeEach(() => {
+    vi.mocked(createProject).mockReset();
+  });
+
+  it("điền sẵn tên; khoá nút khi chưa chọn mode hoặc tên rỗng", () => {
+    renderWithIntl(<CreateProjectForm variant="inline" onCreated={() => {}} />);
+    const name = screen.getByLabelText("Tên dự án");
+
+    expect(name).toHaveValue(DEFAULT_PROJECT_NAME);
+    expect(submit()).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
+    expect(submit()).toBeEnabled();
+
+    fireEvent.change(name, { target: { value: "   " } });
+    expect(submit()).toBeDisabled();
+  });
+
+  it("gửi {name đã trim, mode} rồi gọi onCreated với dự án BE trả", async () => {
+    const created = { _id: "p9", name: "Lumen", mode: "fpt" };
+    vi.mocked(createProject).mockResolvedValue({ data: created, error: null } as never);
+    const onCreated = vi.fn();
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
+    fireEvent.change(screen.getByLabelText("Tên dự án"), { target: { value: "  Lumen " } });
+    fireEvent.click(submit());
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
+    expect(createProject).toHaveBeenCalledWith("Lumen", "fpt", undefined);
+  });
+
+  it("lỗi hiện dưới form, giữ nguyên mode và tên để thử lại", async () => {
+    vi.mocked(createProject).mockRejectedValue(new Error("Hết hạn phiên"));
+    const onCreated = vi.fn();
+    renderWithIntl(<CreateProjectForm variant="inline" onCreated={onCreated} />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
+    fireEvent.click(submit());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Hết hạn phiên");
+    expect(screen.getByRole("radio", { name: /Chưa có template/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Tên dự án")).toHaveValue(DEFAULT_PROJECT_NAME);
+    expect(submit()).toBeEnabled();
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it("dialog có nút Huỷ gọi onCancel, không tạo gì", () => {
+    const onCancel = vi.fn();
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} onCancel={onCancel} />);
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(createProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("CreateProjectForm trong thư mục", () => {
+  it("có folderId ⇒ tạo thẳng trong thư mục (một request)", async () => {
+    vi.mocked(createProject).mockReset().mockResolvedValue({ data: { _id: "p1", mode: "fpt" }, error: null } as never);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} folderId="f1" />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
+
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "fpt", "f1"));
+  });
+});

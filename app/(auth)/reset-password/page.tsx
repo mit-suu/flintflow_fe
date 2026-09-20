@@ -1,238 +1,301 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import Logo from "../../../components/Logo";
+import OtpInput, { OtpSpamHint, emptyOtp } from "../../../components/OtpInput";
+import { buildResetPasswordHref, formatOtpTime, useOtpCountdown } from "../../../lib/otp";
+import { logoutAndRedirect } from "../../../lib/auth";
+import {
+  AuthAlert,
+  AuthCard,
+  AuthHeading,
+  BackLink,
+  PasswordField,
+  PrimaryLink,
+  StatusIcon,
+  StrengthMeter,
+  SubmitButton,
+} from "../_components/auth-ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
+type Step = "otp" | "password" | "success";
+
 function ResetPasswordContent() {
+  const t = useTranslations("auth.reset");
+  const tc = useTranslations("auth.common");
+  const to = useTranslations("auth.otp");
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token");
+  const email = searchParams.get("email") || "";
+
+  // Bước 1: nhập OTP. Chỉ khi BE xác nhận đúng mới sang bước 2 với `resetToken` (giữ trong state, không
+  // đưa lên URL — tải lại trang thì quay về bước 1).
+  const [step, setStep] = useState<Step>("otp");
+  const [resetToken, setResetToken] = useState<string | null>(null);
+
+  const { secondsLeft, expired, restart, expireNow } = useOtpCountdown(Number(searchParams.get("exp")) || 0);
+  const [digits, setDigits] = useState<string[]>(emptyOtp);
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const getPasswordStrength = (pwd: string) => {
-    if (!pwd) return { level: 0, text: "" };
-    if (pwd.length < 6) return { level: 1, text: "Yếu", color: "#B03030" };
-    if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, text: "Trung bình", color: "#E8A23D" };
-    return { level: 3, text: "Mạnh", color: "#1F7A45" };
+  // Chỉ báo khi user đã gõ vào ô xác nhận, tránh đỏ ngay từ lúc mới vào bước 2
+  const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const otpComplete = digits.every((d) => d !== "");
+
+  const verifyOtp = async (otp: string) => {
+    if (verifying || expired) return;
+    setVerifying(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/reset-password/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+      const json = await res.json();
+
+      if (!res.ok || json.error) {
+        const code: string | undefined = json.error?.code;
+        if (code === "OTP_EXPIRED" || code === "OTP_TOO_MANY_ATTEMPTS") expireNow();
+        throw new Error(json.error?.message || t("otpFailed"));
+      }
+
+      setResetToken(json.data.resetToken);
+      setStep("password");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tc("genericError"));
+      setDigits(emptyOtp());
+    } finally {
+      setVerifying(false);
+    }
   };
 
-  const strength = getPasswordStrength(password);
+  const handleDigitsChange = (next: string[]) => {
+    setDigits(next);
+    if (next.every((d) => d !== "")) verifyOtp(next.join(""));
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleResend = async () => {
+    if (!expired || resending) return;
+    setResending(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.error) {
+        throw new Error(json.error?.message || to("resendFailed"));
+      }
+      const expiresIn = Number(json.data?.otpExpiresIn) || 120;
+      restart(expiresIn);
+      router.replace(buildResetPasswordHref(email, expiresIn));
+      setDigits(emptyOtp());
+      setInfo(to("resent"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tc("connectionError"));
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError(tc("passwordMismatch"));
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
     try {
       const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ resetToken, password }),
       });
-
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Đặt lại mật khẩu thất bại");
+        if (json.error?.code === "RESET_SESSION_EXPIRED") {
+          // Vé hết hạn (quá 10 phút) ⇒ quay lại bước OTP để xin mã mới
+          setResetToken(null);
+          setDigits(emptyOtp());
+          expireNow();
+          setStep("otp");
+        }
+        throw new Error(json.error?.message || t("failed"));
       }
 
-      setSuccess(true);
+      setStep("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : tc("genericError"));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  if (!token) {
+  const alerts = (
+    <>
+      {error && <AuthAlert tone="error">{error}</AuthAlert>}
+      {info && <AuthAlert tone="success">{info}</AuthAlert>}
+    </>
+  );
+
+  if (!email) {
     return (
-      <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
-        <div className="w-12 h-12 rounded-[14px] bg-[#FDEDED] text-[#B03030] flex items-center justify-center text-[22px] mx-auto">
-          ⚠
-        </div>
-        <h1 className="text-[20px] font-extrabold text-[#191817]">
-          Liên kết không hợp lệ
-        </h1>
-        <p className="text-[13px] text-[#8A867E] leading-[1.6]">
-          Liên kết đặt lại mật khẩu thiếu token hoặc không đúng định dạng.
-        </p>
-        <Link
-          href="/forgot-password"
-          className="w-full py-3 px-4 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold text-center"
-        >
-          Yêu cầu liên kết mới →
-        </Link>
-      </div>
+      <AuthCard>
+        <StatusIcon icon="warning" tone="error" />
+        <AuthHeading title={t("missingEmailTitle")}>{t("missingEmailBody")}</AuthHeading>
+        <PrimaryLink href="/forgot-password">{t("getOtp")}</PrimaryLink>
+      </AuthCard>
     );
   }
 
-  if (success) {
+  if (step === "success") {
     return (
-      <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] text-center flex flex-col gap-4">
-        <div className="w-12 h-12 rounded-[14px] bg-[#EAF6EE] text-[#1F7A45] flex items-center justify-center text-[22px] mx-auto">
-          ✓
-        </div>
-        <h1 className="text-[20px] font-extrabold text-[#191817]">
-          Đặt lại mật khẩu thành công!
-        </h1>
-        <p className="text-[13px] text-[#8A867E] leading-[1.65]">
-          Mật khẩu của bạn đã được cập nhật. Mọi phiên đăng nhập cũ đã được thu hồi an toàn.
-        </p>
-        <button
-          onClick={() => router.push("/login")}
-          className="w-full py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold cursor-pointer"
+      <AuthCard>
+        <StatusIcon icon="check" tone="success" />
+        <AuthHeading title={t("successTitle")}>{t("successBody")}</AuthHeading>
+        {/* Mở từ trang Hồ sơ thì trình duyệt còn access token cũ (tối đa 15 phút) ⇒ /login bị đẩy về /home.
+            Xoá hẳn phiên cũ trước khi sang trang đăng nhập. */}
+        <SubmitButton type="button" loadingLabel="" onClick={() => void logoutAndRedirect("/login")}>
+          {t("loginNow")}
+        </SubmitButton>
+      </AuthCard>
+    );
+  }
+
+  if (step === "otp") {
+    return (
+      <AuthCard>
+        <StepDots current={1} />
+        <AuthHeading eyebrow={t("step1")} title={t("otpTitle")}>
+          {t.rich("otpBody", { email, b: (chunks) => <strong className="break-all font-bold text-on-surface">{chunks}</strong> })}
+        </AuthHeading>
+
+        {alerts}
+
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (otpComplete) verifyOtp(digits.join(""));
+          }}
         >
-          Đăng nhập ngay →
-        </button>
-      </div>
+          <OtpInput digits={digits} onChange={handleDigitsChange} disabled={verifying || expired} />
+
+          <p className="text-center text-[13px]" aria-live="polite">
+            {expired ? (
+              <span className="font-semibold text-error">{to("expired")}</span>
+            ) : (
+              <span className="text-on-surface-variant">
+                {to.rich("expiresIn", {
+                  time: formatOtpTime(secondsLeft),
+                  b: (chunks) => <strong className="font-bold text-on-surface">{chunks}</strong>,
+                })}
+              </span>
+            )}
+          </p>
+
+          <OtpSpamHint />
+
+          {expired ? (
+            <SubmitButton type="button" onClick={handleResend} loading={resending} loadingLabel={tc("sending")}>
+              {to("resend")}
+            </SubmitButton>
+          ) : (
+            <SubmitButton loading={verifying} loadingLabel={t("confirmingOtp")} disabled={!otpComplete}>
+              {t("confirmOtp")}
+            </SubmitButton>
+          )}
+        </form>
+
+        <BackLink />
+      </AuthCard>
     );
   }
 
   return (
-    <div className="bg-white border border-[#E4E1DC] rounded-[18px] p-6 sm:p-7 shadow-[0_8px_32px_rgba(17,24,39,0.10)] flex flex-col gap-4">
-      <div>
-        <h1 className="text-[22px] font-extrabold text-[#191817] tracking-[-0.02em]">
-          Đặt lại mật khẩu
-        </h1>
-        <p className="text-[13px] text-[#8A867E] mt-1">
-          Tạo mật khẩu mới cho tài khoản của bạn.
-        </p>
-      </div>
+    <AuthCard>
+      <StepDots current={2} />
+      <AuthHeading eyebrow={t("step2")} title={t("passwordTitle")}>
+        {t.rich("passwordBody", { email, b: (chunks) => <strong className="break-all font-bold text-on-surface">{chunks}</strong> })}
+      </AuthHeading>
 
-      {error && (
-        <div className="p-3 rounded-[10px] bg-[#FDEDED] border border-[#F2CACA] text-[12px] text-[#8A4141] flex items-center gap-2">
-          <span className="material-symbols-outlined text-[16px] shrink-0">error</span>
-          <span>{error}</span>
-        </div>
-      )}
+      {alerts}
 
-      <form className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
-        {/* New Password */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="password">
-            Mật khẩu mới
-          </label>
-          <div className="relative">
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-2.5 text-[#A8A49C] hover:text-[#191817] transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {showPassword ? "visibility_off" : "visibility"}
-              </span>
-            </button>
-          </div>
-
-          {password.length > 0 && (
-            <div className="flex items-center gap-2.5 pt-1">
-              <div className="flex-1 flex gap-1">
-                <div
-                  className="flex-1 h-1 rounded-full transition-colors"
-                  style={{ background: strength.level >= 1 ? strength.color : "#E4E1DC" }}
-                />
-                <div
-                  className="flex-1 h-1 rounded-full transition-colors"
-                  style={{ background: strength.level >= 2 ? strength.color : "#E4E1DC" }}
-                />
-                <div
-                  className="flex-1 h-1 rounded-full transition-colors"
-                  style={{ background: strength.level >= 3 ? strength.color : "#E4E1DC" }}
-                />
-              </div>
-              <span className="text-[11px] font-bold" style={{ color: strength.color }}>
-                {strength.text}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Confirm New Password */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[12px] font-bold text-[#4B4842]" htmlFor="confirmPassword">
-            Xác nhận mật khẩu mới
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#4F46E5] focus:ring-1 focus:ring-[#4F46E5] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]"
-          />
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading || password !== confirmPassword}
-          className="w-full mt-2 py-3.5 px-4 rounded-[10px] btn-gradient-primary text-white text-[13.5px] font-bold flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60"
+      <form className="flex flex-col gap-4" onSubmit={handleSavePassword}>
+        <PasswordField
+          id="password"
+          label={t("newPassword")}
+          toggleName={tc("fieldPassword")}
+          value={password}
+          onChange={setPassword}
+          minLength={8}
+          autoFocus
+          autoComplete="new-password"
         >
-          {loading ? (
-            <>
-              <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />
-              Đang cập nhật…
-            </>
-          ) : (
-            "Đặt lại mật khẩu →"
-          )}
-        </button>
+          <StrengthMeter password={password} />
+        </PasswordField>
+        <PasswordField
+          id="confirmPassword"
+          label={t("confirmNewPassword")}
+          toggleName={tc("fieldConfirmPassword")}
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          autoComplete="new-password"
+          error={passwordMismatch ? t("confirmMismatch") : null}
+        />
 
-        <div className="text-center pt-1">
-          <Link
-            href="/login"
-            className="text-[12.5px] font-semibold text-[#6B6862] hover:text-[#191817] transition-colors"
-          >
-            ← Quay lại đăng nhập
-          </Link>
-        </div>
+        <SubmitButton loading={saving} loadingLabel={t("submitting")} disabled={!confirmPassword || passwordMismatch}>
+          {t("submit")}
+        </SubmitButton>
       </form>
+
+      <BackLink />
+    </AuthCard>
+  );
+}
+
+/** Hai vạch tiến độ "Bước 1/2 · 2/2" — cùng kiểu thanh giai đoạn của dashboard. */
+function StepDots({ current }: { current: 1 | 2 }) {
+  return (
+    <div className="flex gap-1.5" aria-hidden="true">
+      {[1, 2].map((n) => (
+        <span key={n} className={`h-1.5 w-10 rounded-full ${n <= current ? "bg-primary" : "bg-card-track"}`} />
+      ))}
     </div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen z-10">
-      <div className="w-full max-w-[420px] flex flex-col gap-4">
-        <Logo sizeClassName="w-7 h-7" theme="light" href="/" />
+    <Suspense fallback={<AuthCardFallback />}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
 
-        <Suspense
-          fallback={
-            <div className="w-full bg-white rounded-[18px] p-7 border border-[#E4E1DC] text-center text-xs text-[#8A867E]">
-              Đang tải…
-            </div>
-          }
-        >
-          <ResetPasswordContent />
-        </Suspense>
-      </div>
-    </div>
+/** Fallback của Suspense — component riêng để dùng được `useTranslations`. */
+function AuthCardFallback() {
+  const tc = useTranslations("auth.common");
+  return (
+    <AuthCard>
+      <p className="text-center text-[13px] text-on-surface-variant">{tc("loading")}</p>
+    </AuthCard>
   );
 }

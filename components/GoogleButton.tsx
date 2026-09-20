@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { isGoogleAuthEnabled } from "@/lib/google-auth";
@@ -45,6 +46,7 @@ export default function GoogleButton(props: GoogleButtonProps) {
 }
 
 function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButtonProps) {
+  const t = useTranslations("auth.google");
   const [loading, setLoading] = useState(false);
 
   const login = useGoogleLogin({
@@ -53,13 +55,13 @@ function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButton
       if (tokenResponse?.access_token) {
         await onSuccess(tokenResponse.access_token);
       } else {
-        onError("Đăng nhập Google không thành công.");
+        onError(t("failed"));
       }
     },
     onError: (errorResponse) => {
       setLoading(false);
       console.error("Google Login Error:", errorResponse);
-      onError("Đăng nhập Google bị hủy hoặc thất bại.");
+      onError(t("cancelled"));
     },
   });
 
@@ -74,10 +76,11 @@ function GoogleLoginButton({ onSuccess, onError, label, disabled }: GoogleButton
       type="button"
       onClick={handleClick}
       disabled={disabled || loading}
-      className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-[#FAF9F7] text-[#191817] font-bold py-3 px-4 rounded-[12px] border-[1.5px] border-[#E4E1DC] hover:border-[#DDD9F6] shadow-[0_2px_6px_rgba(25,24,23,0.05)] transition-all disabled:opacity-50 text-[13px] btn-press"
+      // Phẳng như nút phụ của app: nền xám ấm, hover đậm một nấc, không viền / bóng
+      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 rounded-control bg-surface-container px-4 text-[14px] font-bold text-on-surface transition-[background-color,transform] duration-150 hover:bg-surface-container-high active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <span className="w-[17px] height-[17px] h-[17px] rounded-full shrink-0 inline-block" style={{ background: "conic-gradient(from -30deg,#EA4335 0 25%,#FBBC05 0 50%,#34A853 0 75%,#4285F4 0)" }} />
-      {loading ? "Đang mở Google..." : label}
+      {GOOGLE_G_LOGO}
+      {loading ? t("opening") : label}
     </button>
   );
 }
