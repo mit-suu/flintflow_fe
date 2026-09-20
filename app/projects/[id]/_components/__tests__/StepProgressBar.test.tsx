@@ -70,3 +70,27 @@ describe("StepProgressBar", () => {
     expect(screen.queryByTestId("step-missing")).not.toBeInTheDocument();
   });
 });
+
+describe("StepProgressBar — vòng S-5 theo màn", () => {
+  const loopStep = (id: string, status: StepSummary["status"] = "pending"): StepSummary => ({ ...step(id, status), phase: "S-5" });
+
+  it("màn chưa động tới gom thành chip '+N màn để lại'; màn đã chạy/đang chạy vẫn hiện chấm", () => {
+    const steps = [
+      ...["S-5.1@SCR-01", "S-5.2@SCR-01"].map((id) => loopStep(id, "accepted")),
+      ...["S-5.1@SCR-02", "S-5.2@SCR-02"].map((id) => loopStep(id)),
+      ...["S-5.1@SCR-03", "S-5.2@SCR-03"].map((id) => loopStep(id)),
+    ];
+    render(<StepProgressBar steps={steps} progress={{ done: 2, total: 10, current_step: "S-5.1@SCR-02", current_phase: "S-5", show_percent: false }} selectedStepId={null} onSelectStep={vi.fn()} />);
+
+    // SCR-01 đã chốt (2 chấm) + SCR-02 đang là bước hiện tại (2 chấm); SCR-03 chưa động ⇒ chip
+    expect(screen.getAllByRole("button")).toHaveLength(4);
+    expect(screen.getByTestId("dormant-loops")).toHaveTextContent("+1 màn để lại");
+  });
+
+  it("mọi màn đều chưa động tới ⇒ không vẽ chấm nào, chỉ còn chip cho thấy ở đó có step", () => {
+    const steps = ["S-5.1@SCR-01", "S-5.1@SCR-02"].map((id) => loopStep(id));
+    render(<StepProgressBar steps={steps} progress={null} selectedStepId={null} onSelectStep={vi.fn()} />);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByTestId("dormant-loops")).toHaveTextContent("+2 màn để lại");
+  });
+});

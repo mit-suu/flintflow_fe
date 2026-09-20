@@ -13,6 +13,10 @@ interface PhaseHeaderProps {
   busy?: boolean;
   /** BE báo step đang chạy dở ở request khác (lần chạy trước chưa dứt sau khi reload). */
   stepRunningElsewhere?: boolean;
+  /** Bước nút "Chạy" sẽ chạy — là bước ĐANG XEM, có thể khác bước hiện tại khi người dùng xem lại bước cũ. */
+  runnableStep?: string | null;
+  /** Đang xem bước khác bước hiện tại ⇒ cho đường quay lại. */
+  onBackToCurrent?: () => void;
 }
 
 /** Phase hiện tại + menu đào sâu: [A]/[P] vòng sau, [C] đổi cách làm việc. */
@@ -24,6 +28,8 @@ export default function PhaseHeader({
   onRunCurrentStep,
   busy = false,
   stepRunningElsewhere = false,
+  runnableStep = null,
+  onBackToCurrent,
 }: PhaseHeaderProps) {
   const phaseLabel = currentPhase ? (PHASE_LABELS_VI[currentPhase as PhaseId] ?? currentPhase) : "Hoàn tất";
 
@@ -38,15 +44,25 @@ export default function PhaseHeader({
           {currentStep} · {stepLabel(currentStep)}
         </span>
       )}
-      {currentStep && onRunCurrentStep && (
+      {runnableStep && onRunCurrentStep && (
         <button
           type="button"
           onClick={onRunCurrentStep}
           disabled={busy || stepRunningElsewhere}
-          title={stepRunningElsewhere ? "Lần chạy trước của bước này chưa dứt — chờ vài giây rồi thử lại" : undefined}
+          title={stepRunningElsewhere ? "Lần chạy trước của bước này chưa dứt — chờ vài giây rồi thử lại" : `Chạy ${runnableStep}`}
           className="px-3 py-1 rounded-full text-[11.5px] font-bold bg-[#191817] text-white hover:bg-[#33312D] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          {stepRunningElsewhere ? "⏳ Đang chạy…" : "▶ Chạy bước này"}
+          {stepRunningElsewhere ? "⏳ Đang chạy…" : `▶ Chạy ${runnableStep}`}
+        </button>
+      )}
+      {onBackToCurrent && currentStep && (
+        <button
+          type="button"
+          onClick={onBackToCurrent}
+          className="px-2.5 py-1 rounded-full text-[11px] font-bold border border-[#ECEAE5] bg-white text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
+          title={`Quay lại bước hiện tại (${currentStep})`}
+        >
+          ↩ Về {currentStep}
         </button>
       )}
 
