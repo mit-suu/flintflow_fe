@@ -113,6 +113,39 @@ export default function Mode1PlanPanel({
         )}
       </section>
 
+      {/* Trước đây cột này chỉ nói "còn N cờ đỏ" mà không cho xem là cờ nào — bảng cờ nằm ở panel Verification
+          của mode 2, người dùng mode 1 không biết đường mở (gặp thật 2026-09-20). Liệt kê thẳng, kèm step để xử. */}
+      <section className="flex flex-col gap-2" aria-label="Cờ đỏ đang chặn">
+        <h4 className="text-[12px] font-extrabold text-[#191817]">Cờ đỏ đang chặn ký v1 ({redOpen.length})</h4>
+        {redOpen.length === 0 ? (
+          <p className="text-[11.5px] text-[#1F7A45]">Không còn cờ đỏ nào.</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {redOpen.map((f) => (
+              <li key={f.id} className="flex flex-col gap-1 bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-2.5 py-1.5">
+                <span className="text-[11.5px] text-[#33312D]">{f.message}</span>
+                <span className="flex items-center gap-2">
+                  <code className="text-[10.5px] text-[#8A4141]">{f.rule_id}</code>
+                  {f.remediation_step ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectStep(f.remediation_step as string)}
+                      className="ml-auto text-[11px] font-bold text-[#6A62C4] hover:underline shrink-0 cursor-pointer"
+                    >
+                      Chạy {f.remediation_step}
+                    </button>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[11px] text-[#8A867E] leading-relaxed">
+          Cờ vàng không chặn ký. Muốn bỏ qua một cờ (waive) thì mở panel Verification ở thanh phase — trừ{" "}
+          <code>render_error</code>, <code>dead_reference</code>, <code>array_empty</code> phải sửa thật.
+        </p>
+      </section>
+
       <section className="flex flex-col gap-2" aria-label="Step ẩn">
         <h4 className="text-[12px] font-extrabold text-[#191817]">Step ẩn</h4>
         <p className="text-[11px] text-[#8A867E] leading-relaxed">Không sinh đầu mục của tài liệu (Brief, phân tích ý tưởng). Bật nếu muốn AI phân tích lại.</p>
