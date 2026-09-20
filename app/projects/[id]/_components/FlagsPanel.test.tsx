@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import FlagsPanel from "./FlagsPanel";
 import type { Flag } from "@/types/flags";
@@ -29,7 +30,7 @@ const notWaivableFlag: Flag = {
 
 describe("FlagsPanel", () => {
   it("hiển thị cờ từ fixture với level/rule_id/section/message/remediation_step", () => {
-    render(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
 
     expect(screen.getByText("red")).toBeInTheDocument();
     expect(screen.getByText("unconfirmed_assumption")).toBeInTheDocument();
@@ -39,7 +40,7 @@ describe("FlagsPanel", () => {
   });
 
   it("luật không waive được (dead_reference) không có nút Waive", () => {
-    render(<FlagsPanel flags={[notWaivableFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
+    renderWithIntl(<FlagsPanel flags={[notWaivableFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "Waive" })).not.toBeInTheDocument();
     expect(screen.getByText("Không thể waive")).toBeInTheDocument();
@@ -47,7 +48,7 @@ describe("FlagsPanel", () => {
 
   it("waive hợp lệ (>= 20 ký tự) gọi onWaive rồi đóng modal", async () => {
     const onWaive = vi.fn().mockResolvedValue(undefined);
-    render(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onRecompute={vi.fn()} />);
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onRecompute={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Waive" }));
     const textarea = await screen.findByLabelText(/Lý do/);
@@ -62,7 +63,7 @@ describe("FlagsPanel", () => {
   });
 
   it("lý do dưới 20 ký tự thì nút xác nhận bị khoá", async () => {
-    render(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Waive" }));
     const textarea = await screen.findByLabelText(/Lý do/);
@@ -73,14 +74,14 @@ describe("FlagsPanel", () => {
 
   it("bấm Recompute gọi onRecompute", () => {
     const onRecompute = vi.fn();
-    render(<FlagsPanel flags={[]} onWaive={vi.fn()} onRecompute={onRecompute} />);
+    renderWithIntl(<FlagsPanel flags={[]} onWaive={vi.fn()} onRecompute={onRecompute} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Recompute/ }));
     expect(onRecompute).toHaveBeenCalledTimes(1);
   });
 
   it("không có cờ mở thì hiện thông báo trống", () => {
-    render(<FlagsPanel flags={[]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
+    renderWithIntl(<FlagsPanel flags={[]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
     expect(screen.getByText("Không có cờ nào đang mở.")).toBeInTheDocument();
   });
 });

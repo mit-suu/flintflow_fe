@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
 import { changeMyPassword, fetchMe, updateMyName } from "@/lib/api/users";
@@ -22,7 +23,7 @@ const LOCAL_USER: User = {
 
 const renderLoaded = async (user: User = LOCAL_USER) => {
   vi.mocked(fetchMe).mockResolvedValue(user);
-  render(<ProfilePage />);
+  renderWithIntl(<ProfilePage />);
   await screen.findByText("Thông tin cá nhân");
 };
 

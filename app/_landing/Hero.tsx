@@ -1,6 +1,7 @@
+import { useFormatter, useTranslations } from "next-intl";
 import * as motion from "motion/react-client";
 import { PHASES } from "@/lib/constants/step-registry";
-import { CHECK_CARD, HERO, PREVIEW_FOLDER, PREVIEW_PROJECTS } from "./content";
+import { CHECK_FLAGS, CHECK_TIERS, HERO_FACTS, PREVIEW_FOLDER, PREVIEW_PROJECTS } from "./content";
 import { EASE_OUT, fadeUp, fadeUpThen, onLoad, stagger } from "./motion";
 import { ArrowRight, ButtonLink, Diamond, Eyebrow, FolderShape, PhaseBar, Texture } from "./ui";
 
@@ -11,6 +12,8 @@ import { ArrowRight, ButtonLink, Diamond, Eyebrow, FolderShape, PhaseBar, Textur
  * giai đoạn → kết quả kiểm tra hiện sau cùng.
  */
 export default function Hero() {
+  const t = useTranslations("landing.hero");
+
   return (
     <section aria-labelledby="hero-title" className="relative isolate px-4 pb-20 pt-10 sm:px-6 lg:pb-28 lg:pt-16">
       {/* "Sân khấu" tím nhạt phẳng ôm lấy collage, tràn ra mép phải; lưới chấm mờ dần quanh nó */}
@@ -25,17 +28,17 @@ export default function Hero() {
       <div className="mx-auto grid max-w-[1200px] items-center gap-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
         <motion.div {...onLoad} variants={stagger(0.07)}>
           <motion.div variants={fadeUp}>
-            <Eyebrow className="rounded-full bg-primary-soft px-3.5 py-1.5 text-primary-hover">{HERO.eyebrow}</Eyebrow>
+            <Eyebrow className="rounded-full bg-primary-soft px-3.5 py-1.5 text-primary-hover">{t("eyebrow")}</Eyebrow>
           </motion.div>
           <motion.h1
             variants={fadeUp}
             id="hero-title"
             className="mt-6 text-[34px] font-bold leading-[1.05] tracking-[-0.04em] text-on-surface sm:text-[56px] xl:text-[60px]"
           >
-            {HERO.headline}
+            {t("headline")}
             <br />
             <span className="text-primary">
-              {HERO.headlineAccent}
+              {t("headlineAccent")}
               <span className="sr-only">.</span>
             </span>
             {/* Hạt kim cương "rơi" vào chỗ dấu chấm */}
@@ -53,24 +56,24 @@ export default function Hero() {
             variants={fadeUp}
             className="mt-6 max-w-[540px] text-pretty text-base leading-relaxed text-on-surface-variant sm:text-[17px]"
           >
-            {HERO.subline}
+            {t("subline")}
           </motion.p>
           <motion.div variants={fadeUp} className="mt-8 flex flex-wrap gap-3">
             <ButtonLink href="/register" className="group">
-              {HERO.primaryCta}
+              {t("primaryCta")}
               <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
             </ButtonLink>
             <ButtonLink href="#workspace" variant="secondary">
-              {HERO.secondaryCta}
+              {t("secondaryCta")}
             </ButtonLink>
           </motion.div>
           <motion.ul variants={stagger(0.06)} className="mt-10 grid gap-2.5 text-[14px] font-medium text-on-surface-medium">
-            {HERO.facts.map((fact) => (
+            {HERO_FACTS.map((fact) => (
               <motion.li key={fact} variants={fadeUp} className="flex items-center gap-3">
                 <span aria-hidden="true" className="grid size-6 place-items-center rounded-inner bg-success-soft text-[12px] font-bold text-success">
                   ✓
                 </span>
-                {fact}
+                {t(`facts.${fact}`)}
               </motion.li>
             ))}
           </motion.ul>
@@ -89,8 +92,10 @@ const sheet = (rotate: number, x: number, y: number) => ({
 
 /* Minh hoạ tĩnh, không gọi API. Số giai đoạn lấy từ step registry thật. Dùng lại ở panel thương hiệu của trang xác thực. */
 export function DashboardCollage() {
+  const t = useTranslations("landing");
+
   return (
-    <motion.figure {...onLoad} variants={stagger(0.12, 0.2)} aria-label="Minh hoạ dashboard FlintFlow" className="relative mx-2 sm:mx-4">
+    <motion.figure {...onLoad} variants={stagger(0.12, 0.2)} aria-label={t("a11y.dashboardMockup")} className="relative mx-2 sm:mx-4">
       {/* Hai tờ "tài liệu" nằm gọn sau card rồi xoè ra, lệch góc nhẹ */}
       <motion.div aria-hidden="true" variants={sheet(3, 12, 20)} className="absolute inset-0 rounded-dialog bg-folder-rose" />
       <motion.div aria-hidden="true" variants={sheet(-2.5, -8, 12)} className="absolute inset-0 rounded-dialog bg-folder-blue" />
@@ -102,34 +107,42 @@ export function DashboardCollage() {
         className="relative rounded-dialog bg-surface-container-lowest p-4 shadow-[0_1px_2px_rgba(25,24,23,0.04),0_12px_32px_rgba(25,24,23,0.08)] sm:p-6"
       >
         <div className="mb-4 flex items-center gap-2">
-          <p className="text-[17px] font-semibold tracking-tight text-on-surface">Dự án của bạn</p>
-          <span className="rounded-full bg-surface-container-highest px-2 py-0.5 text-[11px] font-bold text-on-surface-variant">3</span>
+          <p className="text-[17px] font-semibold tracking-tight text-on-surface">{t("preview.title")}</p>
+          <span className="rounded-full bg-surface-container-highest px-2 py-0.5 text-[11px] font-bold text-on-surface-variant">
+            {PREVIEW_PROJECTS.length + 1}
+          </span>
         </div>
         <div className="grid gap-3 sm:grid-cols-[0.85fr_1fr]">
           <motion.div variants={fadeUp}>
             <FolderShape tone="amber" className="h-full" bodyClassName="flex min-h-[120px] flex-col gap-3 px-5 pb-4 pt-5">
-              <span className="text-[15px] font-semibold text-on-surface">{PREVIEW_FOLDER.name}</span>
+              <span className="text-[15px] font-semibold text-on-surface">{t("preview.folderName")}</span>
               <span aria-hidden="true" className="mt-auto h-px bg-on-surface/10" />
-              <span className="text-right text-[12px] text-on-surface-variant">{PREVIEW_FOLDER.count}</span>
+              <span className="text-right text-[12px] text-on-surface-variant">
+                {t("preview.folderCount", { count: PREVIEW_FOLDER.count })}
+              </span>
             </FolderShape>
           </motion.div>
           <div className="grid gap-3 sm:pt-[22px]">
             {PREVIEW_PROJECTS.map((project) => (
               <motion.div
-                key={project.name}
+                key={project.key}
                 variants={fadeUpThen(0, 0.3)}
                 className="rounded-card bg-surface-card px-4 py-3.5"
               >
                 <p className="flex items-center gap-1.5 text-[11.5px] font-semibold text-on-card-strong">
                   <span
                     aria-hidden="true"
-                    className={`size-1.5 rounded-full ${project.status.tone === "ok" ? "bg-success" : "bg-accent-gold"}`}
+                    className={`size-1.5 rounded-full ${project.tone === "ok" ? "bg-success" : "bg-accent-gold"}`}
                   />
-                  {project.status.label}
+                  {t(`preview.projects.${project.key}.status`)}
                 </p>
-                <p className="mt-1 text-[14px] font-semibold text-on-card">{project.name}</p>
+                <p className="mt-1 text-[14px] font-semibold text-on-card">{t(`preview.projects.${project.key}.name`)}</p>
                 <p className="mt-2.5 text-[11.5px] text-on-card-variant">
-                  Giai đoạn {project.phasesDone + 1}/{PHASES.length} · {project.next}
+                  {t("preview.phaseOf", {
+                    current: project.phasesDone + 1,
+                    total: PHASES.length,
+                    next: t(`preview.projects.${project.key}.next`),
+                  })}
                 </p>
                 <div className="mt-2">
                   <PhaseBar done={project.phasesDone} />
@@ -151,29 +164,33 @@ const TIER_STYLES = {
 
 /* Hàng cuối của collage: kết quả kiểm tra 3 tầng — từng tầng "đóng dấu" lần lượt. */
 function CheckCard() {
+  const t = useTranslations("landing.preview.check");
+  const format = useFormatter();
+
   return (
     <motion.div variants={fadeUpThen(0.12, 0.35)} className="mt-3 rounded-card bg-surface-sidebar p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[12.5px] font-bold text-on-surface">{CHECK_CARD.title}</p>
+        <p className="text-[12.5px] font-bold text-on-surface">{t("title")}</p>
         <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10.5px] font-bold text-success">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-success-dark" />
-          {CHECK_CARD.status}
+          {t("status")}
         </span>
       </div>
       <p className="mt-2 text-[26px] font-bold leading-none text-on-surface">
-        {CHECK_CARD.count} <span className="text-[12.5px] font-medium text-on-surface-muted">{CHECK_CARD.countLabel}</span>
+        {format.number(CHECK_FLAGS.red)}{" "}
+        <span className="text-[12.5px] font-medium text-on-surface-muted">{t("flags", { amber: CHECK_FLAGS.amber })}</span>
       </p>
       <div className="mt-3 grid grid-cols-3 gap-1.5">
-        {CHECK_CARD.tiers.map((tier) => (
+        {CHECK_TIERS.map((tier) => (
           <motion.span
-            key={tier.label}
+            key={tier.key}
             variants={{
               hidden: { opacity: 0, scale: 0.85 },
               show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 420, damping: 22 } },
             }}
             className={`rounded-inner px-2 py-1.5 text-[10.5px] font-bold ${TIER_STYLES[tier.tone].tag}`}
           >
-            {TIER_STYLES[tier.tone].mark} {tier.label}
+            {TIER_STYLES[tier.tone].mark} {t(`tiers.${tier.key}`)}
           </motion.span>
         ))}
       </div>

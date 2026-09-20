@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { saveAuthToken } from "../../../lib/auth";
@@ -20,6 +21,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 type VerifyStatus = "idle" | "verifying" | "success";
 
 function VerifyEmailContent() {
+  const t = useTranslations("auth.verify");
+  const tc = useTranslations("auth.common");
+  const to = useTranslations("auth.otp");
   const searchParams = useSearchParams();
   const router = useRouter();
   const email = searchParams.get("email") || "";
@@ -67,7 +71,7 @@ function VerifyEmailContent() {
           if (json.error?.code === "OTP_EXPIRED" || json.error?.code === "OTP_TOO_MANY_ATTEMPTS") {
             expireNow();
           }
-          throw new Error(json.error?.message || "Xác thực thất bại");
+          throw new Error(json.error?.message || t("failed"));
         }
 
         const userRole = json.data?.user?.role || json.data?.role;
@@ -77,11 +81,11 @@ function VerifyEmailContent() {
         setStatus("success");
       } catch (err) {
         setStatus("idle");
-        setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+        setError(err instanceof Error ? err.message : tc("genericError"));
         resetDigits();
       }
     },
-    [email, status, router, expireNow]
+    [email, status, router, expireNow, t, tc]
   );
 
   const updateDigits = (next: string[]) => {
@@ -104,15 +108,15 @@ function VerifyEmailContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Không thể gửi lại mã. Vui lòng thử lại sau.");
+        throw new Error(json.error?.message || to("resendFailed"));
       }
       const expiresIn = Number(json.data?.otpExpiresIn) || 120;
       restart(expiresIn);
       router.replace(buildVerifyEmailHref(email, expiresIn));
-      setInfo("Đã gửi mã OTP mới. Vui lòng kiểm tra hộp thư đến.");
+      setInfo(to("resent"));
       resetDigits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi kết nối.");
+      setError(err instanceof Error ? err.message : tc("connectionError"));
     } finally {
       setResending(false);
     }
@@ -122,10 +126,8 @@ function VerifyEmailContent() {
     return (
       <AuthCard>
         <StatusIcon icon="warning" tone="error" />
-        <AuthHeading title="Thiếu địa chỉ email">
-          Vui lòng đăng nhập bằng tài khoản vừa đăng ký để nhận mã xác thực.
-        </AuthHeading>
-        <PrimaryLink href="/login">Về trang đăng nhập</PrimaryLink>
+        <AuthHeading title={t("missingEmailTitle")}>{t("missingEmailBody")}</AuthHeading>
+        <PrimaryLink href="/login">{t("toLogin")}</PrimaryLink>
       </AuthCard>
     );
   }
@@ -134,12 +136,14 @@ function VerifyEmailContent() {
     return (
       <AuthCard>
         <StatusIcon icon="check" tone="success" />
-        <AuthHeading title="Xác thực thành công!">
-          Tài khoản của bạn đã được kích hoạt và tự động đăng nhập. Đang chuyển hướng trong{" "}
-          <strong className="font-bold text-on-surface">{countdown}s</strong>…
+        <AuthHeading title={t("successTitle")}>
+          {t.rich("successBody", {
+            seconds: countdown,
+            b: (chunks) => <strong className="font-bold text-on-surface">{chunks}</strong>,
+          })}
         </AuthHeading>
         <SubmitButton type="button" loadingLabel="" onClick={() => router.push("/home")}>
-          Vào ứng dụng ngay
+          {t("enterApp")}
         </SubmitButton>
       </AuthCard>
     );
@@ -150,9 +154,8 @@ function VerifyEmailContent() {
   return (
     <AuthCard>
       <StatusIcon icon="mail" tone="primary" />
-      <AuthHeading title="Nhập mã xác thực">
-        Chúng tôi đã gửi mã gồm 6 chữ số đến <strong className="break-all font-bold text-on-surface">{email}</strong>. Vui lòng
-        kiểm tra hộp thư đến.
+      <AuthHeading title={t("title")}>
+        {t.rich("body", { email, b: (chunks) => <strong className="break-all font-bold text-on-surface">{chunks}</strong> })}
       </AuthHeading>
 
       <form
@@ -166,10 +169,13 @@ function VerifyEmailContent() {
 
         <p className="text-center text-[13px]" aria-live="polite">
           {expired ? (
-            <span className="font-semibold text-error">Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.</span>
+            <span className="font-semibold text-error">{to("expired")}</span>
           ) : (
             <span className="text-on-surface-variant">
-              Mã hết hạn sau <strong className="font-bold text-on-surface">{formatOtpTime(secondsLeft)}</strong>
+              {to.rich("expiresIn", {
+                time: formatOtpTime(secondsLeft),
+                b: (chunks) => <strong className="font-bold text-on-surface">{chunks}</strong>,
+              })}
             </span>
           )}
         </p>
@@ -180,31 +186,35 @@ function VerifyEmailContent() {
         {info && <AuthAlert tone="success">{info}</AuthAlert>}
 
         {expired ? (
-          <SubmitButton type="button" onClick={handleResend} loading={resending} loadingLabel="Đang gửi…">
-            Gửi lại mã OTP
+          <SubmitButton type="button" onClick={handleResend} loading={resending} loadingLabel={tc("sending")}>
+            {to("resend")}
           </SubmitButton>
         ) : (
-          <SubmitButton loading={status === "verifying"} loadingLabel="Đang xác thực…" disabled={!otpComplete}>
-            Xác thực
+          <SubmitButton loading={status === "verifying"} loadingLabel={t("submitting")} disabled={!otpComplete}>
+            {t("submit")}
           </SubmitButton>
         )}
       </form>
 
-      <BackLink>Trở lại trang đăng nhập</BackLink>
+      <BackLink>{t("back")}</BackLink>
     </AuthCard>
   );
 }
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense
-      fallback={
-        <AuthCard>
-          <p className="text-center text-[13px] text-on-surface-variant">Đang tải…</p>
-        </AuthCard>
-      }
-    >
+    <Suspense fallback={<AuthCardFallback />}>
       <VerifyEmailContent />
     </Suspense>
+  );
+}
+
+/** Fallback của Suspense — component riêng để dùng được `useTranslations`. */
+function AuthCardFallback() {
+  const tc = useTranslations("auth.common");
+  return (
+    <AuthCard>
+      <p className="text-center text-[13px] text-on-surface-variant">{tc("loading")}</p>
+    </AuthCard>
   );
 }

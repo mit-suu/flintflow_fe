@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyChanges, getSpine } from "@/lib/api/spine";
 import { mockTiming, resetMockChangeFlowState } from "@/mocks/handlers";
@@ -43,7 +44,7 @@ describe("ChangePanel — trọn luồng trên mock T16 (UC 6.8–6.11)", () => 
     });
     const onClose = vi.fn();
 
-    render(<ChangePanel projectId={P} getBaseVersion={getBaseVersion} getLatestSeq={() => null} onApplied={onApplied} onClose={onClose} />);
+    renderWithIntl(<ChangePanel projectId={P} getBaseVersion={getBaseVersion} getLatestSeq={() => null} onApplied={onApplied} onClose={onClose} />);
 
     fireEvent.change(screen.getByLabelText("Lệnh sửa"), { target: { value: "làm rõ vai trò" } });
     fireEvent.click(screen.getByRole("button", { name: "Xem trước thay đổi" }));
@@ -67,7 +68,7 @@ describe("ChangePanel — trọn luồng trên mock T16 (UC 6.8–6.11)", () => 
 
   it("lệnh không tìm được đối tượng (chưa có actor) ⇒ hiện câu hỏi làm rõ, không mở DiffPreviewModal", async () => {
     const base_version = await version();
-    render(
+    renderWithIntl(
       <ChangePanel projectId={P} getBaseVersion={() => base_version} getLatestSeq={() => null} onApplied={vi.fn()} onClose={vi.fn()} />
     );
 
@@ -84,7 +85,7 @@ describe("ChangePanel — trọn luồng trên mock T16 (UC 6.8–6.11)", () => 
     const onApplied = vi.fn();
     const seed = { text: "làm rõ vai trò", nonce: 1 };
 
-    const { rerender } = render(
+    const { rerender } = renderWithIntl(
       <ChangePanel
         projectId={P}
         getBaseVersion={() => base_version}

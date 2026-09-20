@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ComponentProps } from "react";
 import CountBadge from "@/components/ui/CountBadge";
 import { groupByRecency } from "@/lib/group-by-recency";
@@ -19,6 +20,7 @@ export default function ProjectTimeline({
   sortBy,
   ...gridProps
 }: ProjectTimelineProps) {
+  const t = useTranslations("app.recency");
   const groups = groupByRecency(projects, (p) =>
     sortBy === "opened" ? p.lastOpenedAt : p.updatedAt
   );
@@ -33,7 +35,7 @@ export default function ProjectTimeline({
             <h3
               id={`recency-${group.bucket}`}
               className="text-[13px] font-bold tracking-[0.06em] text-on-surface-muted">
-              {group.label}
+              {t(group.bucket)}
             </h3>
             <CountBadge
               count={group.items.length}

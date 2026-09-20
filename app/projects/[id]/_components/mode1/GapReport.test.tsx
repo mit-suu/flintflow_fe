@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -80,7 +81,7 @@ const docxFile = (name?: string) =>
 describe("GapReportView — gap report (UC-23, 1.13)", () => {
   it("ô tổng hợp đỏ/vàng/thiếu/không khớp/độ tin thấp; cờ theo section có tên section và mã luật", async () => {
     serveReport();
-    render(<GapReportView projectId={P} />);
+    renderWithIntl(<GapReportView projectId={P} />);
 
     expect(await screen.findByText("Gap report — bản 0.0")).toBeInTheDocument();
     const tile = (label: string) => screen.getByText(label, { selector: "span" }).parentElement!;
@@ -103,7 +104,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
 
   it("section thiếu (nhãn chuẩn, id lạ dùng title BE), heading không khớp kèm block, field độ tin thấp kèm %", async () => {
     serveReport();
-    render(<GapReportView projectId={P} />);
+    renderWithIntl(<GapReportView projectId={P} />);
     await screen.findByText("Gap report — bản 0.0");
 
     expect(screen.getByText("5.3 Application Messages List")).toBeInTheDocument();
@@ -126,7 +127,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
       unmapped_headings: [],
       low_confidence_fields: [],
     });
-    render(<GapReportView projectId={P} />);
+    renderWithIntl(<GapReportView projectId={P} />);
     await screen.findByText("Gap report — bản 0.2");
 
     expect(screen.queryByText("Cờ theo section")).not.toBeInTheDocument();
@@ -149,7 +150,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
   it("tải .docx: lưu theo tên BE trả; báo onChanged (import sang delivered)", async () => {
     serveReport();
     const onChanged = vi.fn();
-    render(<GapReportView projectId={P} projectName="Lumen" onChanged={onChanged} />);
+    renderWithIntl(<GapReportView projectId={P} projectName="Lumen" onChanged={onChanged} />);
     fireEvent.click(await screen.findByRole("button", { name: "Tải gap report (.docx)" }));
 
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
@@ -161,7 +162,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
 
   it("BE không gửi tên file ⇒ tên mặc định theo tên dự án", async () => {
     serveReport(REPORT, () => docxFile());
-    render(<GapReportView projectId={P} projectName="Lumen" />);
+    renderWithIntl(<GapReportView projectId={P} projectName="Lumen" />);
     fireEvent.click(await screen.findByRole("button", { name: "Tải gap report (.docx)" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalled());
     expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_gap-report.docx");
@@ -170,7 +171,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
   it("tải .docx lỗi ⇒ hiện lỗi, không báo onChanged", async () => {
     serveReport(REPORT, () => HttpResponse.json({ data: null, error: { code: "INTERNAL", message: "Không dựng được file" } }, { status: 500 }));
     const onChanged = vi.fn();
-    render(<GapReportView projectId={P} onChanged={onChanged} />);
+    renderWithIntl(<GapReportView projectId={P} onChanged={onChanged} />);
     fireEvent.click(await screen.findByRole("button", { name: "Tải gap report (.docx)" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Không dựng được file");
@@ -179,7 +180,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
   });
 
   it("chưa tới gap_review ⇒ lỗi tải báo cáo, không màn trắng", async () => {
-    render(<GapReportView projectId={P} />);
+    renderWithIntl(<GapReportView projectId={P} />);
     expect(screen.getByText("Đang tải gap report…")).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByText(/Gap report — bản/)).not.toBeInTheDocument();

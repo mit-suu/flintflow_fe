@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
@@ -31,6 +32,7 @@ export interface SidebarUser {
 export const USER_AVATAR = "bg-primary-fixed text-primary";
 
 export default function AppSidebar({ user }: { user: SidebarUser }) {
+  const t = useTranslations("app.shell");
   const pathname = usePathname();
   const router = useRouter();
   const {
@@ -47,11 +49,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
   // Drawer mobile luôn mở rộng; thu gọn chỉ áp dụng trên desktop
   const collapsed = collapsedPref && !navOpen;
   const recent = selectRecentProjects(projects);
-  const planLabel = user.isAdmin
-    ? "Admin"
-    : balance
-      ? `Gói ${balance.planLabel}`
-      : "Gói Free";
+  const planLabel = user.isAdmin ? t("planAdmin") : balance ? t("plan", { plan: balance.planLabel }) : t("planFree");
   const initial = user.name.charAt(0).toUpperCase();
 
   const handleLogout = () => {
@@ -61,7 +59,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
   return (
     // Cột nền xám nhạt, bên trong là một card trắng bo góc nổi lên (sidebar kiểu "floating panel")
     <aside
-      aria-label="Điều hướng chính"
+      aria-label={t("nav")}
       className="h-dvh bg-surface-sidebar p-3 pl-0 pr-4 rounded-r-2xl">
       <div
         // Bấm vào VÙNG TRỐNG của sidebar (không phải link/nút/menu/mục "Sắp có") ⇒ thu gọn/mở rộng — chỉ desktop.
@@ -78,8 +76,8 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
         <button
           type="button"
           onClick={toggleCollapsed}
-          aria-label={collapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
-          title={collapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
+          aria-label={collapsed ? t("expand") : t("collapse")}
+          title={collapsed ? t("expand") : t("collapse")}
           className="hidden md:grid absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-6 h-6 place-items-center rounded-full bg-surface-container-lowest text-on-surface-variant shadow-[0_1px_3px_rgba(25,24,23,0.14)] hover:text-on-surface transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
           <Icon
             name={collapsed ? "caret-right" : "caret-left"}
@@ -108,7 +106,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
           {!collapsed && (
             <IconButton
               icon="close"
-              label="Đóng menu"
+              label={t("closeMenu")}
               size="sm"
               onClick={closeNav}
               className="ml-auto md:hidden"
@@ -123,9 +121,9 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
           {SIDEBAR_SECTIONS.map((section) => (
             <nav
               key={section.id}
-              aria-label={section.label ?? "Chính"}
+              aria-label={section.labelKey ? t(section.labelKey) : t("sectionMain")}
               className="flex flex-col gap-1">
-              {section.label &&
+              {section.labelKey &&
                 (collapsed ? (
                   <div
                     aria-hidden
@@ -133,7 +131,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                   />
                 ) : (
                   <div className="px-3 pb-1 text-[11.5px] font-medium text-on-surface-muted">
-                    {section.label}
+                    {t(section.labelKey)}
                   </div>
                 ))}
               {section.items.map((item) => (
@@ -174,11 +172,11 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
             />
             {collapsed ? (
               <>
-                <span className="sr-only">Gửi góp ý</span>
-                <SidebarTooltip label="Gửi góp ý" />
+                <span className="sr-only">{t("feedback")}</span>
+                <SidebarTooltip label={t("feedback")} />
               </>
             ) : (
-              "Gửi góp ý"
+              t("feedback")
             )}
           </button>
 
@@ -202,7 +200,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
             }
             items={[
               {
-                label: "Hồ sơ cá nhân",
+                label: t("profile"),
                 icon: "user",
                 onSelect: () => {
                   closeNav();
@@ -210,7 +208,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                 }
               },
               {
-                label: "Thanh toán",
+                label: t("billing"),
                 icon: "credit-card",
                 onSelect: () => {
                   closeNav();
@@ -219,7 +217,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                 trailing: <Badge>{planLabel}</Badge>
               },
               {
-                label: "Đăng xuất",
+                label: t("logout"),
                 icon: "logout",
                 tone: "danger",
                 onSelect: handleLogout
@@ -229,7 +227,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
               <button
                 type="button"
                 {...props}
-                aria-label={`Tài khoản ${user.name}`}
+                aria-label={t("account", { name: user.name })}
                 className={`${SIDEBAR_ROW} ${SIDEBAR_ROW_IDLE} w-full cursor-pointer text-left ${collapsed ? "justify-center h-10 w-10 mx-auto" : "h-12 px-2"}`}>
                 <span
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${USER_AVATAR}`}>

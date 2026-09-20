@@ -1,11 +1,12 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it } from "vitest";
 import type { PreflightIssue } from "@/types/import";
 import PreflightIssues from "./PreflightIssues";
 
 describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I-1, 1.2)", () => {
   it("không có vấn đề ⇒ không render gì", () => {
-    const { container } = render(<PreflightIssues issues={[]} fileName="SRS.docx" />);
+    const { container } = renderWithIntl(<PreflightIssues issues={[]} fileName="SRS.docx" />);
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -18,7 +19,7 @@ describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I
       },
       { code: "FOREIGN_COMMENT", message: "Comment của \"Tran B\"", location: { block_ord: 12, text: "BR-01: …" } },
     ];
-    render(<PreflightIssues issues={issues} fileName="SRS_tracked.docx" />);
+    renderWithIntl(<PreflightIssues issues={issues} fileName="SRS_tracked.docx" />);
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("“SRS_tracked.docx” chưa nhập được — 2 vấn đề cần sửa:");
@@ -35,7 +36,7 @@ describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I
   });
 
   it("lỗi cả file (không có vị trí): không hiện dòng vị trí; mã có hướng dẫn thì hiện cách sửa", () => {
-    render(
+    renderWithIntl(
       <PreflightIssues
         issues={[
           { code: "LEGACY_DOC", message: "File .doc", location: null },
@@ -55,7 +56,7 @@ describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I
   });
 
   it("mã không có hướng dẫn sửa (NOT_DOCX, CORRUPT_ZIP, EMPTY_DOCUMENT) chỉ hiện nhãn + thông điệp", () => {
-    render(
+    renderWithIntl(
       <PreflightIssues
         issues={[
           { code: "NOT_DOCX", message: "Không phải zip OOXML" },

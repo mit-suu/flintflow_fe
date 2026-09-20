@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logoutAndRedirect } from "../../../lib/auth";
@@ -15,7 +16,7 @@ const renderWith = (params: Record<string, string>) => {
   vi.mocked(useSearchParams).mockReturnValue(
     new URLSearchParams(params) as unknown as ReturnType<typeof useSearchParams>
   );
-  return render(<ResetPasswordPage />);
+  return renderWithIntl(<ResetPasswordPage />);
 };
 
 const jsonResponse = (status: number, body: unknown) =>

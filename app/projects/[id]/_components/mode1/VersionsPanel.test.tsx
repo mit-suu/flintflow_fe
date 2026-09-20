@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -44,7 +45,7 @@ const RELEASED = [version("1.0", "release", ["CR-001", "CR-002"]), ...DRAFTS];
 type Props = Parameters<typeof VersionsPanel>[0];
 const renderPanel = (over: Partial<Props> = {}) => {
   const props: Props = { projectId: P, projectName: "Lumen", versions: DRAFTS, redOpen: 0, selected: "0.2", onSelect: vi.fn(), onReleased: vi.fn(), ...over };
-  render(<VersionsPanel {...props} />);
+  renderWithIntl(<VersionsPanel {...props} />);
   return props;
 };
 
