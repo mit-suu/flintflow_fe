@@ -13,6 +13,10 @@ interface GateCardProps {
   busy?: boolean;
   /** Fast path: một GateCard gộp cuối phase. */
   phaseLabel?: string;
+  /** Lượt chạy vừa rồi có ghi được op nào vào Spine không (L11b). */
+  wroteOps?: boolean;
+  /** Mục step này nuôi mà chạy xong vẫn trống — accept cũng không đóng được cờ `section_empty` (L11b). */
+  emptySections?: { section_id: string; title: string }[];
   onAction: (action: GateAction, note?: string) => void;
 }
 
@@ -27,6 +31,8 @@ export default function GateCard({
   regenerateLimit = REGENERATE_LIMIT,
   busy = false,
   phaseLabel,
+  wroteOps = true,
+  emptySections = [],
   onAction,
 }: GateCardProps) {
   const [mode, setMode] = useState<"revision" | "accept_as_is" | null>(null);
@@ -55,6 +61,33 @@ export default function GateCard({
           Regenerate {regenerateUsed}/{regenerateLimit}
         </span>
       </div>
+
+      {/* L11b: trước đây lô op rỗng vẫn tới gate y như một lượt chạy thành công — user Accept, cờ đỏ vẫn treo,
+          bấm "Mở lại" lại rơi vào đúng vòng đó. Nói thẳng ra ở đây kèm lối khác. */}
+      {(!wroteOps || emptySections.length > 0) && (
+        <div role="status" className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] px-3 py-2.5 flex flex-col gap-1 text-[11.5px] text-[#8A6D1F]">
+          <p className="font-bold text-[#191817]">
+            {wroteOps ? "Chạy xong nhưng mục vẫn trống" : "AI không soạn được nội dung nào ở lượt này"}
+          </p>
+          {emptySections.length > 0 && (
+            <p>
+              Còn trống:{" "}
+              {emptySections.map((s) => (
+                <span key={s.section_id} className="font-semibold text-[#33312D]">
+                  {s.title}{" "}
+                  <code className="text-[10.5px]">{s.section_id}</code>
+                </span>
+              ))}
+              . Accept sẽ chốt bước nhưng cờ đỏ <code>section_empty</code> vẫn treo, và chạy lại cũng cho kết quả như
+              vậy nếu tài liệu gốc không có dữ liệu cho mục đó.
+            </p>
+          )}
+          <p>
+            Lối khác: <b>Request revision</b> để tả rõ cần gì, tự viết nội dung qua chat, hoặc waive cờ ở panel
+            Verification nếu mục này thật sự không áp dụng.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <button

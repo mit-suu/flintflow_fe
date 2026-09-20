@@ -150,7 +150,19 @@ export type StepEvent =
   | { type: "ops_applied"; step_id: string; txn: string; spine_version: number; changes: ChangeDiff[] }
   | { type: "render"; step_id: string; diagram_id: string; render_status: "ok" | "error"; error?: string }
   | { type: "flags"; step_id: string; red_open: number; yellow_open: number }
-  | { type: "gate_ready"; step_id: string; actions: GateAction[]; regenerate_used: number; calls_used: number }
+  // `spine_version`: version CUỐI của lượt chạy — cao hơn `ops_applied` vì render + recompute cờ chạy sau (L11).
+  // `wrote_ops` / `empty_sections`: lượt chạy có ghi được gì không và mục nào vẫn trống (L11b).
+  // Cả ba để optional vì BE cũ hơn không gửi; thiếu thì FE quay về đường cũ (tải lại Spine, không cảnh báo).
+  | {
+      type: "gate_ready";
+      step_id: string;
+      actions: GateAction[];
+      regenerate_used: number;
+      calls_used: number;
+      spine_version?: number;
+      wrote_ops?: boolean;
+      empty_sections?: { section_id: string; title: string }[];
+    }
   | { type: "error"; step_id: string; code: PipelineErrorCode; message: string; retryable: boolean };
 
 export type StepEventType = StepEvent["type"];

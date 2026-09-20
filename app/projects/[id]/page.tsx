@@ -403,6 +403,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               actions={gate.actions}
               regenerateUsed={gate.regenerate_used}
               busy={runner.state.busy}
+              wroteOps={gate.wroteOps}
+              emptySections={gate.emptySections}
               onAction={(action, note) => void runner.gate(action, note)}
             />
           )}
@@ -487,6 +489,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                   setSelectedStepId(stepId);
                   void runner.run(stepId, { reopen: true });
                 }}
+                onWaiveFlag={handleFlagWaive}
                 getBaseVersion={getBaseVersion}
                 onSpineChanged={() => onSpineChanged()}
               />

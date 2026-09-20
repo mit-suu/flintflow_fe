@@ -20,6 +20,8 @@ interface Mode1WorkspaceToolsProps {
   signedOff: boolean;
   onSelectStep: (stepId: string) => void;
   onReopenStep?: (stepId: string) => void;
+  /** Waive một cờ ngay tại cột kế hoạch (L11d) — không bắt người dùng đi tìm panel Verification. */
+  onWaiveFlag?: (flagId: string, reason: string) => Promise<void>;
   getBaseVersion: () => number | null;
   /** Spine đổi ngoài luồng step (ký v1, release) — tải lại Spine/tiến độ/tài liệu. */
   onSpineChanged: () => void;
@@ -41,6 +43,7 @@ export default function Mode1WorkspaceTools({
   signedOff,
   onSelectStep,
   onReopenStep,
+  onWaiveFlag,
   getBaseVersion,
   onSpineChanged,
 }: Mode1WorkspaceToolsProps) {
@@ -62,6 +65,7 @@ export default function Mode1WorkspaceTools({
           onToggleStep={onToggleStep}
           onSelectStep={onSelectStep}
           onReopenStep={onReopenStep}
+          onWaiveFlag={onWaiveFlag}
           getBaseVersion={getBaseVersion}
           onSignedOff={() => {
             onSpineChanged();

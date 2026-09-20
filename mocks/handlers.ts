@@ -267,6 +267,7 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
     counters.answered = true;
   }
 
+  let wroteOps = false;
   if (def && !def.deterministic && def.renders.length === 0) {
     counters.calls_used += 1;
     const attempt = counters.regenerate_used + 1;
@@ -276,6 +277,7 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
     if (ops.length > 0) {
       const diffs = ops.map((op) => applyMockOp(state.spine, op));
       commit(state, diffs, stepId);
+      wroteOps = true;
       send({ type: "ops_applied", step_id: stepId, txn: `mock-${state.spine.spine_version}`, spine_version: state.spine.spine_version, changes: diffs });
     }
   }
@@ -286,7 +288,18 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
   }
 
   send({ type: "flags", step_id: stepId, red_open: 0, yellow_open: 0 });
-  send({ type: "gate_ready", step_id: stepId, actions: gateActions(counters.regenerate_used), regenerate_used: counters.regenerate_used, calls_used: counters.calls_used });
+  // L11/L11b: gate_ready mang version CUỐI (BE thật còn render + recompute cờ sau `ops_applied`) và nói rõ
+  // lượt chạy có ghi được op nào không — mock phải gửi đủ, nếu không FE test không đi qua đường thật.
+  send({
+    type: "gate_ready",
+    step_id: stepId,
+    actions: gateActions(counters.regenerate_used),
+    regenerate_used: counters.regenerate_used,
+    calls_used: counters.calls_used,
+    spine_version: state.spine.spine_version,
+    wrote_ops: wroteOps,
+    empty_sections: [],
+  });
 };
 
 // ─── T16: changes/preview, reconcile, undo, traceability, document, export ────────
