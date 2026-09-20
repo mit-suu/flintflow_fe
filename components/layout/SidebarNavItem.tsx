@@ -1,5 +1,5 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { SOON_LABEL } from "@/components/ui/Badge";
 import CountBadge from "@/components/ui/CountBadge";
 import Icon from "@/components/ui/Icon";
 import type { SidebarItem } from "./sidebar-config";
@@ -42,28 +42,30 @@ export function SidebarTooltip({ label }: { label: string }) {
 
 /** Một dòng nav: icon + nhãn (+ số). Mục `soon` không phải link, không nhận focus, không bấm được. */
 export default function SidebarNavItem({ item, active = false, collapsed = false, count = 0, onNavigate }: SidebarNavItemProps) {
+  const t = useTranslations("app.shell");
+  const tc = useTranslations("app.common");
   const layout = sidebarRowLayout(collapsed);
+  const label = t(`items.${item.id}`);
+  const soonLabel = tc("soon");
 
   if (item.status === "soon") {
     return (
       <span
         aria-disabled="true"
-        title={collapsed ? undefined : `${item.label} — ${SOON_LABEL}`}
+        title={collapsed ? undefined : t("soonItemTitle", { label, soon: soonLabel })}
         className={`${SIDEBAR_ROW} ${layout} font-medium text-on-surface-subtle cursor-not-allowed select-none`}
       >
         <Icon name={item.icon} size={19} />
         {collapsed ? (
           <>
-            <span className="sr-only">
-              {item.label} ({SOON_LABEL})
-            </span>
-            <SidebarTooltip label={`${item.label} · ${SOON_LABEL}`} />
+            <span className="sr-only">{t("soonItemSr", { label, soon: soonLabel })}</span>
+            <SidebarTooltip label={t("soonItem", { label, soon: soonLabel })} />
           </>
         ) : (
           <>
-            <span className="flex-1 truncate">{item.label}</span>
+            <span className="flex-1 truncate">{label}</span>
             {/* Chữ nhạt thay cho viên badge: tính năng chưa có không nên nổi hơn tính năng đang dùng được */}
-            <span className="text-[11px] font-normal">{SOON_LABEL}</span>
+            <span className="text-[11px] font-normal">{soonLabel}</span>
           </>
         )}
       </span>
@@ -80,13 +82,13 @@ export default function SidebarNavItem({ item, active = false, collapsed = false
       <Icon name={item.icon} size={19} weight={active ? "fill" : "regular"} />
       {collapsed ? (
         <>
-          <span className="sr-only">{item.label}</span>
+          <span className="sr-only">{label}</span>
           {count > 0 && <span aria-hidden className="absolute top-2 right-2 w-2 h-2 rounded-full bg-error" />}
-          <SidebarTooltip label={item.label} />
+          <SidebarTooltip label={label} />
         </>
       ) : (
         <>
-          <span className="flex-1 truncate">{item.label}</span>
+          <span className="flex-1 truncate">{label}</span>
           {count > 0 && <CountBadge count={count} tone="alert" />}
         </>
       )}

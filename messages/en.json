@@ -313,19 +313,6 @@
     }
   },
   "app": {
-    "common": {
-      "loading": "Loading…",
-      "loadMore": "Load more",
-      "cancel": "Cancel",
-      "back": "Back",
-      "continue": "Continue →",
-      "account": "Account",
-      "projectName": "Project name",
-      "creatingProject": "Creating project…",
-      "createProject": "Create project →",
-      "close": "Close",
-      "credit": "credits"
-    },
     "time": {
       "justNow": "Just now",
       "minutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
@@ -338,21 +325,6 @@
       "offline": "Can't reach the server. You're still signed in.",
       "retry": "Retry",
       "checking": "Checking access..."
-    },
-    "sidebar": {
-      "nav": {
-        "home": "Home",
-        "projects": "My projects",
-        "notifications": "Notifications",
-        "billing": "Billing & credits"
-      },
-      "expand": "Expand",
-      "collapse": "Collapse",
-      "favourites": "Favourite projects",
-      "noFavourites": "No favourite projects yet",
-      "billing": "Billing",
-      "language": "Language",
-      "logout": "Log out"
     },
     "notifications": {
       "title": "Notifications",
@@ -370,86 +342,6 @@
       "loadFailed": "Could not load notifications",
       "loadMoreFailed": "Could not load more notifications",
       "markFailed": "Could not mark as read"
-    },
-    "projectCard": {
-      "badge": {
-        "needsClarity": "Needs clarification",
-        "ready": "Ready",
-        "analyzing": "Analyzing",
-        "draft": "Draft"
-      },
-      "loading": "Loading…",
-      "notStarted": "Not started — open to describe your idea",
-      "rename": "Rename",
-      "archive": "Archive",
-      "hardDelete": "Delete permanently"
-    },
-    "home": {
-      "breadcrumbAll": "All projects",
-      "myProjects": "My projects",
-      "newProject": "+ New project",
-      "searchPlaceholder": "Search projects…",
-      "searchAria": "Search projects by name",
-      "loadingList": "Loading projects…",
-      "emptyTitle": "Start your first project",
-      "emptyBody": "Create a complete IEEE/FPT-standard SRS in minutes through an interactive conversation with AI.",
-      "createNew": "+ Create new project",
-      "noMatch": "No projects match “{query}”.",
-      "createTitle": "Create new project",
-      "createPlaceholder": "e.g. Ride-Hailing App, E-Learning Platform…",
-      "archiveTitle": "Archive project",
-      "archiveConfirm": "Archive “{name}”?",
-      "archiveBody": "The project will be hidden from the main dashboard and can be restored later.",
-      "archiving": "Archiving…",
-      "archive": "Archive",
-      "hardDeleteTitle": "Delete project permanently",
-      "hardDeleteConfirm": "Permanently delete “{name}”?",
-      "hardDeleteBody": "All conversations, SRS documents and attachments will be deleted completely. This action <b>cannot be undone</b>.",
-      "deleting": "Deleting…",
-      "hardDelete": "Delete permanently",
-      "renameTitle": "Rename project",
-      "newName": "New project name",
-      "renamePlaceholder": "Enter a new name…",
-      "saving": "Saving…",
-      "save": "Save changes",
-      "errors": {
-        "load": "Could not load projects",
-        "create": "Could not create the project",
-        "rename": "Could not rename the project",
-        "archive": "Could not archive the project",
-        "hardDelete": "Could not permanently delete the project"
-      }
-    },
-    "onboarding": {
-      "stepAria": "Step {step}",
-      "stepAriaCurrent": "Step {step} (current)",
-      "welcomeTitle": "Welcome to FlintFlow",
-      "welcomeBody": "A few steps to set up your workspace.",
-      "yourName": "Your name",
-      "namePlaceholder": "e.g. Alex",
-      "goal": "What's your main goal right now?",
-      "goalPlaceholder": "e.g. Write an SRS for a ride-hailing app for my capstone project",
-      "modeTitle": "Choose your default way of working",
-      "modeBody": "You can change it anytime inside a project.",
-      "createTitle": "Create your first project",
-      "createBody": "You can rename the project later.",
-      "projectPlaceholder": "e.g. Ride-Hailing App",
-      "errors": {
-        "createFailed": "Could not create the project",
-        "spineFailed": "Could not read the new project's Spine",
-        "generic": "Could not finish the initial setup — click again to retry"
-      }
-    },
-    "workingMode": {
-      "aria": "Way of working",
-      "fast": {
-        "label": "Fast",
-        "hint": "Batch questions, review once at the end of each phase"
-      },
-      "coaching": {
-        "label": "Coaching",
-        "hint": "Ask in depth at every step, review each step"
-      }
     },
     "billing": {
       "title": "Billing & credits",
@@ -552,6 +444,239 @@
         "bodyWaived": "The document was signed off at {version} with {count, plural, one {# flag} other {# flags}} waived with a reason.",
         "bodyClean": "The document was signed off at {version} with no red flags left."
       }
+    },
+    "common": {
+      "loading": "Loading…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "save": "Save",
+      "retry": "Retry",
+      "clearSearch": "Clear search",
+      "soon": "Coming soon"
+    },
+    "shell": {
+      "nav": "Main navigation",
+      "menu": "Menu",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar",
+      "sectionMain": "Main",
+      "sectionOrg": "Organization",
+      "items": {
+        "projects": "Projects",
+        "notifications": "Notifications",
+        "orgSwitcher": "Switch organization",
+        "members": "Members",
+        "billing": "Credits & billing"
+      },
+      "soonItem": "{label} · {soon}",
+      "soonItemSr": "{label} ({soon})",
+      "soonItemTitle": "{label} — {soon}",
+      "recentTitle": "Recent",
+      "recentNav": "Recent projects",
+      "feedback": "Send feedback",
+      "account": "Account {name}",
+      "profile": "Your profile",
+      "billing": "Billing",
+      "logout": "Sign out",
+      "planAdmin": "Admin",
+      "plan": "{plan} plan",
+      "planFree": "Free plan",
+      "breadcrumb": "Breadcrumb",
+      "credits": "credits · {plan}",
+      "creditsTitle": "Credits & billing"
+    },
+    "recency": {
+      "today": "Today",
+      "week": "Last 7 days",
+      "month": "Last 30 days",
+      "older": "Older",
+      "never": "Never opened"
+    },
+    "sourceMode": {
+      "groupLabel": "Where are you starting from?",
+      "import": {
+        "label": "Upload an existing SRS",
+        "shortLabel": "Existing SRS",
+        "description": "You have a .docx — FlintFlow finds the gaps and helps you fix them"
+      },
+      "customerTemplate": {
+        "label": "Client template",
+        "shortLabel": "Client template",
+        "description": "Upload the client's template and write a new SRS on it"
+      },
+      "fpt": {
+        "label": "No template yet",
+        "shortLabel": "FlintFlow template",
+        "description": "Use the FlintFlow SRS template, starting from your idea or notes"
+      }
+    },
+    "projectCard": {
+      "status": {
+        "draft": "Draft",
+        "analyzing": "Analyzing",
+        "clarify": "Needs clarifying",
+        "ready": "Ready"
+      },
+      "next": {
+        "loading": "Loading…",
+        "done": "Completed",
+        "resume": "Open to continue",
+        "notStarted": "Not started — open to describe the idea"
+      },
+      "mode1": {
+        "notUploaded": "No SRS uploaded — open to upload a .docx",
+        "importing": "Importing SRS: {state}",
+        "openCrs": "{count, plural, one {# open change request} other {# open change requests}}"
+      },
+      "progressLabel": "Progress by phase",
+      "phaseOf": "Phase {current}/{total}: {phase}",
+      "allPhases": "All {total} phases done",
+      "notStarted": "Not started",
+      "folderTitle": "Folder {name}",
+      "archived": "Archived",
+      "options": "Options for {name}",
+      "menu": {
+        "rename": "Rename",
+        "moveToFolder": "Move to folder",
+        "archive": "Archive",
+        "hardDelete": "Delete permanently"
+      },
+      "gridLoading": "Loading projects"
+    },
+    "folderCard": {
+      "projectCount": "{count, plural, one {# project} other {# projects}}",
+      "options": "Options for folder {name}",
+      "rename": "Rename",
+      "delete": "Delete folder",
+      "new": "New folder",
+      "colors": {
+        "blue": "Blue",
+        "amber": "Amber",
+        "green": "Green",
+        "rose": "Rose"
+      }
+    },
+    "createProject": {
+      "defaultName": "Untitled project",
+      "nameLabel": "Project name",
+      "pickMode": "Pick a way to start above to continue.",
+      "submitting": "Creating…",
+      "submit": "Start",
+      "missingProject": "The new project was not returned",
+      "failed": "Could not create the project"
+    },
+    "projectDialogs": {
+      "archive": {
+        "title": "Archive project",
+        "question": "Archive",
+        "detail": "The project is hidden from your active list; find it again with the Status: Archived filter.",
+        "cta": "Archive",
+        "busy": "Archiving…",
+        "failed": "Could not archive the project"
+      },
+      "delete": {
+        "title": "Delete project permanently",
+        "question": "Delete permanently",
+        "detail": "Every conversation, SRS document and attachment is erased for good. This cannot be undone.",
+        "cta": "Delete permanently",
+        "busy": "Deleting…",
+        "failed": "Could not delete the project"
+      },
+      "renameTitle": "Rename project",
+      "renameFailed": "Could not rename the project",
+      "renameLabel": "New project name",
+      "saveChanges": "Save changes",
+      "confirm": "{action} “{name}”?"
+    },
+    "folderDialogs": {
+      "deleteTitle": "Delete folder",
+      "deleteFailed": "Could not delete the folder",
+      "moveTitle": "Move to folder",
+      "moveFailed": "Could not move the project",
+      "noFolder": "No folder",
+      "noFolders": "No folders yet — create one in the Folders row on the dashboard.",
+      "createTitle": "New folder",
+      "editTitle": "Edit folder",
+      "createFailed": "Could not create the folder",
+      "updateFailed": "Could not update the folder",
+      "namePlaceholder": "For example: Client A",
+      "colorLegend": "Color",
+      "create": "Create folder",
+      "deleteBody": "Delete the folder “{name}”? Every project inside it (archived ones included) is kept and moved out of the folder.",
+      "moveLegend": "Project “{name}”",
+      "move": "Move",
+      "nameLabel": "Folder name"
+    },
+    "addToFolder": {
+      "modeLabel": "How to add projects",
+      "existing": "Pick existing projects",
+      "create": "Create new",
+      "searchLabel": "Search projects to add",
+      "searchPlaceholder": "Search projects…",
+      "legend": "Projects you can add",
+      "inOtherFolder": " · currently in another folder",
+      "noneMoved": "No project was moved — it may have been deleted or moved elsewhere.",
+      "failed": "Could not add the projects to the folder",
+      "title": "Add projects to “{folder}”",
+      "allInFolder": "Every active project is already in this folder. Switch to “Create new” to add one.",
+      "noMatch": "No project matches “{query}”.",
+      "selected": "{count} selected",
+      "selectedMax": "{count} selected ({max} max per batch)",
+      "add": "Add to folder"
+    },
+    "feedback": {
+      "title": "Send feedback",
+      "kindLegend": "Feedback type",
+      "bug": "Report a bug",
+      "suggestion": "Suggestion",
+      "other": "Other",
+      "placeholder": "What went wrong, or what would you like FlintFlow to do?",
+      "failed": "Could not send your feedback, please try again later",
+      "sent": "Thank you! Your feedback has reached the FlintFlow team.",
+      "messageLabel": "Message",
+      "submit": "Send feedback"
+    },
+    "home": {
+      "onboardingTitle": "Start your first SRS project",
+      "onboardingBody": "Pick where you are starting — FlintFlow walks you through the right process for that case.",
+      "searchLabel": "Search projects by name",
+      "searchPlaceholder": "Search projects…",
+      "newProject": "New project",
+      "newProjectShort": "New",
+      "createTitle": "Create a project",
+      "createInFolderTitle": "New project in “{folder}”",
+      "allProjects": "All projects",
+      "addProject": "Add projects",
+      "tabsLabel": "View by",
+      "tabAll": "All",
+      "tabFolders": "Folders",
+      "tabProjects": "Projects",
+      "sortLabel": "Sort",
+      "sortUpdated": "Recently updated",
+      "sortOpened": "Recently opened",
+      "statusLabel": "Status",
+      "statusActive": "Active",
+      "statusArchived": "Archived",
+      "modeLabel": "Source",
+      "modeAll": "All",
+      "foldersTitle": "Folders",
+      "foldersHint": "Drag a project card onto a folder to file it.",
+      "foldersError": "Could not load folders: {message}",
+      "projectsTitle": "Projects",
+      "looseProjectsTitle": "Projects outside folders",
+      "noMatchTitle": "No project matches these filters",
+      "noMatchBody": "Try another status, source or search term.",
+      "clearFilters": "Clear filters",
+      "emptyFolderTitle": "This folder has no projects yet",
+      "allInFoldersTitle": "Every project is already in a folder",
+      "emptyTitle": "No active projects yet",
+      "emptyFolderBody": "Pick a way to start a new project right in this folder, or add existing ones.",
+      "emptyBody": "Pick a way to start a new project, or reopen an archived one.",
+      "addExisting": "Add existing projects",
+      "viewArchived": "View archive",
+      "moveFailed": "Could not move the project into the folder"
     }
   },
   "workspace": {

@@ -1,11 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import DropdownMenu from "./DropdownMenu";
 
 const setup = () => {
   const onRename = vi.fn();
   const onDelete = vi.fn();
-  render(
+  renderWithIntl(
     <div>
       <DropdownMenu
         trigger={(props) => (

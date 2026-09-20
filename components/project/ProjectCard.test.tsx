@@ -1,8 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { createTranslator } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 import ProjectCard, { getStatusBadge, nextStepLabel, phasePosition } from "./ProjectCard";
-import { tStep } from "@/lib/i18n";
+import { tStep, type Locale } from "@/lib/i18n";
 import { getSourceModeOption } from "@/lib/project-source-mode";
+import { MESSAGES, renderWithIntl } from "@/test/intl";
+
+/** Hàm dịch của `app.projectCard.next` — helper thuần nhận nó thay vì tự gọi hook. */
+const tNext = (locale: Locale = "vi") =>
+  createTranslator({ locale, messages: MESSAGES[locale], namespace: "app.projectCard.next" });
+const tMode = (locale: Locale = "vi") => createTranslator({ locale, messages: MESSAGES[locale], namespace: "app.sourceMode" });
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project } from "@/types/project";
 
@@ -14,33 +21,33 @@ const progress = (over: Partial<ProgressResponse["progress"]> = {}, readiness: P
 
 describe("nextStepLabel — việc tiếp theo lấy từ step registry", () => {
   it("đang tải ⇒ nói đang tải, không hiện nhãn sai", () => {
-    expect(nextStepLabel(undefined)).toBe("Đang tải…");
+    expect(nextStepLabel(undefined, tNext())).toBe("Đang tải…");
   });
 
   it("project chưa có Spine ⇒ mời bắt đầu, không hiện mã step thô", () => {
-    expect(nextStepLabel(null)).toContain("Chưa bắt đầu");
+    expect(nextStepLabel(null, tNext())).toContain("Chưa bắt đầu");
   });
 
   it("có Spine nhưng chưa chạy step nào ⇒ vẫn là chưa bắt đầu", () => {
-    expect(nextStepLabel(progress())).toContain("Chưa bắt đầu");
+    expect(nextStepLabel(progress(), tNext())).toContain("Chưa bắt đầu");
   });
 
   it("không có step đang chạy nhưng đã làm dở ⇒ không nói là chưa bắt đầu", () => {
-    expect(nextStepLabel(progress({ done: 66, total: 81 }))).toBe("Mở để tiếp tục");
-    expect(nextStepLabel(progress({ done: 81, total: 81 }))).toBe("Đã hoàn tất");
+    expect(nextStepLabel(progress({ done: 66, total: 81 }), tNext())).toBe("Mở để tiếp tục");
+    expect(nextStepLabel(progress({ done: 81, total: 81 }), tNext())).toBe("Đã hoàn tất");
   });
 
   it("đang ở một step ⇒ đúng nhãn của registry, không phải bảng cứng cũ", () => {
-    expect(nextStepLabel(progress({ current_step: "S-3.1" }))).toBe(tStep("S-3.1", "vi"));
+    expect(nextStepLabel(progress({ current_step: "S-3.1" }), tNext())).toBe(tStep("S-3.1", "vi"));
   });
 
   it("step vòng S-5 hiện kèm khoá màn", () => {
-    expect(nextStepLabel(progress({ current_step: "S-5.4@S07" }))).toContain("S07");
+    expect(nextStepLabel(progress({ current_step: "S-5.4@S07" }), tNext())).toContain("S07");
   });
 
   it("đổi ngôn ngữ thì nhãn đổi theo", () => {
-    const vi = nextStepLabel(progress({ current_step: "S-3.1" }), "vi");
-    const en = nextStepLabel(progress({ current_step: "S-3.1" }), "en");
+    const vi = nextStepLabel(progress({ current_step: "S-3.1" }), tNext("vi"), "vi");
+    const en = nextStepLabel(progress({ current_step: "S-3.1" }), tNext("en"), "en");
     expect(vi).not.toBe(en);
   });
 });
@@ -61,26 +68,26 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     ["import", "SRS có sẵn"],
     ["customer_template", "Template khách"],
   ] as const)("%s ⇒ ghi tên nguồn %s ở dòng meta; card nền tím nhạt", (mode, label) => {
-    const { container } = render(
+    const { container } = renderWithIntl(
       <ProjectCard project={{ ...baseProject, mode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
     );
-    expect(screen.getByTitle(getSourceModeOption(mode).label)).toHaveTextContent(label);
+    expect(screen.getByTitle(tMode()(`${getSourceModeOption(mode).key}.label`))).toHaveTextContent(label);
     expect(container.querySelector("article")?.className.split(/\s+/)).toContain("bg-surface-card");
   });
 
   it("nguồn mặc định (Template FlintFlow) không ghi nhãn — gần như mọi dự án đều là nó", () => {
-    render(<ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
+    renderWithIntl(<ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
     expect(screen.queryByText("Template FlintFlow")).toBeNull();
   });
 
   it("dự án BE trả thiếu mode ⇒ coi là mặc định, không ghi nhãn", () => {
     const missing = { ...baseProject, mode: undefined } as unknown as Project;
-    render(<ProjectCard project={missing} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
+    renderWithIntl(<ProjectCard project={missing} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
     expect(screen.queryByText("Template FlintFlow")).toBeNull();
   });
 
   it("thanh 12 giai đoạn: phase đã qua tô đậm, phase đang làm tô nhạt, kèm số bước từ BE", () => {
-    render(
+    renderWithIntl(
       <ProjectCard
         project={baseProject}
         progress={progress({ done: 12, total: 51, current_phase: "S-2", current_step: "S-2.1" })}
@@ -99,7 +106,7 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
   });
 
   it("luôn link vào /projects/:id; badge trạng thái theo readiness (cờ đỏ thắng %)", () => {
-    render(
+    renderWithIntl(
       <ProjectCard
         project={baseProject}
         progress={progress({}, { red_open: 1, accepted_pct: 95 })}
@@ -114,7 +121,7 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
 
   it("menu ⋮: đủ 3 thao tác; dự án đã lưu trữ không có Lưu trữ", () => {
     const onDelete = vi.fn();
-    const { rerender } = render(
+    const { rerender } = renderWithIntl(
       <ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={onDelete} onHardDelete={noop} />
     );
     fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
@@ -151,7 +158,7 @@ describe("getStatusBadge", () => {
     [progress({}, { accepted_pct: 85 }), "Sẵn sàng"],
     [progress({}, { accepted_pct: 85, red_open: 2 }), "Cần làm rõ"],
   ])("%# ⇒ %s", (p, label) => {
-    expect(getStatusBadge(p).label).toBe(label);
+    expect(MESSAGES.vi.app.projectCard.status[getStatusBadge(p).key]).toBe(label);
   });
 
   it("cờ đỏ là việc cần làm, không phải lỗi ⇒ tone warning", () => {

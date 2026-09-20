@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon, { type IconName } from "@/components/ui/Icon";
@@ -21,26 +22,8 @@ interface ProjectActionDialogsProps {
   onDone: () => void | Promise<void>;
 }
 
-const CONFIRM: Record<Exclude<ProjectAction, "rename">, { title: string; icon: IconName; question: string; detail: string; cta: string; busy: string; failed: string }> = {
-  archive: {
-    title: "Lưu trữ dự án",
-    icon: "archive",
-    question: "Lưu trữ",
-    detail: "Dự án sẽ bị ẩn khỏi danh sách đang làm; xem lại bằng bộ lọc Trạng thái: Lưu trữ.",
-    cta: "Lưu trữ",
-    busy: "Đang lưu trữ…",
-    failed: "Không thể lưu trữ dự án",
-  },
-  delete: {
-    title: "Xoá vĩnh viễn dự án",
-    icon: "trash",
-    question: "Xoá vĩnh viễn",
-    detail: "Toàn bộ hội thoại, tài liệu SRS và dữ liệu đính kèm sẽ bị xoá hoàn toàn. Hành động này không thể hoàn tác.",
-    cta: "Xoá vĩnh viễn",
-    busy: "Đang xoá…",
-    failed: "Không thể xoá vĩnh viễn dự án",
-  },
-};
+/** Icon của mỗi thao tác xác nhận; chữ lấy từ `app.projectDialogs.<action>.*`. */
+const CONFIRM_ICON: Record<Exclude<ProjectAction, "rename">, IconName> = { archive: "archive", delete: "trash" };
 
 /** 3 dialog thao tác trên card: đổi tên, lưu trữ, xoá vĩnh viễn. */
 export default function ProjectActionDialogs({ target, onClose, onDone }: ProjectActionDialogsProps) {
@@ -50,6 +33,8 @@ export default function ProjectActionDialogs({ target, onClose, onDone }: Projec
 }
 
 function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & { target: ProjectActionTarget }) {
+  const t = useTranslations("app.projectDialogs");
+  const tc = useTranslations("app.common");
   const { action, project } = target;
   const [name, setName] = useState(project.name);
   const [submitting, setSubmitting] = useState(false);
@@ -81,17 +66,17 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
 
   if (action === "rename") {
     return (
-      <Modal open onClose={close} title="Đổi tên dự án">
+      <Modal open onClose={close} title={t("renameTitle")}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) void run(() => renameProject(project._id, name.trim()), "Không thể đổi tên dự án");
+            if (name.trim()) void run(() => renameProject(project._id, name.trim()), t("renameFailed"));
           }}
           className="flex flex-col gap-4"
         >
           <div className="flex flex-col gap-1.5">
             <label htmlFor="rename-project" className="text-[12.5px] font-bold text-on-surface-medium">
-              Tên dự án mới
+              {t("renameLabel")}
             </label>
             <input
               id="rename-project"
@@ -106,10 +91,10 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
           {errorBox}
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={close} disabled={submitting}>
-              Huỷ
+              {tc("cancel")}
             </Button>
             <Button type="submit" loading={submitting} disabled={!name.trim() || name.trim() === project.name}>
-              Lưu thay đổi
+              {t("saveChanges")}
             </Button>
           </div>
         </form>
@@ -117,30 +102,29 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
     );
   }
 
-  const copy = CONFIRM[action];
   return (
-    <Modal open onClose={close} title={copy.title}>
+    <Modal open onClose={close} title={t(`${action}.title`)}>
       <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3 bg-error-container border border-error-border rounded-control p-4 text-on-error-container">
-          <Icon name={copy.icon} size={20} className="mt-0.5" />
+          <Icon name={CONFIRM_ICON[action]} size={20} className="mt-0.5" />
           <div>
             <p className="text-[13.5px] font-bold text-on-surface">
-              {copy.question} &ldquo;{project.name}&rdquo;?
+              {t("confirm", { action: t(`${action}.question`), name: project.name })}
             </p>
-            <p className="text-[12.5px] mt-1 leading-[1.55]">{copy.detail}</p>
+            <p className="text-[12.5px] mt-1 leading-[1.55]">{t(`${action}.detail`)}</p>
           </div>
         </div>
         {errorBox}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={close} disabled={submitting}>
-            Huỷ
+            {tc("cancel")}
           </Button>
           <Button
             variant="danger"
             loading={submitting}
-            onClick={() => void run(() => deleteProject(project._id, { hard: action === "delete" }), copy.failed)}
+            onClick={() => void run(() => deleteProject(project._id, { hard: action === "delete" }), t(`${action}.failed`))}
           >
-            {submitting ? copy.busy : copy.cta}
+            {submitting ? t(`${action}.busy`) : t(`${action}.cta`)}
           </Button>
         </div>
       </div>

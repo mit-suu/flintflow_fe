@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const estimateActionCost = vi.hoisted(() => vi.fn());
@@ -9,7 +10,7 @@ vi.mock("../../../../lib/api/chat", () => ({ estimateActionCost }));
 const renderInput = async () => {
   const { default: ChatInput } = await import("./ChatInput");
   const mount = () =>
-    render(
+    renderWithIntl(
       <ChatInput
         inputMessage=""
         setInputMessage={() => {}}

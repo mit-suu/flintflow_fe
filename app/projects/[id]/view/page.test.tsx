@@ -1,6 +1,7 @@
 "use client";
 
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyChanges, getSpine } from "@/lib/api/spine";
 import { assembleDocument } from "@/lib/api/export";
@@ -37,7 +38,7 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
     });
     await assembleDocument(P, await version());
 
-    render(<ReadOnlyDocumentPage />);
+    renderWithIntl(<ReadOnlyDocumentPage />);
 
     expect(await screen.findByText(/§1 Product Overview/)).toBeInTheDocument();
     expect(await screen.findByText(/§2.1 Actors/)).toBeInTheDocument();
@@ -53,7 +54,7 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
   it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa hoàn thiện'", async () => {
     await assembleDocument(P, await version());
 
-    render(<ReadOnlyDocumentPage />);
+    renderWithIntl(<ReadOnlyDocumentPage />);
 
     expect(await screen.findByText(/§2.2.2 Use Case Descriptions/)).toBeInTheDocument();
     const section = screen.getByText(/§2.2.2 Use Case Descriptions/).closest("article");
@@ -64,7 +65,7 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
   it("section đã accepted (Product Overview) không hiện 'chưa hoàn thiện'", async () => {
     await assembleDocument(P, await version());
 
-    render(<ReadOnlyDocumentPage />);
+    renderWithIntl(<ReadOnlyDocumentPage />);
 
     const section = (await screen.findByText(/§1 Product Overview/)).closest("article");
     expect(section).not.toBeNull();
@@ -72,7 +73,7 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
   });
 
   it("chưa ghép tài liệu thì hiện lỗi, không crash trang trắng", async () => {
-    render(<ReadOnlyDocumentPage />);
+    renderWithIntl(<ReadOnlyDocumentPage />);
 
     expect(await screen.findByText(/Không tải được tài liệu/)).toBeInTheDocument();
   });
