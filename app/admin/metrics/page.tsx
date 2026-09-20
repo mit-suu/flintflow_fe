@@ -84,7 +84,7 @@ export default function AdminMetricsPage() {
                 <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F3F1EE]">
                     <h2 className="text-[14px] font-bold text-[#191817]">AI 7 ngày gần nhất</h2>
-                    <Link href="/admin/ai-cost" className="text-[12px] font-semibold text-[#4F46E5] hover:underline">
+                    <Link href="/admin/ai-cost" className="text-[12px] font-semibold text-[#6A62C4] hover:underline">
                       Xem chi phí chi tiết
                     </Link>
                   </div>

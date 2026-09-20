@@ -1,0 +1,62 @@
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
+import { describe, expect, it, vi } from "vitest";
+import { listProjects } from "@/lib/api/projects";
+import { ProjectsProvider, useProjects } from "./use-projects";
+
+vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
+vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
+
+import { listFolders } from "@/lib/api/folders";
+
+function Probe() {
+  const { loading, error, foldersError, projects, reload } = useProjects();
+  return (
+    <>
+      <p>{loading ? "loading" : error ?? `${projects.length} dự án`}</p>
+      {foldersError && <p>folders: {foldersError}</p>}
+      <button type="button" onClick={() => void reload()}>
+        reload
+      </button>
+    </>
+  );
+}
+
+const renderProbe = () =>
+  renderWithIntl(
+    <ProjectsProvider>
+      <Probe />
+    </ProjectsProvider>
+  );
+
+describe("ProjectsProvider", () => {
+  it("tải một lần, reload tải lại", async () => {
+    vi.mocked(listProjects)
+      .mockResolvedValueOnce({ data: [], error: null } as never)
+      .mockResolvedValueOnce({ data: [{ _id: "p1" }], error: null } as never);
+    renderProbe();
+
+    expect(screen.getByText("loading")).toBeInTheDocument();
+    expect(await screen.findByText("0 dự án")).toBeInTheDocument();
+    expect(listProjects).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "reload" }));
+    expect(await screen.findByText("1 dự án")).toBeInTheDocument();
+    expect(listProjects).toHaveBeenCalledTimes(2);
+  });
+
+  it("lỗi tải ⇒ error có thông điệp", async () => {
+    vi.mocked(listProjects).mockRejectedValueOnce(new Error("BE sập"));
+    renderProbe();
+    await waitFor(() => expect(screen.getByText("BE sập")).toBeInTheDocument());
+  });
+
+  it("chỉ thư mục lỗi ⇒ dự án vẫn hiện, lỗi thư mục tách riêng", async () => {
+    vi.mocked(listProjects).mockResolvedValueOnce({ data: [{ _id: "p1" }], error: null } as never);
+    vi.mocked(listFolders).mockRejectedValueOnce(new Error("folders sập"));
+    renderProbe();
+
+    expect(await screen.findByText("1 dự án")).toBeInTheDocument();
+    expect(screen.getByText("folders: folders sập")).toBeInTheDocument();
+  });
+});

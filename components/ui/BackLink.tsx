@@ -1,0 +1,48 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+import Icon from "./Icon";
+
+interface BackLinkProps {
+  /** Điều hướng sang trang khác. Dùng `onClick` thay thế khi "quay lại" chỉ đổi state trong trang. */
+  href?: string;
+  onClick?: () => void;
+  children: ReactNode;
+  /** Nền của chip: `surface` khi đặt trên nền trắng, `white` khi đặt trên nền kem / xám. */
+  tone?: "surface" | "white";
+  className?: string;
+}
+
+/**
+ * Nút "quay lại" dùng chung cả app: viên thuốc phẳng, mũi tên trong chấm tròn bên trái; hover mũi tên lùi nhẹ.
+ * Thay cho link chữ "← …" rải rác ở từng trang.
+ */
+export default function BackLink({ href, onClick, children, tone = "surface", className = "" }: BackLinkProps) {
+  const fill =
+    tone === "white"
+      ? "bg-surface-container-lowest hover:bg-surface-container-low"
+      : "bg-surface-container hover:bg-surface-container-high";
+  const shell = `group inline-flex items-center gap-2 self-start rounded-full py-1 pl-1 pr-3.5 text-[13px] font-semibold text-on-surface-medium transition-colors hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${fill} ${className}`;
+  const inner = (
+    <>
+      <span
+        aria-hidden="true"
+        className={`grid size-6 place-items-center rounded-full transition-transform duration-200 group-hover:-translate-x-0.5 ${
+          tone === "white" ? "bg-surface-container" : "bg-surface-container-lowest"
+        }`}
+      >
+        <Icon name="caret-left" size={13} weight="bold" />
+      </span>
+      {children}
+    </>
+  );
+
+  return href ? (
+    <Link href={href} className={shell}>
+      {inner}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} className={`${shell} cursor-pointer`}>
+      {inner}
+    </button>
+  );
+}

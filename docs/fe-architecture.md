@@ -23,12 +23,12 @@ Cửa duy nhất gọi BE. Không `fetch` trực tiếp trong component.
 | `token-store.ts` | Nơi duy nhất giữ/đọc token |
 | `projects.ts` `chat.ts` `documents.ts` | Dự án, phiên chat, tài liệu upload |
 | `spine.ts` `pipeline.ts` `flags.ts` `export.ts` | Spine, step runner, cờ, assemble/export/baseline |
-| `notifications.ts` `billing.ts` `admin.ts` | Nền tảng |
+| `notifications.ts` `billing.ts` `admin.ts` `feedback.ts` `folders.ts` | Nền tảng (`feedback.ts`: `POST /feedback`, UC-12; `folders.ts`: CRUD thư mục) |
 
 `types/` phản chiếu kiểu của BE và giữ **snake_case** y như field Spine — đổi sang camelCase là tự tạo
 một tầng dịch phải bảo trì mãi.
 
-## Workspace (`app/projects/[projectId]/`)
+## Workspace (`app/projects/[id]/`)
 
 `page.tsx` ghép mọi thứ; state nằm trong hook:
 
@@ -49,19 +49,49 @@ Chạy step là **SSE** (`lib/ai-stream.ts`): `intake · elicit · answer_needed
 render · flags · gate_ready · error`. Luôn huỷ luồng khi rời trang hoặc chạy lại; luồng đóng sớm phải
 thành lỗi rõ ràng, không im lặng.
 
-## Nhãn quy trình và i18n (`lib/i18n.ts`)
+## Đa ngôn ngữ (vi / en)
 
-Nguồn duy nhất là `lib/constants/step-registry.json` — **bản sao** của
+**Nhãn step và phase** lấy từ `lib/constants/step-registry.json` — **bản sao** của
 `flintflow_be/assets/step-registry.json` (hợp đồng đóng băng). Đừng sửa tay, chạy `npm run sync:registry`.
+`tStep(stepId, locale)` / `tPhase(phase, locale)` (`lib/i18n.ts`) đọc `label_vi` / `label_en` có sẵn trong
+registry, nên không có bảng dịch thứ hai để lệch.
 
-`tStep(stepId, locale)` và `tPhase(phase, locale)` đọc `label_vi` / `label_en` có sẵn trong registry, nên
-không có bảng dịch thứ hai để lệch. Phạm vi cố ý hẹp: **chỉ nhãn step và phase**; chuỗi UI còn lại viết
-thẳng tiếng Việt trong component. Dựng cả framework i18n cho một sản phẩm đang dùng một ngôn ngữ là chi
-phí không đổi lấy được gì — khi cần ngôn ngữ thứ hai cho toàn UI thì thay ruột, giữ nguyên chữ ký `t*()`.
+**Chuỗi UI còn lại** đi qua `next-intl`: `messages/vi.json` (bản chuẩn) + `messages/en.json`, chia namespace
+theo khu vực (`metadata`, `common`, `landing`, `auth`, `app`, `workspace`, `errors`). Đã chuyển: landing
+(`app/_landing/`), xác thực (`app/(auth)/`), khu vực đã đăng nhập (`app/home/**`, `components/`) và lỗi BE
+(theo mã). **Chưa chuyển**: workspace (`app/projects/**`) — vẫn viết thẳng tiếng Việt; namespace
+`workspace` đã có sẵn chuỗi cho vòng sau.
 
-`localeOf(user)` hiện luôn trả `vi` vì BE chưa có field `locale` trên user.
+**Admin chỉ tiếng Việt** — trang admin không đưa vào messages. `app/admin/layout.tsx` bọc
+`NextIntlClientProvider` ghim `locale="vi"`, nên component dùng chung đã dịch (`AuthGuard`…) vẫn hiện tiếng
+Việt trong admin dù cookie là `en`. `i18n/request.ts` phải tôn trọng `locale` do nơi gọi xin — bỏ qua nó thì
+admin nhận nhầm bản `en` (có test ở `i18n/request.test.ts`).
 
-Nội dung tài liệu SRS luôn là tiếng Anh (BE sinh) và **không** đi qua i18n — FE chỉ hiển thị.
+**Chọn locale.** Không prefix URL. `i18n/request.ts` gọi `resolveLocale()` (`lib/i18n.ts`): cookie
+`NEXT_LOCALE` → header `Accept-Language` → `vi`. `components/LocaleSwitcher.tsx` ghi cookie, gọi
+`PATCH /users/me` khi đã đăng nhập, rồi `router.refresh()`. Vì layout đọc cookie nên mọi route render động.
+
+Khi sửa:
+
+- Sửa câu chữ ⇒ sửa **cả hai** file messages, không đụng `.tsx`.
+- Thêm chuỗi ⇒ thêm key vào cả hai file (`vi.json` là nguồn kiểu, thiếu key ở `t()` là lỗi `tsc`).
+- Số liệu, giá, href, tone màu ⇒ để trong code/data (vd `app/_landing/content.ts`), không nằm trong messages.
+- Ngày / số ⇒ `useFormatter()`, không `toLocaleString("vi-VN")` cứng. "x phút trước" ⇒ `lib/time-ago.ts`.
+- Chữ có định dạng ⇒ `t.rich("key", { b: (c) => <b>{c}</b> })`.
+- Mỗi mục có bộ key riêng (tag của chế độ, dòng tính năng của gói) ⇒ ghi **cả đường dẫn key** trong data,
+  không ghép chuỗi trong JSX: ghép tạo ra tổ hợp key không tồn tại mà `tsc` bắt được.
+- Hàm thuần cần chữ đã dịch (`nextStepLabel`, `timeAgo`, `useNotificationText`) ⇒ nhận `t` làm tham số;
+  test dùng `createTranslator({ locale, messages, namespace })`.
+- Câu dự phòng khi lỗi nằm **trong `useEffect`** ⇒ ghi `""` vào state rồi dịch lúc render
+  (`error || t("…")`, hiện khối lỗi khi `error !== null`). Đưa `t` vào dependency sẽ chạy lại effect.
+- Hook báo lỗi trong callback mà effect gọi ⇒ lưu mã `HOOK_ERROR.<key>` (`lib/hook-errors.ts`), component
+  dịch lúc render bằng `hookErrorText`.
+- Lỗi BE dịch theo `error.code` ở `lib/api/error-messages.ts`; `ApiClientError.message` đã dịch, câu gốc ở
+  `rawMessage`. Mã không có trong `errors` giữ nguyên message của BE.
+- Test render component ⇒ `renderWithIntl` (`test/intl.tsx`); `vietnameseLeftovers(container)` chặn chữ
+  tiếng Việt sót lại ở bản `en`.
+- **Không dịch:** dữ liệu của user (tên dự án, tên thư mục, nội dung chat) và nội dung tài liệu SRS — SRS
+  luôn là tiếng Anh do BE sinh, FE chỉ hiển thị.
 
 ## Mock (`mocks/`) — chỉ còn trong test
 
@@ -131,12 +161,47 @@ là không hỗ trợ lấy image nhỏ hơn.
 
 ```
 /(auth)/{login,register,verify-email,forgot-password,reset-password,check-email}
-/home                     lưới dự án (thẻ đọc tiến độ thật), tìm kiếm, tạo/đổi tên/lưu trữ
-/home/{notifications,billing,onboarding}
-/projects/[projectId]     workspace
-/projects/[projectId]/view  bản đọc read-only
+/home                     Project Dashboard: chưa có dự án/thư mục ⇒ chọn cách làm SRS (`Project.mode`) + tên ngay trên trang;
+                          còn lại ⇒ tab Tất cả (thư mục + dự án ngoài thư mục) · Thư mục · Dự án (mọi dự án, chia vùng
+                          Hôm nay/7/30 ngày theo "Mới cập nhật" hoặc "Mới mở" = Project.lastOpenedAt); kéo card thả vào
+                          thẻ thư mục để chuyển; bấm thư mục ⇒ dự án trong thư mục + "Thêm dự án" (chọn có sẵn / tạo mới).
+                          Tạo dự án `import` (mode 1) ⇒ vào thẳng wizard `/projects/[id]/import`
+/home/{notifications,billing,profile}
+/projects/[id]            workspace — cửa vào duy nhất của một dự án (card luôn link tới đây)
+/projects/[id]/view       bản đọc read-only
 /admin/{users,metrics,ai-cost,feedback}
 ```
+
+Tạo dự án xong đi tới `getProjectStartRoute(id, mode)` (`lib/project-source-mode.ts`) — chỗ duy nhất
+map mode → route: `import → /projects/:id/import` (wizard mode 1), `customer_template → /projects/:id/template`
+(chưa có, BE trả 501), `fpt → /projects/:id`. Route đổi thì chỉ sửa hàm này.
+
+## Cách làm SRS của dự án (`Project.mode`)
+
+`Project.mode` (`import | fpt | customer_template`, BE `project.model.ts`) chọn khi tạo, không đổi được; không gửi
+⇒ `fpt`, dự án cũ BE đọc ra `fpt`. Khác `WorkingMode` (fast/coaching) của Spine — đừng gọi nó là "working mode".
+Nhãn, mô tả, icon, tone và `status: "ready" | "soon"` của 3 mode chỉ khai báo ở `SOURCE_MODE_OPTIONS`; mode `soon`
+hiện nhưng không chọn được. Card dự án `import` hiện trạng thái import (`import_state`) hoặc số change request đang mở
+thay cho step tiếp theo.
+
+## Component dùng chung (`components/`)
+
+| Thư mục | Chứa gì |
+| --- | --- |
+| `ui/` | Primitive không biết domain: `Icon`, `Button`, `IconButton`, `Badge`, `CountBadge`, `SearchInput`, `FilterSelect`, `DropdownMenu`, `Card`, `Skeleton`, `EmptyState`, `Modal`, `Tabs` (import qua `@/components/ui`) |
+| `layout/` | Khung `/home/*`: `AppShell` (drawer mobile, số dư credits, trạng thái thu gọn), `AppSidebar` dựng từ `sidebar-config.ts`, `SidebarNavItem`, `TopBar`, `RecentProjects` |
+| `project/` | Feature dùng ở nhiều trang: `SourceModePicker`, `CreateProjectForm` (một component cho empty state và dialog), `ProjectCard` (kéo được, nền trắng; chip nguồn mang màu theo mode), `ProjectGrid`, `ProjectActionDialogs`, `FolderCard` (nhận thả card), `FolderDialogs` (tạo/sửa/xoá thư mục, chuyển dự án), `AddToFolderDialog`, `ProjectTimeline`, `FeedbackDialog` |
+
+Quy tắc:
+
+- **Icon chỉ qua `components/ui/Icon.tsx`** (Phosphor Icons, `@phosphor-icons/react`). Không emoji, ký tự hay Material Symbols làm icon.
+  `Icon` map tên miền của app sang component Phosphor (import `dist/ssr`, chạy cả Server Component); thêm icon = thêm một dòng vào bảng `ICONS`. Độ nét dùng prop `weight` (`regular` mặc định, `bold`, `fill`).
+- **Màu chỉ qua token** trong `app/globals.css` (`bg-surface`, `text-on-surface`, `bg-primary`, `bg-info-soft`…),
+  không hex trong component mới. Thiếu màu thì thêm token.
+- **Tính năng chưa có BE** hiện nhưng disabled kèm `<Badge tone="soon" />` ("Sắp có") — không ẩn, không dữ liệu
+  giả. Sidebar: đổi `status` trong `sidebar-config.ts` sang `"ready"` + `href` khi có BE.
+- Dự án và thư mục tải một lần ở `app/home/layout.tsx` qua `ProjectsProvider` (`lib/hooks/use-projects.tsx`);
+  sidebar ("Gần đây") và dashboard dùng chung, gọi `reload()` sau khi tạo/đổi tên/lưu trữ/xoá.
 
 ## Đăng nhập Google là tuỳ chọn
 

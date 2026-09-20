@@ -1,4 +1,5 @@
 import { clearAuthToken } from "../auth";
+import { localizeApiError } from "./error-messages";
 import {
   decodeJwt,
   getAccessToken,
@@ -15,31 +16,118 @@ export interface ApiResponse<T = unknown> {
   error: { code: string; message: string } | null;
 }
 
+/**
+ * Lỗi API. `message` đã được dịch theo `code` sang ngôn ngữ đang hiển thị (`localizeApiError`); câu gốc của BE
+ * giữ ở `rawMessage` để log / debug.
+ */
 export class ApiClientError extends Error {
   code: string;
   status: number;
+  rawMessage: string;
+  /** `meta` của envelope lỗi (vd `issues[]` của `IMPORT_FILE_REJECTED`, `prefill` của `CHANGE_REQUIRES_CR`). */
+  meta?: Record<string, unknown>;
 
-  constructor(status: number, code: string, message: string) {
-    super(message);
+  constructor(status: number, code: string, message: string, meta?: Record<string, unknown>) {
+    super(localizeApiError(code, message));
     this.status = status;
     this.code = code;
+    this.rawMessage = message;
+    this.meta = meta;
   }
 }
 
-let refreshPromise: Promise<boolean> | null = null;
+/**
+ * Kết quả refresh:
+ * - `ok`: đã có access token hợp lệ.
+ * - `rejected`: BE từ chối refresh token (401/403) — phiên thật sự hết, đã xoá token.
+ * - `failed`: lỗi mạng / BE 5xx / cold start — phiên có thể vẫn còn, KHÔNG được đăng xuất.
+ */
+export type RefreshOutcome = "ok" | "rejected" | "failed";
+
+const REFRESH_LOCK_NAME = "flintflow-auth-refresh";
+
+let refreshPromise: Promise<RefreshOutcome> | null = null;
 let lastRefreshTime = 0;
 
-export const refreshAccessToken = async (): Promise<boolean> => {
-  // If recently refreshed (within 2s) and stored token is still valid, reuse without re-calling BE
-  const now = Date.now();
-  if (now - lastRefreshTime < 2000) {
-    const current = getStoredAuthToken();
-    if (current) {
-      const decoded = decodeJwt(current);
-      if (!decoded?.exp || Date.now() < decoded.exp * 1000) {
-        setAccessToken(current);
-        return true;
+const isTokenFresh = (token: string | null): token is string => {
+  if (!token) return false;
+  const decoded = decodeJwt(token);
+  return !decoded?.exp || Date.now() < decoded.exp * 1000;
+};
+
+/**
+ * Tab khác đã refresh xong trong lúc tab này chờ/gọi BE ⇒ token trong localStorage (dùng chung giữa các tab)
+ * đã khác token lúc bắt đầu và còn hạn. Dùng luôn token đó thay vì gọi BE bằng refresh token cũ đã bị xoay vòng.
+ */
+const adoptTokenRefreshedElsewhere = (tokenAtStart: string | null): boolean => {
+  const current = getStoredAuthToken();
+  if (current && current !== tokenAtStart && isTokenFresh(current)) {
+    setAccessToken(current);
+    return true;
+  }
+  return false;
+};
+
+/** Gọi `fn` trong khoá dùng chung giữa các tab (Web Locks); trình duyệt không hỗ trợ thì chạy thẳng. */
+const withCrossTabLock = <T>(fn: () => Promise<T>): Promise<T> => {
+  if (typeof navigator !== "undefined" && navigator.locks?.request) {
+    return navigator.locks.request(REFRESH_LOCK_NAME, fn) as Promise<T>;
+  }
+  return fn();
+};
+
+const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutcome> => {
+  if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        // Tab khác (không có Web Locks) có thể đã xoay vòng refresh token ngay trước request này —
+        // khi đó đăng xuất sẽ gọi /auth/logout với cookie MỚI và thu hồi luôn phiên vừa tạo.
+        if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+        clearAuthToken();
+        return "rejected";
       }
+      return "failed";
+    }
+
+    let json: ApiResponse<{ accessToken: string }>;
+    try {
+      json = await res.json();
+    } catch {
+      return "failed";
+    }
+
+    if (json.data?.accessToken) {
+      lastRefreshTime = Date.now();
+      saveAuthToken(json.data.accessToken);
+      return "ok";
+    }
+
+    clearAuthToken();
+    return "rejected";
+  } catch (err) {
+    console.error("[refreshAccessToken] Network or refresh error:", err);
+    // Do not clear auth tokens on network failure to avoid logging out users during blips
+    return "failed";
+  }
+};
+
+export const refreshSession = async (): Promise<RefreshOutcome> => {
+  // If recently refreshed (within 2s) and stored token is still valid, reuse without re-calling BE
+  if (Date.now() - lastRefreshTime < 2000) {
+    const current = getStoredAuthToken();
+    if (isTokenFresh(current)) {
+      setAccessToken(current);
+      return "ok";
     }
   }
 
@@ -48,50 +136,15 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     return refreshPromise;
   }
 
-  refreshPromise = (async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        // Only clear auth tokens if explicitly rejected with 401 or 403
-        if (res.status === 401 || res.status === 403) {
-          clearAuthToken();
-        }
-        return false;
-      }
-
-      let json: ApiResponse<{ accessToken: string }>;
-      try {
-        json = await res.json();
-      } catch {
-        return false;
-      }
-
-      if (json.data?.accessToken) {
-        lastRefreshTime = Date.now();
-        saveAuthToken(json.data.accessToken);
-        return true;
-      }
-
-      clearAuthToken();
-      return false;
-    } catch (err) {
-      console.error("[refreshAccessToken] Network or refresh error:", err);
-      // Do not clear auth tokens on network failure to avoid logging out users during blips
-      return false;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
+  const tokenAtStart = getStoredAuthToken();
+  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart)).finally(() => {
+    refreshPromise = null;
+  });
 
   return refreshPromise;
 };
+
+export const refreshAccessToken = async (): Promise<boolean> => (await refreshSession()) === "ok";
 
 /**
  * `fetch` tới BE có gắn Bearer token: refresh chủ động khi token sắp hết hạn,
@@ -163,11 +216,24 @@ export const authFetch = async (
   return res;
 };
 
-/** Đọc thông điệp lỗi từ body JSON của response không OK (dùng cho SSE/file). */
-export const readErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+/**
+ * Câu lỗi **gốc** của BE (chưa dịch) — dùng khi còn dựng tiếp `ApiClientError`, vì constructor của nó tự dịch
+ * theo mã; đọc bản đã dịch ở đây sẽ làm mất câu gốc trong `rawMessage`.
+ */
+export const readRawErrorMessage = async (res: Response, fallback: string): Promise<string> => {
   try {
     const errJson = await res.json();
     return errJson.error?.message || errJson.message || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+/** Đọc thông điệp lỗi từ body JSON của response không OK, đã dịch theo mã (dùng cho SSE/file ném `Error` thường). */
+export const readErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+  try {
+    const errJson = await res.json();
+    return localizeApiError(errJson.error?.code, errJson.error?.message || errJson.message || fallback);
   } catch {
     return fallback;
   }
@@ -197,7 +263,8 @@ export const apiCall = async <T = unknown>(
     throw new ApiClientError(
       res.status,
       json.error?.code || "UNKNOWN_ERROR",
-      json.error?.message || `HTTP ${res.status}`
+      json.error?.message || `HTTP ${res.status}`,
+      json.meta
     );
   }
 
