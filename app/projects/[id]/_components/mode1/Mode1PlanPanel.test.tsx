@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -68,7 +69,7 @@ const renderPanel = (over: Partial<Parameters<typeof Mode1PlanPanel>[0]> = {}) =
     onSignedOff: vi.fn(),
     ...over,
   };
-  render(<Mode1PlanPanel {...props} />);
+  renderWithIntl(<Mode1PlanPanel {...props} />);
   return props;
 };
 
@@ -216,12 +217,12 @@ describe("Mode1PlanPanel — kế hoạch step theo template (FLF-185)", () => {
   });
 
   it("lỗi tải kế hoạch ⇒ báo lỗi; đang tải ⇒ câu chờ", () => {
-    const { unmount } = render(
+    const { unmount } = renderWithIntl(
       <Mode1PlanPanel {...renderPanelProps()} plan={null} planError="Không tải được kế hoạch step" />
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Không tải được kế hoạch step");
     unmount();
-    render(<Mode1PlanPanel {...renderPanelProps()} plan={null} />);
+    renderWithIntl(<Mode1PlanPanel {...renderPanelProps()} plan={null} />);
     expect(screen.getByText("Đang tải kế hoạch step…")).toBeInTheDocument();
   });
 });

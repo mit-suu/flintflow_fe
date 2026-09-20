@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import GateCard from "../GateCard";
 import type { GateAction } from "@/types/pipeline";
@@ -8,7 +9,7 @@ const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 describe("GateCard", () => {
   it("Accept gọi onAction ngay; Regenerate hiện số lượt đã dùng", () => {
     const onAction = vi.fn();
-    render(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={1} onAction={onAction} />);
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={1} onAction={onAction} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Accept$/ }));
     expect(onAction).toHaveBeenCalledWith("accept");
@@ -20,19 +21,19 @@ describe("GateCard", () => {
   });
 
   it("hết 3 lượt Regenerate ⇒ nút tắt, Accept as-is xuất hiện", () => {
-    render(<GateCard stepId="S-3.1" actions={["accept", "revision", "accept_as_is"]} regenerateUsed={3} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "revision", "accept_as_is"]} regenerateUsed={3} onAction={vi.fn()} />);
     expect(screen.getByRole("button", { name: /Regenerate \(3\/3\)/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Accept as-is" })).toBeInTheDocument();
   });
 
   it("chưa hết Regenerate thì không hiện Accept as-is", () => {
-    render(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Accept as-is" })).not.toBeInTheDocument();
   });
 
   it("Accept as-is bắt buộc lý do trước khi gửi", () => {
     const onAction = vi.fn();
-    render(<GateCard stepId="S-3.1" actions={["accept", "accept_as_is"]} regenerateUsed={3} onAction={onAction} />);
+    renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "accept_as_is"]} regenerateUsed={3} onAction={onAction} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Accept as-is" }));
     const confirm = screen.getByRole("button", { name: "Xác nhận Accept as-is" });
@@ -48,7 +49,7 @@ describe("GateCard", () => {
 
   it("Request revision cần ghi chú", () => {
     const onAction = vi.fn();
-    render(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={onAction} />);
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={onAction} />);
     fireEvent.click(screen.getByRole("button", { name: /Request revision/ }));
     fireEvent.change(screen.getByLabelText("Cần sửa gì?"), { target: { value: "Thiếu actor Guest" } });
     fireEvent.click(screen.getByRole("button", { name: "Gửi yêu cầu sửa" }));
@@ -56,7 +57,7 @@ describe("GateCard", () => {
   });
 
   it("busy thì khoá mọi hành động", () => {
-    render(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} busy onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} busy onAction={vi.fn()} />);
     expect(screen.getByRole("button", { name: /Accept$/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Regenerate/ })).toBeDisabled();
   });

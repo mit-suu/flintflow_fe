@@ -49,19 +49,49 @@ Chạy step là **SSE** (`lib/ai-stream.ts`): `intake · elicit · answer_needed
 render · flags · gate_ready · error`. Luôn huỷ luồng khi rời trang hoặc chạy lại; luồng đóng sớm phải
 thành lỗi rõ ràng, không im lặng.
 
-## Nhãn quy trình và i18n (`lib/i18n.ts`)
+## Đa ngôn ngữ (vi / en)
 
-Nguồn duy nhất là `lib/constants/step-registry.json` — **bản sao** của
+**Nhãn step và phase** lấy từ `lib/constants/step-registry.json` — **bản sao** của
 `flintflow_be/assets/step-registry.json` (hợp đồng đóng băng). Đừng sửa tay, chạy `npm run sync:registry`.
+`tStep(stepId, locale)` / `tPhase(phase, locale)` (`lib/i18n.ts`) đọc `label_vi` / `label_en` có sẵn trong
+registry, nên không có bảng dịch thứ hai để lệch.
 
-`tStep(stepId, locale)` và `tPhase(phase, locale)` đọc `label_vi` / `label_en` có sẵn trong registry, nên
-không có bảng dịch thứ hai để lệch. Phạm vi cố ý hẹp: **chỉ nhãn step và phase**; chuỗi UI còn lại viết
-thẳng tiếng Việt trong component. Dựng cả framework i18n cho một sản phẩm đang dùng một ngôn ngữ là chi
-phí không đổi lấy được gì — khi cần ngôn ngữ thứ hai cho toàn UI thì thay ruột, giữ nguyên chữ ký `t*()`.
+**Chuỗi UI còn lại** đi qua `next-intl`: `messages/vi.json` (bản chuẩn) + `messages/en.json`, chia namespace
+theo khu vực (`metadata`, `common`, `landing`, `auth`, `app`, `workspace`, `errors`). Đã chuyển: landing
+(`app/_landing/`), xác thực (`app/(auth)/`), khu vực đã đăng nhập (`app/home/**`, `components/`) và lỗi BE
+(theo mã). **Chưa chuyển**: workspace (`app/projects/**`) — vẫn viết thẳng tiếng Việt; namespace
+`workspace` đã có sẵn chuỗi cho vòng sau.
 
-`localeOf(user)` hiện luôn trả `vi` vì BE chưa có field `locale` trên user.
+**Admin chỉ tiếng Việt** — trang admin không đưa vào messages. `app/admin/layout.tsx` bọc
+`NextIntlClientProvider` ghim `locale="vi"`, nên component dùng chung đã dịch (`AuthGuard`…) vẫn hiện tiếng
+Việt trong admin dù cookie là `en`. `i18n/request.ts` phải tôn trọng `locale` do nơi gọi xin — bỏ qua nó thì
+admin nhận nhầm bản `en` (có test ở `i18n/request.test.ts`).
 
-Nội dung tài liệu SRS luôn là tiếng Anh (BE sinh) và **không** đi qua i18n — FE chỉ hiển thị.
+**Chọn locale.** Không prefix URL. `i18n/request.ts` gọi `resolveLocale()` (`lib/i18n.ts`): cookie
+`NEXT_LOCALE` → header `Accept-Language` → `vi`. `components/LocaleSwitcher.tsx` ghi cookie, gọi
+`PATCH /users/me` khi đã đăng nhập, rồi `router.refresh()`. Vì layout đọc cookie nên mọi route render động.
+
+Khi sửa:
+
+- Sửa câu chữ ⇒ sửa **cả hai** file messages, không đụng `.tsx`.
+- Thêm chuỗi ⇒ thêm key vào cả hai file (`vi.json` là nguồn kiểu, thiếu key ở `t()` là lỗi `tsc`).
+- Số liệu, giá, href, tone màu ⇒ để trong code/data (vd `app/_landing/content.ts`), không nằm trong messages.
+- Ngày / số ⇒ `useFormatter()`, không `toLocaleString("vi-VN")` cứng. "x phút trước" ⇒ `lib/time-ago.ts`.
+- Chữ có định dạng ⇒ `t.rich("key", { b: (c) => <b>{c}</b> })`.
+- Mỗi mục có bộ key riêng (tag của chế độ, dòng tính năng của gói) ⇒ ghi **cả đường dẫn key** trong data,
+  không ghép chuỗi trong JSX: ghép tạo ra tổ hợp key không tồn tại mà `tsc` bắt được.
+- Hàm thuần cần chữ đã dịch (`nextStepLabel`, `timeAgo`, `useNotificationText`) ⇒ nhận `t` làm tham số;
+  test dùng `createTranslator({ locale, messages, namespace })`.
+- Câu dự phòng khi lỗi nằm **trong `useEffect`** ⇒ ghi `""` vào state rồi dịch lúc render
+  (`error || t("…")`, hiện khối lỗi khi `error !== null`). Đưa `t` vào dependency sẽ chạy lại effect.
+- Hook báo lỗi trong callback mà effect gọi ⇒ lưu mã `HOOK_ERROR.<key>` (`lib/hook-errors.ts`), component
+  dịch lúc render bằng `hookErrorText`.
+- Lỗi BE dịch theo `error.code` ở `lib/api/error-messages.ts`; `ApiClientError.message` đã dịch, câu gốc ở
+  `rawMessage`. Mã không có trong `errors` giữ nguyên message của BE.
+- Test render component ⇒ `renderWithIntl` (`test/intl.tsx`); `vietnameseLeftovers(container)` chặn chữ
+  tiếng Việt sót lại ở bản `en`.
+- **Không dịch:** dữ liệu của user (tên dự án, tên thư mục, nội dung chat) và nội dung tài liệu SRS — SRS
+  luôn là tiếng Anh do BE sinh, FE chỉ hiển thị.
 
 ## Mock (`mocks/`) — chỉ còn trong test
 

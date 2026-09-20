@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import type { HeadingMapEntry, TableMapEntry, TemplateProfile } from "@/types/import";
 import MappingReviewTable from "./MappingReviewTable";
@@ -42,7 +43,7 @@ const submit = () => fireEvent.click(screen.getByRole("button", { name: "Xác nh
 
 describe("MappingReviewTable — xác nhận mapping heading → section (UC-21, 1.7)", () => {
   it("mặc định chỉ hiện dòng độ tin < 80%; bỏ lọc thì hiện đủ; độ tin + cách nhận heading hiển thị", () => {
-    render(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
+    renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
 
     expect(screen.getByText(/4 heading, 2 dòng độ tin dưới 80%/)).toBeInTheDocument();
     const filter = screen.getByRole("checkbox", { name: "Chỉ hiện dòng độ tin thấp" });
@@ -62,7 +63,7 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
 
   it("không có dòng độ tin thấp ⇒ mặc định hiện hết; bật lọc thì báo không có dòng nào", () => {
     const high = profile({ heading_map: [heading("B0001", "1 Product Overview", "fixed:1", 0.97)] });
-    render(<MappingReviewTable profile={high} onSubmit={vi.fn()} />);
+    renderWithIntl(<MappingReviewTable profile={high} onSubmit={vi.fn()} />);
     const filter = screen.getByRole("checkbox", { name: "Chỉ hiện dòng độ tin thấp" });
     expect(filter).not.toBeChecked();
     expect(screen.getByText("1 Product Overview", HEADING)).toBeInTheDocument();
@@ -72,7 +73,7 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
   });
 
   it("danh sách section gồm section chuẩn FPT, section tạm feature do BE sinh và “Không khớp”", () => {
-    render(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
+    renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
     const select = screen.getByRole("combobox", { name: "Section cho 3.2.4 Log out of system" });
     expect(select).toHaveValue("feature:@B0007");
     const options = within(select).getAllByRole("option").map((o) => o.textContent);
@@ -86,7 +87,7 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
 
   it("đổi section + sửa cột bảng ⇒ lưu chỉ gửi các dòng đã đổi, kèm confirm_all; cột bỏ trống ⇒ field_path null", () => {
     const onSubmit = vi.fn();
-    render(<MappingReviewTable profile={profile()} onSubmit={onSubmit} />);
+    renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={onSubmit} />);
 
     fireEvent.change(screen.getByRole("combobox", { name: "Section cho 3.2.4 Log out of system" }), { target: { value: "fixed:3.1.2" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Section cho Phụ lục B — Biên bản họp" }), { target: { value: "fixed:5.3" } });
@@ -110,13 +111,13 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
 
   it("không đổi gì ⇒ vẫn chốt tất cả như BE đề xuất (mảng rỗng + confirm_all)", () => {
     const onSubmit = vi.fn();
-    render(<MappingReviewTable profile={profile()} onSubmit={onSubmit} />);
+    renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={onSubmit} />);
     submit();
     expect(onSubmit).toHaveBeenCalledWith({ headings: [], tables: [], confirm_all: true });
   });
 
   it("section bắt buộc chưa có heading ⇒ cảnh báo; gán heading vào section đó thì hết cảnh báo", () => {
-    render(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
+    renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
     expect(screen.getByText(/Chưa có heading nào cho section bắt buộc: 5.3 Application Messages List/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Section cho Phụ lục B — Biên bản họp" }), { target: { value: "fixed:5.3" } });
@@ -124,7 +125,7 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
   });
 
   it("không có bảng ⇒ không hiện phần cột bảng; đang lưu ⇒ nút khoá", () => {
-    render(<MappingReviewTable profile={profile({ table_map: [] })} onSubmit={vi.fn()} busy />);
+    renderWithIntl(<MappingReviewTable profile={profile({ table_map: [] })} onSubmit={vi.fn()} busy />);
     expect(screen.queryByText(/Cột bảng → field/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
   });
@@ -133,7 +134,7 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
 describe("MappingReviewTable — cột bảng không có tiêu đề (FLF-179)", () => {
   it("header rỗng ⇒ hiện \"Cột N (không có tiêu đề)\" và vẫn gán field được", () => {
     const onSubmit = vi.fn();
-    render(<MappingReviewTable profile={profile({ table_map: [column("B0005", 2, "", null, 0.3)] })} onSubmit={onSubmit} />);
+    renderWithIntl(<MappingReviewTable profile={profile({ table_map: [column("B0005", 2, "", null, 0.3)] })} onSubmit={onSubmit} />);
     expect(screen.getByText("Cột 3 (không có tiêu đề)")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Field cho cột Cột 3 (không có tiêu đề)"), { target: { value: "use_cases[].name" } });
     submit();

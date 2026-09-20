@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Skeleton from "@/components/ui/Skeleton";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project } from "@/types/project";
@@ -20,6 +21,10 @@ interface ProjectGridProps {
   draggable?: boolean;
   /** Tên thư mục của dự án (chip trên card) — chỉ truyền ở nơi hiện cả dự án trong thư mục. */
   folderNameOf?: (p: Project) => string | null;
+  /** Chế độ chọn nhiều: mọi card hiện ô tích. */
+  selectable?: boolean;
+  selectedIds?: ReadonlySet<string>;
+  onToggleSelect?: (p: Project) => void;
 }
 
 /** Lưới card dự án responsive 1/2/3/4 cột (4 cột từ màn desktop xl). */
@@ -33,6 +38,9 @@ export default function ProjectGrid({
   onMoveToFolder,
   draggable,
   folderNameOf,
+  selectable,
+  selectedIds,
+  onToggleSelect,
 }: ProjectGridProps) {
   return (
     <div className={CARD_GRID}>
@@ -48,6 +56,9 @@ export default function ProjectGrid({
           onMoveToFolder={onMoveToFolder}
           draggable={draggable}
           folderName={folderNameOf?.(p)}
+          selectable={selectable}
+          selected={selectedIds?.has(p._id)}
+          onToggleSelect={onToggleSelect}
         />
       ))}
     </div>
@@ -56,8 +67,9 @@ export default function ProjectGrid({
 
 /** Giữ chỗ lúc tải — cùng hình với card thật (bìa + thân). */
 export function ProjectGridSkeleton() {
+  const t = useTranslations("app.projectCard");
   return (
-    <div className={CARD_GRID} aria-busy="true" aria-label="Đang tải danh sách dự án">
+    <div className={CARD_GRID} aria-busy="true" aria-label={t("gridLoading")}>
       {Array.from({ length: SKELETON_COUNT }, (_, i) => (
         <div key={i} data-testid="project-skeleton" className="rounded-card overflow-hidden bg-surface-container-lowest border border-outline-variant">
           <Skeleton className="h-[72px] rounded-none" />

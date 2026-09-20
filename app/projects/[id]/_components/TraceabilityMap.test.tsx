@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import TraceabilityMap from "./TraceabilityMap";
 import * as spineApi from "@/lib/api/spine";
@@ -27,7 +28,7 @@ describe("TraceabilityMap", () => {
     };
     getTraceability.mockResolvedValueOnce({ data: response, error: null });
 
-    render(<TraceabilityMap projectId="p1" />);
+    renderWithIntl(<TraceabilityMap projectId="p1" />);
 
     fireEvent.change(screen.getByPlaceholderText(/vd A01/), { target: { value: "A01" } });
     fireEvent.click(screen.getByRole("button", { name: "Tra" }));
@@ -41,7 +42,7 @@ describe("TraceabilityMap", () => {
   it("đổi loại entity trước khi tra gửi đúng `entity` trong query", async () => {
     getTraceability.mockResolvedValueOnce({ data: { nodes: [], edges: [] }, error: null });
 
-    render(<TraceabilityMap projectId="p1" />);
+    renderWithIntl(<TraceabilityMap projectId="p1" />);
 
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "use_case" } });
     fireEvent.change(screen.getByPlaceholderText(/vd A01/), { target: { value: "UC01" } });
@@ -54,7 +55,7 @@ describe("TraceabilityMap", () => {
   it("lỗi API hiện thông điệp, không render bảng", async () => {
     getTraceability.mockRejectedValueOnce(new Error("Không tra được"));
 
-    render(<TraceabilityMap projectId="p1" />);
+    renderWithIntl(<TraceabilityMap projectId="p1" />);
 
     fireEvent.change(screen.getByPlaceholderText(/vd A01/), { target: { value: "A99" } });
     fireEvent.click(screen.getByRole("button", { name: "Tra" }));
@@ -63,7 +64,7 @@ describe("TraceabilityMap", () => {
   });
 
   it("nút Tra bị khoá khi ô id trống", () => {
-    render(<TraceabilityMap projectId="p1" />);
+    renderWithIntl(<TraceabilityMap projectId="p1" />);
     expect(screen.getByRole("button", { name: "Tra" })).toBeDisabled();
     expect(getTraceability).not.toHaveBeenCalled();
   });
