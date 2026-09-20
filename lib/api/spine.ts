@@ -5,7 +5,7 @@
 import type { ApplyResult, ChangeRequest, PreviewResult } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
 import type { TraceabilityQuery, TraceabilityResponse } from "@/types/flags";
-import { ApiClientError, apiCall, authFetch, readErrorMessage } from "./client";
+import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
 
 export const getSpine = (projectId: string) => apiCall<Spine>(`/projects/${projectId}/spine`);
 
@@ -59,7 +59,7 @@ export const fetchDiagramSvg = async (projectId: string, diagramId: string): Pro
     throw new ApiClientError(
       res.status,
       "DIAGRAM_FETCH_FAILED",
-      await readErrorMessage(res, `HTTP ${res.status}`)
+      await readRawErrorMessage(res, `HTTP ${res.status}`)
     );
   }
   return res.text();
@@ -75,7 +75,7 @@ export const fetchDiagramPng = async (projectId: string, diagramId: string): Pro
     throw new ApiClientError(
       res.status,
       "DIAGRAM_FETCH_FAILED",
-      await readErrorMessage(res, `HTTP ${res.status}`)
+      await readRawErrorMessage(res, `HTTP ${res.status}`)
     );
   }
   const blob = await res.blob();

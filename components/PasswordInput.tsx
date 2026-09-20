@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 interface PasswordInputProps {
@@ -25,6 +26,7 @@ export default function PasswordInput({
   minLength,
   children,
 }: PasswordInputProps) {
+  const t = useTranslations("auth.common");
   const [visible, setVisible] = useState(false);
   const errorId = `${id}-error`;
 
@@ -48,13 +50,13 @@ export default function PasswordInput({
           className={`w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] outline-none transition-all text-[#191817] text-[13.5px] focus:ring-1 ${
             error
               ? "border-[#B03030] bg-[#FDF6F6] focus:border-[#B03030] focus:ring-[#B03030]"
-              : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#4F46E5] focus:ring-[#4F46E5]"
+              : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#6A62C4] focus:ring-[#6A62C4]"
           }`}
         />
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          aria-label={visible ? `Ẩn ${label.toLowerCase()}` : `Hiện ${label.toLowerCase()}`}
+          aria-label={visible ? t("hideField", { field: label.toLowerCase() }) : t("showField", { field: label.toLowerCase() })}
           className="absolute right-3 top-2.5 text-[#A8A49C] hover:text-[#191817] transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">{visible ? "visibility_off" : "visibility"}</span>

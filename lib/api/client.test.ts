@@ -58,7 +58,7 @@ describe("apiCall", () => {
     expect(init.credentials).toBe("include");
   });
 
-  it("ném ApiClientError mang status và code từ BE", async () => {
+  it("ném ApiClientError mang status và code từ BE; message dịch theo mã, câu gốc ở rawMessage", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(404, { data: null, error: { code: "PROJECT_NOT_FOUND", message: "Không thấy" } })
     );
@@ -69,8 +69,16 @@ describe("apiCall", () => {
     await expect(promise).rejects.toMatchObject({
       status: 404,
       code: "PROJECT_NOT_FOUND",
-      message: "Không thấy",
+      message: "Không tìm thấy dự án hoặc bạn không có quyền truy cập.",
+      rawMessage: "Không thấy",
     });
+  });
+
+  it("mã không có bản dịch (VALIDATION_ERROR mang chi tiết) ⇒ giữ nguyên message BE", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(400, { data: null, error: { code: "VALIDATION_ERROR", message: "name: Too small" } })
+    );
+    await expect(apiCall("/projects")).rejects.toMatchObject({ code: "VALIDATION_ERROR", message: "name: Too small" });
   });
 
   it("body không phải JSON thì ném PARSE_ERROR", async () => {

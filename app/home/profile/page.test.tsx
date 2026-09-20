@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
 import { changeMyPassword, fetchMe, updateMyName } from "@/lib/api/users";
@@ -6,8 +7,8 @@ import type { User } from "@/types/user";
 import ProfilePage from "./page";
 
 vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn(), updateMyName: vi.fn(), changeMyPassword: vi.fn() }));
-vi.mock("../../../components/NotificationBell", () => ({ default: () => null }));
-vi.mock("../../../components/Sidebar", () => ({ userAvatarGradient: () => "#4F46E5" }));
+// TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang hồ sơ
+vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
 
 const LOCAL_USER: User = {
   id: "u1",
@@ -22,7 +23,7 @@ const LOCAL_USER: User = {
 
 const renderLoaded = async (user: User = LOCAL_USER) => {
   vi.mocked(fetchMe).mockResolvedValue(user);
-  render(<ProfilePage />);
+  renderWithIntl(<ProfilePage />);
   await screen.findByText("Thông tin cá nhân");
 };
 

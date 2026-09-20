@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useRouter } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getRememberedEmail, saveAuthToken, setRememberedEmail } from "../../../lib/auth";
@@ -17,7 +18,7 @@ const jsonResponse = (status: number, body: unknown) =>
   ({ ok: status < 400, status, json: async () => body }) as Response;
 
 const renderPage = async () => {
-  render(<LoginPage />);
+  renderWithIntl(<LoginPage />);
   // chờ microtask đọc email đã nhớ
   await act(async () => {});
 };
@@ -25,10 +26,10 @@ const renderPage = async () => {
 const submit = (email: string, password: string) => {
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: email } });
   fireEvent.change(screen.getByLabelText("Mật khẩu"), { target: { value: password } });
-  fireEvent.click(screen.getByRole("button", { name: /Đăng nhập →/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Đăng nhập$/ }));
 };
 
-describe("LoginPage — Ghi nhớ tài khoản", () => {
+describe("LoginPage — Ghi nhớ đăng nhập", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
@@ -44,16 +45,16 @@ describe("LoginPage — Ghi nhớ tài khoản", () => {
     vi.unstubAllGlobals();
   });
 
-  it("ô 'Ghi nhớ tài khoản' nằm ngoài form đăng nhập, mặc định chưa tick", async () => {
+  it("ô 'Ghi nhớ đăng nhập' nằm ngoài form đăng nhập, mặc định chưa tick", async () => {
     await renderPage();
-    const checkbox = screen.getByRole("checkbox", { name: "Ghi nhớ tài khoản" });
+    const checkbox = screen.getByRole("checkbox", { name: "Ghi nhớ đăng nhập" });
     expect(checkbox).not.toBeChecked();
     expect(checkbox.closest("form")).toBeNull();
   });
 
   it("tick ⇒ gửi rememberMe: true, lưu token bền và nhớ email", async () => {
     await renderPage();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Ghi nhớ tài khoản" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ghi nhớ đăng nhập" }));
     submit("Hiep@FlintFlow.vn", "password-123");
 
     await waitFor(() => expect(saveAuthToken).toHaveBeenCalled());
@@ -77,6 +78,6 @@ describe("LoginPage — Ghi nhớ tài khoản", () => {
     await renderPage();
 
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("hiep@flintflow.vn");
-    expect(screen.getByRole("checkbox", { name: "Ghi nhớ tài khoản" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Ghi nhớ đăng nhập" })).toBeChecked();
   });
 });

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import RegisterPage from "./page";
@@ -12,10 +13,10 @@ describe("RegisterPage — ô xác nhận mật khẩu", () => {
   });
 
   it("không khớp ⇒ báo đỏ + khoá nút; khớp ⇒ hết báo; nút mắt hiện mật khẩu xác nhận", () => {
-    render(<RegisterPage />);
+    renderWithIntl(<RegisterPage />);
 
     const confirmInput = screen.getByLabelText("Xác nhận mật khẩu") as HTMLInputElement;
-    const submit = screen.getByRole("button", { name: /Tạo tài khoản →/ });
+    const submit = screen.getByRole("button", { name: /^Tạo tài khoản$/ });
     expect(screen.queryByText(/không giống với mật khẩu/)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Mật khẩu"), { target: { value: "password-123" } });
