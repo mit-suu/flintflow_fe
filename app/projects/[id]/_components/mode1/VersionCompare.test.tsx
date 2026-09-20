@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -60,7 +61,7 @@ const selects = () => {
 
 describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
   it("ít hơn 2 version ⇒ báo không so sánh được", () => {
-    render(<VersionCompare projectId={P} versions={[version("0.0", "imported")]} />);
+    renderWithIntl(<VersionCompare projectId={P} versions={[version("0.0", "imported")]} />);
     expect(screen.getByText("Cần ít nhất 2 version để so sánh.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "So sánh" })).not.toBeInTheDocument();
   });
@@ -77,7 +78,7 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
         { block_id: "B0003", change: "moved" },
       ],
     }));
-    render(<VersionCompare projectId={P} versions={VERSIONS} />);
+    renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
     expect(selects().from).toHaveValue("0.1");
     expect(selects().to).toHaveValue("1.0");
 
@@ -99,7 +100,7 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
 
   it("chọn cùng một version ⇒ nút khoá kèm gợi ý; chọn lại thì so được", async () => {
     const seen = serveCompare((from, to) => ({ from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }));
-    render(<VersionCompare projectId={P} versions={VERSIONS} />);
+    renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
 
     fireEvent.change(selects().from, { target: { value: "1.0" } });
     expect(screen.getByRole("button", { name: "So sánh" })).toBeDisabled();
@@ -118,7 +119,7 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
         ? HttpResponse.json({ data: null, error: { code: "DOC_VERSION_NOT_FOUND", message: `Không có version ${from}` } }, { status: 404 })
         : { from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }
     );
-    render(<VersionCompare projectId={P} versions={VERSIONS} />);
+    renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
 
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
     expect(await screen.findByText("Không có version 0.1")).toBeInTheDocument();

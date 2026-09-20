@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectMode } from "@/types/project";
@@ -30,14 +31,14 @@ const radio = (name: RegExp) => screen.getByRole("radio", { name });
 
 describe("SourceModePicker (UC-13)", () => {
   it("3 thẻ, không chọn sẵn thẻ nào", () => {
-    render(<Controlled />);
+    renderWithIntl(<Controlled />);
     expect(screen.getAllByRole("radio")).toHaveLength(3);
     for (const r of screen.getAllByRole("radio")) expect(r).toHaveAttribute("aria-checked", "false");
   });
 
   it("click chọn thẻ, aria-checked theo", () => {
     const onChange = vi.fn();
-    render(<Controlled onChange={onChange} />);
+    renderWithIntl(<Controlled onChange={onChange} />);
     fireEvent.click(radio(/Upload SRS có sẵn/));
 
     expect(onChange).toHaveBeenCalledWith("import");
@@ -46,7 +47,7 @@ describe("SourceModePicker (UC-13)", () => {
 
   it('thẻ "Có template của khách" (soon): badge Sắp có, aria-disabled, click/phím không chọn được', () => {
     const onChange = vi.fn();
-    render(<Controlled onChange={onChange} />);
+    renderWithIntl(<Controlled onChange={onChange} />);
     const soon = radio(/Có template của khách/);
 
     expect(soon).toHaveAttribute("aria-disabled", "true");
@@ -58,7 +59,7 @@ describe("SourceModePicker (UC-13)", () => {
   });
 
   it("mũi tên chọn thẻ kế tiếp và bỏ qua thẻ soon; roving tabindex", () => {
-    render(<Controlled />);
+    renderWithIntl(<Controlled />);
     const upload = radio(/Upload SRS có sẵn/);
     const fpt = radio(/Chưa có template/);
     expect(upload).toHaveAttribute("tabindex", "0");

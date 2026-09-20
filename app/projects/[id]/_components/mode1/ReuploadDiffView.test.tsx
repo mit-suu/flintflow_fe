@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -65,7 +66,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
   it("file project khác (422 IMPORT_STAMP_FOREIGN_PROJECT) ⇒ báo lỗi thân thiện, không có diff", async () => {
     await importToGapReview();
     rejectForeignOnce();
-    render(<ReuploadDiffView projectId={P} />);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
     pick("SRS_other-project.docx");
     expect(await screen.findByRole("alert")).toHaveTextContent("File này được xuất từ một dự án khác — không nhập vào dự án này được.");
     expect(screen.queryByRole("link", { name: "Tạo CR từ khác biệt" })).not.toBeInTheDocument();
@@ -75,7 +76,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
   it("lỗi rồi tải lại thành công ⇒ xoá lỗi, hiện diff (không tạo version)", async () => {
     await importToGapReview();
     rejectForeignOnce();
-    render(<ReuploadDiffView projectId={P} />);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
     pick("SRS_other-project.docx");
     await screen.findByRole("alert");
 
@@ -86,7 +87,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
   });
 
   it("chưa có baseline ⇒ hiện lỗi BE (IMPORT_INVALID_STATE)", async () => {
-    render(<ReuploadDiffView projectId={P} />);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
     pick("SRS_sua.docx");
     expect(await screen.findByRole("alert")).toHaveTextContent(/Chưa có baseline/);
   });
@@ -99,7 +100,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
         return HttpResponse.json({ data: DIFF, error: null });
       })
     );
-    render(<ReuploadDiffView projectId={P} />);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
     expect(screen.getByRole("button", { name: "Tải lên bản đã sửa ngoài FlintFlow" })).toBeInTheDocument();
     pick("to.docx", 11 * 1024 * 1024);
     expect(screen.getByText(/lớn hơn 10MB/)).toBeInTheDocument();
@@ -113,7 +114,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
         HttpResponse.json({ data: { ...DIFF, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }, error: null })
       )
     );
-    render(<ReuploadDiffView projectId={P} />);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
     pick("SRS_giong.docx");
     expect(await screen.findByText("Không có khác biệt.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Tạo CR từ khác biệt" })).not.toBeInTheDocument();
@@ -127,7 +128,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
         return HttpResponse.json({ data: DIFF, error: null }, { status: 201 });
       })
     );
-    render(<ReuploadDiffView projectId={P} />);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
     pick("SRS_sua.docx");
 
     const link = await screen.findByRole("link", { name: "Tạo CR từ khác biệt" });

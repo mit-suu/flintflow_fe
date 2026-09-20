@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import OtpInput, { OtpSpamHint, emptyOtp } from "../../../components/OtpInput";
@@ -22,6 +23,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 type Step = "otp" | "password" | "success";
 
 function ResetPasswordContent() {
+  const t = useTranslations("auth.reset");
+  const tc = useTranslations("auth.common");
+  const to = useTranslations("auth.otp");
   const searchParams = useSearchParams();
   const router = useRouter();
   const email = searchParams.get("email") || "";
@@ -62,13 +66,13 @@ function ResetPasswordContent() {
       if (!res.ok || json.error) {
         const code: string | undefined = json.error?.code;
         if (code === "OTP_EXPIRED" || code === "OTP_TOO_MANY_ATTEMPTS") expireNow();
-        throw new Error(json.error?.message || "Xác nhận mã thất bại");
+        throw new Error(json.error?.message || t("otpFailed"));
       }
 
       setResetToken(json.data.resetToken);
       setStep("password");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : tc("genericError"));
       setDigits(emptyOtp());
     } finally {
       setVerifying(false);
@@ -93,15 +97,15 @@ function ResetPasswordContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Không thể gửi lại mã. Vui lòng thử lại sau.");
+        throw new Error(json.error?.message || to("resendFailed"));
       }
       const expiresIn = Number(json.data?.otpExpiresIn) || 120;
       restart(expiresIn);
       router.replace(buildResetPasswordHref(email, expiresIn));
       setDigits(emptyOtp());
-      setInfo("Đã gửi mã OTP mới. Vui lòng kiểm tra hộp thư đến.");
+      setInfo(to("resent"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi kết nối.");
+      setError(err instanceof Error ? err.message : tc("connectionError"));
     } finally {
       setResending(false);
     }
@@ -112,7 +116,7 @@ function ResetPasswordContent() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError(tc("passwordMismatch"));
       return;
     }
 
@@ -133,12 +137,12 @@ function ResetPasswordContent() {
           expireNow();
           setStep("otp");
         }
-        throw new Error(json.error?.message || "Đặt lại mật khẩu thất bại");
+        throw new Error(json.error?.message || t("failed"));
       }
 
       setStep("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : tc("genericError"));
     } finally {
       setSaving(false);
     }
@@ -155,8 +159,8 @@ function ResetPasswordContent() {
     return (
       <AuthCard>
         <StatusIcon icon="warning" tone="error" />
-        <AuthHeading title="Thiếu địa chỉ email">Vui lòng nhập email tài khoản để nhận mã OTP đặt lại mật khẩu.</AuthHeading>
-        <PrimaryLink href="/forgot-password">Nhận mã OTP</PrimaryLink>
+        <AuthHeading title={t("missingEmailTitle")}>{t("missingEmailBody")}</AuthHeading>
+        <PrimaryLink href="/forgot-password">{t("getOtp")}</PrimaryLink>
       </AuthCard>
     );
   }
@@ -165,13 +169,11 @@ function ResetPasswordContent() {
     return (
       <AuthCard>
         <StatusIcon icon="check" tone="success" />
-        <AuthHeading title="Đặt lại mật khẩu thành công!">
-          Mật khẩu của bạn đã được cập nhật. Mọi phiên đăng nhập cũ đã được thu hồi an toàn.
-        </AuthHeading>
+        <AuthHeading title={t("successTitle")}>{t("successBody")}</AuthHeading>
         {/* Mở từ trang Hồ sơ thì trình duyệt còn access token cũ (tối đa 15 phút) ⇒ /login bị đẩy về /home.
             Xoá hẳn phiên cũ trước khi sang trang đăng nhập. */}
         <SubmitButton type="button" loadingLabel="" onClick={() => void logoutAndRedirect("/login")}>
-          Đăng nhập ngay
+          {t("loginNow")}
         </SubmitButton>
       </AuthCard>
     );
@@ -181,8 +183,8 @@ function ResetPasswordContent() {
     return (
       <AuthCard>
         <StepDots current={1} />
-        <AuthHeading eyebrow="Bước 1/2" title="Nhập mã xác nhận">
-          Nhập mã 6 số đã gửi tới <strong className="break-all font-bold text-on-surface">{email}</strong>.
+        <AuthHeading eyebrow={t("step1")} title={t("otpTitle")}>
+          {t.rich("otpBody", { email, b: (chunks) => <strong className="break-all font-bold text-on-surface">{chunks}</strong> })}
         </AuthHeading>
 
         {alerts}
@@ -198,10 +200,13 @@ function ResetPasswordContent() {
 
           <p className="text-center text-[13px]" aria-live="polite">
             {expired ? (
-              <span className="font-semibold text-error">Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.</span>
+              <span className="font-semibold text-error">{to("expired")}</span>
             ) : (
               <span className="text-on-surface-variant">
-                Mã hết hạn sau <strong className="font-bold text-on-surface">{formatOtpTime(secondsLeft)}</strong>
+                {to.rich("expiresIn", {
+                  time: formatOtpTime(secondsLeft),
+                  b: (chunks) => <strong className="font-bold text-on-surface">{chunks}</strong>,
+                })}
               </span>
             )}
           </p>
@@ -209,12 +214,12 @@ function ResetPasswordContent() {
           <OtpSpamHint />
 
           {expired ? (
-            <SubmitButton type="button" onClick={handleResend} loading={resending} loadingLabel="Đang gửi…">
-              Gửi lại mã OTP
+            <SubmitButton type="button" onClick={handleResend} loading={resending} loadingLabel={tc("sending")}>
+              {to("resend")}
             </SubmitButton>
           ) : (
-            <SubmitButton loading={verifying} loadingLabel="Đang xác nhận…" disabled={!otpComplete}>
-              Xác nhận mã
+            <SubmitButton loading={verifying} loadingLabel={t("confirmingOtp")} disabled={!otpComplete}>
+              {t("confirmOtp")}
             </SubmitButton>
           )}
         </form>
@@ -227,8 +232,8 @@ function ResetPasswordContent() {
   return (
     <AuthCard>
       <StepDots current={2} />
-      <AuthHeading eyebrow="Bước 2/2" title="Đặt mật khẩu mới">
-        Mã đã được xác nhận. Tạo mật khẩu mới cho <strong className="break-all font-bold text-on-surface">{email}</strong>.
+      <AuthHeading eyebrow={t("step2")} title={t("passwordTitle")}>
+        {t.rich("passwordBody", { email, b: (chunks) => <strong className="break-all font-bold text-on-surface">{chunks}</strong> })}
       </AuthHeading>
 
       {alerts}
@@ -236,8 +241,8 @@ function ResetPasswordContent() {
       <form className="flex flex-col gap-4" onSubmit={handleSavePassword}>
         <PasswordField
           id="password"
-          label="Mật khẩu mới"
-          toggleName="mật khẩu"
+          label={t("newPassword")}
+          toggleName={tc("fieldPassword")}
           value={password}
           onChange={setPassword}
           minLength={8}
@@ -248,16 +253,16 @@ function ResetPasswordContent() {
         </PasswordField>
         <PasswordField
           id="confirmPassword"
-          label="Xác nhận mật khẩu mới"
-          toggleName="mật khẩu xác nhận"
+          label={t("confirmNewPassword")}
+          toggleName={tc("fieldConfirmPassword")}
           value={confirmPassword}
           onChange={setConfirmPassword}
           autoComplete="new-password"
-          error={passwordMismatch ? "Mật khẩu xác nhận không giống với mật khẩu mới." : null}
+          error={passwordMismatch ? t("confirmMismatch") : null}
         />
 
-        <SubmitButton loading={saving} loadingLabel="Đang cập nhật…" disabled={!confirmPassword || passwordMismatch}>
-          Đặt lại mật khẩu
+        <SubmitButton loading={saving} loadingLabel={t("submitting")} disabled={!confirmPassword || passwordMismatch}>
+          {t("submit")}
         </SubmitButton>
       </form>
 
@@ -279,14 +284,18 @@ function StepDots({ current }: { current: 1 | 2 }) {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <AuthCard>
-          <p className="text-center text-[13px] text-on-surface-variant">Đang tải…</p>
-        </AuthCard>
-      }
-    >
+    <Suspense fallback={<AuthCardFallback />}>
       <ResetPasswordContent />
     </Suspense>
+  );
+}
+
+/** Fallback của Suspense — component riêng để dùng được `useTranslations`. */
+function AuthCardFallback() {
+  const tc = useTranslations("auth.common");
+  return (
+    <AuthCard>
+      <p className="text-center text-[13px] text-on-surface-variant">{tc("loading")}</p>
+    </AuthCard>
   );
 }

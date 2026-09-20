@@ -1,7 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createProject } from "@/lib/api/projects";
-import CreateProjectForm, { DEFAULT_PROJECT_NAME } from "./CreateProjectForm";
+import { MESSAGES, renderWithIntl } from "@/test/intl";
+import CreateProjectForm from "./CreateProjectForm";
+
+const DEFAULT_PROJECT_NAME = MESSAGES.vi.app.createProject.defaultName;
 
 vi.mock("@/lib/api/projects", () => ({ createProject: vi.fn() }));
 
@@ -13,7 +16,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
   });
 
   it("điền sẵn tên; khoá nút khi chưa chọn mode hoặc tên rỗng", () => {
-    render(<CreateProjectForm variant="inline" onCreated={() => {}} />);
+    renderWithIntl(<CreateProjectForm variant="inline" onCreated={() => {}} />);
     const name = screen.getByLabelText("Tên dự án");
 
     expect(name).toHaveValue(DEFAULT_PROJECT_NAME);
@@ -30,7 +33,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
     const created = { _id: "p9", name: "Lumen", mode: "fpt" };
     vi.mocked(createProject).mockResolvedValue({ data: created, error: null } as never);
     const onCreated = vi.fn();
-    render(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
 
     fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
     fireEvent.change(screen.getByLabelText("Tên dự án"), { target: { value: "  Lumen " } });
@@ -43,7 +46,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
   it("lỗi hiện dưới form, giữ nguyên mode và tên để thử lại", async () => {
     vi.mocked(createProject).mockRejectedValue(new Error("Hết hạn phiên"));
     const onCreated = vi.fn();
-    render(<CreateProjectForm variant="inline" onCreated={onCreated} />);
+    renderWithIntl(<CreateProjectForm variant="inline" onCreated={onCreated} />);
 
     fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
     fireEvent.click(submit());
@@ -57,7 +60,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
 
   it("dialog có nút Huỷ gọi onCancel, không tạo gì", () => {
     const onCancel = vi.fn();
-    render(<CreateProjectForm variant="dialog" onCreated={() => {}} onCancel={onCancel} />);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} onCancel={onCancel} />);
     fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
 
     expect(onCancel).toHaveBeenCalledOnce();
@@ -68,7 +71,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
 describe("CreateProjectForm trong thư mục", () => {
   it("có folderId ⇒ tạo thẳng trong thư mục (một request)", async () => {
     vi.mocked(createProject).mockReset().mockResolvedValue({ data: { _id: "p1", mode: "fpt" }, error: null } as never);
-    render(<CreateProjectForm variant="dialog" onCreated={() => {}} folderId="f1" />);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} folderId="f1" />);
 
     fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));

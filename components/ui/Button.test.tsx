@@ -1,11 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import Button from "./Button";
 
 describe("Button", () => {
   it("mặc định type=button, bấm gọi onClick", () => {
     const onClick = vi.fn();
-    render(<Button onClick={onClick}>Lưu</Button>);
+    renderWithIntl(<Button onClick={onClick}>Lưu</Button>);
 
     const button = screen.getByRole("button", { name: "Lưu" });
     expect(button).toHaveAttribute("type", "button");
@@ -15,7 +16,7 @@ describe("Button", () => {
 
   it("loading ⇒ khoá nút, aria-busy, không gọi onClick", () => {
     const onClick = vi.fn();
-    render(
+    renderWithIntl(
       <Button loading onClick={onClick}>
         Đang tạo…
       </Button>
@@ -29,7 +30,7 @@ describe("Button", () => {
   });
 
   it("variant danger dùng token error, không hex", () => {
-    render(<Button variant="danger">Xoá</Button>);
+    renderWithIntl(<Button variant="danger">Xoá</Button>);
     expect(screen.getByRole("button", { name: "Xoá" }).className).toContain("bg-error");
   });
 });

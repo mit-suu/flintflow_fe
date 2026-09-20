@@ -1,10 +1,11 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it } from "vitest";
 import { Revisions } from "./Revisions";
 
 describe("Revisions — Track Changes do CR ghi", () => {
   it("đoạn xoá là <del>, đoạn chèn là <ins>, kèm tác giả CR", () => {
-    render(
+    renderWithIntl(
       <Revisions
         revisions={[
           { kind: "del", text: "Logout ends the current session.", author: "CR-001" },

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import { DECISION_REASON_MIN_LENGTH, type CrGroup, type CrLocation } from "@/types/change-request";
 import ChangeGroupPanel from "./ChangeGroupPanel";
@@ -45,12 +46,12 @@ const article = (id = G1) => screen.getByRole("article", { name: `Nhóm ${id}` }
 
 describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)", () => {
   it("không có nhóm ⇒ không render", () => {
-    const { container } = render(<ChangeGroupPanel groups={[]} locations={LOCATIONS} canDecide onDecide={vi.fn()} />);
+    const { container } = renderWithIntl(<ChangeGroupPanel groups={[]} locations={LOCATIONS} canDecide onDecide={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("mỗi nhóm chỉ liệt kê vị trí của nó: diff cho sửa, comment cho chỉ comment, “—” khi chưa kết luận", () => {
-    render(
+    renderWithIntl(
       <ChangeGroupPanel
         groups={[group("G1", ["L001", "L002"]), group("G2", ["L003"])]}
         locations={LOCATIONS}
@@ -71,21 +72,21 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
   });
 
   it("chưa ở in_review (canDecide = false) ⇒ không có nút duyệt/từ chối", () => {
-    render(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide={false} onDecide={vi.fn()} />);
+    renderWithIntl(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide={false} onDecide={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Duyệt" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Từ chối" })).not.toBeInTheDocument();
   });
 
   it("Duyệt ⇒ onDecide(group, approved) không kèm lý do", () => {
     const onDecide = vi.fn();
-    render(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={onDecide} />);
+    renderWithIntl(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={onDecide} />);
     fireEvent.click(within(article()).getByRole("button", { name: "Duyệt" }));
     expect(onDecide).toHaveBeenCalledWith(G1, "approved");
   });
 
   it(`từ chối bắt buộc lý do ≥ ${DECISION_REASON_MIN_LENGTH} ký tự (không tính khoảng trắng đầu/cuối); gửi lý do đã cắt`, () => {
     const onDecide = vi.fn();
-    render(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={onDecide} />);
+    renderWithIntl(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={onDecide} />);
     fireEvent.click(within(article()).getByRole("button", { name: "Từ chối" }));
 
     const reason = within(article()).getByLabelText(`Lý do từ chối ${G1}`);
@@ -108,7 +109,7 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
 
   it("đúng 10 ký tự là đủ", () => {
     const onDecide = vi.fn();
-    render(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={onDecide} />);
+    renderWithIntl(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={onDecide} />);
     fireEvent.click(within(article()).getByRole("button", { name: "Từ chối" }));
     fireEvent.change(within(article()).getByLabelText(`Lý do từ chối ${G1}`), { target: { value: "1234567890" } });
     fireEvent.click(within(article()).getByRole("button", { name: "Xác nhận từ chối" }));
@@ -116,7 +117,7 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
   });
 
   it("Huỷ từ chối ⇒ ẩn ô lý do, quay về Duyệt/Từ chối", () => {
-    render(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={vi.fn()} />);
+    renderWithIntl(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={vi.fn()} />);
     fireEvent.click(within(article()).getByRole("button", { name: "Từ chối" }));
     fireEvent.click(within(article()).getByRole("button", { name: "Huỷ" }));
     expect(within(article()).queryByLabelText(`Lý do từ chối ${G1}`)).not.toBeInTheDocument();
@@ -124,14 +125,14 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
   });
 
   it("đang xử lý (busy) ⇒ Duyệt/Từ chối khoá", () => {
-    render(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide busy onDecide={vi.fn()} />);
+    renderWithIntl(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide busy onDecide={vi.fn()} />);
     expect(within(article()).getByRole("button", { name: "Duyệt" })).toBeDisabled();
     expect(within(article()).getByRole("button", { name: "Từ chối" })).toBeDisabled();
   });
 
   it("nhóm đã quyết ⇒ nhãn kết quả, lý do + thời điểm; không còn nút dù canDecide", () => {
     const at = "2026-09-19T02:00:00.000Z";
-    render(
+    renderWithIntl(
       <ChangeGroupPanel
         groups={[
           group("G1", ["L001"], { decision: "rejected", reason: "Ngoài phạm vi bản 1.0", decided_at: at }),

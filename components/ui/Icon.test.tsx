@@ -1,10 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it } from "vitest";
 import Icon from "./Icon";
 
 describe("Icon", () => {
   it("render SVG Phosphor, mặc định là trang trí (ẩn khỏi trình đọc màn hình)", () => {
-    const { container } = render(<Icon name="bell" size={20} />);
+    const { container } = renderWithIntl(<Icon name="bell" size={20} />);
     const svg = container.querySelector("svg");
 
     expect(svg).not.toBeNull();
@@ -13,7 +14,7 @@ describe("Icon", () => {
   });
 
   it("có label ⇒ là ảnh có tên", () => {
-    render(<Icon name="search" label="Tìm kiếm" />);
+    renderWithIntl(<Icon name="search" label="Tìm kiếm" />);
     expect(screen.getByRole("img", { name: "Tìm kiếm" })).toBeInTheDocument();
   });
 

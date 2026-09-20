@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewField } from "@/types/import";
 import FieldsReview, { textToValue, valueToText } from "./FieldsReview";
@@ -50,7 +51,7 @@ describe("valueToText / textToValue — giữ kiểu gốc khi sửa", () => {
 
 describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () => {
   it("hiện path, section, độ tin, block nguồn và cách trích của từng field", () => {
-    render(<FieldsReview fields={FIELDS} onSubmit={vi.fn()} />);
+    renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={vi.fn()} />);
     expect(screen.getByText(/4 field AI chưa chắc/)).toBeInTheDocument();
     expect(screen.getByText("nfrs[id=NFR-P02].threshold_ms")).toBeInTheDocument();
     expect(screen.getByText("· 4.2.3 Performance")).toBeInTheDocument();
@@ -63,7 +64,7 @@ describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () 
 
   it("sửa giá trị ⇒ đánh dấu đã sửa; xác nhận gửi field đã đổi với kiểu gốc + confirm_all", () => {
     const onSubmit = vi.fn();
-    render(<FieldsReview fields={FIELDS} onSubmit={onSubmit} />);
+    renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={onSubmit} />);
 
     fireEvent.change(box("actors[id=A02].kind"), { target: { value: "system" } });
     fireEvent.change(box("nfrs[id=NFR-P02].threshold_ms"), { target: { value: "750" } });
@@ -85,7 +86,7 @@ describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () 
 
   it("text không còn là JSON hợp lệ ⇒ gửi dạng chuỗi (BE validate)", () => {
     const onSubmit = vi.fn();
-    render(<FieldsReview fields={FIELDS} onSubmit={onSubmit} />);
+    renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={onSubmit} />);
     fireEvent.change(box("nfrs[id=NFR-P02].threshold_ms"), { target: { value: "dưới 1 giây" } });
     confirm();
     expect(onSubmit.mock.calls[0][0].fields).toEqual([
@@ -95,7 +96,7 @@ describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () 
 
   it("sửa rồi đổi về như cũ ⇒ không tính là sửa, chỉ chốt tất cả", () => {
     const onSubmit = vi.fn();
-    render(<FieldsReview fields={FIELDS} onSubmit={onSubmit} />);
+    renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={onSubmit} />);
     fireEvent.change(box("actors[id=A02].kind"), { target: { value: "system" } });
     fireEvent.change(box("actors[id=A02].kind"), { target: { value: "human" } });
     expect(screen.queryByText("· đã sửa")).not.toBeInTheDocument();
@@ -105,7 +106,7 @@ describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () 
 
   it("đang lưu ⇒ nút khoá; không có field vẫn cho xác nhận", () => {
     const onSubmit = vi.fn();
-    const { rerender } = render(<FieldsReview fields={FIELDS} onSubmit={onSubmit} busy />);
+    const { rerender } = renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={onSubmit} busy />);
     expect(screen.getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
 
     rerender(<FieldsReview fields={[]} onSubmit={onSubmit} />);

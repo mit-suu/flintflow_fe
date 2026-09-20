@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import GoogleButton from "../../../components/GoogleButton";
@@ -20,6 +21,9 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 export default function LoginPage() {
+  const t = useTranslations("auth.login");
+  const tc = useTranslations("auth.common");
+  const tg = useTranslations("auth.google");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,12 +73,12 @@ export default function LoginPage() {
         if (json.error?.code === "EMAIL_NOT_VERIFIED") {
           setIsUnverified(true);
         }
-        throw new Error(json.error?.message || "Đăng nhập thất bại");
+        throw new Error(json.error?.message || t("failed"));
       }
 
       completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, email);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : tc("genericError"));
     } finally {
       setLoading(false);
     }
@@ -91,8 +95,7 @@ export default function LoginPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
         throw new Error(
-          json.error?.message ||
-            "Không thể gửi mã xác thực. Vui lòng thử lại sau.",
+          json.error?.message || t("resendFailed"),
         );
       }
       router.push(
@@ -102,7 +105,7 @@ export default function LoginPage() {
         ),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi kết nối.");
+      setError(err instanceof Error ? err.message : tc("connectionError"));
     } finally {
       setResending(false);
     }
@@ -120,11 +123,11 @@ export default function LoginPage() {
       });
       const json = await res.json();
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Đăng nhập Google thất bại");
+        throw new Error(json.error?.message || t("googleFailed"));
       }
       completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, json.data?.user?.email);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đăng nhập Google thất bại");
+      setError(err instanceof Error ? err.message : t("googleFailed"));
     } finally {
       setLoading(false);
     }
@@ -132,18 +135,18 @@ export default function LoginPage() {
 
   return (
     <AuthCard>
-      <AuthHeading title="Chào mừng bạn trở lại">
-        Chưa có tài khoản? <InlineLink href="/register">Tạo tài khoản</InlineLink>
+      <AuthHeading title={t("title")}>
+        {t("noAccount")} <InlineLink href="/register">{t("createAccount")}</InlineLink>
       </AuthHeading>
 
-      <GoogleButton label="Tiếp tục với Google" disabled={loading} onSuccess={handleGoogle} onError={(msg) => setError(msg)} />
-      <Divider>hoặc đăng nhập bằng email</Divider>
+      <GoogleButton label={tg("continue")} disabled={loading} onSuccess={handleGoogle} onError={(msg) => setError(msg)} />
+      <Divider>{t("orEmail")}</Divider>
 
       {error && <AuthAlert tone="error">{error}</AuthAlert>}
       {isUnverified && (
         <AuthAlert tone="warning">
           <p>
-            <strong>Tài khoản chưa xác thực.</strong> Nhận mã OTP qua email để kích hoạt tài khoản.
+            <strong>{t("unverifiedTitle")}</strong> {t("unverifiedBody")}
           </p>
           <button
             type="button"
@@ -151,7 +154,7 @@ export default function LoginPage() {
             disabled={resending}
             className="mt-2 rounded-inner bg-primary px-3 py-1.5 text-[12px] font-bold text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
-            {resending ? "Đang gửi..." : "Gửi mã OTP xác thực"}
+            {resending ? t("sendingOtp") : t("sendOtp")}
           </button>
         </AuthAlert>
       )}
@@ -159,25 +162,25 @@ export default function LoginPage() {
       <form className="flex flex-col gap-4" onSubmit={handleLogin}>
         <TextField
           id="email"
-          label="Email"
+          label={tc("email")}
           type="email"
           required
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="ban@example.com"
+          placeholder={tc("emailPlaceholder")}
         />
         <PasswordField
           id="password"
-          label="Mật khẩu"
+          label={tc("password")}
           value={password}
           onChange={setPassword}
           autoComplete="current-password"
-          placeholder="••••••••••"
+          placeholder={tc("passwordPlaceholder")}
         />
 
-        <SubmitButton loading={loading} loadingLabel="Đang đăng nhập…">
-          Đăng nhập
+        <SubmitButton loading={loading} loadingLabel={t("submitting")}>
+          {t("submit")}
         </SubmitButton>
       </form>
 
@@ -190,10 +193,10 @@ export default function LoginPage() {
             onChange={(e) => setRememberMe(e.target.checked)}
             className="size-4 cursor-pointer rounded-[4px] accent-primary"
           />
-          Ghi nhớ đăng nhập
+          {t("remember")}
         </label>
         <span className="text-[13px]">
-          <InlineLink href="/forgot-password">Quên mật khẩu?</InlineLink>
+          <InlineLink href="/forgot-password">{t("forgot")}</InlineLink>
         </span>
       </div>
     </AuthCard>

@@ -26,10 +26,10 @@ describe("groupByRecency", () => {
 
     const groups = groupByRecency(items, (i) => i.at, NOW);
 
-    expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
-      ["Hôm nay", ["today-late", "today-early"]],
-      ["Cũ hơn", ["old"]],
-      ["Chưa mở", ["never"]],
+    expect(groups.map((g) => [g.bucket, g.items.map((i) => i.id)])).toEqual([
+      ["today", ["today-late", "today-early"]],
+      ["older", ["old"]],
+      ["never", ["never"]],
     ]);
   });
 });

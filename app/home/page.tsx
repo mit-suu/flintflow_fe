@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
@@ -10,8 +11,9 @@ import FolderDialogs, { type FolderDialogTarget } from "@/components/project/Fol
 import ProjectActionDialogs, { type ProjectActionTarget } from "@/components/project/ProjectActionDialogs";
 import ProjectGrid, { CARD_GRID, ProjectGridSkeleton } from "@/components/project/ProjectGrid";
 import ProjectTimeline, { type ProjectSort } from "@/components/project/ProjectTimeline";
-import { Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, Tabs } from "@/components/ui";
+import { BackLink, Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, Tabs } from "@/components/ui";
 import { listCrs } from "@/lib/api/change-requests";
+import { moveProjectsToFolder } from "@/lib/api/folders";
 import { getProgress } from "@/lib/api/pipeline";
 import { moveProjectToFolder } from "@/lib/api/projects";
 import { useProjects } from "@/lib/hooks/use-projects";
@@ -24,20 +26,8 @@ import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
 type ModeFilter = ProjectMode | "all";
 type DashboardTab = "all" | "folders" | "projects";
 
-const STATUS_OPTIONS = [
-  { value: "active", label: "Đang làm" },
-  { value: "archived", label: "Lưu trữ" },
-] as const satisfies readonly { value: ProjectStatus; label: string }[];
-
-const MODE_OPTIONS: readonly { value: ModeFilter; label: string }[] = [
-  { value: "all", label: "Tất cả" },
-  ...SOURCE_MODE_OPTIONS.map((o) => ({ value: o.value, label: o.shortLabel })),
-];
-
-const SORT_OPTIONS = [
-  { value: "updated", label: "Mới cập nhật" },
-  { value: "opened", label: "Mới mở" },
-] as const satisfies readonly { value: ProjectSort; label: string }[];
+const STATUS_VALUES: readonly ProjectStatus[] = ["active", "archived"];
+const SORT_VALUES: readonly ProjectSort[] = ["updated", "opened"];
 
 /**
  * Mép dưới mềm cho phần tử dính (sticky): một dải nền trắng đặc 40% rồi dốc đều về trong suốt, để nội dung cuộn
@@ -76,6 +66,9 @@ function SectionTitle({ id, title, count, hint }: { id: string; title: string; c
  * mọi dự án chia vùng thời gian. Mở một thư mục ⇒ chỉ dự án trong đó + "Thêm dự án". Kéo card vào thẻ thư mục để chuyển.
  */
 export default function HomePage() {
+  const t = useTranslations("app.home");
+  const tc = useTranslations("app.common");
+  const tMode = useTranslations("app.sourceMode");
   const router = useRouter();
   const { projects, folders, loading, error, foldersError, reload } = useProjects();
 
@@ -92,6 +85,9 @@ export default function HomePage() {
   const [actionTarget, setActionTarget] = useState<ProjectActionTarget | null>(null);
   const [folderTarget, setFolderTarget] = useState<FolderDialogTarget | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
+  /** Chọn nhiều: bật bằng nút "Chọn"; tắt khi rời thư mục / đổi bộ lọc để không giữ lựa chọn đã khuất mắt. */
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   /**
    * T23: thẻ dự án hiện việc tiếp theo và trạng thái theo Spine thật. `GET /projects` chỉ trả document
    * Project (không có tiến độ), nên nạp `progress` riêng cho từng dự án — song song, và **lỗi của một
@@ -171,6 +167,13 @@ export default function HomePage() {
   // Tab Dự án hiện cả dự án trong thư mục ⇒ ghi tên thư mục trên card
   const folderNameOf = (p: Project) => (p.folderId ? folderById.get(p.folderId)?.name ?? null : null);
 
+  const statusOptions = STATUS_VALUES.map((value) => ({ value, label: t(value === "active" ? "statusActive" : "statusArchived") }));
+  const sortOptions = SORT_VALUES.map((value) => ({ value, label: t(value === "updated" ? "sortUpdated" : "sortOpened") }));
+  const modeOptions: readonly { value: ModeFilter; label: string }[] = [
+    { value: "all", label: t("modeAll") },
+    ...SOURCE_MODE_OPTIONS.map((o) => ({ value: o.value as ModeFilter, label: tMode(`${o.key}.shortLabel`) })),
+  ];
+
   const clearFilters = () => {
     setStatus("active");
     setMode("all");
@@ -189,7 +192,26 @@ export default function HomePage() {
       await moveProjectToFolder(projectId, folder._id);
       await reload();
     } catch (err) {
-      setDropError(err instanceof Error ? err.message : "Không thể chuyển dự án vào thư mục");
+      setDropError(err instanceof Error ? err.message : t("moveFailed"));
+    }
+  };
+
+  // Chỉ thao tác trên dự án đang thấy: lọc/tìm đổi thì lựa chọn khuất mắt cũng biến mất theo
+  const selectedProjects = visible.filter((p) => selectedIds.has(p._id));
+
+  const endSelecting = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const removeSelectedFromFolder = async () => {
+    setDropError(null);
+    try {
+      await moveProjectsToFolder(selectedProjects, null);
+      await reload();
+      endSelecting();
+    } catch (err) {
+      setDropError(err instanceof Error ? err.message : t("removeFailed"));
     }
   };
 
@@ -200,7 +222,15 @@ export default function HomePage() {
     onRename: openAction("rename"),
     onDelete: openAction("archive"),
     onHardDelete: openAction("delete"),
-    onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", project }),
+    onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", projects: [project] }),
+    selectable: selectMode,
+    selectedIds,
+    onToggleSelect: (project: Project) =>
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(project._id)) next.add(project._id);
+        return next;
+      }),
   };
 
   const projectsBody = initialLoading ? (
@@ -214,11 +244,11 @@ export default function HomePage() {
   ) : error ? null : filtersActive ? (
     <EmptyState
       icon="search"
-      title="Không có dự án khớp bộ lọc"
-      description="Thử đổi trạng thái, nguồn hoặc từ khoá tìm kiếm."
+      title={t("noMatchTitle")}
+      description={t("noMatchBody")}
       action={
         <Button variant="secondary" size="sm" onClick={clearFilters}>
-          Xoá bộ lọc
+          {t("clearFilters")}
         </Button>
       }
     />
@@ -229,25 +259,20 @@ export default function HomePage() {
         <div className="flex flex-col gap-1">
           <h3 className="text-[15px] font-extrabold text-on-surface">
             {openFolder
-              ? "Thư mục này chưa có dự án"
+              ? t("emptyFolderTitle")
               : tab === "all" && projects.some((p) => inFolder(p) && p.status === status)
-                ? "Mọi dự án đều đã nằm trong thư mục"
-                : "Chưa có dự án đang làm"}
+                ? t("allInFoldersTitle")
+                : t("emptyTitle")}
           </h3>
           <p className="text-[12.5px] text-on-surface-muted leading-[1.55]">
-            {openFolder
-              ? "Chọn cách bắt đầu để tạo dự án mới ngay trong thư mục, hoặc thêm dự án có sẵn."
-              : "Chọn cách bắt đầu để tạo dự án mới, hoặc mở lại các dự án đã lưu trữ."}
+            {openFolder ? t("emptyFolderBody") : t("emptyBody")}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="self-start shrink-0"
-          onClick={() => (openFolder ? setAddTarget(openFolder) : setStatus("archived"))}
-        >
-          {openFolder ? "Thêm dự án có sẵn" : "Xem lưu trữ"}
-        </Button>
+        {!openFolder && (
+          <Button variant="secondary" size="sm" className="self-start shrink-0" onClick={() => setStatus("archived")}>
+            {t("viewArchived")}
+          </Button>
+        )}
       </div>
       <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />
     </div>
@@ -256,12 +281,12 @@ export default function HomePage() {
   return (
     <>
       <TopBar
-        trail={openFolder ? ["Dự án", openFolder.name] : ["Dự án"]}
-        search={<SearchInput value={query} onChange={setQuery} label="Tìm dự án theo tên" placeholder="Tìm dự án…" />}
+        trail={openFolder ? [t("projectsTitle"), openFolder.name] : [t("projectsTitle")]}
+        search={<SearchInput value={query} onChange={setQuery} label={t("searchLabel")} placeholder={t("searchPlaceholder")} />}
         actions={
           <Button size="sm" icon="plus" onClick={() => setCreateOpen(true)}>
-            <span className="hidden sm:inline">Dự án mới</span>
-            <span className="sm:hidden">Mới</span>
+            <span className="hidden sm:inline">{t("newProject")}</span>
+            <span className="sm:hidden">{t("newProjectShort")}</span>
           </Button>
         }
       />
@@ -274,10 +299,10 @@ export default function HomePage() {
           <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 pt-6 pb-2 sm:pt-12 sm:pb-6">
             <div className="flex flex-col gap-2">
               <h1 id="onboarding-title" className="text-[22px] sm:text-[26px] font-extrabold text-on-surface tracking-tight">
-                Bắt đầu dự án SRS đầu tiên
+                {t("onboardingTitle")}
               </h1>
               <p className="text-[13.5px] text-on-surface-muted leading-[1.6] max-w-[560px]">
-                Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.
+                {t("onboardingBody")}
               </p>
             </div>
             <CreateProjectForm variant="inline" onCreated={handleCreated} />
@@ -289,42 +314,68 @@ export default function HomePage() {
               ref={toolbarRef}
               className={`sticky top-0 z-30 py-3 bg-surface-container-lowest flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${STICKY_BLEED} ${STICKY_FADE}`}
             >
-              {openFolder ? (
-                <div className="flex items-center gap-3 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setOpenFolderId(null)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-control text-[12.5px] font-semibold text-on-surface-variant hover:bg-surface-container-high cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    <Icon name="arrow-right" size={14} className="rotate-180" />
-                    Tất cả dự án
-                  </button>
-                  <Button size="sm" variant="secondary" icon="plus" onClick={() => setAddTarget(openFolder)}>
-                    Thêm dự án
-                  </Button>
-                </div>
+              {selectMode ? (
+                <>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[13px] font-semibold text-on-surface" aria-live="polite">
+                      {t("selectedCount", { count: selectedIds.size })}
+                    </span>
+                    <Button size="sm" variant="secondary" onClick={() => setSelectedIds(new Set(visible.map((p) => p._id)))} disabled={selectedIds.size === visible.length}>
+                      {t("selectAll")}
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="secondary" icon="folder" onClick={() => setFolderTarget({ kind: "move", projects: selectedProjects })} disabled={selectedProjects.length === 0}>
+                      {t("moveSelected")}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => void removeSelectedFromFolder()} disabled={!selectedProjects.some((p) => p.folderId)}>
+                      {t("removeFromFolder")}
+                    </Button>
+                    <Button size="sm" onClick={endSelecting}>
+                      {t("doneSelecting")}
+                    </Button>
+                  </div>
+                </>
               ) : (
-                <Tabs
-                  label="Xem theo"
-                  idBase="dashboard"
-                  value={tab}
-                  onChange={setTab}
-                  options={[
-                    { value: "all", label: "Tất cả" },
-                    { value: "folders", label: "Thư mục", count: folders.length },
-                    { value: "projects", label: "Dự án", count: projects.filter((p) => p.status === "active").length },
-                  ]}
-                  className="self-start"
-                />
-              )}
-              {showProjects && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {tab === "projects" && !openFolder && (
-                    <FilterSelect label="Sắp xếp" value={sortBy} options={SORT_OPTIONS} onChange={setSortBy} />
+                <>
+                  {openFolder ? (
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BackLink tone="white" onClick={() => { setOpenFolderId(null); endSelecting(); }}>
+                        {t("allProjects")}
+                      </BackLink>
+                      <Button size="sm" variant="secondary" icon="plus" onClick={() => setAddTarget(openFolder)}>
+                        {t("addExisting")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Tabs
+                      label={t("tabsLabel")}
+                      idBase="dashboard"
+                      value={tab}
+                      onChange={(next) => { setTab(next); endSelecting(); }}
+                      options={[
+                        { value: "all", label: t("tabAll") },
+                        { value: "folders", label: t("tabFolders"), count: folders.length },
+                        { value: "projects", label: t("tabProjects"), count: projects.filter((p) => p.status === "active").length },
+                      ]}
+                      className="self-start"
+                    />
                   )}
-                  <FilterSelect label="Trạng thái" value={status} options={STATUS_OPTIONS} onChange={setStatus} />
-                  <FilterSelect label="Nguồn" value={mode} options={MODE_OPTIONS} onChange={setMode} />
-                </div>
+                  {showProjects && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {visible.length > 0 && (
+                        <Button size="sm" variant="secondary" icon="check" onClick={() => setSelectMode(true)}>
+                          {t("select")}
+                        </Button>
+                      )}
+                      {tab === "projects" && !openFolder && (
+                        <FilterSelect label={t("sortLabel")} value={sortBy} options={sortOptions} onChange={setSortBy} />
+                      )}
+                      <FilterSelect label={t("statusLabel")} value={status} options={statusOptions} onChange={setStatus} />
+                      <FilterSelect label={t("modeLabel")} value={mode} options={modeOptions} onChange={setMode} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -333,7 +384,7 @@ export default function HomePage() {
                 <Icon name="error-circle" size={18} />
                 <span className="flex-1">{error ?? dropError}</span>
                 <Button size="sm" variant="secondary" onClick={() => (error ? void reload() : setDropError(null))}>
-                  {error ? "Thử lại" : "Đóng"}
+                  {error ? tc("retry") : tc("close")}
                 </Button>
               </div>
             )}
@@ -348,13 +399,13 @@ export default function HomePage() {
                 <section aria-labelledby="folders-title" className="flex flex-col gap-3">
                   <SectionTitle
                     id="folders-title"
-                    title="Thư mục"
+                    title={t("foldersTitle")}
                     count={folders.length}
-                    hint={folders.length > 0 && tab === "all" ? "Kéo thẻ dự án thả vào thư mục để sắp xếp." : undefined}
+                    hint={folders.length > 0 && tab === "all" ? t("foldersHint") : undefined}
                   />
                   {foldersError && (
                     <p role="alert" className="text-[12.5px] text-on-error-container">
-                      Không tải được thư mục: {foldersError}
+                      {t("foldersError", { message: foldersError })}
                     </p>
                   )}
                   <div className={CARD_GRID}>
@@ -364,7 +415,7 @@ export default function HomePage() {
                       <FolderCard
                         key={folder._id}
                         folder={folder}
-                        onOpen={(f) => setOpenFolderId(f._id)}
+                        onOpen={(f) => { setOpenFolderId(f._id); endSelecting(); }}
                         onRename={(f) => setFolderTarget({ kind: "rename", folder: f })}
                         onDelete={(f) => setFolderTarget({ kind: "delete", folder: f })}
                         onDropProject={(f, id) => void handleDropProject(f, id)}
@@ -378,7 +429,7 @@ export default function HomePage() {
                 <section aria-labelledby="projects-title" className="flex flex-col gap-4">
                   <SectionTitle
                     id="projects-title"
-                    title={openFolder ? openFolder.name : tab === "all" && !normalizedQuery ? "Dự án ngoài thư mục" : "Dự án"}
+                    title={openFolder ? openFolder.name : tab === "all" && !normalizedQuery ? t("looseProjectsTitle") : t("projectsTitle")}
                     count={initialLoading ? undefined : scopedCount}
                   />
                   {projectsBody}
@@ -389,13 +440,26 @@ export default function HomePage() {
         )}
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={openFolder ? `Dự án mới trong “${openFolder.name}”` : "Tạo dự án mới"} size="lg">
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title={openFolder ? t("createInFolderTitle", { folder: openFolder.name }) : t("createTitle")}
+        size="lg"
+      >
         <CreateProjectForm variant="dialog" onCreated={handleCreated} onCancel={() => setCreateOpen(false)} folderId={openFolder?._id} />
       </Modal>
 
-      <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} onCreated={handleCreated} />
+      <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} />
       <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} />
-      <FolderDialogs target={folderTarget} folders={folders} onClose={() => setFolderTarget(null)} onDone={reload} />
+      <FolderDialogs
+        target={folderTarget}
+        folders={folders}
+        onClose={() => setFolderTarget(null)}
+        onDone={async () => {
+          await reload();
+          endSelecting();
+        }}
+      />
     </>
   );
 }
