@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildResetPasswordHref } from "../../../lib/otp";
@@ -8,6 +9,8 @@ import { AuthAlert, AuthCard, AuthHeading, BackLink, SubmitButton, TextField } f
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 function ForgotPasswordContent() {
+  const t = useTranslations("auth.forgot");
+  const tc = useTranslations("auth.common");
   const router = useRouter();
   const searchParams = useSearchParams();
   // `?email=` khi mở từ trang Hồ sơ ("Quên mật khẩu hiện tại?") ⇒ điền sẵn
@@ -33,22 +36,20 @@ function ForgotPasswordContent() {
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Không thể gửi yêu cầu đặt lại mật khẩu");
+        throw new Error(json.error?.message || t("failed"));
       }
 
       router.push(buildResetPasswordHref(normalizedEmail, json.data?.otpExpiresIn));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : tc("genericError"));
       setLoading(false);
     }
   };
 
   return (
     <AuthCard>
-      <AuthHeading title={creating ? "Tạo mật khẩu" : "Quên mật khẩu"}>
-        {creating
-          ? "Chúng tôi sẽ gửi mã OTP tới email để xác nhận trước khi tạo mật khẩu."
-          : "Nhập email tài khoản để nhận mã OTP đặt lại mật khẩu."}
+      <AuthHeading title={creating ? t("titleCreate") : t("title")}>
+        {creating ? t("subtitleCreate") : t("subtitle")}
       </AuthHeading>
 
       {error && <AuthAlert tone="error">{error}</AuthAlert>}
@@ -56,16 +57,16 @@ function ForgotPasswordContent() {
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <TextField
           id="email"
-          label="Email"
+          label={tc("email")}
           type="email"
           required
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="ban@example.com"
+          placeholder={tc("emailPlaceholder")}
         />
-        <SubmitButton loading={loading} loadingLabel="Đang gửi…">
-          Gửi mã OTP
+        <SubmitButton loading={loading} loadingLabel={tc("sending")}>
+          {t("submit")}
         </SubmitButton>
       </form>
 

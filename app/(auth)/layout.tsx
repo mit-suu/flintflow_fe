@@ -1,4 +1,6 @@
+import { useTranslations } from "next-intl";
 import * as motion from "motion/react-client";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "@/components/Logo";
 import BackLink from "@/components/ui/BackLink";
 import { DashboardCollage } from "../_landing/Hero";
@@ -12,13 +14,15 @@ import { Diamond, Texture } from "../_landing/ui";
  * Phải: form (trang con chỉ render card). Từ lg khung vừa đúng một màn hình, không cuộn trang.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("auth.layout");
+
   return (
     <LandingMotion>
       <div className="relative isolate flex min-h-dvh gap-6 bg-surface p-4 font-sans text-on-surface antialiased selection:bg-primary/20 sm:p-6 lg:h-dvh lg:overflow-hidden">
         <Texture kind="dots" mask="radial-gradient(ellipse 40% 55% at 78% 45%, #000, transparent)" className="-z-10" />
 
         <aside
-          aria-label="Giới thiệu FlintFlow"
+          aria-label={t("aside")}
           className="relative isolate hidden w-[46%] max-w-[680px] flex-col overflow-hidden rounded-[32px] bg-primary px-10 pt-10 lg:flex xl:px-12 [@media(max-height:760px)]:pt-8"
         >
           <Texture kind="dots-light" mask="linear-gradient(#000 20%, transparent 70%)" className="-z-10" />
@@ -26,12 +30,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="dark" href="/" />
           <p className="mt-12 inline-flex items-center gap-2.5 [@media(max-height:760px)]:mt-8 text-[13px] font-bold text-on-primary-container">
             <Diamond />
-            Trợ lý BA bằng AI
+            {t("eyebrow")}
           </p>
           <p className="mt-3 max-w-md text-[34px] font-bold leading-[1.1] tracking-[-0.03em] text-on-primary xl:text-[38px]">
-            AI soạn nháp.
+            {t("headline")}
             <br />
-            <span className="text-primary-fixed-dim">Bạn quyết định.</span>
+            <span className="text-primary-fixed-dim">{t("headlineAccent")}</span>
           </p>
           {/* Collage neo đáy và tràn khỏi mép dưới có chủ ý, nhưng chỉ ăn một nửa phần đệm dưới của khung trắng
               (`-mb-3` = 12px < đệm 24px) ⇒ thẻ kiểm tra hiện đủ cả đệm và góc bo, không bị trông "co" lại.
@@ -45,9 +49,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <header className="flex items-center justify-between gap-4">
             {/* Logo ở đây chỉ khi panel trái ẩn (màn nhỏ) */}
             <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" href="/" className="lg:hidden" />
-            <BackLink href="/" tone="white" className="ml-auto">
-              Trang chủ
-            </BackLink>
+            <div className="ml-auto flex items-center gap-2">
+              <LocaleSwitcher />
+              <BackLink href="/" tone="white">
+                {t("home")}
+              </BackLink>
+            </div>
           </header>
           <main className="flex min-h-0 flex-1 items-center justify-center py-6 lg:py-4">
             <motion.div {...onLoad} variants={fadeUp} className="w-full max-w-[440px]">

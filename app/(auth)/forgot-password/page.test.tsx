@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ForgotPasswordPage from "./page";
@@ -9,7 +10,7 @@ const renderWith = (params: Record<string, string>) => {
   vi.mocked(useSearchParams).mockReturnValue(
     new URLSearchParams(params) as unknown as ReturnType<typeof useSearchParams>
   );
-  return render(<ForgotPasswordPage />);
+  return renderWithIntl(<ForgotPasswordPage />);
 };
 
 describe("ForgotPasswordPage", () => {
