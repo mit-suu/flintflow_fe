@@ -66,13 +66,13 @@ describe("GateCard", () => {
   // "Mở lại" lại rơi vào đúng vòng đó cho tới khi cạn trần 8 lượt gọi model (gặp thật 2026-09-20).
   describe("cảnh báo lượt chạy không ghi được gì (L11b)", () => {
     it("lô op rỗng ⇒ nói thẳng, vẫn cho Accept", () => {
-      render(<GateCard stepId="S-7.2" actions={ALL} regenerateUsed={0} wroteOps={false} onAction={vi.fn()} />);
+      renderWithIntl(<GateCard stepId="S-7.2" actions={ALL} regenerateUsed={0} wroteOps={false} onAction={vi.fn()} />);
       expect(screen.getByRole("status")).toHaveTextContent("AI không soạn được nội dung nào ở lượt này");
       expect(screen.getByRole("button", { name: /Accept$/ }), "vẫn là quyết định của người dùng").not.toBeDisabled();
     });
 
     it("có ghi op nhưng mục vẫn trống ⇒ gọi tên mục và nói rõ Accept không đóng được cờ", () => {
-      render(
+      renderWithIntl(
         <GateCard
           stepId="S-7.2"
           actions={ALL}
@@ -90,7 +90,7 @@ describe("GateCard", () => {
     });
 
     it("chạy bình thường thì không có cảnh báo nào", () => {
-      render(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} wroteOps emptySections={[]} onAction={vi.fn()} />);
+      renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} wroteOps emptySections={[]} onAction={vi.fn()} />);
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
   });

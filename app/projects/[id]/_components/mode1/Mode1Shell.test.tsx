@@ -3,7 +3,8 @@
  * `project.import_state` do BE trả** — FE không tự suy: chưa xong import thì Gap report / Tài liệu /
  * Change request phải là chữ chết, không phải link bấm được.
  */
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Project } from "@/types/project";
 import Mode1Shell from "./Mode1Shell";
@@ -27,7 +28,7 @@ const nav = () => screen.getByRole("navigation", { name: "Mode 1" });
 const tab = (label: string) => within(nav()).getByText(label);
 
 const renderShell = (over: Partial<Parameters<typeof Mode1Shell>[0]> = {}) =>
-  render(
+  renderWithIntl(
     <Mode1Shell projectId={P} project={project("gap_review")} credits={42} active="document" {...over}>
       <p>nội dung trang</p>
     </Mode1Shell>
