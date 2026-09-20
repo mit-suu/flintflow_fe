@@ -1,12 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import { createProject } from "@/lib/api/projects";
 import type { Project, ProjectMode } from "@/types/project";
 import SourceModePicker from "./SourceModePicker";
 
-export const DEFAULT_PROJECT_NAME = "Dự án chưa đặt tên";
 const NAME_MAX = 100; // khớp CreateProjectSchema ở BE
 
 interface CreateProjectFormProps {
@@ -23,8 +23,11 @@ interface CreateProjectFormProps {
  * form và giữ nguyên lựa chọn để user thử lại.
  */
 export default function CreateProjectForm({ variant, onCreated, onCancel, folderId }: CreateProjectFormProps) {
+  const t = useTranslations("app.createProject");
+  const tc = useTranslations("app.common");
+  const defaultName = t("defaultName");
   const [mode, setMode] = useState<ProjectMode | null>(null);
-  const [name, setName] = useState(DEFAULT_PROJECT_NAME);
+  const [name, setName] = useState(defaultName);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputId = `project-name-${variant}`;
@@ -38,10 +41,10 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
     setError(null);
     try {
       const res = await createProject(name.trim(), mode, folderId);
-      if (!res.data) throw new Error("Không nhận được dự án vừa tạo");
+      if (!res.data) throw new Error(t("missingProject"));
       await onCreated(res.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tạo dự án");
+      setError(err instanceof Error ? err.message : t("failed"));
       setSubmitting(false);
     }
     // Thành công: giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần
@@ -54,7 +57,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
       <div className={`flex flex-col gap-3 ${variant === "inline" ? "sm:flex-row sm:items-end" : ""}`}>
         <div className="flex flex-col gap-1.5 flex-1">
           <label htmlFor={inputId} className="text-[12.5px] font-bold text-on-surface-medium">
-            Tên dự án
+            {t("nameLabel")}
           </label>
           <input
             id={inputId}
@@ -63,7 +66,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
             maxLength={NAME_MAX}
             onChange={(e) => setName(e.target.value)}
             onFocus={(e) => {
-              if (name === DEFAULT_PROJECT_NAME) e.target.select();
+              if (name === defaultName) e.target.select();
             }}
             // Không viền, cùng nền với thẻ chọn mode; focus ⇒ nền trắng + vòng tím
             className="h-10 px-3.5 rounded-control bg-surface-container text-[13.5px] text-on-surface outline-none transition-colors hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30"
@@ -72,20 +75,20 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
         <div className={`flex items-center gap-2 ${variant === "dialog" ? "justify-end" : ""}`}>
           {/* Gợi ý nằm cạnh nút đang mờ — giải thích vì sao chưa bấm được, không thêm một dòng riêng ở đáy */}
           {!mode && variant === "dialog" && (
-            <p className="mr-auto text-[12px] text-on-surface-muted">Chọn một cách bắt đầu ở trên để tiếp tục.</p>
+            <p className="mr-auto text-[12px] text-on-surface-muted">{t("pickMode")}</p>
           )}
           {onCancel && (
             <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-              Huỷ
+              {tc("cancel")}
             </Button>
           )}
           <Button type="submit" disabled={!canSubmit} loading={submitting} iconRight="arrow-right">
-            {submitting ? "Đang tạo…" : "Bắt đầu"}
+            {submitting ? t("submitting") : t("submit")}
           </Button>
         </div>
       </div>
 
-      {!mode && variant === "inline" && <p className="text-[12px] text-on-surface-muted -mt-2">Chọn một cách bắt đầu ở trên để tiếp tục.</p>}
+      {!mode && variant === "inline" && <p className="text-[12px] text-on-surface-muted -mt-2">{t("pickMode")}</p>}
       {error && (
         <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container rounded-control px-3 py-2">
           {error}

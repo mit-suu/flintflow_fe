@@ -64,11 +64,7 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
     <aside className="w-[380px] flex-none bg-[#FAF9F7] border-l border-[#ECEAE5] flex flex-col overflow-hidden z-10" aria-label="Change panel">
       <div className="p-3.5 border-b border-[#ECEAE5] bg-white flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChangePanel.tsx
-          <span className="text-[#4F46E5] font-bold">✎</span>
-=======
           <span className="text-[#6A62C4] font-bold">✎</span>
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChangePanel.tsx
           <h3 className="font-extrabold text-[13px] text-[#191817]">Sửa qua lệnh</h3>
         </div>
         <button onClick={onClose} className="p-1 hover:bg-[#F5F3F0] rounded-[6px] text-[#8A867E] hover:text-[#191817] cursor-pointer">
@@ -87,11 +83,7 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="Ví dụ: Đổi tên actor A03 thành Administrator"
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChangePanel.tsx
-            className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#4F46E5] rounded-[10px] text-[12px] outline-none resize-none bg-white"
-=======
             className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#6A62C4] rounded-[10px] text-[12px] outline-none resize-none bg-white"
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChangePanel.tsx
           />
           <button
             type="button"
@@ -104,11 +96,7 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
         </div>
 
         {clarification && (
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChangePanel.tsx
-          <div className="bg-[#F4F3FE] border border-[#DDD9F6] rounded-[12px] p-3 text-[11.5px] text-[#3B34B0]">
-=======
           <div className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] p-3 text-[11.5px] text-[#554DB0]">
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChangePanel.tsx
             <div className="font-bold mb-1">Cần làm rõ</div>
             {clarification}
           </div>
@@ -143,11 +131,7 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
               setShowHistory((v) => !v);
               if (!showHistory) void loadHistory();
             }}
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChangePanel.tsx
-            className="self-start text-[11px] font-bold text-[#4F46E5] hover:underline cursor-pointer"
-=======
             className="self-start text-[11px] font-bold text-[#6A62C4] hover:underline cursor-pointer"
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChangePanel.tsx
           >
             {showHistory ? "Ẩn lịch sử thay đổi" : "Xem lịch sử thay đổi (20 dòng)"}
           </button>
@@ -172,11 +156,7 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
           <button
             type="button"
             onClick={() => setShowTraceability((v) => !v)}
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChangePanel.tsx
-            className="self-start text-[11px] font-bold text-[#4F46E5] hover:underline cursor-pointer"
-=======
             className="self-start text-[11px] font-bold text-[#6A62C4] hover:underline cursor-pointer"
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChangePanel.tsx
           >
             {showTraceability ? "Ẩn traceability" : "Tra traceability"}
           </button>

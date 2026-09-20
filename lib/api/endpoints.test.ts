@@ -373,7 +373,12 @@ describe("lib/api wrappers", () => {
     const promise = exportApi.downloadWordExport("p1");
 
     await expect(promise).rejects.toBeInstanceOf(ApiClientError);
-    await expect(promise).rejects.toMatchObject({ status: 409, code: "NO_WORKING_DRAFT", message: "Chưa assemble (S-8.2)" });
+    // `message` dịch theo mã; câu gốc của BE (kèm hint) ở `rawMessage`.
+    await expect(promise).rejects.toMatchObject({
+      status: 409,
+      code: "NO_WORKING_DRAFT",
+      rawMessage: "Chưa assemble (S-8.2)",
+    });
   });
 
   it("downloadWordExport dùng EXPORT_FAILED khi body lỗi không phải JSON hợp lệ", async () => {
@@ -406,8 +411,6 @@ describe("lib/api wrappers", () => {
     await exportApi.getDocument("p1", "baseline", "B1");
     expect(apiCall).toHaveBeenCalledWith("/projects/p1/document?source=baseline&baseline_id=B1");
   });
-<<<<<<< HEAD
-=======
 
   it("uploadImport / reuploadDocument gửi file .docx qua FormData field `file`", async () => {
     const file = new File(["PK"], "SRS.docx");
@@ -490,5 +493,4 @@ describe("lib/api wrappers", () => {
     click.mockRestore();
     vi.unstubAllGlobals();
   });
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 });

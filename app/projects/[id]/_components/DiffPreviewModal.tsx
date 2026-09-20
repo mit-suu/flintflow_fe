@@ -32,11 +32,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
           <h3 className="font-extrabold text-[15px] text-[#191817]">Xem trước thay đổi</h3>
           <div className="flex items-center gap-2">
             {preview.branch && (
-<<<<<<< HEAD:app/projects/[projectId]/_components/DiffPreviewModal.tsx
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F4F3FE] text-[#4F46E5]">{preview.branch}</span>
-=======
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F2F1FB] text-[#6A62C4]">{preview.branch}</span>
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/DiffPreviewModal.tsx
             )}
             <button type="button" onClick={onCancel} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
               ✕

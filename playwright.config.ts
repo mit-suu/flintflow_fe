@@ -29,6 +29,10 @@ export default defineConfig({
     baseURL,
     // `apiURL` cho `request` fixture — test gọi thẳng BE để gieo dữ liệu, không giả lập gì
     extraHTTPHeaders: {},
+    // Kịch bản khẳng định nhãn tiếng Việt, mà UI chọn ngôn ngữ theo `Accept-Language` khi chưa có cookie
+    // `NEXT_LOCALE` (`lib/i18n.ts#resolveLocale`). Chromium mặc định gửi `en-US` nên trên CI trang ra bản
+    // `en` và mọi locator tiếng Việt trượt — ghim `vi-VN` để ngôn ngữ không phụ thuộc máy chạy.
+    locale: "vi-VN",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",

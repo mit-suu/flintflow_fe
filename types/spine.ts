@@ -190,8 +190,6 @@ export interface Addendum {
   content_en: string;
   target_section: string;
   captured_at: IsoDateTime;
-<<<<<<< HEAD
-=======
 }
 
 /** Khối nguyên văn của mục riêng (FLF-182). */
@@ -209,7 +207,6 @@ export interface CustomSection {
   level: number;
   blocks: CustomBlock[];
   source: "import" | "manual";
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 }
 
 export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "screen_layout";
@@ -294,12 +291,9 @@ export interface Baseline {
   id: string;
   /** Mode 2: `v1.0`, `v1.0-conditional`… Mode 1: `0.0`, `1.0`… */
   version: string;
-<<<<<<< HEAD
-=======
   type: BaselineType;
   /** Mode 1: version tài liệu baseline chụp; mode 2 luôn `null`. */
   doc_version: string | null;
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
   at: IsoDateTime;
   snapshot_ref: string;
   checked_at_version: number;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import GoogleButton from "../../../components/GoogleButton";
@@ -19,7 +20,13 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
+/** Gói Free của BE (`plan.config.ts`) — đổi ở BE thì đổi ở đây. */
+const FREE_MONTHLY_CREDITS = 100;
+
 export default function RegisterPage() {
+  const t = useTranslations("auth.register");
+  const tc = useTranslations("auth.common");
+  const tg = useTranslations("auth.google");
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,7 +43,7 @@ export default function RegisterPage() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError(tc("passwordMismatch"));
       return;
     }
 
@@ -52,13 +59,13 @@ export default function RegisterPage() {
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Đăng ký thất bại");
+        throw new Error(json.error?.message || t("failed"));
       }
 
       // Success -> nhập OTP vừa gửi tới email
       router.push(buildVerifyEmailHref(email.trim().toLowerCase(), json.data?.otpExpiresIn));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      setError(err instanceof Error ? err.message : tc("genericError"));
     } finally {
       setLoading(false);
     }
@@ -76,14 +83,14 @@ export default function RegisterPage() {
       });
       const json = await res.json();
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || "Đăng ký Google thất bại");
+        throw new Error(json.error?.message || t("googleFailed"));
       }
       if (json.data?.accessToken) {
         saveAuthToken(json.data.accessToken, undefined, { persistent: true });
       }
       window.location.href = "/home";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đăng ký Google thất bại");
+      setError(err instanceof Error ? err.message : t("googleFailed"));
     } finally {
       setLoading(false);
     }
@@ -92,56 +99,56 @@ export default function RegisterPage() {
   return (
     <AuthCard>
       {/* Số credit khớp `plan.config.ts` của BE (gói Free: 100 credit mỗi tháng) */}
-      <AuthHeading title="Tạo tài khoản">Miễn phí 100 credit mỗi tháng · không cần thẻ.</AuthHeading>
+      <AuthHeading title={t("title")}>{t("subtitle", { credits: FREE_MONTHLY_CREDITS })}</AuthHeading>
 
-      <GoogleButton label="Tiếp tục với Google" disabled={loading} onSuccess={handleGoogle} onError={(msg) => setError(msg)} />
-      <Divider>hoặc đăng ký bằng email</Divider>
+      <GoogleButton label={tg("continue")} disabled={loading} onSuccess={handleGoogle} onError={(msg) => setError(msg)} />
+      <Divider>{t("orEmail")}</Divider>
 
       {error && <AuthAlert tone="error">{error}</AuthAlert>}
 
       <form className="flex flex-col gap-4" onSubmit={handleRegister}>
         <TextField
           id="name"
-          label="Họ và tên"
+          label={t("name")}
           type="text"
           autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nguyễn Văn A"
+          placeholder={t("namePlaceholder")}
         />
         <TextField
           id="email"
-          label="Email"
+          label={tc("email")}
           type="email"
           required
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="ban@example.com"
+          placeholder={tc("emailPlaceholder")}
         />
         {/* Hai ô mật khẩu cạnh nhau (≥ sm) để form đăng ký vừa một màn hình */}
         <div className="grid items-start gap-4 sm:grid-cols-2 sm:gap-3">
-          <PasswordField id="password" label="Mật khẩu" value={password} onChange={setPassword} minLength={8} autoComplete="new-password">
+          <PasswordField id="password" label={tc("password")} value={password} onChange={setPassword} minLength={8} autoComplete="new-password">
             <StrengthMeter password={password} />
           </PasswordField>
           <PasswordField
             id="confirmPassword"
-            label="Xác nhận mật khẩu"
-            toggleName="mật khẩu xác nhận"
+            label={t("confirmPassword")}
+            toggleName={tc("fieldConfirmPassword")}
             value={confirmPassword}
             onChange={setConfirmPassword}
             autoComplete="new-password"
-            error={passwordMismatch ? "Mật khẩu xác nhận không giống với mật khẩu." : null}
+            error={passwordMismatch ? t("confirmMismatch") : null}
           />
         </div>
 
-        <SubmitButton loading={loading} loadingLabel="Đang tạo tài khoản…" disabled={passwordMismatch}>
-          Tạo tài khoản
+        <SubmitButton loading={loading} loadingLabel={t("submitting")} disabled={passwordMismatch}>
+          {t("submit")}
         </SubmitButton>
       </form>
 
       <p className="text-center text-[13px] text-on-surface-variant">
-        Đã có tài khoản? <InlineLink href="/login">Đăng nhập</InlineLink>
+        {t("haveAccount")} <InlineLink href="/login">{t("login")}</InlineLink>
       </p>
     </AuthCard>
   );

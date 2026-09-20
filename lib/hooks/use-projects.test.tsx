@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import { listProjects } from "@/lib/api/projects";
 import { ProjectsProvider, useProjects } from "./use-projects";
@@ -22,7 +23,7 @@ function Probe() {
 }
 
 const renderProbe = () =>
-  render(
+  renderWithIntl(
     <ProjectsProvider>
       <Probe />
     </ProjectsProvider>

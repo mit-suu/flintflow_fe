@@ -73,14 +73,10 @@ test.describe("workspace end-to-end trên BE thật", () => {
     const request = await playwright.request.newContext();
     token = await login(request);
 
-<<<<<<< HEAD
-    const created = await api<{ _id: string }>(request, "post", "/projects", token, { name: PROJECT_NAME });
-=======
     const created = await api<{ _id: string }>(request, "post", "/projects", token, {
       name: PROJECT_NAME,
       mode: "fpt",
     });
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
     expect(created.status, "tạo dự án qua API").toBeLessThan(300);
     projectId = created.json.data!._id;
 
@@ -102,12 +98,8 @@ test.describe("workspace end-to-end trên BE thật", () => {
     // ── 2. Thẻ dự án: việc tiếp theo lấy từ step registry, không phải bảng nhãn cứng cũ ────────────
     // Dự án mới đã có Spine rỗng với `progress.current_step = B-0.1` (`spine.repository.INITIAL_STEP`),
     // nên thẻ phải chỉ đúng việc đầu tiên — "Chưa bắt đầu" chỉ dành cho project không có Spine.
-<<<<<<< HEAD
-    const card = page.getByRole("link").filter({ hasText: PROJECT_NAME }).first();
-=======
     // Chỉ tìm trong vùng nội dung: sidebar có nhóm "Gần đây" cũng là link mang tên dự án (không có nhãn step)
     const card = page.getByRole("main").getByRole("link").filter({ hasText: PROJECT_NAME }).first();
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
     await expect(card, "dự án vừa tạo phải xuất hiện ở /home").toBeVisible({ timeout: 20_000 });
     await expect(card, "nhãn step đọc từ registry").toContainText(labelOf("B-0.1"), { timeout: 20_000 });
     // Nhãn 7 bước cũ đã bị gỡ — không được xuất hiện lại dưới bất kỳ dạng nào

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -70,7 +71,7 @@ const props = (over: Partial<Parameters<typeof ExtractProgress>[0]> = {}) => ({
 describe("ExtractProgress — trích field theo section (1.8)", () => {
   it("cursor null, chưa chạy, chưa section nào xong ⇒ nút “Bắt đầu trích (AI)” (không tự tiêu credit)", () => {
     const p = props({ sections: SECTIONS.map((s) => ({ ...s, status: "pending" as const, error: null })) });
-    render(<ExtractProgress {...p} />);
+    renderWithIntl(<ExtractProgress {...p} />);
     expect(screen.getByText(/Mapping đã chốt — 4 section sẵn sàng để trích/)).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(p.onStart).not.toHaveBeenCalled();
@@ -80,7 +81,7 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
   });
 
   it("chưa có danh sách section ⇒ vẫn cho bắt đầu; đang bắt đầu ⇒ nút khoá; credit chưa tải hiện “…”", () => {
-    render(<ExtractProgress {...props({ sections: [], busy: true, credits: null })} />);
+    renderWithIntl(<ExtractProgress {...props({ sections: [], busy: true, credits: null })} />);
     expect(screen.getByText(/các section sẵn sàng để trích/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Đang bắt đầu…" })).toBeDisabled();
     expect(screen.getByText("Credit khả dụng: …")).toBeInTheDocument();
@@ -88,7 +89,7 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
   });
 
   it("đang chạy ⇒ thanh tiến độ theo số section xong, tên section đang trích, số field cần xem, lỗi section", () => {
-    render(<ExtractProgress {...props({ running: true, doc: doc({ extract_cursor: "fixed:3.1.2" }) })} />);
+    renderWithIntl(<ExtractProgress {...props({ running: true, doc: doc({ extract_cursor: "fixed:3.1.2" }) })} />);
     expect(screen.queryByRole("button", { name: "Bắt đầu trích (AI)" })).not.toBeInTheDocument();
     expect(screen.getByText("Đang trích 3.1.2 Screen Descriptions…")).toBeInTheDocument();
     expect(screen.getByText("2/4 section")).toBeInTheDocument();
@@ -110,14 +111,14 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
   });
 
   it("đã dừng (không chạy, đã có section xong) ⇒ “Đã dừng”, không hiện nút bắt đầu", () => {
-    render(<ExtractProgress {...props({ doc: doc({ extract_cursor: null }) })} />);
+    renderWithIntl(<ExtractProgress {...props({ doc: doc({ extract_cursor: null }) })} />);
     expect(screen.getByText("Đã dừng")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Bắt đầu trích (AI)" })).not.toBeInTheDocument();
   });
 
   it("paused (kể cả cursor null) ⇒ banner paused thay nút bắt đầu; Tiếp tục gọi onResume", () => {
     const p = props({ doc: doc({ paused: { reason: "credits", at: "2026-09-19T00:00:00.000Z" } }), sections: [section("fixed:1", "pending")] });
-    render(<ExtractProgress {...p} />);
+    renderWithIntl(<ExtractProgress {...p} />);
     expect(screen.getByText(/Trích field đang tạm dừng — hết credit/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Bắt đầu trích (AI)" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
@@ -153,7 +154,7 @@ describe("ExtractProgress trong wizard — poll GET /import khi job nền chạy
       frame(doc({ extract_cursor: "fixed:3.1.2" }), [section("fixed:1", "done"), section("fixed:2.1", "done"), section("fixed:3.1.2", "pending")]),
       frame(doc({ status: "fields_review", extract_cursor: null }), [section("fixed:1", "done"), section("fixed:2.1", "done"), section("fixed:3.1.2", "done")]),
     ]);
-    render(<ImportWizard projectId={P} credits={100} pollMs={5} />);
+    renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
 
     expect(await screen.findByText("Đang trích 2.1 Actors…")).toBeInTheDocument();
     expect(screen.getByText("1/3 section")).toBeInTheDocument();
@@ -174,7 +175,7 @@ describe("ExtractProgress trong wizard — poll GET /import khi job nền chạy
         return HttpResponse.json({ data: { import: doc(), sections: [section("fixed:1", "pending")] }, error: null });
       })
     );
-    render(<ImportWizard projectId={P} credits={100} pollMs={5} />);
+    renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
 
     const start = await screen.findByRole("button", { name: "Bắt đầu trích (AI)" });
     await new Promise((r) => setTimeout(r, 40));
@@ -193,7 +194,7 @@ describe("ExtractProgress trong wizard — poll GET /import khi job nền chạy
       frame(doc({ extract_cursor: "fixed:2.1" }), [section("fixed:1", "done"), section("fixed:2.1", "pending")]),
       frame(doc({ extract_cursor: "fixed:2.1", paused: { reason: "resume_later", at: "2026-09-19T00:00:00.000Z" } }), [section("fixed:1", "done"), section("fixed:2.1", "pending")]),
     ]);
-    render(<ImportWizard projectId={P} credits={100} pollMs={5} />);
+    renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
 
     expect(await screen.findByText(/Trích field đang tạm dừng — AI lỗi, đã thử lại 2 lần/)).toBeInTheDocument();
     const settled = calls();

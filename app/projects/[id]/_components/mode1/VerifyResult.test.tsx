@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getCr, patchLocation, runCrAction } from "@/lib/api/change-requests";
 import { mockServer } from "@/mocks/server";
@@ -47,19 +48,19 @@ const result = () => screen.getByLabelText("Kết quả kiểm L001");
 
 describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () => {
   it("chưa kiểm ⇒ không render", () => {
-    const { container } = render(<VerifyResult location={location()} />);
+    const { container } = renderWithIntl(<VerifyResult location={location()} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("code đạt, không cờ ⇒ nhãn xanh, không có số lần làm lại", () => {
-    render(<VerifyResult location={location({ verify: { code_ok: true, violations: [], ai_flags: [], at: AT } })} />);
+    renderWithIntl(<VerifyResult location={location({ verify: { code_ok: true, violations: [], ai_flags: [], at: AT } })} />);
     const badge = within(result()).getByText("Kiểm code: đạt");
     expect(badge.className).toContain("text-[#1F7A45]");
     expect(within(result()).queryByText(/AI đã làm lại/)).not.toBeInTheDocument();
   });
 
   it("vi phạm code ⇒ đỏ (trượt) kèm thông điệp + mã luật", () => {
-    render(
+    renderWithIntl(
       <VerifyResult
         location={location({
           verify: {
@@ -83,7 +84,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
   });
 
   it("AI soát nhất quán chỉ ra cờ vàng — code vẫn đạt, không chặn", () => {
-    render(
+    renderWithIntl(
       <VerifyResult
         location={location({ verify: { code_ok: true, violations: [], ai_flags: [{ rule: "AI-CONSISTENCY", message: "Tiêu đề cột bảng chưa đổi theo" }], at: AT } })}
       />
@@ -95,7 +96,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
   });
 
   it(`số lần AI làm lại hiện theo mức tối đa ${MAX_REDO_PER_LOCATION}`, () => {
-    const { rerender } = render(<VerifyResult location={location({ redo_count: 1, verify: { code_ok: true, violations: [], ai_flags: [], at: AT } })} />);
+    const { rerender } = renderWithIntl(<VerifyResult location={location({ redo_count: 1, verify: { code_ok: true, violations: [], ai_flags: [], at: AT } })} />);
     expect(within(result()).getByText(`AI đã làm lại 1/${MAX_REDO_PER_LOCATION} lần`)).toBeInTheDocument();
     rerender(<VerifyResult location={location({ redo_count: 2, verify: { code_ok: false, violations: [{ rule: "R", message: "vẫn trượt" }], ai_flags: [], at: AT } })} />);
     expect(within(result()).getByText(`AI đã làm lại 2/${MAX_REDO_PER_LOCATION} lần`)).toBeInTheDocument();
@@ -115,7 +116,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     expect(detail.change_request.status).toBe("manual_fix");
     const failed = detail.locations.find((l) => l.location_id === target.location_id)!;
     expect(failed.manual).toBe(true);
-    render(<VerifyResult location={failed} />);
+    renderWithIntl(<VerifyResult location={failed} />);
     const box = screen.getByLabelText(`Kết quả kiểm ${failed.location_id}`);
     expect(within(box).getByText("Kiểm code: trượt")).toBeInTheDocument();
     expect(failed.verify!.violations.length).toBeGreaterThan(0);
