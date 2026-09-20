@@ -166,6 +166,21 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
         </section>
       )}
 
+      {report.unrendered_diagrams.length > 0 && (
+        <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
+          <h3 className="font-extrabold text-[#191817] text-[14px]">Hình chưa vẽ được</h3>
+          <p className="text-[12px] text-[#6B6760]">Không chặn ký baseline — vẽ lại ở workspace khi máy chủ vẽ hình sẵn sàng.</p>
+          <ul className="list-disc pl-5 text-[12.5px] text-[#33312D] flex flex-col gap-1">
+            {report.unrendered_diagrams.map((d) => (
+              <li key={`${d.kind}:${d.diagram_id}`}>
+                {d.title}
+                <span className="text-[#6B6760]"> — {d.reason === "error" ? "vẽ lỗi" : "chưa vẽ"}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {report.unmapped_headings.length > 0 && (
         <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
           <h3 className="font-extrabold text-[#191817] text-[14px]">Heading không khớp template (giữ nguyên, không trích)</h3>

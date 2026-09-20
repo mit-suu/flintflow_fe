@@ -624,8 +624,9 @@ export const mode1Handlers = [
         project_id: MODE1_PROJECT_ID,
         doc_version: "0.0",
         generated_at: now(),
-        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1 },
+        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1, unrendered_diagrams: 1 },
         missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
+        unrendered_diagrams: [{ diagram_id: "", kind: "usecase", section_id: "", title: "Sơ đồ use case", reason: "not_rendered" }],
         layout: [
           { order: 0, section_id: "fixed:1", heading: "1 Giới thiệu", level: 1, kind: "fpt", red: 0, yellow: 0 },
           { order: 1, section_id: "custom:CS01", heading: "Phụ lục B — Biên bản họp", level: 1, kind: "custom", red: 0, yellow: 0 },
