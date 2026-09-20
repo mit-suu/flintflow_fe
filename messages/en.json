@@ -395,7 +395,7 @@
       }
     },
     "checkout": {
-      "back": "← Back to billing",
+      "back": "Back to billing",
       "loading": "Loading transaction…",
       "loadFailed": "Could not load the transaction",
       "notFound": "Transaction not found",
@@ -452,7 +452,10 @@
       "save": "Save",
       "retry": "Retry",
       "clearSearch": "Clear search",
-      "soon": "Coming soon"
+      "soon": "Coming soon",
+      "loadMore": "Load more",
+      "account": "Account",
+      "dismiss": "Dismiss error"
     },
     "shell": {
       "nav": "Main navigation",
@@ -677,6 +680,47 @@
       "addExisting": "Add existing projects",
       "viewArchived": "View archive",
       "moveFailed": "Could not move the project into the folder"
+    },
+    "profile": {
+      "title": "Your profile",
+      "breadcrumb": "Profile",
+      "loading": "Loading profile…",
+      "loadFailed": "Could not load your profile",
+      "info": "Personal information",
+      "nameSaved": "Display name updated.",
+      "nameLabel": "Display name",
+      "nameEmpty": "The display name cannot be empty.",
+      "nameFailed": "Could not save the display name",
+      "nameUnset": "Not set",
+      "edit": "Edit",
+      "email": "Email",
+      "emailVerified": "✓ Verified",
+      "emailUnverified": "Not verified",
+      "provider": "Sign-in method",
+      "providerGoogleBoth": "Google + email/password",
+      "providerGoogle": "Google",
+      "providerLocal": "Email/password",
+      "joined": "Joined",
+      "credits": "Credits",
+      "creditAmount": "{credits} credits",
+      "toBilling": "Billing & credits →",
+      "createPasswordTitle": "Create a password",
+      "createPasswordBody": "Your account signs in with Google, so it has no password yet. Create one to also sign in with the email <b>{email}</b> — Google keeps working as before.",
+      "createPasswordCta": "Create a password by email →",
+      "createPasswordNote": "We will email you a one-time code. After creating it you will need to sign in again.",
+      "changePasswordTitle": "Change password",
+      "changePasswordBody": "Once changed, other devices are signed out. This device stays signed in.",
+      "changePasswordSuccess": "Password changed. Other devices have been signed out.",
+      "changePasswordFailed": "Could not change the password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmNewPassword": "Confirm new password",
+      "sameAsCurrent": "The new password must differ from the current one.",
+      "confirmMismatch": "The confirmation does not match your new password.",
+      "saving": "Updating…",
+      "submit": "Change password",
+      "forgotCurrent": "Forgot your current password?",
+      "forgotNote": "After resetting it you will need to sign in again."
     }
   },
   "workspace": {
