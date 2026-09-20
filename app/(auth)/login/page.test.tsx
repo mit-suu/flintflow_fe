@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { useRouter } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getRememberedEmail, saveAuthToken, setRememberedEmail } from "../../../lib/auth";
@@ -17,7 +18,7 @@ const jsonResponse = (status: number, body: unknown) =>
   ({ ok: status < 400, status, json: async () => body }) as Response;
 
 const renderPage = async () => {
-  render(<LoginPage />);
+  renderWithIntl(<LoginPage />);
   // chờ microtask đọc email đã nhớ
   await act(async () => {});
 };

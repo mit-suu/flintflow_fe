@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addProjectsToFolder } from "@/lib/api/folders";
 import type { Folder } from "@/types/folder";
@@ -28,7 +29,7 @@ describe("AddToFolderDialog", () => {
   });
 
   it("chỉ liệt kê dự án đang làm chưa ở thư mục này; tìm lọc danh sách", () => {
-    render(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} onCreated={() => {}} />);
+    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} onCreated={() => {}} />);
 
     expect(screen.getAllByRole("checkbox")).toHaveLength(2);
     fireEvent.change(screen.getByRole("searchbox", { name: "Tìm dự án để thêm" }), { target: { value: "dự án b" } });
@@ -38,7 +39,7 @@ describe("AddToFolderDialog", () => {
   it("chọn nhiều ⇒ một request, tải lại rồi đóng", async () => {
     const onAdded = vi.fn();
     const onClose = vi.fn();
-    render(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={onClose} onAdded={onAdded} onCreated={() => {}} />);
+    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={onClose} onAdded={onAdded} onCreated={() => {}} />);
 
     expect(screen.getByRole("button", { name: "Thêm vào thư mục" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: /Dự án a/ }));
@@ -52,7 +53,7 @@ describe("AddToFolderDialog", () => {
   });
 
   it('tab "Tạo mới" hiện form tạo dự án', () => {
-    render(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} onCreated={() => {}} />);
+    renderWithIntl(<AddToFolderDialog folder={folder} projects={PROJECTS} folderIds={new Set(["f1"])} onClose={() => {}} onAdded={() => {}} onCreated={() => {}} />);
     fireEvent.click(screen.getByRole("tab", { name: "Tạo mới" }));
     expect(screen.getByLabelText("Tên dự án")).toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(3);

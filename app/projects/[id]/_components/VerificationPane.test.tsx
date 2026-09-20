@@ -1,6 +1,7 @@
 "use client";
 
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import VerificationPane from "./VerificationPane";
 import type { Flag } from "@/types/flags";
@@ -32,7 +33,7 @@ const baseProps = {
 
 describe("VerificationPane", () => {
   it("hiện readiness summary theo format '% accepted · N chờ duyệt lại · N cờ đỏ'", () => {
-    render(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
+    renderWithIntl(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
     expect(screen.getByText("72% accepted")).toBeInTheDocument();
     expect(screen.getByText("4 chờ duyệt lại")).toBeInTheDocument();
@@ -40,7 +41,7 @@ describe("VerificationPane", () => {
   });
 
   it("hiện cờ từ props (page.tsx nâng useFlags lên); không cho waive rule array_empty", () => {
-    render(<VerificationPane {...baseProps} flags={[redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
+    renderWithIntl(<VerificationPane {...baseProps} flags={[redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
     expect(screen.getByText("Actors đang rỗng")).toBeInTheDocument();
     expect(screen.getByText("array_empty")).toBeInTheDocument();
@@ -49,7 +50,7 @@ describe("VerificationPane", () => {
   });
 
   it("cờ waive được thì có nút Waive", () => {
-    render(
+    renderWithIntl(
       <VerificationPane
         {...baseProps}
         flags={[{ ...redFlag, id: "FL02", rule_id: "unconfirmed_assumption" }]}
@@ -63,20 +64,20 @@ describe("VerificationPane", () => {
   });
 
   it("không còn cờ mở thì hiện thông báo trống", () => {
-    render(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
+    renderWithIntl(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
     expect(screen.getByText("Không có cờ nào đang mở.")).toBeInTheDocument();
   });
 
   it("flagsLoading = true hiện spinner, không render FlagsPanel", () => {
-    render(<VerificationPane {...baseProps} flags={[]} flagsLoading={true} flagsError={null} flagsBusy={false} />);
+    renderWithIntl(<VerificationPane {...baseProps} flags={[]} flagsLoading={true} flagsError={null} flagsBusy={false} />);
 
     expect(screen.getByText("Đang tải danh sách cờ…")).toBeInTheDocument();
     expect(screen.queryByText("Không có cờ nào đang mở.")).not.toBeInTheDocument();
   });
 
   it("không còn chuỗi demo cũ (Sinh viên & Tài xế, 84%) trong VerificationPane thật", () => {
-    render(<VerificationPane {...baseProps} flags={[redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
+    renderWithIntl(<VerificationPane {...baseProps} flags={[redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
     expect(screen.queryByText(/Sinh viên & Tài xế/)).not.toBeInTheDocument();
     expect(screen.queryByText("84%")).not.toBeInTheDocument();

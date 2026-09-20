@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Skeleton from "@/components/ui/Skeleton";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project } from "@/types/project";
@@ -56,8 +57,9 @@ export default function ProjectGrid({
 
 /** Giữ chỗ lúc tải — cùng hình với card thật (bìa + thân). */
 export function ProjectGridSkeleton() {
+  const t = useTranslations("app.projectCard");
   return (
-    <div className={CARD_GRID} aria-busy="true" aria-label="Đang tải danh sách dự án">
+    <div className={CARD_GRID} aria-busy="true" aria-label={t("gridLoading")}>
       {Array.from({ length: SKELETON_COUNT }, (_, i) => (
         <div key={i} data-testid="project-skeleton" className="rounded-card overflow-hidden bg-surface-container-lowest border border-outline-variant">
           <Skeleton className="h-[72px] rounded-none" />

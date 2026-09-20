@@ -1,13 +1,14 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import AppShell from "./AppShell";
 import TopBar from "./TopBar";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/home" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/home", useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 1250, planLabel: "Pro" })) }));
 
 const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) =>
-  render(
+  renderWithIntl(
     <AppShell sidebar={<nav aria-label="Điều hướng chính">sidebar</nav>}>
       <TopBar trail={["Tài khoản", "Thông báo"]} {...props} />
     </AppShell>
@@ -26,6 +27,13 @@ describe("TopBar", () => {
     expect(chip).toHaveTextContent("1.250");
     expect(chip).toHaveTextContent("Pro");
     expect(chip).toHaveAttribute("href", "/home/billing");
+  });
+
+  it("có nút đổi ngôn ngữ trên mọi trang đã đăng nhập", () => {
+    renderTopBar();
+    const group = screen.getByRole("group", { name: "Ngôn ngữ" });
+    expect(within(group).getByRole("button", { name: "Tiếng Việt" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(group).getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("render slot search và actions khi truyền", () => {

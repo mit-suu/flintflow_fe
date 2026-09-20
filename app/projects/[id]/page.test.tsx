@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
@@ -31,13 +32,13 @@ afterAll(() => mockServer.close());
 
 describe("WorkspacePage — project mode 1 v2 (FLF-185)", () => {
   it("chưa import xong ⇒ chuyển sang wizard import", async () => {
-    render(<WorkspacePage />);
+    renderWithIntl(<WorkspacePage />);
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/projects/${P}/import`));
   });
 
   it("import xong ⇒ workspace như mode 2 + cột kế hoạch step: đầu mục FPT thiếu, bật step ẩn, version (tải file gốc)", async () => {
     await importToGapReview();
-    render(<WorkspacePage />);
+    renderWithIntl(<WorkspacePage />);
 
     const tools = await screen.findByRole("complementary", { name: "Công cụ" }, { timeout: 5000 });
     expect(router.replace).not.toHaveBeenCalled();

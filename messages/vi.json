@@ -1,0 +1,1115 @@
+{
+  "metadata": {
+    "title": "FlintFlow — Nền tảng đặc tả phần mềm bằng AI",
+    "description": "Công cụ đặc tả phần mềm bằng AI cho doanh nghiệp"
+  },
+  "common": {
+    "localeSwitcher": {
+      "label": "Ngôn ngữ",
+      "vi": "Tiếng Việt",
+      "en": "English"
+    }
+  },
+  "landing": {
+    "a11y": {
+      "mainNav": "Điều hướng chính",
+      "footerNav": "Liên kết cuối trang",
+      "dashboardMockup": "Minh hoạ dashboard FlintFlow",
+      "workspaceMockup": "Minh hoạ workspace FlintFlow",
+      "groupPhases": "Giai đoạn thuộc bước {group}"
+    },
+    "nav": {
+      "home": "Trang chủ",
+      "how": "Cách hoạt động",
+      "modes": "Cách bắt đầu",
+      "pricing": "Bảng giá"
+    },
+    "header": {
+      "login": "Đăng nhập",
+      "tryFree": "Dùng thử miễn phí"
+    },
+    "hero": {
+      "eyebrow": "AI Business Analyst",
+      "headline": "Hiểu đúng sản phẩm",
+      "headlineAccent": "trước khi viết code",
+      "subline": "FlintFlow cùng bạn làm rõ ý tưởng, viết yêu cầu và kiểm tra lại theo cách một BA có kinh nghiệm vẫn làm. Kết quả là bản SRS mà đội dev và công cụ AI lập trình đều dựa vào được.",
+      "primaryCta": "Bắt đầu miễn phí",
+      "secondaryCta": "Xem workspace",
+      "facts": {
+        "modes": "3 cách bắt đầu một dự án",
+        "phases": "12 giai đoạn, bước nào cũng do bạn duyệt",
+        "export": "Xuất .docx theo đúng mẫu"
+      }
+    },
+    "preview": {
+      "title": "Dự án của bạn",
+      "folderName": "Sở Xây dựng",
+      "folderCount": "{count, plural, other {# dự án}}",
+      "phaseOf": "Giai đoạn {current}/{total} · {next}",
+      "projects": {
+        "permit": {
+          "name": "Cổng cấp phép xây dựng",
+          "status": "Sẵn sàng",
+          "next": "Kiểm tra & chốt baseline"
+        },
+        "spa": {
+          "name": "App đặt lịch spa tại nhà",
+          "status": "Cần làm rõ",
+          "next": "Phân tích Brief"
+        }
+      },
+      "check": {
+        "title": "Kiểm tra 3 tầng",
+        "status": "Sẵn sàng chốt",
+        "flags": "cờ đỏ · {amber} cờ vàng cần xem",
+        "tiers": {
+          "form": "Hình thức",
+          "content": "Nội dung",
+          "quality": "Chất lượng"
+        }
+      }
+    },
+    "how": {
+      "eyebrow": "Cách hoạt động",
+      "title": "Quy trình của một BA, chia thành 12 giai đoạn.",
+      "subline": "AI soạn nháp từng phần. Bạn chấp nhận hoặc yêu cầu sửa rồi mới đi tiếp.",
+      "groups": {
+        "clarify": {
+          "title": "Làm rõ",
+          "body": "Bạn kể ý tưởng hoặc tải tài liệu sẵn có lên. FlintFlow chỉ hỏi thêm những gì còn thiếu."
+        },
+        "analyze": {
+          "title": "Phân tích",
+          "body": "Tách sự thật khỏi giả định, chỉ ra mâu thuẫn và chỗ còn trống. Brief phải được duyệt trước khi viết SRS."
+        },
+        "specify": {
+          "title": "Đặc tả",
+          "body": "Use case, yêu cầu phi chức năng, sơ đồ Use Case và ERD được soạn lần lượt, từng phần một."
+        },
+        "verify": {
+          "title": "Kiểm tra",
+          "body": "Đối chiếu với mẫu, với ISO/IEC/IEEE 29148 và chất lượng từng yêu cầu. Còn cờ đỏ thì chưa chốt được bản."
+        }
+      }
+    },
+    "modes": {
+      "eyebrow": "Cách bắt đầu",
+      "title": "Bắt đầu từ chỗ bạn đang có.",
+      "items": {
+        "fpt": {
+          "title": "Tạo mới theo mẫu FPT",
+          "body": "Bạn chỉ có ý tưởng và vài ghi chú. FlintFlow dẫn bạn từ Brief đến bản SRS đầy đủ theo mẫu FPT.",
+          "tags": {
+            "brief": "Brief",
+            "phases": "12 giai đoạn",
+            "template": "Mẫu FPT"
+          }
+        },
+        "client": {
+          "title": "Theo mẫu của khách",
+          "body": "Tải lên file mẫu khách yêu cầu. FlintFlow đọc cấu trúc mẫu, chỉ soạn những section mẫu cần và điền thẳng vào file đó.",
+          "tags": {
+            "sections": "Chỉ section mẫu cần",
+            "inPlace": "Điền vào file gốc"
+          }
+        },
+        "existing": {
+          "title": "Sửa SRS có sẵn",
+          "body": "Nhập file .docx đang dùng để biết nó còn thiếu gì. Khách đổi yêu cầu thì chỗ sửa hiện bằng Track Changes ngay trong file.",
+          "tags": {
+            "gaps": "Danh sách gap",
+            "track": "Track Changes"
+          }
+        }
+      }
+    },
+    "workspace": {
+      "eyebrow": "Bên trong workspace",
+      "headline": "AI đề xuất.",
+      "headlineAccent": "Bạn quyết định.",
+      "subline": "Mọi nội dung vào tài liệu đều qua tay bạn: chấp nhận, yêu cầu sửa, hoặc hỏi lại khách.",
+      "project": "Cổng cấp phép xây dựng trực tuyến",
+      "briefApproved": "Brief đã duyệt",
+      "chat": {
+        "user": "Người dân nộp hồ sơ xin phép xây dựng online, cán bộ thẩm định rồi trả kết quả…",
+        "title": "2 câu hỏi trước khi viết use case",
+        "q1": "Ai thẩm định: cán bộ quận hay Sở?",
+        "q2": "Công trình trên 7 tầng có cần thêm giấy tờ không?",
+        "note": "Câu 2 quyết định luồng thẩm định có phải tách nhánh."
+      },
+      "doc": {
+        "title": "UC-03 · Nộp hồ sơ cấp phép",
+        "badge": "Nháp · chờ duyệt",
+        "body": "Điều kiện: người nộp đã đăng nhập và tải lên bản vẽ thiết kế hợp lệ; công trình trên 7 tầng phải có văn bản thẩm duyệt PCCC.",
+        "accept": "Chấp nhận",
+        "requestEdit": "Yêu cầu sửa"
+      },
+      "fact": {
+        "label": "Sự thật · từ bạn",
+        "body": "Chỉ nhận hồ sơ nộp trực tuyến"
+      },
+      "assumption": {
+        "label": "Giả định · do AI",
+        "body": "Người nộp có tài khoản định danh điện tử"
+      },
+      "conflict": "Mâu thuẫn: UC-07 hẹn thẩm định 5 ngày, NFR-02 chỉ cho phép 3 ngày."
+    },
+    "pricing": {
+      "eyebrow": "Bảng giá",
+      "title": "Dùng thử không tốn gì.",
+      "subline": "Credit nằm trong một ví chung của tổ chức, không tính theo số người dùng.",
+      "popular": "Phổ biến nhất",
+      "price": "{k, plural, =0 {0đ} other {#k}}",
+      "perMonth": "/tháng",
+      "plans": {
+        "free": {
+          "name": "Free",
+          "cta": "Bắt đầu miễn phí",
+          "features": {
+            "credits": "{count, number} credit mỗi tháng",
+            "modes": "Đủ cả ba cách bắt đầu dự án",
+            "export": "Xuất file Word"
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "cta": "Nâng cấp Pro",
+          "features": {
+            "credits": "{count, number} credit mỗi tháng",
+            "everything": "Mọi thứ trong gói Free",
+            "upgrade": "Nâng gói ngay trong app"
+          }
+        }
+      }
+    },
+    "cta": {
+      "headline": "Dự án tiếp theo của bạn",
+      "headlineAccent": "bắt đầu từ yêu cầu rõ ràng.",
+      "button": "Tạo dự án đầu tiên",
+      "note": "Miễn phí · Không cần thẻ · Tặng 100 credit",
+      "copyright": "© {year} FlintFlow"
+    }
+  },
+  "auth": {
+    "layout": {
+      "aside": "Giới thiệu FlintFlow",
+      "eyebrow": "Trợ lý BA bằng AI",
+      "headline": "AI soạn nháp.",
+      "headlineAccent": "Bạn quyết định.",
+      "home": "Trang chủ"
+    },
+    "common": {
+      "email": "Email",
+      "emailPlaceholder": "ban@example.com",
+      "password": "Mật khẩu",
+      "passwordPlaceholder": "••••••••••",
+      "loading": "Đang tải…",
+      "sending": "Đang gửi…",
+      "genericError": "Đã có lỗi xảy ra",
+      "connectionError": "Đã xảy ra lỗi kết nối.",
+      "passwordMismatch": "Mật khẩu xác nhận không khớp.",
+      "backToLogin": "Quay lại đăng nhập",
+      "showField": "Hiện {field}",
+      "hideField": "Ẩn {field}",
+      "fieldPassword": "mật khẩu",
+      "fieldConfirmPassword": "mật khẩu xác nhận",
+      "strength": {
+        "weak": "Yếu",
+        "medium": "Trung bình",
+        "strong": "Mạnh"
+      }
+    },
+    "google": {
+      "continue": "Tiếp tục với Google",
+      "opening": "Đang mở Google...",
+      "failed": "Đăng nhập Google không thành công.",
+      "cancelled": "Đăng nhập Google bị hủy hoặc thất bại."
+    },
+    "otp": {
+      "digitLabel": "Chữ số thứ {index}",
+      "expiresIn": "Mã hết hạn sau <b>{time}</b>",
+      "expired": "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.",
+      "spamHint": "Không thấy email? Hãy kiểm tra mục <b>Thư rác (Spam)</b> hoặc <b>Quảng cáo</b>. Nếu thấy ở đó, bấm <b>“Không phải thư rác”</b> để lần sau email vào Hộp thư đến.",
+      "resend": "Gửi lại mã OTP",
+      "resendFailed": "Không thể gửi lại mã. Vui lòng thử lại sau.",
+      "resent": "Đã gửi mã OTP mới. Vui lòng kiểm tra hộp thư đến."
+    },
+    "login": {
+      "title": "Chào mừng bạn trở lại",
+      "noAccount": "Chưa có tài khoản?",
+      "createAccount": "Tạo tài khoản",
+      "orEmail": "hoặc đăng nhập bằng email",
+      "unverifiedTitle": "Tài khoản chưa xác thực.",
+      "unverifiedBody": "Nhận mã OTP qua email để kích hoạt tài khoản.",
+      "sendOtp": "Gửi mã OTP xác thực",
+      "sendingOtp": "Đang gửi...",
+      "resendFailed": "Không thể gửi mã xác thực. Vui lòng thử lại sau.",
+      "submitting": "Đang đăng nhập…",
+      "submit": "Đăng nhập",
+      "remember": "Ghi nhớ đăng nhập",
+      "forgot": "Quên mật khẩu?",
+      "failed": "Đăng nhập thất bại",
+      "googleFailed": "Đăng nhập Google thất bại"
+    },
+    "register": {
+      "title": "Tạo tài khoản",
+      "subtitle": "Miễn phí {credits, number} credit mỗi tháng · không cần thẻ.",
+      "orEmail": "hoặc đăng ký bằng email",
+      "name": "Họ và tên",
+      "namePlaceholder": "Nguyễn Văn A",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "confirmMismatch": "Mật khẩu xác nhận không giống với mật khẩu.",
+      "submitting": "Đang tạo tài khoản…",
+      "submit": "Tạo tài khoản",
+      "haveAccount": "Đã có tài khoản?",
+      "login": "Đăng nhập",
+      "failed": "Đăng ký thất bại",
+      "googleFailed": "Đăng ký Google thất bại"
+    },
+    "forgot": {
+      "title": "Quên mật khẩu",
+      "titleCreate": "Tạo mật khẩu",
+      "subtitle": "Nhập email tài khoản để nhận mã OTP đặt lại mật khẩu.",
+      "subtitleCreate": "Chúng tôi sẽ gửi mã OTP tới email để xác nhận trước khi tạo mật khẩu.",
+      "submit": "Gửi mã OTP",
+      "failed": "Không thể gửi yêu cầu đặt lại mật khẩu"
+    },
+    "verify": {
+      "missingEmailTitle": "Thiếu địa chỉ email",
+      "missingEmailBody": "Vui lòng đăng nhập bằng tài khoản vừa đăng ký để nhận mã xác thực.",
+      "toLogin": "Về trang đăng nhập",
+      "successTitle": "Xác thực thành công!",
+      "successBody": "Tài khoản của bạn đã được kích hoạt và tự động đăng nhập. Đang chuyển hướng trong <b>{seconds}s</b>…",
+      "enterApp": "Vào ứng dụng ngay",
+      "title": "Nhập mã xác thực",
+      "body": "Chúng tôi đã gửi mã gồm 6 chữ số đến <b>{email}</b>. Vui lòng kiểm tra hộp thư đến.",
+      "submitting": "Đang xác thực…",
+      "submit": "Xác thực",
+      "failed": "Xác thực thất bại",
+      "back": "Trở lại trang đăng nhập"
+    },
+    "reset": {
+      "missingEmailTitle": "Thiếu địa chỉ email",
+      "missingEmailBody": "Vui lòng nhập email tài khoản để nhận mã OTP đặt lại mật khẩu.",
+      "getOtp": "Nhận mã OTP",
+      "successTitle": "Đặt lại mật khẩu thành công!",
+      "successBody": "Mật khẩu của bạn đã được cập nhật. Mọi phiên đăng nhập cũ đã được thu hồi an toàn.",
+      "loginNow": "Đăng nhập ngay",
+      "step1": "Bước 1/2",
+      "step2": "Bước 2/2",
+      "otpTitle": "Nhập mã xác nhận",
+      "otpBody": "Nhập mã 6 số đã gửi tới <b>{email}</b>.",
+      "confirmOtp": "Xác nhận mã",
+      "confirmingOtp": "Đang xác nhận…",
+      "otpFailed": "Xác nhận mã thất bại",
+      "passwordTitle": "Đặt mật khẩu mới",
+      "passwordBody": "Mã đã được xác nhận. Tạo mật khẩu mới cho <b>{email}</b>.",
+      "newPassword": "Mật khẩu mới",
+      "confirmNewPassword": "Xác nhận mật khẩu mới",
+      "confirmMismatch": "Mật khẩu xác nhận không giống với mật khẩu mới.",
+      "submitting": "Đang cập nhật…",
+      "submit": "Đặt lại mật khẩu",
+      "failed": "Đặt lại mật khẩu thất bại"
+    }
+  },
+  "app": {
+    "time": {
+      "justNow": "Vừa xong",
+      "minutesAgo": "{count} phút trước",
+      "hoursAgo": "{count} giờ trước",
+      "yesterday": "Hôm qua",
+      "daysAgo": "{count} ngày trước",
+      "weeksAgo": "{count} tuần trước"
+    },
+    "authGuard": {
+      "offline": "Không kết nối được máy chủ. Phiên đăng nhập của bạn vẫn được giữ.",
+      "retry": "Thử lại",
+      "checking": "Đang kiểm tra quyền truy cập..."
+    },
+    "notifications": {
+      "title": "Thông báo",
+      "unreadAria": "Thông báo ({count} chưa đọc)",
+      "markAll": "Đánh dấu tất cả đã đọc",
+      "markRead": "Đánh dấu đã đọc",
+      "empty": "Chưa có thông báo nào",
+      "allRead": "Bạn đã đọc hết thông báo",
+      "viewAll": "Xem tất cả thông báo",
+      "viewDetail": "Xem chi tiết",
+      "unreadCount": "{count} chưa đọc",
+      "filterAll": "Tất cả",
+      "filterUnread": "Chưa đọc",
+      "loadingList": "Đang tải thông báo…",
+      "loadFailed": "Không thể tải thông báo",
+      "loadMoreFailed": "Không thể tải thêm thông báo",
+      "markFailed": "Không thể đánh dấu đã đọc"
+    },
+    "billing": {
+      "title": "Thanh toán & credit",
+      "loading": "Đang tải thông tin thanh toán…",
+      "available": "Khả dụng",
+      "balance": "Số dư",
+      "reserved": "Đang giữ",
+      "currentPlan": "Gói hiện tại",
+      "validUntil": "Hiệu lực đến {date}",
+      "defaultPlan": "Mặc định",
+      "lowCredit": "Credit khả dụng sắp hết. Nạp thêm để tiếp tục sử dụng các tính năng AI.",
+      "buyCredits": "Nạp credit",
+      "creatingTx": "Đang tạo giao dịch…",
+      "buyNow": "Mua ngay",
+      "vietqrNote": "Thanh toán bằng chuyển khoản ngân hàng qua mã VietQR. Credit được cộng tự động khi giao dịch được xác nhận.",
+      "plans": "Gói sử dụng",
+      "creditsPerMonth": "{credits} credit / tháng",
+      "free": "Miễn phí",
+      "pricePerMonth": "{price} / tháng",
+      "current": "Đang dùng",
+      "switching": "Đang đổi…",
+      "buyPlan": "Mua gói {plan}",
+      "switchTo": "Chuyển sang {plan}",
+      "history": "Lịch sử giao dịch",
+      "noTx": "Chưa có giao dịch nào",
+      "col": {
+        "time": "Thời gian",
+        "type": "Loại",
+        "action": "Hành động",
+        "credit": "Credit",
+        "availableAfter": "Khả dụng sau"
+      },
+      "txType": {
+        "reserve": "Giữ credit",
+        "deduct": "Trừ credit",
+        "release": "Hoàn credit",
+        "purchase": "Nạp credit",
+        "monthly_reset": "Reset hằng tháng"
+      },
+      "txState": {
+        "reserved": "đang giữ",
+        "deducted": "đã trừ",
+        "refunded": "đã hoàn",
+        "expired": "hết hạn"
+      },
+      "errors": {
+        "load": "Không thể tải thông tin thanh toán",
+        "createTx": "Không thể tạo giao dịch",
+        "changePlan": "Không thể đổi gói",
+        "loadMore": "Không thể tải thêm giao dịch"
+      }
+    },
+    "checkout": {
+      "back": "Quay lại trang thanh toán",
+      "loading": "Đang tải giao dịch…",
+      "loadFailed": "Không thể tải giao dịch",
+      "notFound": "Không tìm thấy giao dịch",
+      "amountToPay": "Số tiền cần chuyển",
+      "receive": "Nhận {credits} credit",
+      "succeeded": "Thanh toán thành công — đã cộng {credits} credit vào tài khoản.",
+      "failed": "Giao dịch không thành công. Vui lòng tạo giao dịch mới.",
+      "qrAlt": "Mã VietQR thanh toán",
+      "description": "Nội dung chuyển khoản (bắt buộc, nhập đúng)",
+      "copied": "Đã chép",
+      "copy": "Sao chép",
+      "instructions": "Quét mã bằng ứng dụng ngân hàng, chuyển đúng số tiền và nội dung. Trang sẽ tự cập nhật khi giao dịch được xác nhận.",
+      "stopped": "Đã dừng tự kiểm tra. Nếu bạn đã chuyển khoản, bấm kiểm tra lại.",
+      "recheck": "Kiểm tra lại",
+      "waiting": "Đang chờ xác nhận thanh toán…",
+      "missingIntent": "Thiếu mã giao dịch (intentId)."
+    },
+    "notificationTypes": {
+      "welcome": {
+        "title": "Chào mừng bạn đến với FlintFlow",
+        "body": "Tài khoản của bạn đã sẵn sàng với {credits} credit miễn phí."
+      },
+      "payment_success": {
+        "title": "Thanh toán thành công",
+        "body": "Đã cộng {credits} credit vào tài khoản của bạn."
+      },
+      "payment_failed": {
+        "title": "Thanh toán thất bại",
+        "body": "Giao dịch nạp credit không thành công."
+      },
+      "low_credit": {
+        "title": "Credit sắp hết",
+        "body": "Số dư của bạn còn {balance} credit. Nạp thêm để tiếp tục sử dụng AI."
+      },
+      "plan_changed": {
+        "title": "Đã chuyển sang gói {plan}",
+        "bodyUntil": "Gói {plan} có hiệu lực đến {date}.",
+        "bodyActive": "Gói {plan} đã được kích hoạt."
+      },
+      "phase_accepted": {
+        "title": "Đã hoàn tất phase {phase}",
+        "body": "Mọi step của phase {phase} đã được accept. Có thể tiếp tục sang phase kế tiếp."
+      },
+      "baseline_created": {
+        "title": "Đã chốt baseline {version}",
+        "bodyWaived": "Tài liệu đã được ký ở mức {version} với {count} cờ được bỏ qua có lý do.",
+        "bodyClean": "Tài liệu đã được ký ở mức {version}, không còn cờ đỏ nào."
+      }
+    },
+    "common": {
+      "loading": "Đang tải…",
+      "cancel": "Huỷ",
+      "close": "Đóng",
+      "save": "Lưu",
+      "retry": "Thử lại",
+      "clearSearch": "Xoá tìm kiếm",
+      "soon": "Sắp có",
+      "loadMore": "Tải thêm",
+      "account": "Tài khoản",
+      "dismiss": "Đóng thông báo lỗi"
+    },
+    "shell": {
+      "nav": "Điều hướng chính",
+      "menu": "Menu",
+      "openMenu": "Mở menu",
+      "closeMenu": "Đóng menu",
+      "expand": "Mở rộng thanh bên",
+      "collapse": "Thu gọn thanh bên",
+      "sectionMain": "Chính",
+      "sectionOrg": "Tổ chức",
+      "items": {
+        "projects": "Dự án",
+        "notifications": "Thông báo",
+        "orgSwitcher": "Đổi tổ chức",
+        "members": "Thành viên",
+        "billing": "Credits & Thanh toán"
+      },
+      "soonItem": "{label} · {soon}",
+      "soonItemSr": "{label} ({soon})",
+      "soonItemTitle": "{label} — {soon}",
+      "recentTitle": "Gần đây",
+      "recentNav": "Dự án gần đây",
+      "feedback": "Gửi góp ý",
+      "account": "Tài khoản {name}",
+      "profile": "Hồ sơ cá nhân",
+      "billing": "Thanh toán",
+      "logout": "Đăng xuất",
+      "planAdmin": "Admin",
+      "plan": "Gói {plan}",
+      "planFree": "Gói Free",
+      "breadcrumb": "Breadcrumb",
+      "credits": "credits · {plan}",
+      "creditsTitle": "Credits & Thanh toán"
+    },
+    "recency": {
+      "today": "Hôm nay",
+      "week": "7 ngày qua",
+      "month": "30 ngày qua",
+      "older": "Cũ hơn",
+      "never": "Chưa mở"
+    },
+    "sourceMode": {
+      "groupLabel": "Bạn bắt đầu từ đâu?",
+      "import": {
+        "label": "Upload SRS có sẵn",
+        "shortLabel": "SRS có sẵn",
+        "description": "Có file .docx — FlintFlow kiểm tra lỗ hổng và giúp sửa"
+      },
+      "customerTemplate": {
+        "label": "Có template của khách",
+        "shortLabel": "Template khách",
+        "description": "Upload mẫu của khách, viết SRS mới theo mẫu đó"
+      },
+      "fpt": {
+        "label": "Chưa có template",
+        "shortLabel": "Template FlintFlow",
+        "description": "Dùng template SRS của FlintFlow, bắt đầu từ ý tưởng / ghi chú"
+      }
+    },
+    "projectCard": {
+      "status": {
+        "draft": "Bản nháp",
+        "analyzing": "Đang phân tích",
+        "clarify": "Cần làm rõ",
+        "ready": "Sẵn sàng"
+      },
+      "next": {
+        "loading": "Đang tải…",
+        "done": "Đã hoàn tất",
+        "resume": "Mở để tiếp tục",
+        "notStarted": "Chưa bắt đầu — mở để mô tả ý tưởng"
+      },
+      "mode1": {
+        "notUploaded": "Chưa tải SRS lên — mở để upload .docx",
+        "importing": "Nhập SRS: {state}",
+        "openCrs": "{count, plural, other {# change request}} đang mở"
+      },
+      "progressLabel": "Tiến độ theo giai đoạn",
+      "phaseOf": "Giai đoạn {current}/{total}: {phase}",
+      "allPhases": "Đã qua đủ {total} giai đoạn",
+      "notStarted": "Chưa bắt đầu",
+      "folderTitle": "Thư mục {name}",
+      "archived": "Đã lưu trữ",
+      "options": "Tuỳ chọn cho {name}",
+      "menu": {
+        "rename": "Đổi tên",
+        "moveToFolder": "Chuyển vào thư mục",
+        "archive": "Lưu trữ",
+        "hardDelete": "Xoá vĩnh viễn"
+      },
+      "gridLoading": "Đang tải danh sách dự án"
+    },
+    "folderCard": {
+      "projectCount": "{count, plural, other {# dự án}}",
+      "options": "Tuỳ chọn cho thư mục {name}",
+      "rename": "Đổi tên",
+      "delete": "Xoá thư mục",
+      "new": "Thư mục mới",
+      "colors": {
+        "blue": "Xanh dương",
+        "amber": "Vàng",
+        "green": "Xanh lá",
+        "rose": "Hồng"
+      }
+    },
+    "createProject": {
+      "defaultName": "Dự án chưa đặt tên",
+      "nameLabel": "Tên dự án",
+      "pickMode": "Chọn một cách bắt đầu ở trên để tiếp tục.",
+      "submitting": "Đang tạo…",
+      "submit": "Bắt đầu",
+      "missingProject": "Không nhận được dự án vừa tạo",
+      "failed": "Không thể tạo dự án"
+    },
+    "projectDialogs": {
+      "archive": {
+        "title": "Lưu trữ dự án",
+        "question": "Lưu trữ",
+        "detail": "Dự án sẽ bị ẩn khỏi danh sách đang làm; xem lại bằng bộ lọc Trạng thái: Lưu trữ.",
+        "cta": "Lưu trữ",
+        "busy": "Đang lưu trữ…",
+        "failed": "Không thể lưu trữ dự án"
+      },
+      "delete": {
+        "title": "Xoá vĩnh viễn dự án",
+        "question": "Xoá vĩnh viễn",
+        "detail": "Toàn bộ hội thoại, tài liệu SRS và dữ liệu đính kèm sẽ bị xoá hoàn toàn. Hành động này không thể hoàn tác.",
+        "cta": "Xoá vĩnh viễn",
+        "busy": "Đang xoá…",
+        "failed": "Không thể xoá vĩnh viễn dự án"
+      },
+      "renameTitle": "Đổi tên dự án",
+      "renameFailed": "Không thể đổi tên dự án",
+      "renameLabel": "Tên dự án mới",
+      "saveChanges": "Lưu thay đổi",
+      "confirm": "{action} “{name}”?"
+    },
+    "folderDialogs": {
+      "deleteTitle": "Xoá thư mục",
+      "deleteFailed": "Không thể xoá thư mục",
+      "moveTitle": "Chuyển vào thư mục",
+      "moveFailed": "Không thể chuyển dự án",
+      "noFolder": "Không thuộc thư mục",
+      "noFolders": "Chưa có thư mục nào — tạo ở hàng Thư mục trên dashboard.",
+      "createTitle": "Thư mục mới",
+      "editTitle": "Sửa thư mục",
+      "createFailed": "Không thể tạo thư mục",
+      "updateFailed": "Không thể sửa thư mục",
+      "namePlaceholder": "Ví dụ: Khách hàng A",
+      "colorLegend": "Màu",
+      "create": "Tạo thư mục",
+      "deleteBody": "Xoá thư mục “{name}”? Mọi dự án bên trong (kể cả dự án lưu trữ) vẫn được giữ và chuyển ra ngoài thư mục.",
+      "moveLegend": "Dự án “{name}”",
+      "move": "Chuyển",
+      "nameLabel": "Tên thư mục"
+    },
+    "addToFolder": {
+      "modeLabel": "Cách thêm dự án",
+      "existing": "Chọn dự án có sẵn",
+      "create": "Tạo mới",
+      "searchLabel": "Tìm dự án để thêm",
+      "searchPlaceholder": "Tìm dự án…",
+      "legend": "Dự án có thể thêm",
+      "inOtherFolder": " · đang ở thư mục khác",
+      "noneMoved": "Không có dự án nào được chuyển — có thể dự án đã bị xoá hoặc chuyển nơi khác.",
+      "failed": "Không thể thêm dự án vào thư mục",
+      "title": "Thêm dự án vào “{folder}”",
+      "allInFolder": "Mọi dự án đang làm đã nằm trong thư mục này. Chuyển sang “Tạo mới” để thêm dự án.",
+      "noMatch": "Không có dự án khớp “{query}”.",
+      "selected": "Đã chọn {count}",
+      "selectedMax": "Đã chọn {count} (tối đa {max} mỗi lần)",
+      "add": "Thêm vào thư mục"
+    },
+    "feedback": {
+      "title": "Gửi góp ý",
+      "kindLegend": "Loại góp ý",
+      "bug": "Báo lỗi",
+      "suggestion": "Đề xuất",
+      "other": "Khác",
+      "placeholder": "Bạn gặp vấn đề gì hoặc muốn FlintFlow có thêm gì?",
+      "failed": "Không gửi được góp ý, thử lại sau",
+      "sent": "Cảm ơn bạn! Góp ý đã được gửi tới đội FlintFlow.",
+      "messageLabel": "Nội dung",
+      "submit": "Gửi góp ý"
+    },
+    "home": {
+      "onboardingTitle": "Bắt đầu dự án SRS đầu tiên",
+      "onboardingBody": "Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.",
+      "searchLabel": "Tìm dự án theo tên",
+      "searchPlaceholder": "Tìm dự án…",
+      "newProject": "Dự án mới",
+      "newProjectShort": "Mới",
+      "createTitle": "Tạo dự án mới",
+      "createInFolderTitle": "Dự án mới trong “{folder}”",
+      "allProjects": "Tất cả dự án",
+      "addProject": "Thêm dự án",
+      "tabsLabel": "Xem theo",
+      "tabAll": "Tất cả",
+      "tabFolders": "Thư mục",
+      "tabProjects": "Dự án",
+      "sortLabel": "Sắp xếp",
+      "sortUpdated": "Mới cập nhật",
+      "sortOpened": "Mới mở",
+      "statusLabel": "Trạng thái",
+      "statusActive": "Đang làm",
+      "statusArchived": "Lưu trữ",
+      "modeLabel": "Nguồn",
+      "modeAll": "Tất cả",
+      "foldersTitle": "Thư mục",
+      "foldersHint": "Kéo thẻ dự án thả vào thư mục để sắp xếp.",
+      "foldersError": "Không tải được thư mục: {message}",
+      "projectsTitle": "Dự án",
+      "looseProjectsTitle": "Dự án ngoài thư mục",
+      "noMatchTitle": "Không có dự án khớp bộ lọc",
+      "noMatchBody": "Thử đổi trạng thái, nguồn hoặc từ khoá tìm kiếm.",
+      "clearFilters": "Xoá bộ lọc",
+      "emptyFolderTitle": "Thư mục này chưa có dự án",
+      "allInFoldersTitle": "Mọi dự án đều đã nằm trong thư mục",
+      "emptyTitle": "Chưa có dự án đang làm",
+      "emptyFolderBody": "Chọn cách bắt đầu để tạo dự án mới ngay trong thư mục, hoặc thêm dự án có sẵn.",
+      "emptyBody": "Chọn cách bắt đầu để tạo dự án mới, hoặc mở lại các dự án đã lưu trữ.",
+      "addExisting": "Thêm dự án có sẵn",
+      "viewArchived": "Xem lưu trữ",
+      "moveFailed": "Không thể chuyển dự án vào thư mục"
+    },
+    "profile": {
+      "title": "Hồ sơ cá nhân",
+      "breadcrumb": "Hồ sơ",
+      "loading": "Đang tải hồ sơ…",
+      "loadFailed": "Không thể tải hồ sơ",
+      "info": "Thông tin cá nhân",
+      "nameSaved": "Đã cập nhật tên hiển thị.",
+      "nameLabel": "Tên hiển thị",
+      "nameEmpty": "Tên hiển thị không được để trống.",
+      "nameFailed": "Không thể lưu tên hiển thị",
+      "nameUnset": "Chưa đặt",
+      "edit": "Chỉnh sửa",
+      "email": "Email",
+      "emailVerified": "✓ Đã xác thực",
+      "emailUnverified": "Chưa xác thực",
+      "provider": "Phương thức đăng nhập",
+      "providerGoogleBoth": "Google + Email/mật khẩu",
+      "providerGoogle": "Google",
+      "providerLocal": "Email/mật khẩu",
+      "joined": "Ngày tham gia",
+      "credits": "Credit hiện có",
+      "creditAmount": "{credits} credit",
+      "toBilling": "Thanh toán & credit →",
+      "createPasswordTitle": "Tạo mật khẩu",
+      "createPasswordBody": "Tài khoản của bạn đang đăng nhập bằng Google nên chưa có mật khẩu. Tạo mật khẩu để có thể đăng nhập bằng email <b>{email}</b> — vẫn dùng Google được như cũ.",
+      "createPasswordCta": "Tạo mật khẩu qua email →",
+      "createPasswordNote": "Chúng tôi sẽ gửi mã OTP tới email của bạn. Sau khi tạo, bạn sẽ cần đăng nhập lại.",
+      "changePasswordTitle": "Đổi mật khẩu",
+      "changePasswordBody": "Sau khi đổi, các thiết bị khác sẽ bị đăng xuất. Thiết bị này vẫn giữ đăng nhập.",
+      "changePasswordSuccess": "Đổi mật khẩu thành công. Các thiết bị khác đã được đăng xuất.",
+      "changePasswordFailed": "Không thể đổi mật khẩu",
+      "currentPassword": "Mật khẩu hiện tại",
+      "newPassword": "Mật khẩu mới",
+      "confirmNewPassword": "Xác nhận mật khẩu mới",
+      "sameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại.",
+      "confirmMismatch": "Mật khẩu xác nhận không giống với mật khẩu mới.",
+      "saving": "Đang cập nhật…",
+      "submit": "Đổi mật khẩu",
+      "forgotCurrent": "Quên mật khẩu hiện tại?",
+      "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại."
+    }
+  },
+  "workspace": {
+    "shell": {
+      "loading": "Đang tải không gian làm việc SRS…",
+      "conflict": "Tài liệu vừa đổi ở phiên khác — đã tải lại, vui lòng thử lại.",
+      "saveFailed": "Không lưu được thay đổi",
+      "acceptedNotice": "Bước <b>{step}</b> ({label}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.",
+      "close": "Đóng",
+      "resizeHint": "Kéo để thay đổi kích thước (nháy đúp để về mặc định)",
+      "editCommand": "‹ Sửa lệnh",
+      "editCommandHint": "Sửa qua lệnh với xem trước diff",
+      "tools": "‹ Công cụ",
+      "toolsHint": "Tên riêng, thuật ngữ và hàng đợi màn",
+      "toolsAria": "Công cụ",
+      "briefSummary": "Tóm tắt Brief",
+      "assumptions": "Giả định chờ xác nhận (B-2.1)",
+      "briefNotes": "Ghi chú Brief (B-2.2)",
+      "namesGlossary": "Tên riêng & thuật ngữ",
+      "screenQueue": "Hàng đợi màn (S-5)"
+    },
+    "header": {
+      "projects": "Dự án",
+      "untitled": "Dự án SRS",
+      "exportHint": "Xuất tài liệu SRS",
+      "logout": "Đăng xuất"
+    },
+    "phaseHeader": {
+      "done": "Hoàn tất",
+      "runStep": "▶ Chạy bước này",
+      "deepDive": "Đào sâu (vòng sau)",
+      "partyMode": "Party Mode (vòng sau)",
+      "changeModeHint": "Đổi cách làm việc ở ranh giới phase"
+    },
+    "phaseNav": {
+      "toggleSidebar": "Toggle Lịch sử phiên chat",
+      "exportHint": "Mở luồng hoàn tất và xuất tài liệu",
+      "verificationHint": "Đánh giá chất lượng & độ sẵn sàng",
+      "readinessHint": "Điểm sẵn sàng: % section bắt buộc đã accepted"
+    },
+    "stepBar": {
+      "aria": "Tiến độ theo bước",
+      "label": "Bước"
+    },
+    "view": {
+      "untitled": "Dự án",
+      "readOnly": "Chỉ đọc",
+      "back": "← Về không gian làm việc",
+      "loading": "Đang tải tài liệu…",
+      "loadFailed": "Không tải được tài liệu",
+      "loadFailedWith": "Không tải được tài liệu: {error}",
+      "incomplete": "chưa hoàn thiện"
+    },
+    "chatPane": {
+      "title": "Hội thoại & Duyệt bước",
+      "emptyTitle": "Bắt đầu bước hiện tại",
+      "emptyBody": "Bấm “Chạy bước này” để AI hỏi phần còn thiếu và soạn nháp, hoặc trò chuyện tự do và đính kèm tài liệu tham khảo.",
+      "notPipeline": "Phiên này không phải phiên pipeline — lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.",
+      "editPlaceholder": "Nhập lệnh sửa — gửi vào Change panel…"
+    },
+    "chatInput": {
+      "placeholder": "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
+      "removeFile": "Bỏ file này",
+      "attach": "Đính kèm tài liệu tham khảo (.pdf, .docx, .txt)",
+      "send": "Gửi tin nhắn (Enter)"
+    },
+    "chatBubble": {
+      "copied": "Đã sao chép!",
+      "copy": "Sao chép tin nhắn",
+      "rollback": "Hoàn tác về câu hỏi này",
+      "responding": "Đang phản hồi..."
+    },
+    "chatSessions": {
+      "title": "Lịch sử phiên chat",
+      "newSession": "Tạo phiên chat mới",
+      "empty": "Chưa có phiên chat nào",
+      "newPreview": "Phiên mới",
+      "sessionName": "Phiên #{id}",
+      "options": "Tùy chọn",
+      "delete": "Xoá phiên chat",
+      "confirmTitle": "Xác nhận xoá phiên chat?",
+      "confirmBody": "Lịch sử hội thoại trong phiên này sẽ bị xoá vĩnh viễn. Các đặc tả đã sinh trong dự án vẫn được giữ nguyên.",
+      "cancel": "Huỷ",
+      "confirmDelete": "Xoá phiên"
+    },
+    "gate": {
+      "title": "Cổng chốt",
+      "noRegenerate": "Đã hết lượt Regenerate",
+      "revisionLabel": "Cần sửa gì?",
+      "acceptAsIsLabel": "Lý do chấp nhận bản hiện tại (bắt buộc)",
+      "sendRevision": "Gửi yêu cầu sửa",
+      "confirmAcceptAsIs": "Xác nhận Accept as-is"
+    },
+    "stepLog": {
+      "aria": "Nhật ký bước",
+      "intakeMissing": "Tiếp nhận: còn thiếu {fields}",
+      "intakeOk": "Tiếp nhận: đủ dữ liệu đầu vào",
+      "elicit": "AI đang hỏi làm rõ",
+      "answerNeeded": "Chờ bạn trả lời {count} câu hỏi",
+      "draft": "Đang soạn (lượt {attempt})",
+      "opsApplied": "Đã ghi {count} thay đổi (phiên bản {version})",
+      "renderOk": "Đã vẽ hình {id}",
+      "renderFailed": "Vẽ hình {id} lỗi: {error}",
+      "flags": "Kiểm tra: {red} cờ đỏ, {yellow} cờ vàng",
+      "gateReady": "Sẵn sàng duyệt",
+      "error": "Lỗi {code}: {message}"
+    },
+    "screenQueue": {
+      "aria": "Hàng đợi màn hình",
+      "empty": "Chưa có màn hình (chốt ở S-4.1).",
+      "markPlaceholder": "Để lại (placeholder)",
+      "status": {
+        "pending": "Chờ",
+        "in_progress": "Đang làm",
+        "signed_off": "Đã chốt",
+        "placeholder": "Để lại"
+      }
+    },
+    "questionStepper": {
+      "counter": "Câu hỏi {current} / {total}",
+      "multi": "✦ Chọn nhiều",
+      "single": "◉ Chọn 1",
+      "questionN": "Câu {n}",
+      "close": "Đóng / Gõ tự do",
+      "suggestMulti": "Gợi ý câu trả lời mẫu (chọn 1 hoặc nhiều đáp án):",
+      "suggestSingle": "Gợi ý câu trả lời mẫu (chọn 1 đáp án phù hợp nhất):",
+      "ownAnswer": "Phần tự trả lời của bạn:",
+      "placeholderExtra": "Nhập câu trả lời riêng hoặc bổ sung chi tiết...",
+      "placeholderOwn": "Nhập câu trả lời của bạn...",
+      "back": "Quay lại",
+      "skip": "Bỏ qua (gõ tự do)",
+      "next": "Tiếp tục",
+      "submit": "Gửi câu trả lời",
+      "withExtra": "{options} (Bổ sung: {custom})"
+    },
+    "session": {
+      "createFailed": "Không thể tạo cuộc trò chuyện mới",
+      "offline": "Không kết nối được máy chủ. Vui lòng tải lại trang.",
+      "loadFailed": "Không thể tải cuộc trò chuyện",
+      "deleteFailed": "Không thể xoá cuộc trò chuyện: {error}",
+      "error": "Lỗi",
+      "sendFailed": "Không thể gửi tin nhắn",
+      "attachmentOnly": "[Đính kèm tài liệu]"
+    },
+    "runnerErrors": {
+      "notPipelineSession": "Chưa có phiên pipeline hoặc Spine chưa tải xong",
+      "streamClosed": "Kết nối tới step bị đóng giữa chừng. Vui lòng chạy lại."
+    },
+    "hookErrors": {
+      "docLoadFailed": "Không tải được tài liệu",
+      "spineNotReady": "Spine chưa tải xong — thử lại sau giây lát.",
+      "docConflict": "Tài liệu vừa đổi ở phiên khác — tải lại trang rồi thử ghép lại.",
+      "assembleFailed": "Không ghép được tài liệu",
+      "flagsLoadFailed": "Không tải được danh sách cờ",
+      "waiveFailed": "Waive cờ thất bại",
+      "recomputeFailed": "Tính lại cờ thất bại",
+      "actionFailed": "Thao tác thất bại",
+      "spineLoadFailed": "Không tải được Spine",
+      "progressLoadFailed": "Không tải được tiến độ"
+    },
+    "document": {
+      "status": {
+        "accepted": "Accepted",
+        "draft": "Draft",
+        "stale": "Cũ",
+        "derived": "Dẫn xuất"
+      },
+      "imageFailed": "Không tải được ảnh diagram",
+      "imageFailedWith": "Không tải được ảnh: {error}",
+      "imageLoading": "Đang tải ảnh…",
+      "awaitingReaccept": "Chờ duyệt lại",
+      "viewAt": "xem tại {step} · {label}",
+      "incomplete": "Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.",
+      "untitled": "Dự án",
+      "staleHint": "Spine đã đổi tiếp sau lần ghép gần nhất",
+      "assembling": "Đang ghép…",
+      "reassemble": "Ghép lại",
+      "reload": "↻ Tải lại",
+      "loading": "Đang tải tài liệu…",
+      "notAssembled": "Chưa có bản ghép tài liệu",
+      "assemblingDoc": "Đang ghép tài liệu…",
+      "assembleNow": "Ghép tài liệu ngay",
+      "goToAssemble": "Đi tới S-8.2 · Ghép tài liệu",
+      "assembleFailedWith": "Không ghép được tài liệu: {error}",
+      "loadFailedWith": "Không tải được tài liệu: {error}"
+    },
+    "verification": {
+      "closeHint": "Đóng bảng đánh giá",
+      "loadingFlags": "Đang tải danh sách cờ…"
+    },
+    "flags": {
+      "waiveTitle": "Waive cờ {rule}",
+      "reasonLabel": "Lý do (tối thiểu {min} ký tự)",
+      "reasonPlaceholder": "Vì sao chấp nhận bỏ qua cờ này?",
+      "cancel": "Huỷ",
+      "saving": "Đang lưu…",
+      "confirmWaive": "Xác nhận waive",
+      "aria": "Danh sách cờ",
+      "openCount": "Cờ đang mở ({count})",
+      "none": "Không có cờ nào đang mở.",
+      "notWaivableHint": "Luật này không cho waive",
+      "notWaivable": "Không thể waive",
+      "waivedCount": "Đã waive ({count})"
+    },
+    "readiness": {
+      "loading": "Đang tải điểm sẵn sàng…",
+      "aria": "Tóm tắt độ sẵn sàng",
+      "title": "Độ sẵn sàng",
+      "awaiting": "{count} chờ duyệt lại",
+      "red": "{count} cờ đỏ",
+      "stale": "{count} mục cũ"
+    },
+    "trace": {
+      "failed": "Không tra được traceability",
+      "placeholder": "ID (vd A01)",
+      "search": "Tra",
+      "none": "Không có liên kết nào.",
+      "colKind": "Loại",
+      "colLabel": "Nhãn"
+    },
+    "export": {
+      "title": "Xuất tài liệu SRS",
+      "draftTab": "Word nháp (DRAFT)",
+      "baselineTab": "Word baseline",
+      "noBaseline": "Chưa có baseline nào",
+      "baselineCheckFailed": "Không kiểm tra được baseline",
+      "baselineCheckFailedWith": "Không kiểm tra được baseline: {error}",
+      "loading": "Đang tải thông tin bản ghép…",
+      "notAssembled": "Chưa có bản ghép tài liệu cho nguồn này.",
+      "version": "Phiên bản",
+      "assembledAt": "Đã ghép tại Spine v{version}",
+      "staleVs": "đã cũ so với v{version}",
+      "redCount": "Số cờ đỏ sẽ in vào §I",
+      "noDraft": "Chưa ghép tài liệu — chạy S-8.2 trước.",
+      "downloadFailed": "Tải file thất bại",
+      "downloading": "Đang tải…",
+      "downloadDraft": "Tải bản nháp (.docx)",
+      "downloadBaseline": "Tải bản baseline (.docx)"
+    },
+    "change": {
+      "title": "Sửa qua lệnh",
+      "instruction": "Lệnh sửa",
+      "placeholder": "Ví dụ: Đổi tên actor A03 thành Administrator",
+      "previewing": "Đang xem trước…",
+      "preview": "Xem trước thay đổi",
+      "clarify": "Cần làm rõ",
+      "reconcileHint": "Gộp các thay đổi treo (nếu có) thành một lô, xem trước rồi áp",
+      "reconcile": "Hoà giải một lượt",
+      "undo": "Undo op cuối",
+      "hideHistory": "Ẩn lịch sử thay đổi",
+      "showHistory": "Xem lịch sử thay đổi (20 dòng)",
+      "loading": "Đang tải…",
+      "noHistory": "Chưa có lịch sử qua Change panel.",
+      "hideTrace": "Ẩn traceability",
+      "showTrace": "Tra traceability"
+    },
+    "diff": {
+      "title": "Xem trước thay đổi",
+      "deleted": "(xoá)",
+      "none": "Không có thay đổi nào.",
+      "impact": "Phạm vi ảnh hưởng",
+      "rerender": "Diagram render lại: {ids}",
+      "referrers": "Đang bị tham chiếu bởi: {refs}",
+      "cancel": "Huỷ",
+      "applying": "Đang áp dụng…",
+      "confirm": "Xác nhận"
+    },
+    "brief": {
+      "section": {
+        "overview": "Tổng quan sản phẩm",
+        "actors": "Actor",
+        "screenDesc": "Mô tả màn",
+        "reliability": "Độ tin cậy",
+        "performance": "Hiệu năng",
+        "other": "Yêu cầu khác (để dành)"
+      },
+      "formFactor": {
+        "web_app": "Web",
+        "mobile_app": "Mobile",
+        "desktop_app": "Desktop",
+        "api_service": "API",
+        "cli": "CLI",
+        "embedded": "Nhúng"
+      },
+      "stakes": {
+        "internal": "Nội bộ",
+        "production": "Chạy thật",
+        "regulated": "Có quản lý ngành"
+      },
+      "otherKind": {
+        "risk": "Rủi ro",
+        "assumption": "Giả định",
+        "open_question": "Câu hỏi mở",
+        "technical_risk": "Rủi ro kỹ thuật"
+      },
+      "modeFast": "Chế độ nhanh",
+      "modeCoaching": "Chế độ kèm cặp",
+      "unconfirmed": "{count} giả định chờ xác nhận",
+      "missing": "Chưa có {label} — quay lại bước tương ứng để ghi.",
+      "missingVision": "tầm nhìn (B-1.1)",
+      "missingGoals": "mục tiêu (B-1.1)",
+      "missingNotes": "ghi chú nào (B-0.1 → B-1.6)",
+      "vision": "Tầm nhìn",
+      "goals": "Mục tiêu",
+      "notesBySection": "Ghi chú theo mục tài liệu",
+      "risks": "Rủi ro & câu hỏi mở"
+    },
+    "triage": {
+      "empty": "Chưa có ghi chú nào từ pha Brief.",
+      "parked": "Để dành",
+      "moveTo": "Đưa vào",
+      "confirmDrop": "Bỏ hẳn vì nội dung sai?",
+      "drop": "Bỏ",
+      "keep": "Thôi",
+      "dropHint": "Chỉ bỏ khi nội dung sai — chưa làm bản này thì chọn Để dành ở ô trên",
+      "dropEntry": "Bỏ mục này",
+      "intro": "{count} ghi chú. Đổi đích nếu đang nhắm sai chỗ; chọn §5.4 để dành lại cho bản sau. Chỉ bỏ khi nội dung sai."
+    },
+    "sweep": {
+      "none": "Không còn giả định nào chờ xác nhận.",
+      "solo": "Cần duyệt riêng",
+      "right": "Đúng",
+      "wrong": "Sai",
+      "wrongHint": "Giá trị đang dựa trên giả định này sai — cần sửa lại chỗ đó",
+      "intro": "{count} giả định chờ xác nhận. Xác nhận đúng thì nội dung giữ nguyên; báo sai thì phần dựa trên nó cần sửa lại.",
+      "confirmRest": "Xác nhận {count} giả định còn lại"
+    },
+    "names": {
+      "aria": "Tên riêng và thuật ngữ",
+      "tab": {
+        "actors": "Actor",
+        "entities": "Thực thể",
+        "screens": "Màn hình",
+        "glossary": "Thuật ngữ"
+      },
+      "empty": "Chưa có mục nào.",
+      "newTerm": "Thuật ngữ mới",
+      "definition": "Định nghĩa (tiếng Anh)",
+      "save": "Lưu tên chuẩn"
+    }
+  },
+  "errors": {
+    "EMAIL_EXISTS": "Email này đã được đăng ký.",
+    "EMAIL_NOT_VERIFIED": "Email chưa được xác thực. Vui lòng kiểm tra email của bạn.",
+    "INVALID_CREDENTIALS": "Email hoặc mật khẩu không đúng.",
+    "INVALID_GOOGLE_TOKEN": "Đăng nhập Google không hợp lệ, vui lòng thử lại.",
+    "GOOGLE_EMAIL_MISSING": "Tài khoản Google không có địa chỉ email.",
+    "INVALID_TOKEN": "Liên kết không hợp lệ hoặc đã được sử dụng.",
+    "TOKEN_ALREADY_USED": "Liên kết này đã được sử dụng trước đó.",
+    "TOKEN_EXPIRED": "Liên kết đã hết hạn. Vui lòng yêu cầu gửi lại.",
+    "TOKEN_REUSE_DETECTED": "Phát hiện phiên đăng nhập bị dùng lại — mọi phiên đã bị đăng xuất để bảo vệ tài khoản.",
+    "UNAUTHORIZED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "INVALID_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "MISSING_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "INVALID_REFRESH_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "EXPIRED_REFRESH_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "MISSING_REFRESH_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "USER_NOT_FOUND": "Không tìm thấy người dùng.",
+    "RATE_LIMIT_EXCEEDED": "Dịch vụ AI đang quá tải. Vui lòng thử lại sau ít phút.",
+    "PROJECT_NOT_FOUND": "Không tìm thấy dự án hoặc bạn không có quyền truy cập.",
+    "NAME_REQUIRED": "Vui lòng nhập tên dự án.",
+    "CHAT_SESSION_NOT_FOUND": "Không tìm thấy phiên chat.",
+    "CONTENT_REQUIRED": "Tin nhắn không được để trống.",
+    "FILE_REQUIRED": "Vui lòng chọn một file.",
+    "UNSUPPORTED_FILE_TYPE": "Chỉ hỗ trợ file PDF, DOCX, MD, TXT.",
+    "DOCUMENT_NOT_FOUND": "Không tìm thấy tài liệu.",
+    "INSUFFICIENT_CREDIT": "Không đủ credit cho thao tác này. Hãy nạp thêm credit.",
+    "INTENT_NOT_FOUND": "Không tìm thấy giao dịch.",
+    "PACKAGE_NOT_FOUND": "Không tìm thấy gói credit.",
+    "PAYMENT_SERVICE_ERROR": "Cổng thanh toán từ chối yêu cầu.",
+    "PAYMENT_SERVICE_NOT_CONFIGURED": "Cổng thanh toán chưa được cấu hình.",
+    "PAYMENT_SERVICE_UNAVAILABLE": "Không kết nối được cổng thanh toán.",
+    "WALLET_NOT_FOUND": "Không tìm thấy ví credit.",
+    "NOTIFICATION_NOT_FOUND": "Không tìm thấy thông báo.",
+    "SPINE_NOT_FOUND": "Không tìm thấy dữ liệu tài liệu (Spine) của dự án.",
+    "STEP_NOT_FOUND": "Không tìm thấy bước này.",
+    "FLAG_NOT_FOUND": "Không tìm thấy cờ.",
+    "FLAG_NOT_WAIVABLE": "Luật này không cho waive.",
+    "BASELINE_NOT_FOUND": "Baseline không tồn tại.",
+    "DIAGRAM_NOT_FOUND": "Không tìm thấy diagram.",
+    "SPINE_VERSION_CONFLICT": "Tài liệu vừa được thay đổi ở phiên khác. Vui lòng tải lại rồi thử lại.",
+    "REGENERATE_LIMIT": "Đã hết 3 lượt Regenerate cho bước này.",
+    "CALL_LIMIT": "Bước này đã dùng hết 8 lượt gọi AI — chỉ còn Accept hoặc Accept as-is.",
+    "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
+    "NO_WORKING_DRAFT": "Chưa ghép tài liệu — chạy S-8.2 (Ghép tài liệu) trước.",
+    "NOTHING_TO_UNDO": "Không còn thay đổi nào để hoàn tác.",
+    "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa thể ghi baseline.",
+    "NOT_PIPELINE_SESSION": "Phiên này không phải phiên pipeline.",
+    "NOT_IMPLEMENTED": "Tính năng này chưa được hỗ trợ.",
+    "NO_DATA": "Không nhận được dữ liệu từ máy chủ."
+  }
+}

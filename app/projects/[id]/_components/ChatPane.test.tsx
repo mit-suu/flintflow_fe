@@ -1,6 +1,7 @@
 "use client";
 
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { estimateActionCost } from "@/lib/api/chat";
 import { mockServer } from "@/mocks/server";
@@ -39,7 +40,7 @@ const baseSession: ChatSession = {
 const withPipelineFlag = (isPipeline: boolean): ChatSession => ({ ...baseSession, is_pipeline: isPipeline }) as ChatSession;
 
 const renderPane = (session: ChatSession, onEditInstruction = vi.fn(), onSendMessage = vi.fn()) => {
-  render(
+  renderWithIntl(
     <ChatPane
       session={session}
       inputMessage="Đổi tên actor A03 thành Administrator"
@@ -132,7 +133,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   it("FLF-186: lệnh sửa sau baseline ⇒ BE tạo CR nguồn chat, thẻ “Đã tạo CR-001” mở thẳng CR; không alert, tin nhắn tạm được gỡ", async () => {
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     const error = vi.spyOn(console, "error");
-    render(<Mode1Chat />);
+    renderWithIntl(<Mode1Chat />);
     expect(screen.getByRole("heading", { name: "Hỏi đáp về tài liệu" })).toBeInTheDocument();
 
     await send("Đổi tên actor Student thành Learner");
@@ -153,7 +154,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   });
 
   it("Đóng ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới (CR mới)", async () => {
-    render(<Mode1Chat />);
+    renderWithIntl(<Mode1Chat />);
     await send("Thêm NFR thời gian phản hồi 2 giây");
     const card = await screen.findByRole("status");
     fireEvent.click(within(card).getByRole("button", { name: "Đóng" }));
@@ -166,7 +167,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   });
 
   it("BE không tạo được CR (chỉ prefill) ⇒ thẻ “Tạo change request” điền sẵn (nguồn verbal)", () => {
-    render(<CrPrefillCard projectId={MODE1_PROJECT_ID} prefill={{ title: "Đổi tên actor", description: "Đổi tên actor Student" }} onDismiss={vi.fn()} />);
+    renderWithIntl(<CrPrefillCard projectId={MODE1_PROJECT_ID} prefill={{ title: "Đổi tên actor", description: "Đổi tên actor Student" }} onDismiss={vi.fn()} />);
     const card = screen.getByRole("status");
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;

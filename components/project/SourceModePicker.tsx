@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import Badge from "@/components/ui/Badge";
 import Icon from "@/components/ui/Icon";
@@ -24,6 +25,7 @@ interface SourceModePickerProps {
  * không chọn được (chuột lẫn phím), mũi tên bỏ qua nó.
  */
 export default function SourceModePicker({ value, onChange, disabled = false }: SourceModePickerProps) {
+  const t = useTranslations("app.sourceMode");
   const refs = useRef(new Map<ProjectMode, HTMLDivElement>());
   const ready: ProjectMode[] = SOURCE_MODE_OPTIONS.filter((o) => o.status === "ready").map((o) => o.value);
   // Roving tabindex: Tab vào nhóm rơi đúng thẻ đang chọn (chưa chọn ⇒ thẻ sẵn sàng đầu tiên)
@@ -48,7 +50,7 @@ export default function SourceModePicker({ value, onChange, disabled = false }: 
   };
 
   return (
-    <div role="radiogroup" aria-label="Bạn bắt đầu từ đâu?" className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div role="radiogroup" aria-label={t("groupLabel")} className="grid grid-cols-1 md:grid-cols-3 gap-3">
       {SOURCE_MODE_OPTIONS.map((option) => {
         const soon = option.status === "soon";
         const checked = value === option.value;
@@ -95,9 +97,9 @@ export default function SourceModePicker({ value, onChange, disabled = false }: 
                 )
               )}
             </div>
-            <span className={`text-[13.5px] font-bold ${soon ? "text-on-surface-muted" : "text-on-surface"}`}>{option.label}</span>
+            <span className={`text-[13.5px] font-bold ${soon ? "text-on-surface-muted" : "text-on-surface"}`}>{t(`${option.key}.label`)}</span>
             <span className={`text-[12px] leading-[1.5] ${soon ? "text-on-surface-subtle" : "text-on-surface-variant"}`}>
-              {option.description}
+              {t(`${option.key}.description`)}
             </span>
           </div>
         );

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import type { Folder } from "@/types/folder";
 import FolderCard, { FOLDER_COLOR_ORDER, NewFolderTile, pickableFolderColor } from "./FolderCard";
@@ -15,7 +16,7 @@ const folder: Folder = {
 describe("FolderCard", () => {
   it("hiện tên, số dự án, màu theo color; bấm mở thư mục", () => {
     const onOpen = vi.fn();
-    const { container } = render(<FolderCard folder={folder} onOpen={onOpen} onRename={() => {}} onDelete={() => {}} />);
+    const { container } = renderWithIntl(<FolderCard folder={folder} onOpen={onOpen} onRename={() => {}} onDelete={() => {}} />);
 
     expect(screen.getByText("3 dự án")).toBeInTheDocument();
     expect(container.querySelector(".bg-folder-blue")).not.toBeNull();
@@ -26,7 +27,7 @@ describe("FolderCard", () => {
   it("menu ⋮: Đổi tên, Xoá thư mục — không mở thư mục", () => {
     const onOpen = vi.fn();
     const onDelete = vi.fn();
-    render(<FolderCard folder={folder} onOpen={onOpen} onRename={() => {}} onDelete={onDelete} />);
+    renderWithIntl(<FolderCard folder={folder} onOpen={onOpen} onRename={() => {}} onDelete={onDelete} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho thư mục Khách A" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Xoá thư mục" }));
@@ -36,7 +37,7 @@ describe("FolderCard", () => {
 
   it("ô + Thư mục mới gọi onCreate", () => {
     const onCreate = vi.fn();
-    render(<NewFolderTile onCreate={onCreate} />);
+    renderWithIntl(<NewFolderTile onCreate={onCreate} />);
     fireEvent.click(screen.getByRole("button", { name: /Thư mục mới/ }));
     expect(onCreate).toHaveBeenCalledOnce();
   });
@@ -51,7 +52,7 @@ describe("FolderCard — thả dự án vào", () => {
 
   it("kéo card dự án qua ⇒ sáng viền; thả ⇒ gọi onDropProject với id", () => {
     const onDropProject = vi.fn();
-    const { container } = render(
+    const { container } = renderWithIntl(
       <FolderCard folder={folder} onOpen={() => {}} onRename={() => {}} onDelete={() => {}} onDropProject={onDropProject} />
     );
     const target = container.querySelector("article") as HTMLElement;
@@ -66,7 +67,7 @@ describe("FolderCard — thả dự án vào", () => {
 
   it("kéo thứ khác (file, link) ⇒ không nhận", () => {
     const onDropProject = vi.fn();
-    const { container } = render(
+    const { container } = renderWithIntl(
       <FolderCard folder={folder} onOpen={() => {}} onRename={() => {}} onDelete={() => {}} onDropProject={onDropProject} />
     );
     const target = container.querySelector("article") as HTMLElement;

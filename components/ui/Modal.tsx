@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useDialogFocus } from "@/lib/hooks/use-dialog-focus";
@@ -15,6 +16,7 @@ interface ModalProps {
 }
 
 export default function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
+  const t = useTranslations("app.common");
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogFocus(dialogRef, open);
@@ -51,7 +53,7 @@ export default function Modal({ open, onClose, title, children, size = "md" }: M
           <h2 id={titleId} className="font-extrabold text-on-surface text-[17px]">
             {title}
           </h2>
-          <IconButton icon="close" label="Đóng" onClick={onClose} />
+          <IconButton icon="close" label={t("close")} onClick={onClose} />
         </div>
         {children}
       </div>

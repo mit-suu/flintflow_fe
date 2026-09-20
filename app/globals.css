@@ -221,6 +221,35 @@ body {
   animation: ff-spin 0.8s linear infinite;
 }
 
+/* ── Đổi ngôn ngữ (components/LocaleSwitcher.tsx) ──
+   `LocaleSwitcher` bọc `router.refresh()` trong `document.startViewTransition()`: trình duyệt chụp trang
+   trước và sau khi tráo cây server component rồi cross-fade hai ảnh — bản cũ mờ đi, bản mới hiện lên, thay
+   cho cú nháy chữ. Chỉ chỉnh thời lượng; phần còn lại để mặc định của trình duyệt. */
+::view-transition-old(root) {
+  animation: ff-fade-out 140ms ease-out both;
+}
+::view-transition-new(root) {
+  animation: ff-fade-in 220ms ease-in both;
+}
+
+@keyframes ff-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ff-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
 /* ── Grid Pattern Background ── */
 .grid-pattern {
   background-size: 44px 44px;

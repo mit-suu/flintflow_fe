@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
@@ -38,6 +39,9 @@ export default function AddToFolderDialog({ folder, ...rest }: AddToFolderDialog
 }
 
 function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: AddToFolderDialogProps & { folder: Folder }) {
+  const t = useTranslations("app.addToFolder");
+  const tc = useTranslations("app.common");
+  const tMode = useTranslations("app.sourceMode");
   const [mode, setMode] = useState<Mode>("existing");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -65,27 +69,27 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
     setError(null);
     try {
       const res = await addProjectsToFolder(folder._id, [...selected]);
-      if (!res.data?.moved) throw new Error("Không có dự án nào được chuyển — có thể dự án đã bị xoá hoặc chuyển nơi khác.");
+      if (!res.data?.moved) throw new Error(t("noneMoved"));
       await onAdded();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể thêm dự án vào thư mục");
+      setError(err instanceof Error ? err.message : t("failed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal open onClose={close} title={`Thêm dự án vào “${folder.name}”`} size="lg">
+    <Modal open onClose={close} title={t("title", { folder: folder.name })} size="lg">
       <div className="flex flex-col gap-4">
         <Tabs
-          label="Cách thêm dự án"
+          label={t("modeLabel")}
           idBase="add-to-folder"
           value={mode}
           onChange={setMode}
           options={[
-            { value: "existing", label: "Chọn dự án có sẵn", count: candidates.length },
-            { value: "create", label: "Tạo mới" },
+            { value: "existing", label: t("existing"), count: candidates.length },
+            { value: "create", label: t("create") },
           ]}
           className="self-start"
         />
@@ -95,13 +99,13 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
             <CreateProjectForm variant="dialog" folderId={folder._id} onCreated={onCreated} onCancel={close} />
           ) : candidates.length === 0 ? (
             <p className="py-8 text-center text-[13px] text-on-surface-muted">
-              Mọi dự án đang làm đã nằm trong thư mục này. Chuyển sang &ldquo;Tạo mới&rdquo; để thêm dự án.
+              {t("allInFolder")}
             </p>
           ) : (
             <>
-              <SearchInput value={query} onChange={setQuery} label="Tìm dự án để thêm" placeholder="Tìm dự án…" />
+              <SearchInput value={query} onChange={setQuery} label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
               <fieldset className="flex flex-col gap-1 max-h-[320px] overflow-y-auto -mx-1 px-1">
-                <legend className="sr-only">Dự án có thể thêm</legend>
+                <legend className="sr-only">{t("legend")}</legend>
                 {visible.map((p) => {
                   const checked = selected.has(p._id);
                   const mode = getSourceModeOption(p.mode);
@@ -124,14 +128,14 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
                       <span className="flex-1 min-w-0">
                         <span className="block text-[13.5px] font-medium text-on-surface truncate">{p.name}</span>
                         <span className="block text-[11px] text-on-surface-muted">
-                          {mode.shortLabel}
-                          {p.folderId && folderIds.has(p.folderId) ? " · đang ở thư mục khác" : ""}
+                          {tMode(`${mode.key}.shortLabel`)}
+                          {p.folderId && folderIds.has(p.folderId) ? t("inOtherFolder") : ""}
                         </span>
                       </span>
                     </label>
                   );
                 })}
-                {visible.length === 0 && <p className="py-6 text-center text-[12.5px] text-on-surface-muted">Không có dự án khớp &ldquo;{query.trim()}&rdquo;.</p>}
+                {visible.length === 0 && <p className="py-6 text-center text-[12.5px] text-on-surface-muted">{t("noMatch", { query: query.trim() })}</p>}
               </fieldset>
 
               {error && (
@@ -142,14 +146,15 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded, onCreated }: Ad
 
               <div className="flex items-center justify-end gap-2">
                 <span className="mr-auto text-[12px] text-on-surface-muted" aria-live="polite">
-                  Đã chọn {selected.size}
-                  {selected.size >= MAX_PER_REQUEST && ` (tối đa ${MAX_PER_REQUEST} mỗi lần)`}
+                  {selected.size >= MAX_PER_REQUEST
+                    ? t("selectedMax", { count: selected.size, max: MAX_PER_REQUEST })
+                    : t("selected", { count: selected.size })}
                 </span>
                 <Button variant="secondary" onClick={close} disabled={submitting}>
-                  Huỷ
+                  {tc("cancel")}
                 </Button>
                 <Button onClick={() => void submit()} loading={submitting} disabled={selected.size === 0}>
-                  Thêm vào thư mục
+                  {t("add")}
                 </Button>
               </div>
             </>

@@ -1,0 +1,1115 @@
+{
+  "metadata": {
+    "title": "FlintFlow — AI Software Specification Platform",
+    "description": "Enterprise-grade AI-powered software specification engine"
+  },
+  "common": {
+    "localeSwitcher": {
+      "label": "Language",
+      "vi": "Tiếng Việt",
+      "en": "English"
+    }
+  },
+  "landing": {
+    "a11y": {
+      "mainNav": "Main navigation",
+      "footerNav": "Footer links",
+      "dashboardMockup": "FlintFlow dashboard preview",
+      "workspaceMockup": "FlintFlow workspace preview",
+      "groupPhases": "Phases in the {group} step"
+    },
+    "nav": {
+      "home": "Home",
+      "how": "How it works",
+      "modes": "Ways to start",
+      "pricing": "Pricing"
+    },
+    "header": {
+      "login": "Sign in",
+      "tryFree": "Try it free"
+    },
+    "hero": {
+      "eyebrow": "AI Business Analyst",
+      "headline": "Understand the product",
+      "headlineAccent": "before you write code",
+      "subline": "FlintFlow helps you clarify the idea, write the requirements and check them back the way an experienced BA does. The result is an SRS your dev team and your AI coding tools can both rely on.",
+      "primaryCta": "Start for free",
+      "secondaryCta": "See the workspace",
+      "facts": {
+        "modes": "3 ways to start a project",
+        "phases": "12 phases, every step approved by you",
+        "export": "Export .docx in the required template"
+      }
+    },
+    "preview": {
+      "title": "Your projects",
+      "folderName": "Department of Construction",
+      "folderCount": "{count, plural, one {# project} other {# projects}}",
+      "phaseOf": "Phase {current}/{total} · {next}",
+      "projects": {
+        "permit": {
+          "name": "Building permit portal",
+          "status": "Ready",
+          "next": "Verify & freeze baseline"
+        },
+        "spa": {
+          "name": "At-home spa booking app",
+          "status": "Needs clarifying",
+          "next": "Brief analysis"
+        }
+      },
+      "check": {
+        "title": "Three-tier check",
+        "status": "Ready to freeze",
+        "flags": "red flags · {amber} amber flags to review",
+        "tiers": {
+          "form": "Format",
+          "content": "Content",
+          "quality": "Quality"
+        }
+      }
+    },
+    "how": {
+      "eyebrow": "How it works",
+      "title": "A BA's process, split into 12 phases.",
+      "subline": "AI drafts one part at a time. You accept it or ask for changes before anything moves on.",
+      "groups": {
+        "clarify": {
+          "title": "Clarify",
+          "body": "Tell us the idea or upload what you already have. FlintFlow only asks about what is still missing."
+        },
+        "analyze": {
+          "title": "Analyze",
+          "body": "Facts separated from assumptions, contradictions and gaps pointed out. The Brief must be approved before any SRS is written."
+        },
+        "specify": {
+          "title": "Specify",
+          "body": "Use cases, non-functional requirements, use case diagrams and the ERD are drafted one part at a time."
+        },
+        "verify": {
+          "title": "Verify",
+          "body": "Checked against the template, against ISO/IEC/IEEE 29148 and on the quality of each requirement. Red flags block the baseline."
+        }
+      }
+    },
+    "modes": {
+      "eyebrow": "Ways to start",
+      "title": "Start from whatever you already have.",
+      "items": {
+        "fpt": {
+          "title": "New, on the FPT template",
+          "body": "You only have an idea and a few notes. FlintFlow takes you from the Brief to a full SRS on the FPT template.",
+          "tags": {
+            "brief": "Brief",
+            "phases": "12 phases",
+            "template": "FPT template"
+          }
+        },
+        "client": {
+          "title": "On the client's template",
+          "body": "Upload the template your client requires. FlintFlow reads its structure, drafts only the sections it asks for and fills them straight into that file.",
+          "tags": {
+            "sections": "Only the required sections",
+            "inPlace": "Filled into the original file"
+          }
+        },
+        "existing": {
+          "title": "Revise an existing SRS",
+          "body": "Import the .docx you already use to see what it is missing. When the client changes a requirement, the edits show up as Track Changes inside the file.",
+          "tags": {
+            "gaps": "Gap list",
+            "track": "Track Changes"
+          }
+        }
+      }
+    },
+    "workspace": {
+      "eyebrow": "Inside the workspace",
+      "headline": "AI proposes.",
+      "headlineAccent": "You decide.",
+      "subline": "Nothing reaches the document without you: accept it, ask for changes, or take the question back to the client.",
+      "project": "Online building permit portal",
+      "briefApproved": "Brief approved",
+      "chat": {
+        "user": "Citizens file building permit applications online, an officer reviews them and returns the decision…",
+        "title": "2 questions before writing use cases",
+        "q1": "Who reviews the application: the district office or the department?",
+        "q2": "Do buildings above 7 floors need extra paperwork?",
+        "note": "Question 2 decides whether the review flow has to branch."
+      },
+      "doc": {
+        "title": "UC-03 · File a permit application",
+        "badge": "Draft · awaiting approval",
+        "body": "Preconditions: the applicant is signed in and has uploaded a valid design drawing; buildings above 7 floors require a fire-safety approval document.",
+        "accept": "Accept",
+        "requestEdit": "Request changes"
+      },
+      "fact": {
+        "label": "Fact · from you",
+        "body": "Applications are accepted online only"
+      },
+      "assumption": {
+        "label": "Assumption · by AI",
+        "body": "The applicant has a digital identity account"
+      },
+      "conflict": "Conflict: UC-07 promises review within 5 days, NFR-02 allows only 3."
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Trying it costs nothing.",
+      "subline": "Credits sit in one shared wallet for the whole organization, not per seat.",
+      "popular": "Most popular",
+      "price": "{k, plural, =0 {₫0} other {₫#k}}",
+      "perMonth": "/month",
+      "plans": {
+        "free": {
+          "name": "Free",
+          "cta": "Start for free",
+          "features": {
+            "credits": "{count, number} credits per month",
+            "modes": "All three ways to start a project",
+            "export": "Word export"
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "cta": "Upgrade to Pro",
+          "features": {
+            "credits": "{count, number} credits per month",
+            "everything": "Everything in Free",
+            "upgrade": "Change plan right inside the app"
+          }
+        }
+      }
+    },
+    "cta": {
+      "headline": "Your next project",
+      "headlineAccent": "starts from clear requirements.",
+      "button": "Create your first project",
+      "note": "Free · No card needed · 100 credits on us",
+      "copyright": "© {year} FlintFlow"
+    }
+  },
+  "auth": {
+    "layout": {
+      "aside": "About FlintFlow",
+      "eyebrow": "AI BA assistant",
+      "headline": "AI drafts.",
+      "headlineAccent": "You decide.",
+      "home": "Home"
+    },
+    "common": {
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••••",
+      "loading": "Loading…",
+      "sending": "Sending…",
+      "genericError": "Something went wrong",
+      "connectionError": "A connection error occurred.",
+      "passwordMismatch": "The confirmation password does not match.",
+      "backToLogin": "Back to sign in",
+      "showField": "Show {field}",
+      "hideField": "Hide {field}",
+      "fieldPassword": "password",
+      "fieldConfirmPassword": "confirmation password",
+      "strength": {
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong"
+      }
+    },
+    "google": {
+      "continue": "Continue with Google",
+      "opening": "Opening Google...",
+      "failed": "Google sign-in did not succeed.",
+      "cancelled": "Google sign-in was cancelled or failed."
+    },
+    "otp": {
+      "digitLabel": "Digit {index}",
+      "expiresIn": "Code expires in <b>{time}</b>",
+      "expired": "The code has expired. Please request a new one.",
+      "spamHint": "No email? Check your <b>Spam</b> or <b>Promotions</b> folder. If it is there, hit <b>“Not spam”</b> so the next one lands in your inbox.",
+      "resend": "Send a new code",
+      "resendFailed": "Could not resend the code. Please try again later.",
+      "resent": "A new code has been sent. Please check your inbox."
+    },
+    "login": {
+      "title": "Welcome back",
+      "noAccount": "No account yet?",
+      "createAccount": "Create one",
+      "orEmail": "or sign in with email",
+      "unverifiedTitle": "Account not verified.",
+      "unverifiedBody": "Get a one-time code by email to activate your account.",
+      "sendOtp": "Send verification code",
+      "sendingOtp": "Sending...",
+      "resendFailed": "Could not send the verification code. Please try again later.",
+      "submitting": "Signing in…",
+      "submit": "Sign in",
+      "remember": "Keep me signed in",
+      "forgot": "Forgot password?",
+      "failed": "Sign-in failed",
+      "googleFailed": "Google sign-in failed"
+    },
+    "register": {
+      "title": "Create an account",
+      "subtitle": "{credits, number} free credits every month · no card needed.",
+      "orEmail": "or sign up with email",
+      "name": "Full name",
+      "namePlaceholder": "Alex Nguyen",
+      "confirmPassword": "Confirm password",
+      "confirmMismatch": "The confirmation does not match your password.",
+      "submitting": "Creating account…",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "login": "Sign in",
+      "failed": "Sign-up failed",
+      "googleFailed": "Google sign-up failed"
+    },
+    "forgot": {
+      "title": "Forgot password",
+      "titleCreate": "Create a password",
+      "subtitle": "Enter your account email to get a one-time code to reset your password.",
+      "subtitleCreate": "We will email you a one-time code to confirm before you create a password.",
+      "submit": "Send the code",
+      "failed": "Could not send the password reset request"
+    },
+    "verify": {
+      "missingEmailTitle": "Email address missing",
+      "missingEmailBody": "Please sign in with the account you just created to get a verification code.",
+      "toLogin": "Back to sign in",
+      "successTitle": "Verified!",
+      "successBody": "Your account is active and you are signed in. Redirecting in <b>{seconds}s</b>…",
+      "enterApp": "Go to the app",
+      "title": "Enter your code",
+      "body": "We sent a 6-digit code to <b>{email}</b>. Please check your inbox.",
+      "submitting": "Verifying…",
+      "submit": "Verify",
+      "failed": "Verification failed",
+      "back": "Back to sign in"
+    },
+    "reset": {
+      "missingEmailTitle": "Email address missing",
+      "missingEmailBody": "Please enter your account email to get a one-time code to reset your password.",
+      "getOtp": "Get a code",
+      "successTitle": "Password reset!",
+      "successBody": "Your password has been updated. All previous sessions have been safely revoked.",
+      "loginNow": "Sign in now",
+      "step1": "Step 1/2",
+      "step2": "Step 2/2",
+      "otpTitle": "Enter your code",
+      "otpBody": "Enter the 6-digit code sent to <b>{email}</b>.",
+      "confirmOtp": "Confirm code",
+      "confirmingOtp": "Confirming…",
+      "otpFailed": "Could not confirm the code",
+      "passwordTitle": "Set a new password",
+      "passwordBody": "Code confirmed. Create a new password for <b>{email}</b>.",
+      "newPassword": "New password",
+      "confirmNewPassword": "Confirm new password",
+      "confirmMismatch": "The confirmation does not match your new password.",
+      "submitting": "Updating…",
+      "submit": "Reset password",
+      "failed": "Password reset failed"
+    }
+  },
+  "app": {
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
+      "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+      "yesterday": "Yesterday",
+      "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+      "weeksAgo": "{count, plural, one {# week ago} other {# weeks ago}}"
+    },
+    "authGuard": {
+      "offline": "Can't reach the server. You're still signed in.",
+      "retry": "Retry",
+      "checking": "Checking access..."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "unreadAria": "Notifications ({count} unread)",
+      "markAll": "Mark all as read",
+      "markRead": "Mark as read",
+      "empty": "No notifications yet",
+      "allRead": "You're all caught up",
+      "viewAll": "View all notifications",
+      "viewDetail": "View details",
+      "unreadCount": "{count} unread",
+      "filterAll": "All",
+      "filterUnread": "Unread",
+      "loadingList": "Loading notifications…",
+      "loadFailed": "Could not load notifications",
+      "loadMoreFailed": "Could not load more notifications",
+      "markFailed": "Could not mark as read"
+    },
+    "billing": {
+      "title": "Billing & credits",
+      "loading": "Loading billing information…",
+      "available": "Available",
+      "balance": "Balance",
+      "reserved": "Reserved",
+      "currentPlan": "Current plan",
+      "validUntil": "Valid until {date}",
+      "defaultPlan": "Default",
+      "lowCredit": "Your available credits are running low. Top up to keep using AI features.",
+      "buyCredits": "Buy credits",
+      "creatingTx": "Creating transaction…",
+      "buyNow": "Buy now",
+      "vietqrNote": "Pay by bank transfer with a VietQR code. Credits are added automatically once the transaction is confirmed.",
+      "plans": "Plans",
+      "creditsPerMonth": "{credits} credits / month",
+      "free": "Free",
+      "pricePerMonth": "{price} / month",
+      "current": "Current",
+      "switching": "Switching…",
+      "buyPlan": "Buy {plan} plan",
+      "switchTo": "Switch to {plan}",
+      "history": "Transaction history",
+      "noTx": "No transactions yet",
+      "col": {
+        "time": "Time",
+        "type": "Type",
+        "action": "Action",
+        "credit": "Credits",
+        "availableAfter": "Available after"
+      },
+      "txType": {
+        "reserve": "Credit hold",
+        "deduct": "Credit charge",
+        "release": "Credit refund",
+        "purchase": "Credit top-up",
+        "monthly_reset": "Monthly reset"
+      },
+      "txState": {
+        "reserved": "held",
+        "deducted": "charged",
+        "refunded": "refunded",
+        "expired": "expired"
+      },
+      "errors": {
+        "load": "Could not load billing information",
+        "createTx": "Could not create the transaction",
+        "changePlan": "Could not change the plan",
+        "loadMore": "Could not load more transactions"
+      }
+    },
+    "checkout": {
+      "back": "Back to billing",
+      "loading": "Loading transaction…",
+      "loadFailed": "Could not load the transaction",
+      "notFound": "Transaction not found",
+      "amountToPay": "Amount to transfer",
+      "receive": "Receive {credits} credits",
+      "succeeded": "Payment successful — {credits} credits added to your account.",
+      "failed": "The transaction failed. Please create a new one.",
+      "qrAlt": "VietQR payment code",
+      "description": "Transfer description (required, enter exactly)",
+      "copied": "Copied",
+      "copy": "Copy",
+      "instructions": "Scan the code with your banking app and transfer the exact amount and description. This page updates automatically once the transaction is confirmed.",
+      "stopped": "Automatic checking stopped. If you've already transferred, check again.",
+      "recheck": "Check again",
+      "waiting": "Waiting for payment confirmation…",
+      "missingIntent": "Missing transaction id (intentId)."
+    },
+    "notificationTypes": {
+      "welcome": {
+        "title": "Welcome to FlintFlow",
+        "body": "Your account is ready with {credits} free credits."
+      },
+      "payment_success": {
+        "title": "Payment successful",
+        "body": "{credits} credits have been added to your account."
+      },
+      "payment_failed": {
+        "title": "Payment failed",
+        "body": "The credit top-up transaction didn't go through."
+      },
+      "low_credit": {
+        "title": "Credits running low",
+        "body": "Your balance is down to {balance} credits. Top up to keep using AI."
+      },
+      "plan_changed": {
+        "title": "Switched to the {plan} plan",
+        "bodyUntil": "The {plan} plan is valid until {date}.",
+        "bodyActive": "The {plan} plan has been activated."
+      },
+      "phase_accepted": {
+        "title": "Phase {phase} completed",
+        "body": "Every step of phase {phase} has been accepted. You can move on to the next phase."
+      },
+      "baseline_created": {
+        "title": "Baseline {version} recorded",
+        "bodyWaived": "The document was signed off at {version} with {count, plural, one {# flag} other {# flags}} waived with a reason.",
+        "bodyClean": "The document was signed off at {version} with no red flags left."
+      }
+    },
+    "common": {
+      "loading": "Loading…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "save": "Save",
+      "retry": "Retry",
+      "clearSearch": "Clear search",
+      "soon": "Coming soon",
+      "loadMore": "Load more",
+      "account": "Account",
+      "dismiss": "Dismiss error"
+    },
+    "shell": {
+      "nav": "Main navigation",
+      "menu": "Menu",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar",
+      "sectionMain": "Main",
+      "sectionOrg": "Organization",
+      "items": {
+        "projects": "Projects",
+        "notifications": "Notifications",
+        "orgSwitcher": "Switch organization",
+        "members": "Members",
+        "billing": "Credits & billing"
+      },
+      "soonItem": "{label} · {soon}",
+      "soonItemSr": "{label} ({soon})",
+      "soonItemTitle": "{label} — {soon}",
+      "recentTitle": "Recent",
+      "recentNav": "Recent projects",
+      "feedback": "Send feedback",
+      "account": "Account {name}",
+      "profile": "Your profile",
+      "billing": "Billing",
+      "logout": "Sign out",
+      "planAdmin": "Admin",
+      "plan": "{plan} plan",
+      "planFree": "Free plan",
+      "breadcrumb": "Breadcrumb",
+      "credits": "credits · {plan}",
+      "creditsTitle": "Credits & billing"
+    },
+    "recency": {
+      "today": "Today",
+      "week": "Last 7 days",
+      "month": "Last 30 days",
+      "older": "Older",
+      "never": "Never opened"
+    },
+    "sourceMode": {
+      "groupLabel": "Where are you starting from?",
+      "import": {
+        "label": "Upload an existing SRS",
+        "shortLabel": "Existing SRS",
+        "description": "You have a .docx — FlintFlow finds the gaps and helps you fix them"
+      },
+      "customerTemplate": {
+        "label": "Client template",
+        "shortLabel": "Client template",
+        "description": "Upload the client's template and write a new SRS on it"
+      },
+      "fpt": {
+        "label": "No template yet",
+        "shortLabel": "FlintFlow template",
+        "description": "Use the FlintFlow SRS template, starting from your idea or notes"
+      }
+    },
+    "projectCard": {
+      "status": {
+        "draft": "Draft",
+        "analyzing": "Analyzing",
+        "clarify": "Needs clarifying",
+        "ready": "Ready"
+      },
+      "next": {
+        "loading": "Loading…",
+        "done": "Completed",
+        "resume": "Open to continue",
+        "notStarted": "Not started — open to describe the idea"
+      },
+      "mode1": {
+        "notUploaded": "No SRS uploaded — open to upload a .docx",
+        "importing": "Importing SRS: {state}",
+        "openCrs": "{count, plural, one {# open change request} other {# open change requests}}"
+      },
+      "progressLabel": "Progress by phase",
+      "phaseOf": "Phase {current}/{total}: {phase}",
+      "allPhases": "All {total} phases done",
+      "notStarted": "Not started",
+      "folderTitle": "Folder {name}",
+      "archived": "Archived",
+      "options": "Options for {name}",
+      "menu": {
+        "rename": "Rename",
+        "moveToFolder": "Move to folder",
+        "archive": "Archive",
+        "hardDelete": "Delete permanently"
+      },
+      "gridLoading": "Loading projects"
+    },
+    "folderCard": {
+      "projectCount": "{count, plural, one {# project} other {# projects}}",
+      "options": "Options for folder {name}",
+      "rename": "Rename",
+      "delete": "Delete folder",
+      "new": "New folder",
+      "colors": {
+        "blue": "Blue",
+        "amber": "Amber",
+        "green": "Green",
+        "rose": "Rose"
+      }
+    },
+    "createProject": {
+      "defaultName": "Untitled project",
+      "nameLabel": "Project name",
+      "pickMode": "Pick a way to start above to continue.",
+      "submitting": "Creating…",
+      "submit": "Start",
+      "missingProject": "The new project was not returned",
+      "failed": "Could not create the project"
+    },
+    "projectDialogs": {
+      "archive": {
+        "title": "Archive project",
+        "question": "Archive",
+        "detail": "The project is hidden from your active list; find it again with the Status: Archived filter.",
+        "cta": "Archive",
+        "busy": "Archiving…",
+        "failed": "Could not archive the project"
+      },
+      "delete": {
+        "title": "Delete project permanently",
+        "question": "Delete permanently",
+        "detail": "Every conversation, SRS document and attachment is erased for good. This cannot be undone.",
+        "cta": "Delete permanently",
+        "busy": "Deleting…",
+        "failed": "Could not delete the project"
+      },
+      "renameTitle": "Rename project",
+      "renameFailed": "Could not rename the project",
+      "renameLabel": "New project name",
+      "saveChanges": "Save changes",
+      "confirm": "{action} “{name}”?"
+    },
+    "folderDialogs": {
+      "deleteTitle": "Delete folder",
+      "deleteFailed": "Could not delete the folder",
+      "moveTitle": "Move to folder",
+      "moveFailed": "Could not move the project",
+      "noFolder": "No folder",
+      "noFolders": "No folders yet — create one in the Folders row on the dashboard.",
+      "createTitle": "New folder",
+      "editTitle": "Edit folder",
+      "createFailed": "Could not create the folder",
+      "updateFailed": "Could not update the folder",
+      "namePlaceholder": "For example: Client A",
+      "colorLegend": "Color",
+      "create": "Create folder",
+      "deleteBody": "Delete the folder “{name}”? Every project inside it (archived ones included) is kept and moved out of the folder.",
+      "moveLegend": "Project “{name}”",
+      "move": "Move",
+      "nameLabel": "Folder name"
+    },
+    "addToFolder": {
+      "modeLabel": "How to add projects",
+      "existing": "Pick existing projects",
+      "create": "Create new",
+      "searchLabel": "Search projects to add",
+      "searchPlaceholder": "Search projects…",
+      "legend": "Projects you can add",
+      "inOtherFolder": " · currently in another folder",
+      "noneMoved": "No project was moved — it may have been deleted or moved elsewhere.",
+      "failed": "Could not add the projects to the folder",
+      "title": "Add projects to “{folder}”",
+      "allInFolder": "Every active project is already in this folder. Switch to “Create new” to add one.",
+      "noMatch": "No project matches “{query}”.",
+      "selected": "{count} selected",
+      "selectedMax": "{count} selected ({max} max per batch)",
+      "add": "Add to folder"
+    },
+    "feedback": {
+      "title": "Send feedback",
+      "kindLegend": "Feedback type",
+      "bug": "Report a bug",
+      "suggestion": "Suggestion",
+      "other": "Other",
+      "placeholder": "What went wrong, or what would you like FlintFlow to do?",
+      "failed": "Could not send your feedback, please try again later",
+      "sent": "Thank you! Your feedback has reached the FlintFlow team.",
+      "messageLabel": "Message",
+      "submit": "Send feedback"
+    },
+    "home": {
+      "onboardingTitle": "Start your first SRS project",
+      "onboardingBody": "Pick where you are starting — FlintFlow walks you through the right process for that case.",
+      "searchLabel": "Search projects by name",
+      "searchPlaceholder": "Search projects…",
+      "newProject": "New project",
+      "newProjectShort": "New",
+      "createTitle": "Create a project",
+      "createInFolderTitle": "New project in “{folder}”",
+      "allProjects": "All projects",
+      "addProject": "Add projects",
+      "tabsLabel": "View by",
+      "tabAll": "All",
+      "tabFolders": "Folders",
+      "tabProjects": "Projects",
+      "sortLabel": "Sort",
+      "sortUpdated": "Recently updated",
+      "sortOpened": "Recently opened",
+      "statusLabel": "Status",
+      "statusActive": "Active",
+      "statusArchived": "Archived",
+      "modeLabel": "Source",
+      "modeAll": "All",
+      "foldersTitle": "Folders",
+      "foldersHint": "Drag a project card onto a folder to file it.",
+      "foldersError": "Could not load folders: {message}",
+      "projectsTitle": "Projects",
+      "looseProjectsTitle": "Projects outside folders",
+      "noMatchTitle": "No project matches these filters",
+      "noMatchBody": "Try another status, source or search term.",
+      "clearFilters": "Clear filters",
+      "emptyFolderTitle": "This folder has no projects yet",
+      "allInFoldersTitle": "Every project is already in a folder",
+      "emptyTitle": "No active projects yet",
+      "emptyFolderBody": "Pick a way to start a new project right in this folder, or add existing ones.",
+      "emptyBody": "Pick a way to start a new project, or reopen an archived one.",
+      "addExisting": "Add existing projects",
+      "viewArchived": "View archive",
+      "moveFailed": "Could not move the project into the folder"
+    },
+    "profile": {
+      "title": "Your profile",
+      "breadcrumb": "Profile",
+      "loading": "Loading profile…",
+      "loadFailed": "Could not load your profile",
+      "info": "Personal information",
+      "nameSaved": "Display name updated.",
+      "nameLabel": "Display name",
+      "nameEmpty": "The display name cannot be empty.",
+      "nameFailed": "Could not save the display name",
+      "nameUnset": "Not set",
+      "edit": "Edit",
+      "email": "Email",
+      "emailVerified": "✓ Verified",
+      "emailUnverified": "Not verified",
+      "provider": "Sign-in method",
+      "providerGoogleBoth": "Google + email/password",
+      "providerGoogle": "Google",
+      "providerLocal": "Email/password",
+      "joined": "Joined",
+      "credits": "Credits",
+      "creditAmount": "{credits} credits",
+      "toBilling": "Billing & credits →",
+      "createPasswordTitle": "Create a password",
+      "createPasswordBody": "Your account signs in with Google, so it has no password yet. Create one to also sign in with the email <b>{email}</b> — Google keeps working as before.",
+      "createPasswordCta": "Create a password by email →",
+      "createPasswordNote": "We will email you a one-time code. After creating it you will need to sign in again.",
+      "changePasswordTitle": "Change password",
+      "changePasswordBody": "Once changed, other devices are signed out. This device stays signed in.",
+      "changePasswordSuccess": "Password changed. Other devices have been signed out.",
+      "changePasswordFailed": "Could not change the password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmNewPassword": "Confirm new password",
+      "sameAsCurrent": "The new password must differ from the current one.",
+      "confirmMismatch": "The confirmation does not match your new password.",
+      "saving": "Updating…",
+      "submit": "Change password",
+      "forgotCurrent": "Forgot your current password?",
+      "forgotNote": "After resetting it you will need to sign in again."
+    }
+  },
+  "workspace": {
+    "shell": {
+      "loading": "Loading the SRS workspace…",
+      "conflict": "The document just changed in another session — it has been reloaded, please try again.",
+      "saveFailed": "Could not save the change",
+      "acceptedNotice": "Step <b>{step}</b> ({label}) is locked. To change its content, send an edit request through chat.",
+      "close": "Close",
+      "resizeHint": "Drag to resize (double-click to reset)",
+      "editCommand": "‹ Edit command",
+      "editCommandHint": "Edit by command with a diff preview",
+      "tools": "‹ Tools",
+      "toolsHint": "Proper names, glossary and screen queue",
+      "toolsAria": "Tools",
+      "briefSummary": "Brief summary",
+      "assumptions": "Assumptions awaiting confirmation (B-2.1)",
+      "briefNotes": "Brief notes (B-2.2)",
+      "namesGlossary": "Proper names & glossary",
+      "screenQueue": "Screen queue (S-5)"
+    },
+    "header": {
+      "projects": "Projects",
+      "untitled": "SRS project",
+      "exportHint": "Export the SRS document",
+      "logout": "Log out"
+    },
+    "phaseHeader": {
+      "done": "Complete",
+      "runStep": "▶ Run this step",
+      "deepDive": "Deep dive (next round)",
+      "partyMode": "Party Mode (next round)",
+      "changeModeHint": "Change the way of working at a phase boundary"
+    },
+    "phaseNav": {
+      "toggleSidebar": "Toggle chat session history",
+      "exportHint": "Open the finish-and-export flow",
+      "verificationHint": "Quality & readiness review",
+      "readinessHint": "Readiness score: % of required sections accepted"
+    },
+    "stepBar": {
+      "aria": "Progress by step",
+      "label": "Steps"
+    },
+    "view": {
+      "untitled": "Project",
+      "readOnly": "Read-only",
+      "back": "← Back to workspace",
+      "loading": "Loading document…",
+      "loadFailed": "Could not load the document",
+      "loadFailedWith": "Could not load the document: {error}",
+      "incomplete": "not complete yet"
+    },
+    "chatPane": {
+      "title": "Conversation & step review",
+      "emptyTitle": "Start the current step",
+      "emptyBody": "Click “Run this step” so the AI asks for what's missing and drafts it, or chat freely and attach reference documents.",
+      "notPipeline": "This isn't a pipeline session — edit commands typed below go straight to the Change panel for preview and confirmation.",
+      "editPlaceholder": "Type an edit command — sent to the Change panel…"
+    },
+    "chatInput": {
+      "placeholder": "Type your answer or an edit request…",
+      "removeFile": "Remove this file",
+      "attach": "Attach reference documents (.pdf, .docx, .txt)",
+      "send": "Send message (Enter)"
+    },
+    "chatBubble": {
+      "copied": "Copied!",
+      "copy": "Copy message",
+      "rollback": "Roll back to this question",
+      "responding": "Responding..."
+    },
+    "chatSessions": {
+      "title": "Chat session history",
+      "newSession": "New chat session",
+      "empty": "No chat sessions yet",
+      "newPreview": "New session",
+      "sessionName": "Session #{id}",
+      "options": "Options",
+      "delete": "Delete chat session",
+      "confirmTitle": "Delete this chat session?",
+      "confirmBody": "The conversation history in this session will be permanently deleted. Specifications already generated in the project are kept.",
+      "cancel": "Cancel",
+      "confirmDelete": "Delete session"
+    },
+    "gate": {
+      "title": "Review gate",
+      "noRegenerate": "No Regenerate attempts left",
+      "revisionLabel": "What needs to change?",
+      "acceptAsIsLabel": "Reason for accepting the current version (required)",
+      "sendRevision": "Send revision request",
+      "confirmAcceptAsIs": "Confirm Accept as-is"
+    },
+    "stepLog": {
+      "aria": "Step log",
+      "intakeMissing": "Intake: missing {fields}",
+      "intakeOk": "Intake: all input data present",
+      "elicit": "AI is asking for clarification",
+      "answerNeeded": "Waiting for you to answer {count, plural, one {# question} other {# questions}}",
+      "draft": "Drafting (attempt {attempt})",
+      "opsApplied": "Wrote {count, plural, one {# change} other {# changes}} (version {version})",
+      "renderOk": "Rendered diagram {id}",
+      "renderFailed": "Rendering diagram {id} failed: {error}",
+      "flags": "Check: {red, plural, one {# red flag} other {# red flags}}, {yellow, plural, one {# yellow flag} other {# yellow flags}}",
+      "gateReady": "Ready for review",
+      "error": "Error {code}: {message}"
+    },
+    "screenQueue": {
+      "aria": "Screen queue",
+      "empty": "No screens yet (locked at S-4.1).",
+      "markPlaceholder": "Leave for later (placeholder)",
+      "status": {
+        "pending": "Pending",
+        "in_progress": "In progress",
+        "signed_off": "Signed off",
+        "placeholder": "Deferred"
+      }
+    },
+    "questionStepper": {
+      "counter": "Question {current} / {total}",
+      "multi": "✦ Multiple choice",
+      "single": "◉ Single choice",
+      "questionN": "Question {n}",
+      "close": "Close / type freely",
+      "suggestMulti": "Suggested answers (pick one or more):",
+      "suggestSingle": "Suggested answers (pick the best one):",
+      "ownAnswer": "Your own answer:",
+      "placeholderExtra": "Type your own answer or add details...",
+      "placeholderOwn": "Type your answer...",
+      "back": "Back",
+      "skip": "Skip (type freely)",
+      "next": "Next",
+      "submit": "Send answers",
+      "withExtra": "{options} (Additional: {custom})"
+    },
+    "session": {
+      "createFailed": "Could not create a new conversation",
+      "offline": "Can't reach the server. Please reload the page.",
+      "loadFailed": "Could not load the conversation",
+      "deleteFailed": "Could not delete the conversation: {error}",
+      "error": "Error",
+      "sendFailed": "Could not send the message",
+      "attachmentOnly": "[Attached documents]"
+    },
+    "runnerErrors": {
+      "notPipelineSession": "No pipeline session yet, or the Spine hasn't finished loading",
+      "streamClosed": "The connection to the step closed midway. Please run it again."
+    },
+    "hookErrors": {
+      "docLoadFailed": "Could not load the document",
+      "spineNotReady": "The Spine hasn't finished loading — try again in a moment.",
+      "docConflict": "The document just changed in another session — reload the page and try assembling again.",
+      "assembleFailed": "Could not assemble the document",
+      "flagsLoadFailed": "Could not load the flag list",
+      "waiveFailed": "Waiving the flag failed",
+      "recomputeFailed": "Recomputing flags failed",
+      "actionFailed": "The action failed",
+      "spineLoadFailed": "Could not load the Spine",
+      "progressLoadFailed": "Could not load progress"
+    },
+    "document": {
+      "status": {
+        "accepted": "Accepted",
+        "draft": "Draft",
+        "stale": "Stale",
+        "derived": "Derived"
+      },
+      "imageFailed": "Could not load the diagram image",
+      "imageFailedWith": "Could not load the image: {error}",
+      "imageLoading": "Loading image…",
+      "awaitingReaccept": "Awaiting re-approval",
+      "viewAt": "see {step} · {label}",
+      "incomplete": "Not complete yet — content appears once the step owning this section runs.",
+      "untitled": "Project",
+      "staleHint": "The Spine changed after the last assembly",
+      "assembling": "Assembling…",
+      "reassemble": "Reassemble",
+      "reload": "↻ Reload",
+      "loading": "Loading document…",
+      "notAssembled": "No assembled document yet",
+      "assemblingDoc": "Assembling document…",
+      "assembleNow": "Assemble document now",
+      "goToAssemble": "Go to S-8.2 · Assemble document",
+      "assembleFailedWith": "Could not assemble the document: {error}",
+      "loadFailedWith": "Could not load the document: {error}"
+    },
+    "verification": {
+      "closeHint": "Close the review panel",
+      "loadingFlags": "Loading flags…"
+    },
+    "flags": {
+      "waiveTitle": "Waive flag {rule}",
+      "reasonLabel": "Reason (at least {min} characters)",
+      "reasonPlaceholder": "Why is it acceptable to skip this flag?",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "confirmWaive": "Confirm waive",
+      "aria": "Flag list",
+      "openCount": "Open flags ({count})",
+      "none": "No open flags.",
+      "notWaivableHint": "This rule can't be waived",
+      "notWaivable": "Can't be waived",
+      "waivedCount": "Waived ({count})"
+    },
+    "readiness": {
+      "loading": "Loading readiness score…",
+      "aria": "Readiness summary",
+      "title": "Readiness",
+      "awaiting": "{count} awaiting re-approval",
+      "red": "{count, plural, one {# red flag} other {# red flags}}",
+      "stale": "{count, plural, one {# stale item} other {# stale items}}"
+    },
+    "trace": {
+      "failed": "Traceability lookup failed",
+      "placeholder": "ID (e.g. A01)",
+      "search": "Look up",
+      "none": "No links.",
+      "colKind": "Kind",
+      "colLabel": "Label"
+    },
+    "export": {
+      "title": "Export SRS document",
+      "draftTab": "Word draft (DRAFT)",
+      "baselineTab": "Word baseline",
+      "noBaseline": "No baseline yet",
+      "baselineCheckFailed": "Could not check baselines",
+      "baselineCheckFailedWith": "Could not check baselines: {error}",
+      "loading": "Loading assembly info…",
+      "notAssembled": "No assembled document for this source yet.",
+      "version": "Version",
+      "assembledAt": "Assembled at Spine v{version}",
+      "staleVs": "outdated vs. v{version}",
+      "redCount": "Red flags to be printed in §I",
+      "noDraft": "The document isn't assembled yet — run S-8.2 first.",
+      "downloadFailed": "Download failed",
+      "downloading": "Downloading…",
+      "downloadDraft": "Download draft (.docx)",
+      "downloadBaseline": "Download baseline (.docx)"
+    },
+    "change": {
+      "title": "Edit by command",
+      "instruction": "Edit command",
+      "placeholder": "e.g. Rename actor A03 to Administrator",
+      "previewing": "Previewing…",
+      "preview": "Preview changes",
+      "clarify": "Needs clarification",
+      "reconcileHint": "Batch pending changes (if any) into one set, preview, then apply",
+      "reconcile": "Reconcile once",
+      "undo": "Undo last op",
+      "hideHistory": "Hide change history",
+      "showHistory": "Show change history (20 rows)",
+      "loading": "Loading…",
+      "noHistory": "No history from the Change panel yet.",
+      "hideTrace": "Hide traceability",
+      "showTrace": "Look up traceability"
+    },
+    "diff": {
+      "title": "Preview changes",
+      "deleted": "(deleted)",
+      "none": "No changes.",
+      "impact": "Impact",
+      "rerender": "Diagrams to re-render: {ids}",
+      "referrers": "Referenced by: {refs}",
+      "cancel": "Cancel",
+      "applying": "Applying…",
+      "confirm": "Confirm"
+    },
+    "brief": {
+      "section": {
+        "overview": "Product overview",
+        "actors": "Actors",
+        "screenDesc": "Screen description",
+        "reliability": "Reliability",
+        "performance": "Performance",
+        "other": "Other requirements (deferred)"
+      },
+      "formFactor": {
+        "web_app": "Web",
+        "mobile_app": "Mobile",
+        "desktop_app": "Desktop",
+        "api_service": "API",
+        "cli": "CLI",
+        "embedded": "Embedded"
+      },
+      "stakes": {
+        "internal": "Internal",
+        "production": "Production",
+        "regulated": "Regulated industry"
+      },
+      "otherKind": {
+        "risk": "Risk",
+        "assumption": "Assumption",
+        "open_question": "Open question",
+        "technical_risk": "Technical risk"
+      },
+      "modeFast": "Fast mode",
+      "modeCoaching": "Coaching mode",
+      "unconfirmed": "{count, plural, one {# assumption} other {# assumptions}} awaiting confirmation",
+      "missing": "No {label} yet — go back to the matching step to add it.",
+      "missingVision": "vision (B-1.1)",
+      "missingGoals": "goals (B-1.1)",
+      "missingNotes": "notes (B-0.1 → B-1.6)",
+      "vision": "Vision",
+      "goals": "Goals",
+      "notesBySection": "Notes by document section",
+      "risks": "Risks & open questions"
+    },
+    "triage": {
+      "empty": "No notes from the Brief phase yet.",
+      "parked": "Deferred",
+      "moveTo": "Send to",
+      "confirmDrop": "Drop it because the content is wrong?",
+      "drop": "Drop",
+      "keep": "Keep",
+      "dropHint": "Only drop when the content is wrong — if it's just not for this version, choose Deferred above",
+      "dropEntry": "Drop this entry",
+      "intro": "{count, plural, one {# note} other {# notes}}. Change the target if it points to the wrong place; pick §5.4 to defer it to a later version. Only drop when the content is wrong."
+    },
+    "sweep": {
+      "none": "No assumptions awaiting confirmation.",
+      "solo": "Needs individual review",
+      "right": "Correct",
+      "wrong": "Wrong",
+      "wrongHint": "The value based on this assumption is wrong — that part needs fixing",
+      "intro": "{count, plural, one {# assumption} other {# assumptions}} awaiting confirmation. Confirming keeps the content as is; marking wrong means the parts based on it need fixing.",
+      "confirmRest": "Confirm the remaining {count, plural, one {# assumption} other {# assumptions}}"
+    },
+    "names": {
+      "aria": "Proper names and glossary",
+      "tab": {
+        "actors": "Actors",
+        "entities": "Entities",
+        "screens": "Screens",
+        "glossary": "Glossary"
+      },
+      "empty": "No entries yet.",
+      "newTerm": "New term",
+      "definition": "Definition (in English)",
+      "save": "Save canonical names"
+    }
+  },
+  "errors": {
+    "EMAIL_EXISTS": "This email is already registered.",
+    "EMAIL_NOT_VERIFIED": "Your email isn't verified yet. Please check your inbox.",
+    "INVALID_CREDENTIALS": "Incorrect email or password.",
+    "INVALID_GOOGLE_TOKEN": "Google sign-in is invalid, please try again.",
+    "GOOGLE_EMAIL_MISSING": "Your Google account has no email address.",
+    "INVALID_TOKEN": "The link is invalid or has already been used.",
+    "TOKEN_ALREADY_USED": "This link has already been used.",
+    "TOKEN_EXPIRED": "The link has expired. Please request a new one.",
+    "TOKEN_REUSE_DETECTED": "Session reuse detected — all sessions were signed out to protect your account.",
+    "UNAUTHORIZED": "Your session has expired. Please log in again.",
+    "INVALID_ACCESS_TOKEN": "Your session has expired. Please log in again.",
+    "MISSING_ACCESS_TOKEN": "Your session has expired. Please log in again.",
+    "INVALID_REFRESH_TOKEN": "Your session has expired. Please log in again.",
+    "EXPIRED_REFRESH_TOKEN": "Your session has expired. Please log in again.",
+    "MISSING_REFRESH_TOKEN": "Your session has expired. Please log in again.",
+    "USER_NOT_FOUND": "User not found.",
+    "RATE_LIMIT_EXCEEDED": "The AI service is busy. Please try again in a few minutes.",
+    "PROJECT_NOT_FOUND": "Project not found or you don't have access.",
+    "NAME_REQUIRED": "Please enter a project name.",
+    "CHAT_SESSION_NOT_FOUND": "Chat session not found.",
+    "CONTENT_REQUIRED": "The message can't be empty.",
+    "FILE_REQUIRED": "Please choose a file.",
+    "UNSUPPORTED_FILE_TYPE": "Only PDF, DOCX, MD and TXT files are supported.",
+    "DOCUMENT_NOT_FOUND": "Document not found.",
+    "INSUFFICIENT_CREDIT": "Not enough credits for this action. Please top up.",
+    "INTENT_NOT_FOUND": "Transaction not found.",
+    "PACKAGE_NOT_FOUND": "Credit package not found.",
+    "PAYMENT_SERVICE_ERROR": "The payment gateway rejected the request.",
+    "PAYMENT_SERVICE_NOT_CONFIGURED": "The payment gateway isn't configured.",
+    "PAYMENT_SERVICE_UNAVAILABLE": "Can't reach the payment gateway.",
+    "WALLET_NOT_FOUND": "Credit wallet not found.",
+    "NOTIFICATION_NOT_FOUND": "Notification not found.",
+    "SPINE_NOT_FOUND": "The project's document data (Spine) wasn't found.",
+    "STEP_NOT_FOUND": "Step not found.",
+    "FLAG_NOT_FOUND": "Flag not found.",
+    "FLAG_NOT_WAIVABLE": "This rule can't be waived.",
+    "BASELINE_NOT_FOUND": "Baseline not found.",
+    "DIAGRAM_NOT_FOUND": "Diagram not found.",
+    "SPINE_VERSION_CONFLICT": "The document just changed in another session. Please reload and try again.",
+    "REGENERATE_LIMIT": "All 3 Regenerate attempts for this step are used up.",
+    "CALL_LIMIT": "This step has used all 8 AI calls — only Accept or Accept as-is remain.",
+    "STEP_NOT_RUNNABLE": "This step isn't ready to run or review yet.",
+    "NO_WORKING_DRAFT": "The document isn't assembled yet — run S-8.2 (Assemble document) first.",
+    "NOTHING_TO_UNDO": "Nothing left to undo.",
+    "BASELINE_BLOCKED": "There are unresolved red flags — the baseline can't be recorded yet.",
+    "NOT_PIPELINE_SESSION": "This isn't a pipeline session.",
+    "NOT_IMPLEMENTED": "This feature isn't supported yet.",
+    "NO_DATA": "No data received from the server."
+  }
+}

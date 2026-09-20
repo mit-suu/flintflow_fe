@@ -1,7 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "@/components/Logo";
 import { NAV_LINKS } from "./content";
 import { ArrowRight } from "./ui";
@@ -14,6 +16,7 @@ type SectionHref = (typeof NAV_LINKS)[number]["href"];
  * `primary`) và tự đổi theo section đang nằm giữa màn hình.
  */
 export default function SiteHeader() {
+  const t = useTranslations("landing");
   const [active, setActive] = useState<SectionHref>(NAV_LINKS[0].href);
 
   useEffect(() => {
@@ -44,7 +47,7 @@ export default function SiteHeader() {
     <header className="sticky top-0 z-50 flex justify-center px-4 pt-4 sm:px-6 sm:pt-5">
       <div className="flex w-full max-w-[1120px] items-center gap-3 rounded-full bg-surface-container-lowest/90 py-2.5 pl-7 pr-2.5 shadow-[0_1px_2px_rgba(25,24,23,0.04),0_10px_30px_rgba(25,24,23,0.07)] backdrop-blur-lg">
         <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" href="/" className="mr-4" />
-        <nav aria-label="Điều hướng chính" className="mx-auto hidden items-center gap-0.5 rounded-full bg-surface-sidebar p-1 md:flex">
+        <nav aria-label={t("a11y.mainNav")} className="mx-auto hidden items-center gap-0.5 rounded-full bg-surface-sidebar p-1 md:flex">
           {NAV_LINKS.map((link) => {
             const current = link.href === active;
             return (
@@ -58,23 +61,24 @@ export default function SiteHeader() {
                     : "font-semibold text-on-surface-variant hover:bg-surface-container-lowest hover:text-on-surface"
                 }`}
               >
-                {link.label}
+                {t(`nav.${link.key}`)}
               </a>
             );
           })}
         </nav>
         <div className="ml-auto flex items-center gap-1.5 md:ml-0">
+          <LocaleSwitcher />
           <Link
             href="/login"
             className="hidden rounded-full px-4 py-2.5 text-[13px] font-bold text-on-surface transition-colors hover:bg-surface-sidebar sm:inline-flex"
           >
-            Đăng nhập
+            {t("header.login")}
           </Link>
           <Link
             href="/register"
             className="inline-flex items-center gap-1.5 rounded-full bg-primary py-2.5 pl-5 pr-4 text-[13px] font-bold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            Dùng thử miễn phí
+            {t("header.tryFree")}
             <ArrowRight className="size-3.5" />
           </Link>
         </div>

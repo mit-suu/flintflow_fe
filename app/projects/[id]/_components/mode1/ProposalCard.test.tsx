@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import type { CrLocation } from "@/types/change-request";
 import ProposalCard from "./ProposalCard";
@@ -46,7 +47,7 @@ const card = () => screen.getByRole("article", { name: "Vị trí L001" });
 
 describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81, FLF-186)", () => {
   it("chưa kết luận: hiện path, mục, tóm tắt phần tử, nguồn tìm thấy, bước sở hữu, phần tử liên quan; không có huy hiệu kết luận", () => {
-    render(
+    renderWithIntl(
       <ProposalCard
         location={location({ found_by: ["spine_link", "mention", "keyword"], owner_step: "S-3.2", entity_paths: ["actors[id=A01]"] })}
         editable={false}
@@ -67,7 +68,7 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
   });
 
   it("kết luận sửa ⇒ thay đổi theo field: cũ (del) → mới (ins), nhãn “Sửa”, lý do", () => {
-    render(<ProposalCard location={location({ conclusion: "edit", reason: "UC-2.4 đổi phạm vi", proposal: proposal({ new_text: NEW }) })} editable={false} onPatch={vi.fn()} />);
+    renderWithIntl(<ProposalCard location={location({ conclusion: "edit", reason: "UC-2.4 đổi phạm vi", proposal: proposal({ new_text: NEW }) })} editable={false} onPatch={vi.fn()} />);
     const changes = within(card()).getByLabelText("Thay đổi theo field");
     expect(within(changes).getByText("description")).toBeInTheDocument();
     expect(within(changes).getByText(UC.description).tagName).toBe("DEL");
@@ -78,14 +79,14 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
   });
 
   it("kết luận chỉ comment ⇒ nội dung comment, không có thay đổi", () => {
-    render(<ProposalCard location={location({ conclusion: "comment", proposal: proposal({ comment_text: "Cần xác nhận với PM" }) })} editable={false} onPatch={vi.fn()} />);
+    renderWithIntl(<ProposalCard location={location({ conclusion: "comment", proposal: proposal({ comment_text: "Cần xác nhận với PM" }) })} editable={false} onPatch={vi.fn()} />);
     expect(within(card()).getByText("Chỉ comment")).toBeInTheDocument();
     expect(within(card()).getByText("💬 Cần xác nhận với PM")).toBeInTheDocument();
     expect(within(card()).queryByLabelText("Thay đổi theo field")).not.toBeInTheDocument();
   });
 
   it("kết luận không liên quan ⇒ nhãn + lý do; sửa tay có huy hiệu “sửa tay”", () => {
-    render(
+    renderWithIntl(
       <ProposalCard location={location({ conclusion: "not_related", reason: "Chỉ nhắc tên, không đổi nghĩa", manual: true, proposal: proposal() })} editable={false} onPatch={vi.fn()} />
     );
     expect(within(card()).getByText("Không liên quan")).toBeInTheDocument();
@@ -94,7 +95,7 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
   });
 
   it("kiểm trượt ⇒ viền đỏ + kết quả kiểm trong thẻ", () => {
-    render(
+    renderWithIntl(
       <ProposalCard
         location={location({
           conclusion: "edit",
@@ -117,7 +118,7 @@ describe("ProposalCard — sửa tay (3.9)", () => {
 
   it("mặc định kết luận Sửa, giá trị mới = giá trị hiện tại (JSON) ⇒ chưa đổi / JSON sai thì không lưu được; đổi rồi lưu gửi new_value", () => {
     const onPatch = vi.fn();
-    render(<ProposalCard location={location()} editable onPatch={onPatch} />);
+    renderWithIntl(<ProposalCard location={location()} editable onPatch={onPatch} />);
     open();
     expect(radio("Sửa")).toBeChecked();
     const text = within(card()).getByLabelText("Giá trị mới (JSON)");
@@ -138,7 +139,7 @@ describe("ProposalCard — sửa tay (3.9)", () => {
 
   it("không liên quan bắt buộc lý do; lưu gửi reason đã cắt khoảng trắng, không gửi new_value", () => {
     const onPatch = vi.fn();
-    render(<ProposalCard location={location({ conclusion: "edit", proposal: proposal({ new_text: NEW }) })} editable onPatch={onPatch} />);
+    renderWithIntl(<ProposalCard location={location({ conclusion: "edit", proposal: proposal({ new_text: NEW }) })} editable onPatch={onPatch} />);
     open();
     fireEvent.click(radio("Không liên quan"));
     expect(within(card()).queryByLabelText("Giá trị mới (JSON)")).not.toBeInTheDocument();
@@ -153,7 +154,7 @@ describe("ProposalCard — sửa tay (3.9)", () => {
 
   it("chỉ comment bắt buộc nội dung comment; lý do tuỳ chọn", () => {
     const onPatch = vi.fn();
-    render(<ProposalCard location={location()} editable onPatch={onPatch} />);
+    renderWithIntl(<ProposalCard location={location()} editable onPatch={onPatch} />);
     open();
     fireEvent.click(radio("Chỉ comment"));
     expect(within(card()).getByLabelText("Lý do")).toHaveAttribute("placeholder", "Lý do (tuỳ chọn)");
@@ -166,7 +167,7 @@ describe("ProposalCard — sửa tay (3.9)", () => {
   it("mở lại form giữ giá trị đề xuất hiện có; Huỷ đóng form không gọi onPatch; đang lưu ⇒ nút khoá", () => {
     const onPatch = vi.fn();
     const loc = location({ conclusion: "comment", reason: "cũ", proposal: proposal({ comment_text: "Ghi chú AI" }) });
-    const { rerender } = render(<ProposalCard location={loc} editable onPatch={onPatch} />);
+    const { rerender } = renderWithIntl(<ProposalCard location={loc} editable onPatch={onPatch} />);
     open();
     expect(radio("Chỉ comment")).toBeChecked();
     expect(within(card()).getByLabelText("Nội dung comment")).toHaveValue("Ghi chú AI");

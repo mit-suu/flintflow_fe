@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { usePathname } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listProjects } from "@/lib/api/projects";
@@ -33,7 +34,7 @@ const project = (id: string, updatedAt: string, over: Partial<Project> = {}): Pr
 const renderSidebar = (projects: Project[], pathname = "/home") => {
   vi.mocked(usePathname).mockReturnValue(pathname);
   vi.mocked(listProjects).mockResolvedValue({ data: projects, error: null } as never);
-  return render(
+  return renderWithIntl(
     <ProjectsProvider>
       <AppShell sidebar={<AppSidebar user={{ name: "hiep", email: "hiep@x.vn", isAdmin: false }} />}>
         <p>nội dung</p>
