@@ -1,5 +1,6 @@
 import { apiCall } from "./client";
 import type { CreditTransaction } from "./billing";
+import type { FeedbackCategory } from "./feedback";
 
 export type AdminUserRole = "user" | "admin";
 export type AiCostGroupBy = "day" | "actionType" | "provider" | "user";
@@ -116,8 +117,17 @@ export async function fetchAiCost(params: FetchAiCostParams = {}): Promise<AiCos
   return unwrap(res.data, "chi phí AI");
 }
 
-export async function fetchAdminFeedback(): Promise<unknown[]> {
-  const res = await apiCall<unknown[]>("/admin/feedback");
+/** Một góp ý (BE `feedback.service.listFeedback`): mới nhất trước, `user` null nếu tài khoản đã xoá. */
+export interface AdminFeedbackItem {
+  _id: string;
+  category: FeedbackCategory;
+  message: string;
+  createdAt: string;
+  user: { _id: string; email: string; name: string | null } | null;
+}
+
+export async function fetchAdminFeedback(): Promise<AdminFeedbackItem[]> {
+  const res = await apiCall<AdminFeedbackItem[]>("/admin/feedback");
   return res.data ?? [];
 }
 

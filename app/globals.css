@@ -20,17 +20,18 @@
   --color-dark-card: rgba(26, 25, 33, 0.6);
   --color-dark-border: rgba(255, 255, 255, 0.1);
 
-  /* ── Primary palette (Indigo / Purple Blue) ── */
-  --color-primary: #4f46e5;
-  --color-primary-container: #4f46e5;
-  --color-primary-hover: #3b34b0;
-  --color-primary-light: #7c74f0;
-  --color-primary-soft: #f4f3fe;
+  /* ── Primary palette: tím indigo DỊU (bớt bão hoà so với #6A62C4 cũ — gắt, mỏi mắt). Chữ trắng trên primary ≈ 5:1 (AA).
+     Còn hex tím ghi cứng ở các trang cũ thì dùng đúng các giá trị này. ── */
+  --color-primary: #6a62c4;
+  --color-primary-container: #6a62c4;
+  --color-primary-hover: #554db0;
+  --color-primary-light: #8e87d6;
+  --color-primary-soft: #f2f1fb;
   --color-on-primary: #ffffff;
-  --color-on-primary-container: #dad7ff;
-  --color-primary-fixed: #e2dfff;
-  --color-primary-fixed-dim: #c3c0ff;
-  --color-inverse-primary: #c3c0ff;
+  --color-on-primary-container: #dcd9f5;
+  --color-primary-fixed: #e4e1f6;
+  --color-primary-fixed-dim: #c9c4ec;
+  --color-inverse-primary: #c9c4ec;
 
   /* ── Accent / Gold ── */
   --color-accent-gold: #e8a23d;
@@ -53,6 +54,11 @@
   --color-on-error: #ffffff;
   --color-on-error-container: #8a4141;
 
+  /* ── Info / Blue (mode "Upload SRS có sẵn" — docs/design-system.md "Edited manually") ── */
+  --color-info: #3b4fa8;
+  --color-info-soft: #eef1fb;
+  --color-info-border: #d5dcf3;
+
   /* ── Surface & Warm Backgrounds ── */
   --color-surface: #f5f3f0;
   --color-surface-dim: #e4e1dc;
@@ -62,8 +68,32 @@
   --color-surface-container: #f5f3f0;
   --color-surface-container-high: #f0eeea;
   --color-surface-container-highest: #e4e1dc;
+  /* ── Card dự án: nền + bộ màu chữ/rãnh đi kèm ──
+     Nhóm này là MỘT BỘ: đổi `surface-card` thì phải chỉnh lại cả `on-card*` và `card-track` cho cùng tông,
+     và kiểm lại tương phản chữ trên nền mới (chữ phụ ≥ 4.5:1).
+     Tông hiện tại: tím pastel "bụi" (ngả xám, dịu — cùng kiểu thư mục), PHẲNG (không bóng) — cùng ngôn ngữ với thẻ thư mục (nền màu phẳng). Tím dành riêng cho card dự án:
+     thư mục không có màu tím (`FolderCard.tsx`) nên không lẫn. Đã thử: kem ấm (chỏi với tím), trắng + bóng (lạc tông), xám (quá xám). */
+  --color-surface-card: #ebe6f3;
+  --color-surface-card-hover: #e2dbee; /* hover: tím đậm hơn nền một nấc (card phẳng ⇒ hover chỉ đổi nền, không bóng) */
+  --color-on-card: #1c1a33; /* tên dự án */
+  --color-on-card-strong: #3b3857; /* nhãn trạng thái, bước tiếp theo */
+  --color-on-card-variant: #5c5979; /* thời gian, icon phụ — ≈5.2:1 trên nền card, ≈4.9:1 lúc hover */
+  --color-card-track: #d5cce6; /* rãnh thanh tiến độ — sẫm hơn cả nền hover để không chìm */
+  /* Thư mục: pastel "bụi" kiểu thư mục macOS, chọn TAY (thân / lưng + tab đậm hơn một nấc, cùng tông) — KHÔNG pha màu gốc với trắng
+     (pha trắng cho ra màu bạc, xỉn — đã thử và bỏ). Đổi một màu thì chỉnh cả cặp cho cùng tông. */
+  --color-folder-blue: #a9c6e6;
+  --color-folder-blue-back: #85a9d6;
+  --color-folder-amber: #f0e9a9;
+  --color-folder-amber-back: #e6d77f;
+  --color-folder-green: #d6e1ac;
+  --color-folder-green-back: #c1cf93;
+  --color-folder-rose: #f4d6dc;
+  --color-folder-rose-back: #ecbfc8;
+  /* Sidebar: card trắng nổi trên cột nền xám nhạt (`surface-sidebar`). Trong card: hover = `surface-sidebar`,
+     mục đang chọn = tím hệ thống (`primary-fixed` + chữ `primary`) — xem SidebarNavItem */
+  --color-surface-sidebar: #f4f4f6;
   --color-surface-variant: #eceae5;
-  --color-surface-tint: #4f46e5;
+  --color-surface-tint: #6a62c4;
   --color-background: #f5f3f0;
   --color-on-surface: #191817;
   --color-on-surface-variant: #6b6862;
@@ -79,10 +109,22 @@
   --color-outline: #e4e1dc;
   --color-outline-variant: #eceae5;
   --color-outline-subtle: #f0eeea;
-  --color-outline-purple: #ddd9f6;
+  --color-outline-purple: #dcd8f0;
+
+  /* ── Bo góc: một thang duy nhất cho cả app (class `rounded-inner|control|card|dialog`) ──
+     inner   — phần tử nằm TRONG một khung đã bo (tab item, mục menu): nhỏ hơn khung ngoài để góc lồng khít
+     control — mọi thứ bấm/nhập được: button, input, select, khung tab, nút icon, mục sidebar, alert
+     card    — card, thẻ thư mục, ô tạo mới, khung menu thả xuống, khung nội dung
+     dialog  — modal
+     `rounded-full` chỉ dành cho badge, chấm, avatar, spinner, thanh tiến độ — không dùng cho control. */
+  --radius-inner: 8px;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-dialog: 18px;
 
   /* ── Typography ── */
-  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans:
+    "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }
 
@@ -107,25 +149,25 @@ body {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-image: linear-gradient(95deg, #7c74f0, #4f46e5 45%, #e8a23d);
+  background-image: linear-gradient(95deg, #8E87D6, #6A62C4 45%, #e8a23d);
 }
 
 .text-gradient-purple {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-image: linear-gradient(135deg, #7c74f0, #4f46e5);
+  background-image: linear-gradient(135deg, #8E87D6, #6A62C4);
 }
 
 .btn-gradient-primary {
-  background: linear-gradient(135deg, #7c74f0, #4f46e5 60%, #3b34b0);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.35);
+  background: linear-gradient(135deg, #8E87D6, #6A62C4 60%, #554DB0);
+  box-shadow: 0 10px 24px rgba(106, 98, 196, 0.35);
   color: #ffffff;
   transition: all 0.2s ease;
 }
 
 .btn-gradient-primary:hover:not(:disabled) {
-  box-shadow: 0 14px 28px rgba(79, 70, 229, 0.45);
+  box-shadow: 0 14px 28px rgba(106, 98, 196, 0.45);
   transform: translateY(-1px);
 }
 
@@ -139,21 +181,30 @@ body {
   filter: blur(80px);
   z-index: -1;
   opacity: 0.5;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(109, 40, 217, 0.4) 50%, transparent 100%);
+  background: radial-gradient(
+    circle,
+    rgba(139, 92, 246, 0.8) 0%,
+    rgba(109, 40, 217, 0.4) 50%,
+    transparent 100%
+  );
 }
 
 .input-focus-ring:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  border-color: #6A62C4;
+  box-shadow: 0 0 0 3px rgba(106, 98, 196, 0.15);
 }
 
 .card-elevated {
-  box-shadow: 0 26px 60px rgba(79, 70, 229, 0.12), 0 8px 20px rgba(25, 24, 23, 0.05);
+  box-shadow:
+    0 26px 60px rgba(106, 98, 196, 0.12),
+    0 8px 20px rgba(25, 24, 23, 0.05);
 }
 
 .custom-shadow-card {
-  box-shadow: 0 26px 60px rgba(79, 70, 229, 0.16), 0 8px 20px rgba(25, 24, 23, 0.06);
+  box-shadow:
+    0 26px 60px rgba(106, 98, 196, 0.16),
+    0 8px 20px rgba(25, 24, 23, 0.06);
 }
 
 .btn-press:active {
@@ -162,7 +213,9 @@ body {
 
 /* ── Spinner ── */
 @keyframes ff-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .ff-spinner {
   animation: ff-spin 0.8s linear infinite;
@@ -171,8 +224,18 @@ body {
 /* ── Grid Pattern Background ── */
 .grid-pattern {
   background-size: 44px 44px;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(25, 24, 23, 0.04) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(25, 24, 23, 0.04) 1px, transparent 1px);
 }
 
+/* ── Landing page (app/_landing/) — hoạ tiết nền phẳng, không blur ── */
+/* Lưới chấm nhỏ; nền `primary` dùng bản trắng. Mỗi chỗ dùng tự đặt mask để mờ dần. */
+.landing-dots-light {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+.landing-dots {
+  background-image: radial-gradient(rgba(25, 24, 23, 0.14) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
