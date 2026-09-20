@@ -2,6 +2,7 @@
 
 import { PHASES, PHASE_LABELS_VI, type PhaseId } from "@/lib/constants/step-registry";
 import type { StepSummary } from "@/types/pipeline";
+import Icon from "@/components/ui/Icon";
 
 interface PhaseNavBarProps {
   currentPhase: string | null;
@@ -50,7 +51,7 @@ export default function PhaseNavBar({
         className="p-1.5 hover:bg-[#FAF9F7] rounded-[8px] text-[#6B6862] transition-colors shrink-0 cursor-pointer"
         title="Toggle Lịch sử phiên chat"
       >
-        <span className="material-symbols-outlined text-[18px]">{sidebarOpen ? "menu_open" : "menu"}</span>
+        <Icon name={sidebarOpen ? "menu-open" : "menu"} size={18} />
       </button>
 
       <span className="text-[10px] font-extrabold text-[#8A867E] tracking-wider uppercase shrink-0 mr-1">PHASE</span>

@@ -65,7 +65,7 @@ describe("ChatPane — forward lệnh sửa vào Change panel (session không pi
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(false));
 
     expect(screen.getByText(/không phải phiên pipeline/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn (Enter)" }));
 
     expect(onEditInstruction).toHaveBeenCalledWith("Đổi tên actor A03 thành Administrator");
     expect(onSendMessage).not.toHaveBeenCalled();
@@ -75,7 +75,7 @@ describe("ChatPane — forward lệnh sửa vào Change panel (session không pi
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(true));
 
     expect(screen.queryByText(/không phải phiên pipeline/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn (Enter)" }));
 
     expect(onSendMessage).toHaveBeenCalledTimes(1);
     expect(onEditInstruction).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe("ChatPane — forward lệnh sửa vào Change panel (session không pi
   it("session không có is_pipeline (mặc định pipeline, không phá luồng chat cũ): gửi tin nhắn gọi onSendMessage", () => {
     const { onEditInstruction, onSendMessage } = renderPane(baseSession);
 
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn (Enter)" }));
 
     expect(onSendMessage).toHaveBeenCalledTimes(1);
     expect(onEditInstruction).not.toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   const send = async (text: string) => {
     const box = await screen.findByPlaceholderText("Hỏi về nội dung tài liệu…");
     fireEvent.change(box, { target: { value: text } });
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn (Enter)" }));
   };
 
   it("FLF-186: lệnh sửa sau baseline ⇒ BE tạo CR nguồn chat, thẻ “Đã tạo CR-001” mở thẳng CR; không alert, tin nhắn tạm được gỡ", async () => {
@@ -144,7 +144,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     expect(mode1State.crs.get("CR-001")?.change_request).toMatchObject({ source: { kind: "chat" }, description: "Đổi tên actor Student thành Learner" });
 
     // tin nhắn tạm (optimistic) bị gỡ, ô nhập đã xoá, không alert / console.error cho luồng bình thường này
-    await waitFor(() => expect(screen.getByRole("button", { name: "arrow_upward" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Gửi tin nhắn (Enter)" })).toBeInTheDocument());
     expect(screen.queryByText("Đổi tên actor Student thành Learner", { selector: ":not(blockquote)" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText("Hỏi về nội dung tài liệu…")).toHaveValue("");
     expect(alert).not.toHaveBeenCalled();

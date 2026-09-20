@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { ChatSession } from "@/types/chat";
+import Icon from "@/components/ui/Icon";
 
 interface ChatSessionSidebarProps {
   sessions: ChatSession[];
@@ -58,9 +59,7 @@ export default function ChatSessionSidebar({
           className="p-1 text-[#6A62C4] hover:bg-[#F2F1FB] rounded-[8px] transition-colors cursor-pointer"
           title="Tạo phiên chat mới"
         >
-          <span className="material-symbols-outlined text-[18px] font-bold">
-            add
-          </span>
+          <Icon name="plus" size={18} weight="bold" />
         </button>
       </div>
 
@@ -129,9 +128,7 @@ export default function ChatSessionSidebar({
                     }`}
                     title="Tùy chọn"
                   >
-                    <span className="material-symbols-outlined text-[16px]">
-                      more_horiz
-                    </span>
+                    <Icon name="more-horizontal" size={16} />
                   </button>
 
                   {/* Dropdown Menu */}
@@ -163,9 +160,7 @@ export default function ChatSessionSidebar({
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-[18px] p-6 max-w-sm w-full border border-[#ECEAE5] shadow-xl flex flex-col gap-4">
             <div className="flex items-center gap-3 text-[#B03030]">
-              <span className="material-symbols-outlined text-[24px]">
-                warning
-              </span>
+              <Icon name="warning" size={24} />
               <h3 className="font-extrabold text-[15px] text-[#191817]">
                 Xác nhận xoá phiên chat?
               </h3>
