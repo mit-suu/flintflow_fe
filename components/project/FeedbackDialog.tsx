@@ -1,15 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { FEEDBACK_MESSAGE_MAX, submitFeedback, type FeedbackCategory } from "@/lib/api/feedback";
 
-const CATEGORIES: readonly { value: FeedbackCategory; label: string }[] = [
-  { value: "bug", label: "Báo lỗi" },
-  { value: "suggestion", label: "Đề xuất" },
-  { value: "other", label: "Khác" },
-];
+/** Thứ tự hiện thẻ; nhãn lấy từ `app.feedback.<category>`. */
+const CATEGORIES: readonly FeedbackCategory[] = ["bug", "suggestion", "other"];
 
 interface FeedbackDialogProps {
   open: boolean;
@@ -18,6 +16,8 @@ interface FeedbackDialogProps {
 
 /** UC-12: member gửi góp ý (`POST /feedback`); admin đọc ở `/admin/feedback`. */
 export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
+  const t = useTranslations("app.feedback");
+  const tc = useTranslations("app.common");
   const [category, setCategory] = useState<FeedbackCategory>("suggestion");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -44,33 +44,33 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
       await submitFeedback({ category, message: trimmed });
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không gửi được góp ý, thử lại sau");
+      setError(err instanceof Error ? err.message : t("failed"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={close} title="Gửi góp ý">
+    <Modal open={open} onClose={close} title={t("title")}>
       {sent ? (
         <div className="flex flex-col gap-4">
           <p role="status" className="text-[13.5px] text-on-surface-medium leading-[1.6]">
-            Cảm ơn bạn! Góp ý đã được gửi tới đội FlintFlow.
+            {t("sent")}
           </p>
           <div className="flex justify-end">
-            <Button onClick={close}>Đóng</Button>
+            <Button onClick={close}>{tc("close")}</Button>
           </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-[12.5px] font-bold text-on-surface-medium mb-2">Loại góp ý</legend>
+            <legend className="text-[12.5px] font-bold text-on-surface-medium mb-2">{t("kindLegend")}</legend>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((c) => (
                 <label
-                  key={c.value}
+                  key={c}
                   className={`px-3.5 h-8 inline-flex items-center rounded-control border text-[12.5px] font-semibold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
-                    category === c.value
+                    category === c
                       ? "bg-primary-soft border-outline-purple text-primary-hover"
                       : "bg-surface-container-lowest border-outline text-on-surface-variant hover:bg-surface-container-low"
                   }`}
@@ -78,12 +78,12 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
                   <input
                     type="radio"
                     name="feedback-category"
-                    value={c.value}
-                    checked={category === c.value}
-                    onChange={() => setCategory(c.value)}
+                    value={c}
+                    checked={category === c}
+                    onChange={() => setCategory(c)}
                     className="sr-only"
                   />
-                  {c.label}
+                  {t(c)}
                 </label>
               ))}
             </div>
@@ -91,7 +91,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
 
           <div className="flex flex-col gap-1.5">
             <label htmlFor="feedback-message" className="text-[12.5px] font-bold text-on-surface-medium">
-              Nội dung
+              {t("messageLabel")}
             </label>
             <textarea
               id="feedback-message"
@@ -99,7 +99,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
               onChange={(e) => setMessage(e.target.value)}
               maxLength={FEEDBACK_MESSAGE_MAX}
               rows={5}
-              placeholder="Bạn gặp vấn đề gì hoặc muốn FlintFlow có thêm gì?"
+              placeholder={t("placeholder")}
               className="w-full px-3.5 py-2.5 rounded-control border border-outline bg-surface-container-low text-[13px] text-on-surface outline-none resize-y focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
             <span className="self-end text-[11px] text-on-surface-subtle tabular-nums">
@@ -115,10 +115,10 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
 
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={close} disabled={submitting}>
-              Huỷ
+              {tc("cancel")}
             </Button>
             <Button type="submit" loading={submitting} disabled={!message.trim()}>
-              Gửi góp ý
+              {t("submit")}
             </Button>
           </div>
         </form>

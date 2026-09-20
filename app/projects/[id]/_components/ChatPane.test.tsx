@@ -1,12 +1,7 @@
 "use client";
 
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChatPane.test.tsx
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { estimateActionCost } from "@/lib/api/chat";
-import ChatPane from "./ChatPane";
-=======
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { estimateActionCost } from "@/lib/api/chat";
 import { mockServer } from "@/mocks/server";
@@ -17,15 +12,12 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import ChatPane from "./ChatPane";
 import CrPrefillCard from "./mode1/CrPrefillCard";
 import { readCrPrefill } from "./mode1/prefill";
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChatPane.test.tsx
 import type { ChatSession } from "@/types/chat";
 
 vi.mock("@/lib/api/chat", () => ({
   estimateActionCost: vi.fn().mockResolvedValue({ data: { actionType: "chat", cost: 1 }, error: null }),
 }));
 
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChatPane.test.tsx
-=======
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useParams: () => ({ id: MODE1_PROJECT_ID }),
@@ -33,7 +25,6 @@ vi.mock("next/navigation", () => ({
 // Đã đăng nhập: useWorkspace không gọi refresh
 vi.mock("@/lib/auth", async (importOriginal) => ({ ...(await importOriginal<object>()), isAuthenticated: () => true }));
 
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChatPane.test.tsx
 // jsdom không hiện thực `scrollIntoView` — ChatPane tự cuộn xuống tin nhắn cuối khi mount.
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -49,7 +40,7 @@ const baseSession: ChatSession = {
 const withPipelineFlag = (isPipeline: boolean): ChatSession => ({ ...baseSession, is_pipeline: isPipeline }) as ChatSession;
 
 const renderPane = (session: ChatSession, onEditInstruction = vi.fn(), onSendMessage = vi.fn()) => {
-  render(
+  renderWithIntl(
     <ChatPane
       session={session}
       inputMessage="Đổi tên actor A03 thành Administrator"
@@ -99,8 +90,6 @@ describe("ChatPane — forward lệnh sửa vào Change panel (session không pi
     expect(onEditInstruction).not.toHaveBeenCalled();
   });
 });
-<<<<<<< HEAD:app/projects/[projectId]/_components/ChatPane.test.tsx
-=======
 
 describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change request (G9, BR-03)", () => {
   beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
@@ -144,7 +133,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   it("FLF-186: lệnh sửa sau baseline ⇒ BE tạo CR nguồn chat, thẻ “Đã tạo CR-001” mở thẳng CR; không alert, tin nhắn tạm được gỡ", async () => {
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     const error = vi.spyOn(console, "error");
-    render(<Mode1Chat />);
+    renderWithIntl(<Mode1Chat />);
     expect(screen.getByRole("heading", { name: "Hỏi đáp về tài liệu" })).toBeInTheDocument();
 
     await send("Đổi tên actor Student thành Learner");
@@ -165,7 +154,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   });
 
   it("Đóng ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới (CR mới)", async () => {
-    render(<Mode1Chat />);
+    renderWithIntl(<Mode1Chat />);
     await send("Thêm NFR thời gian phản hồi 2 giây");
     const card = await screen.findByRole("status");
     fireEvent.click(within(card).getByRole("button", { name: "Đóng" }));
@@ -178,7 +167,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   });
 
   it("BE không tạo được CR (chỉ prefill) ⇒ thẻ “Tạo change request” điền sẵn (nguồn verbal)", () => {
-    render(<CrPrefillCard projectId={MODE1_PROJECT_ID} prefill={{ title: "Đổi tên actor", description: "Đổi tên actor Student" }} onDismiss={vi.fn()} />);
+    renderWithIntl(<CrPrefillCard projectId={MODE1_PROJECT_ID} prefill={{ title: "Đổi tên actor", description: "Đổi tên actor Student" }} onDismiss={vi.fn()} />);
     const card = screen.getByRole("status");
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
@@ -186,4 +175,3 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({ title: "Đổi tên actor", description: "Đổi tên actor Student", source: "verbal", ref: undefined });
   });
 });
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/ChatPane.test.tsx

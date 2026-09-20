@@ -35,11 +35,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
           rows={3}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-<<<<<<< HEAD:app/projects/[projectId]/_components/FlagsPanel.tsx
-          className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#4F46E5] rounded-[10px] text-[12px] outline-none resize-none"
-=======
           className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#6A62C4] rounded-[10px] text-[12px] outline-none resize-none"
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/FlagsPanel.tsx
           placeholder="Vì sao chấp nhận bỏ qua cờ này?"
         />
         <div className="flex items-center justify-between text-[10.5px] text-[#A8A49C]">
@@ -156,11 +152,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                   <button
                     type="button"
                     onClick={() => onSelectStep(flag.remediation_step)}
-<<<<<<< HEAD:app/projects/[projectId]/_components/FlagsPanel.tsx
-                    className="text-[10.5px] font-bold text-[#4F46E5] hover:underline cursor-pointer"
-=======
                     className="text-[10.5px] font-bold text-[#6A62C4] hover:underline cursor-pointer"
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/FlagsPanel.tsx
                   >
                     → {flag.remediation_step} · {stepLabel(flag.remediation_step)}
                   </button>

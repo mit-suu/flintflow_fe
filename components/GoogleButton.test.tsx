@@ -6,7 +6,8 @@
  * kể cả trang đăng nhập bằng mật khẩu. Test này khoá cả hai nửa của cách sửa.
  */
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 
 const { mockUseGoogleLogin } = vi.hoisted(() => ({ mockUseGoogleLogin: vi.fn(() => vi.fn()) }));
 
@@ -23,7 +24,7 @@ describe("GoogleButton khi KHÔNG có client id", () => {
     vi.resetModules();
     const { default: GoogleButton } = await import("./GoogleButton");
 
-    const { container } = render(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" />);
+    const { container } = renderWithIntl(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" />);
     expect(container).toBeEmptyDOMElement();
     // Gọi `useGoogleLogin` ngoài provider là chính cái ném lỗi — nó không được chạy
     expect(mockUseGoogleLogin).not.toHaveBeenCalled();
@@ -36,7 +37,7 @@ describe("GoogleButton khi CÓ client id", () => {
     vi.resetModules();
     const { default: GoogleButton } = await import("./GoogleButton");
 
-    render(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" />);
+    renderWithIntl(<GoogleButton onSuccess={noop} onError={noop} label="Tiếp tục với Google" />);
     expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
     expect(mockUseGoogleLogin).toHaveBeenCalled();
   });

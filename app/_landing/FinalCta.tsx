@@ -1,11 +1,16 @@
+import { useTranslations } from "next-intl";
 import Logo from "@/components/Logo";
-import { FINAL_CTA, NAV_LINKS } from "./content";
+import { NAV_LINKS } from "./content";
 import * as motion from "motion/react-client";
 import { fadeUp, inView } from "./motion";
 import { ArrowRight, ButtonLink, Diamond, Texture } from "./ui";
 
+const CONTACT_EMAIL = "hello@flintflow.app";
+
 /* CTA cuối trang trong một thẻ thư mục lớn màu `primary` (cùng hình thẻ thư mục dashboard), rồi footer. */
 export default function FinalCta() {
+  const t = useTranslations("landing");
+
   return (
     <>
       <section aria-labelledby="cta-title" className="px-4 pt-20 sm:px-6 lg:pt-28">
@@ -17,16 +22,16 @@ export default function FinalCta() {
           <div className="relative isolate flex flex-col items-start gap-8 overflow-hidden rounded-[28px] bg-primary px-6 py-14 sm:px-12 lg:flex-row lg:items-end lg:justify-between lg:px-16 lg:py-20">
             <Texture kind="dots-light" mask="linear-gradient(90deg, transparent 20%, #000)" className="-z-10" />
             <h2 id="cta-title" className="text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-on-primary sm:text-5xl lg:text-[56px]">
-              {FINAL_CTA.headline}
+              {t("cta.headline")}
               <br />
-              <span className="text-primary-fixed-dim">{FINAL_CTA.headlineAccent}</span>
+              <span className="text-primary-fixed-dim">{t("cta.headlineAccent")}</span>
             </h2>
             <div className="flex shrink-0 flex-col items-start gap-3">
               <ButtonLink href="/register" variant="inverse" className="group h-14 px-7 text-[15px]">
-                {FINAL_CTA.cta}
+                {t("cta.button")}
                 <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </ButtonLink>
-              <p className="text-[13px] text-on-primary-container">{FINAL_CTA.note}</p>
+              <p className="text-[13px] text-on-primary-container">{t("cta.note")}</p>
             </div>
           </div>
         </motion.div>
@@ -37,16 +42,16 @@ export default function FinalCta() {
           <div className="flex items-center gap-3 text-[13px] text-on-surface-muted">
             <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" />
             <Diamond className="size-1.5" />
-            <span>© 2026 FlintFlow</span>
+            <span>{t("cta.copyright", { year: "2026" })}</span>
           </div>
-          <nav aria-label="Liên kết cuối trang" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-medium text-on-surface-variant">
+          <nav aria-label={t("a11y.footerNav")} className="flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-medium text-on-surface-variant">
             {NAV_LINKS.slice(1).map((link) => (
               <a key={link.href} href={link.href} className="transition-colors hover:text-on-surface">
-                {link.label}
+                {t(`nav.${link.key}`)}
               </a>
             ))}
-            <a href="mailto:hello@flintflow.app" className="transition-colors hover:text-on-surface">
-              hello@flintflow.app
+            <a href={`mailto:${CONTACT_EMAIL}`} className="transition-colors hover:text-on-surface">
+              {CONTACT_EMAIL}
             </a>
           </nav>
         </div>

@@ -2,11 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-<<<<<<< HEAD
-import { isAuthenticated, getUserRole } from "../lib/auth";
-=======
+import { useTranslations } from "next-intl";
 import { isAuthenticated, getUserRole, logoutAndRedirect } from "../lib/auth";
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 import { refreshSession, type RefreshOutcome } from "../lib/api";
 
 interface AuthGuardProps {
@@ -31,6 +28,8 @@ const refreshWithRetry = async (): Promise<RefreshOutcome> => {
 
 export default function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
   const router = useRouter();
+  // Dùng chung với admin: `app/admin/layout.tsx` ghim provider về `vi` nên ở đó luôn là tiếng Việt.
+  const t = useTranslations("app.authGuard");
   const [authorized, setAuthorized] = useState<boolean>(false);
   const [connectionError, setConnectionError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -43,14 +42,9 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
         const outcome = await refreshWithRetry();
         if (!isMounted) return;
         if (outcome === "rejected") {
-<<<<<<< HEAD
-          // refreshSession đã xoá token khi BE từ chối
-          router.replace("/login");
-=======
           // Chờ BE xoá cookie HttpOnly rồi reload hẳn sang /login — router.replace có thể bị proxy đẩy
           // ngược về trang hiện tại (cookie accessToken còn hạn) và AuthGuard kẹt ở spinner.
           await logoutAndRedirect();
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
           return;
         }
         if (outcome === "failed") {
@@ -87,14 +81,14 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
           <div className="flex flex-col items-center gap-3">
             <span className="material-symbols-outlined text-3xl text-secondary">cloud_off</span>
             <p className="text-xs text-secondary font-medium">
-              Không kết nối được máy chủ. Phiên đăng nhập của bạn vẫn được giữ.
+              {t("offline")}
             </p>
             <button
               type="button"
               onClick={retry}
               className="rounded-md bg-primary hover:bg-primary-hover px-3 py-1.5 text-xs font-semibold text-white"
             >
-              Thử lại
+              {t("retry")}
             </button>
           </div>
         ) : (
@@ -102,7 +96,7 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
             <span className="material-symbols-outlined text-3xl text-primary ff-spinner">
               progress_activity
             </span>
-            <p className="text-xs text-secondary font-medium">Đang kiểm tra quyền truy cập...</p>
+            <p className="text-xs text-secondary font-medium">{t("checking")}</p>
           </div>
         )}
       </div>

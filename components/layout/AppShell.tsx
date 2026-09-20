@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useDialogFocus } from "@/lib/hooks/use-dialog-focus";
 import { fetchBalance, type BalanceResponse } from "@/lib/api/billing";
@@ -62,6 +63,7 @@ interface AppShellProps {
  * `TopBar` của mình ở đầu nội dung.
  */
 export default function AppShell({ sidebar, children }: AppShellProps) {
+  const t = useTranslations("app.shell");
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
@@ -114,7 +116,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
           ref={drawerRef}
           role={navOpen ? "dialog" : undefined}
           aria-modal={navOpen || undefined}
-          aria-label={navOpen ? "Menu" : undefined}
+          aria-label={navOpen ? t("menu") : undefined}
           // Đóng trên mobile ⇒ `invisible` để link trong drawer ra khỏi thứ tự Tab; desktop luôn hiện.
           // Chỉ transition `visibility` khi đóng (giữ hiện lúc trượt ra); khi mở phải hiện ngay để focus vào được.
           // Desktop: `relative z-40` để tooltip của sidebar thu gọn nổi trên vùng nội dung (kể cả thanh sticky z-30 của trang), dưới modal (z-50)

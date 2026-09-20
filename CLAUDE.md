@@ -49,11 +49,7 @@ Mọi lời gọi BE đi qua `lib/api/` — **không `fetch` trực tiếp trong
 Hợp đồng endpoint là `flintflow_be/docs/api/pipeline-contract.md`. Endpoint không có trong đó thì
 không gọi; cần thêm thì phải sửa contract trước (PR `contract-change`, 4/4 duyệt).
 
-<<<<<<< HEAD
-## Workspace (`app/projects/[projectId]/`)
-=======
 ## Workspace (`app/projects/[id]/`)
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099
 
 - `page.tsx` ghép mọi thứ; state lấy qua hook trong `hooks/`:
   `useWorkspace`, `useSpine`, `useProgress`, `useStepRunner`, `useDocument`, `useFlags`, `useChanges`.
@@ -103,6 +99,7 @@ muộn cũng làm ai đó debug nhầm nửa ngày. Chạy app nghĩa là chạy
 5. Sửa `lib/constants/step-registry.json` bằng tay.
 6. Bỏ `base_version` khi gọi endpoint ghi.
 7. Commit `.env.local` hoặc bất kỳ secret nào.
+8. Viết chuỗi hiển thị thẳng vào JSX ở vùng đã i18n — dùng key trong `messages/vi.json` + `messages/en.json`.
 
 ## Git
 
@@ -119,5 +116,16 @@ muộn cũng làm ai đó debug nhầm nửa ngày. Chạy app nghĩa là chạy
 
 ## Quy ước ngôn ngữ
 
-Nhãn UI và thông báo lỗi cho user: **tiếng Việt**. Nội dung tài liệu SRS (do BE sinh): tiếng Anh — FE chỉ
-hiển thị, không dịch.
+Nhãn UI và thông báo lỗi cho user: **tiếng Việt là bản chuẩn**, có bản tiếng Anh qua `next-intl`
+(`messages/vi.json` + `messages/en.json`) cho landing, auth và khu vực đã đăng nhập — xem
+`docs/fe-architecture.md` mục "Đa ngôn ngữ". Không viết chữ thẳng vào JSX; thêm chuỗi thì thêm key vào **cả
+hai** file. Nhãn step/phase qua `tStep`/`tPhase`. Admin chỉ tiếng Việt. Workspace (`app/projects/**`) chưa
+chuyển, vẫn viết thẳng tiếng Việt. Nội dung tài liệu SRS (do BE sinh): tiếng Anh — FE chỉ hiển thị, không dịch.
+
+**Sửa giao diện là phải xét i18n.** Bất cứ thay đổi UI nào (thêm màn hình, sửa component, đổi nhãn,
+thêm trạng thái rỗng/lỗi/toast, placeholder, `aria-label`, `title`, text trong `alt`) đều phải kèm
+phần chuỗi: thêm/sửa key ở **cả** `messages/vi.json` và `messages/en.json`, lấy qua `useTranslations`
+(hoặc `getTranslations` ở server component), giữ cấu trúc key giống nhau ở hai file. Xong thì kiểm:
+không còn literal tiếng Việt/Anh trong JSX vừa sửa, và đổi locale không lòi key thô hay chuỗi trống.
+Ngoại lệ duy nhất là vùng chưa chuyển (`app/projects/**`, admin) — sửa ở đó vẫn viết thẳng tiếng Việt,
+không tự ý i18n hoá nửa vời.

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import DropdownMenu from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
@@ -12,15 +13,18 @@ import { PROJECT_DRAG_TYPE } from "./ProjectCard";
  * ô chọn màu. Class viết đủ để Tailwind sinh ra.
  * Cặp màu pastel thân/lưng là token `folder-*` trong `app/globals.css` (chọn tay, không pha trắng); ô chọn màu = màu lưng.
  */
-export const FOLDER_COLORS: Record<FolderColor, { label: string; body: string; back: string; tab: string; swatch: string }> = {
+export const FOLDER_COLORS: Record<FolderColor, { colorKey: FolderColorKey; body: string; back: string; tab: string; swatch: string }> = {
   // Tím dành riêng cho card dự án ⇒ thư mục không còn màu tím. BE vẫn có `violet` (hợp đồng API): thư mục cũ mang
   // màu này hiển thị như xanh dương và không có trong bảng chọn — xem `pickableFolderColor`.
-  violet: { label: "Xanh dương", body: "bg-folder-blue", back: "bg-folder-blue-back", tab: "text-folder-blue-back", swatch: "bg-folder-blue-back" },
-  blue: { label: "Xanh dương", body: "bg-folder-blue", back: "bg-folder-blue-back", tab: "text-folder-blue-back", swatch: "bg-folder-blue-back" },
-  amber: { label: "Vàng", body: "bg-folder-amber", back: "bg-folder-amber-back", tab: "text-folder-amber-back", swatch: "bg-folder-amber-back" },
-  green: { label: "Xanh lá", body: "bg-folder-green", back: "bg-folder-green-back", tab: "text-folder-green-back", swatch: "bg-folder-green-back" },
-  rose: { label: "Hồng", body: "bg-folder-rose", back: "bg-folder-rose-back", tab: "text-folder-rose-back", swatch: "bg-folder-rose-back" },
+  violet: { colorKey: "blue", body: "bg-folder-blue", back: "bg-folder-blue-back", tab: "text-folder-blue-back", swatch: "bg-folder-blue-back" },
+  blue: { colorKey: "blue", body: "bg-folder-blue", back: "bg-folder-blue-back", tab: "text-folder-blue-back", swatch: "bg-folder-blue-back" },
+  amber: { colorKey: "amber", body: "bg-folder-amber", back: "bg-folder-amber-back", tab: "text-folder-amber-back", swatch: "bg-folder-amber-back" },
+  green: { colorKey: "green", body: "bg-folder-green", back: "bg-folder-green-back", tab: "text-folder-green-back", swatch: "bg-folder-green-back" },
+  rose: { colorKey: "rose", body: "bg-folder-rose", back: "bg-folder-rose-back", tab: "text-folder-rose-back", swatch: "bg-folder-rose-back" },
 };
+
+/** Key nhãn màu trong `app.folderCard.colors.*`. */
+export type FolderColorKey = "blue" | "amber" | "green" | "rose";
 
 /** Màu cho chọn trong dialog (không có tím). */
 export const FOLDER_COLOR_ORDER: readonly FolderColor[] = ["blue", "amber", "green", "rose"];
@@ -43,6 +47,7 @@ interface FolderCardProps {
  * có tổ chức.
  */
 export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropProject }: FolderCardProps) {
+  const t = useTranslations("app.folderCard");
   const color = FOLDER_COLORS[folder.color] ?? FOLDER_COLORS.blue;
   const [dragOver, setDragOver] = useState(false);
   const acceptsDrag = (e: React.DragEvent) => Boolean(onDropProject) && e.dataTransfer.types.includes(PROJECT_DRAG_TYPE);
@@ -91,22 +96,22 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
         <span aria-hidden className="mt-auto h-px bg-on-surface/10" />
         <span className="flex items-center justify-end text-[12px] text-on-surface-variant">
           {/* Trái: chỗ avatar thành viên — thêm khi có tổ chức */}
-          <span>{folder.projectCount} dự án</span>
+          <span>{t("projectCount", { count: folder.projectCount })}</span>
         </span>
       </button>
 
       <div className="absolute right-4 top-[40px] z-20">
         <DropdownMenu
           items={[
-            { label: "Đổi tên", icon: "pencil", onSelect: () => onRename(folder) },
-            { label: "Xoá thư mục", icon: "trash", tone: "danger", onSelect: () => onDelete(folder) },
+            { label: t("rename"), icon: "pencil", onSelect: () => onRename(folder) },
+            { label: t("delete"), icon: "trash", tone: "danger", onSelect: () => onDelete(folder) },
           ]}
           trigger={(props) => (
             <IconButton
               {...props}
               icon="more"
               size="pill"
-              label={`Tuỳ chọn cho thư mục ${folder.name}`}
+              label={t("options", { name: folder.name })}
               className="hover:bg-surface-container-lowest/70"
             />
           )}
@@ -118,6 +123,7 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
 
 /** Ô viền đứt "+ Thư mục mới" ở đầu lưới thư mục — cao bằng cả thẻ thư mục (tính cả tab), không chỉ phần thân. */
 export function NewFolderTile({ onCreate }: { onCreate: () => void }) {
+  const t = useTranslations("app.folderCard");
   return (
     <div className="h-full">
       <button
@@ -126,7 +132,7 @@ export function NewFolderTile({ onCreate }: { onCreate: () => void }) {
         className="w-full h-full min-h-[158px] rounded-card border-2 border-dashed border-outline flex flex-col items-center justify-center gap-1.5 text-[12.5px] font-semibold text-on-surface-muted hover:border-outline-purple hover:text-primary hover:bg-surface-container-lowest transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <Icon name="plus" size={18} />
-        Thư mục mới
+        {t("new")}
       </button>
     </div>
   );

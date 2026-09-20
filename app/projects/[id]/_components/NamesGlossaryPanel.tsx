@@ -92,11 +92,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
               value={edited[row.id] ?? row.value}
               onChange={(e) => setEdited((prev) => ({ ...prev, [row.id]: e.target.value }))}
               title={row.hint}
-<<<<<<< HEAD:app/projects/[projectId]/_components/NamesGlossaryPanel.tsx
-              className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[12px] outline-none focus:border-[#4F46E5]"
-=======
               className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[12px] outline-none focus:border-[#6A62C4]"
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/NamesGlossaryPanel.tsx
             />
           </label>
         ))}
@@ -122,11 +118,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
         type="button"
         disabled={busy}
         onClick={() => void save()}
-<<<<<<< HEAD:app/projects/[projectId]/_components/NamesGlossaryPanel.tsx
-        className="self-end px-3 py-1 rounded-full text-[11.5px] font-bold bg-[#4F46E5] text-white disabled:opacity-50 cursor-pointer"
-=======
         className="self-end px-3 py-1 rounded-full text-[11.5px] font-bold bg-[#6A62C4] text-white disabled:opacity-50 cursor-pointer"
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/NamesGlossaryPanel.tsx
       >
         Lưu tên chuẩn
       </button>

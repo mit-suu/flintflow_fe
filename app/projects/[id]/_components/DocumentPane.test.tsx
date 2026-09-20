@@ -1,6 +1,7 @@
 "use client";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DocumentPane from "./DocumentPane";
 import * as exportApi from "@/lib/api/export";
@@ -85,7 +86,7 @@ describe("DocumentPane", () => {
   it("render đủ 5 chương từ fixture RenderedDocument", async () => {
     getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
 
-    render(<DocumentPane projectId="p1" projectName="FlintFlow" />);
+    renderWithIntl(<DocumentPane projectId="p1" projectName="FlintFlow" />);
 
     await waitFor(() => {
       expect(screen.getByText(/§1 Product Overview/)).toBeInTheDocument();
@@ -101,7 +102,7 @@ describe("DocumentPane", () => {
   it("chip stale hiện đúng khi meta.stale = true", async () => {
     getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 4, spine_version: 6, stale: true } });
 
-    render(<DocumentPane projectId="p1" />);
+    renderWithIntl(<DocumentPane projectId="p1" />);
 
     expect(await screen.findByText("stale")).toBeInTheDocument();
   });
@@ -109,7 +110,7 @@ describe("DocumentPane", () => {
   it("chip stale không hiện khi meta.stale = false", async () => {
     getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
 
-    render(<DocumentPane projectId="p1" />);
+    renderWithIntl(<DocumentPane projectId="p1" />);
 
     await waitFor(() => expect(screen.getByText(/§1 Product Overview/)).toBeInTheDocument());
     expect(screen.queryByText("stale")).not.toBeInTheDocument();
@@ -118,7 +119,7 @@ describe("DocumentPane", () => {
   it("section chờ duyệt lại (awaiting_reaccept) hiện chip riêng", async () => {
     getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
 
-    render(<DocumentPane projectId="p1" />);
+    renderWithIntl(<DocumentPane projectId="p1" />);
 
     expect(await screen.findByText("Chờ duyệt lại")).toBeInTheDocument();
   });
@@ -127,10 +128,11 @@ describe("DocumentPane", () => {
     getDocument.mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."));
     const onSelectStep = vi.fn();
 
-    render(<DocumentPane projectId="p1" onSelectStep={onSelectStep} />);
+    renderWithIntl(<DocumentPane projectId="p1" onSelectStep={onSelectStep} />);
 
     expect(await screen.findByText("Chưa có bản ghép tài liệu")).toBeInTheDocument();
-    expect(screen.getByText("Chưa ghép tài liệu.")).toBeInTheDocument();
+    // `ApiClientError` dịch message theo mã, nên hiện câu của `messages/vi.json → errors.NO_WORKING_DRAFT`.
+    expect(screen.getByText("Chưa ghép tài liệu — chạy S-8.2 (Ghép tài liệu) trước.")).toBeInTheDocument();
     screen.getByRole("button", { name: /Đi tới S-8.2/ }).click();
     expect(onSelectStep).toHaveBeenCalledWith("S-8.2");
   });
@@ -142,7 +144,7 @@ describe("DocumentPane", () => {
       .mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."))
       .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 363, spine_version: 363, stale: false } });
 
-    render(<DocumentPane projectId="p1" onSelectStep={vi.fn()} getBaseVersion={() => 363} />);
+    renderWithIntl(<DocumentPane projectId="p1" onSelectStep={vi.fn()} getBaseVersion={() => 363} />);
 
     (await screen.findByRole("button", { name: "Ghép tài liệu ngay" })).click();
     await waitFor(() => expect(assembleDocument).toHaveBeenCalledWith("p1", 363));
@@ -154,7 +156,7 @@ describe("DocumentPane", () => {
     vi.mocked(exportApi.assembleDocument).mockRejectedValueOnce(new ApiClientError(409, "SPINE_VERSION_CONFLICT", "conflict"));
     getDocument.mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."));
 
-    render(<DocumentPane projectId="p1" getBaseVersion={() => 1} />);
+    renderWithIntl(<DocumentPane projectId="p1" getBaseVersion={() => 1} />);
 
     (await screen.findByRole("button", { name: "Ghép tài liệu ngay" })).click();
     expect(await screen.findByText(/Tài liệu vừa đổi ở phiên khác/)).toBeInTheDocument();
@@ -163,12 +165,10 @@ describe("DocumentPane", () => {
   it("nút xem tại step hiện theo flag mở khớp section_id", async () => {
     getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
 
-    render(<DocumentPane projectId="p1" flags={[redFlag]} onSelectStep={vi.fn()} />);
+    renderWithIntl(<DocumentPane projectId="p1" flags={[redFlag]} onSelectStep={vi.fn()} />);
 
     expect(await screen.findByText(/xem tại S-3.1/)).toBeInTheDocument();
   });
-<<<<<<< HEAD:app/projects/[projectId]/_components/DocumentPane.test.tsx
-=======
 
   it("mode 1 v2 (FLF-185): heading nhóm chỉ tiêu đề; mục riêng có nhãn; số hiệu rỗng không in §; section rỗng gợi ý step sở hữu", async () => {
     const onSelectStep = vi.fn();
@@ -189,7 +189,7 @@ describe("DocumentPane", () => {
       "fixed:5.1": { stepId: "S-7.1", missing: true },
       "fixed:4.2.4": { stepId: "S-6.5", missing: false },
     };
-    render(<DocumentPane projectId="p1" onSelectStep={onSelectStep} emptyHintOf={(id) => hints[id]} />);
+    renderWithIntl(<DocumentPane projectId="p1" onSelectStep={onSelectStep} emptyHintOf={(id) => hints[id]} />);
 
     expect(await screen.findByText("§2 Yêu cầu người dùng")).toBeInTheDocument();
     expect(document.querySelector("[data-section-id=\"group:2\"]")?.textContent).not.toContain("Chưa hoàn thiện");
@@ -203,5 +203,4 @@ describe("DocumentPane", () => {
     screen.getAllByRole("button", { name: "Mở step" })[0].click();
     expect(onSelectStep).toHaveBeenCalledWith("S-7.1");
   });
->>>>>>> 64c5c9d6d2ef9995dd4ae90e2421caaeb2a87099:app/projects/[id]/_components/DocumentPane.test.tsx
 });

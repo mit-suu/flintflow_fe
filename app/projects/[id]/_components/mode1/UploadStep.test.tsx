@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import UploadStep, { MAX_IMPORT_BYTES } from "./UploadStep";
 
@@ -16,7 +17,7 @@ const drop = (target: HTMLElement, file: File) => fireEvent.drop(target, { dataT
 describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
   it("chọn file qua hộp chọn ⇒ gọi onUpload với đúng file; hộp chọn chỉ nhận .docx", () => {
     const onUpload = vi.fn();
-    render(<UploadStep onUpload={onUpload} />);
+    renderWithIntl(<UploadStep onUpload={onUpload} />);
     const input = screen.getByTestId("docx-input");
     expect(input).toHaveAttribute("accept", `.docx,${DOCX_MIME}`);
 
@@ -28,7 +29,7 @@ describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
 
   it("kéo thả file ⇒ gọi onUpload; kéo qua đổi viền, rời đi thì trả lại", () => {
     const onUpload = vi.fn();
-    render(<UploadStep onUpload={onUpload} />);
+    renderWithIntl(<UploadStep onUpload={onUpload} />);
     const target = zone();
 
     fireEvent.dragOver(target);
@@ -44,7 +45,7 @@ describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
 
   it("file lớn hơn 10MB (kéo thả hoặc chọn) ⇒ báo lỗi, không gọi upload; chọn lại file hợp lệ thì xoá lỗi", () => {
     const onUpload = vi.fn();
-    render(<UploadStep onUpload={onUpload} />);
+    renderWithIntl(<UploadStep onUpload={onUpload} />);
 
     drop(zone(), docx("to.docx", MAX_IMPORT_BYTES + 1));
     expect(screen.getByText(/File to\.docx lớn hơn 10MB/)).toBeInTheDocument();
@@ -60,14 +61,14 @@ describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
 
   it("file không phải .docx kéo thả vào: FE không tự chặn theo đuôi mà gửi lên để BE kiểm magic bytes (NOT_DOCX / LEGACY_DOC)", () => {
     const onUpload = vi.fn();
-    render(<UploadStep onUpload={onUpload} />);
+    renderWithIntl(<UploadStep onUpload={onUpload} />);
     const pdf = new File(["%PDF"], "SRS.pdf", { type: "application/pdf" });
     drop(zone(), pdf);
     expect(onUpload).toHaveBeenCalledWith(pdf);
   });
 
   it("bấm hoặc Enter/Space trên vùng thả ⇒ mở hộp chọn file", () => {
-    render(<UploadStep onUpload={vi.fn()} />);
+    renderWithIntl(<UploadStep onUpload={vi.fn()} />);
     const input = screen.getByTestId("docx-input") as HTMLInputElement;
     const click = vi.spyOn(input, "click");
 
@@ -86,7 +87,7 @@ describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
 
   it("đang tải (busy) ⇒ hiện trạng thái, bỏ qua kéo thả và không mở hộp chọn", () => {
     const onUpload = vi.fn();
-    render(<UploadStep onUpload={onUpload} busy />);
+    renderWithIntl(<UploadStep onUpload={onUpload} busy />);
     expect(screen.getByText("Đang tải lên và kiểm tra file…")).toBeInTheDocument();
     const input = screen.getByTestId("docx-input") as HTMLInputElement;
     const click = vi.spyOn(input, "click");
@@ -100,7 +101,7 @@ describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
 
   it("tiêu đề/gợi ý tuỳ biến (tải lại file đã sửa); không chọn file thì không gọi gì", () => {
     const onUpload = vi.fn();
-    render(<UploadStep onUpload={onUpload} title="Tải lên file đã sửa" hint="Gợi ý riêng" />);
+    renderWithIntl(<UploadStep onUpload={onUpload} title="Tải lên file đã sửa" hint="Gợi ý riêng" />);
     expect(zone("Tải lên file đã sửa")).toBeInTheDocument();
     expect(screen.getByText("Gợi ý riêng")).toBeInTheDocument();
     fireEvent.change(screen.getByTestId("docx-input"), { target: { files: [] } });

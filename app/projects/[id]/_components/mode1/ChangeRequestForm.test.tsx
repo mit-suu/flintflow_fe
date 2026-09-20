@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -43,7 +44,7 @@ const captureCreate = () => {
 
 describe("ChangeRequestForm — tạo change request (UC-48)", () => {
   it("không prefill ⇒ trống; nguồn gồm đủ 6 loại + dòng chọn rỗng", () => {
-    render(<ChangeRequestForm projectId={P} onCreated={vi.fn()} onCancel={vi.fn()} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} onCreated={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByRole("form", { name: "Tạo change request" })).toBeInTheDocument();
     expect(field("Tiêu đề")).toHaveValue("");
     expect(field("Mô tả thay đổi")).toHaveValue("");
@@ -57,7 +58,7 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
   it("prefill (từ gap report / re-upload / chat) điền sẵn tiêu đề, mô tả, nguồn, tham chiếu; người yêu cầu vẫn phải nhập", async () => {
     const bodies = captureCreate();
     const onCreated = vi.fn();
-    render(
+    renderWithIntl(
       <ChangeRequestForm
         projectId={P}
         prefill={{ title: "Cập nhật theo file SRS_sua.docx", description: "- Sửa B0010", source: "reupload", ref: "66f00000000000000000r001" }}
@@ -91,7 +92,7 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
 
   it("thiếu tiêu đề/mô tả ⇒ chặn trước cả nguồn; chỉ khoảng trắng cũng tính là thiếu", async () => {
     const bodies = captureCreate();
-    render(<ChangeRequestForm projectId={P} onCreated={vi.fn()} onCancel={vi.fn()} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} onCreated={vi.fn()} onCancel={vi.fn()} />);
     submit();
     expect(await screen.findByRole("alert")).toHaveTextContent("Cần tiêu đề và mô tả thay đổi.");
 
@@ -113,7 +114,7 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
 
   it("gửi đủ trường: cắt khoảng trắng, tham chiếu/ghi chú rỗng ⇒ null; ghi chú có thì gửi", async () => {
     const bodies = captureCreate();
-    render(<ChangeRequestForm projectId={P} onCreated={vi.fn()} onCancel={vi.fn()} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} onCreated={vi.fn()} onCancel={vi.fn()} />);
     type("Tiêu đề", "  Đăng xuất mọi thiết bị ");
     type("Mô tả thay đổi", " Logout signs out all devices. ");
     type("Nguồn *", "verbal");
@@ -133,7 +134,7 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
 
   it("BE từ chối (chưa có baseline) ⇒ hiện lỗi thân thiện, không gọi onCreated", async () => {
     const onCreated = vi.fn();
-    render(<ChangeRequestForm projectId={P} prefill={{ title: "T", description: "D", source: "verbal" }} onCreated={onCreated} onCancel={vi.fn()} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "T", description: "D", source: "verbal" }} onCreated={onCreated} onCancel={vi.fn()} />);
     type("Người yêu cầu *", "PM Lan");
     submit();
     expect(await screen.findByRole("alert")).toHaveTextContent("Cần hoàn tất import (baseline 0.0) trước khi tạo change request.");
@@ -147,7 +148,7 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
         HttpResponse.json({ data: null, error: { code: "CR_SOURCE_REQUIRED", message: "Thiếu nguồn hoặc người yêu cầu" } }, { status: 400 })
       )
     );
-    render(<ChangeRequestForm projectId={P} prefill={{ title: "T", description: "D", source: "verbal" }} onCreated={vi.fn()} onCancel={vi.fn()} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "T", description: "D", source: "verbal" }} onCreated={vi.fn()} onCancel={vi.fn()} />);
     type("Người yêu cầu *", "PM Lan");
     submit();
     expect(await screen.findByRole("alert")).toHaveTextContent("Thiếu nguồn hoặc người yêu cầu");
@@ -157,7 +158,7 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
     await importToGapReview();
     const onCreated = vi.fn();
     const onCancel = vi.fn();
-    render(<ChangeRequestForm projectId={P} prefill={{ title: "Sửa theo gap report", description: "- Thiếu mục 5.3", source: "gap_report", ref: "gap-report 0.0" }} onCreated={onCreated} onCancel={onCancel} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "Sửa theo gap report", description: "- Thiếu mục 5.3", source: "gap_report", ref: "gap-report 0.0" }} onCreated={onCreated} onCancel={onCancel} />);
     type("Người yêu cầu *", "PM Lan");
     submit();
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
