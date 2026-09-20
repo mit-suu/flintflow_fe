@@ -16,6 +16,7 @@ const step = (id: string, status: StepSummary["status"]): StepSummary => ({
   regenerate_used: 0,
   regenerate_limit: 3,
   accepted_at: null,
+  running: false,
 });
 
 const steps = [step("S-2.5", "accepted"), step("S-3.1", "pending"), step("S-3.2", "pending")];

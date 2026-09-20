@@ -123,6 +123,15 @@ const toFailure = (err: unknown): { code: string; message: string } =>
     ? { code: err.code, message: err.message }
     : { code: "UNKNOWN_ERROR", message: err instanceof Error ? err.message : String(err) };
 
+/**
+ * Lần chạy trước của chính step này còn dở ở BE (reload trang giữa chừng): BE huỷ lượt gọi model đang bay rồi
+ * nhả khoá, nhưng mất một nhịp. Chờ rồi thử lại thay vì ném "đang được xử lý ở một request khác" vào mặt người dùng.
+ */
+const isStepBusy = (err: unknown): boolean => err instanceof ApiClientError && err.code === "STEP_NOT_RUNNABLE" && /request khác/.test(err.message);
+const BUSY_RETRIES = 3;
+const BUSY_DELAY_MS = 1500;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
@@ -144,24 +153,37 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       stepRef.current = stepId;
       dispatch({ type: "start", stepId });
 
-      let terminated = false;
       try {
-        await runStep(projectId, stepId, { session_id: sessionId, base_version: baseVersion }, {
-          signal: controller.signal,
-          onEvent: (event) => {
-            // Luồng cũ đã bị huỷ, hoặc sự kiện của step khác: bỏ qua
-            if (controller.signal.aborted || event.step_id !== stepId) return;
-            if (isTerminalEvent(event)) terminated = true;
-            dispatch({ type: "event", event });
-            if (event.type === "ops_applied") onSpineChanged(event.spine_version);
-            if (event.type === "gate_ready") onSpineChanged();
-          },
-        });
-        if (!controller.signal.aborted && !terminated) {
-          dispatch({ type: "failed", code: STREAM_CLOSED, message: "Kết nối tới step bị đóng giữa chừng. Vui lòng chạy lại." });
+        for (let attempt = 0; ; attempt++) {
+          let terminated = false;
+          try {
+            await runStep(projectId, stepId, { session_id: sessionId, base_version: baseVersion }, {
+              signal: controller.signal,
+              onEvent: (event) => {
+                // Luồng cũ đã bị huỷ, hoặc sự kiện của step khác: bỏ qua
+                if (controller.signal.aborted || event.step_id !== stepId) return;
+                if (isTerminalEvent(event)) terminated = true;
+                dispatch({ type: "event", event });
+                if (event.type === "ops_applied") onSpineChanged(event.spine_version);
+                if (event.type === "gate_ready") onSpineChanged();
+              },
+            });
+            if (!controller.signal.aborted && !terminated) {
+              dispatch({ type: "failed", code: STREAM_CLOSED, message: "Kết nối tới step bị đóng giữa chừng. Vui lòng chạy lại." });
+            }
+            return;
+          } catch (err) {
+            if (controller.signal.aborted) return;
+            if (isStepBusy(err) && attempt < BUSY_RETRIES) {
+              await sleep(BUSY_DELAY_MS);
+              if (controller.signal.aborted) return;
+              dispatch({ type: "start", stepId });
+              continue;
+            }
+            dispatch({ type: "failed", ...toFailure(err) });
+            return;
+          }
         }
-      } catch (err) {
-        if (!controller.signal.aborted) dispatch({ type: "failed", ...toFailure(err) });
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
       }

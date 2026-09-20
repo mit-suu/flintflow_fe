@@ -340,6 +340,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         workingMode={spine?.project.working_mode ?? null}
         onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
         onRunCurrentStep={currentStep && runner.state.status === "idle" ? () => void runner.run(currentStep) : undefined}
+        // BE báo step còn chạy dở ở request khác (tab cũ / lần chạy trước khi reload) ⇒ khoá nút, khỏi bấm rồi nhận 409
+        stepRunningElsewhere={steps?.steps.some((s) => s.id === currentStep && s.running) ?? false}
         busy={runner.state.busy || savingChange}
       />
 

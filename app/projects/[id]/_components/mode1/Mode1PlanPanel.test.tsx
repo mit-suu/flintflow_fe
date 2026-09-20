@@ -27,6 +27,7 @@ const step = (id: string, status: StepSummary["status"]): StepSummary => ({
   regenerate_used: 0,
   regenerate_limit: 3,
   accepted_at: null,
+  running: false,
 });
 
 const PLAN: StepPlanEntry[] = [
