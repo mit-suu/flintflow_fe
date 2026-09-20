@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
+import BackLink from "@/components/ui/BackLink";
 import { getDocument } from "@/lib/api/export";
 import { getProgress } from "@/lib/api/pipeline";
 import { BlockView } from "../_components/DocumentPane";
@@ -56,9 +56,7 @@ export default function ReadOnlyDocumentPage() {
           <span className="text-[13px] font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
           <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
         </div>
-        <Link href={`/projects/${projectId}`} className="text-[11.5px] font-bold text-[#6A62C4] hover:underline">
-          ← Về không gian làm việc
-        </Link>
+        <BackLink href={`/projects/${projectId}`}>Về không gian làm việc</BackLink>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6">
