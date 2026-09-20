@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -28,7 +29,7 @@ afterAll(() => mockServer.close());
 const docx = (name = "SRS_Lumen.docx") =>
   new File(["PK mock"], name, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 
-const renderWizard = () => render(<ImportWizard projectId={P} credits={100} pollMs={5} />);
+const renderWizard = () => renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
 
 /** Upload → xác nhận bản mới nhất → mapping; dừng ở màn trích. */
 const uploadAndMap = async () => {

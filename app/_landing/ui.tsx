@@ -134,7 +134,7 @@ export function Texture({ kind, mask, className = "" }: { kind: keyof typeof TEX
 }
 
 /** Dải 12 đoạn màu theo bốn bước BA — "vạch giai đoạn" làm đường phân cách section; cuộn tới thì chạy lần lượt từng đoạn. */
-export function PhaseRibbon({ groups, className = "" }: { groups: { tone: GroupTone; phases: readonly string[] }[]; className?: string }) {
+export function PhaseRibbon({ groups, className = "" }: { groups: readonly { tone: GroupTone; phases: readonly string[] }[]; className?: string }) {
   return (
     <motion.div aria-hidden="true" {...inView} variants={stagger(0.045)} className={`flex gap-1 ${className}`}>
       {groups.flatMap((group) =>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 import UiBackLink from "@/components/ui/BackLink";
@@ -121,6 +122,7 @@ export function PasswordField({
   minLength,
   children,
 }: PasswordFieldProps) {
+  const t = useTranslations("auth.common");
   const [visible, setVisible] = useState(false);
   const errorId = `${id}-error`;
   const name = toggleName ?? label.toLowerCase();
@@ -147,7 +149,7 @@ export function PasswordField({
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          aria-label={visible ? `Ẩn ${name}` : `Hiện ${name}`}
+          aria-label={visible ? t("hideField", { field: name }) : t("showField", { field: name })}
           className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-inner text-on-surface-muted transition-colors hover:bg-surface-container-highest hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Icon name={visible ? "eye-off" : "eye"} size={18} />
@@ -159,12 +161,15 @@ export function PasswordField({
   );
 }
 
-/** Độ mạnh mật khẩu — một nguồn cho đăng ký và đặt lại mật khẩu. */
-export function getPasswordStrength(pwd: string): { level: 0 | 1 | 2 | 3; text: string } {
-  if (!pwd) return { level: 0, text: "" };
-  if (pwd.length < 6) return { level: 1, text: "Yếu" };
-  if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, text: "Trung bình" };
-  return { level: 3, text: "Mạnh" };
+/**
+ * Độ mạnh mật khẩu — một nguồn cho đăng ký và đặt lại mật khẩu. Trả về mức + key chữ (`auth.common.strength.*`)
+ * để hàm giữ nguyên tính thuần; `StrengthMeter` dịch lúc render.
+ */
+export function getPasswordStrength(pwd: string): { level: 0 | 1 | 2 | 3; key: "weak" | "medium" | "strong" | null } {
+  if (!pwd) return { level: 0, key: null };
+  if (pwd.length < 6) return { level: 1, key: "weak" };
+  if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, key: "medium" };
+  return { level: 3, key: "strong" };
 }
 
 const STRENGTH_TONE = {
@@ -175,8 +180,9 @@ const STRENGTH_TONE = {
 
 /** Thanh 3 đoạn báo độ mạnh; không hiện khi ô còn trống. */
 export function StrengthMeter({ password }: { password: string }) {
-  const { level, text } = getPasswordStrength(password);
-  if (level === 0) return null;
+  const t = useTranslations("auth.common.strength");
+  const { level, key } = getPasswordStrength(password);
+  if (level === 0 || !key) return null;
   const tone = STRENGTH_TONE[level];
   return (
     <div className="flex items-center gap-2.5 pt-0.5">
@@ -185,7 +191,7 @@ export function StrengthMeter({ password }: { password: string }) {
           <span key={n} className={`h-1.5 flex-1 rounded-full transition-colors ${n <= level ? tone.bar : "bg-surface-container-highest"}`} />
         ))}
       </div>
-      <span className={`text-[11.5px] font-bold ${tone.text}`}>{text}</span>
+      <span className={`text-[11.5px] font-bold ${tone.text}`}>{t(key)}</span>
     </div>
   );
 }
@@ -267,10 +273,11 @@ export function Divider({ children }: { children: ReactNode }) {
 }
 
 /** Nút quay về một trang (mặc định trang đăng nhập), căn giữa cuối card — dùng `BackLink` chung của app. */
-export function BackLink({ href = "/login", children = "Quay lại đăng nhập" }: { href?: string; children?: ReactNode }) {
+export function BackLink({ href = "/login", children }: { href?: string; children?: ReactNode }) {
+  const t = useTranslations("auth.common");
   return (
     <div className="flex justify-center">
-      <UiBackLink href={href}>{children}</UiBackLink>
+      <UiBackLink href={href}>{children ?? t("backToLogin")}</UiBackLink>
     </div>
   );
 }

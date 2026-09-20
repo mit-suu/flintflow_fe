@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
@@ -43,7 +44,7 @@ describe("GapReportView (UC-23)", () => {
   it("tổng hợp cờ, section thiếu, heading không khớp; nút tạo CR điền sẵn nguồn gap_report; tải docx", async () => {
     await importToGapReview();
     const onChanged = vi.fn();
-    render(<GapReportView projectId={P} projectName="Lumen" onChanged={onChanged} />);
+    renderWithIntl(<GapReportView projectId={P} projectName="Lumen" onChanged={onChanged} />);
 
     expect(await screen.findByText("Gap report — bản 0.0")).toBeInTheDocument();
     expect(screen.getByText(/Mục 5.3 Application Messages List bắt buộc/)).toBeInTheDocument();
@@ -87,7 +88,7 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
   it("còn cờ đỏ ⇒ Release bị khoá kèm lý do", async () => {
     await importToGapReview();
     const versions = (await listVersions(P)).data!;
-    render(<VersionsPanel projectId={P} versions={versions} redOpen={1} selected="0.0" onSelect={vi.fn()} onReleased={vi.fn()} />);
+    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={1} selected="0.0" onSelect={vi.fn()} onReleased={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Release" })).toBeDisabled();
     expect(screen.getByText(/Còn 1 cờ đỏ/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tải bản render (DRAFT)" })).toBeEnabled();
@@ -98,7 +99,7 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
     const versions = await withRevision();
     mode1State.mode1State.redFlags = 0;
     const onReleased = vi.fn();
-    render(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.1" onSelect={vi.fn()} onReleased={onReleased} />);
+    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.1" onSelect={vi.fn()} onReleased={onReleased} />);
 
     expect(screen.getByRole("button", { name: "Tải bản draft (Track Changes)" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Release" }));
@@ -109,7 +110,7 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
 
   it("BE vẫn chặn (422 RELEASE_RED_FLAGS_OPEN) ⇒ hiện danh sách cờ chặn", async () => {
     const versions = await withRevision();
-    render(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.1" onSelect={vi.fn()} onReleased={vi.fn()} />);
+    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.1" onSelect={vi.fn()} onReleased={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Release" }));
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận release" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/Mục 5.3 Application Messages List/);
@@ -119,14 +120,14 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
 describe("VersionCompare (UC-55) và ReuploadDiffView (UC-24)", () => {
   it("so sánh 0.0 → 0.1 liệt kê block sửa", async () => {
     const versions = await withRevision();
-    render(<VersionCompare projectId={P} versions={versions} />);
+    renderWithIntl(<VersionCompare projectId={P} versions={versions} />);
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
     expect(await screen.findByText(/0.0 → 0.1: 0 thêm · 0 xoá · 1 sửa/)).toBeInTheDocument();
   });
 
   it("tải lại file ⇒ diff, không tạo version, nút tạo CR nguồn reupload", async () => {
     await importToGapReview();
-    render(<ReuploadDiffView projectId={P} />);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
     fireEvent.change(screen.getByTestId("docx-input"), { target: { files: [new File(["PK"], "SRS_sua.docx")] } });
     expect(await screen.findByText(/1 thêm · 0 xoá · 1 sửa · 0 di chuyển/)).toBeInTheDocument();
     expect(mode1State.mode1State.versions).toHaveLength(1);

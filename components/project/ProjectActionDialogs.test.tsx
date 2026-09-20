@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { deleteProject, renameProject } from "@/lib/api/projects";
 import type { Project } from "@/types/project";
@@ -23,14 +24,14 @@ describe("ProjectActionDialogs", () => {
   });
 
   it("không có target ⇒ không render", () => {
-    const { container } = render(<ProjectActionDialogs target={null} onClose={() => {}} onDone={() => {}} />);
+    const { container } = renderWithIntl(<ProjectActionDialogs target={null} onClose={() => {}} onDone={() => {}} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("đổi tên: điền sẵn tên cũ, gửi tên mới đã trim, tải lại rồi đóng", async () => {
     const onDone = vi.fn();
     const onClose = vi.fn();
-    render(<ProjectActionDialogs target={{ action: "rename", project }} onClose={onClose} onDone={onDone} />);
+    renderWithIntl(<ProjectActionDialogs target={{ action: "rename", project }} onClose={onClose} onDone={onDone} />);
 
     const input = screen.getByLabelText("Tên dự án mới");
     expect(input).toHaveValue("Lumen");
@@ -49,7 +50,7 @@ describe("ProjectActionDialogs", () => {
     ["delete", "Xoá vĩnh viễn", { hard: true }],
   ] as const)("%s: xác nhận ⇒ DELETE đúng kiểu", async (action, cta, opts) => {
     const onClose = vi.fn();
-    render(<ProjectActionDialogs target={{ action, project }} onClose={onClose} onDone={() => {}} />);
+    renderWithIntl(<ProjectActionDialogs target={{ action, project }} onClose={onClose} onDone={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: cta }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -59,7 +60,7 @@ describe("ProjectActionDialogs", () => {
   it("lỗi BE hiện trong dialog, không đóng", async () => {
     vi.mocked(deleteProject).mockRejectedValue(new Error("Không có quyền"));
     const onClose = vi.fn();
-    render(<ProjectActionDialogs target={{ action: "delete", project }} onClose={onClose} onDone={() => {}} />);
+    renderWithIntl(<ProjectActionDialogs target={{ action: "delete", project }} onClose={onClose} onDone={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Xoá vĩnh viễn" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Không có quyền");
