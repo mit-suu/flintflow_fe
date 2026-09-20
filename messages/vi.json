@@ -395,7 +395,7 @@
       }
     },
     "checkout": {
-      "back": "← Quay lại trang thanh toán",
+      "back": "Quay lại trang thanh toán",
       "loading": "Đang tải giao dịch…",
       "loadFailed": "Không thể tải giao dịch",
       "notFound": "Không tìm thấy giao dịch",
@@ -452,7 +452,10 @@
       "save": "Lưu",
       "retry": "Thử lại",
       "clearSearch": "Xoá tìm kiếm",
-      "soon": "Sắp có"
+      "soon": "Sắp có",
+      "loadMore": "Tải thêm",
+      "account": "Tài khoản",
+      "dismiss": "Đóng thông báo lỗi"
     },
     "shell": {
       "nav": "Điều hướng chính",
@@ -677,6 +680,47 @@
       "addExisting": "Thêm dự án có sẵn",
       "viewArchived": "Xem lưu trữ",
       "moveFailed": "Không thể chuyển dự án vào thư mục"
+    },
+    "profile": {
+      "title": "Hồ sơ cá nhân",
+      "breadcrumb": "Hồ sơ",
+      "loading": "Đang tải hồ sơ…",
+      "loadFailed": "Không thể tải hồ sơ",
+      "info": "Thông tin cá nhân",
+      "nameSaved": "Đã cập nhật tên hiển thị.",
+      "nameLabel": "Tên hiển thị",
+      "nameEmpty": "Tên hiển thị không được để trống.",
+      "nameFailed": "Không thể lưu tên hiển thị",
+      "nameUnset": "Chưa đặt",
+      "edit": "Chỉnh sửa",
+      "email": "Email",
+      "emailVerified": "✓ Đã xác thực",
+      "emailUnverified": "Chưa xác thực",
+      "provider": "Phương thức đăng nhập",
+      "providerGoogleBoth": "Google + Email/mật khẩu",
+      "providerGoogle": "Google",
+      "providerLocal": "Email/mật khẩu",
+      "joined": "Ngày tham gia",
+      "credits": "Credit hiện có",
+      "creditAmount": "{credits} credit",
+      "toBilling": "Thanh toán & credit →",
+      "createPasswordTitle": "Tạo mật khẩu",
+      "createPasswordBody": "Tài khoản của bạn đang đăng nhập bằng Google nên chưa có mật khẩu. Tạo mật khẩu để có thể đăng nhập bằng email <b>{email}</b> — vẫn dùng Google được như cũ.",
+      "createPasswordCta": "Tạo mật khẩu qua email →",
+      "createPasswordNote": "Chúng tôi sẽ gửi mã OTP tới email của bạn. Sau khi tạo, bạn sẽ cần đăng nhập lại.",
+      "changePasswordTitle": "Đổi mật khẩu",
+      "changePasswordBody": "Sau khi đổi, các thiết bị khác sẽ bị đăng xuất. Thiết bị này vẫn giữ đăng nhập.",
+      "changePasswordSuccess": "Đổi mật khẩu thành công. Các thiết bị khác đã được đăng xuất.",
+      "changePasswordFailed": "Không thể đổi mật khẩu",
+      "currentPassword": "Mật khẩu hiện tại",
+      "newPassword": "Mật khẩu mới",
+      "confirmNewPassword": "Xác nhận mật khẩu mới",
+      "sameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại.",
+      "confirmMismatch": "Mật khẩu xác nhận không giống với mật khẩu mới.",
+      "saving": "Đang cập nhật…",
+      "submit": "Đổi mật khẩu",
+      "forgotCurrent": "Quên mật khẩu hiện tại?",
+      "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại."
     }
   },
   "workspace": {
