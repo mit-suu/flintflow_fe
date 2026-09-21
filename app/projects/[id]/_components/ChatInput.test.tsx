@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const estimateActionCost = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/api/chat", () => ({ estimateActionCost }));
+// Mỗi ca nạp lại module (resetModules) ⇒ nạp lại cả thư viện icon, chậm quá timeout; ca này chỉ kiểm giá credit
+vi.mock("@/components/ui/Icon", () => ({ default: () => null }));
 
 // Cache giá nằm ở cấp module: nạp lại ChatInput mỗi test để các ca không dùng chung cache
 const renderInput = async () => {
