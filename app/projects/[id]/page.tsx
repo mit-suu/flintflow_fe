@@ -10,11 +10,13 @@ import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 import type { Project } from "@/types/project";
 
+import Collapse from "@/components/ui/Collapse";
+import Icon from "@/components/ui/Icon";
+import IconButton from "@/components/ui/IconButton";
 import WorkspaceHeader from "./_components/WorkspaceHeader";
-import PhaseNavBar from "./_components/PhaseNavBar";
-import PhaseHeader from "./_components/PhaseHeader";
-import StepProgressBar from "./_components/StepProgressBar";
-import ChatSessionSidebar from "./_components/ChatSessionSidebar";
+import WorkspaceProgressRail from "./_components/WorkspaceProgressRail";
+import WorkspaceToolRail, { type WorkspacePanel } from "./_components/WorkspaceToolRail";
+import ChatSessionHistory from "./_components/ChatSessionHistory";
 import ChatPane from "./_components/ChatPane";
 import DocumentPane, { type EmptyHint } from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
@@ -44,6 +46,20 @@ const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
 const DEFAULT_CHAT_PANE_WIDTH = 480;
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
 
+/** Bề rộng panel phải theo loại — dùng giới hạn khi kéo đổi cỡ khung chat. */
+const PANEL_WIDTH: Record<WorkspacePanel, number> = { change: 380, verification: 340, tools: 340 };
+const TOOL_RAIL_WIDTH = 48;
+const PROGRESS_OPEN_KEY = "flintflow_workspace_progress_open";
+
+const readSavedProgressOpen = (): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(PROGRESS_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
 const readSavedChatPaneWidth = (): number => {
   if (typeof window === "undefined") return DEFAULT_CHAT_PANE_WIDTH;
   try {
@@ -54,10 +70,10 @@ const readSavedChatPaneWidth = (): number => {
 };
 
 const WorkspaceLoading = () => (
-  <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
+  <div className="min-h-screen bg-surface flex items-center justify-center">
     <div className="flex flex-col items-center gap-3">
-      <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] animate-spin shrink-0" />
-      <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
+      <span className="w-8 h-8 rounded-full border-3 border-outline border-t-primary ff-spinner shrink-0" />
+      <span className="text-on-surface-muted font-medium text-sm">Đang tải không gian làm việc SRS…</span>
     </div>
   </div>
 );
@@ -111,11 +127,31 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     recompute: recomputeFlagsFn,
   } = useFlags(projectId, spineState.version);
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [verificationOpen, setVerificationOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(mode1);
+  // Panel phải: mỗi lúc một (rail icon). Mode 1 mở sẵn kế hoạch step & version.
+  const [rightPanel, setRightPanel] = useState<WorkspacePanel | null>(mode1 ? "tools" : null);
+  const togglePanel = (panel: WorkspacePanel) => setRightPanel((current) => (current === panel ? null : panel));
+  // Panel đang vẽ: giữ panel cuối trong lúc chạy hiệu ứng đóng (rightPanel đã về null)
+  const [shownPanel, setShownPanel] = useState<WorkspacePanel | null>(rightPanel);
+  if (rightPanel && rightPanel !== shownPanel) setShownPanel(rightPanel);
+  const [progressOpen, setProgressOpen] = useState<boolean>(readSavedProgressOpen);
+  const toggleProgress = () => {
+    const next = !progressOpen;
+    setProgressOpen(next);
+    try {
+      localStorage.setItem(PROGRESS_OPEN_KEY, next ? "1" : "0");
+    } catch {}
+  };
+  // Mở rộng trang: ẩn header + rail tiến độ; thoát bằng nút đầu rail công cụ hoặc Esc
+  const [focusMode, setFocusMode] = useState(false);
+  useEffect(() => {
+    if (!focusMode) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) setFocusMode(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusMode]);
   const [exportOpen, setExportOpen] = useState(false);
-  const [changePanelOpen, setChangePanelOpen] = useState(false);
   const [changeSeed, setChangeSeed] = useState<ChangeSeed | undefined>(undefined);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [savingChange, setSavingChange] = useState(false);
@@ -195,6 +231,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const signedOff = !!spine?.baselines.some((b) => b.type !== "imported");
   const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
   const currentPhase = progress?.progress.current_phase ?? steps?.current_phase ?? spine?.progress.current_phase ?? null;
+  // Giai đoạn hiển thị theo bước đang làm: `current_phase` còn là phase vừa xong khi `current_step` đã sang phase kế
+  const shownPhase = steps?.steps.find((s) => s.id === currentStep)?.phase ?? currentPhase;
   const runnerStep = runner.state.stepId;
   const viewedStep = selectedStepId ?? currentStep;
   const viewedSummary = steps?.steps.find((s) => s.id === viewedStep);
@@ -258,7 +296,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const forwardInstructionToChangePanel = useCallback((instruction: string) => {
     if (!instruction.trim()) return;
     setChangeSeed({ text: instruction, nonce: Date.now() });
-    setChangePanelOpen(true);
+    setRightPanel("change");
   }, []);
 
   // ─── resize chat pane ─────────────────────────────────────────
@@ -275,7 +313,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     const onMove = (e: MouseEvent) => {
       const pane = document.getElementById("flintflow-chat-pane");
       if (!pane || !mainRef.current) return;
-      const asideWidth = (verificationOpen ? 380 : 0) + (toolsOpen ? 340 : 0) + (sidebarOpen ? 230 : 0);
+      const asideWidth = (rightPanel ? PANEL_WIDTH[rightPanel] : 0) + TOOL_RAIL_WIDTH;
       const maxAllowed = Math.max(350, mainRef.current.getBoundingClientRect().width - asideWidth - 320);
       setChatPaneWidth(Math.min(Math.max(350, e.clientX - pane.getBoundingClientRect().left), Math.min(1000, maxAllowed)));
     };
@@ -295,74 +333,56 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizing, verificationOpen, toolsOpen, sidebarOpen]);
+  }, [isResizing, rightPanel]);
 
-  if (!ws.ready) {
-    return (
-      <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <span className="w-8 h-8 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] animate-spin shrink-0" />
-          <span className="text-[#8A867E] font-medium text-sm">Đang tải không gian làm việc SRS…</span>
-        </div>
-      </div>
-    );
-  }
+  if (!ws.ready) return <WorkspaceLoading />;
 
   const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
   const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#F5F3F0] font-sans">
-      <WorkspaceHeader
-        project={ws.project}
-        user={ws.user}
-        baselineVersion={spine?.baselines.at(-1)?.version ?? null}
-        onExportClick={() => setExportOpen((v) => !v)}
-        onLogout={ws.logout}
-      />
+    <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
+      {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
+      <Collapse axis="x" open={!focusMode && progressOpen} className="relative z-30">
+        <WorkspaceProgressRail
+          onHide={toggleProgress}
+          currentPhase={shownPhase}
+          steps={steps?.steps ?? []}
+          progress={progress?.progress ?? null}
+          selectedStepId={viewedStep}
+          onSelectStep={setSelectedStepId}
+          missingStepIds={mode1 ? missingStepIds : undefined}
+          readinessPercent={progress?.readiness.accepted_pct}
+          workingMode={spine?.project.working_mode ?? null}
+          onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
+          busy={runner.state.busy || savingChange}
+        />
+      </Collapse>
 
-      <PhaseNavBar
-        currentPhase={currentPhase}
-        steps={steps?.steps ?? []}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((v) => !v)}
-        onExportClick={() => setExportOpen((v) => !v)}
-        exportActive={exportOpen}
-        onVerificationClick={() => setVerificationOpen((v) => !v)}
-        verificationOpen={verificationOpen}
-        verificationFlagsCount={progress?.readiness.red_open ?? 0}
-        readinessPercent={progress?.readiness.accepted_pct}
-      />
+      <div className="flex-1 min-w-0 flex flex-col">
+      {/* z-20: menu tài khoản trong header nổi trên dải mờ của các pane bên dưới */}
+      <Collapse open={!focusMode} className="relative z-20">
+        <WorkspaceHeader
+          project={ws.project}
+          user={ws.user}
+          baselineVersion={spine?.baselines.at(-1)?.version ?? null}
+          progressHidden={!progressOpen}
+          onShowProgress={toggleProgress}
+          onRunCurrentStep={currentStep && runner.state.status === "idle" ? () => void runner.run(currentStep) : undefined}
+          busy={runner.state.busy || savingChange}
+          onExportClick={() => setExportOpen((v) => !v)}
+          onEnterFocus={() => setFocusMode(true)}
+          onLogout={ws.logout}
+        />
+      </Collapse>
 
-      <PhaseHeader
-        currentPhase={currentPhase}
-        currentStep={currentStep}
-        workingMode={spine?.project.working_mode ?? null}
-        onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
-        onRunCurrentStep={currentStep && runner.state.status === "idle" ? () => void runner.run(currentStep) : undefined}
-        busy={runner.state.busy || savingChange}
-      />
-
-      <StepProgressBar
-        steps={steps?.steps ?? []}
-        progress={progress?.progress ?? null}
-        selectedStepId={viewedStep}
-        onSelectStep={setSelectedStepId}
-        missingStepIds={mode1 ? missingStepIds : undefined}
-      />
-
-      <main ref={mainRef} className="flex-1 flex overflow-hidden bg-[#F5F3F0]">
-        {sidebarOpen && (
-          <ChatSessionSidebar
-            sessions={ws.sessions}
-            activeSessionId={ws.activeSession?._id ?? null}
-            onSelectSession={ws.selectSession}
-            onCreateSession={ws.createSession}
-            onDeleteSession={ws.deleteSession}
-          />
-        )}
-
+      <main
+        ref={mainRef}
+        className="flex-1 min-h-0 flex overflow-hidden bg-surface-container-lowest"
+      >
         <ChatPane
+          // Rail tiến độ ẩn (hoặc đang mở rộng trang) ⇒ khung chat sát mép trái màn hình, chỉ bo bên phải
+          flushLeft={focusMode || !progressOpen}
           width={chatPaneWidth}
           session={ws.activeSession}
           stepLabel={viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
@@ -373,6 +393,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           pendingAttachments={ws.pendingAttachments}
           onSelectAttachment={ws.selectAttachment}
           onRemoveAttachment={ws.removeAttachment}
+          headerStart={
+            <ChatSessionHistory
+              sessions={ws.sessions}
+              activeSessionId={ws.activeSession?._id ?? null}
+              onSelectSession={ws.selectSession}
+              onCreateSession={ws.createSession}
+              onDeleteSession={ws.deleteSession}
+            />
+          }
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
           onEditInstruction={forwardInstructionToChangePanel}
@@ -384,7 +413,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         >
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {viewingAccepted && viewedStep && (
-            <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-3 text-[12px] text-[#1F7A45]">
+            <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
             </div>
           )}
@@ -399,7 +428,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             />
           )}
           {runner.state.error && (
-            <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3 text-[12px] text-[#B03030] flex items-center justify-between gap-2">
+            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex items-center justify-between gap-2">
               <span>
                 {runner.state.error.code}: {runner.state.error.message}
               </span>
@@ -426,7 +455,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center"
           title="Kéo để thay đổi kích thước (nháy đúp để về mặc định)"
         >
-          <div className={`h-full transition-all ${isResizing ? "w-[3px] bg-[#6A62C4]" : "w-[2px] bg-[#E2DFD9] group-hover:w-[3px] group-hover:bg-[#6A62C4]"}`} />
+          {/* Chỉ hiện một đoạn ngắn bo tròn ở giữa (không chạy suốt chiều cao, khỏi đâm qua góc bo của khung chat) */}
+          <div className={`h-12 w-1 rounded-full transition-colors ${isResizing ? "bg-primary" : "bg-transparent group-hover:bg-primary/60"}`} />
         </div>
 
         <DocumentPane
@@ -440,29 +470,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           emptyHintOf={mode1 ? emptyHintOf : undefined}
         />
 
-        <div className="flex flex-col gap-1.5 m-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setChangePanelOpen((v) => !v)}
-            className={`px-2 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${
-              changePanelOpen ? "bg-[#191817] text-white border-[#191817]" : "bg-white border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7]"
-            }`}
-            title="Sửa qua lệnh với xem trước diff"
-          >
-            {changePanelOpen ? "›" : "‹ Sửa lệnh"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setToolsOpen((v) => !v)}
-            className="self-start px-2 py-1 rounded-full text-[11px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7] cursor-pointer"
-            title={mode1 ? "Kế hoạch step, version, change request" : "Tên riêng, thuật ngữ và hàng đợi màn"}
-          >
-            {toolsOpen ? "›" : mode1 ? "‹ Kế hoạch & version" : "‹ Công cụ"}
-          </button>
-        </div>
-
-        {toolsOpen && spine && (
-          <aside className="w-[340px] shrink-0 bg-white border-l border-[#ECEAE5] overflow-y-auto p-4 flex flex-col gap-5" aria-label="Công cụ">
+        <Collapse axis="x" open={rightPanel !== null}>
+        {shownPanel === "tools" && spine && (
+          <aside className="w-[340px] h-full shrink-0 bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label="Công cụ">
+            <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <Icon name="toolbox" size={16} className="text-primary" />
+                <h3 className="font-bold text-[13px] text-on-surface truncate">{mode1 ? "Kế hoạch step & version" : "Công cụ"}</h3>
+              </div>
+              <IconButton icon="close" size="sm" label="Đóng công cụ" onClick={() => setRightPanel(null)} />
+            </div>
+            <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-5">
             {mode1 && (
               <Mode1WorkspaceTools
                 projectId={projectId}
@@ -482,38 +500,39 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             {inBriefPhase && (
               <>
                 <section className="flex flex-col gap-2">
-                  <h4 className="text-[12px] font-extrabold text-[#191817]">Tóm tắt Brief</h4>
+                  <h4 className="text-[12.5px] font-bold text-on-surface">Tóm tắt Brief</h4>
                   <BriefSummaryCard spine={spine} />
                 </section>
                 <section className="flex flex-col gap-2">
-                  <h4 className="text-[12px] font-extrabold text-[#191817]">Giả định chờ xác nhận (B-2.1)</h4>
+                  <h4 className="text-[12.5px] font-bold text-on-surface">Giả định chờ xác nhận (B-2.1)</h4>
                   <AssumptionSweepPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
                 </section>
                 <section className="flex flex-col gap-2">
-                  <h4 className="text-[12px] font-extrabold text-[#191817]">Ghi chú Brief (B-2.2)</h4>
+                  <h4 className="text-[12.5px] font-bold text-on-surface">Ghi chú Brief (B-2.2)</h4>
                   <AddendumTriagePanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
                 </section>
               </>
             )}
             <section className="flex flex-col gap-2">
-              <h4 className="text-[12px] font-extrabold text-[#191817]">Tên riêng & thuật ngữ</h4>
+              <h4 className="text-[12.5px] font-bold text-on-surface">Tên riêng & thuật ngữ</h4>
               <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
             </section>
             <section className="flex flex-col gap-2">
-              <h4 className="text-[12px] font-extrabold text-[#191817]">Hàng đợi màn (S-5)</h4>
+              <h4 className="text-[12.5px] font-bold text-on-surface">Hàng đợi màn (S-5)</h4>
               <ScreenQueuePanel spine={spine} onMarkPlaceholder={(id) => void markPlaceholder(id)} busy={savingChange} />
             </section>
+            </div>
           </aside>
         )}
 
-        {changePanelOpen && (
+        {shownPanel === "change" && (
           <ChangePanel
             projectId={projectId}
             getBaseVersion={getBaseVersion}
             getLatestSeq={getLatestSeq}
             onApplied={handleChangeApplied}
             onClose={() => {
-              setChangePanelOpen(false);
+              setRightPanel(null);
               // Xoá seed khi đóng — mở lại panel sau đó không được tự chạy lại lệnh cũ.
               setChangeSeed(undefined);
             }}
@@ -521,20 +540,30 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           />
         )}
 
-        {verificationOpen && (
+        {shownPanel === "verification" && (
           <VerificationPane
             readiness={progress?.readiness ?? null}
             flags={flags}
             flagsLoading={flagsLoading}
             flagsError={flagsError}
             flagsBusy={flagsBusy}
-            onClose={() => setVerificationOpen(false)}
+            onClose={() => setRightPanel(null)}
             onSelectStep={setSelectedStepId}
             onWaive={handleFlagWaive}
             onRecompute={handleFlagRecompute}
           />
         )}
+        </Collapse>
+
+        <WorkspaceToolRail
+          active={rightPanel}
+          onToggle={togglePanel}
+          flagsCount={progress?.readiness.red_open ?? 0}
+          mode1={mode1}
+          onExitFocus={focusMode ? () => setFocusMode(false) : undefined}
+        />
       </main>
+      </div>
 
       {exportOpen && (
         <ExportPanel
