@@ -12,7 +12,7 @@ interface DocumentPaneProps {
   projectName?: string;
   /** Cờ mở, dùng để gắn nút "xem tại step" theo `section_id` (nguồn duy nhất đáng tin cho map này). */
   flags?: Flag[];
-  /** Section vừa đổi sau khi step ghi op hoặc ChangePanel áp một lô — viền nổi bật một nhịp. */
+  /** Section vừa đổi sau khi step ghi op hoặc ChangePanel áp một lô — nền nổi bật một nhịp. */
   changedSectionIds?: ReadonlySet<string>;
   onSelectStep?: (stepId: string) => void;
   /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc ChangePanel áp lô). */
@@ -166,12 +166,24 @@ export function BlockView({ block, projectId }: { block: Block; projectId: strin
   }
 }
 
+/** Mỗi cấp mục con thụt vào thêm bấy nhiêu px (1 → 1.1 → 1.1.1). */
+const INDENT_PER_LEVEL = 20;
+
+/** Cấp của section, 0 = mục gốc: theo `level` của BE (1-based), thiếu thì đếm dấu chấm trong số mục. */
+const depthOf = (section: RenderedSection): number =>
+  Math.max(0, (section.level || (section.number ? section.number.split(".").length : 1)) - 1);
+
+/** Cỡ chữ tiêu đề theo cấp: mục gốc to nhất, mục con nhỏ dần. */
+const HEADING_SIZE = ["text-[15px]", "text-[13.5px]", "text-[12.5px]"] as const;
+const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
+
 /** Heading nhóm (`group:*`) — chỉ tiêu đề chương/mục cha, không phải section có nội dung (contract-change 2026-09-15). */
 function GroupHeading({ section }: { section: RenderedSection }) {
+  const depth = depthOf(section);
   return (
-    <div data-section-id={section.id} className="pt-2 px-1">
-      <h4 className="font-extrabold text-[13px] text-[#4B4842]">
-        {section.number ? `§${section.number} ` : ""}
+    <div data-section-id={section.id} className="pt-4 first:pt-0" style={{ marginLeft: depth * INDENT_PER_LEVEL }}>
+      <h4 className={`font-extrabold text-on-surface ${headingSize(depth)}`}>
+        {section.number ? `${section.number}. ` : ""}
         {section.heading}
       </h4>
     </div>
@@ -213,16 +225,20 @@ function SectionView({
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
   const badge = section.status ? STATUS_BADGE[section.status] : null;
   const custom = section.id.startsWith("custom:");
+  const depth = depthOf(section);
   return (
     <article
       data-section-id={section.id}
-      className={`p-4 rounded-[12px] border bg-white flex flex-col gap-2 transition-colors ${
-        changed ? "border-[#6A62C4] ring-1 ring-[#DCD8F0]" : "border-[#ECEAE5]"
-      }`}
+      // Mục con thụt vào so với mục cha (inline style: độ sâu là dữ liệu, không phải class tĩnh); −12px bù phần đệm
+      // ngang dành cho nền nổi bật, để chữ của mục gốc thẳng hàng với heading nhóm
+      style={{ marginLeft: depth * INDENT_PER_LEVEL - 12 }}
+      // Không khung/viền: tài liệu đọc liền mạch như bản xuất. Section vừa đổi qua chat nổi lên bằng nền tím nhạt một
+      // nhịp (thay cho viền nổi bật trước đây) — chỉ là hiển thị, không liên quan dữ liệu hay file xuất.
+      className={`-mr-3 px-3 py-1.5 rounded-control flex flex-col gap-1.5 transition-colors duration-500 ${changed ? "bg-primary-soft" : ""}`}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h5 className="font-bold text-[12.5px] text-[#191817]">
-          {section.number ? `§${section.number} ` : ""}
+        <h5 className={`font-bold text-on-surface ${headingSize(depth)}`}>
+          {section.number ? `${section.number}. ` : ""}
           {section.heading}
         </h5>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -278,10 +294,10 @@ export default function DocumentPane({
     flags.find((f) => (!f.resolved_at && !f.waived_by_user) && f.section_id === sectionId)?.remediation_step;
 
   return (
-    <section className="flex-1 bg-white flex flex-col min-w-[320px] overflow-hidden">
-      <div className="px-6 py-3 border-b border-[#ECEAE5] flex items-center justify-between shrink-0 h-[52px] bg-white">
+    <section className="flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
+      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between shrink-0 h-12 bg-surface-container-lowest">
         <div className="flex items-center gap-2.5">
-          <h3 className="font-extrabold text-[13.5px] text-[#191817]">SRS — {projectName}</h3>
+          <h3 className="font-bold text-[13.5px] text-on-surface">SRS — {projectName}</h3>
           {document && <span className="text-[10.5px] text-[#8A867E] bg-[#F5F3F0] px-2 py-0.5 rounded-full font-mono">{document.version}</span>}
           {document?.watermark && (
             <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">{document.watermark}</span>
@@ -301,7 +317,7 @@ export default function DocumentPane({
               type="button"
               onClick={runAssemble}
               disabled={assembling}
-              className="px-3 py-1 rounded-full bg-[#191817] text-white text-[11.5px] font-bold cursor-pointer disabled:opacity-60"
+              className="h-8 px-3 rounded-control bg-primary hover:bg-primary-hover text-on-primary text-[12px] font-bold cursor-pointer transition-colors disabled:opacity-60"
             >
               {assembling ? "Đang ghép…" : "Ghép lại"}
             </button>
@@ -309,14 +325,14 @@ export default function DocumentPane({
           <button
             type="button"
             onClick={() => void reload()}
-            className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F2F1FB] border border-[#ECEAE5] text-[#6A62C4] text-[11.5px] font-bold cursor-pointer"
+            className="h-8 px-3 rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-[12px] font-bold cursor-pointer transition-colors"
           >
-            ↻ Tải lại
+            Tải lại
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#FAF9F7]">
+      <div className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
         {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
 
         {!loading && notAssembled && (

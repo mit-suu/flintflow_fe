@@ -1,20 +1,20 @@
 "use client";
 
+import type { ReactNode } from "react";
+import Icon from "@/components/ui/Icon";
 import { PHASES, PHASE_LABELS_VI, type PhaseId } from "@/lib/constants/step-registry";
 import type { StepSummary } from "@/types/pipeline";
 
 interface PhaseNavBarProps {
   currentPhase: string | null;
   steps: StepSummary[];
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
-  onExportClick: () => void;
-  exportActive?: boolean;
-  onVerificationClick?: () => void;
-  verificationOpen?: boolean;
-  verificationFlagsCount?: number;
-  /** Điểm sẵn sàng (% section accepted) — hiển thị, không phải điều kiện chốt. */
-  readinessPercent?: number;
+  /** Các giai đoạn đang mở danh sách bước (chế độ mở rộng) — mở nhiều cùng lúc được. */
+  openPhases?: ReadonlySet<string>;
+  onSelectPhase?: (phase: PhaseId) => void;
+  /** Nội dung dưới giai đoạn đang mở (danh sách bước). */
+  renderPhaseBody?: (phase: PhaseId) => ReactNode;
+  /** Mode 1 v2: giai đoạn có bước "Thiếu" mang nhãn đỏ "Thiếu". */
+  missingStepIds?: ReadonlySet<string>;
 }
 
 export type PhaseState = "completed" | "active" | "upcoming";
@@ -27,94 +27,96 @@ export const phaseState = (phase: PhaseId, currentPhase: string | null, steps: S
   return "upcoming";
 };
 
+/** Phase hiển thị: bỏ phase không có step trong danh sách BE (mode 1 — FLF-185); danh sách rỗng ⇒ đủ 12. */
+export const visiblePhases = (steps: StepSummary[]): PhaseId[] =>
+  PHASES.filter((phase) => steps.length === 0 || steps.some((s) => s.phase === phase));
+
+/** Mã hiển thị gọn: "B-0" → "B0" (chỉ để đọc; id giai đoạn vẫn giữ gạch nối như registry). */
+export const shortPhase = (phase: string) => phase.replace("-", "");
+
 /**
- * 12 phase B-0…S-9 theo step registry (Phases §1.1). Phase không có step nào trong danh sách BE (project mode 1:
- * step không áp dụng cho template bị bỏ — FLF-185) bị ẩn; danh sách rỗng (chưa tải) ⇒ hiện đủ 12.
+ * Hai nhóm giai đoạn theo màu logo: B (Brief) đen như chữ "Flint", S (Software Requirements Specification) tím như
+ * chữ "Flow" — cho tiêu đề nhóm, chữ "đã xong" (`doneTextOf`) và ô "đang làm" (`activeCellOf`). Dòng giai đoạn chỉ ghi số.
+ */
+export const PHASE_GROUPS = [
+  { letter: "B", name: "Brief", text: "text-on-surface" },
+  { letter: "S", name: "Software Requirements Specification", text: "text-primary" },
+] as const;
+
+/** Màu chữ "đã xong" theo nhóm — dùng chung cho dòng giai đoạn và bước con. */
+export const doneTextOf = (phase: string) => (phase.startsWith("B") ? "text-on-surface" : "text-primary-hover");
+/** Mục "đang làm" tô đặc màu nhóm, chữ trắng: B nền đen (chữ "Flint"), S nền tím (chữ "Flow"). */
+export const activeCellOf = (phase: string) =>
+  phase.startsWith("B") ? "bg-on-surface text-surface-container-lowest font-semibold" : "bg-primary text-on-primary font-semibold";
+
+/**
+ * Kiểu sidebar shadcn: chỉ giai đoạn đang làm có nền (theo nhóm); đã xong là chữ đậm theo màu nhóm, chưa tới chữ xám
+ * — không dấu tích, không khối màu. Cố ý không dùng vòng tròn/chấm: nhiều hình nhỏ xếp cột gây cảm giác lỗ chỗ.
+ */
+const rowClass = (phase: string, state: PhaseState) =>
+  state === "active"
+    ? activeCellOf(phase)
+    : state === "completed"
+      ? `${doneTextOf(phase)} font-semibold hover:bg-surface-container`
+      : "text-on-surface-muted font-medium hover:bg-surface-container";
+
+/**
+ * 12 giai đoạn B-0…S-9 (Phases §1.1) xếp dọc trong rail tiến độ bên trái, gom theo nhóm B / S; mỗi giai đoạn là một
+ * mục gập được độc lập (mở cái này không đóng cái khác).
  */
 export default function PhaseNavBar({
   currentPhase,
   steps,
-  sidebarOpen,
-  onToggleSidebar,
-  onExportClick,
-  exportActive = false,
-  onVerificationClick,
-  verificationOpen = false,
-  verificationFlagsCount = 0,
-  readinessPercent,
+  openPhases,
+  onSelectPhase,
+  renderPhaseBody,
+  missingStepIds,
 }: PhaseNavBarProps) {
+  const phases = visiblePhases(steps);
   return (
-    <nav className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center gap-3 shrink-0 h-[52px] overflow-x-auto scrollbar-hide z-10">
-      <button
-        onClick={onToggleSidebar}
-        className="p-1.5 hover:bg-[#FAF9F7] rounded-[8px] text-[#6B6862] transition-colors shrink-0 cursor-pointer"
-        title="Toggle Lịch sử phiên chat"
-      >
-        <span className="material-symbols-outlined text-[18px]">{sidebarOpen ? "menu_open" : "menu"}</span>
-      </button>
-
-      <span className="text-[10px] font-extrabold text-[#8A867E] tracking-wider uppercase shrink-0 mr-1">PHASE</span>
-
-      <ol className="flex items-center gap-1.5 shrink-0">
-        {PHASES.filter((phase) => steps.length === 0 || steps.some((s) => s.phase === phase)).map((phase) => {
-          const state = phaseState(phase, currentPhase, steps);
-          const style =
-            state === "completed"
-              ? "bg-[#E9F7EE] text-[#1F7A45] border border-[#BFE6CE]"
-              : state === "active"
-                ? "bg-[#191817] text-white shadow-sm"
-                : "bg-[#FAF9F7] text-[#A8A49C] border border-[#ECEAE5]";
-          return (
-            <li
-              key={phase}
-              title={PHASE_LABELS_VI[phase]}
-              aria-current={state === "active" ? "step" : undefined}
-              data-state={state}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 ${style}`}
-            >
-              {state === "completed" && <span className="text-[10px]">✓</span>}
-              <span>{phase}</span>
-            </li>
-          );
-        })}
-      </ol>
-
-      <div className="w-[1px] h-5 bg-[#E4E1DC] mx-1 shrink-0" />
-
-      {/* Export luôn bấm được, không khoá theo tiến độ (Phases §6.5) */}
-      <button
-        onClick={onExportClick}
-        className={`px-3.5 py-1.5 rounded-full text-[11.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
-          exportActive ? "bg-[#191817] text-white shadow-sm" : "bg-[#F2F1FB] text-[#6A62C4] border border-[#DCD8F0] hover:bg-[#EDEAFB]"
-        }`}
-        title="Mở luồng hoàn tất và xuất tài liệu"
-      >
-        <span>★</span>
-        <span>Export & Handoff</span>
-      </button>
-
-      <div className="ml-auto flex items-center gap-3 shrink-0">
-        {onVerificationClick && (
-          <button
-            onClick={onVerificationClick}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              verificationOpen ? "bg-[#FBF4E4] border border-[#F0DFB4] text-[#8A6D1F]" : "bg-white border border-[#ECEAE5] text-[#6B6862] hover:bg-[#FAF9F7]"
-            }`}
-            title="Đánh giá chất lượng & độ sẵn sàng"
-          >
-            <span>{verificationFlagsCount > 0 ? "⚠" : "✓"}</span>
-            <span>
-              Verification
-              {verificationFlagsCount > 0 && ` (${verificationFlagsCount})`}
-            </span>
-          </button>
-        )}
-        {readinessPercent !== undefined && (
-          <span className="text-[11.5px] font-bold text-[#6B6862]" title="Điểm sẵn sàng: % section bắt buộc đã accepted">
-            {readinessPercent}% accepted
-          </span>
-        )}
-      </div>
-    </nav>
+    <ol aria-label="Giai đoạn" className="flex flex-col gap-0.5">
+      {PHASE_GROUPS.flatMap((group) => {
+        const groupPhases = phases.filter((p) => p.startsWith(group.letter));
+        if (groupPhases.length === 0) return [];
+        const header = (
+          <li key={group.letter} aria-hidden className="flex items-baseline gap-1.5 px-2.5 pt-2 pb-1 first:pt-0">
+            <span className={`text-[12.5px] font-bold leading-snug ${group.text}`}>{group.name}</span>
+          </li>
+        );
+        return [
+          header,
+          ...groupPhases.map((phase) => {
+            const state = phaseState(phase, currentPhase, steps);
+            const open = !!openPhases?.has(phase);
+            const hasMissing = !!missingStepIds && steps.some((s) => s.phase === phase && s.status !== "accepted" && missingStepIds.has(s.id));
+            const label = PHASE_LABELS_VI[phase];
+            const code = shortPhase(phase);
+            return (
+              <li key={phase} aria-current={state === "active" ? "step" : undefined} data-state={state} className="ml-[18px]">
+                <button
+                  type="button"
+                  onClick={() => onSelectPhase?.(phase)}
+                  aria-expanded={open}
+                  aria-label={`${code} · ${label}`}
+                  className={`group relative w-full flex items-start rounded-control transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-9 py-2 px-2.5 gap-2.5 ${rowClass(phase, state)}`}
+                >
+                  <span className="w-4 shrink-0 text-left font-bold tabular-nums text-[12px] leading-[18px]">{phase.split("-")[1]}</span>
+                  <span className="flex-1 min-w-0 text-left text-[13px] leading-snug break-words">{label}</span>
+                  {hasMissing && <span className="mt-0.5 shrink-0 text-[9.5px] font-bold px-1.5 rounded-[4px] bg-error-container text-error">Thiếu</span>}
+                  {/* Mũi tên chỉ hiện khi rê chuột hoặc đang mở — không lặp trên mọi dòng */}
+                  <Icon
+                    name="caret-right"
+                    size={13}
+                    className={`shrink-0 mt-[3px] transition-[transform,opacity] duration-200 ${open ? "rotate-90 opacity-60" : "opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60"}`}
+                  />
+                </button>
+                {/* Bước con như sub-menu của shadcn: một đường dọc mảnh dưới số giai đoạn, danh sách thụt vào */}
+                {open && renderPhaseBody && <div className="ml-[17px] pl-2 my-1 border-l border-outline-variant">{renderPhaseBody(phase)}</div>}
+              </li>
+            );
+          }),
+        ];
+      })}
+    </ol>
   );
 }
