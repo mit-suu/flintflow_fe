@@ -46,6 +46,7 @@ import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
+import { useTurnNotice } from "./hooks/useTurnNotice";
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
@@ -257,6 +258,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     onGateDone: (res) => setSelectedStepId(res.next_step),
   });
 
+  // Lớp 5: tới lượt user mà tab đang ẩn thì đổi tiêu đề tab (và báo, nếu user đã cho phép)
+  useTurnNotice(
+    runner.state.status === "needs_input" || runner.state.status === "gate_ready",
+    runner.state.status === "needs_input" ? "AI đang chờ bạn trả lời" : "Có nội dung mới chờ bạn duyệt"
+  );
+
   // Thời gian và credit THẬT của bước vừa xong — dùng lại làm ước lượng cho lần sau (03 §6)
   useEffect(() => {
     if (runner.state.status !== "gate_ready") return;
@@ -457,6 +464,18 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
   const reviewMode: ReviewMode = spine?.project.review_mode ?? "balanced";
+  /**
+   * BUG-30: panel SRS và bản xuất phải mang TÊN HỆ THỐNG tiếng Anh đã chốt (`system_name`), không phải
+   * tên dự án tiếng Việt user gõ lúc tạo. Chưa chốt tên thì mới rơi về tên dự án.
+   */
+  const documentName = spine?.project.system_name?.trim() || ws.project?.name;
+  /**
+   * BUG-03: vòng S-5 của màn đang để trống — panel Tiến độ mở lại được, thay vì khoá cứng 5 bước.
+   * Chỉ S-5.1 là chỗ vào: chạy nó đưa màn về `in_progress` và các bước còn lại tự tới lượt.
+   */
+  const reopenableStepIds = new Set(
+    (spine?.screens ?? []).filter((screen) => screen.detail_status === "placeholder").map((screen) => `S-5.1@${screen.id}`)
+  );
   const viewedStepSummary = steps?.steps.find((s) => s.id === viewedStep);
   // Bước chưa chạy: hiện thẻ "Bước này sẽ…" thay vì một nút Chạy trơ trọi (Lớp 2)
   const showIntro =
@@ -480,6 +499,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           selectedStepId={viewedStep}
           onSelectStep={setSelectedStepId}
           missingStepIds={mode1 ? missingStepIds : undefined}
+          reopenableStepIds={reopenableStepIds}
           readinessPercent={progress?.readiness.accepted_pct}
           workingMode={spine?.project.working_mode ?? null}
           onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
@@ -655,7 +675,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
         <DocumentPane
           projectId={projectId}
-          projectName={ws.project?.name}
+          projectName={documentName}
           flags={flags}
           changedSectionIds={changedSectionIds}
           onSelectStep={setSelectedStepId}
@@ -678,7 +698,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             {mode1 && (
               <Mode1WorkspaceTools
                 projectId={projectId}
-                projectName={ws.project?.name}
+                projectName={documentName}
                 plan={stepPlan.steps}
                 planError={stepPlan.error}
                 busyStep={stepPlan.busyStep}
@@ -775,6 +795,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             onSelectStep={setSelectedStepId}
             onWaive={handleFlagWaive}
             onRedraw={handleRedrawDiagram}
+            onAssumptionDecision={(decision) => void applyAssumptionDecision(decision)}
             onRecompute={handleFlagRecompute}
           />
         )}
@@ -809,7 +830,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       {exportOpen && (
         <ExportPanel
           projectId={projectId}
-          projectName={ws.project?.name}
+          projectName={documentName}
+          flags={flags}
           onClose={() => setExportOpen(false)}
           onGoToStep={setSelectedStepId}
           getBaseVersion={getBaseVersion}

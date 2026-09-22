@@ -21,6 +21,8 @@ interface VerificationPaneProps {
   onRecompute: () => Promise<void> | void;
   /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
   onRedraw?: (flag: Flag) => Promise<void> | void;
+  /** Xác nhận / bác bỏ giả định ngay tại panel (BUG-13). */
+  onAssumptionDecision?: (decision: { kind: "confirm" | "reject"; id: string }) => void;
 }
 
 /** Panel Verification & Readiness thật (T16) — cờ đỏ/vàng, waive, readiness từ BE. */
@@ -35,6 +37,7 @@ export default function VerificationPane({
   onWaive,
   onRecompute,
   onRedraw,
+  onAssumptionDecision,
 }: VerificationPaneProps) {
   return (
     <aside className="w-[340px] h-full flex-none bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label="Verification">
@@ -61,6 +64,7 @@ export default function VerificationPane({
             error={flagsError}
             onWaive={onWaive}
             onRedraw={onRedraw}
+            onAssumptionDecision={onAssumptionDecision}
             onRecompute={() => void onRecompute()}
             onSelectStep={onSelectStep}
           />

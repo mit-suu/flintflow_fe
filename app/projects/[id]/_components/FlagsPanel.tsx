@@ -79,6 +79,11 @@ interface FlagsPanelProps {
   onSelectStep?: (stepId: string) => void;
   /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
   onRedraw?: (flag: Flag) => Promise<void> | void;
+  /**
+   * Xác nhận / bác bỏ một giả định ngay tại panel (BUG-13). Trước đây chỗ này chỉ có Waive, nên 27 giả
+   * định chưa xác nhận ở S-9.1 không có đường xử lý nào ngoài "bỏ qua có lý do".
+   */
+  onAssumptionDecision?: (decision: { kind: "confirm" | "reject"; id: string }) => void;
 }
 
 const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_user;
@@ -98,7 +103,7 @@ export const sortFlags = (flags: readonly Flag[]): Flag[] =>
 export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_stale" || flag.rule_id === "render_error";
 
 /** Bảng cờ đỏ/vàng (`GET /flags`); waive luật `array_empty`/`dead_reference`/`render_error` bị khoá. */
-export default function FlagsPanel({ flags, busy = false, error, onWaive, onRecompute, onSelectStep, onRedraw }: FlagsPanelProps) {
+export default function FlagsPanel({ flags, busy = false, error, onWaive, onRecompute, onSelectStep, onRedraw, onAssumptionDecision }: FlagsPanelProps) {
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
   const openFlags = sortFlags(flags.filter(isOpen));
@@ -177,6 +182,26 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                   <span className="text-[10.5px] text-[#8A867E]">{flag.remediation_step}</span>
                 )}
                 <div className="flex items-center gap-1.5">
+                {onAssumptionDecision && flag.rule_id === "unconfirmed_assumption" && flag.target_id && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onAssumptionDecision({ kind: "confirm", id: flag.target_id as string })}
+                      className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 cursor-pointer"
+                    >
+                      Đúng
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onAssumptionDecision({ kind: "reject", id: flag.target_id as string })}
+                      className="px-2.5 py-1 rounded-full text-[10.5px] font-bold border border-[#F0C4C4] text-[#B03030] hover:bg-[#FDF2F2] disabled:opacity-50 cursor-pointer"
+                    >
+                      Bỏ
+                    </button>
+                  </>
+                )}
                 {onRedraw && isRedrawable(flag) && (
                   <button
                     type="button"
