@@ -146,6 +146,28 @@ export const refreshSession = async (): Promise<RefreshOutcome> => {
 
 export const refreshAccessToken = async (): Promise<boolean> => (await refreshSession()) === "ok";
 
+/** Ngưỡng refresh chủ động mặc định cho một request ngắn. */
+export const DEFAULT_MIN_TOKEN_TTL_MS = 15_000;
+
+/**
+ * Một lượt chạy step kéo dài 30 giây tới vài phút; access token sống 15 phút. Mở stream lúc token còn
+ * dưới ngần này thì nó hết hạn GIỮA luồng và không refresh được nữa (BUG-18) — nên refresh trước khi mở.
+ */
+export const STREAM_MIN_TOKEN_TTL_MS = 120_000;
+
+/** Bảo đảm access token còn ít nhất `minTtlMs` nữa; hết hạn tới nơi thì refresh trước. */
+export const ensureFreshToken = async (minTtlMs: number = DEFAULT_MIN_TOKEN_TTL_MS): Promise<void> => {
+  if (typeof window === "undefined") return;
+  if (refreshPromise) await refreshPromise;
+  const stored = getStoredAuthToken();
+  if (!stored) return;
+  setAccessToken(stored);
+  const decoded = decodeJwt(stored);
+  if (decoded?.exp && Date.now() >= decoded.exp * 1000 - minTtlMs) {
+    if (await refreshAccessToken()) setAccessToken(getStoredAuthToken());
+  }
+};
+
 /**
  * `fetch` tới BE có gắn Bearer token: refresh chủ động khi token sắp hết hạn,
  * thử lại đúng một lần khi gặp 401. Trả `Response` thô để dùng cho JSON, SSE hoặc file.
