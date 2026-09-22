@@ -377,6 +377,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         <ChatPane
           // Rail tiến độ ẩn (hoặc đang mở rộng trang) ⇒ khung chat sát mép trái màn hình, chỉ bo bên phải
           flushLeft={mode1 || focusMode || !progressOpen}
+          title={mode1 ? "Hỏi đáp & lệnh sửa" : undefined}
           width={chatPaneWidth}
           session={ws.activeSession}
           stepLabel={!mode1 && viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
@@ -460,9 +461,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectName={ws.project?.name}
           flags={flags}
           changedSectionIds={changedSectionIds}
-          onSelectStep={setSelectedStepId}
+          // Mode 1 v3: không có step ⇒ không có nút "xem tại step", mục trống mời tạo CR
+          onSelectStep={mode1 ? undefined : setSelectedStepId}
           refreshToken={documentRefreshToken}
           getBaseVersion={getBaseVersion}
+          mode1={mode1}
         />
 
         <Collapse axis="x" open={rightPanel !== null}>
