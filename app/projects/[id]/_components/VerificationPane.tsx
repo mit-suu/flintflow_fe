@@ -17,7 +17,8 @@ interface VerificationPaneProps {
   flagsBusy: boolean;
   onClose: () => void;
   onSelectStep?: (stepId: string) => void;
-  onWaive: (flagId: string, reason: string) => Promise<void>;
+  /** Không truyền ⇒ không có nút waive (mode 1 v3). */
+  onWaive?: (flagId: string, reason: string) => Promise<void>;
   onRecompute: () => Promise<void> | void;
 }
 

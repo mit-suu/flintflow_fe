@@ -18,7 +18,7 @@ import WorkspaceProgressRail from "./_components/WorkspaceProgressRail";
 import WorkspaceToolRail, { type WorkspacePanel } from "./_components/WorkspaceToolRail";
 import ChatSessionHistory from "./_components/ChatSessionHistory";
 import ChatPane from "./_components/ChatPane";
-import DocumentPane, { type EmptyHint } from "./_components/DocumentPane";
+import DocumentPane from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
 import ChangePanel, { type ChangeSeed } from "./_components/ChangePanel";
 import ExportPanel from "./_components/ExportPanel";
@@ -33,7 +33,6 @@ import AddendumTriagePanel from "./_components/AddendumTriagePanel";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
-import { useStepPlan } from "./hooks/mode1/useStepPlan";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -108,7 +107,11 @@ export default function WorkspacePage() {
   return <FptWorkspace mode1={mode1} />;
 }
 
-/** Workspace pipeline — mode 2 (template FPT) và mode 1 v2 sau import (`mode1`: step theo template người dùng). */
+/**
+ * Workspace pipeline — mode 2 (template FPT) và mode 1 sau import (`mode1`). Mode 1 v3 (bám BPMN Flow 1 ⇒ 3.1): không
+ * chạy step / gate / ký v1 / waive, không ghi Spine thẳng — chỉ xem tài liệu, chat, panel "Sửa tài liệu có xem trước"
+ * (⇒ tạo CR), cờ + change request + version & release.
+ */
 function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const params = useParams();
   const projectId = params?.id as string;
@@ -127,7 +130,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     recompute: recomputeFlagsFn,
   } = useFlags(projectId, spineState.version);
 
-  // Panel phải: mỗi lúc một (rail icon). Mode 1 mở sẵn kế hoạch step & version.
+  // Panel phải: mỗi lúc một (rail icon). Mode 1 mở sẵn cột cờ & version.
   const [rightPanel, setRightPanel] = useState<WorkspacePanel | null>(mode1 ? "tools" : null);
   const togglePanel = (panel: WorkspacePanel) => setRightPanel((current) => (current === panel ? null : panel));
   // Panel đang vẽ: giữ panel cuối trong lúc chạy hiệu ứng đóng (rightPanel đã về null)
@@ -210,25 +213,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     onGateDone: (res) => setSelectedStepId(res.next_step),
   });
 
-  // ─── mode 1 v2: kế hoạch step theo template (thiếu / ẩn / bật) ─────
-  const onPlanChanged = useCallback(() => {
-    void reloadSpine();
-    void reloadProgress();
-    setDocumentRefreshToken((v) => v + 1);
-  }, [reloadSpine, reloadProgress]);
-  const stepPlan = useStepPlan(projectId, mode1, spineState.version, onPlanChanged);
-  const missingStepIds = new Set((stepPlan.steps ?? []).filter((p) => p.missing && p.state !== "hidden").map((p) => p.step_id));
-  const emptyHintOf = (sectionId: string): EmptyHint | undefined => {
-    const owner = (stepPlan.steps ?? []).find(
-      (p) => p.state !== "hidden" && p.section_ids.some((id) => id === sectionId || (id === "feature:*" && sectionId.startsWith("feature:")))
-    );
-    if (!owner || steps?.steps.find((s) => s.id === owner.step_id)?.status === "accepted") return undefined;
-    return { stepId: owner.step_id, missing: owner.missing };
-  };
-
   const spine = spineState.spine;
-  // Mode 1: baseline v1 = baseline ký (`generated`) hoặc release — baseline `imported` (0.0) không tính
-  const signedOff = !!spine?.baselines.some((b) => b.type !== "imported");
   const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
   const currentPhase = progress?.progress.current_phase ?? steps?.current_phase ?? spine?.progress.current_phase ?? null;
   // Giai đoạn hiển thị theo bước đang làm: `current_phase` còn là phase vừa xong khi `current_step` đã sang phase kế
@@ -346,7 +331,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   return (
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
-      <Collapse axis="x" open={!focusMode && progressOpen} className="relative z-30">
+      {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
+      <Collapse axis="x" open={!mode1 && !focusMode && progressOpen} className="relative z-30">
         <WorkspaceProgressRail
           onHide={toggleProgress}
           currentPhase={shownPhase}
@@ -354,7 +340,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           progress={progress?.progress ?? null}
           selectedStepId={viewedStep}
           onSelectStep={setSelectedStepId}
-          missingStepIds={mode1 ? missingStepIds : undefined}
           readinessPercent={progress?.readiness.accepted_pct}
           workingMode={spine?.project.working_mode ?? null}
           onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
@@ -369,14 +354,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           project={ws.project}
           user={ws.user}
           baselineVersion={spine?.baselines.at(-1)?.version ?? null}
-          progressHidden={!progressOpen}
+          progressHidden={!mode1 && !progressOpen}
           onShowProgress={toggleProgress}
           // Nút chạy **bước đang xem** (L9): trước đây luôn chạy `current_step` nên quay về bước cũ rồi bấm lại ra bản
           // accept của bước sau (gặp thật 2026-09-20). Bước đã chốt / bị bỏ qua thì không chạy được — nút biến mất.
-          runnableStep={runnableStep}
-          currentStep={currentStep}
-          onRunCurrentStep={runnableStep && runner.state.status === "idle" ? () => void runner.run(runnableStep) : undefined}
-          onBackToCurrent={viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
+          runnableStep={mode1 ? null : runnableStep}
+          currentStep={mode1 ? null : currentStep}
+          onRunCurrentStep={!mode1 && runnableStep && runner.state.status === "idle" ? () => void runner.run(runnableStep) : undefined}
+          onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           stepRunningElsewhere={steps?.steps.some((s) => s.id === runnableStep && s.running) ?? false}
           busy={runner.state.busy || savingChange}
           onExportClick={() => setExportOpen((v) => !v)}
@@ -391,10 +376,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       >
         <ChatPane
           // Rail tiến độ ẩn (hoặc đang mở rộng trang) ⇒ khung chat sát mép trái màn hình, chỉ bo bên phải
-          flushLeft={focusMode || !progressOpen}
+          flushLeft={mode1 || focusMode || !progressOpen}
           width={chatPaneWidth}
           session={ws.activeSession}
-          stepLabel={viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
+          stepLabel={!mode1 && viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
           onSendMessage={(custom) => void ws.sendMessage(currentStep, custom)}
@@ -415,13 +400,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           isStreaming={ws.streamingMessage !== null}
           onEditInstruction={forwardInstructionToChangePanel}
           footer={
-            runner.state.status === "needs_input" ? (
+            !mode1 && runner.state.status === "needs_input" ? (
               <ElicitPanel questions={runner.state.questions} onSubmit={(answers) => void runner.answer(answers)} sending={runner.state.busy} />
             ) : undefined
           }
         >
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
-          {viewingAccepted && viewedStep && (
+          {!mode1 && viewingAccepted && viewedStep && (
             <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
             </div>
@@ -478,7 +463,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onSelectStep={setSelectedStepId}
           refreshToken={documentRefreshToken}
           getBaseVersion={getBaseVersion}
-          emptyHintOf={mode1 ? emptyHintOf : undefined}
         />
 
         <Collapse axis="x" open={rightPanel !== null}>
@@ -487,33 +471,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Icon name="toolbox" size={16} className="text-primary" />
-                <h3 className="font-bold text-[13px] text-on-surface truncate">{mode1 ? "Kế hoạch step & version" : "Công cụ"}</h3>
+                <h3 className="font-bold text-[13px] text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Công cụ"}</h3>
               </div>
               <IconButton icon="close" size="sm" label="Đóng công cụ" onClick={() => setRightPanel(null)} />
             </div>
             <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-5">
             {mode1 && (
-              <Mode1WorkspaceTools
-                projectId={projectId}
-                projectName={ws.project?.name}
-                plan={stepPlan.steps}
-                planError={stepPlan.error}
-                busyStep={stepPlan.busyStep}
-                onToggleStep={(stepId, on) => void stepPlan.toggle(stepId, on)}
-                steps={steps?.steps ?? []}
-                flags={flags}
-                signedOff={signedOff}
-                onSelectStep={setSelectedStepId}
-                onReopenStep={(stepId) => {
-                  setSelectedStepId(stepId);
-                  void runner.run(stepId, { reopen: true });
-                }}
-                onWaiveFlag={handleFlagWaive}
-                getBaseVersion={getBaseVersion}
-                onSpineChanged={() => onSpineChanged()}
-              />
+              <Mode1WorkspaceTools projectId={projectId} projectName={ws.project?.name} flags={flags} onSpineChanged={() => onSpineChanged()} />
             )}
-            {inBriefPhase && (
+            {/* Các panel dưới ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
+            {!mode1 && inBriefPhase && (
               <>
                 <section className="flex flex-col gap-2">
                   <h4 className="text-[12.5px] font-bold text-on-surface">Tóm tắt Brief</h4>
@@ -529,14 +496,18 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 </section>
               </>
             )}
-            <section className="flex flex-col gap-2">
-              <h4 className="text-[12.5px] font-bold text-on-surface">Tên riêng & thuật ngữ</h4>
-              <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
-            </section>
-            <section className="flex flex-col gap-2">
-              <h4 className="text-[12.5px] font-bold text-on-surface">Hàng đợi màn (S-5)</h4>
-              <ScreenQueuePanel spine={spine} onMarkPlaceholder={(id) => void markPlaceholder(id)} busy={savingChange} />
-            </section>
+            {!mode1 && (
+              <>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12.5px] font-bold text-on-surface">Tên riêng & thuật ngữ</h4>
+                  <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
+                </section>
+                <section className="flex flex-col gap-2">
+                  <h4 className="text-[12.5px] font-bold text-on-surface">Hàng đợi màn (S-5)</h4>
+                  <ScreenQueuePanel spine={spine} onMarkPlaceholder={(id) => void markPlaceholder(id)} busy={savingChange} />
+                </section>
+              </>
+            )}
             </div>
           </aside>
         )}
@@ -553,6 +524,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               setChangeSeed(undefined);
             }}
             seed={changeSeed}
+            requiresCr={mode1}
           />
         )}
 
@@ -565,7 +537,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             flagsBusy={flagsBusy}
             onClose={() => setRightPanel(null)}
             onSelectStep={setSelectedStepId}
-            onWaive={handleFlagWaive}
+            onWaive={mode1 ? undefined : handleFlagWaive}
             onRecompute={handleFlagRecompute}
           />
         )}

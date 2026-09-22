@@ -42,9 +42,8 @@ const FlagRow = ({ flag }: { flag: Flag }) => (
 );
 
 /**
- * Mô tả CR điền sẵn từ gap report: chỉ cờ đỏ trên **nội dung đã có** (người dùng sửa lại trước khi gửi).
- * Mục còn thiếu (`section_empty`, `missing_sections`) KHÔNG đưa vào: CR sửa phần tử Spine đang có, mục trống thì
- * không có gì để sửa — C-3 sẽ trả 0 vị trí. Mục thiếu đi đường step (AI soạn nội dung, D6), gap report chỉ lối riêng.
+ * Mô tả CR điền sẵn từ gap report: cờ đỏ trên nội dung đã có (người dùng sửa lại trước khi gửi). Mục FPT còn thiếu có
+ * CR riêng (`missingSectionsPrefill`) — mode 1 v3 (BPMN Flow 1 ⇒ 3.1) không còn chạy step, C-3 dựng vị trí thêm mới.
  */
 export const gapReportPrefill = (report: GapReport): { title: string; description: string } => {
   const reds = report.sections.flatMap((s) =>
@@ -57,6 +56,15 @@ export const gapReportPrefill = (report: GapReport): { title: string; descriptio
 };
 
 /** 1.13 Gap report (UC-23): cờ đỏ/vàng theo section, section thiếu, heading không khớp, field còn độ tin thấp. */
+/** Mode 1 v3: CR điền các mục FPT còn thiếu — đích là mã section (C-3 ⇒ vị trí thêm mới), nguồn gap report. */
+export const missingSectionsPrefill = (report: GapReport): { title: string; description: string } => ({
+  title: "Bổ sung các mục còn thiếu",
+  description: [
+    "Soạn nội dung cho các đầu mục mẫu FPT còn thiếu trong gap report của bản " + report.doc_version + ":",
+    ...report.missing_fpt_sections.map((m) => `- ${m.title} (${m.section_id})`),
+  ].join("\n"),
+});
+
 export default function GapReportView({ projectId, projectName, onChanged }: GapReportViewProps) {
   const [report, setReport] = useState<GapReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,22 +133,25 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
 
       {report.missing_fpt_sections.length > 0 && (
         <section className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-4 flex flex-col gap-2" aria-label="Đầu mục FPT còn thiếu">
-          <h3 className="font-extrabold text-[#8A4141] text-[14px]">Đầu mục mẫu FPT còn thiếu — soạn bằng step, không qua change request</h3>
+          <h3 className="font-extrabold text-[#8A4141] text-[14px]">Đầu mục mẫu FPT còn thiếu</h3>
           <p className="text-[12px] text-[#8A4141]">
-            Mục trống thì không có phần tử nào để sửa, nên change request không tìm được vị trí. Về workspace, chạy step tương ứng cho AI soạn
-            nội dung (hoặc viết tay), cờ đỏ sẽ tự đóng.
+            Mục thiếu chặn release (cờ đỏ). Tạo change request để AI soạn nội dung theo quy tắc của step sở hữu mục đó — duyệt xong cờ tự
+            đóng.
           </p>
           <ul className="flex flex-col gap-1 text-[12.5px] text-[#33312D]">
             {report.missing_fpt_sections.map((m) => (
               <li key={m.section_id} className="flex items-center gap-2">
                 <span className="font-semibold">{m.title}</span>
                 <span className="text-[#8A867E]">— {m.in_layout ? "có heading, chưa có nội dung" : "file không có"}</span>
-                <code className="ml-auto text-[11px] text-[#6A62C4] shrink-0">chạy {m.step_id}</code>
+                <code className="ml-auto text-[11px] text-[#A8A49C] shrink-0">{m.section_id}</code>
               </li>
             ))}
           </ul>
-          <Link href={`/projects/${projectId}`} className="self-start px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold">
-            Về workspace để chạy step
+          <Link
+            href={crPrefillHref(projectId, { ...missingSectionsPrefill(report), source: "gap_report", ref: `gap-report ${report.doc_version}` })}
+            className="self-start px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold"
+          >
+            Tạo CR bổ sung mục thiếu
           </Link>
         </section>
       )}
@@ -149,8 +160,8 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
         <div className="flex-1 min-w-[240px] text-[12.5px] text-[#4B4842]">
           <p className="font-bold text-[#191817]">Bước tiếp theo</p>
           <p>
-            Không cần sửa ⇒ tải báo cáo để gửi. Cần sửa <strong>nội dung đã có</strong> ⇒ tạo change request (nguồn: gap report). Mục còn thiếu
-            thì chạy step ở workspace, không đưa vào CR.
+            Không cần sửa ⇒ tải báo cáo để gửi (kết thúc). Cần sửa ⇒ tạo change request (nguồn: gap report) — cả nội dung đã có lẫn mục còn
+            thiếu.
           </p>
         </div>
         <button

@@ -1,77 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import type { StepPlanEntry } from "@/types/import";
-import type { StepSummary } from "@/types/pipeline";
 import type { Flag } from "@/types/spine";
 import { useDocVersions } from "../../hooks/mode1/useDocVersions";
-import Mode1PlanPanel from "./Mode1PlanPanel";
+import Mode1FlagsPanel from "./Mode1FlagsPanel";
 import VersionsPanel from "./VersionsPanel";
 
 interface Mode1WorkspaceToolsProps {
   projectId: string;
   projectName?: string;
-  plan: StepPlanEntry[] | null;
-  planError: string | null;
-  busyStep: string | null;
-  onToggleStep: (stepId: string, enabled: boolean) => void;
-  steps: StepSummary[];
   flags: Flag[];
-  signedOff: boolean;
-  onSelectStep: (stepId: string) => void;
-  onReopenStep?: (stepId: string) => void;
-  /** Waive một cờ ngay tại cột kế hoạch (L11d) — không bắt người dùng đi tìm panel Verification. */
-  onWaiveFlag?: (flagId: string, reason: string) => Promise<void>;
-  getBaseVersion: () => number | null;
-  /** Spine đổi ngoài luồng step (ký v1, release) — tải lại Spine/tiến độ/tài liệu. */
+  /** Spine đổi ngoài luồng chat (release) — tải lại Spine/cờ/tài liệu. */
   onSpineChanged: () => void;
 }
 
 /**
- * Cột công cụ của workspace mode 1 v2 (FLF-185, plan v2 §7): kế hoạch step theo template (thiếu / ẩn / ký v1),
- * gap report + change request, version & release. Tài liệu xem ở `DocumentPane` (render từ Spine theo layout file).
+ * Cột công cụ của workspace mode 1 v3 (bám BPMN — plan `mode1-v3/phase-3-fe-mode1.md` 3.1): cờ đỏ + lối tạo CR, gap
+ * report + change request, version & release (Flow 6). Không còn kế hoạch step / ký baseline v1 / waive.
  */
-export default function Mode1WorkspaceTools({
-  projectId,
-  projectName,
-  plan,
-  planError,
-  busyStep,
-  onToggleStep,
-  steps,
-  flags,
-  signedOff,
-  onSelectStep,
-  onReopenStep,
-  onWaiveFlag,
-  getBaseVersion,
-  onSpineChanged,
-}: Mode1WorkspaceToolsProps) {
+export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged }: Mode1WorkspaceToolsProps) {
   const docs = useDocVersions(projectId);
   const link = "px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-white border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7]";
 
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
-        <h4 className="text-[12px] font-extrabold text-[#191817]">Kế hoạch step theo template</h4>
-        <Mode1PlanPanel
-          projectId={projectId}
-          plan={plan}
-          planError={planError}
-          steps={steps}
-          flags={flags}
-          signedOff={signedOff}
-          busyStep={busyStep}
-          onToggleStep={onToggleStep}
-          onSelectStep={onSelectStep}
-          onReopenStep={onReopenStep}
-          onWaiveFlag={onWaiveFlag}
-          getBaseVersion={getBaseVersion}
-          onSignedOff={() => {
-            onSpineChanged();
-            void docs.reload();
-          }}
-        />
+        <h4 className="text-[12px] font-extrabold text-[#191817]">Cờ & change request</h4>
+        <Mode1FlagsPanel projectId={projectId} flags={flags} />
       </section>
 
       <nav className="flex flex-wrap gap-1.5" aria-label="Import & change request">

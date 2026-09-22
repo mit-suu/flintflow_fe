@@ -74,7 +74,8 @@ interface FlagsPanelProps {
   flags: Flag[];
   busy?: boolean;
   error?: string | null;
-  onWaive: (flagId: string, reason: string) => Promise<void>;
+  /** Không truyền ⇒ không có nút waive (mode 1 v3: cờ chỉ đóng bằng change request). */
+  onWaive?: (flagId: string, reason: string) => Promise<void>;
   onRecompute: () => void;
   onSelectStep?: (stepId: string) => void;
 }
@@ -105,7 +106,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
     if (!waivingFlag) return;
     setWaiveError(null);
     try {
-      await onWaive(waivingFlag.id, reason);
+      await onWaive?.(waivingFlag.id, reason);
       setWaivingId(null);
     } catch (err) {
       setWaiveError(err instanceof Error ? err.message : "Waive cờ thất bại");
@@ -159,7 +160,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                 ) : (
                   <span className="text-[10.5px] text-[#8A867E]">{flag.remediation_step}</span>
                 )}
-                {isFlagWaivable(flag.rule_id) ? (
+                {!onWaive ? null : isFlagWaivable(flag.rule_id) ? (
                   <button
                     type="button"
                     disabled={busy}

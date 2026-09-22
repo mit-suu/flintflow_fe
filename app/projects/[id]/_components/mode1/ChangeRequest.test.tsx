@@ -64,7 +64,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await click("AI đề xuất sửa");
     await click("Kiểm đề xuất");
     await click("Nộp để duyệt");
+    // BPMN 3.12 (mode 1 v3): duyệt cũng phải ghi lý do
     await click("Duyệt");
+    fireEvent.change(await screen.findByLabelText(/^Lý do duyệt /), { target: { value: "Đúng yêu cầu của khách" } });
+    await click("Xác nhận duyệt");
 
     expect(await screen.findByText(/vào bản 0.1/)).toBeInTheDocument();
     expect(S().crs.get("CR-001")!.change_request.status).toBe("written");

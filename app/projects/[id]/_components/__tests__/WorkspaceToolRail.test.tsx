@@ -18,7 +18,7 @@ describe("WorkspaceToolRail", () => {
   it("số cờ đỏ hiện trên nút Verification; mode 1 đổi nhãn công cụ", () => {
     renderWithIntl(<WorkspaceToolRail active={null} onToggle={vi.fn()} flagsCount={20} mode1 />);
     expect(screen.getByRole("button", { name: /Verification/ })).toHaveTextContent("20");
-    expect(screen.getByRole("button", { name: /Kế hoạch step & version/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Cờ, change request & version/ })).toBeInTheDocument();
   });
 
   it("đang mở rộng trang ⇒ nút thoát ở đầu rail", () => {
