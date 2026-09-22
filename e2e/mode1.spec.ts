@@ -136,8 +136,11 @@ test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
 
   // ── 5. Workspace: mode 1 v2 dùng CHÍNH workspace của mode 2 (D3) ───────────────────
   await page.goto(`/projects/${projectId}`);
-  await expect(page.getByLabel("Tiến độ theo bước"), "thanh step của workspace phải hiện").toBeVisible({ timeout: 60_000 });
-  await expect(chat(page), "chat pane có mặt — trước v1 sửa thẳng qua chat").toBeVisible();
+  await expect(chat(page), "chat pane có mặt — trước v1 sửa thẳng qua chat").toBeVisible({ timeout: 60_000 });
+  // Rail tiến độ (FLF-197) ẩn mặc định cho tới khi người dùng mở một lần — mở ra để thấy danh sách bước
+  const showProgress = page.getByRole("button", { name: "Hiện tiến độ" });
+  if (await visible(showProgress)) await showProgress.click();
+  await expect(page.getByLabel("Tiến độ theo bước"), "danh sách bước của workspace phải hiện").toBeVisible({ timeout: 30_000 });
   const planPanel = page.getByRole("region", { name: "Cờ đỏ đang chặn" });
   await expect(planPanel, "cột kế hoạch mode 1").toBeVisible({ timeout: 30_000 });
   await snap(page, "workspace");
@@ -157,7 +160,7 @@ test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
     await openStep.click();
     await snap(page, "step-selected");
 
-    const runButton = page.getByRole("button", { name: /^▶ Chạy / });
+    const runButton = page.getByRole("button", { name: /^Chạy bước / });
     if (await visible(runButton)) {
       await runButton.click();
       const gateCard = page.getByLabel("Cổng chốt");
@@ -183,7 +186,7 @@ test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
       await snap(page, "step-accepted");
 
       // L11: chạy tiếp ngay sau khi accept KHÔNG được ăn 409 lệch version
-      const runAgain = page.getByRole("button", { name: /^▶ Chạy / });
+      const runAgain = page.getByRole("button", { name: /^Chạy bước / });
       if (await visible(runAgain)) {
         await runAgain.click();
         await expect(page.getByText(/Dữ liệu vừa thay đổi ở phiên khác/), "L11: không còn kẹt SPINE_VERSION_CONFLICT").toBeHidden({ timeout: 15_000 });
