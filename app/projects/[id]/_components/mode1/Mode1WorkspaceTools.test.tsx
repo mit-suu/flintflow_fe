@@ -2,7 +2,7 @@
  * Cột công cụ mode 1 — chủ yếu là chỗ nối: ba link điều hướng, cờ + lối tạo CR, bảng version. Mode 1 v3 (bám BPMN):
  * không còn kế hoạch step / ký baseline v1.
  */
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -73,6 +73,21 @@ describe("Mode1WorkspaceTools", () => {
     expect(await screen.findByRole("heading", { name: "Release" })).toBeInTheDocument();
     expect(screen.queryByText("Kế hoạch step theo template")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ký baseline v1" })).not.toBeInTheDocument();
+  });
+
+  it("release xong ⇒ tải lại CẢ Spine lẫn danh sách version", async () => {
+    const versionCalls = serveVersions([VERSION_00]);
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/spine`, () => HttpResponse.json({ data: { spine_version: 7 }, error: null })),
+      http.post(`${API_BASE_URL}/projects/:projectId/release`, () => HttpResponse.json({ data: { version: { version: "1.0" } }, error: null }, { status: 201 }))
+    );
+    const onSpineChanged = vi.fn();
+    renderTools({ onSpineChanged });
+    await waitFor(() => expect(versionCalls.n).toBe(1));
+    fireEvent.click(await screen.findByRole("button", { name: "Release" }));
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận release" }));
+    await waitFor(() => expect(onSpineChanged).toHaveBeenCalled());
+    await waitFor(() => expect(versionCalls.n, "bảng version phải tải lại").toBeGreaterThan(1));
   });
 
   it("lỗi tải version ⇒ báo ra, không nuốt", async () => {
