@@ -212,12 +212,7 @@
       "showField": "Show {field}",
       "hideField": "Hide {field}",
       "fieldPassword": "password",
-      "fieldConfirmPassword": "confirmation password",
-      "strength": {
-        "weak": "Weak",
-        "medium": "Medium",
-        "strong": "Strong"
-      }
+      "fieldConfirmPassword": "confirmation password"
     },
     "google": {
       "continue": "Continue with Google",
@@ -310,6 +305,22 @@
       "submitting": "Updating…",
       "submit": "Reset password",
       "failed": "Password reset failed"
+    }
+  },
+  "password": {
+    "level": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "fair": "Fair",
+      "strong": "Strong"
+    },
+    "notUsable": "{level} — not usable yet",
+    "issue": {
+      "too_short": "Password must be at least {min} characters.",
+      "too_long": "Password must be at most {max} characters.",
+      "not_ascii": "Use only unaccented letters, digits and keyboard symbols — no accented characters and no spaces.",
+      "not_complex": "Password must use at least {classes} of the 4 groups: lowercase, UPPERCASE, digits, symbols.",
+      "not_strong_enough": "Password is not strong enough — use {long} characters or more, or include all 4 groups."
     }
   },
   "app": {
