@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Skeleton from "@/components/ui/Skeleton";
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import OtpInput, { OtpSpamHint, emptyOtp } from "../../../components/OtpInput";
@@ -302,12 +303,21 @@ export default function ResetPasswordPage() {
   );
 }
 
-/** Fallback của Suspense — component riêng để dùng được `useTranslations`. */
+/**
+ * Fallback của Suspense — component riêng để dùng được `useTranslations`. Vẽ khối giữ chỗ đúng dáng
+ * nội dung sắp hiện (`Skeleton`) thay vì một dòng "Đang tải…": chữ đổi thành khối thì mắt không phải
+ * đọc rồi bỏ, và khung trang không giật khi nội dung thật thay chỗ.
+ */
 function AuthCardFallback() {
   const tc = useTranslations("auth.common");
   return (
     <AuthCard>
-      <p className="text-center text-[13px] text-on-surface-variant">{tc("loading")}</p>
+      <div className="flex flex-col gap-3" role="status" aria-busy="true" aria-label={tc("loading")}>
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-4/5" />
+        <Skeleton className="h-9 w-full" />
+      </div>
     </AuthCard>
   );
 }

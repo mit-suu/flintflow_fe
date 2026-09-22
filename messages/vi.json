@@ -335,7 +335,8 @@
     "authGuard": {
       "offline": "Không kết nối được máy chủ. Phiên đăng nhập của bạn vẫn được giữ.",
       "retry": "Thử lại",
-      "checking": "Đang kiểm tra quyền truy cập..."
+      "checking": "Đang kiểm tra quyền truy cập...",
+      "offlineTitle": "Mất kết nối"
     },
     "notifications": {
       "title": "Thông báo",
@@ -403,7 +404,8 @@
         "createTx": "Không thể tạo giao dịch",
         "changePlan": "Không thể đổi gói",
         "loadMore": "Không thể tải thêm giao dịch"
-      }
+      },
+      "loadingHistory": "Đang tải lịch sử giao dịch…"
     },
     "checkout": {
       "back": "Quay lại trang thanh toán",

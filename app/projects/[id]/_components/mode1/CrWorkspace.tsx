@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { CR_TERMINAL_STATUSES, type CrDetail, type CrLocation } from "@/types/change-request";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useChangeRequest } from "../../hooks/mode1/useChangeRequest";
 import ChangeGroupPanel from "./ChangeGroupPanel";
 import ClarifyPanel from "./ClarifyPanel";
@@ -39,7 +40,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
   const cr = useChangeRequest(projectId, crId);
   const [dialog, setDialog] = useState<"cancel" | "close" | null>(null);
 
-  if (cr.loading) return <p className="text-[13px] text-[#8A867E]">Đang tải change request…</p>;
+  if (cr.loading) return <PageSkeleton rows={2} label="Đang tải change request" />;
   if (!cr.detail) {
     return (
       <div role="alert" className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] rounded-[12px] px-4 py-3 text-[12.5px]">
