@@ -15,9 +15,10 @@ import {
   PasswordField,
   PrimaryLink,
   StatusIcon,
-  StrengthMeter,
   SubmitButton,
 } from "../_components/auth-ui";
+import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import { checkPassword, PASSWORD_ISSUE_VALUES, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -27,6 +28,7 @@ function ResetPasswordContent() {
   const t = useTranslations("auth.reset");
   const tc = useTranslations("auth.common");
   const to = useTranslations("auth.otp");
+  const tp = useTranslations("password");
   const searchParams = useSearchParams();
   const router = useRouter();
   const email = searchParams.get("email") || "";
@@ -49,6 +51,7 @@ function ResetPasswordContent() {
 
   // Chỉ báo khi user đã gõ vào ô xác nhận, tránh đỏ ngay từ lúc mới vào bước 2
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const passwordIssue = password.length > 0 ? checkPassword(password) : null;
   const otpComplete = digits.every((d) => d !== "");
 
   const verifyOtp = async (otp: string) => {
@@ -118,6 +121,11 @@ function ResetPasswordContent() {
 
     if (password !== confirmPassword) {
       setError(tc("passwordMismatch"));
+      return;
+    }
+
+    if (passwordIssue) {
+      setError(tp(`issue.${passwordIssue}`, PASSWORD_ISSUE_VALUES));
       return;
     }
 
@@ -246,11 +254,11 @@ function ResetPasswordContent() {
           toggleName={tc("fieldPassword")}
           value={password}
           onChange={setPassword}
-          minLength={8}
+          minLength={PASSWORD_MIN_LENGTH}
           autoFocus
           autoComplete="new-password"
         >
-          <StrengthMeter password={password} />
+          <PasswordStrengthMeter password={password} />
         </PasswordField>
         <PasswordField
           id="confirmPassword"
@@ -262,7 +270,11 @@ function ResetPasswordContent() {
           error={passwordMismatch ? t("confirmMismatch") : null}
         />
 
-        <SubmitButton loading={saving} loadingLabel={t("submitting")} disabled={!confirmPassword || passwordMismatch}>
+        <SubmitButton
+          loading={saving}
+          loadingLabel={t("submitting")}
+          disabled={!confirmPassword || passwordMismatch || Boolean(passwordIssue)}
+        >
           {t("submit")}
         </SubmitButton>
       </form>

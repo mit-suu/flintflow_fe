@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import PasswordInput from "../../../components/PasswordInput";
+import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { USER_AVATAR } from "@/components/layout/AppSidebar";
 import { ApiClientError } from "../../../lib/api/client";
 import { changeMyPassword, fetchMe, updateMyName } from "../../../lib/api/users";
@@ -16,14 +18,6 @@ const inputClass =
   "w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]";
 const primaryButtonClass =
   "px-4 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60";
-
-/** Mức độ mạnh + màu; chữ lấy từ `auth.common.strength.*` lúc render. */
-const getPasswordStrength = (pwd: string) => {
-  if (!pwd) return { level: 0, key: null, color: "#E4E1DC" } as const;
-  if (pwd.length < 6) return { level: 1, key: "weak", color: "#B03030" } as const;
-  if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, key: "medium", color: "#E8A23D" } as const;
-  return { level: 3, key: "strong", color: "#1F7A45" } as const;
-};
 
 const displayNameOf = (user: User) => user.name || user.email.split("@")[0];
 
@@ -187,7 +181,6 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
 
 function ChangePasswordCard({ user }: { user: User }) {
   const t = useTranslations("app.profile");
-  const tStrength = useTranslations("auth.common.strength");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -196,12 +189,17 @@ function ChangePasswordCard({ user }: { user: User }) {
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const strength = getPasswordStrength(newPassword);
   // Chỉ báo khi user đã gõ vào ô xác nhận
   const passwordMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
   const sameAsCurrent = newPassword.length > 0 && newPassword === currentPassword;
+  const passwordIssue = newPassword.length > 0 ? checkPassword(newPassword) : null;
   const canSubmit =
-    currentPassword.length > 0 && newPassword.length >= 6 && !passwordMismatch && !sameAsCurrent && confirmPassword.length > 0;
+    currentPassword.length > 0 &&
+    newPassword.length > 0 &&
+    !passwordIssue &&
+    !passwordMismatch &&
+    !sameAsCurrent &&
+    confirmPassword.length > 0;
 
   if (!user.hasPassword) {
     // Tài khoản Google chưa có mật khẩu ⇒ tạo qua OTP gửi email (dùng lại luồng quên mật khẩu)
@@ -288,27 +286,12 @@ function ChangePasswordCard({ user }: { user: User }) {
           id="newPassword"
           label={t("newPassword")}
           autoComplete="new-password"
-          minLength={6}
+          minLength={PASSWORD_MIN_LENGTH}
           value={newPassword}
           onChange={setNewPassword}
           error={sameAsCurrent ? t("sameAsCurrent") : null}
         >
-          {newPassword.length > 0 && (
-            <div className="flex items-center gap-2.5 pt-1">
-              <div className="flex-1 flex gap-1">
-                {[1, 2, 3].map((level) => (
-                  <div
-                    key={level}
-                    className="flex-1 h-1 rounded-full transition-colors"
-                    style={{ background: strength.level >= level ? strength.color : "#E4E1DC" }}
-                  />
-                ))}
-              </div>
-              <span className="text-[11px] font-bold" style={{ color: strength.color }}>
-                {strength.key ? tStrength(strength.key) : ""}
-              </span>
-            </div>
-          )}
+          <PasswordStrengthMeter password={newPassword} />
         </PasswordInput>
 
         <PasswordInput
