@@ -189,7 +189,9 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   // ── 10. CR: làm rõ → vị trí + khoá → đề xuất → kiểm → nộp (3.2–3.11) ───────────────
   const btn = (name: string | RegExp) => page.getByRole("button", { name });
   const clarify = btn("Bắt đầu làm rõ (AI)");
-  if (await visible(clarify)) await clarify.click();
+  // Chờ trang CR tải xong rồi mới quyết: kiểm ngay lúc vừa mở thì nút chưa kịp hiện ⇒ bỏ qua làm rõ, CR đứng ở draft
+  const opening = await firstVisible(page, [clarify, page.getByRole("form", { name: "Trả lời câu hỏi làm rõ" }), btn("Tìm vị trí ảnh hưởng & khoá")], 60_000);
+  if (opening === 0) await clarify.click();
   for (let round = 0; round < 4; round++) {
     const form = page.getByRole("form", { name: "Trả lời câu hỏi làm rõ" });
     if ((await firstVisible(page, [form, btn("Tìm vị trí ảnh hưởng & khoá")], AI_TIMEOUT)) === 1) break;
