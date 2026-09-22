@@ -1,6 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
+import { stepLabel } from "@/lib/constants/step-registry";
 import StepProgressBar from "../StepProgressBar";
 import type { StepProgress, StepSummary } from "@/types/pipeline";
 
@@ -30,11 +31,17 @@ const progress = (over: Partial<StepProgress> = {}): StepProgress => ({
 });
 
 describe("StepProgressBar", () => {
-  it("đếm theo Bước; ẩn % khi N chưa chốt", () => {
+  it("mỗi bước là thẻ có tên; không ghi tổng số bước; ẩn % khi N chưa chốt", () => {
     renderWithIntl(<StepProgressBar steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
-    expect(screen.getByText("Bước")).toBeInTheDocument();
-    expect(screen.getByTestId("step-count")).toHaveTextContent("17/56");
+    expect(screen.getByRole("button", { name: /^S-3\.1/ })).toHaveTextContent(stepLabel("S-3.1"));
+    expect(screen.queryByText(/17\/56/)).not.toBeInTheDocument();
     expect(screen.queryByTestId("step-percent")).not.toBeInTheDocument();
+  });
+
+  it("`phase` ⇒ chỉ hiện bước của phase đó", () => {
+    renderWithIntl(<StepProgressBar phase="S-3" steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /^S-2\.5/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^S-3\.2/ })).toBeInTheDocument();
   });
 
   it("hiện % sau khi S-4.1 chốt N", () => {

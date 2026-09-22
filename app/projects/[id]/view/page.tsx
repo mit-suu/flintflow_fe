@@ -71,7 +71,7 @@ export default function ReadOnlyDocumentPage() {
             doc?.sections.map((section) => (
               <article key={section.id} className="p-4 rounded-[12px] border border-[#ECEAE5] bg-white flex flex-col gap-2">
                 <h5 className="font-bold text-[12.5px] text-[#191817]">
-                  §{section.number} {section.heading}
+                  {section.number ? `${section.number}. ` : ""}{section.heading}
                 </h5>
                 {isIncomplete(section) ? (
                   <div className="text-[11.5px] text-[#A8A49C] italic">chưa hoàn thiện</div>

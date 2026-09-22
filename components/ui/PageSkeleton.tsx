@@ -9,7 +9,7 @@ import Skeleton from "./Skeleton";
  * - `list`    danh sách dòng có avatar-ish + 2 dòng chữ
  * - `table`   bảng: hàng tiêu đề + các hàng dữ liệu
  * - `form`    thẻ form: nhãn + ô nhập
- * - `workspace` màn hình làm việc 2 pane (chat | tài liệu)
+ * - `workspace` thân màn hình làm việc: pane chat | pane tài liệu (rail tiến độ/header do trang tự vẽ)
  */
 export type PageSkeletonVariant = "page" | "cards" | "list" | "table" | "form" | "workspace";
 
@@ -109,22 +109,29 @@ function Body({ variant, rows, bare }: { variant: PageSkeletonVariant; rows: num
       );
 
     case "workspace":
+      // Cùng khung với main của workspace: pane chat nền `surface` rộng 460px bo góc trên | pane tài liệu
       return (
-        <div className="flex-1 flex gap-4 min-h-0">
+        <div className="flex-1 flex gap-2 min-h-0">
           {/* Pane chat */}
-          <Card bare={bare} className="w-[38%] min-w-[300px] p-5 flex flex-col gap-4">
-            {range(4).map((i) => (
-              <div key={i} className={`flex flex-col gap-2 ${i % 2 ? "items-end" : ""}`}>
-                <Skeleton className={`h-3 ${i % 2 ? "w-1/3" : "w-2/5"}`} />
-                <Skeleton className={`h-12 ${i % 2 ? "w-3/4" : "w-full"} rounded-card`} />
-              </div>
-            ))}
-            <div className="mt-auto">
+          <div className="w-[460px] shrink-0 bg-surface rounded-t-dialog flex flex-col overflow-hidden">
+            <div className="h-12 shrink-0 px-3 flex items-center gap-2">
+              <Skeleton className="size-7 shrink-0" />
+              <Skeleton className="h-3.5 w-32" />
+            </div>
+            <div className="flex-1 min-h-0 px-5 py-3 flex flex-col gap-4">
+              {range(4).map((i) => (
+                <div key={i} className={`flex flex-col gap-2 ${i % 2 ? "items-end" : ""}`}>
+                  <Skeleton className={`h-3 ${i % 2 ? "w-1/3" : "w-2/5"}`} />
+                  <Skeleton className={`h-12 ${i % 2 ? "w-3/4" : "w-full"} rounded-card`} />
+                </div>
+              ))}
+            </div>
+            <div className="shrink-0 p-3">
               <Skeleton className="h-16 w-full rounded-card" />
             </div>
-          </Card>
+          </div>
           {/* Pane tài liệu */}
-          <Card bare={bare} className="flex-1 p-6 flex flex-col gap-3.5">
+          <Card bare={bare} className="flex-1 min-w-0 px-8 py-6 flex flex-col gap-3.5">
             <Skeleton className="h-5 w-1/3" />
             <Skeleton className="h-2.5 w-1/5" />
             <div className="h-2" />
