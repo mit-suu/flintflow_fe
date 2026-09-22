@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import { stepLabel } from "@/lib/constants/step-registry";
@@ -47,7 +47,7 @@ const renderRail = (onHide = vi.fn()) =>
   );
 
 describe("WorkspaceProgressRail", () => {
-  it("giai đoạn đang làm mở sẵn; mở thêm giai đoạn khác không đóng cái cũ; nút thu gọn tất cả", () => {
+  it("giai đoạn đang làm mở sẵn; mở thêm giai đoạn khác không đóng cái cũ; nút thu gọn tất cả", async () => {
     renderRail();
     const current = screen.getByRole("button", { name: /^S-3\.2/ });
     expect(current).toHaveAttribute("aria-current", "step");
@@ -61,7 +61,8 @@ describe("WorkspaceProgressRail", () => {
 
     // Một nút bật/tắt: đang mở ⇒ gập hết; gập hết ⇒ mở hết
     fireEvent.click(screen.getByRole("button", { name: "Thu gọn tất cả bước" }));
-    expect(screen.queryByRole("button", { name: /^S-2\.1/ })).not.toBeInTheDocument();
+    // Danh sách bước trượt đóng xong mới gỡ khỏi DOM
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^S-2\.1/ })).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: /^S-3\.2/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Mở rộng tất cả bước" }));

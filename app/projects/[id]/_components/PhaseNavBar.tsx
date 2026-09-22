@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Collapse from "@/components/ui/Collapse";
 import Icon from "@/components/ui/Icon";
 import { PHASES, PHASE_LABELS_VI, type PhaseId } from "@/lib/constants/step-registry";
 import type { StepSummary } from "@/types/pipeline";
@@ -110,8 +111,12 @@ export default function PhaseNavBar({
                     className={`shrink-0 mt-[3px] transition-[transform,opacity] duration-200 ${open ? "rotate-90 opacity-60" : "opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60"}`}
                   />
                 </button>
-                {/* Bước con như sub-menu của shadcn: một đường dọc mảnh dưới số giai đoạn, danh sách thụt vào */}
-                {open && renderPhaseBody && <div className="ml-[17px] pl-2 my-1 border-l border-outline-variant">{renderPhaseBody(phase)}</div>}
+                {/* Bước con như sub-menu của shadcn: một đường dọc mảnh dưới số giai đoạn, danh sách thụt vào; mở/gập trượt mượt */}
+                {renderPhaseBody && (
+                  <Collapse open={open}>
+                    <div className="ml-[17px] pl-2 my-1 border-l border-outline-variant">{renderPhaseBody(phase)}</div>
+                  </Collapse>
+                )}
               </li>
             );
           }),
