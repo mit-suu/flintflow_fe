@@ -161,41 +161,6 @@ export function PasswordField({
   );
 }
 
-/**
- * Độ mạnh mật khẩu — một nguồn cho đăng ký và đặt lại mật khẩu. Trả về mức + key chữ (`auth.common.strength.*`)
- * để hàm giữ nguyên tính thuần; `StrengthMeter` dịch lúc render.
- */
-export function getPasswordStrength(pwd: string): { level: 0 | 1 | 2 | 3; key: "weak" | "medium" | "strong" | null } {
-  if (!pwd) return { level: 0, key: null };
-  if (pwd.length < 6) return { level: 1, key: "weak" };
-  if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, key: "medium" };
-  return { level: 3, key: "strong" };
-}
-
-const STRENGTH_TONE = {
-  1: { bar: "bg-error", text: "text-error" },
-  2: { bar: "bg-accent-gold", text: "text-accent-gold-text" },
-  3: { bar: "bg-success-dark", text: "text-success" },
-} as const;
-
-/** Thanh 3 đoạn báo độ mạnh; không hiện khi ô còn trống. */
-export function StrengthMeter({ password }: { password: string }) {
-  const t = useTranslations("auth.common.strength");
-  const { level, key } = getPasswordStrength(password);
-  if (level === 0 || !key) return null;
-  const tone = STRENGTH_TONE[level];
-  return (
-    <div className="flex items-center gap-2.5 pt-0.5">
-      <div className="flex flex-1 gap-1" aria-hidden="true">
-        {[1, 2, 3].map((n) => (
-          <span key={n} className={`h-1.5 flex-1 rounded-full transition-colors ${n <= level ? tone.bar : "bg-surface-container-highest"}`} />
-        ))}
-      </div>
-      <span className={`text-[11.5px] font-bold ${tone.text}`}>{t(key)}</span>
-    </div>
-  );
-}
-
 /** Nút chính: nền `primary` trơn; đang chạy ⇒ spinner + nhãn chờ, khoá nút. */
 export function SubmitButton({
   loading = false,
