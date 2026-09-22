@@ -25,8 +25,22 @@ export const CR_TERMINAL_STATUSES: readonly CrStatus[] = ["written", "rejected",
 /** Trạng thái CR đang giữ khoá phần tử Spine (BE `CR_STATUSES_HOLDING_LOCKS`). */
 export const CR_LOCKING_STATUSES: readonly CrStatus[] = ["impact_review", "proposing", "verifying", "manual_fix", "ready_to_submit", "in_review"];
 
-/** `chat` (FLF-182): CR hệ thống tự tạo từ lệnh sửa trong chat sau baseline v1 — không chọn tay trong form. */
+/**
+ * `chat` (FLF-182): chỉ còn ở CR cũ. Mode 1 v3 (BPMN 3.1): tạo CR mới chỉ nhận 6 nguồn `NEW_CR_SOURCE_KINDS` — lệnh
+ * sửa trong chat là yêu cầu miệng (`verbal`, `ref: chat:<id>`).
+ */
 export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat";
+
+/** Nguồn nhận khi tạo CR (BE `NEW_CR_SOURCE_KINDS`) — đúng 6 nguồn BPMN 3.1. */
+export const NEW_CR_SOURCE_KINDS = ["stakeholder_email", "meeting_minutes", "gap_report", "reupload", "viewer_comment", "verbal"] as const satisfies readonly CrSourceKind[];
+
+/** Mode 1 v3: bản xem trước đính kèm lúc tạo CR — gợi ý cho C-2/C-3/C-4. */
+export interface CrSeed {
+  instruction: string | null;
+  ops: Record<string, unknown>[];
+  /** Phần tử Spine bị op chạm. */
+  targets: string[];
+}
 
 export interface CrSource {
   kind: CrSourceKind;
@@ -50,11 +64,13 @@ export interface Cr {
   submitted_at: IsoDateTime | null;
   decided_by: string | null;
   closed_reason: string | null;
+  seed: CrSeed | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }
 
-export type LocationFoundBy = "spine_link" | "mention" | "keyword";
+/** `preview` (mode 1 v3): phần tử bị op của bản xem trước đính kèm CR chạm tới. */
+export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview";
 export type LocationConclusion = "edit" | "comment" | "not_related";
 
 /**
@@ -103,7 +119,7 @@ export interface CrDetail {
   pending_questions: string[];
 }
 
-/** Lý do từ chối group / đóng / huỷ tối thiểu (BE `DECISION_REASON_MIN_LENGTH`). */
+/** Lý do quyết định group (duyệt lẫn từ chối — BPMN 3.12, mode 1 v3) / đóng / huỷ tối thiểu (BE `DECISION_REASON_MIN_LENGTH`). */
 export const DECISION_REASON_MIN_LENGTH = 10;
 export const MAX_REDO_PER_LOCATION = 2;
 export const MAX_CLARIFY_ROUNDS = 3;
@@ -113,8 +129,15 @@ export const MAX_CLARIFY_ROUNDS = 3;
 export interface CreateCrRequest {
   title: string;
   description: string;
-  source: { kind: CrSourceKind; ref?: string | null; note?: string | null };
+  source: { kind: (typeof NEW_CR_SOURCE_KINDS)[number]; ref?: string | null; note?: string | null };
   requester: string;
+  /** Mode 1 v3: bản xem trước (`POST /changes/preview`) đính kèm làm gợi ý. Hết hạn ⇒ CR vẫn tạo, `meta.seed_dropped`. */
+  preview_id?: string;
+}
+
+/** `POST …/locations/:locId/owner-step-draft` (BPMN 3.9) — hướng sửa của BA cho skill step sở hữu. */
+export interface OwnerStepDraftRequest {
+  instruction: string;
 }
 
 export interface AnswersRequest {
@@ -133,7 +156,8 @@ export interface PatchLocationRequest {
 
 export interface GroupDecisionRequest {
   decision: "approved" | "rejected";
-  reason?: string;
+  /** Bắt buộc cả khi duyệt (BPMN 3.12, mode 1 v3), ≥ `DECISION_REASON_MIN_LENGTH`. */
+  reason: string;
   base_version: number;
 }
 
@@ -149,14 +173,11 @@ export interface PathLockedMeta {
 }
 
 /**
- * 409 CHANGE_REQUIRES_CR — project mode 1 sau baseline v1.
- * - Lời gọi có ghi (`/changes`, `/reconcile`, `/undo`) và lệnh sửa trong chat ⇒ BE tạo sẵn CR (nguồn `chat` khi từ
- *   chat, `verbal` khi từ workspace), `change_request` trỏ tới CR đó.
- * - `/changes/preview` (chỉ xem trước) ⇒ chỉ `prefill` để mở form CR điền sẵn.
+ * 409 CHANGE_REQUIRES_CR — project mode 1 đã import (mode 1 v3, BPMN 3.1): lời gọi có ghi (`/changes`, `/reconcile`,
+ * `/undo`) và lệnh sửa trong chat ⇒ **không** tạo CR, chỉ trả nội dung điền sẵn cho form 3.1 (BA chọn lại nguồn).
  */
 export interface ChangeRequiresCrMeta {
-  prefill: { title: string; description: string };
-  change_request?: { cr_id: string; status: CrStatus };
+  prefill: { title: string; description: string; source?: { kind: CrSourceKind; ref: string | null } };
 }
 
 /** 409 CR_LOCATION_UNCONCLUDED */

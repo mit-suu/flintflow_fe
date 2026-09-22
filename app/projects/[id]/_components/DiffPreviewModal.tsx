@@ -7,6 +7,11 @@ interface DiffPreviewModalProps {
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  /** Mode 1 v3: "Tạo CR" thay "Xác nhận" — bản xem trước dùng để soạn change request, không áp thẳng. */
+  confirmLabel?: string;
+  busyLabel?: string;
+  /** Dòng giải thích ngay trên nút (vd "tài liệu chỉ đổi sau khi CR được duyệt"). */
+  note?: string;
 }
 
 const short = (value: unknown): string => {
@@ -18,7 +23,7 @@ const short = (value: unknown): string => {
 };
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
-export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm }: DiffPreviewModalProps) {
+export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm, confirmLabel = "Xác nhận", busyLabel = "Đang áp dụng…", note }: DiffPreviewModalProps) {
   const hasViolations = preview.violations.length > 0;
   const canConfirm = preview.ok && !hasViolations && Boolean(preview.preview_id) && !busy;
 
@@ -101,6 +106,8 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
           </div>
         )}
 
+        {note && <p className="text-[11.5px] text-[#554DB0] bg-[#F2F1FB] rounded-[10px] px-3 py-2">{note}</p>}
+
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
@@ -116,7 +123,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
             onClick={onConfirm}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {busy ? "Đang áp dụng…" : "Xác nhận"}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>

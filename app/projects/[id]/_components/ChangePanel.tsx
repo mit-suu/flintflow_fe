@@ -8,6 +8,7 @@ import { useChanges } from "../hooks/useChanges";
 import DiffPreviewModal from "./DiffPreviewModal";
 import TraceabilityMap from "./TraceabilityMap";
 import type { ApplyResult } from "@/types/pipeline";
+import CreateCrPreviewModal from "./mode1/CreateCrPreviewModal";
 
 export interface ChangeSeed {
   text: string;
@@ -24,14 +25,20 @@ interface ChangePanelProps {
   onClose: () => void;
   /** Lệnh sửa forward từ ChatPane khi session hiện tại không phải pipeline session. */
   seed?: ChangeSeed;
+  /**
+   * Mode 1 v3 (bám BPMN 3.1): tài liệu đã import — bản xem trước không áp thẳng mà dùng để **soạn change request**: nút
+   * "Tạo CR" mở form 3.1 điền sẵn (lệnh + `preview_id`), ẩn Hoà giải / Undo (không còn sửa thẳng).
+   */
+  requiresCr?: boolean;
 }
 
 /** Change panel (UC 6.8–6.11): ô lệnh → preview diff → xác nhận; hoà giải; undo; lịch sử; traceability. */
-export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, onApplied, onClose, seed }: ChangePanelProps) {
+export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, onApplied, onClose, seed, requiresCr = false }: ChangePanelProps) {
   const [instruction, setInstruction] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [showTraceability, setShowTraceability] = useState(false);
   const {
+    pendingInstruction,
     preview,
     previewing,
     applying,
@@ -101,6 +108,13 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
 
         {error && <div className="text-[12px] text-error">{error}</div>}
 
+        {requiresCr && (
+          <p className="text-[11.5px] text-on-surface-muted leading-relaxed">
+            Tài liệu đã import — mọi thay đổi đi qua change request. Xem trước để soạn CR; tài liệu chỉ đổi sau khi CR được duyệt.
+          </p>
+        )}
+
+        {!requiresCr && (
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
@@ -116,6 +130,7 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
             Undo op cuối
           </Button>
         </div>
+        )}
 
         <div className="flex flex-col gap-1.5 pt-2">
           <button
@@ -157,7 +172,12 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
         </div>
       </div>
 
-      {preview && <DiffPreviewModal preview={preview} busy={applying} onCancel={cancelPreview} onConfirm={() => void confirmPreview()} />}
+      {preview &&
+        (requiresCr ? (
+          <CreateCrPreviewModal projectId={projectId} preview={preview} instruction={pendingInstruction || instruction.trim()} onCancel={cancelPreview} />
+        ) : (
+          <DiffPreviewModal preview={preview} busy={applying} onCancel={cancelPreview} onConfirm={() => void confirmPreview()} />
+        ))}
     </aside>
   );
 }

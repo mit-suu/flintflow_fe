@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
@@ -36,7 +36,7 @@ afterAll(() => mockServer.close());
 const withRevision = async () => {
   await importToGapReview();
   const detail = await crToReview();
-  await decideGroup(P, detail.change_request.cr_id, detail.groups[0].group_id, { decision: "approved", base_version: mode1State.mode1State.spineVersion });
+  await decideGroup(P, detail.change_request.cr_id, detail.groups[0].group_id, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: mode1State.mode1State.spineVersion });
   return (await listVersions(P)).data!;
 };
 
@@ -53,15 +53,18 @@ describe("GapReportView (UC-23)", () => {
     const link = screen.getByRole("link", { name: "Cần sửa → Tạo change request" });
     const prefill = readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams);
     expect(prefill).toMatchObject({ source: "gap_report", title: "Sửa theo gap report" });
-    // mục thiếu không vào CR (đi đường step) — gap report có khối riêng chỉ lối
+    // mục thiếu có CR riêng (mode 1 v3: không còn chạy step) — nguồn gap report
     expect(prefill?.description).not.toContain("Application Messages List");
-    expect(screen.getByRole("region", { name: "Đầu mục FPT còn thiếu" })).toHaveTextContent(/chạy S-7\.1/);
+    const missing = screen.getByRole("region", { name: "Đầu mục FPT còn thiếu" });
+    const fillHref = within(missing).getByRole("link", { name: "Tạo CR bổ sung mục thiếu" }).getAttribute("href")!;
+    expect(readCrPrefill(new URL(fillHref, "http://x").searchParams)).toMatchObject({ source: "gap_report", title: "Bổ sung các mục còn thiếu" });
+    expect(missing).not.toHaveTextContent(/chạy S-/);
 
     fireEvent.click(screen.getByRole("button", { name: "Tải gap report (.docx)" }));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
   });
 
-  it("gapReportPrefill chỉ liệt kê cờ đỏ trên nội dung đã có — bỏ section_empty và mục thiếu (mục trống đi đường step, không phải CR)", () => {
+  it("gapReportPrefill chỉ liệt kê cờ đỏ trên nội dung đã có — bỏ section_empty và mục thiếu (mục thiếu có CR riêng — missingSectionsPrefill)", () => {
     const text = gapReportPrefill({
       project_id: P,
       doc_version: "0.0",
@@ -101,7 +104,8 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
     const onReleased = vi.fn();
     renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.1" onSelect={vi.fn()} onReleased={onReleased} />);
 
-    expect(screen.getByRole("button", { name: "Tải bản draft (Track Changes)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tải bản nháp (DRAFT)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tải bản có đánh dấu" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Release" }));
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận release" }));
     await waitFor(() => expect(onReleased).toHaveBeenCalled());
