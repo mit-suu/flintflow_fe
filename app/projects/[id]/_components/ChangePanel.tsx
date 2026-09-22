@@ -1,5 +1,8 @@
 "use client";
 
+import Icon from "@/components/ui/Icon";
+import Button from "@/components/ui/Button";
+import IconButton from "@/components/ui/IconButton";
 import { useEffect, useRef, useState } from "react";
 import { useChanges } from "../hooks/useChanges";
 import DiffPreviewModal from "./DiffPreviewModal";
@@ -61,20 +64,18 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
   };
 
   return (
-    <aside className="w-[380px] flex-none bg-[#FAF9F7] border-l border-[#ECEAE5] flex flex-col overflow-hidden z-10" aria-label="Change panel">
-      <div className="p-3.5 border-b border-[#ECEAE5] bg-white flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[#6A62C4] font-bold">✎</span>
-          <h3 className="font-extrabold text-[13px] text-[#191817]">Sửa qua lệnh</h3>
+    <aside className="w-[380px] h-full flex-none bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label="Change panel">
+      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon name="pencil" size={16} className="text-primary" />
+          <h3 className="font-bold text-[13px] text-on-surface truncate">Sửa tài liệu có xem trước</h3>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-[#F5F3F0] rounded-[6px] text-[#8A867E] hover:text-[#191817] cursor-pointer">
-          ✕
-        </button>
+        <IconButton icon="close" size="sm" label="Đóng panel sửa" onClick={onClose} />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-3">
         <div className="flex flex-col gap-2">
-          <label htmlFor="change-instruction" className="text-[11px] font-extrabold text-[#8A867E] tracking-wider uppercase">
+          <label htmlFor="change-instruction" className="text-[12px] font-bold text-on-surface-muted">
             Lệnh sửa
           </label>
           <textarea
@@ -83,80 +84,72 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="Ví dụ: Đổi tên actor A03 thành Administrator"
-            className="w-full px-3 py-2 border border-[#E5E3DF] focus:border-[#6A62C4] rounded-[10px] text-[12px] outline-none resize-none bg-white"
+            // Cùng kiểu ô nhập của khung chat nhưng phẳng (nằm trong panel): nền trắng, bo lớn, không viền/bóng, vòng tím khi gõ
+            className="w-full px-3.5 py-3 rounded-card text-[12.5px] text-on-surface placeholder:text-on-surface-subtle outline-none resize-none bg-surface-container-lowest focus:ring-2 focus:ring-primary/30 transition-shadow ff-scroll"
           />
-          <button
-            type="button"
-            disabled={!instruction.trim() || previewing}
-            onClick={submit}
-            className="self-end px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
-          >
+          <Button size="sm" disabled={!instruction.trim() || previewing} onClick={submit} className="self-end">
             {previewing ? "Đang xem trước…" : "Xem trước thay đổi"}
-          </button>
+          </Button>
         </div>
 
         {clarification && (
-          <div className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] p-3 text-[11.5px] text-[#554DB0]">
+          <div className="bg-primary-soft rounded-control p-3 text-[12px] text-primary-hover">
             <div className="font-bold mb-1">Cần làm rõ</div>
             {clarification}
           </div>
         )}
 
-        {error && <div className="text-[11px] text-[#B03030]">{error}</div>}
+        {error && <div className="text-[12px] text-error">{error}</div>}
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={applying}
             onClick={() => void reconcileOnce()}
-            className="flex-1 px-3 py-1.5 rounded-full text-[11px] font-bold border border-[#ECEAE5] bg-white text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+            className="flex-1"
             title="Gộp các thay đổi treo (nếu có) thành một lô, xem trước rồi áp"
           >
             Hoà giải một lượt
-          </button>
-          <button
-            type="button"
-            disabled={applying}
-            onClick={() => void undo()}
-            className="flex-1 px-3 py-1.5 rounded-full text-[11px] font-bold border border-[#ECEAE5] bg-white text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
-          >
+          </Button>
+          <Button variant="secondary" size="sm" disabled={applying} onClick={() => void undo()} className="flex-1">
             Undo op cuối
-          </button>
+          </Button>
         </div>
 
-        <div className="flex flex-col gap-1.5 border-t border-[#ECEAE5] pt-3">
+        <div className="flex flex-col gap-1.5 pt-2">
           <button
             type="button"
             onClick={() => {
               setShowHistory((v) => !v);
               if (!showHistory) void loadHistory();
             }}
-            className="self-start text-[11px] font-bold text-[#6A62C4] hover:underline cursor-pointer"
+            className="self-start text-[12px] font-bold text-primary hover:underline cursor-pointer"
           >
             {showHistory ? "Ẩn lịch sử thay đổi" : "Xem lịch sử thay đổi (20 dòng)"}
           </button>
           {showHistory && (
-            <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
-              {historyLoading && <div className="text-[11px] text-[#A8A49C] italic">Đang tải…</div>}
+            <div className="flex flex-col gap-1 max-h-56 overflow-y-auto ff-scroll">
+              {historyLoading && <div className="text-[11.5px] text-on-surface-subtle italic">Đang tải…</div>}
               {!historyLoading && history.length === 0 && (
-                <div className="text-[11px] text-[#A8A49C] italic">Chưa có lịch sử qua Change panel.</div>
+                <div className="text-[11.5px] text-on-surface-subtle italic">Chưa có lịch sử qua Change panel.</div>
               )}
               {history.map((change) => (
-                <div key={`${change.txn}:${change.seq}`} className="text-[10.5px] text-[#6B6862] bg-white border border-[#ECEAE5] rounded-[8px] p-2">
+                <div key={`${change.txn}:${change.seq}`} className="text-[11px] text-on-surface-variant bg-surface-container-lowest rounded-inner p-2">
                   <span className="font-mono">#{change.seq}</span> <span className="font-bold">{change.op}</span>{" "}
                   <span className="font-mono">{change.path}</span>
-                  {change.reason && <div className="text-[#A8A49C] italic mt-0.5">{change.reason}</div>}
+                  {change.reason && <div className="text-on-surface-subtle italic mt-0.5">{change.reason}</div>}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5 border-t border-[#ECEAE5] pt-3">
+        <div className="flex flex-col gap-1.5 pt-2">
           <button
             type="button"
             onClick={() => setShowTraceability((v) => !v)}
-            className="self-start text-[11px] font-bold text-[#6A62C4] hover:underline cursor-pointer"
+            className="self-start text-[12px] font-bold text-primary hover:underline cursor-pointer"
           >
             {showTraceability ? "Ẩn traceability" : "Tra traceability"}
           </button>
