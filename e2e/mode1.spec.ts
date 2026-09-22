@@ -283,7 +283,7 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
 
   // ── 12. Version 0.x tải được, rồi release 1.0 (Flow 6, UC-57) ─────────────────────
   await page.goto(`/projects/${projectId}`);
-  await expect(page.getByRole("heading", { name: "Release" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Release" }).first()).toBeVisible({ timeout: 60_000 });
   console.log(`[e2e] bản nháp sau CR: ${await saveDownload(page, () => page.getByRole("button", { name: "Tải bản nháp (DRAFT)" }).first().click())}`);
   // BPMN 3.14 (mode 1 v3): bản có đánh dấu — Track Changes tác giả là mã CR
   const tracked = page.getByRole("button", { name: "Tải bản có đánh dấu" });
