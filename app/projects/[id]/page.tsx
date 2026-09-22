@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { applyChanges } from "@/lib/api/spine";
+import { applyChangesWithRebase } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
+import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
 import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
@@ -22,9 +23,9 @@ import DocumentPane, { type EmptyHint } from "./_components/DocumentPane";
 import VerificationPane from "./_components/VerificationPane";
 import ChangePanel, { type ChangeSeed } from "./_components/ChangePanel";
 import ExportPanel from "./_components/ExportPanel";
-import GateCard from "./_components/GateCard";
+import GateCard, { type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
 import ElicitPanel from "./_components/ElicitPanel";
-import StepEventLog from "./_components/StepEventLog";
+import StepProgress from "./_components/StepProgress";
 import ScreenQueuePanel from "./_components/ScreenQueuePanel";
 import NamesGlossaryPanel from "./_components/NamesGlossaryPanel";
 import BriefSummaryCard from "./_components/BriefSummaryCard";
@@ -155,6 +156,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const [changeSeed, setChangeSeed] = useState<ChangeSeed | undefined>(undefined);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [savingChange, setSavingChange] = useState(false);
+  /** Lỗi của lượt ghi op thuần (panel Tên riêng, hàng đợi màn, quyết định giả định) — nói bằng tiếng Việt. */
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ─── version hiện tại cho mọi lượt ghi ─────────────────────────
   // Chỉ tăng: một response GET về trễ không được kéo base_version lùi lại (gây 409 giả)
@@ -210,6 +213,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     onGateDone: (res) => setSelectedStepId(res.next_step),
   });
 
+  // Reload / mất mạng giữa chừng: dựng lại đúng chỗ đang dở (BUG-07) — không chạy lại, không tốn credit.
+  const { restore: restoreRunner } = runner;
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!ws.ready || restoredRef.current) return;
+    restoredRef.current = true;
+    void restoreRunner();
+  }, [ws.ready, restoreRunner]);
+
   // ─── mode 1 v2: kế hoạch step theo template (thiếu / ẩn / bật) ─────
   const onPlanChanged = useCallback(() => {
     void reloadSpine();
@@ -244,19 +256,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       if (baseVersion === null) return;
       setSavingChange(true);
       try {
-        const res = await applyChanges(projectId, { base_version: baseVersion, ops });
-        if (res.data) {
-          bumpVersion(res.data.spine_version);
-          replaceSpine(res.data.spine);
-          void reloadProgress();
-        }
+        // BUG-06: Spine vừa đổi ở bước khác thì tự đọc lại phiên bản mới và gửi lại một lần
+        const { result } = await applyChangesWithRebase(projectId, { base_version: baseVersion, ops });
+        bumpVersion(result.spine_version);
+        replaceSpine(result.spine);
+        void reloadProgress();
       } catch (err) {
-        if (err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT") {
-          alert("Tài liệu vừa đổi ở phiên khác — đã tải lại, vui lòng thử lại.");
-          void reloadSpine();
-        } else {
-          alert(err instanceof Error ? err.message : "Không lưu được thay đổi");
-        }
+        const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
+        const raw = err instanceof ApiClientError ? err.rawMessage : err instanceof Error ? err.message : "";
+        setSaveError(friendlyError(code, raw).message);
+        if (code === "SPINE_VERSION_CONFLICT") void reloadSpine();
       } finally {
         setSavingChange(false);
       }
@@ -266,6 +275,59 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   const changeWorkingMode = (mode: WorkingMode) =>
     submitOps([{ op: "set", path: "project.working_mode", value: mode, reason: "[C] đổi cách làm việc" }]);
+
+  /**
+   * Giả định mới hiện ngay ở gate với ba nút Đúng / Sửa / Bỏ (BUG-13). `confirmed_at` do đây ghi — model
+   * không được phép đặt nó (BE chặn), nên ngày xác nhận luôn là lúc user thật sự bấm.
+   */
+  const applyAssumptionDecision = useCallback(
+    (decision: AssumptionDecision) => {
+      const path = `assumptions[id=${decision.id}]`;
+      if (decision.kind === "confirm") {
+        return submitOps([
+          { op: "set", path: `${path}.status`, value: "confirmed", reason: "User xác nhận giả định ở cổng chốt" },
+          { op: "set", path: `${path}.confirmed_at`, value: new Date().toISOString() },
+        ]);
+      }
+      if (decision.kind === "reject") {
+        return submitOps([{ op: "set", path: `${path}.status`, value: "rejected", reason: "User bác bỏ giả định ở cổng chốt" }]);
+      }
+      return submitOps([{ op: "set", path: `${path}.statement`, value: decision.statement, reason: "User sửa giả định ở cổng chốt" }]);
+    },
+    [submitOps]
+  );
+
+  /** Việc làm được với mỗi loại lỗi (bảng ở `lib/errors.ts`). */
+  const handleErrorAction = useCallback(
+    async (action: ErrorAction) => {
+      const stepId = runner.state.stepId;
+      switch (action.kind) {
+        case "cancel_and_rerun":
+          await runner.cancel();
+          if (stepId) await runner.run(stepId);
+          return;
+        case "retry":
+          runner.reset();
+          if (stepId) await runner.run(stepId);
+          return;
+        case "goto_step":
+          runner.reset();
+          if (action.stepId) setSelectedStepId(action.stepId);
+          return;
+        case "reload_spine":
+          onSpineChanged();
+          runner.reset();
+          return;
+        case "edit_command":
+          runner.reset();
+          setRightPanel("change");
+          return;
+        default:
+          runner.reset();
+      }
+    },
+    [runner, onSpineChanged]
+  );
 
   /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
   const inBriefPhase = (spine?.progress.current_phase ?? "").startsWith("B-") || spine?.progress.current_phase === "S-1";
@@ -338,6 +400,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   if (!ws.ready) return <WorkspaceLoading />;
 
   const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
+  // 422 BASELINE_BLOCKED khi Accept ở S-9.5: danh sách cờ đang chặn đi kèm trong `meta.flags` (BUG-01)
+  const blockingFlags: BlockingFlag[] | undefined =
+    runner.state.error?.code === "BASELINE_BLOCKED" && Array.isArray(runner.state.error.meta?.flags)
+      ? (runner.state.error.meta.flags as BlockingFlag[])
+      : undefined;
   const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep;
 
   return (
@@ -417,24 +484,57 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
             </div>
           )}
-          {runnerStep && runner.state.events.length > 0 && <StepEventLog events={runner.state.events} />}
+          {runnerStep && (
+            <StepProgress
+              state={runner.state}
+              onCancel={() => void runner.cancel()}
+              {...(runner.state.status === "interrupted" ? {} : {})}
+            />
+          )}
           {gate && runnerStep && (
             <GateCard
               stepId={runnerStep}
               actions={gate.actions}
               regenerateUsed={gate.regenerate_used}
               busy={runner.state.busy}
+              payload={gate.payload}
+              blockingFlags={blockingFlags}
+              onAssumptionDecision={(decision) => void applyAssumptionDecision(decision)}
+              onGoToStep={setSelectedStepId}
               onAction={(action, note) => void runner.gate(action, note)}
             />
           )}
-          {runner.state.error && (
+          {saveError && (
             <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex items-center justify-between gap-2">
-              <span>
-                {runner.state.error.code}: {runner.state.error.message}
-              </span>
-              <button type="button" onClick={runner.reset} className="text-[11.5px] font-bold underline cursor-pointer">
+              <span>{saveError}</span>
+              <button type="button" onClick={() => setSaveError(null)} className="text-[11.5px] font-bold underline cursor-pointer">
                 Đóng
               </button>
+            </div>
+          )}
+          {runner.state.error && (
+            // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được; mã kỹ thuật nằm trong "Chi tiết"
+            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-col gap-2">
+              <span>{friendlyError(runner.state.error.code, runner.state.error.message).message}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {friendlyError(runner.state.error.code, runner.state.error.message).actions.map((action) => (
+                  <button
+                    key={action.kind}
+                    type="button"
+                    onClick={() => void handleErrorAction(action)}
+                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-error text-on-error cursor-pointer"
+                  >
+                    {action.label}
+                  </button>
+                ))}
+                <button type="button" onClick={runner.reset} className="text-[11.5px] font-bold underline cursor-pointer">
+                  Đóng
+                </button>
+              </div>
+              <details className="text-[11px] opacity-80">
+                <summary className="cursor-pointer">Chi tiết</summary>
+                {errorDetailLine(runner.state.error.code, runner.state.error.message)}
+              </details>
             </div>
           )}
         </ChatPane>
