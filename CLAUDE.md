@@ -54,8 +54,10 @@ không gọi; cần thêm thì phải sửa contract trước (PR `contract-chan
 - `page.tsx` ghép mọi thứ; state lấy qua hook trong `hooks/`:
   `useWorkspace`, `useSpine`, `useProgress`, `useStepRunner`, `useDocument`, `useFlags`, `useChanges`.
 - `_components/` chia theo vai trò:
-  - Chat & pipeline: `ChatPane`, `ChatInput`, `ChatBubble`, `ChatSessionSidebar`, `ElicitPanel`,
-    `GateCard`, `StepProgressBar`, `PhaseHeader`, `PhaseNavBar`, `ScreenQueuePanel`, `StepEventLog`
+  - Chat & pipeline: `ChatPane`, `ChatInput`, `ChatBubble`, `ChatSessionHistory`, `ElicitPanel`,
+    `GateCard`, `StepProgressBar`, `PhaseNavBar`, `ScreenQueuePanel`, `StepEventLog`
+  - Khung: `WorkspaceHeader` (breadcrumb + hành động), `WorkspaceProgressRail` (rail tiến độ trái, mở hoặc ẩn hẳn
+    được), `WorkspaceToolRail` (rail icon mở một panel phải mỗi lúc)
   - Tài liệu & kiểm chứng: `DocumentPane`, `VerificationPane`, `FlagsPanel`, `ReadinessSummary`,
     `ExportPanel`
   - Sửa qua chat: `ChangePanel`, `DiffPreviewModal`, `TraceabilityMap`

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import type { DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
+import Icon from "@/components/ui/Icon";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput from "./QuestionStepperInput";
@@ -37,6 +38,10 @@ interface ChatPaneProps {
   emptyState?: ReactNode;
   /** Placeholder ô nhập — mặc định của ChatInput. */
   inputPlaceholder?: string;
+  /** Đầu thanh tiêu đề, trước tên pane (vd. nút lịch sử phiên chat). */
+  headerStart?: ReactNode;
+  /** Khung sát mép trái màn hình (rail tiến độ ẩn / mở rộng trang) ⇒ chỉ bo góc bên phải; còn lại bo hai góc trên. */
+  flushLeft?: boolean;
 }
 
 /** Câu hỏi gợi ý trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step). */
@@ -83,14 +88,30 @@ export default function ChatPane({
   title = "Hội thoại & Duyệt bước",
   emptyState,
   inputPlaceholder,
+  headerStart,
+  flushLeft = false,
 }: ChatPaneProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Ô nhập nổi đè lên đáy danh sách tin nhắn ⇒ đo chiều cao của nó để chừa chỗ cho tin nhắn cuối
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [footerHeight, setFooterHeight] = useState(0);
+  useEffect(() => {
+    const el = footerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setFooterHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: streamingMessage !== null ? "auto" : "smooth" });
-  }, [messages, streamingMessage, children]);
+    // Cuộn tới đáy vùng cuộn (gồm cả phần chừa cho ô nhập), không phải tới phần tử cuối — nếu không tin nhắn cuối nằm dưới ô nhập
+    const el = scrollRef.current;
+    if (!el) return;
+    if (typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior: streamingMessage !== null ? "auto" : "smooth" });
+    else el.scrollTop = el.scrollHeight;
+  }, [messages, streamingMessage, children, footerHeight]);
 
   const last = messages[messages.length - 1];
   const questionKey = last?.role === "ai" ? `${messages.length}:${last.content}` : null;
@@ -106,26 +127,32 @@ export default function ChatPane({
     <section
       id="flintflow-chat-pane"
       style={width ? { width: `${width}px` } : undefined}
-      className={`${width ? "" : "w-[460px]"} flex-none bg-[#F5F3F0] flex flex-col overflow-hidden`}
+      className={`${width ? "" : "w-[460px]"} flex-none bg-surface ${flushLeft ? "rounded-r-dialog" : "rounded-t-dialog"} flex flex-col overflow-hidden`}
     >
-      <div className="px-5 py-3 border-b border-[#ECEAE5] flex justify-between items-center bg-white shrink-0 h-[52px]">
-        <div className="flex items-center gap-2">
-          <span className="text-[#6A62C4] text-sm">✦</span>
-          <h2 className="font-extrabold text-[#191817] text-[13px]">{title}</h2>
+      <div className="ff-fade-below px-3 bg-surface flex justify-between items-center gap-2 shrink-0 h-12">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {headerStart}
+          <h2 className="font-bold text-on-surface text-[13px] truncate">{title}</h2>
         </div>
         {stepLabel && (
-          <div className="text-[11px] font-bold text-[#6A62C4] bg-[#F2F1FB] border border-[#DCD8F0] px-2.5 py-0.5 rounded-full truncate max-w-[200px]">
-            {stepLabel}
-          </div>
+          <span className="text-[11px] font-bold text-primary-hover bg-primary-soft px-2.5 py-0.5 rounded-full truncate max-w-[200px]">{stepLabel}</span>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-4 flex flex-col">
+      <div className="relative flex-1 min-h-0">
+      {/* Tin nhắn cuộn chui xuống dưới ô nhập rồi mờ dần ở mép đáy (không có dải nền chắn sau ô nhập) */}
+      <div
+        ref={scrollRef}
+        style={{ paddingBottom: footerHeight + 12 }}
+        className="h-full overflow-y-auto ff-scroll p-5 space-y-4 flex flex-col [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]"
+      >
         {messages.length === 0 && !children && (emptyState ?? (
-          <div className="my-auto max-w-sm text-center py-8 flex flex-col items-center gap-3 bg-white border border-[#ECEAE5] rounded-[20px] p-6 shadow-2xs">
-            <div className="w-10 h-10 rounded-[12px] bg-[#F2F1FB] text-[#6A62C4] flex items-center justify-center text-[18px]">💡</div>
-            <h3 className="font-extrabold text-[#191817] text-[14px]">Bắt đầu bước hiện tại</h3>
-            <p className="text-[#8A867E] text-[12px] leading-relaxed">
+          <div className="my-auto mx-auto max-w-sm text-center flex flex-col items-center gap-3 bg-surface-container-lowest rounded-card p-6">
+            <div className="w-10 h-10 rounded-control bg-primary-soft text-primary flex items-center justify-center">
+              <Icon name="sparkle" size={20} />
+            </div>
+            <h3 className="font-bold text-on-surface text-[14px]">Bắt đầu bước hiện tại</h3>
+            <p className="text-on-surface-muted text-[12.5px] leading-relaxed">
               Bấm “Chạy bước này” để AI hỏi phần còn thiếu và soạn nháp, hoặc trò chuyện tự do và đính kèm tài liệu tham khảo.
             </p>
           </div>
@@ -146,10 +173,9 @@ export default function ChatPane({
         )}
 
         {children}
-
-        <div ref={messagesEndRef} />
       </div>
 
+      <div ref={footerRef} className="absolute inset-x-0 bottom-0 z-10">
       {footer ??
         (showQuestions ? (
           <QuestionStepperInput
@@ -179,6 +205,8 @@ export default function ChatPane({
             placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : inputPlaceholder}
           />
         ))}
+      </div>
+      </div>
     </section>
   );
 }
