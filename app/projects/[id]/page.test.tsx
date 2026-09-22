@@ -51,6 +51,9 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     // panel ghi Spine thẳng (tên riêng, hàng đợi màn) không có ở mode 1; không có nút chạy bước
     expect(within(tools).queryByText("Tên riêng & thuật ngữ")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Chạy bước/ })).not.toBeInTheDocument();
+    // tài liệu: không còn lối "xem tại step", tiêu đề chat không nói "Duyệt bước"
+    expect(screen.queryByRole("button", { name: /^xem tại S-/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Hỏi đáp & lệnh sửa" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Sửa tài liệu có xem trước/ }));
     const panel = await screen.findByRole("complementary", { name: "Change panel" });
