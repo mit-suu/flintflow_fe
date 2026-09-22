@@ -38,7 +38,7 @@ export default function AdminFeedbackPage() {
         {error && <ErrorBanner message={error} />}
         <div className="bg-surface-container-lowest border border-outline-variant rounded-[16px]">
           {items === null && !error ? (
-            <LoadingBlock label="Đang tải phản hồi…" />
+            <LoadingBlock label="Đang tải phản hồi…" variant="list" bare />
           ) : !items || items.length === 0 ? (
             <div className="py-16 text-center text-[13px] text-on-surface-subtle">Chưa có phản hồi nào.</div>
           ) : (

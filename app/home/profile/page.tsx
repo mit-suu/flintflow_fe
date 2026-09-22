@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
@@ -361,10 +362,7 @@ export default function ProfilePage() {
         <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">{t("title")}</h1>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
-            <span className="text-[13px] font-medium">{t("loading")}</span>
-          </div>
+          <PageSkeleton variant="form" label={t("loading")} />
         ) : error || !user ? (
           <div className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
             {error || t("loadFailed")}

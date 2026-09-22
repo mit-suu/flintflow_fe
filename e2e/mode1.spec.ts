@@ -214,7 +214,7 @@ test("mode 1 đi trọn luồng trên BE thật", async ({ page }) => {
 
   // ── 11. Chat mode 1 chỉ hỏi đáp: lệnh sửa ⇒ thẻ tạo CR (3.13) ──────────────────────
   await page.locator("#flintflow-chat-pane textarea").fill("Đổi tên actor Learner thành Student");
-  await page.locator("#flintflow-chat-pane").getByRole("button", { name: "arrow_upward" }).click();
+  await page.locator("#flintflow-chat-pane").getByRole("button", { name: "Gửi tin nhắn (Enter)" }).click();
   await expect(page.getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeVisible({ timeout: 60_000 });
   await snap(page, "chat-requires-cr");
 

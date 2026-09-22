@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ImportStatus } from "@/types/import";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useImport } from "../../hooks/mode1/useImport";
 import ConfirmLatestModal from "./ConfirmLatestModal";
 import ExtractProgress from "./ExtractProgress";
@@ -48,9 +49,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
 
   if (imp.loading) {
     return (
-      <div className="flex items-center gap-3 text-[13px] text-[#8A867E] p-8">
-        <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
-        Đang tải trạng thái import…
+      <div className="p-8">
+        <PageSkeleton rows={2} label="Đang tải trạng thái import" />
       </div>
     );
   }

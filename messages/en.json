@@ -335,7 +335,8 @@
     "authGuard": {
       "offline": "Can't reach the server. You're still signed in.",
       "retry": "Retry",
-      "checking": "Checking access..."
+      "checking": "Checking access...",
+      "offlineTitle": "Connection lost"
     },
     "notifications": {
       "title": "Notifications",
@@ -403,7 +404,8 @@
         "createTx": "Could not create the transaction",
         "changePlan": "Could not change the plan",
         "loadMore": "Could not load more transactions"
-      }
+      },
+      "loadingHistory": "Loading transaction history…"
     },
     "checkout": {
       "back": "Back to billing",

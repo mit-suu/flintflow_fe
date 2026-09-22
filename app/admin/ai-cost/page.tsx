@@ -140,7 +140,7 @@ export default function AdminAiCostPage() {
 
         <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
           {loading ? (
-            <LoadingBlock label="Đang tổng hợp chi phí…" />
+            <LoadingBlock label="Đang tổng hợp chi phí…" bare />
           ) : (
             report && (
               <div className="overflow-x-auto">

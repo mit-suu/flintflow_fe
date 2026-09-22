@@ -9,6 +9,8 @@ import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
 import type { ApplyResult, Op } from "@/types/pipeline";
 import type { WorkingMode } from "@/types/spine";
 import type { Project } from "@/types/project";
+import PageSkeleton from "@/components/ui/PageSkeleton";
+import Skeleton from "@/components/ui/Skeleton";
 
 import Collapse from "@/components/ui/Collapse";
 import Icon from "@/components/ui/Icon";
@@ -70,10 +72,40 @@ const readSavedChatPaneWidth = (): number => {
 };
 
 const WorkspaceLoading = () => (
-  <div className="min-h-screen bg-surface flex items-center justify-center">
-    <div className="flex flex-col items-center gap-3">
-      <span className="w-8 h-8 rounded-full border-3 border-outline border-t-primary ff-spinner shrink-0" />
-      <span className="text-on-surface-muted font-medium text-sm">Đang tải không gian làm việc SRS…</span>
+  <div className="h-screen flex overflow-hidden bg-surface-container-lowest">
+    {/* Giữ chỗ rail tiến độ trái — cùng bề rộng/chiều cao hàng với WorkspaceProgressRail */}
+    <div aria-hidden className="w-[264px] shrink-0 flex flex-col">
+      <div className="h-[58px] shrink-0 pl-5 pr-3 flex items-center">
+        <Skeleton className="h-6 w-28" />
+      </div>
+      <div className="pl-5 pr-3 pb-2">
+        <Skeleton className="h-2.5 w-14" />
+      </div>
+      <div className="flex-1 min-h-0 px-3 flex flex-col gap-1">
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={i} className="flex items-center gap-2.5 px-2 py-2">
+            <Skeleton className="size-5 rounded-full shrink-0" />
+            <Skeleton className={`h-3 ${i % 3 === 2 ? "w-2/3" : "w-4/5"}`} />
+          </div>
+        ))}
+      </div>
+      <div className="shrink-0 px-4 py-3 flex flex-col gap-2.5">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-1.5 w-full rounded-full" />
+      </div>
+    </div>
+
+    <div className="flex-1 min-w-0 flex flex-col">
+      {/* Giữ chỗ header breadcrumb */}
+      <div aria-hidden className="h-[58px] shrink-0 px-4 flex items-center gap-3">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3.5 w-40" />
+        <div className="ml-auto flex items-center gap-1.5">
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="size-8 rounded-full" />
+        </div>
+      </div>
+      <PageSkeleton variant="workspace" bare label="Đang tải không gian làm việc SRS" className="flex-1 min-h-0" />
     </div>
   </div>
 );
