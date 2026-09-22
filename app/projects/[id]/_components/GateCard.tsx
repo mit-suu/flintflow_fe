@@ -25,6 +25,8 @@ interface GateCardProps {
   busy?: boolean;
   /** Fast path: một GateCard gộp cuối phase. */
   phaseLabel?: string;
+  /** Tóm tắt của CẢ giai đoạn khi đây là cổng chốt cuối phase (R2) — gồm cả bước đã tự Accept. */
+  phaseSummary?: ChangeSummary[];
   /** Toàn bộ payload `gate_ready` — Lớp 4 "Bạn vừa có" (tóm tắt, cờ, giả định, thời gian, credit). */
   payload?: GateReadyEvent | null;
   /** Cờ đỏ đang chặn ký baseline (422 BASELINE_BLOCKED khi Accept ở S-9.5). */
@@ -88,6 +90,7 @@ export default function GateCard({
   regenerateLimit = REGENERATE_LIMIT,
   busy = false,
   phaseLabel,
+  phaseSummary,
   payload = null,
   blockingFlags,
   onAssumptionDecision,
@@ -99,7 +102,8 @@ export default function GateCard({
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [decided, setDecided] = useState<Record<string, "confirm" | "reject" | "edit">>({});
 
-  const summary = payload?.summary ?? [];
+  // Cổng chốt cuối giai đoạn nói về cả giai đoạn, không chỉ bước cuối
+  const summary = phaseSummary ?? payload?.summary ?? [];
   const groups = groupSummary(summary);
   const assumptions: AssumptionBrief[] = (payload?.new_assumptions ?? []).filter((a) => !decided[a.id]);
   const decide = (decision: AssumptionDecision) => {
@@ -211,6 +215,41 @@ export default function GateCard({
             </div>
           ))}
         </div>
+      )}
+
+      {payload?.table && payload.table.rows.length > 0 && (
+        <details className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[10px] p-2.5">
+          <summary className="text-[11.5px] font-bold text-[#191817] cursor-pointer">
+            {payload.table.title_vi} ({payload.table.rows.length + payload.table.truncated} dòng)
+          </summary>
+          <div className="overflow-x-auto mt-2">
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  {payload.table.columns.map((column) => (
+                    <th key={column} className="border border-[#ECEAE5] bg-white px-2 py-1 text-left font-bold">
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {payload.table.rows.map((row, i) => (
+                  <tr key={i}>
+                    {row.map((cell, j) => (
+                      <td key={j} className="border border-[#ECEAE5] px-2 py-1 align-top bg-white">
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {payload.table.truncated > 0 && (
+            <p className="text-[11px] text-[#6B6862] mt-1">và {payload.table.truncated} dòng nữa — xem đủ trong tài liệu.</p>
+          )}
+        </details>
       )}
 
       {payload?.flags && (

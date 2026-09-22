@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { applyChangesWithRebase } from "@/lib/api/spine";
+import { applyChangesWithRebase, renderDiagram } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
 import type { ApplyResult, Op } from "@/types/pipeline";
-import type { WorkingMode } from "@/types/spine";
+import type { ReviewMode, WorkingMode } from "@/types/spine";
 import type { Project } from "@/types/project";
+import type { Flag } from "@/types/flags";
 
 import Collapse from "@/components/ui/Collapse";
 import Icon from "@/components/ui/Icon";
@@ -26,6 +27,11 @@ import ExportPanel from "./_components/ExportPanel";
 import GateCard, { type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
 import ElicitPanel from "./_components/ElicitPanel";
 import StepProgress from "./_components/StepProgress";
+import StepIntroCard from "./_components/StepIntroCard";
+import JourneyBar from "./_components/JourneyBar";
+import DecisionsPanel from "./_components/DecisionsPanel";
+import RunPill from "./_components/RunPill";
+import { getStepStat, recordStepStat } from "@/lib/step-stats";
 import ScreenQueuePanel from "./_components/ScreenQueuePanel";
 import NamesGlossaryPanel from "./_components/NamesGlossaryPanel";
 import BriefSummaryCard from "./_components/BriefSummaryCard";
@@ -43,6 +49,9 @@ import { useFlags } from "./hooks/useFlags";
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+
+/** Đơn vị giai đoạn để chạy liền (R2): phase thường; vòng S-5 tính theo từng màn. */
+const unitOfStep = (stepId: string, phase: string): string => (stepId.includes("@") ? `${phase}@${stepId.split("@")[1]}` : phase);
 
 const DEFAULT_CHAT_PANE_WIDTH = 480;
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
@@ -158,6 +167,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const [savingChange, setSavingChange] = useState(false);
   /** Lỗi của lượt ghi op thuần (panel Tên riêng, hàng đợi màn, quyết định giả định) — nói bằng tiếng Việt. */
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Thông báo ngắn sau một việc đã xong ("Đã áp dụng 3 thay đổi") — BUG-27. */
+  const [toast, setToast] = useState<string | null>(null);
+  /** Lớp 5: thu tiến trình thành một pill ở góc để đi làm việc khác trong lúc AI soạn. */
+  const [background, setBackground] = useState(false);
 
   // ─── version hiện tại cho mọi lượt ghi ─────────────────────────
   // Chỉ tăng: một response GET về trễ không được kéo base_version lùi lại (gây 409 giả)
@@ -192,6 +205,32 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
   const { refreshUser } = ws;
+
+  /**
+   * BUG-17: cờ `diagram_stale` / `render_error` nay có nút "Vẽ lại" — vẽ đúng hình của cờ đó rồi quét lại
+   * để cờ tự đóng. `target_id` của cờ là id sơ đồ; kind và owner lấy từ Spine đang hiển thị.
+   */
+  const handleRedrawDiagram = useCallback(
+    async (flag: Flag) => {
+      const diagram = spineState.spine?.diagrams.find((d) => d.id === flag.target_id);
+      if (!diagram) {
+        setSaveError("Không tìm thấy sơ đồ của cờ này — tải lại trang rồi thử lại.");
+        return;
+      }
+      try {
+        await renderDiagram(projectId, diagram.kind, diagram.owner_id);
+        await recomputeFlagsFn();
+        void reloadSpine();
+        void reloadProgress();
+        setToast(`Đã vẽ lại sơ đồ ${diagram.id}`);
+      } catch (err) {
+        const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
+        setSaveError(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message);
+      }
+    },
+    [projectId, spineState.spine, recomputeFlagsFn, reloadSpine, reloadProgress]
+  );
+
   const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
   const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
@@ -205,6 +244,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
 
+  const rememberStat = useCallback((stepId: string | null, payload: { duration_ms?: number; credits_used?: number } | null | undefined) => {
+    if (!stepId || payload?.duration_ms === undefined) return;
+    recordStepStat(stepId, { duration_ms: payload.duration_ms, credits: payload.credits_used ?? 0 });
+  }, []);
+
   const runner = useStepRunner({
     projectId,
     sessionId: ws.activeSession?._id ?? null,
@@ -212,6 +256,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     onSpineChanged,
     onGateDone: (res) => setSelectedStepId(res.next_step),
   });
+
+  // Thời gian và credit THẬT của bước vừa xong — dùng lại làm ước lượng cho lần sau (03 §6)
+  useEffect(() => {
+    if (runner.state.status !== "gate_ready") return;
+    rememberStat(runner.state.stepId, runner.state.gate?.payload);
+  }, [runner.state.status, runner.state.stepId, runner.state.gate, rememberStat]);
 
   // Reload / mất mạng giữa chừng: dựng lại đúng chỗ đang dở (BUG-07) — không chạy lại, không tốn credit.
   const { restore: restoreRunner } = runner;
@@ -276,6 +326,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const changeWorkingMode = (mode: WorkingMode) =>
     submitOps([{ op: "set", path: "project.working_mode", value: mode, reason: "[C] đổi cách làm việc" }]);
 
+  /** R5: đổi mức độ dừng lại hỏi ý — có hiệu lực ngay ở bước kế tiếp. */
+  const changeReviewMode = (mode: ReviewMode) =>
+    submitOps([{ op: "set", path: "project.review_mode", value: mode, reason: "[C] đổi cách duyệt" }]);
+
   /**
    * Giả định mới hiện ngay ở gate với ba nút Đúng / Sửa / Bỏ (BUG-13). `confirmed_at` do đây ghi — model
    * không được phép đặt nó (BE chặn), nên ngày xác nhận luôn là lúc user thật sự bấm.
@@ -339,6 +393,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const changedSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
+      // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
+      setToast(result.changes.length > 0 ? `Đã áp dụng ${result.changes.length} thay đổi (v${result.spine_version})` : "Đã xác nhận: nội dung không đổi");
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
@@ -400,6 +456,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   if (!ws.ready) return <WorkspaceLoading />;
 
   const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
+  const reviewMode: ReviewMode = spine?.project.review_mode ?? "balanced";
+  const viewedStepSummary = steps?.steps.find((s) => s.id === viewedStep);
+  // Bước chưa chạy: hiện thẻ "Bước này sẽ…" thay vì một nút Chạy trơ trọi (Lớp 2)
+  const showIntro =
+    runner.state.status === "idle" && viewedStepSummary !== undefined && viewedStepSummary.status !== "accepted" && viewedStep === currentStep;
   // 422 BASELINE_BLOCKED khi Accept ở S-9.5: danh sách cờ đang chặn đi kèm trong `meta.flags` (BUG-01)
   const blockingFlags: BlockingFlag[] | undefined =
     runner.state.error?.code === "BASELINE_BLOCKED" && Array.isArray(runner.state.error.meta?.flags)
@@ -440,6 +501,20 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onExportClick={() => setExportOpen((v) => !v)}
           onEnterFocus={() => setFocusMode(true)}
           onLogout={ws.logout}
+        />
+      </Collapse>
+
+      <Collapse open={!focusMode}>
+        <JourneyBar
+          steps={steps?.steps ?? []}
+          currentStepId={currentStep}
+          readinessPercent={progress?.readiness.accepted_pct}
+          credits={ws.user?.balance ?? null}
+          reviewMode={reviewMode}
+          onSelectPhase={(phase) => {
+            const firstOfPhase = (steps?.steps ?? []).find((s) => s.phase === phase);
+            if (firstOfPhase) setSelectedStepId(firstOfPhase.id);
+          }}
         />
       </Collapse>
 
@@ -484,15 +559,34 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
             </div>
           )}
-          {runnerStep && (
-            <StepProgress
-              state={runner.state}
-              onCancel={() => void runner.cancel()}
-              {...(runner.state.status === "interrupted" ? {} : {})}
+          {showIntro && viewedStepSummary && (
+            <StepIntroCard
+              step={viewedStepSummary}
+              lastRun={getStepStat(viewedStepSummary.id)}
+              busy={runner.state.busy || savingChange}
+              onRun={() => void runner.run(viewedStepSummary.id)}
+              {...(reviewMode === "strict"
+                ? {}
+                : { onRunPhase: () => void runner.runWholePhase(unitOfStep(viewedStepSummary.id, viewedStepSummary.phase)) })}
             />
+          )}
+          {runnerStep && !background && (
+            <StepProgress state={runner.state} onCancel={() => void runner.cancel()} onBackground={() => setBackground(true)} />
+          )}
+          {runner.state.autoAccepted.length > 0 && (
+            <ul className="flex flex-col gap-0.5" aria-label="Bước đã tự hoàn tất">
+              {runner.state.autoAccepted.map((item) => (
+                <li key={item.step_id} className="text-[11.5px] text-on-surface-muted">
+                  ✓ {item.step_id} tự hoàn tất: {item.reason_vi}
+                </li>
+              ))}
+            </ul>
           )}
           {gate && runnerStep && (
             <GateCard
+              {...(runner.state.phaseGate
+                ? { phaseLabel: `Giai đoạn ${runner.state.phaseGate.phase} · ${runner.state.phaseGate.reason_vi}`, phaseSummary: runner.state.phaseGate.summary }
+                : {})}
               stepId={runnerStep}
               actions={gate.actions}
               regenerateUsed={gate.regenerate_used}
@@ -618,6 +712,36 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
             </section>
             <section className="flex flex-col gap-2">
+              <h4 className="text-[12.5px] font-bold text-on-surface">Đã chốt</h4>
+              <DecisionsPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
+            </section>
+            <section className="flex flex-col gap-2">
+              <h4 className="text-[12.5px] font-bold text-on-surface">Cách duyệt</h4>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Cách duyệt">
+                {(
+                  [
+                    ["strict", "Chặt", "Dừng ở mọi bước"],
+                    ["balanced", "Cân bằng", "Dừng cuối giai đoạn, cuối mỗi màn và ở bước quan trọng"],
+                    ["fast", "Nhanh", "Chỉ dừng khi bắt buộc, có cờ đỏ mới hoặc lỗi"],
+                  ] as const
+                ).map(([mode, label, hint]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    title={hint}
+                    disabled={savingChange}
+                    aria-pressed={reviewMode === mode}
+                    onClick={() => void changeReviewMode(mode)}
+                    className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold cursor-pointer disabled:opacity-50 ${
+                      reviewMode === mode ? "bg-primary text-on-primary" : "border border-outline text-on-surface hover:bg-surface-container"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="flex flex-col gap-2">
               <h4 className="text-[12.5px] font-bold text-on-surface">Hàng đợi màn (S-5)</h4>
               <ScreenQueuePanel spine={spine} onMarkPlaceholder={(id) => void markPlaceholder(id)} busy={savingChange} />
             </section>
@@ -650,6 +774,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             onClose={() => setRightPanel(null)}
             onSelectStep={setSelectedStepId}
             onWaive={handleFlagWaive}
+            onRedraw={handleRedrawDiagram}
             onRecompute={handleFlagRecompute}
           />
         )}
@@ -664,6 +789,22 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         />
       </main>
       </div>
+
+      {background && runnerStep && (
+        <RunPill state={runner.state} onOpen={() => setBackground(false)} onCancel={() => void runner.cancel()} />
+      )}
+
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-[12px] font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
+        >
+          <span>{toast}</span>
+          <button type="button" onClick={() => setToast(null)} className="text-[11px] underline cursor-pointer">
+            Đóng
+          </button>
+        </div>
+      )}
 
       {exportOpen && (
         <ExportPanel

@@ -84,6 +84,16 @@ export const getTraceability = (projectId: string, query: TraceabilityQuery) => 
   return apiCall<TraceabilityResponse>(`/projects/${projectId}/traceability?${params.toString()}`);
 };
 
+/**
+ * Vẽ lại một sơ đồ (BUG-17). Cờ đỏ `diagram_stale` trước đây không có nút nào để gỡ: user chỉ đọc được
+ * "hình không còn khớp dữ liệu" rồi phải waive. `kind = "all"` vẽ lại cả bộ.
+ */
+export const renderDiagram = (projectId: string, kind: string, ownerId?: string | null) =>
+  apiCall<{ rendered: string[]; spine_version: number }>(`/projects/${projectId}/diagrams/${kind}/render`, {
+    method: "POST",
+    body: JSON.stringify({ ...(ownerId ? { owner_id: ownerId } : {}), force: true }),
+  });
+
 /** SVG của một diagram (cần token nên không dùng thẳng `<img src>`). */
 export const fetchDiagramSvg = async (projectId: string, diagramId: string): Promise<string> => {
   const res = await authFetch(`/projects/${projectId}/diagrams/${diagramId}.svg`);

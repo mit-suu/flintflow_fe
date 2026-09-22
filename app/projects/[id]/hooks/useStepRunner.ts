@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { answerStep, cancelRun, getActiveRunState, getRunState, runStep, submitGate } from "@/lib/api/pipeline";
+import { answerStep, cancelRun, getActiveRunState, getRunState, runPhase, runStep, submitGate } from "@/lib/api/pipeline";
 import type {
   ChangeSummary,
   GateAction,
@@ -58,10 +58,20 @@ export interface RunnerState {
   summary: ChangeSummary[];
   /** AI phải thử lại: nói bằng lời thường, không hiện mã lỗi. */
   retry: { attempt: number; max: number; reason: string } | null;
+  // ─── chạy liền theo giai đoạn (02-reduce-stops R2) ───
+  /** Giai đoạn đang chạy liền (`S-4`, `S-5@S03`); null ⇒ đang chạy một bước lẻ. */
+  phase: string | null;
+  /** Vị trí trong chuỗi: bước thứ mấy trên tổng. */
+  phaseProgress: { index: number; total: number } | null;
+  /** Bước đã tự Accept trong chuỗi này — hiện thành một dòng nhật ký, mở lại được. */
+  autoAccepted: { step_id: string; reason_vi: string }[];
+  /** Cổng chốt cuối giai đoạn: tóm tắt của cả giai đoạn. */
+  phaseGate: Extract<StepEvent, { type: "phase_gate" }> | null;
 }
 
 export type RunnerAction =
   | { type: "start"; stepId: string }
+  | { type: "startPhase"; phase: string }
   | { type: "event"; event: StepEvent; at?: number }
   | { type: "answered"; count?: number }
   | { type: "busy"; busy: boolean }
@@ -87,6 +97,10 @@ export const initialRunnerState: RunnerState = {
   lastEventAt: null,
   summary: [],
   retry: null,
+  phase: null,
+  phaseProgress: null,
+  autoAccepted: [],
+  phaseGate: null,
 };
 
 const STATUS_BY_STAGE: Record<RunStage, RunnerStatus> = {
@@ -125,6 +139,18 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       const now = Date.now();
       return { ...initialRunnerState, status: "intake", stepId: action.stepId, busy: true, startedAt: now, lastEventAt: now, detail: "Đang khởi động…" };
     }
+    case "startPhase": {
+      const now = Date.now();
+      return {
+        ...initialRunnerState,
+        status: "intake",
+        phase: action.phase,
+        busy: true,
+        startedAt: now,
+        lastEventAt: now,
+        detail: "Đang khởi động giai đoạn…",
+      };
+    }
     case "event": {
       const { event } = action;
       const at = action.at ?? Date.now();
@@ -159,6 +185,20 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
           return { ...next, summary: [...state.summary, ...(event.summary ?? [])] };
         case "gate_ready":
           return { ...next, gate: gateOf(event), busy: false, stage: "gate", detail: null, retry: null };
+        case "phase_progress":
+          return {
+            ...next,
+            status: state.status,
+            phase: event.phase,
+            phaseProgress: { index: event.step_index, total: event.step_total },
+            stepId: event.step_id,
+            busy: !event.needs_user,
+          };
+        case "auto_accepted":
+          // Bước tự hoàn tất: một dòng trong nhật ký, không phải một cổng chốt phải bấm
+          return { ...next, status: state.status, autoAccepted: [...state.autoAccepted, { step_id: event.step_id, reason_vi: event.reason_vi }] };
+        case "phase_gate":
+          return { ...next, status: state.status, phaseGate: event };
         case "error":
           return { ...next, error: { code: event.code, message: event.message }, busy: false };
         default:
@@ -362,6 +402,43 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     [projectId]
   );
 
+  /**
+   * Chạy liền cả giai đoạn (R2): một luồng, bước yên lặng tự Accept, dừng khi cần bạn. Giữ nguyên mọi
+   * sự kiện của từng bước nên màn hình tiến trình không phải đổi gì.
+   */
+  const runWholePhase = useCallback(
+    async (phase: string) => {
+      const baseVersion = getBaseVersion();
+      if (!sessionId || baseVersion === null) {
+        dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
+        return;
+      }
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      dispatch({ type: "startPhase", phase });
+
+      try {
+        await runPhase(projectId, phase, { session_id: sessionId, base_version: baseVersion }, {
+          signal: controller.signal,
+          onEvent: (event) => {
+            if (controller.signal.aborted) return;
+            if (event.type === "phase_progress" || event.type === "auto_accepted" || event.type === "phase_gate") stepRef.current = event.step_id;
+            else if (event.step_id !== stepRef.current && event.type !== "error") stepRef.current = event.step_id;
+            dispatch({ type: "event", event, at: Date.now() });
+            if (event.type === "ops_applied") onSpineChanged(event.spine_version);
+            if (event.type === "gate_ready" || event.type === "auto_accepted") onSpineChanged();
+          },
+        });
+      } catch (err) {
+        if (!controller.signal.aborted) dispatch({ type: "failed", ...toFailure(err) });
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    },
+    [projectId, sessionId, getBaseVersion, onSpineChanged]
+  );
+
   const reset = useCallback(() => {
     abortRef.current?.abort();
     dispatch({ type: "reset" });
@@ -385,5 +462,5 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     return () => clearInterval(timer);
   }, [waiting, state.stepId, state.lastEventAt, projectId]);
 
-  return { state, run, answer, gate, cancel, restore, reset };
+  return { state, run, runWholePhase, answer, gate, cancel, restore, reset };
 }
