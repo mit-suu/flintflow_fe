@@ -65,6 +65,9 @@ export interface PreviewResult {
   impact?: Impact;
   clarification?: string;
   preview_id?: string;
+  notes?: string;
+  /** Hoà giải: không có gì cần đổi — xác nhận nguyên trạng để gỡ cờ "đã cũ" (BUG-16). */
+  no_change?: boolean;
 }
 
 /** `POST /projects/:id/changes`, `/undo`, `/reconcile`. */
@@ -155,6 +158,14 @@ export interface AssumptionBrief {
   conflict?: string | null;
 }
 
+/** Bảng thu gọn hiện ngay ở gate (MoSCoW ở S-9.4, ma trận quyền ở S-4.3) — BUG-20. */
+export interface GateTable {
+  title_vi: string;
+  columns: string[];
+  rows: string[][];
+  truncated: number;
+}
+
 export interface GateReadyEvent {
   type: "gate_ready";
   step_id: string;
@@ -167,6 +178,7 @@ export interface GateReadyEvent {
   duration_ms?: number;
   credits_used?: number;
   doc_progress?: { before: number; after: number };
+  table?: GateTable;
   no_change_reason?: string;
 }
 
@@ -201,6 +213,17 @@ export type StepEvent =
   | GateReadyEvent
   | { type: "auto_accepted"; step_id: string; reason_vi: string }
   | { type: "phase_progress"; step_id: string; phase: string; step_index: number; step_total: number; needs_user: boolean }
+  | {
+      type: "phase_gate";
+      step_id: string;
+      phase: string;
+      reason_vi: string;
+      /** Tóm tắt của CẢ giai đoạn, gồm cả bước đã tự Accept. */
+      summary: ChangeSummary[];
+      new_assumptions: AssumptionBrief[];
+      steps: { step_id: string; label_vi: string; auto_accepted: boolean }[];
+      flags?: { red: number; yellow: number; red_delta: number; yellow_delta: number };
+    }
   | { type: "error"; step_id: string; code: PipelineErrorCode; message: string; retryable: boolean };
 
 /** `GET /projects/:id/steps/:stepId/run-state` và `GET /projects/:id/run-state/active`. */

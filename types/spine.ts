@@ -9,6 +9,21 @@ export type IsoDateTime = string;
 
 export type WorkingMode = "fast" | "coaching";
 
+/** Mức độ dừng lại hỏi ý user (02-reduce-stops-plan R5): Chặt · Cân bằng · Nhanh. */
+export type ReviewMode = "strict" | "balanced" | "fast";
+
+/** Một quyết định đã chốt trong lúc hỏi đáp — khoá chống hỏi lặp là `topic_key`. */
+export interface Decision {
+  id: string;
+  topic_key: string;
+  question: string;
+  answer: string;
+  step_id: string;
+  at: IsoDateTime;
+  /** Quyết định mới thay thế nó (user đổi ý); null ⇒ còn hiệu lực. */
+  superseded_by: string | null;
+}
+
 export interface ReleaseScope {
   in: string[];
   out: string[];
@@ -16,6 +31,8 @@ export interface ReleaseScope {
 
 export interface SpineProject {
   name: string;
+  /** Tên hệ thống tiếng Anh in trên sơ đồ và bìa tài liệu (FLF-177); null ⇒ dùng `name`. */
+  system_name: string | null;
   vision: string | null;
   goals: string[];
   type: string | null;
@@ -24,6 +41,8 @@ export interface SpineProject {
   form_factor: string | null;
   stakes: string | null;
   working_mode: WorkingMode | null;
+  /** Mức độ dừng lại hỏi ý (FLF-208 R5). */
+  review_mode: ReviewMode;
   release_scope: ReleaseScope;
 }
 
@@ -363,6 +382,8 @@ export interface Spine {
   custom_sections: CustomSection[];
   diagrams: Diagram[];
   assumptions: Assumption[];
+  /** Sổ quyết định đã chốt (R4) — nguồn chống hỏi lặp. */
+  decisions: Decision[];
   flags: Flag[];
   sections: SectionState[];
   baselines: Baseline[];

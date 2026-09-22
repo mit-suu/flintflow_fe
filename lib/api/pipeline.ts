@@ -29,6 +29,17 @@ export const runStep = (
   handlers: SseHandlers<StepEvent>
 ) => streamSse<StepEvent>(`/projects/${projectId}/steps/${stepId}/run`, request, handlers);
 
+/**
+ * Chạy liền các bước của một giai đoạn trên một luồng (FLF-208 R2). `phase` là id phase (`S-6`) hoặc đơn
+ * vị vòng S-5 (`S-5@S03`). Bước yên lặng tự Accept; chuỗi dừng khi cần bạn.
+ */
+export const runPhase = (
+  projectId: string,
+  phase: string,
+  request: RunStepRequest,
+  handlers: SseHandlers<StepEvent>
+) => streamSse<StepEvent>(`/projects/${projectId}/phases/${encodeURIComponent(phase)}/run`, request, handlers);
+
 /** Trả lời `answer_needed`; luồng SSE của `/run` tiếp tục. */
 export const answerStep = (projectId: string, stepId: string, request: StepAnswerRequest) =>
   apiCall<{ accepted: boolean }>(`/projects/${projectId}/steps/${stepId}/answer`, {

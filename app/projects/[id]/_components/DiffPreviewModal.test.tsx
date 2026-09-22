@@ -82,3 +82,23 @@ describe("DiffPreviewModal", () => {
     expect(screen.getByText("Không có thay đổi nào.")).toBeInTheDocument();
   });
 });
+
+describe("DiffPreviewModal — FLF-177", () => {
+  it("BUG-27: diff rỗng thì KHÔNG có nút Xác nhận", () => {
+    const empty: PreviewResult = { ...basePreview, ops: [], changes: [] };
+    renderWithIntl(<DiffPreviewModal preview={empty} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+
+    expect(screen.getByText("Không có thay đổi nào.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Xác nhận/ })).not.toBeInTheDocument();
+  });
+
+  it("BUG-16: hoà giải không có gì cần đổi vẫn xác nhận được để gỡ cờ", () => {
+    const onConfirm = vi.fn();
+    const noChange: PreviewResult = { ...basePreview, ops: [], changes: [], no_change: true, notes: "2 section vẫn đúng nội dung" };
+    renderWithIntl(<DiffPreviewModal preview={noChange} onCancel={vi.fn()} onConfirm={onConfirm} />);
+
+    expect(screen.getByText("2 section vẫn đúng nội dung")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận không đổi" }));
+    expect(onConfirm).toHaveBeenCalled();
+  });
+});
