@@ -164,7 +164,8 @@ export interface ReviewField {
   value: unknown;
   confidence: number;
   source_block_ids: string[];
-  origin: "deterministic" | "ai";
+  /** `vision` = đọc từ ảnh diagram (mode 1 v3 phase 5) — luôn cần xác nhận. */
+  origin: "deterministic" | "ai" | "vision";
   confirmed: boolean;
   edited_value?: unknown;
 }
