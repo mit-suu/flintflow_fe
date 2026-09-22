@@ -3,22 +3,27 @@ import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { Archive } from "@phosphor-icons/react/dist/ssr/Archive";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr/ArrowRight";
 import { ArrowUp } from "@phosphor-icons/react/dist/ssr/ArrowUp";
+import { ArrowsIn } from "@phosphor-icons/react/dist/ssr/ArrowsIn";
+import { ArrowsOut } from "@phosphor-icons/react/dist/ssr/ArrowsOut";
 import { Bell } from "@phosphor-icons/react/dist/ssr/Bell";
 import { Buildings } from "@phosphor-icons/react/dist/ssr/Buildings";
 import { CaretDown } from "@phosphor-icons/react/dist/ssr/CaretDown";
 import { CaretLeft } from "@phosphor-icons/react/dist/ssr/CaretLeft";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr/CaretRight";
+import { CaretUp } from "@phosphor-icons/react/dist/ssr/CaretUp";
 import { CaretUpDown } from "@phosphor-icons/react/dist/ssr/CaretUpDown";
 import { ChatText } from "@phosphor-icons/react/dist/ssr/ChatText";
 import { Check } from "@phosphor-icons/react/dist/ssr/Check";
 import { CheckCircle } from "@phosphor-icons/react/dist/ssr/CheckCircle";
 import { CircleNotch } from "@phosphor-icons/react/dist/ssr/CircleNotch";
 import { Clock } from "@phosphor-icons/react/dist/ssr/Clock";
+import { ClockCounterClockwise } from "@phosphor-icons/react/dist/ssr/ClockCounterClockwise";
 import { CloudSlash } from "@phosphor-icons/react/dist/ssr/CloudSlash";
 import { CreditCard } from "@phosphor-icons/react/dist/ssr/CreditCard";
 import { DotsThree } from "@phosphor-icons/react/dist/ssr/DotsThree";
 import { DotsThreeVertical } from "@phosphor-icons/react/dist/ssr/DotsThreeVertical";
 import { EnvelopeSimple } from "@phosphor-icons/react/dist/ssr/EnvelopeSimple";
+import { Export } from "@phosphor-icons/react/dist/ssr/Export";
 import { Eye } from "@phosphor-icons/react/dist/ssr/Eye";
 import { EyeSlash } from "@phosphor-icons/react/dist/ssr/EyeSlash";
 import { FilePlus } from "@phosphor-icons/react/dist/ssr/FilePlus";
@@ -29,11 +34,14 @@ import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr/MagnifyingGlass"
 import { Paperclip } from "@phosphor-icons/react/dist/ssr/Paperclip";
 import { PencilSimple } from "@phosphor-icons/react/dist/ssr/PencilSimple";
 import { PiggyBank } from "@phosphor-icons/react/dist/ssr/PiggyBank";
+import { Play } from "@phosphor-icons/react/dist/ssr/Play";
 import { Plus } from "@phosphor-icons/react/dist/ssr/Plus";
+import { ShieldCheck } from "@phosphor-icons/react/dist/ssr/ShieldCheck";
 import { SidebarSimple } from "@phosphor-icons/react/dist/ssr/SidebarSimple";
 import { SignOut } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { Sparkle } from "@phosphor-icons/react/dist/ssr/Sparkle";
 import { Stack } from "@phosphor-icons/react/dist/ssr/Stack";
+import { Toolbox } from "@phosphor-icons/react/dist/ssr/Toolbox";
 import { Trash } from "@phosphor-icons/react/dist/ssr/Trash";
 import { UploadSimple } from "@phosphor-icons/react/dist/ssr/UploadSimple";
 import { User } from "@phosphor-icons/react/dist/ssr/User";
@@ -65,7 +73,16 @@ const ICONS = {
   check: Check,
   "check-circle": CheckCircle,
   "chevron-down": CaretDown,
+  "chevron-up": CaretUp,
   clock: Clock,
+  collapse: ArrowsIn,
+  expand: ArrowsOut,
+  export: Export,
+  history: ClockCounterClockwise,
+  play: Play,
+  "shield-check": ShieldCheck,
+  sidebar: SidebarSimple,
+  toolbox: Toolbox,
   "cloud-off": CloudSlash,
   close: X,
   "credit-card": CreditCard,
