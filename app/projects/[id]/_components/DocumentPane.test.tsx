@@ -89,12 +89,12 @@ describe("DocumentPane", () => {
     renderWithIntl(<DocumentPane projectId="p1" projectName="FlintFlow" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/§1 Product Overview/)).toBeInTheDocument();
+      expect(screen.getByText(/1\. Product Overview/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/§2.1 Actors/)).toBeInTheDocument();
-    expect(screen.getByText(/§2.2.2 Use Case Descriptions/)).toBeInTheDocument();
-    expect(screen.getByText(/§3.1.2 Screen Descriptions/)).toBeInTheDocument();
-    expect(screen.getByText(/§5.5 Glossary/)).toBeInTheDocument();
+    expect(screen.getByText(/2\.1\. Actors/)).toBeInTheDocument();
+    expect(screen.getByText(/2\.2\.2\. Use Case Descriptions/)).toBeInTheDocument();
+    expect(screen.getByText(/3\.1\.2\. Screen Descriptions/)).toBeInTheDocument();
+    expect(screen.getByText(/5\.5\. Glossary/)).toBeInTheDocument();
     expect(screen.getByText("Vision statement")).toBeInTheDocument();
     expect(screen.getByText("Founder")).toBeInTheDocument();
   });
@@ -112,7 +112,7 @@ describe("DocumentPane", () => {
 
     renderWithIntl(<DocumentPane projectId="p1" />);
 
-    await waitFor(() => expect(screen.getByText(/§1 Product Overview/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/1\. Product Overview/)).toBeInTheDocument());
     expect(screen.queryByText("stale")).not.toBeInTheDocument();
   });
 
@@ -170,7 +170,7 @@ describe("DocumentPane", () => {
     expect(await screen.findByText(/xem tại S-3.1/)).toBeInTheDocument();
   });
 
-  it("mode 1 v2 (FLF-185): heading nhóm chỉ tiêu đề; mục riêng có nhãn; số hiệu rỗng không in §; section rỗng gợi ý step sở hữu", async () => {
+  it("mode 1 v2 (FLF-185): heading nhóm chỉ tiêu đề; mục riêng có nhãn; số hiệu rỗng không in số; section rỗng gợi ý step sở hữu", async () => {
     const onSelectStep = vi.fn();
     getDocument.mockResolvedValueOnce({
       data: {
@@ -191,7 +191,7 @@ describe("DocumentPane", () => {
     };
     renderWithIntl(<DocumentPane projectId="p1" onSelectStep={onSelectStep} emptyHintOf={(id) => hints[id]} />);
 
-    expect(await screen.findByText("§2 Yêu cầu người dùng")).toBeInTheDocument();
+    expect(await screen.findByText("2. Yêu cầu người dùng")).toBeInTheDocument();
     expect(document.querySelector("[data-section-id=\"group:2\"]")?.textContent).not.toContain("Chưa hoàn thiện");
     const rules = document.querySelector("[data-section-id=\"fixed:5.1\"]") as HTMLElement;
     expect(rules).toHaveTextContent("Thiếu");

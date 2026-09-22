@@ -121,7 +121,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
     // CR nộp trước khi BE chặn (mọi vị trí "không liên quan"): in_review nhưng 0 nhóm
     S().crs.get(change_request.cr_id)!.groups = [];
-    render(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     expect(await screen.findByText(/Không có nhóm thay đổi nào để duyệt/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Duyệt" })).not.toBeInTheDocument();
