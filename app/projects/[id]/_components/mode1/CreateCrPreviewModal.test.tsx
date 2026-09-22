@@ -45,8 +45,18 @@ describe("CreateCrPreviewModal", () => {
     });
   });
 
-  it("bản xem trước lỗi / không có preview_id ⇒ nút Tạo CR bị khoá", () => {
-    renderWithIntl(<CreateCrPreviewModal projectId="p1" preview={preview({ preview_id: undefined })} instruction="x" onCancel={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Tạo CR" })).toBeDisabled();
+  it("bản xem trước lỗi (AI dựng op sai) ⇒ vẫn tạo CR từ câu lệnh, không kèm preview_id", () => {
+    renderWithIntl(
+      <CreateCrPreviewModal
+        projectId="p1"
+        preview={preview({ ok: false, preview_id: undefined, violations: [{ rule: "path_invalid", message: "Selector không hợp lệ" } as never] })}
+        instruction="Đổi tầm nhìn sản phẩm"
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Bản xem trước lỗi — vẫn tạo được change request/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tạo CR (không kèm bản xem trước)" }));
+    const href = push.mock.calls[0][0] as string;
+    expect(readCrPrefill(new URLSearchParams(href.split("?")[1]))).toMatchObject({ description: "Đổi tầm nhìn sản phẩm", source: "verbal", preview_id: undefined });
   });
 });

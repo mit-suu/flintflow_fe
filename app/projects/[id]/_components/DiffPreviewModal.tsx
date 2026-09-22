@@ -12,6 +12,8 @@ interface DiffPreviewModalProps {
   busyLabel?: string;
   /** Dòng giải thích ngay trên nút (vd "tài liệu chỉ đổi sau khi CR được duyệt"). */
   note?: string;
+  /** Cho bấm xác nhận cả khi bản xem trước lỗi (mode 1 v3: vẫn tạo CR, chỉ không kèm bản xem trước). */
+  confirmWhenInvalid?: boolean;
 }
 
 const short = (value: unknown): string => {
@@ -23,9 +25,18 @@ const short = (value: unknown): string => {
 };
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
-export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm, confirmLabel = "Xác nhận", busyLabel = "Đang áp dụng…", note }: DiffPreviewModalProps) {
+export default function DiffPreviewModal({
+  preview,
+  busy = false,
+  onCancel,
+  onConfirm,
+  confirmLabel = "Xác nhận",
+  busyLabel = "Đang áp dụng…",
+  note,
+  confirmWhenInvalid = false,
+}: DiffPreviewModalProps) {
   const hasViolations = preview.violations.length > 0;
-  const canConfirm = preview.ok && !hasViolations && Boolean(preview.preview_id) && !busy;
+  const canConfirm = (confirmWhenInvalid || (preview.ok && !hasViolations && Boolean(preview.preview_id))) && !busy;
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
