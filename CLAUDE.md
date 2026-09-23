@@ -24,7 +24,7 @@ Next 16 (App Router) · React 19 · TypeScript · Tailwind 4 · vitest + msw.
 
 ## Nguyên tắc quan trọng nhất
 
-**Document pane là read-only.** Mọi thay đổi nội dung SRS đi qua chat/Change panel → `POST /changes`
+**Document pane là read-only.** Mọi thay đổi nội dung SRS đi qua chat (chip "Sửa tài liệu" trên ô nhập) → `POST /changes`
 (hoặc `/changes/preview` rồi xác nhận). Đừng thêm form sửa trực tiếp vào `DocumentPane`, `VerificationPane`
 hay bất kỳ chỗ nào hiển thị tài liệu.
 
@@ -60,7 +60,8 @@ không gọi; cần thêm thì phải sửa contract trước (PR `contract-chan
     được), `WorkspaceToolRail` (rail icon mở một panel phải mỗi lúc)
   - Tài liệu & kiểm chứng: `DocumentPane`, `VerificationPane`, `FlagsPanel`, `ReadinessSummary`,
     `ExportPanel`
-  - Sửa qua chat: `ChangePanel`, `DiffPreviewModal`, `TraceabilityMap`
+  - Sửa qua chat: chip "Sửa tài liệu" ở `ChatInput` → `ChatEditCard` (thẻ xem trước trong chat), `DiffPreviewModal`,
+    `EditHistory` (panel Công cụ), `TraceabilityMap` (panel Verification); state ở `hooks/useChanges`
   - Brief (B-0…S-1): `BriefSummaryCard`, `AssumptionSweepPanel`, `AddendumTriagePanel`, `NamesGlossaryPanel`
   - Dùng chung: `QuestionStepperInput` (câu hỏi có gợi ý — kiểu `DiscoveryQuestion` ở `types/chat.ts`)
 - Chạy step là **SSE** (`lib/ai-stream.ts`): sự kiện `intake · elicit · answer_needed · draft ·
