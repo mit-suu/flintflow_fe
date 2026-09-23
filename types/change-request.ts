@@ -149,8 +149,10 @@ export interface PathLockedMeta {
 }
 
 /**
- * 409 CHANGE_REQUIRES_CR — project mode 1 sau baseline v1. `/changes`, `/undo` ⇒ chỉ `prefill` (mở form CR điền sẵn);
- * lệnh sửa trong chat (FLF-186) ⇒ BE đã tạo CR nguồn `chat`, `change_request` trỏ tới nó.
+ * 409 CHANGE_REQUIRES_CR — project mode 1 sau baseline v1.
+ * - Lời gọi có ghi (`/changes`, `/reconcile`, `/undo`) và lệnh sửa trong chat ⇒ BE tạo sẵn CR (nguồn `chat` khi từ
+ *   chat, `verbal` khi từ workspace), `change_request` trỏ tới CR đó.
+ * - `/changes/preview` (chỉ xem trước) ⇒ chỉ `prefill` để mở form CR điền sẵn.
  */
 export interface ChangeRequiresCrMeta {
   prefill: { title: string; description: string };
@@ -160,6 +162,15 @@ export interface ChangeRequiresCrMeta {
 /** 409 CR_LOCATION_UNCONCLUDED */
 export interface LocationUnconcludedMeta {
   location_ids: string[];
+}
+
+/**
+ * 409 CR_NO_LOCATIONS — C-3 không tìm được phần tử Spine nào. `empty_sections`: đích của C-2 là mục còn trống
+ * (không có gì để sửa — chạy `step_id` để AI soạn nội dung; mục riêng thì `step_id = null`).
+ */
+export interface CrNoLocationsMeta {
+  targets: { entity_paths: string[]; keywords: string[] };
+  empty_sections: { section_id: string; title: string; step_id: string | null }[];
 }
 
 /** Mã lỗi mode 1 (`docs/api/import-change-contract.md` §0.3). */
@@ -177,6 +188,8 @@ export type Mode1ErrorCode =
   | "CR_INVALID_TRANSITION"
   | "PATH_LOCKED"
   | "CR_LOCATION_UNCONCLUDED"
+  | "CR_NO_LOCATIONS"
+  | "CR_NOTHING_TO_APPROVE"
   | "CR_VALUE_CHANGED"
   | "CHANGE_REQUIRES_CR"
   | "IMPORT_FILE_REJECTED"

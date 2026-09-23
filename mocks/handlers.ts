@@ -174,6 +174,7 @@ const summaryOf = (state: MockState, stepId: string): StepSummary => {
     regenerate_used: counters.regenerate_used,
     regenerate_limit: REGENERATE_LIMIT,
     accepted_at: state.spine.steps.find((s) => s.id === stepId)?.accepted_at ?? null,
+    running: false,
   };
 };
 

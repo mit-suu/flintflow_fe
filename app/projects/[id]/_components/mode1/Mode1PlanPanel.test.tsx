@@ -28,6 +28,7 @@ const step = (id: string, status: StepSummary["status"]): StepSummary => ({
   regenerate_used: 0,
   regenerate_limit: 3,
   accepted_at: null,
+  running: false,
 });
 
 const PLAN: StepPlanEntry[] = [
@@ -97,6 +98,37 @@ describe("Mode1PlanPanel — kế hoạch step theo template (FLF-185)", () => {
     renderPanel();
     expect(screen.getByRole("button", { name: "Ký baseline v1" })).toBeDisabled();
     expect(screen.getByText(/Còn 1 cờ đỏ, trong đó 1 đầu mục FPT thiếu/)).toBeInTheDocument();
+  });
+
+  it("liệt kê từng cờ đỏ đang chặn kèm nút chạy step (trước đây chỉ nói số, không xem được là cờ nào)", () => {
+    const props = renderPanel({ flags: [redFlag("FL01"), redFlag("FL02", "render_error")] });
+    const panel = screen.getByRole("region", { name: "Cờ đỏ đang chặn" });
+    expect(within(panel).getByRole("heading", { name: "Cờ đỏ đang chặn ký v1 (2)" })).toBeInTheDocument();
+    expect(within(panel).getAllByText("Business Rules trống")).toHaveLength(2);
+    // `render_error` xuất hiện cả ở dòng cờ lẫn câu chú thích "phải sửa thật" ⇒ lấy dòng cờ
+    expect(within(panel).getAllByText("render_error")[0]).toBeInTheDocument();
+    expect(within(panel).getByText(/Cờ vàng không chặn ký/)).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getAllByRole("button", { name: "Chạy S-7.1" })[0]);
+    expect(props.onSelectStep).toHaveBeenCalledWith("S-7.1");
+  });
+
+  it("cờ đỏ trỏ tới step ĐÃ CHỐT ⇒ nút 'Mở lại' (BE chặn chạy lại step accepted), chưa chốt ⇒ 'Chạy'", () => {
+    // S-7.1 pending ⇒ Chạy; S-2.1 accepted ⇒ Mở lại
+    const onReopenStep = vi.fn();
+    const props = renderPanel({ flags: [redFlag("FL01"), { ...redFlag("FL02"), section_id: "fixed:1", remediation_step: "S-2.1" }], onReopenStep });
+    const panel = screen.getByRole("region", { name: "Cờ đỏ đang chặn" });
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Chạy S-7.1" }));
+    expect(props.onSelectStep).toHaveBeenCalledWith("S-7.1");
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Mở lại S-2.1" }));
+    expect(onReopenStep).toHaveBeenCalledWith("S-2.1");
+  });
+
+  it("hết cờ đỏ ⇒ bảng cờ nói rõ không còn gì chặn", () => {
+    renderPanel({ flags: [] });
+    expect(within(screen.getByRole("region", { name: "Cờ đỏ đang chặn" })).getByText("Không còn cờ đỏ nào.")).toBeInTheDocument();
   });
 
   it("đã ký v1 ⇒ khoá ký lại và khoá bật/tắt step", () => {

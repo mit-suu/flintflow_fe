@@ -123,6 +123,8 @@ export default function ProposalCard({ location, editable, onPatch, busy = false
             {FOUND_BY_LABELS[f]}
           </span>
         ))}
+        {/* Vị trí "mục trống" (phương án B): path là cả mảng — CR thêm phần tử mới chứ không sửa cái đang có */}
+        {location.path.endsWith("[]") && <span className="px-1.5 py-0.5 rounded bg-[#F2F1FB] text-[#6A62C4] font-bold">mục trống — thêm mới</span>}
         {location.owner_step && <span className="text-[#A8A49C]">· bước {location.owner_step}</span>}
         {location.manual && <span className="px-1.5 py-0.5 rounded bg-[#FBF4E4] text-[#8A6D1F] font-bold">sửa tay</span>}
         {location.conclusion && (

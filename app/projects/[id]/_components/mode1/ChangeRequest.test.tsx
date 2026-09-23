@@ -116,6 +116,24 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await waitFor(() => expect(S().crs.get(change_request.cr_id)!.change_request.status).toBe("rejected"));
   });
 
+  it("in_review mà không có nhóm nào để duyệt ⇒ vẫn có lối ra: Đóng CR / Sửa lại CR", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
+    // CR nộp trước khi BE chặn (mọi vị trí "không liên quan"): in_review nhưng 0 nhóm
+    S().crs.get(change_request.cr_id)!.groups = [];
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+
+    expect(await screen.findByText(/Không có nhóm thay đổi nào để duyệt/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duyệt" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sửa lại CR" })).toBeInTheDocument();
+
+    await click("Đóng CR");
+    fireEvent.change(screen.getByLabelText("Lý do"), { target: { value: "Không có gì phải sửa" } });
+    const closeButtons = screen.getAllByRole("button", { name: "Đóng CR" });
+    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    await waitFor(() => expect(S().crs.get(change_request.cr_id)!.change_request.status).toBe("rejected"));
+  });
+
   it("huỷ CR mở khoá phần tử", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact"]);
