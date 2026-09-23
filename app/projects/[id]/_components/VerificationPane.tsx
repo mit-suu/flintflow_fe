@@ -19,7 +19,8 @@ interface VerificationPaneProps {
   onSelectStep?: (stepId: string) => void;
   /** Xác nhận cả loạt giả định (S-9.1 quét ra vài chục cái) — xem `FlagsPanel`. */
   onConfirmAllAssumptions?: (ids: string[]) => void;
-  onWaive: (flagId: string, reason: string) => Promise<void>;
+  /** Không truyền ⇒ không có nút waive (mode 1 v3). */
+  onWaive?: (flagId: string, reason: string) => Promise<void>;
   onRecompute: () => Promise<void> | void;
   /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
   onRedraw?: (flag: Flag) => Promise<void> | void;

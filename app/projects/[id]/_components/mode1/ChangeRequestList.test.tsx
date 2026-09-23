@@ -37,6 +37,7 @@ const cr = (cr_id: string, status: CrStatus, over: Partial<Cr> = {}): Cr => ({
   submitted_at: null,
   decided_by: null,
   closed_reason: null,
+  seed: null,
   created_at: "2026-09-20T03:00:00.000Z",
   updated_at: "2026-09-20T03:00:00.000Z",
   ...over,

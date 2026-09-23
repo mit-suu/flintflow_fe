@@ -170,4 +170,23 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("mode 1 v3: mở từ panel xem trước (có preview_id) ⇒ báo đính kèm bản xem trước và gửi preview_id; nguồn không có \"chat\"", async () => {
+    await importToGapReview();
+    const onCreated = vi.fn();
+    renderWithIntl(
+      <ChangeRequestForm
+        projectId={P}
+        prefill={{ title: "Đổi tên actor", description: "Đổi tên actor A03", source: "verbal", preview_id: "pv-9" }}
+        onCreated={onCreated}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText("Bản xem trước đính kèm")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Nguồn *")).queryByRole("option", { name: /chat/i })).not.toBeInTheDocument();
+    type("Người yêu cầu *", "PM Lan");
+    fireEvent.click(screen.getByRole("button", { name: "Tạo change request" }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(mode1State.mode1State.crs.get("CR-001")?.change_request.seed).toMatchObject({ instruction: "Đổi tên actor A03" });
+  });
 });

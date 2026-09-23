@@ -7,6 +7,13 @@ interface DiffPreviewModalProps {
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  /** Mode 1 v3: "Tạo CR" thay "Xác nhận" — bản xem trước dùng để soạn change request, không áp thẳng. */
+  confirmLabel?: string;
+  busyLabel?: string;
+  /** Dòng giải thích ngay trên nút (vd "tài liệu chỉ đổi sau khi CR được duyệt"). */
+  note?: string;
+  /** Cho bấm xác nhận cả khi bản xem trước lỗi (mode 1 v3: vẫn tạo CR, chỉ không kèm bản xem trước). */
+  confirmWhenInvalid?: boolean;
 }
 
 const short = (value: unknown): string => {
@@ -18,12 +25,23 @@ const short = (value: unknown): string => {
 };
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
-export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm }: DiffPreviewModalProps) {
+export default function DiffPreviewModal({
+  preview,
+  busy = false,
+  onCancel,
+  onConfirm,
+  confirmLabel = "Xác nhận",
+  busyLabel = "Đang áp dụng…",
+  note,
+  confirmWhenInvalid = false,
+}: DiffPreviewModalProps) {
   const hasViolations = preview.violations.length > 0;
   // BUG-27: "Không có thay đổi nào" mà vẫn có nút Xác nhận là mời user bấm vào chỗ không làm gì.
   // Ngoại lệ: lượt hoà giải trả `no_change` — ở đó xác nhận CÓ nghĩa ("nội dung vẫn đúng", gỡ cờ).
-  const empty = preview.changes.length === 0 && !preview.no_change;
-  const canConfirm = preview.ok && !hasViolations && !empty && Boolean(preview.preview_id) && !busy;
+  // Luồng CR của mode 1 v3 (`confirmWhenInvalid`) thì "Tạo CR" vẫn có nghĩa kể cả khi bản xem trước rỗng:
+  // CR dựng từ câu lệnh, bản xem trước chỉ là thứ kèm thêm.
+  const empty = !confirmWhenInvalid && preview.changes.length === 0 && !preview.no_change;
+  const canConfirm = (confirmWhenInvalid || (preview.ok && !hasViolations && Boolean(preview.preview_id))) && !empty && !busy;
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -111,6 +129,8 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
           </div>
         )}
 
+        {note && <p className="text-[11.5px] text-[#554DB0] bg-[#F2F1FB] rounded-[10px] px-3 py-2">{note}</p>}
+
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
@@ -127,7 +147,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
               onClick={onConfirm}
               className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {busy ? "Đang áp dụng…" : preview.no_change ? "Xác nhận không đổi" : "Xác nhận"}
+              {busy ? busyLabel : preview.no_change && !confirmWhenInvalid ? "Xác nhận không đổi" : confirmLabel}
             </button>
           )}
         </div>
