@@ -702,6 +702,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               blockingFlags={blockingFlags}
               onAssumptionDecision={(decision) => void applyAssumptionDecision(decision)}
               onGoToStep={setSelectedStepId}
+              wroteOps={gate.wroteOps}
+              emptySections={gate.emptySections}
               onAction={(action, note) => void runner.gate(action, note)}
             />
           )}
@@ -798,6 +800,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                   setSelectedStepId(stepId);
                   void runner.run(stepId, { reopen: true });
                 }}
+                onWaiveFlag={handleFlagWaive}
                 getBaseVersion={getBaseVersion}
                 onSpineChanged={() => onSpineChanged()}
               />

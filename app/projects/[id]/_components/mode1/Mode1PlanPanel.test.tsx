@@ -169,6 +169,53 @@ describe("Mode1PlanPanel — kế hoạch step theo template (FLF-185)", () => {
     expect(props.onSignedOff).not.toHaveBeenCalled();
   });
 
+  // L11d: cờ như `unconfirmed_assumption` không đóng được bằng cách chạy lại step — trước đây cột này chỉ nhắc
+  // "mở panel Verification", người dùng kẹt vòng mở-lại-bước tới khi cạn trần gọi model (gặp thật 2026-09-20).
+  describe("waive tại chỗ (L11d)", () => {
+    const assumption: Flag = {
+      ...redFlag("FL20", "unconfirmed_assumption"),
+      message: "Giả định AS1 chưa được xác nhận",
+      remediation_step: "S-9.2",
+    };
+
+    it("cờ waive được ⇒ có nút Waive; lý do đủ dài mới cho xác nhận", async () => {
+      const onWaiveFlag = vi.fn().mockResolvedValue(undefined);
+      renderPanel({ flags: [assumption], onWaiveFlag });
+
+      fireEvent.click(screen.getByRole("button", { name: "Waive" }));
+      const confirm = screen.getByRole("button", { name: "Xác nhận waive" });
+      expect(confirm, "lý do rỗng ⇒ khoá").toBeDisabled();
+
+      fireEvent.change(screen.getByLabelText(/Lý do bỏ qua/), { target: { value: "quá ngắn" } });
+      expect(confirm, "dưới 20 ký tự ⇒ vẫn khoá như BE").toBeDisabled();
+
+      const reason = "Form factor đã trả lời trong phiên elicit, không cần lưu vào project";
+      fireEvent.change(screen.getByLabelText(/Lý do bỏ qua/), { target: { value: reason } });
+      fireEvent.click(confirm);
+      await waitFor(() => expect(onWaiveFlag).toHaveBeenCalledWith("FL20", reason));
+    });
+
+    it("BE từ chối ⇒ giữ form mở kèm lỗi, không nuốt", async () => {
+      const onWaiveFlag = vi.fn().mockRejectedValue(new Error("Cờ đã đóng"));
+      renderPanel({ flags: [assumption], onWaiveFlag });
+      fireEvent.click(screen.getByRole("button", { name: "Waive" }));
+      fireEvent.change(screen.getByLabelText(/Lý do bỏ qua/), { target: { value: "Lý do dài hơn hai mươi ký tự cho chắc" } });
+      fireEvent.click(screen.getByRole("button", { name: "Xác nhận waive" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Cờ đã đóng");
+      expect(screen.getByLabelText(/Lý do bỏ qua/), "form vẫn mở để sửa lại").toBeInTheDocument();
+    });
+
+    it("ba luật không waive được ⇒ không hiện nút", () => {
+      renderPanel({ flags: [redFlag("FL21", "dead_reference")], onWaiveFlag: vi.fn() });
+      expect(screen.queryByRole("button", { name: "Waive" })).not.toBeInTheDocument();
+    });
+
+    it("không truyền onWaiveFlag ⇒ giữ nguyên hành vi cũ, không có nút", () => {
+      renderPanel({ flags: [assumption] });
+      expect(screen.queryByRole("button", { name: "Waive" })).not.toBeInTheDocument();
+    });
+  });
+
   it("lỗi tải kế hoạch ⇒ báo lỗi; đang tải ⇒ câu chờ", () => {
     const { unmount } = renderWithIntl(
       <Mode1PlanPanel {...renderPanelProps()} plan={null} planError="Không tải được kế hoạch step" />

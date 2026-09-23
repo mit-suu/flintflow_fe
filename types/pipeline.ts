@@ -184,6 +184,12 @@ export interface GateReadyEvent {
   doc_progress?: { before: number; after: number };
   table?: GateTable;
   no_change_reason?: string;
+  /** Version CUỐI của lượt chạy — cao hơn `ops_applied` vì render + recompute cờ chạy sau (L11). */
+  spine_version?: number;
+  /** Lượt chạy có ghi được op nào không (L11b) — `false` = model trả lô rỗng. */
+  wrote_ops?: boolean;
+  /** Mục step này nuôi mà chạy xong vẫn trống (L11b). Cả ba để optional vì BE cũ hơn không gửi. */
+  empty_sections?: { section_id: string; title: string }[];
 }
 
 /** Sự kiện SSE của `POST /projects/:id/steps/:stepId/run` (`event: <type>` + `data: <JSON>`). */

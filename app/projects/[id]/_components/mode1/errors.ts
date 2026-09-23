@@ -39,7 +39,9 @@ export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): s
       }
       return "Không tìm được phần tử nào khớp với change request. Sửa mô tả (nêu mã hoặc tên phần tử, ví dụ UC-01, actor Learner) rồi bấm làm rõ lại.";
     }
-    return FRIENDLY[err.code] ?? err.message ?? fallback;
+    // `||` chứ không phải `??`: BE trả `message: ""` là chuỗi RỖNG, không phải null — dùng `??` thì hộp lỗi
+    // hiện trắng, người dùng chỉ thấy một khung đỏ không chữ.
+    return FRIENDLY[err.code] || err.message || fallback;
   }
   return err instanceof Error && err.message ? err.message : fallback;
 };
