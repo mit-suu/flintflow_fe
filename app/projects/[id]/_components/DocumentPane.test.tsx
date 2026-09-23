@@ -1,6 +1,6 @@
 "use client";
 
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DocumentPane, { followsHeading } from "./DocumentPane";
@@ -99,21 +99,29 @@ describe("DocumentPane", () => {
     expect(screen.getByText("Founder")).toBeInTheDocument();
   });
 
-  it("chip stale hiện đúng khi meta.stale = true", async () => {
-    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 4, spine_version: 6, stale: true } });
+  it("tài liệu cũ hơn Spine (meta.stale): nút Làm mới ghép lại ở version hiện tại, không lộ chữ 'stale'", async () => {
+    const assembleDocument = vi.mocked(exportApi.assembleDocument);
+    assembleDocument.mockResolvedValueOnce({ data: { spine_version: 6, sections: 40, generated_at: "2026-09-23T00:00:00.000Z" }, error: null } as never);
+    getDocument
+      .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 4, spine_version: 6, stale: true } })
+      .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 6, spine_version: 6, stale: false } });
 
-    renderWithIntl(<DocumentPane projectId="p1" />);
+    renderWithIntl(<DocumentPane projectId="p1" getBaseVersion={() => 6} />);
 
-    expect(await screen.findByText("stale")).toBeInTheDocument();
+    const refresh = await screen.findByRole("button", { name: "Làm mới" });
+    expect(refresh).toHaveAttribute("title", expect.stringMatching(/ghép lại/));
+    expect(screen.queryByText("stale")).toBeNull();
+    fireEvent.click(refresh);
+    await waitFor(() => expect(assembleDocument).toHaveBeenCalledWith("p1", 6));
   });
 
-  it("chip stale không hiện khi meta.stale = false", async () => {
+  it("tài liệu khớp Spine: nút Làm mới chỉ tải lại", async () => {
     getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
 
-    renderWithIntl(<DocumentPane projectId="p1" />);
+    renderWithIntl(<DocumentPane projectId="p1" getBaseVersion={() => 5} />);
 
     await waitFor(() => expect(screen.getByText(/1\. Product Overview/)).toBeInTheDocument());
-    expect(screen.queryByText("stale")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Làm mới" })).toHaveAttribute("title", "Tải lại tài liệu");
   });
 
   it("section chờ duyệt lại (awaiting_reaccept) hiện chip riêng", async () => {
@@ -162,12 +170,36 @@ describe("DocumentPane", () => {
     expect(await screen.findByText(/Tài liệu vừa đổi ở phiên khác/)).toBeInTheDocument();
   });
 
-  it("nút xem tại step hiện theo flag mở khớp section_id", async () => {
+  it("mục có vấn đề mở: chấm số theo section_id, bấm mở panel kiểm tra lọc theo mục", async () => {
     getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onOpenSectionIssues = vi.fn();
 
-    renderWithIntl(<DocumentPane projectId="p1" flags={[redFlag]} onSelectStep={vi.fn()} />);
+    renderWithIntl(<DocumentPane projectId="p1" flags={[redFlag]} onOpenSectionIssues={onOpenSectionIssues} />);
 
-    expect(await screen.findByText(/xem tại S-3.1/)).toBeInTheDocument();
+    const dot = await screen.findByTitle("Xem vấn đề của mục này");
+    expect(dot).toHaveTextContent("1");
+    fireEvent.click(dot);
+    expect(onOpenSectionIssues).toHaveBeenCalledWith("fixed:2.1");
+  });
+
+  it("chip trạng thái trên header: số vấn đề thật, bấm mở panel", async () => {
+    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onOpenIssues = vi.fn();
+
+    renderWithIntl(<DocumentPane projectId="p1" issues={{ blocking: 2, suggestions: 3 }} onOpenIssues={onOpenIssues} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /2 vấn đề cần xử lý/ }));
+    expect(onOpenIssues).toHaveBeenCalledTimes(1);
+  });
+
+  it("Sửa mục này gửi nhãn mục đọc được (§số tên) để điền sẵn lệnh sửa trong chat", async () => {
+    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onEditSection = vi.fn();
+
+    renderWithIntl(<DocumentPane projectId="p1" onEditSection={onEditSection} />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "Sửa mục này" }))[0]);
+    expect(onEditSection).toHaveBeenCalledWith(expect.stringMatching(/^§1 Product Overview$/));
   });
 
   it("mode 1 v2 (FLF-185): heading nhóm chỉ tiêu đề; mục riêng có nhãn; số hiệu rỗng không in số; section rỗng gợi ý step sở hữu", async () => {

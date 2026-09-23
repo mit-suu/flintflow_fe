@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { applyChangesWithRebase, renderDiagram } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
@@ -19,35 +19,43 @@ import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import WorkspaceHeader from "./_components/WorkspaceHeader";
 import WorkspaceProgressRail from "./_components/WorkspaceProgressRail";
-import WorkspaceToolRail, { type WorkspacePanel } from "./_components/WorkspaceToolRail";
 import ChatSessionHistory from "./_components/ChatSessionHistory";
 import ChatPane from "./_components/ChatPane";
-import DocumentPane from "./_components/DocumentPane";
+import ResizeHandle from "./_components/ResizeHandle";
+import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
+import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
-import ChangePanel, { type ChangeSeed } from "./_components/ChangePanel";
+import ChatEditCard, { type AppliedEdit } from "./_components/ChatEditCard";
+import DiffPreviewModal from "./_components/DiffPreviewModal";
+import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
+import ProjectRecordPanel from "./_components/ProjectRecordPanel";
+import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
 import GateCard, { type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
-import ElicitPanel from "./_components/ElicitPanel";
+import ElicitPanel, { directReplyAnswers } from "./_components/ElicitPanel";
 import StepProgress from "./_components/StepProgress";
 import StepIntroCard from "./_components/StepIntroCard";
-import JourneyBar from "./_components/JourneyBar";
-import DecisionsPanel from "./_components/DecisionsPanel";
 import RunPill from "./_components/RunPill";
 import { getStepStat, recordStepStat } from "@/lib/step-stats";
-import ScreenQueuePanel from "./_components/ScreenQueuePanel";
-import NamesGlossaryPanel from "./_components/NamesGlossaryPanel";
-import BriefSummaryCard from "./_components/BriefSummaryCard";
-import AssumptionSweepPanel from "./_components/AssumptionSweepPanel";
-import AddendumTriagePanel from "./_components/AddendumTriagePanel";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { useWorkspace } from "./hooks/useWorkspace";
+import { useResizableWidth } from "./hooks/useResizableWidth";
+import { useChanges } from "./hooks/useChanges";
+import { issueCounts } from "./_components/flag-rules";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
 import { useTurnNotice } from "./hooks/useTurnNotice";
+
+/** Bề rộng cửa sổ — để biết có đủ chỗ cho rail tiến độ + chat + tài liệu + panel phải cùng lúc không. */
+const subscribeViewport = (onChange: () => void) => {
+  window.addEventListener("resize", onChange);
+  return () => window.removeEventListener("resize", onChange);
+};
+const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
@@ -55,12 +63,14 @@ const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
 /** Đơn vị giai đoạn để chạy liền (R2): phase thường; vòng S-5 tính theo từng màn. */
 const unitOfStep = (stepId: string, phase: string): string => (stepId.includes("@") ? `${phase}@${stepId.split("@")[1]}` : phase);
 
-const DEFAULT_CHAT_PANE_WIDTH = 480;
+// Bề rộng kéo được (px): khung chat, rail tiến độ trái, panel phải — mỗi khung nhớ riêng trong localStorage
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
-
-/** Bề rộng panel phải theo loại — dùng giới hạn khi kéo đổi cỡ khung chat. */
-const PANEL_WIDTH: Record<WorkspacePanel, number> = { change: 380, verification: 340, tools: 340 };
-const TOOL_RAIL_WIDTH = 48;
+const RAIL_WIDTH_KEY = "flintflow_progress_rail_width";
+const PANEL_WIDTH_KEY = "flintflow_right_panel_width";
+const CHAT_MIN = 320;
+const DOC_MIN = 320;
+/** Panel phải — mỗi lúc chỉ mở một; mở từ chip trạng thái của tài liệu hoặc nút "Công cụ" trên header. */
+type WorkspacePanel = "verification" | "tools";
 const PROGRESS_OPEN_KEY = "flintflow_workspace_progress_open";
 
 const readSavedProgressOpen = (): boolean => {
@@ -72,14 +82,7 @@ const readSavedProgressOpen = (): boolean => {
   }
 };
 
-const readSavedChatPaneWidth = (): number => {
-  if (typeof window === "undefined") return DEFAULT_CHAT_PANE_WIDTH;
-  try {
-    const parsed = parseInt(localStorage.getItem(CHAT_WIDTH_KEY) ?? "", 10);
-    if (!isNaN(parsed) && parsed >= 340 && parsed <= 1000) return parsed;
-  } catch {}
-  return DEFAULT_CHAT_PANE_WIDTH;
-};
+
 
 const WorkspaceLoading = () => (
   <div className="h-screen flex overflow-hidden bg-surface-container-lowest">
@@ -176,11 +179,60 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   // Panel phải: mỗi lúc một (rail icon). Mode 1 mở sẵn cột cờ & version.
   const [rightPanel, setRightPanel] = useState<WorkspacePanel | null>(mode1 ? "tools" : null);
   const togglePanel = (panel: WorkspacePanel) => setRightPanel((current) => (current === panel ? null : panel));
+  /** Tên mục (`§2.2.2 Actors`) theo `section_id` — từ tài liệu đang hiển thị, để panel kiểm tra khỏi hiện mã nội bộ. */
+  const [sectionLabels, setSectionLabels] = useState<ReadonlyMap<string, string>>(new Map());
+  const handleSectionsLoaded = useCallback(
+    (sections: readonly RenderedSection[]) => setSectionLabels(new Map(sections.map((section) => [section.id, sectionLabel(section)]))),
+    []
+  );
+  /** Panel kiểm tra đang lọc theo một mục (bấm chấm số trên tài liệu). */
+  const [issueSectionId, setIssueSectionId] = useState<string | null>(null);
+  const openIssues = (sectionId: string | null = null) => {
+    setIssueSectionId(sectionId);
+    setRightPanel("verification");
+  };
+  const showSection = (sectionId: string) => {
+    const target = document.querySelector(`[data-section-id="${CSS.escape(sectionId)}"]`);
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   // Panel đang vẽ: giữ panel cuối trong lúc chạy hiệu ứng đóng (rightPanel đã về null)
   const [shownPanel, setShownPanel] = useState<WorkspacePanel | null>(rightPanel);
   if (rightPanel && rightPanel !== shownPanel) setShownPanel(rightPanel);
   const [progressOpen, setProgressOpen] = useState<boolean>(readSavedProgressOpen);
+  // Màn hẹp + đang mở panel phải ⇒ tạm ẩn rail tiến độ để tài liệu và panel nằm cạnh nhau, không bị ép/cắt.
+  // Chỉ là hiển thị: lựa chọn đã lưu (`progressOpen`) giữ nguyên, đóng panel là rail về lại.
+  const mainRef = useRef<HTMLElement>(null);
+  const mainWidth = () => mainRef.current?.getBoundingClientRect().width ?? 0;
+  const rail = useResizableWidth({
+    storageKey: RAIL_WIDTH_KEY,
+    defaultWidth: 264,
+    min: 200,
+    max: () => 440,
+    measure: (x) => {
+      const el = document.getElementById("workspace-progress");
+      return el ? x - el.getBoundingClientRect().left : null;
+    },
+  });
+  const panel = useResizableWidth({
+    storageKey: PANEL_WIDTH_KEY,
+    defaultWidth: 360,
+    min: 300,
+    // Chừa chỗ tối thiểu cho chat + tài liệu
+    max: () => Math.min(640, mainWidth() - CHAT_MIN - DOC_MIN),
+    measure: (x) => {
+      const el = document.getElementById("workspace-right-panel");
+      return el ? el.getBoundingClientRect().right - x : null;
+    },
+  });
+  const viewport = useSyncExternalStore(subscribeViewport, viewportWidth, () => Number.POSITIVE_INFINITY);
+  const narrow = viewport < rail.width + CHAT_MIN + DOC_MIN + panel.width;
+  const railShown = progressOpen && !(narrow && rightPanel !== null);
   const toggleProgress = () => {
+    // Rail đang bị tạm ẩn vì panel ⇒ "Hiện tiến độ" = đóng panel, không lật lựa chọn đã lưu
+    if (progressOpen && !railShown) {
+      setRightPanel(null);
+      return;
+    }
     const next = !progressOpen;
     setProgressOpen(next);
     try {
@@ -198,8 +250,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [focusMode]);
   const [exportOpen, setExportOpen] = useState(false);
-  const [changeSeed, setChangeSeed] = useState<ChangeSeed | undefined>(undefined);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  /** Chip "Sửa tài liệu" trên ô chat: bật ⇒ nội dung gửi đi là lệnh sửa (`/changes/preview`), không phải tin chat. */
+  const [editMode, setEditMode] = useState(false);
   const [savingChange, setSavingChange] = useState(false);
   /** Lỗi của lượt ghi op thuần (panel Tên riêng, hàng đợi màn, quyết định giả định) — nói bằng tiếng Việt. */
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -217,7 +270,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   }, []);
   useEffect(() => bumpVersion(spineState.version), [bumpVersion, spineState.version]);
   const getBaseVersion = useCallback(() => versionRef.current, []);
-  // `latestSeq` cho lịch sử Change panel (20 dòng gần nhất) — lấy từ `max(steps[].last_seq)` của
+  // `latestSeq` cho "Lịch sử sửa" (20 dòng gần nhất) — lấy từ `max(steps[].last_seq)` của
   // Spine hiện tại, không phải `spine_version` (seq của change và version step là hai trục khác nhau).
   const getLatestSeq = useCallback(() => {
     const currentSpine = spineState.spine;
@@ -435,8 +488,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           runner.reset();
           return;
         case "edit_command":
+          // Lỗi gợi ý "sửa bằng lệnh": bật chip Sửa tài liệu trên ô chat (runner.reset gỡ luôn lý do khoá chip)
           runner.reset();
-          setRightPanel("change");
+          setEditMode(true);
           return;
         default:
           runner.reset();
@@ -451,7 +505,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const markPlaceholder = (screenId: string) =>
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
 
-  // ─── ChangePanel áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
+  // ─── Lệnh sửa trong chat áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
   const changedSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
@@ -472,48 +526,89 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
   }, []);
 
-  // ChatPane: session không pipeline ⇒ ô lệnh sửa mở Change panel và xem trước lệnh ngay
-  const forwardInstructionToChangePanel = useCallback((instruction: string) => {
-    if (!instruction.trim()) return;
-    setChangeSeed({ text: instruction, nonce: Date.now() });
-    setRightPanel("change");
-  }, []);
+  // ─── sửa tài liệu ngay trong chat (chip "Sửa tài liệu") ──────────
+  /** Thẻ sửa đang hiện trong chat (đang xem trước / chờ quyết / vừa áp). */
+  const [editCardOpen, setEditCardOpen] = useState(false);
+  const [editDetailOpen, setEditDetailOpen] = useState(false);
+  const [appliedEdit, setAppliedEdit] = useState<AppliedEdit | null>(null);
+  /** Việc vừa gửi lên `/changes` — để biết kết quả trả về là của lệnh sửa, lượt cập nhật mục cũ hay hoàn tác. */
+  const editActionRef = useRef<"instruction" | "outdated" | "undo" | null>(null);
+  const pendingInstructionRef = useRef("");
+  const onChangesApplied = useCallback(
+    (result: ApplyResult, impactedSectionIds?: string[]) => {
+      handleChangeApplied(result, impactedSectionIds);
+      const action = editActionRef.current;
+      editActionRef.current = null;
+      if (action === "undo") {
+        setToast("Đã hoàn tác lần sửa gần nhất");
+        setAppliedEdit(null);
+        setEditCardOpen(false);
+      } else if (action === "instruction") {
+        setEditDetailOpen(false);
+        setAppliedEdit({ instruction: pendingInstructionRef.current, count: result.changes.length, version: result.spine_version });
+      } else {
+        // Lần áp khác (cập nhật mục cũ) đè lên ⇒ thẻ cũ không còn là lần mới nhất, thôi hoàn tác
+        setAppliedEdit(null);
+      }
+    },
+    [handleChangeApplied]
+  );
+  const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied);
+  const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
+  const documentIssues = issueCounts(flags, outdatedSections);
+  /** Chip sửa khoá khi step đang chạy / chờ trả lời: hai luồng cùng ghi Spine sẽ vấp 409 SPINE_VERSION_CONFLICT. */
+  const editDisabledReason =
+    !mode1 && runner.state.busy
+      ? "Bước đang chạy — đợi chạy xong rồi hãy sửa tài liệu"
+      : !mode1 && runner.state.status === "needs_input"
+        ? "Trả lời câu hỏi của bước đang chạy trước đã"
+        : null;
+  const { requestPreview, cancelPreview } = changes;
+  const submitEditInstruction = useCallback(
+    (instruction: string) => {
+      if (!instruction.trim()) return;
+      pendingInstructionRef.current = instruction.trim();
+      setAppliedEdit(null);
+      setEditDetailOpen(false);
+      setEditCardOpen(true);
+      void requestPreview(instruction);
+    },
+    [requestPreview]
+  );
+  const closeEditCard = () => {
+    cancelPreview();
+    setEditCardOpen(false);
+    setEditDetailOpen(false);
+    setAppliedEdit(null);
+  };
+  /** Bật chip sửa và đưa con trỏ vào ô chat — `prefill` điền sẵn chỗ cần sửa (nút "Sửa mục này" trên tài liệu). */
+  const startEditing = (prefill?: string) => {
+    if (editDisabledReason) {
+      setToast(editDisabledReason);
+      return;
+    }
+    setEditMode(true);
+    if (prefill !== undefined) ws.setInputMessage(prefill);
+    // Đợi ô nhập render lại với chip bật rồi mới focus, con trỏ về cuối dòng
+    setTimeout(() => {
+      const input = document.getElementById("flintflow-chat-input") as HTMLTextAreaElement | null;
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
+    }, 0);
+  };
 
   // ─── resize chat pane ─────────────────────────────────────────
-  const [chatPaneWidth, setChatPaneWidth] = useState<number>(readSavedChatPaneWidth);
-  const [isResizing, setIsResizing] = useState(false);
-  const mainRef = useRef<HTMLElement>(null);
-  const widthRef = useRef(chatPaneWidth);
-  useEffect(() => {
-    widthRef.current = chatPaneWidth;
-  }, [chatPaneWidth]);
-
-  useEffect(() => {
-    if (!isResizing) return;
-    const onMove = (e: MouseEvent) => {
-      const pane = document.getElementById("flintflow-chat-pane");
-      if (!pane || !mainRef.current) return;
-      const asideWidth = (rightPanel ? PANEL_WIDTH[rightPanel] : 0) + TOOL_RAIL_WIDTH;
-      const maxAllowed = Math.max(350, mainRef.current.getBoundingClientRect().width - asideWidth - 320);
-      setChatPaneWidth(Math.min(Math.max(350, e.clientX - pane.getBoundingClientRect().left), Math.min(1000, maxAllowed)));
-    };
-    const onUp = () => {
-      setIsResizing(false);
-      try {
-        localStorage.setItem(CHAT_WIDTH_KEY, String(widthRef.current));
-      } catch {}
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizing, rightPanel]);
+  const chat = useResizableWidth({
+    storageKey: CHAT_WIDTH_KEY,
+    defaultWidth: 480,
+    min: CHAT_MIN,
+    // Chừa chỗ tối thiểu cho tài liệu + panel phải đang mở
+    max: () => Math.min(1000, mainWidth() - (rightPanel ? panel.width : 0) - DOC_MIN),
+    measure: (x) => {
+      const el = document.getElementById("flintflow-chat-pane");
+      return el ? x - el.getBoundingClientRect().left : null;
+    },
+  });
 
   if (!ws.ready) return <WorkspaceLoading />;
 
@@ -559,7 +654,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
       {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
-      <Collapse axis="x" open={!mode1 && !focusMode && progressOpen} className="relative z-30">
+      <Collapse axis="x" open={!mode1 && !focusMode && railShown} className="relative z-30">
+        <div style={{ width: rail.width }} className="h-full shrink-0">
         <WorkspaceProgressRail
           onHide={toggleProgress}
           currentPhase={shownPhase}
@@ -569,10 +665,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onSelectStep={setSelectedStepId}
           reopenableStepIds={reopenableStepIds}
           readinessPercent={progress?.readiness.accepted_pct}
-          workingMode={spine?.project.working_mode ?? null}
-          onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
-          busy={runner.state.busy || savingChange}
         />
+        </div>
+        <ResizeHandle active={rail.resizing} onStart={rail.startResize} onReset={rail.reset} label="Đổi cỡ rail tiến độ" />
       </Collapse>
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -582,7 +677,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           project={ws.project}
           user={ws.user}
           baselineVersion={spine?.baselines.at(-1)?.version ?? null}
-          progressHidden={!mode1 && !progressOpen}
+          progressHidden={!mode1 && !railShown}
           onShowProgress={toggleProgress}
           // Nút chạy **bước đang xem** (L9): trước đây luôn chạy `current_step` nên quay về bước cũ rồi bấm lại ra bản
           // accept của bước sau (gặp thật 2026-09-20). Bước đã chốt / bị bỏ qua thì không chạy được — nút biến mất.
@@ -594,17 +689,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           busy={runner.state.busy || savingChange}
           onExportClick={() => setExportOpen((v) => !v)}
           onEnterFocus={() => setFocusMode(true)}
+          onToolsClick={() => togglePanel("tools")}
+          toolsActive={rightPanel === "tools"}
+          toolsLabel={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}
           onLogout={ws.logout}
-        />
-      </Collapse>
-
-      <Collapse open={!focusMode}>
-        <JourneyBar
-          steps={steps?.steps ?? []}
-          currentStepId={currentStep}
-          readinessPercent={progress?.readiness.accepted_pct}
-          credits={ws.user?.balance ?? null}
-          reviewMode={reviewMode}
         />
       </Collapse>
 
@@ -614,10 +702,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       >
         <ChatPane
           // Rail tiến độ ẩn (hoặc đang mở rộng trang) ⇒ khung chat sát mép trái màn hình, chỉ bo bên phải
-          flushLeft={mode1 || focusMode || !progressOpen}
+          flushLeft={mode1 || focusMode || !railShown}
           title={mode1 ? "Hỏi đáp & lệnh sửa" : undefined}
-          width={chatPaneWidth}
+          width={chat.width}
           session={ws.activeSession}
+          creditBalance={ws.user?.balance ?? null}
           stepLabel={!mode1 && viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
@@ -637,11 +726,34 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           }
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
-          onEditInstruction={forwardInstructionToChangePanel}
-          footer={
+          onEditInstruction={submitEditInstruction}
+          editMode={editMode}
+          onToggleEditMode={() => (editMode ? setEditMode(false) : startEditing())}
+          editDisabledReason={editDisabledReason}
+          inputTools={
+            mode1 ? undefined : (
+              <AiSettingsMenu
+                workingMode={spine?.project.working_mode ?? null}
+                onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
+                reviewMode={reviewMode}
+                onChangeReviewMode={(mode) => void changeReviewMode(mode)}
+                disabled={runner.state.busy || savingChange}
+              />
+            )
+          }
+          questionCard={
             !mode1 && runner.state.status === "needs_input" ? (
               <ElicitPanel questions={runner.state.questions} onSubmit={(answers) => void runner.answer(answers)} sending={runner.state.busy} />
             ) : undefined
+          }
+          // Step đang chờ trả lời ⇒ gõ ở ô chat là trả lời step (không thành tin nhắn chat rời)
+          onDirectReply={
+            !mode1 && runner.state.status === "needs_input"
+              ? (text) => {
+                  const answers = directReplyAnswers(runner.state.questions, text);
+                  if (answers.length > 0) void runner.answer(answers);
+                }
+              : undefined
           }
         >
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
@@ -724,27 +836,37 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               </details>
             </div>
           )}
+          {editCardOpen && (
+            <ChatEditCard
+              instruction={changes.pendingInstruction}
+              previewing={changes.previewing}
+              applying={changes.applying}
+              clarification={changes.clarification}
+              error={changes.error}
+              preview={changes.previewSource === "instruction" ? changes.preview : null}
+              applied={appliedEdit}
+              requiresCr={mode1}
+              onShowDetail={() => setEditDetailOpen(true)}
+              onApply={() => {
+                // Mode 1: không áp thẳng — mở form tạo change request điền sẵn
+                if (mode1) {
+                  setEditDetailOpen(true);
+                  return;
+                }
+                editActionRef.current = "instruction";
+                void changes.confirmPreview();
+              }}
+              onCancel={closeEditCard}
+              onUndo={() => {
+                editActionRef.current = "undo";
+                void changes.undo();
+              }}
+              onDismiss={closeEditCard}
+            />
+          )}
         </ChatPane>
 
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setIsResizing(true);
-          }}
-          onDoubleClick={() => {
-            setChatPaneWidth(DEFAULT_CHAT_PANE_WIDTH);
-            try {
-              localStorage.setItem(CHAT_WIDTH_KEY, String(DEFAULT_CHAT_PANE_WIDTH));
-            } catch {}
-          }}
-          className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center"
-          title="Kéo để thay đổi kích thước (nháy đúp để về mặc định)"
-        >
-          {/* Chỉ hiện một đoạn ngắn bo tròn ở giữa (không chạy suốt chiều cao, khỏi đâm qua góc bo của khung chat) */}
-          <div className={`h-12 w-1 rounded-full transition-colors ${isResizing ? "bg-primary" : "bg-transparent group-hover:bg-primary/60"}`} />
-        </div>
+        <ResizeHandle active={chat.resizing} onStart={chat.startResize} onReset={chat.reset} label="Đổi cỡ khung chat" />
 
         <DocumentPane
           projectId={projectId}
@@ -756,103 +878,66 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           refreshToken={documentRefreshToken}
           getBaseVersion={getBaseVersion}
           mode1={mode1}
+          onEditSection={(label) => startEditing(`Trong ${label}: `)}
+          issues={documentIssues}
+          onOpenIssues={() => (rightPanel === "verification" && !issueSectionId ? setRightPanel(null) : openIssues())}
+          onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
+          rewriteError={!editCardOpen ? changes.error : null}
+          onSectionsLoaded={handleSectionsLoaded}
+          // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
+          headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
         />
 
         <Collapse axis="x" open={rightPanel !== null}>
+        <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label="Đổi cỡ panel bên phải" />
+        <div id="workspace-right-panel" style={{ width: panel.width }} className="h-full shrink-0">
         {shownPanel === "tools" && spine && (
-          <aside className="w-[340px] h-full shrink-0 bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label="Công cụ">
+          <aside className="w-full h-full bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
             <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
-                <Icon name="toolbox" size={16} className="text-primary" />
-                <h3 className="font-bold text-[13px] text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Công cụ"}</h3>
+                <Icon name="folder" size={16} className="text-primary" />
+                <h3 className="font-bold text-[13px] text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}</h3>
               </div>
-              <IconButton icon="close" size="sm" label="Đóng công cụ" onClick={() => setRightPanel(null)} />
+              <IconButton icon="close" size="sm" label="Đóng hồ sơ dự án" onClick={() => setRightPanel(null)} />
             </div>
-            <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-5">
+            <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-3">
             {mode1 && (
               <Mode1WorkspaceTools projectId={projectId} projectName={ws.project?.name} flags={flags} onSpineChanged={() => onSpineChanged()} />
             )}
-            {/* Các panel dưới ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
-            {!mode1 && inBriefPhase && (
-              <>
-                <section className="flex flex-col gap-2">
-                  <h4 className="text-[12.5px] font-bold text-on-surface">Tóm tắt Brief</h4>
-                  <BriefSummaryCard spine={spine} />
-                </section>
-                <section className="flex flex-col gap-2">
-                  <h4 className="text-[12.5px] font-bold text-on-surface">Giả định chờ xác nhận (B-2.1)</h4>
-                  <AssumptionSweepPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
-                </section>
-                <section className="flex flex-col gap-2">
-                  <h4 className="text-[12.5px] font-bold text-on-surface">Ghi chú Brief (B-2.2)</h4>
-                  <AddendumTriagePanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
-                </section>
-              </>
-            )}
+            {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
             {!mode1 && (
-              <>
-                <section className="flex flex-col gap-2">
-                  <h4 className="text-[12.5px] font-bold text-on-surface">Tên riêng & thuật ngữ</h4>
-                  <NamesGlossaryPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
-                </section>
-                <section className="flex flex-col gap-2">
-                  <h4 className="text-[12.5px] font-bold text-on-surface">Đã chốt</h4>
-                  <DecisionsPanel spine={spine} onSubmitOps={submitOps} busy={savingChange} />
-                </section>
-                <section className="flex flex-col gap-2">
-                  <h4 className="text-[12.5px] font-bold text-on-surface">Cách duyệt</h4>
-                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Cách duyệt">
-                    {(
-                      [
-                        ["strict", "Chặt", "Dừng ở mọi bước"],
-                        ["balanced", "Cân bằng", "Dừng cuối giai đoạn, cuối mỗi màn và ở bước quan trọng"],
-                        ["fast", "Nhanh", "Chỉ dừng khi bắt buộc, có cờ đỏ mới hoặc lỗi"],
-                      ] as const
-                    ).map(([mode, label, hint]) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        title={hint}
-                        disabled={savingChange}
-                        aria-pressed={reviewMode === mode}
-                        onClick={() => void changeReviewMode(mode)}
-                        className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold cursor-pointer disabled:opacity-50 ${
-                          reviewMode === mode ? "bg-primary text-on-primary" : "border border-outline text-on-surface hover:bg-surface-container"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-                <section className="flex flex-col gap-2">
-                  <h4 className="text-[12.5px] font-bold text-on-surface">Hàng đợi màn (S-5)</h4>
-                  <ScreenQueuePanel spine={spine} onMarkPlaceholder={(id) => void markPlaceholder(id)} busy={savingChange} />
-                </section>
-              </>
+              <ProjectRecordPanel
+                spine={spine}
+                onSubmitOps={submitOps}
+                onMarkPlaceholder={(id) => void markPlaceholder(id)}
+                busy={savingChange}
+                inBriefPhase={inBriefPhase}
+                history={changes.history}
+                historyLoading={changes.historyLoading}
+                onLoadHistory={changes.loadHistory}
+              />
             )}
             </div>
           </aside>
         )}
 
-        {shownPanel === "change" && (
-          <ChangePanel
-            projectId={projectId}
-            getBaseVersion={getBaseVersion}
-            getLatestSeq={getLatestSeq}
-            onApplied={handleChangeApplied}
-            onClose={() => {
-              setRightPanel(null);
-              // Xoá seed khi đóng — mở lại panel sau đó không được tự chạy lại lệnh cũ.
-              setChangeSeed(undefined);
-            }}
-            seed={changeSeed}
-            requiresCr={mode1}
-          />
-        )}
-
         {shownPanel === "verification" && (
           <VerificationPane
+            projectId={projectId}
+            issues={{
+              sectionLabelOf: (id) => sectionLabels.get(id),
+              onShowSection: showSection,
+              focusSectionId: issueSectionId,
+              onClearFocus: () => setIssueSectionId(null),
+              // "Hoà giải" cũ: gom các mục đã cũ, AI viết lại cho khớp, xem trước rồi áp (mode 1 sửa qua CR nên không có)
+              outdatedCount: outdatedSections,
+              onRewriteOutdated: () => {
+                editActionRef.current = "outdated";
+                void changes.reconcileOnce();
+              },
+              rewriting: changes.applying && changes.previewSource !== "instruction",
+              onEditSection: (label) => startEditing(`Trong ${label}: `),
+            }}
             readiness={progress?.readiness ?? null}
             flags={flags}
             flagsLoading={flagsLoading}
@@ -867,15 +952,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             onRecompute={handleFlagRecompute}
           />
         )}
+        </div>
         </Collapse>
 
-        <WorkspaceToolRail
-          active={rightPanel}
-          onToggle={togglePanel}
-          flagsCount={progress?.readiness.red_open ?? 0}
-          mode1={mode1}
-          onExitFocus={focusMode ? () => setFocusMode(false) : undefined}
-        />
       </main>
       </div>
 
@@ -893,6 +972,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             Đóng
           </button>
         </div>
+      )}
+
+      {/* Diff đầy đủ: lệnh sửa (bấm "Xem chi tiết") hoặc lượt cập nhật mục đã cũ (nút trên header tài liệu) */}
+      {changes.preview && changes.previewSource === "instruction" && editDetailOpen && mode1 && (
+        <CreateCrPreviewModal
+          projectId={projectId}
+          preview={changes.preview}
+          instruction={changes.pendingInstruction}
+          onCancel={() => setEditDetailOpen(false)}
+        />
+      )}
+      {changes.preview && ((changes.previewSource === "instruction" && editDetailOpen && !mode1) || changes.previewSource === "reconcile") && (
+        <DiffPreviewModal
+          preview={changes.preview}
+          busy={changes.applying}
+          confirmLabel={changes.previewSource === "reconcile" ? "Cập nhật" : "Áp dụng"}
+          onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
+          onConfirm={() => {
+            editActionRef.current = changes.previewSource === "reconcile" ? "outdated" : "instruction";
+            void changes.confirmPreview();
+          }}
+        />
       )}
 
       {exportOpen && (
