@@ -77,17 +77,57 @@ interface FlagsPanelProps {
   onWaive: (flagId: string, reason: string) => Promise<void>;
   onRecompute: () => void;
   onSelectStep?: (stepId: string) => void;
+  /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
+  onRedraw?: (flag: Flag) => Promise<void> | void;
+  /**
+   * Xác nhận / bác bỏ một giả định ngay tại panel (BUG-13). Trước đây chỗ này chỉ có Waive, nên 27 giả
+   * định chưa xác nhận ở S-9.1 không có đường xử lý nào ngoài "bỏ qua có lý do".
+   */
+  onAssumptionDecision?: (decision: { kind: "confirm" | "reject"; id: string }) => void;
+  /**
+   * Xác nhận cả loạt giả định trong một lượt ghi. S-9.1 quét ra vài chục giả định chưa xác nhận, mỗi cái
+   * là một cờ đỏ chặn baseline — bấm từng cái là vài chục lượt ghi, và người dùng thật sẽ bỏ cuộc.
+   */
+  onConfirmAllAssumptions?: (ids: string[]) => void;
 }
 
 const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_user;
 
+/**
+ * BUG-34: cờ đỏ luôn đứng trước cờ vàng, rồi tới thứ tự step xử lý. Panel cũ xếp theo thứ tự BE trả về
+ * nên cờ vàng che mất cờ đỏ — thứ chặn ký baseline lại nằm dưới thứ không chặn.
+ */
+export const sortFlags = (flags: readonly Flag[]): Flag[] =>
+  [...flags].sort((a, b) => {
+    if (a.level !== b.level) return a.level === "red" ? -1 : 1;
+    if (a.remediation_step !== b.remediation_step) return a.remediation_step < b.remediation_step ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
+  });
+
+/** Cờ mà việc cần làm là vẽ lại sơ đồ, không phải sửa nội dung. */
+export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_stale" || flag.rule_id === "render_error";
+
 /** Bảng cờ đỏ/vàng (`GET /flags`); waive luật `array_empty`/`dead_reference`/`render_error` bị khoá. */
-export default function FlagsPanel({ flags, busy = false, error, onWaive, onRecompute, onSelectStep }: FlagsPanelProps) {
+export default function FlagsPanel({
+  flags,
+  busy = false,
+  error,
+  onWaive,
+  onRecompute,
+  onSelectStep,
+  onRedraw,
+  onAssumptionDecision,
+  onConfirmAllAssumptions
+}: FlagsPanelProps) {
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
-  const openFlags = flags.filter(isOpen);
+  const openFlags = sortFlags(flags.filter(isOpen));
+  const [redrawing, setRedrawing] = useState<string | null>(null);
   const waivedFlags = flags.filter((f) => f.waived_by_user);
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
+  const unconfirmedAssumptionIds = [
+    ...new Set(openFlags.filter((f) => f.rule_id === "unconfirmed_assumption" && f.target_id).map((f) => f.target_id as string))
+  ];
 
   const openWaiveModal = (flagId: string) => {
     setWaiveError(null);
@@ -131,6 +171,17 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
 
       {error && <div className="text-[11px] text-[#B03030]">{error}</div>}
 
+      {onConfirmAllAssumptions && unconfirmedAssumptionIds.length > 1 && (
+        <button
+          type="button"
+          onClick={() => onConfirmAllAssumptions(unconfirmedAssumptionIds)}
+          disabled={busy}
+          className="self-start px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 cursor-pointer"
+        >
+          ✓ Đúng hết ({unconfirmedAssumptionIds.length} giả định)
+        </button>
+      )}
+
       {openFlags.length === 0 ? (
         <div className="text-[11.5px] text-[#A8A49C] italic py-2">Không có cờ nào đang mở.</div>
       ) : (
@@ -159,6 +210,44 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                 ) : (
                   <span className="text-[10.5px] text-[#8A867E]">{flag.remediation_step}</span>
                 )}
+                <div className="flex items-center gap-1.5">
+                {onAssumptionDecision && flag.rule_id === "unconfirmed_assumption" && flag.target_id && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onAssumptionDecision({ kind: "confirm", id: flag.target_id as string })}
+                      className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 cursor-pointer"
+                    >
+                      Đúng
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onAssumptionDecision({ kind: "reject", id: flag.target_id as string })}
+                      className="px-2.5 py-1 rounded-full text-[10.5px] font-bold border border-[#F0C4C4] text-[#B03030] hover:bg-[#FDF2F2] disabled:opacity-50 cursor-pointer"
+                    >
+                      Bỏ
+                    </button>
+                  </>
+                )}
+                {onRedraw && isRedrawable(flag) && (
+                  <button
+                    type="button"
+                    disabled={busy || redrawing === flag.id}
+                    onClick={async () => {
+                      setRedrawing(flag.id);
+                      try {
+                        await onRedraw(flag);
+                      } finally {
+                        setRedrawing(null);
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-full text-[10.5px] font-bold border border-[#DCD8F0] text-[#6A62C4] bg-[#F2F1FB] hover:bg-[#E8E6F8] disabled:opacity-50 cursor-pointer"
+                  >
+                    {redrawing === flag.id ? "Đang vẽ…" : "Vẽ lại"}
+                  </button>
+                )}
                 {isFlagWaivable(flag.rule_id) ? (
                   <button
                     type="button"
@@ -173,6 +262,7 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
                     Không thể waive
                   </span>
                 )}
+                </div>
               </div>
             </div>
           ))}
