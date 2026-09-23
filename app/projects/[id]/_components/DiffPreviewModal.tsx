@@ -20,7 +20,10 @@ const short = (value: unknown): string => {
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
 export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm }: DiffPreviewModalProps) {
   const hasViolations = preview.violations.length > 0;
-  const canConfirm = preview.ok && !hasViolations && Boolean(preview.preview_id) && !busy;
+  // BUG-27: "Không có thay đổi nào" mà vẫn có nút Xác nhận là mời user bấm vào chỗ không làm gì.
+  // Ngoại lệ: lượt hoà giải trả `no_change` — ở đó xác nhận CÓ nghĩa ("nội dung vẫn đúng", gỡ cờ).
+  const empty = preview.changes.length === 0 && !preview.no_change;
+  const canConfirm = preview.ok && !hasViolations && !empty && Boolean(preview.preview_id) && !busy;
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -52,7 +55,14 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
         )}
 
         {preview.changes.length === 0 ? (
-          <div className="text-[11.5px] text-[#A8A49C] italic py-4 text-center">Không có thay đổi nào.</div>
+          <div className="text-[11.5px] py-4 text-center flex flex-col gap-1">
+            <span className="text-[#A8A49C] italic">Không có thay đổi nào.</span>
+            {preview.no_change && (
+              <span className="text-[#4B4842]">
+                {preview.notes ?? "Nội dung của các mục này vẫn đúng — xác nhận để gỡ cờ “đã cũ”."}
+              </span>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[11px]">
@@ -110,14 +120,16 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
           >
             Huỷ
           </button>
-          <button
-            type="button"
-            disabled={!canConfirm}
-            onClick={onConfirm}
-            className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {busy ? "Đang áp dụng…" : "Xác nhận"}
-          </button>
+          {!empty && (
+            <button
+              type="button"
+              disabled={!canConfirm}
+              onClick={onConfirm}
+              className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {busy ? "Đang áp dụng…" : preview.no_change ? "Xác nhận không đổi" : "Xác nhận"}
+            </button>
+          )}
         </div>
       </div>
     </div>
