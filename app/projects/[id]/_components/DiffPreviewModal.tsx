@@ -36,7 +36,12 @@ export default function DiffPreviewModal({
   confirmWhenInvalid = false,
 }: DiffPreviewModalProps) {
   const hasViolations = preview.violations.length > 0;
-  const canConfirm = (confirmWhenInvalid || (preview.ok && !hasViolations && Boolean(preview.preview_id))) && !busy;
+  // BUG-27: "Không có thay đổi nào" mà vẫn có nút Xác nhận là mời user bấm vào chỗ không làm gì.
+  // Ngoại lệ: lượt hoà giải trả `no_change` — ở đó xác nhận CÓ nghĩa ("nội dung vẫn đúng", gỡ cờ).
+  // Luồng CR của mode 1 v3 (`confirmWhenInvalid`) thì "Tạo CR" vẫn có nghĩa kể cả khi bản xem trước rỗng:
+  // CR dựng từ câu lệnh, bản xem trước chỉ là thứ kèm thêm.
+  const empty = !confirmWhenInvalid && preview.changes.length === 0 && !preview.no_change;
+  const canConfirm = (confirmWhenInvalid || (preview.ok && !hasViolations && Boolean(preview.preview_id))) && !empty && !busy;
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -68,7 +73,14 @@ export default function DiffPreviewModal({
         )}
 
         {preview.changes.length === 0 ? (
-          <div className="text-[11.5px] text-[#A8A49C] italic py-4 text-center">Không có thay đổi nào.</div>
+          <div className="text-[11.5px] py-4 text-center flex flex-col gap-1">
+            <span className="text-[#A8A49C] italic">Không có thay đổi nào.</span>
+            {preview.no_change && (
+              <span className="text-[#4B4842]">
+                {preview.notes ?? "Nội dung của các mục này vẫn đúng — xác nhận để gỡ cờ “đã cũ”."}
+              </span>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[11px]">
@@ -128,14 +140,16 @@ export default function DiffPreviewModal({
           >
             Huỷ
           </button>
-          <button
-            type="button"
-            disabled={!canConfirm}
-            onClick={onConfirm}
-            className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {busy ? busyLabel : confirmLabel}
-          </button>
+          {!empty && (
+            <button
+              type="button"
+              disabled={!canConfirm}
+              onClick={onConfirm}
+              className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {busy ? busyLabel : preview.no_change && !confirmWhenInvalid ? "Xác nhận không đổi" : confirmLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

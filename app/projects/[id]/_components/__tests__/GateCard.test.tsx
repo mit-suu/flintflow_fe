@@ -1,8 +1,8 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
-import GateCard from "../GateCard";
-import type { GateAction } from "@/types/pipeline";
+import GateCard, { groupSummary } from "../GateCard";
+import type { GateAction, GateReadyEvent } from "@/types/pipeline";
 
 const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 
@@ -93,5 +93,83 @@ describe("GateCard", () => {
       renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} wroteOps emptySections={[]} onAction={vi.fn()} />);
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
+  const payload: GateReadyEvent = {
+    type: "gate_ready",
+    step_id: "S-4.3",
+    actions: ["accept", "revision", "regenerate"],
+    regenerate_used: 0,
+    calls_used: 3,
+    summary: [
+      { kind: "add", collection: "permissions", id: "P010", title_vi: "Admin tạo trên Manage Staff" },
+      { kind: "add", collection: "permissions", id: "P011", title_vi: "Admin xoá trên Manage Staff" },
+      { kind: "update", collection: "functions", id: "FN005", title_vi: "Check In Patient · name" },
+    ],
+    new_assumptions: [{ id: "AS12", text: "Lễ tân không được xoá lịch hẹn" }],
+    flags: { red: 2, yellow: 5, red_delta: -1, yellow_delta: 0 },
+    duration_ms: 58_000,
+    credits_used: 4,
+    doc_progress: { before: 44, after: 46 },
+  };
+
+  it("hiện nội dung vừa ghi, chênh lệch cờ, thời gian và credit — không chỉ con số thay đổi", () => {
+    renderWithIntl(<GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+    expect(screen.getByText(/Bạn vừa có/)).toBeInTheDocument();
+    expect(screen.getByText(/\+2 quyền/)).toBeInTheDocument();
+    expect(screen.getByText(/Admin tạo trên Manage Staff/)).toBeInTheDocument();
+    expect(screen.getByText(/cờ đỏ 3 → 2/)).toBeInTheDocument();
+    expect(screen.getByText(/58 giây · 4 credit/)).toBeInTheDocument();
+  });
+
+  it("giả định mới có ba nút Đúng / Sửa / Bỏ và biến mất sau khi quyết (BUG-13)", () => {
+    const onAssumptionDecision = vi.fn();
+    renderWithIntl(
+      <GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAssumptionDecision={onAssumptionDecision} onAction={vi.fn()} />
+    );
+    expect(screen.getByText(/1 giả định mới/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sửa" }));
+    fireEvent.change(screen.getByLabelText("Sửa giả định AS12"), { target: { value: "Lễ tân được xoá lịch trong ngày" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+
+    expect(onAssumptionDecision).toHaveBeenCalledWith({ kind: "edit", id: "AS12", statement: "Lễ tân được xoá lịch trong ngày" });
+    expect(screen.queryByText(/1 giả định mới/)).not.toBeInTheDocument();
+  });
+
+  it("step không đổi gì thì nói rõ vì sao", () => {
+    renderWithIntl(
+      <GateCard
+        stepId="S-5.3@S03"
+        actions={ALL}
+        regenerateUsed={0}
+        payload={{ ...payload, summary: [], new_assumptions: [], no_change_reason: "Bước sổ sách của vòng màn hình — không có nội dung để ghi." }}
+        onAction={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/không thay đổi tài liệu/)).toBeInTheDocument();
+  });
+
+  it("BUG-01: Accept ở S-9.5 bị chặn ⇒ hiện cờ đang chặn kèm lối đi tới step xử lý", () => {
+    const onGoToStep = vi.fn();
+    renderWithIntl(
+      <GateCard
+        stepId="S-9.5"
+        actions={ALL}
+        regenerateUsed={0}
+        blockingFlags={[{ id: "FL031", message: "Giả định AS28 chưa được xác nhận", remediation_step: "S-9.1" }]}
+        onGoToStep={onGoToStep}
+        onAction={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/còn 1 cờ đỏ chưa xử lý/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /S-9.1/ }));
+    expect(onGoToStep).toHaveBeenCalledWith("S-9.1");
+  });
+
+  it("groupSummary gộp theo loại thay đổi và collection", () => {
+    expect(groupSummary(payload.summary ?? []).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
   });
 });

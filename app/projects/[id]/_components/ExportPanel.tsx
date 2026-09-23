@@ -6,6 +6,7 @@ import { downloadWordExport, listBaselines } from "@/lib/api/export";
 import { useDocument } from "../hooks/useDocument";
 import type { DocumentSource } from "@/types/document";
 import type { Baseline } from "@/types/spine";
+import type { Flag } from "@/types/flags";
 
 interface ExportPanelProps {
   projectId: string;
@@ -14,6 +15,8 @@ interface ExportPanelProps {
   onGoToStep?: (stepId: string) => void;
   /** `spine_version` hiện tại — có thì nút ghép gọi `POST /assemble` thẳng thay vì chỉ chuyển sang S-8.2. */
   getBaseVersion?: () => number | null;
+  /** Cờ đang mở, cùng nguồn với Verification panel (BUG-26: hai nơi từng đếm ra hai số khác nhau). */
+  flags?: Flag[];
 }
 
 /** Ghim thẻ `<a download>` vào DOM trước khi click — Safari/Firefox bỏ qua click trên thẻ rời DOM. */
@@ -30,7 +33,7 @@ const triggerDownload = (blob: Blob, fileName: string) => {
 };
 
 /** Export UI (Phases §6.5): Word draft (watermark DRAFT) / Word baseline; hiện lý do khi chưa ghép. */
-export default function ExportPanel({ projectId, projectName = "Dự án", onClose, onGoToStep, getBaseVersion }: ExportPanelProps) {
+export default function ExportPanel({ projectId, projectName = "Dự án", onClose, onGoToStep, getBaseVersion, flags }: ExportPanelProps) {
   const [source, setSource] = useState<DocumentSource>("draft");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
@@ -66,7 +69,10 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
     };
   }, [projectId]);
 
-  const redCount = document?.flagsAppendix?.redOpen.length ?? 0;
+  // BUG-26: bản xuất báo "2 cờ đỏ" trong khi Verification panel đếm 10 — hai nguồn khác nhau. Ưu tiên
+  // danh sách cờ đang mở mà panel đang dùng; chỉ rơi về phụ lục của bản đã ghép khi chưa có nó.
+  const openRedFlags = flags?.filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user).length;
+  const redCount = openRedFlags ?? document?.flagsAppendix?.redOpen.length ?? 0;
 
   const handleDownload = async () => {
     setDownloading(true);

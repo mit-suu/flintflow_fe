@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import type { DiscoveryQuestion } from "@/types/chat";
+import type { ChatMessage, DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
+import { stepLabel as stepLabelOf } from "@/lib/constants/step-registry";
 import Icon from "@/components/ui/Icon";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
@@ -43,6 +44,20 @@ interface ChatPaneProps {
   /** Khung sát mép trái màn hình (rail tiến độ ẩn / mở rộng trang) ⇒ chỉ bo góc bên phải; còn lại bo hai góc trên. */
   flushLeft?: boolean;
 }
+
+/**
+ * BUG-24: chat trộn lẫn giữa các bước — ở S-5.3 của màn S05 vẫn thấy nguyên đoạn nói về màn S04, còn ở
+ * S-8 vẫn thấy lịch sử từ S-5. Phân đoạn theo `step` của từng tin nhắn và chèn một dòng tiêu đề mỗi khi
+ * đổi bước, để đọc tới đâu biết mình đang đọc về cái gì.
+ */
+export const stepDividers = (messages: readonly ChatMessage[]): (number | null)[] => {
+  let previous: string | undefined;
+  return messages.map((msg) => {
+    const changed = msg.step !== undefined && msg.step !== previous;
+    if (msg.step !== undefined) previous = msg.step;
+    return changed ? 1 : null;
+  });
+};
 
 /** Câu hỏi gợi ý trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step). */
 const parseQuestions = (content: string): DiscoveryQuestion[] => {
@@ -113,6 +128,7 @@ export default function ChatPane({
     else el.scrollTop = el.scrollHeight;
   }, [messages, streamingMessage, children, footerHeight]);
 
+  const dividers = useMemo(() => stepDividers(messages), [messages]);
   const last = messages[messages.length - 1];
   const questionKey = last?.role === "ai" ? `${messages.length}:${last.content}` : null;
   const latestQuestions = useMemo(() => (last?.role === "ai" ? parseQuestions(last.content) : []), [last]);
@@ -159,7 +175,18 @@ export default function ChatPane({
         ))}
 
         {messages.map((msg, idx) => (
-          <ChatBubble key={idx} message={msg} messageIndex={idx} onRequestRollback={onRequestRollback} disabled={sending} />
+          <div key={idx} className="contents">
+            {dividers[idx] !== null && msg.step && (
+              <div className="flex items-center gap-2 pt-1" aria-label={`Bắt đầu bước ${msg.step}`}>
+                <span className="h-px flex-1 bg-outline-variant" />
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-on-surface-muted shrink-0">
+                  {msg.step} · {stepLabelOf(msg.step)}
+                </span>
+                <span className="h-px flex-1 bg-outline-variant" />
+              </div>
+            )}
+            <ChatBubble message={msg} messageIndex={idx} onRequestRollback={onRequestRollback} disabled={sending} />
+          </div>
         ))}
 
         {isStreaming && (

@@ -212,12 +212,7 @@
       "showField": "Hiện {field}",
       "hideField": "Ẩn {field}",
       "fieldPassword": "mật khẩu",
-      "fieldConfirmPassword": "mật khẩu xác nhận",
-      "strength": {
-        "weak": "Yếu",
-        "medium": "Trung bình",
-        "strong": "Mạnh"
-      }
+      "fieldConfirmPassword": "mật khẩu xác nhận"
     },
     "google": {
       "continue": "Tiếp tục với Google",
@@ -312,6 +307,22 @@
       "failed": "Đặt lại mật khẩu thất bại"
     }
   },
+  "password": {
+    "level": {
+      "weak": "Yếu",
+      "medium": "Trung bình",
+      "fair": "Khá",
+      "strong": "Mạnh"
+    },
+    "notUsable": "{level} — chưa dùng được",
+    "issue": {
+      "too_short": "Mật khẩu phải có ít nhất {min} ký tự.",
+      "too_long": "Mật khẩu tối đa {max} ký tự.",
+      "not_ascii": "Mật khẩu chỉ dùng chữ không dấu, chữ số và ký tự đặc biệt trên bàn phím — không dùng tiếng Việt có dấu hay khoảng trắng.",
+      "not_complex": "Mật khẩu phải có ít nhất {classes} trong 4 nhóm: chữ thường, chữ HOA, chữ số, ký tự đặc biệt.",
+      "not_strong_enough": "Mật khẩu chưa đủ mạnh — cần từ {long} ký tự, hoặc có đủ cả 4 nhóm ký tự."
+    }
+  },
   "app": {
     "time": {
       "justNow": "Vừa xong",
@@ -324,7 +335,8 @@
     "authGuard": {
       "offline": "Không kết nối được máy chủ. Phiên đăng nhập của bạn vẫn được giữ.",
       "retry": "Thử lại",
-      "checking": "Đang kiểm tra quyền truy cập..."
+      "checking": "Đang kiểm tra quyền truy cập...",
+      "offlineTitle": "Mất kết nối"
     },
     "notifications": {
       "title": "Thông báo",
@@ -392,7 +404,8 @@
         "createTx": "Không thể tạo giao dịch",
         "changePlan": "Không thể đổi gói",
         "loadMore": "Không thể tải thêm giao dịch"
-      }
+      },
+      "loadingHistory": "Đang tải lịch sử giao dịch…"
     },
     "checkout": {
       "back": "Quay lại trang thanh toán",
