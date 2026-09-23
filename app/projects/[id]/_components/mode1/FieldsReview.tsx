@@ -30,6 +30,13 @@ export const textToValue = (text: string, original: unknown): unknown => {
  * 1.9 Xác nhận field độ tin thấp (UC-22): xem giá trị AI trích, block nguồn, sửa nếu sai. Nội dung field là
  * dữ liệu SRS (tiếng Anh) — FE không dịch.
  */
+/** Cách trích của field (BE `ReviewField.origin`). `vision` = Gemini đọc từ ảnh diagram (mode 1 v3 phase 5). */
+export const ORIGIN_LABEL: Record<ReviewField["origin"], string> = {
+  ai: "AI trích",
+  deterministic: "trích tất định",
+  vision: "AI đọc từ ảnh",
+};
+
 export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsReviewProps) {
   const [edits, setEdits] = useState<Record<string, string>>({});
 
@@ -48,6 +55,9 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
         <p className="text-[12px] text-[#8A867E]">
           {fields.length} field AI chưa chắc. Sửa giá trị nếu sai; bấm xác nhận để chốt tất cả (field không sửa giữ nguyên như AI trích).
         </p>
+        <p className="text-[12px] text-[#8A6D1F]">
+          Đây là chỗ sửa duy nhất trước khi chốt baseline v0 — sau đó mọi thay đổi đi qua change request.
+        </p>
       </div>
       <ul className="flex flex-col gap-3">
         {fields.map((f) => {
@@ -59,7 +69,12 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
               <div className="flex flex-wrap items-center gap-2 text-[12px]">
                 <code className="font-mono font-bold text-[#191817]">{f.path}</code>
                 <span className="text-[#8A867E]">· {sectionLabel(f.section_id)}</span>
-                <span className="ml-auto px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F] font-bold text-[11px]">
+                {f.origin === "vision" && (
+                  <span className="ml-auto px-2 py-0.5 rounded-full bg-[#EEEBFA] text-[#6A62C4] font-bold text-[11px]" title="Đọc từ ảnh diagram trong tài liệu — luôn cần bạn xác nhận">
+                    từ ảnh
+                  </span>
+                )}
+                <span className={`${f.origin === "vision" ? "" : "ml-auto "}px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F] font-bold text-[11px]`}>
                   độ tin {formatPercent(f.confidence)}
                 </span>
               </div>
@@ -71,7 +86,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
                 className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] text-[12.5px] font-mono"
               />
               <div className="text-[11px] text-[#A8A49C]">
-                Nguồn: {f.source_block_ids.length ? f.source_block_ids.join(", ") : "—"} · {f.origin === "ai" ? "AI trích" : "trích tất định"}
+                Nguồn: {f.source_block_ids.length ? f.source_block_ids.join(", ") : "—"} · {ORIGIN_LABEL[f.origin] ?? f.origin}
                 {changed && <strong className="text-[#6A62C4]"> · đã sửa</strong>}
               </div>
             </li>
