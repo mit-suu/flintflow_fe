@@ -199,12 +199,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     [waiveFlagFn, reloadProgress]
   );
 
+  const { reload: reloadSpine, replace: replaceSpine } = spineState;
+
   const handleFlagRecompute = useCallback(async () => {
     await recomputeFlagsFn();
+    // Recompute GHI cờ ⇒ `spine_version` đổi. Không đọc lại thì lần chạy step ngay sau đó gửi phiên bản
+    // cũ và ăn 409 — đúng chuỗi thao tác "tính lại cờ rồi chạy lại bước đang bị cờ chỉ tới".
+    await reloadSpine();
     void reloadProgress();
-  }, [recomputeFlagsFn, reloadProgress]);
+  }, [recomputeFlagsFn, reloadProgress, reloadSpine]);
 
-  const { reload: reloadSpine, replace: replaceSpine } = spineState;
   const { refreshUser } = ws;
 
   /**
@@ -307,7 +311,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const viewedSummary = steps?.steps.find((s) => s.id === viewedStep);
 
   // ─── ghi op thuần (Panel Tên riêng, [C], placeholder) ──────────
-  const submitOps = useCallback(
+  /**
+   * Hàng đợi ghi: mỗi lượt ghi đổi `spine_version`, nên hai lần bấm liên tiếp (xác nhận từng giả định ở
+   * bảng cờ, đánh dấu placeholder cho nhiều màn) mà chạy song song thì lượt sau cầm phiên bản cũ và ăn
+   * 409. Nối đuôi nhau thì lượt sau luôn thấy phiên bản mới nhất.
+   */
+  const submitOpsNow = useCallback(
     async (ops: Op[]) => {
       const baseVersion = versionRef.current;
       if (baseVersion === null) return;
@@ -328,6 +337,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       }
     },
     [projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine]
+  );
+
+  const writeQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  /** Xem chú thích ở `submitOpsNow`: nối đuôi để lượt ghi sau luôn cầm `spine_version` mới nhất. */
+  const submitOps = useCallback(
+    (ops: Op[]) => {
+      const run = writeQueueRef.current.catch(() => undefined).then(() => submitOpsNow(ops));
+      writeQueueRef.current = run;
+      return run;
+    },
+    [submitOpsNow]
   );
 
   const changeWorkingMode = (mode: WorkingMode) =>
@@ -356,6 +376,24 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       return submitOps([{ op: "set", path: `${path}.statement`, value: decision.statement, reason: "User sửa giả định ở cổng chốt" }]);
     },
     [submitOps]
+  );
+
+  /**
+   * "Đúng hết": một lô op cho mọi giả định còn treo, rồi tính lại cờ. Xác nhận từng cái là từng lượt ghi
+   * và từng lần đổi `spine_version` — với vài chục giả định thì vừa lâu vừa dễ đụng nhau.
+   */
+  const confirmAllAssumptions = useCallback(
+    async (ids: string[]) => {
+      const now = new Date().toISOString();
+      await submitOps(
+        ids.flatMap((id) => [
+          { op: "set" as const, path: `assumptions[id=${id}].status`, value: "confirmed", reason: "User xác nhận cả loạt giả định" },
+          { op: "set" as const, path: `assumptions[id=${id}].confirmed_at`, value: now },
+        ])
+      );
+      await handleFlagRecompute();
+    },
+    [submitOps, handleFlagRecompute]
   );
 
   /** Việc làm được với mỗi loại lỗi (bảng ở `lib/errors.ts`). */
@@ -473,19 +511,27 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * BUG-03: vòng S-5 của màn đang để trống — panel Tiến độ mở lại được, thay vì khoá cứng 5 bước.
    * Chỉ S-5.1 là chỗ vào: chạy nó đưa màn về `in_progress` và các bước còn lại tự tới lượt.
    */
-  const reopenableStepIds = new Set(
-    (spine?.screens ?? []).filter((screen) => screen.detail_status === "placeholder").map((screen) => `S-5.1@${screen.id}`)
-  );
+  const reopenableStepIds = new Set([
+    ...(spine?.screens ?? []).filter((screen) => screen.detail_status === "placeholder").map((screen) => `S-5.1@${screen.id}`),
+    // Section đã cũ: cờ chỉ về step sở hữu, và step đó chạy lại được dù đã chốt (BE cho phép). Không mở
+    // đường này thì cờ đỏ chặn baseline chỉ còn nước Waive.
+    ...flags
+      .filter((f) => !f.resolved_at && !f.waived_by_user && (f.rule_id === "section_stale_at_baseline" || f.rule_id === "section_awaiting_reaccept"))
+      .map((f) => f.remediation_step)
+  ]);
   const viewedStepSummary = steps?.steps.find((s) => s.id === viewedStep);
   // Bước chưa chạy: hiện thẻ "Bước này sẽ…" thay vì một nút Chạy trơ trọi (Lớp 2)
+  const reopenable = viewedStep !== null && reopenableStepIds.has(viewedStep);
   const showIntro =
-    runner.state.status === "idle" && viewedStepSummary !== undefined && viewedStepSummary.status !== "accepted" && viewedStep === currentStep;
+    runner.state.status === "idle" &&
+    viewedStepSummary !== undefined &&
+    (reopenable || (viewedStepSummary.status !== "accepted" && viewedStep === currentStep));
   // 422 BASELINE_BLOCKED khi Accept ở S-9.5: danh sách cờ đang chặn đi kèm trong `meta.flags` (BUG-01)
   const blockingFlags: BlockingFlag[] | undefined =
     runner.state.error?.code === "BASELINE_BLOCKED" && Array.isArray(runner.state.error.meta?.flags)
       ? (runner.state.error.meta.flags as BlockingFlag[])
       : undefined;
-  const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep;
+  const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep && !reopenable;
 
   return (
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
@@ -585,7 +631,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               lastRun={getStepStat(viewedStepSummary.id)}
               busy={runner.state.busy || savingChange}
               onRun={() => void runner.run(viewedStepSummary.id)}
-              {...(reviewMode === "strict"
+              {...(reviewMode === "strict" || reopenable
                 ? {}
                 : { onRunPhase: () => void runner.runWholePhase(unitOfStep(viewedStepSummary.id, viewedStepSummary.phase)) })}
             />
@@ -796,6 +842,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             onWaive={handleFlagWaive}
             onRedraw={handleRedrawDiagram}
             onAssumptionDecision={(decision) => void applyAssumptionDecision(decision)}
+            onConfirmAllAssumptions={(ids) => void confirmAllAssumptions(ids)}
             onRecompute={handleFlagRecompute}
           />
         )}

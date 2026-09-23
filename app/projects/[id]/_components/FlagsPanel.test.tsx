@@ -86,6 +86,43 @@ describe("FlagsPanel", () => {
   });
 });
 
+describe("FlagsPanel — FLF-198", () => {
+  it("nhiều giả định chưa xác nhận ⇒ có nút Đúng hết gửi đủ id trong một lượt", () => {
+    const assumption = (id: string): Flag => ({
+      ...baseFlag,
+      id: `FL-${id}`,
+      rule_id: "unconfirmed_assumption",
+      target_id: id,
+      level: "red"
+    });
+    const onConfirmAllAssumptions = vi.fn();
+    renderWithIntl(
+      <FlagsPanel
+        flags={[assumption("AS1"), assumption("AS2"), assumption("AS3")]}
+        onWaive={vi.fn()}
+        onRecompute={vi.fn()}
+        onConfirmAllAssumptions={onConfirmAllAssumptions}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Đúng hết \(3 giả định\)/ }));
+    expect(onConfirmAllAssumptions).toHaveBeenCalledWith(["AS1", "AS2", "AS3"]);
+  });
+
+  it("chỉ một giả định ⇒ không hiện nút gộp, tránh thêm một nút thừa", () => {
+    renderWithIntl(
+      <FlagsPanel
+        flags={[{ ...baseFlag, rule_id: "unconfirmed_assumption", target_id: "AS1" }]}
+        onWaive={vi.fn()}
+        onRecompute={vi.fn()}
+        onConfirmAllAssumptions={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: /Đúng hết/ })).toBeNull();
+  });
+});
+
 describe("FlagsPanel — FLF-177", () => {
   const yellow: Flag = { ...baseFlag, id: "FL10", level: "yellow", rule_id: "orphan_actor", message: "Actor lẻ", remediation_step: "S-3.2" };
   const stale: Flag = { ...baseFlag, id: "FL11", rule_id: "diagram_stale", target_id: "D05", message: "Hình D05 không còn khớp dữ liệu", remediation_step: "S-5.3@S03" };
