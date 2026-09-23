@@ -1,5 +1,5 @@
 import type { ChatSession } from "@/types/chat";
-import { ApiClientError, authFetch, readRawErrorMessage } from "./api/client";
+import { ApiClientError, authFetch, ensureFreshToken, readRawErrorMessage, STREAM_MIN_TOKEN_TTL_MS } from "./api/client";
 
 export interface SseHandlers<T> {
   onEvent: (event: T) => void;
@@ -31,6 +31,9 @@ export const streamSse = async <T>(
   { onEvent, onError, signal }: SseHandlers<T>
 ): Promise<void> => {
   try {
+    // Luồng SSE sống lâu hơn một request thường: refresh trước khi mở nếu token sắp hết hạn (BUG-18),
+    // vì giữa luồng thì không còn chỗ nào để thử lại 401.
+    await ensureFreshToken(STREAM_MIN_TOKEN_TTL_MS);
     const res = await authFetch(path, {
       method: "POST",
       body: JSON.stringify(body),

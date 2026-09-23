@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import PageSkeleton, { type PageSkeletonVariant } from "@/components/ui/PageSkeleton";
 
 export function AdminTopBar({ trail, actions }: { trail: string[]; actions?: ReactNode }) {
   return (
@@ -32,13 +33,12 @@ export function ErrorBanner({ message, onClose }: { message: string; onClose?: (
   );
 }
 
-export function LoadingBlock({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center py-16 text-[#A8A49C] gap-3">
-      <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
-      <span className="text-[13px] font-medium">{label}</span>
-    </div>
-  );
+/**
+ * Giữ chỗ lúc tải nội dung trang admin. `variant` chọn theo hình nội dung thật (bảng, lưới thẻ…) để
+ * lúc dữ liệu về không nhảy layout — `label` chỉ dành cho trình đọc màn hình.
+ */
+export function LoadingBlock({ label, variant = "table", rows, bare = false }: { label: string; variant?: PageSkeletonVariant; rows?: number; bare?: boolean }) {
+  return <PageSkeleton variant={variant} rows={rows} label={label} bare={bare} />;
 }
 
 export function StatCard({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {

@@ -7,6 +7,7 @@ import { saveBlob } from "@/lib/api/files";
 import { sectionLabel } from "@/lib/constants/fpt-sections";
 import type { Flag } from "@/types/spine";
 import type { GapReport } from "@/types/import";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import { errorText } from "./errors";
 import { formatDateTime, formatPercent } from "./labels";
 import { crPrefillHref } from "./prefill";
@@ -94,7 +95,7 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
         {error}
       </div>
     ) : (
-      <p className="text-[13px] text-[#8A867E]">Đang tải gap report…</p>
+      <PageSkeleton rows={2} label="Đang tải gap report" />
     );
   }
 
