@@ -1,15 +1,26 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { GOOGLE_CLIENT_ID, isGoogleAuthEnabled } from "@/lib/google-auth";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
+// Font tự host qua next/font: file nằm cùng domain và được preload ngay trong HTML đầu tiên ⇒ reload
+// không phải chờ round-trip sang fonts.googleapis.com rồi đổi font giữa chừng (nhảy chữ). `display: swap`
+// + `adjustFontFallback` (mặc định) giữ fallback có cùng metric nên khung chữ gần như không xê dịch.
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,19 +41,7 @@ export default async function RootLayout({
   const app = <NextIntlClientProvider>{children}</NextIntlClientProvider>;
 
   return (
-    <html lang={locale} className={`${inter.variable} light`}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang={locale} className={`${jakarta.variable} ${jetbrainsMono.variable} light`}>
       <body className="min-h-screen flex flex-col">
         {isGoogleAuthEnabled ? (
           <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{app}</GoogleOAuthProvider>
