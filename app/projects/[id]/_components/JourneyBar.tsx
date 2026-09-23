@@ -1,6 +1,6 @@
 "use client";
 
-import { getStepDef, PHASES, PHASE_LABELS_VI, type PhaseId } from "@/lib/constants/step-registry";
+import { getStepDef, PHASES, type PhaseId } from "@/lib/constants/step-registry";
 import type { StepSummary } from "@/types/pipeline";
 
 /**
@@ -21,7 +21,6 @@ interface JourneyBarProps {
   credits?: number | null;
   /** Chế độ duyệt hiện tại — quyết định cách đếm điểm duyệt còn lại. */
   reviewMode?: "strict" | "balanced" | "fast";
-  onSelectPhase?: (phase: string) => void;
 }
 
 /** Bước luôn cần người duyệt, dù chế độ nào (đồng bộ với `quiet-step.ts` phía BE). */
@@ -75,7 +74,7 @@ export const phaseStates = (steps: StepSummary[], currentStepId: string | null):
   });
 };
 
-export default function JourneyBar({ steps, currentStepId, readinessPercent, credits, reviewMode = "balanced", onSelectPhase }: JourneyBarProps) {
+export default function JourneyBar({ steps, currentStepId, readinessPercent, credits, reviewMode = "balanced" }: JourneyBarProps) {
   if (steps.length === 0) return null;
   const phases = phaseStates(steps, currentStepId);
   const current = steps.find((s) => s.id === currentStepId);
@@ -84,25 +83,8 @@ export default function JourneyBar({ steps, currentStepId, readinessPercent, cre
 
   return (
     <section aria-label="Bản đồ hành trình" className="px-4 py-2 bg-surface-container-lowest border-b border-outline-variant flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-3 text-[11.5px]">
-        <ol className="flex items-center gap-1 min-w-0 overflow-x-auto ff-scroll">
-          {phases.map((state) => (
-            <li key={state.phase} className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => onSelectPhase?.(state.phase)}
-                title={PHASE_LABELS_VI[state.phase]}
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full cursor-pointer ${
-                  state.current ? "bg-primary text-on-primary font-bold" : state.done ? "text-on-surface-muted" : "text-on-surface-muted/70"
-                }`}
-              >
-                <span aria-hidden>{state.done ? "●" : state.current ? "◉" : "○"}</span>
-                <span className="whitespace-nowrap">{PHASE_LABELS_VI[state.phase]}</span>
-                {state.loop && <span className="whitespace-nowrap">· màn {state.loop.index}/{state.loop.total}</span>}
-              </button>
-            </li>
-          ))}
-        </ol>
+      {/* Dãy tên giai đoạn đã bỏ khỏi header — rail tiến độ bên trái đã nói đủ; ở đây chỉ còn số liệu. */}
+      <div className="flex items-center justify-end gap-3 text-[11.5px]">
         <div className="flex items-center gap-3 shrink-0 text-on-surface-muted">
           {readinessPercent !== undefined && <span>Tài liệu: {Math.round(readinessPercent)}%</span>}
           {typeof credits === "number" && <span>{credits} credit</span>}

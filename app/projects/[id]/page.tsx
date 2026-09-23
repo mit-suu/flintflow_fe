@@ -605,10 +605,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           readinessPercent={progress?.readiness.accepted_pct}
           credits={ws.user?.balance ?? null}
           reviewMode={reviewMode}
-          onSelectPhase={(phase) => {
-            const firstOfPhase = (steps?.steps ?? []).find((s) => s.phase === phase);
-            if (firstOfPhase) setSelectedStepId(firstOfPhase.id);
-          }}
         />
       </Collapse>
 

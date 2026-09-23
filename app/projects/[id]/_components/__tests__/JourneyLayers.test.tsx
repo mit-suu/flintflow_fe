@@ -47,14 +47,12 @@ describe("JourneyBar — Lớp 1 bản đồ hành trình", () => {
     expect(states.find((s) => s.phase === "S-5")).toMatchObject({ current: true, loop: { index: 2, total: 2 } });
   });
 
-  it("hiện % tài liệu và số điểm duyệt còn lại; bấm vào giai đoạn thì nhảy tới bước đầu của nó", () => {
-    const onSelectPhase = vi.fn();
-    renderWithIntl(<JourneyBar steps={steps} currentStepId="S-4.1" readinessPercent={46} credits={118} onSelectPhase={onSelectPhase} />);
+  it("hiện % tài liệu và số điểm duyệt còn lại, không lặp lại dãy tên giai đoạn của rail", () => {
+    renderWithIntl(<JourneyBar steps={steps} currentStepId="S-4.1" readinessPercent={46} credits={118} />);
     expect(screen.getByText("Tài liệu: 46%")).toBeInTheDocument();
     expect(screen.getByText("118 credit")).toBeInTheDocument();
     expect(screen.getByText(/còn khoảng \d+ điểm duyệt/)).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button")[0]);
-    expect(onSelectPhase).toHaveBeenCalled();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 });
 
