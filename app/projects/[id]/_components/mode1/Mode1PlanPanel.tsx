@@ -25,12 +25,18 @@ interface Mode1PlanPanelProps {
   onSelectStep: (stepId: string) => void;
   /** Cờ đỏ trỏ tới step ĐÃ CHỐT (file có đầu mục nhưng Spine trống) ⇒ mở lại bước rồi chạy (B7 reopen). */
   onReopenStep?: (stepId: string) => void;
+  /** Waive ngay tại chỗ (L11d). Không truyền ⇒ chỉ nhắc mở panel Verification như cũ. */
+  onWaiveFlag?: (flagId: string, reason: string) => Promise<void>;
   getBaseVersion: () => number | null;
   /** Sau khi ký (hoặc 409 lệch version): tải lại Spine/tiến độ/cờ. */
   onSignedOff: () => void;
 }
 
 const SIGN_OFF_STEP = "S-9.5";
+
+/** Ba luật là vi phạm bất biến/lỗi kỹ thuật — BE từ chối waive, nên không hiện nút (khớp `NON_WAIVABLE_RULES`). */
+const NON_WAIVABLE_RULES = new Set(["array_empty", "dead_reference", "render_error"]);
+const WAIVE_REASON_MIN_LENGTH = 20;
 
 /**
  * Kế hoạch step của project mode 1 v2 (FLF-185, plan v2 §7 — D2/D6):
@@ -49,12 +55,32 @@ export default function Mode1PlanPanel({
   onToggleStep,
   onSelectStep,
   onReopenStep,
+  onWaiveFlag,
   getBaseVersion,
   onSignedOff,
 }: Mode1PlanPanelProps) {
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
   const [blocking, setBlocking] = useState<Flag[]>([]);
+  const [waivingId, setWaivingId] = useState<string | null>(null);
+  const [waiveReason, setWaiveReason] = useState("");
+  const [waiveBusy, setWaiveBusy] = useState(false);
+  const [waiveError, setWaiveError] = useState<string | null>(null);
+
+  const submitWaive = async (flagId: string) => {
+    if (!onWaiveFlag) return;
+    setWaiveBusy(true);
+    setWaiveError(null);
+    try {
+      await onWaiveFlag(flagId, waiveReason.trim());
+      setWaivingId(null);
+      setWaiveReason("");
+    } catch (err) {
+      setWaiveError(errorText(err, "Waive cờ thất bại"));
+    } finally {
+      setWaiveBusy(false);
+    }
+  };
 
   const statusOf = (id: string) => steps.find((s) => s.id === id)?.status;
   const missing = (plan ?? []).filter((p) => p.missing && p.state !== "hidden" && statusOf(p.step_id) !== "accepted");
@@ -147,14 +173,68 @@ export default function Mode1PlanPanel({
                       );
                     })()
                   ) : null}
+                  {/* L11d: waive ngay tại đây. Trước đây chỉ có câu nhắc "mở panel Verification", mà cờ như
+                      `unconfirmed_assumption` thì chạy lại step bao nhiêu lần cũng không đóng — người dùng
+                      kẹt vòng mở-lại-bước cho tới khi cạn trần 8 lượt gọi model (gặp thật 2026-09-20). */}
+                  {onWaiveFlag && !NON_WAIVABLE_RULES.has(f.rule_id) && waivingId !== f.id && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWaiveError(null);
+                        setWaiveReason("");
+                        setWaivingId(f.id);
+                      }}
+                      title="Bỏ qua cờ này kèm lý do — bản ký sẽ là baseline có điều kiện"
+                      className={`text-[11px] font-bold text-[#8A6D1F] hover:underline shrink-0 cursor-pointer ${f.remediation_step ? "" : "ml-auto"}`}
+                    >
+                      Waive
+                    </button>
+                  )}
                 </span>
+                {waivingId === f.id && (
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor={`waive-${f.id}`} className="text-[11px] font-semibold text-[#4B4842]">
+                      Lý do bỏ qua (≥ {WAIVE_REASON_MIN_LENGTH} ký tự)
+                    </label>
+                    <textarea
+                      id={`waive-${f.id}`}
+                      rows={2}
+                      value={waiveReason}
+                      onChange={(e) => setWaiveReason(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-white border border-[#E5E3DF] focus:border-[#6A62C4] rounded-[8px] text-[11.5px] outline-none resize-none"
+                    />
+                    {waiveError && (
+                      <p role="alert" className="text-[11px] text-[#B03030]">
+                        {waiveError}
+                      </p>
+                    )}
+                    <div className="flex gap-1.5 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setWaivingId(null)}
+                        disabled={waiveBusy}
+                        className="px-2.5 py-1 rounded-[8px] border border-[#ECEAE5] bg-white text-[11px] font-semibold text-[#4B4842] cursor-pointer disabled:opacity-50"
+                      >
+                        Huỷ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void submitWaive(f.id)}
+                        disabled={waiveBusy || waiveReason.trim().length < WAIVE_REASON_MIN_LENGTH}
+                        className="px-2.5 py-1 rounded-[8px] bg-[#8A6D1F] text-white text-[11px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {waiveBusy ? "Đang waive…" : "Xác nhận waive"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         )}
         <p className="text-[11px] text-[#8A867E] leading-relaxed">
-          Cờ vàng không chặn ký. Muốn bỏ qua một cờ (waive) thì mở panel Verification ở thanh phase — trừ{" "}
-          <code>render_error</code>, <code>dead_reference</code>, <code>array_empty</code> phải sửa thật.
+          Cờ vàng không chặn ký. Waive kèm lý do ⇒ bản ký là baseline <b>có điều kiện</b>, cờ được in vào phụ lục.
+          Riêng <code>render_error</code>, <code>dead_reference</code>, <code>array_empty</code> không waive được — phải sửa thật.
         </p>
       </section>
 
