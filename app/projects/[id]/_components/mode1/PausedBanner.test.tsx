@@ -15,7 +15,7 @@ describe("PausedBanner — bước AI tạm dừng (UC-61, UC-75)", () => {
     expect(alert).toHaveTextContent("Trích field đang tạm dừng — hết credit");
     expect(alert).toHaveTextContent("Nạp thêm credit rồi bấm Tiếp tục");
     expect(screen.getByRole("link", { name: "Nạp credit" })).toHaveAttribute("href", "/home/billing");
-    expect(screen.getByText("savings")).toBeInTheDocument();
+    expect(alert.querySelector('[data-icon="savings"]')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
     expect(onResume).toHaveBeenCalledTimes(1);
@@ -29,7 +29,7 @@ describe("PausedBanner — bước AI tạm dừng (UC-61, UC-75)", () => {
     expect(alert).toHaveTextContent("Đề xuất sửa đang tạm dừng — AI lỗi, đã thử lại 2 lần");
     expect(alert).toHaveTextContent("Credit đã giữ được hoàn lại");
     expect(screen.queryByRole("link", { name: "Nạp credit" })).not.toBeInTheDocument();
-    expect(screen.getByText("cloud_off")).toBeInTheDocument();
+    expect(alert.querySelector('[data-icon="cloud-off"]')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
     expect(onResume).toHaveBeenCalledTimes(1);

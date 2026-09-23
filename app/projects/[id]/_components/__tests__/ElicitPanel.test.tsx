@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toStepAnswers } from "../ElicitPanel";
 import { buildNameOps } from "../NamesGlossaryPanel";
-import { describeEvent } from "../StepEventLog";
+import { formatDuration, summaryLine, visibleStages } from "../StepProgress";
 
 const questions = [
   { id: "q1", text: "Người dùng chính?" },
@@ -30,9 +30,18 @@ describe("buildNameOps", () => {
   });
 });
 
-describe("describeEvent", () => {
-  it("mô tả các sự kiện SSE", () => {
-    expect(describeEvent({ type: "gate_ready", step_id: "S-3.1", actions: ["accept"], regenerate_used: 0, calls_used: 2 })).toBe("Sẵn sàng duyệt");
-    expect(describeEvent({ type: "error", step_id: "S-3.1", code: "CALL_LIMIT", message: "Hết lượt", retryable: false })).toContain("CALL_LIMIT");
+describe("StepProgress (tiến trình trực tiếp)", () => {
+  it("chỉ hiện giai đoạn step thật sự có, theo đúng thứ tự, luôn kết bằng chờ duyệt", () => {
+    const events = [
+      { type: "stage", step_id: "S-3.1", stage: "intake", label_vi: "Đọc dữ liệu" },
+      { type: "stage", step_id: "S-3.1", stage: "draft", label_vi: "AI soạn" },
+    ] as const;
+    expect(visibleStages([...events], "draft")).toEqual(["intake", "draft", "gate"]);
+  });
+
+  it("đồng hồ và dòng vừa ghi đọc được", () => {
+    expect(formatDuration(47_000)).toBe("00:47");
+    expect(formatDuration(65_400)).toBe("01:05");
+    expect(summaryLine({ kind: "add", collection: "functions", id: "FN010", title_vi: "Cancel Appointment" })).toBe("+ Cancel Appointment");
   });
 });

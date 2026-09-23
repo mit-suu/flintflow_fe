@@ -19,6 +19,8 @@ interface WorkspaceProgressRailProps {
   selectedStepId: string | null;
   onSelectStep: (stepId: string) => void;
   missingStepIds?: ReadonlySet<string>;
+  /** Bước của vòng S-5 thuộc màn đang để trống — mở lại được (BUG-03). */
+  reopenableStepIds?: ReadonlySet<string>;
   /** Điểm sẵn sàng (% section accepted) — hiển thị, không phải điều kiện chốt. */
   readinessPercent?: number;
   workingMode: WorkingMode | null;
@@ -39,6 +41,7 @@ export default function WorkspaceProgressRail({
   selectedStepId,
   onSelectStep,
   missingStepIds,
+  reopenableStepIds,
   readinessPercent,
   workingMode,
   onChangeWorkingMode,
@@ -89,6 +92,7 @@ export default function WorkspaceProgressRail({
               selectedStepId={selectedStepId}
               onSelectStep={onSelectStep}
               missingStepIds={missingStepIds}
+              reopenableStepIds={reopenableStepIds}
             />
           )}
         />

@@ -11,6 +11,28 @@ interface ChatBubbleProps {
   isStreaming?: boolean;
 }
 
+/**
+ * BUG-09: chat từng nói "đã thêm UC18, UC19" trong khi Spine không đổi gì. Mỗi tin nhắn của AI nay mang
+ * một nhãn nói rõ nó đã GHI hay chỉ TRAO ĐỔI: chỉ tin nhắn mang bản xem trước thay đổi (`change_preview`)
+ * mới được nói là có ghi, và con số là số thay đổi thật trong bản xem trước đó.
+ */
+export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boolean } | null => {
+  if (message.role !== "ai") return null;
+  const raw = (message.content ?? "").trim();
+  if (!raw.startsWith("{")) return { text: "Chỉ trao đổi", wrote: false };
+  try {
+    const data = JSON.parse(raw) as { kind?: unknown; changes?: unknown };
+    if (data.kind === "change_preview") {
+      const count = Array.isArray(data.changes) ? data.changes.length : 0;
+      return { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false };
+    }
+    if (data.kind === "change_clarification" || data.kind === "change_error") return { text: "Chưa ghi gì", wrote: false };
+  } catch {
+    return { text: "Chỉ trao đổi", wrote: false };
+  }
+  return { text: "Chỉ trao đổi", wrote: false };
+};
+
 export default function ChatBubble({
   message,
   messageIndex,
@@ -64,6 +86,7 @@ export default function ChatBubble({
   };
 
   const parsed = parseAiMessage(message.content);
+  const writeBadge = writeBadgeOf(message);
 
   // Smooth continuous typewriter ticker for streaming
   const [displayedReply, setDisplayedReply] = useState(parsed.reply);
@@ -251,6 +274,16 @@ export default function ChatBubble({
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#6A62C4] bg-[#F2F1FB] px-2 py-0.5 rounded-full border border-[#DCD8F0] animate-pulse">
               <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
               Đang phản hồi...
+            </span>
+          )}
+          {!isStreaming && writeBadge && (
+            <span
+              title="Trò chuyện không ghi vào tài liệu; mọi thay đổi đều đi qua bản xem trước rồi mới áp"
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                writeBadge.wrote ? "text-[#1F7A45] bg-[#EAF6EE] border-[#BEE3C8]" : "text-[#6B6862] bg-[#F5F3F0] border-[#ECEAE5]"
+              }`}
+            >
+              {writeBadge.text}
             </span>
           )}
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
+import Icon from "@/components/ui/Icon";
 
 /** Giới hạn contract #2 — BE vẫn là nơi quyết định (nhận file theo magic bytes, không theo đuôi). */
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -58,7 +59,7 @@ export default function UploadStep({
           dragging ? "border-[#6A62C4] bg-[#F2F1FB]" : "border-[#D6D2CB] bg-white hover:border-[#6A62C4]"
         } ${busy ? "opacity-60 cursor-wait" : ""}`}
       >
-        <span className="material-symbols-outlined text-[34px] text-[#6A62C4]">upload_file</span>
+        <Icon name="upload" size={34} className="text-[#6A62C4]" />
         <p className="font-extrabold text-[#191817] text-[14px]">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
         <p className="text-[12px] text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
         <input

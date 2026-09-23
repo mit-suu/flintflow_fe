@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import Icon from "./ui/Icon";
 
 interface PasswordInputProps {
   id: string;
@@ -59,12 +60,12 @@ export default function PasswordInput({
           aria-label={visible ? t("hideField", { field: label.toLowerCase() }) : t("showField", { field: label.toLowerCase() })}
           className="absolute right-3 top-2.5 text-[#A8A49C] hover:text-[#191817] transition-colors"
         >
-          <span className="material-symbols-outlined text-[18px]">{visible ? "visibility_off" : "visibility"}</span>
+          <Icon name={visible ? "eye-off" : "eye"} size={18} />
         </button>
       </div>
       {error && (
         <p id={errorId} className="text-[11.5px] font-semibold text-[#B03030] flex items-center gap-1 pt-0.5">
-          <span className="material-symbols-outlined text-[14px]">error</span>
+          <Icon name="warning" size={14} />
           {error}
         </p>
       )}
