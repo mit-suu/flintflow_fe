@@ -340,7 +340,13 @@ test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
     console.log(`[e2e] bản release: ${clean}`);
   }
 
-  // ── 13. Danh sách dự án: thẻ mode 1 ───────────────────────────────────────────────
+  // ── 11. Chat mode 1 chỉ hỏi đáp: lệnh sửa ⇒ thẻ tạo CR (3.13) ──────────────────────
+  await page.locator("#flintflow-chat-pane textarea").fill("Đổi tên actor Learner thành Student");
+  await page.locator("#flintflow-chat-pane").getByRole("button", { name: "Gửi tin nhắn (Enter)" }).click();
+  await expect(page.getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeVisible({ timeout: 60_000 });
+  await snap(page, "chat-requires-cr");
+
+  // ── 12. Danh sách dự án: thẻ mode 1 (3.14) ─────────────────────────────────────────
   await page.goto("/home");
   const card = page.getByRole("main").getByRole("link").filter({ hasText: PROJECT_NAME }).first();
   await expect(card).toContainText("SRS có sẵn", { timeout: 30_000 });

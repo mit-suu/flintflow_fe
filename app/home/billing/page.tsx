@@ -4,6 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import {
   createCheckout,
   fetchBalance,
@@ -135,9 +136,9 @@ export default function BillingPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
-            <span className="text-[13px] font-medium">{t("loading")}</span>
+          <div className="flex flex-col gap-6">
+            <PageSkeleton variant="cards" label={t("loading")} />
+            <PageSkeleton variant="table" rows={5} label={t("loadingHistory")} />
           </div>
         ) : (
           <>

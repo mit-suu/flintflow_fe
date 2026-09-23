@@ -13,10 +13,11 @@ import {
   Divider,
   InlineLink,
   PasswordField,
-  StrengthMeter,
   SubmitButton,
   TextField,
 } from "../_components/auth-ui";
+import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import { checkPassword, PASSWORD_ISSUE_VALUES, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -27,6 +28,7 @@ export default function RegisterPage() {
   const t = useTranslations("auth.register");
   const tc = useTranslations("auth.common");
   const tg = useTranslations("auth.google");
+  const tp = useTranslations("password");
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,6 +39,8 @@ export default function RegisterPage() {
 
   // Chỉ báo khi user đã gõ vào ô xác nhận, tránh đỏ ngay từ lúc mới vào trang
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  // Cùng bộ quy tắc BE dùng (`lib/password-policy.ts`) ⇒ không còn cảnh FE cho qua rồi BE mới từ chối.
+  const passwordIssue = password.length > 0 ? checkPassword(password) : null;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +48,11 @@ export default function RegisterPage() {
 
     if (password !== confirmPassword) {
       setError(tc("passwordMismatch"));
+      return;
+    }
+
+    if (passwordIssue) {
+      setError(tp(`issue.${passwordIssue}`, PASSWORD_ISSUE_VALUES));
       return;
     }
 
@@ -128,8 +137,15 @@ export default function RegisterPage() {
         />
         {/* Hai ô mật khẩu cạnh nhau (≥ sm) để form đăng ký vừa một màn hình */}
         <div className="grid items-start gap-4 sm:grid-cols-2 sm:gap-3">
-          <PasswordField id="password" label={tc("password")} value={password} onChange={setPassword} minLength={8} autoComplete="new-password">
-            <StrengthMeter password={password} />
+          <PasswordField
+            id="password"
+            label={tc("password")}
+            value={password}
+            onChange={setPassword}
+            minLength={PASSWORD_MIN_LENGTH}
+            autoComplete="new-password"
+          >
+            <PasswordStrengthMeter password={password} />
           </PasswordField>
           <PasswordField
             id="confirmPassword"
@@ -142,7 +158,7 @@ export default function RegisterPage() {
           />
         </div>
 
-        <SubmitButton loading={loading} loadingLabel={t("submitting")} disabled={passwordMismatch}>
+        <SubmitButton loading={loading} loadingLabel={t("submitting")} disabled={passwordMismatch || Boolean(passwordIssue)}>
           {t("submit")}
         </SubmitButton>
       </form>

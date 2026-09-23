@@ -119,7 +119,7 @@ export default function AdminUsersPage() {
 
         <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
           {loading ? (
-            <LoadingBlock label="Đang tải người dùng…" />
+            <LoadingBlock label="Đang tải người dùng…" bare />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
