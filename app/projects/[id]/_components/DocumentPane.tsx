@@ -24,6 +24,11 @@ interface DocumentPaneProps {
    * `missing` = đầu mục mẫu FPT file upload không có (đỏ).
    */
   emptyHintOf?: (sectionId: string) => EmptyHint | undefined;
+  /**
+   * Mode 1 v3 (bám BPMN): không có step ⇒ ẩn nhãn trạng thái theo step (Accepted/Draft…), mục trống mời tạo change
+   * request thay vì "chờ step chạy".
+   */
+  mode1?: boolean;
 }
 
 export interface EmptyHint {
@@ -193,7 +198,8 @@ function GroupHeading({ section }: { section: RenderedSection }) {
   );
 }
 
-function EmptySection({ hint, onSelectStep }: { hint?: EmptyHint; onSelectStep?: (stepId: string) => void }) {
+function EmptySection({ hint, onSelectStep, mode1 = false }: { hint?: EmptyHint; onSelectStep?: (stepId: string) => void; mode1?: boolean }) {
+  if (mode1) return <div className="text-[11.5px] text-[#A8A49C] italic">Mục còn trống — tạo change request (nguồn gap report) để bổ sung.</div>;
   if (!hint) return <div className="text-[11.5px] text-[#A8A49C] italic">Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.</div>;
   return (
     <div className={`text-[11.5px] italic flex items-center gap-2 flex-wrap ${hint.missing ? "text-[#B03030]" : "text-[#8A867E]"}`}>
@@ -217,6 +223,7 @@ function SectionView({
   changed,
   onSelectStep,
   emptyHint,
+  mode1 = false,
 }: {
   section: RenderedSection;
   projectId: string;
@@ -224,9 +231,10 @@ function SectionView({
   changed: boolean;
   onSelectStep?: (stepId: string) => void;
   emptyHint?: EmptyHint;
+  mode1?: boolean;
 }) {
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
-  const badge = section.status ? STATUS_BADGE[section.status] : null;
+  const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
   const custom = section.id.startsWith("custom:");
   const depth = depthOf(section);
   return (
@@ -270,7 +278,7 @@ function SectionView({
           <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
         ))
       ) : (
-        <EmptySection hint={emptyHint} onSelectStep={onSelectStep} />
+        <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />
       )}
     </article>
   );
@@ -286,6 +294,7 @@ export default function DocumentPane({
   refreshToken = 0,
   getBaseVersion,
   emptyHintOf,
+  mode1 = false,
 }: DocumentPaneProps) {
   const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
     projectId,
@@ -390,6 +399,7 @@ export default function DocumentPane({
               changed={changedSectionIds?.has(section.id) ?? false}
               onSelectStep={onSelectStep}
               emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
+              mode1={mode1}
             />
           ))}
       </div>

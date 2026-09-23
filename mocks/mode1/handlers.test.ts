@@ -238,7 +238,7 @@ describe("mock mode 1 — change request (#16–#30)", () => {
 
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
     expect((await call("POST", `${base}/groups/G01/decision`, { decision: "rejected", reason: "ngắn", base_version: state().spineVersion })).status).toBe(400);
-    const written = (await call<CrDetail>("POST", `${base}/groups/G01/decision`, { decision: "approved", base_version: state().spineVersion })).body.data!;
+    const written = (await call<CrDetail>("POST", `${base}/groups/G01/decision`, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: state().spineVersion })).body.data!;
     expect(written.change_request).toMatchObject({ status: "written", result_doc_version: "0.1" });
 
     // giá trị phần tử đã đổi theo đề xuất; khoá của CR mở hết
@@ -325,7 +325,7 @@ describe("mock mode 1 — release (#31)", () => {
   it("còn cờ đỏ ⇒ RELEASE_RED_FLAGS_OPEN; hết cờ đỏ ⇒ 1.0 sạch gom CR đã ghi", async () => {
     await importToGapReview();
     const detail = await crToReview("Log out of all devices");
-    await call("POST", `/projects/${P}/change-requests/${detail.change_request.cr_id}/groups/G01/decision`, { decision: "approved", base_version: state().spineVersion });
+    await call("POST", `/projects/${P}/change-requests/${detail.change_request.cr_id}/groups/G01/decision`, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: state().spineVersion });
 
     const blocked = await call("POST", `/projects/${P}/release`, { base_version: state().spineVersion });
     expect(blocked.status).toBe(422);

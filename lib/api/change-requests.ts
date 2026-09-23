@@ -7,6 +7,7 @@ import type {
   CrDetail,
   CrStatus,
   GroupDecisionRequest,
+  OwnerStepDraftRequest,
   PatchLocationRequest,
 } from "@/types/change-request";
 import { apiCall } from "./client";
@@ -38,6 +39,10 @@ export const patchLocation = (projectId: string, crId: string, locationId: strin
     method: "PATCH",
     body: JSON.stringify(body),
   });
+
+/** BPMN 3.9 (mode 1 v3): CR `manual_fix` ⇒ sửa đề xuất một vị trí bằng skill của step sở hữu, theo hướng của BA. */
+export const draftInOwnerStep = (projectId: string, crId: string, locationId: string, body: OwnerStepDraftRequest) =>
+  apiCall<CrDetail>(`${cr(projectId, crId)}/locations/${encodeURIComponent(locationId)}/owner-step-draft`, post(body));
 
 export const decideGroup = (projectId: string, crId: string, groupId: string, body: GroupDecisionRequest) =>
   apiCall<CrDetail>(`${cr(projectId, crId)}/groups/${encodeURIComponent(groupId)}/decision`, post(body));

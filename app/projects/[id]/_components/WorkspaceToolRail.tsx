@@ -32,7 +32,7 @@ export default function WorkspaceToolRail({ active, onToggle, flagsCount = 0, mo
   const items: RailItem[] = [
     { id: "change", icon: "pencil", label: "Sửa tài liệu có xem trước diff" },
     { id: "verification", icon: "shield-check", label: "Verification & độ sẵn sàng" },
-    { id: "tools", icon: "toolbox", label: mode1 ? "Kế hoạch step & version" : "Công cụ: thuật ngữ, hàng đợi màn" },
+    { id: "tools", icon: "toolbox", label: mode1 ? "Cờ, change request & version" : "Công cụ: thuật ngữ, hàng đợi màn" },
   ];
 
   return (
