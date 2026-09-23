@@ -1,9 +1,9 @@
 "use client";
 
-import Icon from "@/components/ui/Icon";
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { estimateActionCost } from "../../../../lib/api/chat";
 import type { ChatActionType } from "@/types/chat";
+import Icon from "@/components/ui/Icon";
 
 interface ChatInputProps {
   inputMessage: string;

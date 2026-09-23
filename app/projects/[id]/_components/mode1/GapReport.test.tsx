@@ -181,7 +181,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
 
   it("chưa tới gap_review ⇒ lỗi tải báo cáo, không màn trắng", async () => {
     renderWithIntl(<GapReportView projectId={P} />);
-    expect(screen.getByText("Đang tải gap report…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Đang tải gap report" })).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByText(/Gap report — bản/)).not.toBeInTheDocument();
   });
