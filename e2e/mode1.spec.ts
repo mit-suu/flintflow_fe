@@ -3,13 +3,14 @@ import path from "node:path";
 import fs from "node:fs";
 
 /**
- * e2e mode 1 **v2** (FLF-188, plan v2 §10) — FE thật trên BE thật, **có gọi AI thật** (I-4, step runner, CR).
+ * e2e mode 1 **v3** (bám BPMN 2026-09-22, plan `mode1-v3/`) — FE thật trên BE thật, **có gọi AI thật** (I-4, CR).
  *
- * Luồng v2 khác hẳn v1: file gốc không còn là nguồn sự thật, Spine mới là, và mode 1 dùng CHÍNH workspace
- * của mode 2 cho tới khi ký baseline v1 (D1/D3):
+ * Flow 1 kết thúc ở gap report hoặc đi sang 3.1: import xong là mọi sửa qua change request — không chạy step, không
+ * ký baseline v1, không waive:
  *
- *   tạo project → import → gap review → **workspace** → chạy một step còn thiếu → sửa qua chat
- *   → ký baseline v1 → chat sau v1 đẻ ra CR → duyệt CR → version 0.x → release 1.0
+ *   tạo project → import → gap report → workspace (không step) → chat lệnh sửa ⇒ thẻ mời tạo CR
+ *   → panel "Sửa tài liệu có xem trước" ⇒ diff ⇒ Tạo CR (form 3.1 + preview_id) → CR 3.2…3.14 (duyệt có lý do)
+ *   → version 0.x (bản nháp + bản có đánh dấu) → release 1.0 (Flow 6)
  *
  * Chạy tay, không nằm trong CI mặc định: cần `E2E_MODE1=1`, tài khoản `seed:e2e-user` có credit, và file SRS
  * .docx **không** mang stamp FlintFlow (`E2E_MODE1_DOCX`); `E2E_MODE1_FOREIGN_DOCX` (tuỳ chọn) là file mang
@@ -30,10 +31,11 @@ const AI_TIMEOUT = 10 * 60_000;
 test.skip(!process.env.E2E_MODE1 || !DOCX, "Chỉ chạy tay: đặt E2E_MODE1=1 và E2E_MODE1_DOCX");
 test.setTimeout(60 * 60_000);
 // Chromium đầy đủ ở chế độ headless mới — không cần tải thêm `chrome-headless-shell`
-test.use({ channel: "chromium" });
+// actionTimeout: một selector lệch (vd nút đổi tên sau thiết kế lại) phải gãy sau 1 phút, không treo tới hạn 60 phút của test
+test.use({ channel: "chromium", actionTimeout: 60_000 });
 
-const PROJECT_NAME = `E2E mode1 v2 ${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
-const WAIVE_REASON = "E2E: mục này không áp dụng cho tài liệu mẫu, xác nhận bỏ qua để đi tiếp kịch bản";
+const PROJECT_NAME = `E2E mode1 v3 ${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
+const CHANGE_INSTRUCTION = process.env.E2E_MODE1_INSTRUCTION ?? "Đổi tầm nhìn sản phẩm thành: nền tảng học trực tuyến cho trung tâm đào tạo nhỏ.";
 
 let shot = 0;
 const snap = async (page: Page, name: string) => {
@@ -63,7 +65,7 @@ const chat = (page: Page) => page.locator("#flintflow-chat-pane");
 
 const sendChat = async (page: Page, text: string) => {
   await chat(page).locator("textarea").fill(text);
-  await chat(page).getByRole("button", { name: "arrow_upward" }).click();
+  await chat(page).getByRole("button", { name: "Gửi tin nhắn" }).click();
 };
 
 /** Ghi log rồi kết thúc sạch: nhánh phụ thuộc nội dung file, không phải lỗi code. */
@@ -73,9 +75,9 @@ const finish = (problems: string[], reason?: string) => {
   expect(problems, problems.join("\n")).toEqual([]);
 };
 
-test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
+test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   const problems: string[] = [];
-  // 4xx mong đợi (file stamp project khác 422, chat sau v1 409) trình duyệt vẫn log "Failed to load resource"
+  // 4xx mong đợi (file stamp project khác 422, chat lệnh sửa 409) trình duyệt vẫn log "Failed to load resource"
   page.on("console", (m) => m.type() === "error" && !/Failed to load resource: .* 4\d\d/.test(m.text()) && problems.push(`console: ${m.text()}`));
   page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
   page.on("response", (r) => {
@@ -134,121 +136,62 @@ test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
   await snap(page, "gap-report");
   console.log(`[e2e] gap report: ${await saveDownload(page, () => page.getByRole("button", { name: "Tải gap report (.docx)" }).click())}`);
 
-  // ── 5. Workspace: mode 1 v2 dùng CHÍNH workspace của mode 2 (D3) ───────────────────
+  // ── 5. Workspace mode 1 v3 (bám BPMN): KHÔNG chạy step, KHÔNG ký v1, KHÔNG waive ───────
   await page.goto(`/projects/${projectId}`);
-  await expect(chat(page), "chat pane có mặt — trước v1 sửa thẳng qua chat").toBeVisible({ timeout: 60_000 });
-  // Rail tiến độ (FLF-197) ẩn mặc định cho tới khi người dùng mở một lần — mở ra để thấy danh sách bước
-  const showProgress = page.getByRole("button", { name: "Hiện tiến độ" });
-  if (await visible(showProgress)) await showProgress.click();
-  await expect(page.getByLabel("Tiến độ theo bước"), "danh sách bước của workspace phải hiện").toBeVisible({ timeout: 30_000 });
-  const planPanel = page.getByRole("region", { name: "Cờ đỏ đang chặn" });
-  await expect(planPanel, "cột kế hoạch mode 1").toBeVisible({ timeout: 30_000 });
+  await expect(chat(page), "chat pane có mặt").toBeVisible({ timeout: 60_000 });
+  const flagsPanel = page.getByRole("region", { name: "Cờ đỏ đang chặn release" });
+  await expect(flagsPanel, "cột cờ mode 1").toBeVisible({ timeout: 30_000 });
+  expect(await visible(page.getByRole("button", { name: /^Chạy bước / })), "mode 1 v3 không có nút chạy bước").toBe(false);
+  expect(await visible(page.getByRole("button", { name: "Hiện tiến độ" })), "mode 1 v3 không có rail tiến độ").toBe(false);
+  expect(await visible(page.getByRole("button", { name: "Ký baseline v1" })), "mode 1 v3 không ký baseline v1").toBe(false);
+  expect(await visible(flagsPanel.getByRole("button", { name: "Waive" })), "mode 1 v3 không waive").toBe(false);
   await snap(page, "workspace");
 
   // Bản 0.0 giữ được file gốc người dùng upload (FLF-184)
   const original = page.getByRole("button", { name: "Tải file gốc" });
   if (await visible(original)) console.log(`[e2e] file gốc: ${await saveDownload(page, () => original.first().click())}`);
 
-  // ── 6. Chạy một step còn thiếu (D2/D6) ─────────────────────────────────────────────
-  // SRS đủ mọi đầu mục FPT thì không có step nào "Thiếu" — chặng này bỏ qua, không phải lỗi.
-  const missingBadge = page.getByTestId("step-missing");
-  if (await visible(missingBadge)) {
-    console.log(`[e2e] ${await missingBadge.textContent()}`);
-    const openStep = planPanel.getByRole("button", { name: /^(Chạy|Mở lại) S-/ }).first();
-    await expect(openStep, "cờ đỏ phải có nút dẫn tới step xử lý được (L11c)").toBeVisible();
-    const stepFromFlag = ((await openStep.textContent()) ?? "").replace(/^(Chạy|Mở lại)\s+/, "").trim();
-    await openStep.click();
-    await snap(page, "step-selected");
+  // ── 6. Chat ra lệnh sửa ⇒ thẻ mời tạo CR (form 3.1), BE KHÔNG tự tạo CR ─────────────
+  await sendChat(page, CHANGE_INSTRUCTION);
+  const crCard = chat(page).getByRole("status").filter({ hasText: "Muốn sửa tài liệu? Hãy tạo change request" });
+  await expect(crCard, "import xong ⇒ lệnh sửa trong chat mời tạo CR").toBeVisible({ timeout: 60_000 });
+  await snap(page, "chat-requires-cr");
+  await crCard.getByRole("button", { name: "Bỏ qua" }).click();
 
-    const runButton = page.getByRole("button", { name: /^Chạy bước / });
-    if (await visible(runButton)) {
-      await runButton.click();
-      const gateCard = page.getByLabel("Cổng chốt");
-      const sendAnswers = page.getByRole("button", { name: "Gửi câu trả lời" });
-      for (let round = 0; round < 4; round++) {
-        const i = await firstVisible(page, [gateCard, sendAnswers], AI_TIMEOUT);
-        if (i === 0) break;
-        await snap(page, `step-elicit-${round + 1}`);
-        for (const box of await chat(page).getByRole("textbox").all()) {
-          if (await box.isVisible().catch(() => false)) await box.fill("Cứ dùng phương án hợp lý nhất theo tài liệu.");
-        }
-        await sendAnswers.click();
-      }
-      await expect(gateCard).toBeVisible({ timeout: AI_TIMEOUT });
-      await snap(page, "step-gate");
-
-      // L11b: lô op rỗng / mục vẫn trống phải nói ra ở cổng chốt, không im lặng cho Accept
-      const warning = gateCard.getByRole("status");
-      if (await visible(warning)) console.log(`[e2e] cảnh báo ở gate: ${await warning.first().textContent()}`);
-
-      await gateCard.getByRole("button", { name: /Accept$/ }).click();
-      await expect(gateCard).toBeHidden({ timeout: 60_000 });
-      await snap(page, "step-accepted");
-
-      // L11: chạy tiếp ngay sau khi accept KHÔNG được ăn 409 lệch version
-      const runAgain = page.getByRole("button", { name: /^Chạy bước / });
-      if (await visible(runAgain)) {
-        await runAgain.click();
-        await expect(page.getByText(/Dữ liệu vừa thay đổi ở phiên khác/), "L11: không còn kẹt SPINE_VERSION_CONFLICT").toBeHidden({ timeout: 15_000 });
-      }
-      console.log(`[e2e] đã chạy step ${stepFromFlag}`);
-    }
+  // ── 7. Panel "Sửa tài liệu có xem trước" ⇒ xem diff ⇒ Tạo CR (form 3.1 + preview_id) ─
+  await page.getByRole("button", { name: /Sửa tài liệu có xem trước/ }).click();
+  const panel = page.getByRole("complementary", { name: "Change panel" });
+  await expect(panel.getByText(/mọi thay đổi đi qua change request/)).toBeVisible({ timeout: 30_000 });
+  expect(await visible(panel.getByRole("button", { name: "Undo op cuối" })), "mode 1 không Undo thẳng").toBe(false);
+  await panel.locator("#change-instruction").fill(CHANGE_INSTRUCTION);
+  await panel.getByRole("button", { name: "Xem trước thay đổi" }).click();
+  const createCrButton = page.getByRole("button", { name: /^Tạo CR/ });
+  const clarification = panel.getByText("Cần làm rõ");
+  const previewKind = await firstVisible(page, [createCrButton, clarification, panel.locator(".text-error")], AI_TIMEOUT);
+  await snap(page, "preview");
+  if (previewKind !== 0) {
+    problems.push(`xem trước không ra diff (kiểu ${previewKind}): ${await panel.textContent()}`);
+    return finish(problems, "bản xem trước không ra diff");
   }
-
-  // ── 7. Sửa qua chat khi CHƯA ký v1 — ghi thẳng, không cần CR (D3) ──────────────────
-  await page.goto(`/projects/${projectId}`);
-  await expect(chat(page)).toBeVisible({ timeout: 60_000 });
-  await sendChat(page, "Đổi tầm nhìn sản phẩm thành: nền tảng học trực tuyến cho trung tâm đào tạo nhỏ.");
-  await expect(
-    page.getByText("Muốn sửa tài liệu? Hãy tạo change request"),
-    "trước baseline v1 thì chat sửa thẳng, KHÔNG mời tạo CR"
-  ).toBeHidden({ timeout: 60_000 });
-  await snap(page, "chat-before-v1");
-
-  // ── 8. Ký baseline v1 — còn cờ đỏ thì khoá; waive để đi tiếp (L11d) ────────────────
-  const signButton = page.getByRole("button", { name: "Ký baseline v1" });
-  await expect(signButton).toBeVisible({ timeout: 30_000 });
-  for (let attempt = 0; attempt < 6 && (await signButton.isDisabled()); attempt++) {
-    const waive = planPanel.getByRole("button", { name: "Waive" }).first();
-    if (!(await visible(waive))) break;
-    await waive.click();
-    await planPanel.getByLabel(/Lý do bỏ qua/).fill(WAIVE_REASON);
-    await planPanel.getByRole("button", { name: "Xác nhận waive" }).click();
-    await page.waitForTimeout(1500);
-  }
-  await snap(page, "before-sign-off");
-
-  if (await signButton.isDisabled()) {
-    // Còn cờ không waive được (dead_reference / render_error) — dừng sạch, ghi lại lý do
-    console.log(`[e2e] không ký được v1: ${await planPanel.textContent()}`);
-    return finish(problems, "còn cờ đỏ không waive được");
-  }
-
-  await signButton.click();
-  await expect(page.getByText(/Đã ký baseline v1/), "ký xong thì cột kế hoạch phải nói ra").toBeVisible({ timeout: AI_TIMEOUT });
-  await snap(page, "signed-off-v1");
-
-  // ── 9. Sau v1: lệnh sửa trong chat đẻ ra CR (BR-03, FLF-186) ───────────────────────
-  await sendChat(page, "Đổi tên actor Learner thành Student ở mọi chỗ trong tài liệu.");
-  const crCard = chat(page).getByRole("status").filter({ hasText: /change request|CR-/ });
-  await expect(crCard, "sau v1 chat phải chuyển sang đường CR").toBeVisible({ timeout: 60_000 });
-  await snap(page, "chat-after-v1");
-
-  const openCr = crCard.getByRole("link", { name: /^Mở CR-/ });
-  if (await visible(openCr)) {
-    await openCr.click();
-  } else {
-    await crCard.getByRole("link", { name: "Tạo change request" }).click();
-    await page.getByLabel("Người yêu cầu *").fill("PM Lan");
-    await page.getByRole("button", { name: "Tạo change request" }).click();
-  }
+  // Bản xem trước lỗi (AI dựng op sai) vẫn tạo được CR — chỉ không kèm bản xem trước (nhánh thật, ghi log)
+  const withPreview = (await createCrButton.first().textContent())?.trim() === "Tạo CR";
+  if (!withPreview) console.log("[e2e] bản xem trước lỗi — tạo CR không kèm bản xem trước");
+  await createCrButton.first().click();
+  await page.waitForURL(/\/change-requests\?new=1/, { timeout: 30_000 });
+  if (withPreview) await expect(page.getByLabel("Bản xem trước đính kèm"), "form 3.1 phải báo đính kèm bản xem trước").toBeVisible({ timeout: 30_000 });
+  await page.getByLabel("Người yêu cầu *").fill("PM Lan");
+  await snap(page, "cr-form");
+  await page.getByRole("button", { name: "Tạo change request" }).click();
   await page.waitForURL(/\/change-requests\/CR-\d+$/, { timeout: 60_000 });
+  if (withPreview) await expect(page.getByLabel("Bản xem trước đính kèm"), "CR phải mang seed từ bản xem trước").toBeVisible({ timeout: 30_000 });
   console.log(`[e2e] change request ${page.url().match(/(CR-\d+)$/)![1]}`);
 
   // ── 10. CR: làm rõ → vị trí + khoá → đề xuất → kiểm → nộp (3.2–3.11) ───────────────
   const btn = (name: string | RegExp) => page.getByRole("button", { name });
   const clarify = btn("Bắt đầu làm rõ (AI)");
-  if (await visible(clarify)) await clarify.click();
+  // Chờ trang CR tải xong rồi mới quyết: kiểm ngay lúc vừa mở thì nút chưa kịp hiện ⇒ bỏ qua làm rõ, CR đứng ở draft
+  const opening = await firstVisible(page, [clarify, page.getByRole("form", { name: "Trả lời câu hỏi làm rõ" }), btn("Tìm vị trí ảnh hưởng & khoá")], 60_000);
+  if (opening === 0) await clarify.click();
   for (let round = 0; round < 4; round++) {
     const form = page.getByRole("form", { name: "Trả lời câu hỏi làm rõ" });
     if ((await firstVisible(page, [form, btn("Tìm vị trí ảnh hưởng & khoá")], AI_TIMEOUT)) === 1) break;
@@ -287,7 +230,22 @@ test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
       readyToSubmit = true;
       break;
     }
-    if (i >= 4) throw new Error(i === 4 ? "CR rơi vào manual_fix" : "CR bị tạm dừng");
+    if (i === 5) throw new Error("CR bị tạm dừng");
+    if (i === 4) {
+      // 3.9 (mode 1 v3): sửa trong step sở hữu cho từng vị trí trượt, rồi kiểm lại
+      const drafts = page.getByRole("button", { name: /^Sửa trong step / });
+      const n = await drafts.count();
+      if (!n) throw new Error("CR rơi vào manual_fix mà không có vị trí nào sửa trong step được");
+      for (let k = 0; k < n; k++) {
+        await drafts.first().click();
+        await page.getByLabel(/AI viết lại theo quy tắc của step/).fill("Viết lại đúng theo yêu cầu của change request, giữ nguyên phần không liên quan.");
+        await btn("Viết lại đề xuất (AI)").click();
+        await expect(btn("Viết lại đề xuất (AI)")).toBeHidden({ timeout: AI_TIMEOUT });
+      }
+      await btn("Kiểm lại").click();
+      await page.waitForTimeout(1500);
+      continue;
+    }
     await [btn("AI đề xuất sửa"), btn("AI làm lại vị trí trượt"), btn("Kiểm đề xuất")][i].click();
     await page.waitForTimeout(1500);
   }
@@ -316,14 +274,21 @@ test("mode 1 v2 đi trọn luồng trên BE thật", async ({ page }) => {
     await card.getByRole("button", { name: "Xác nhận từ chối" }).click();
     await expect(card.getByText("Từ chối", { exact: true })).toBeVisible({ timeout: 60_000 });
   }
+  // BPMN 3.12 (mode 1 v3): duyệt cũng kèm lý do
   await cards.nth(approve).getByRole("button", { name: "Duyệt" }).click();
+  await cards.nth(approve).getByLabel(/Lý do duyệt/).fill("Đúng yêu cầu của PM Lan");
+  await cards.nth(approve).getByRole("button", { name: "Xác nhận duyệt" }).click();
   await expect(page.getByText(/vào bản 0\.\d/), "duyệt xong ⇒ ghi ngay thành version minor (D4)").toBeVisible({ timeout: AI_TIMEOUT });
   await snap(page, "cr-written");
 
   // ── 12. Version 0.x tải được, rồi release 1.0 (Flow 6, UC-57) ─────────────────────
   await page.goto(`/projects/${projectId}`);
-  await expect(page.getByRole("heading", { name: "Release" })).toBeVisible({ timeout: 60_000 });
-  console.log(`[e2e] bản sau CR: ${await saveDownload(page, () => page.getByRole("button", { name: /Tải bản draft|Tải bản render/ }).first().click())}`);
+  await expect(page.getByRole("heading", { name: "Release" }).first()).toBeVisible({ timeout: 60_000 });
+  console.log(`[e2e] bản nháp sau CR: ${await saveDownload(page, () => page.getByRole("button", { name: "Tải bản nháp (DRAFT)" }).first().click())}`);
+  // BPMN 3.14 (mode 1 v3): bản có đánh dấu — Track Changes tác giả là mã CR
+  const tracked = page.getByRole("button", { name: "Tải bản có đánh dấu" });
+  if (await visible(tracked)) console.log(`[e2e] bản có đánh dấu: ${await saveDownload(page, () => tracked.first().click())}`);
+  else problems.push("version sau CR không có bản có đánh dấu (tracked_file_ref null — xem log BE [C-7])");
   await snap(page, "versions");
 
   const release = page.getByRole("button", { name: "Release", exact: true });

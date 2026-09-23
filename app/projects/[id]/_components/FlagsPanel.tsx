@@ -74,7 +74,8 @@ interface FlagsPanelProps {
   flags: Flag[];
   busy?: boolean;
   error?: string | null;
-  onWaive: (flagId: string, reason: string) => Promise<void>;
+  /** Không truyền ⇒ không có nút waive (mode 1 v3: cờ chỉ đóng bằng change request). */
+  onWaive?: (flagId: string, reason: string) => Promise<void>;
   onRecompute: () => void;
   onSelectStep?: (stepId: string) => void;
   /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
@@ -145,7 +146,7 @@ export default function FlagsPanel({
     if (!waivingFlag) return;
     setWaiveError(null);
     try {
-      await onWaive(waivingFlag.id, reason);
+      await onWaive?.(waivingFlag.id, reason);
       setWaivingId(null);
     } catch (err) {
       setWaiveError(err instanceof Error ? err.message : "Waive cờ thất bại");
@@ -248,7 +249,7 @@ export default function FlagsPanel({
                     {redrawing === flag.id ? "Đang vẽ…" : "Vẽ lại"}
                   </button>
                 )}
-                {isFlagWaivable(flag.rule_id) ? (
+                {!onWaive ? null : isFlagWaivable(flag.rule_id) ? (
                   <button
                     type="button"
                     disabled={busy}

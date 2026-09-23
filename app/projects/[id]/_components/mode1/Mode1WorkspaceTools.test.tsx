@@ -1,15 +1,12 @@
 /**
- * Cột công cụ mode 1 (V6: trước đây 50% coverage). Nó chủ yếu là chỗ nối — nên kiểm đúng phần nối:
- * ba link điều hướng, và ký baseline v1 xong thì **cả Spine lẫn danh sách version** đều phải tải lại
- * (thiếu một trong hai là người dùng ký xong mà bảng version vẫn cũ).
+ * Cột công cụ mode 1 — chủ yếu là chỗ nối: ba link điều hướng, cờ + lối tạo CR, bảng version. Mode 1 v3 (bám BPMN):
+ * không còn kế hoạch step / ký baseline v1.
  */
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
 import { mockServer } from "@/mocks/server";
-import type { StepPlanEntry } from "@/types/import";
-import type { StepSummary } from "@/types/pipeline";
 import Mode1WorkspaceTools from "./Mode1WorkspaceTools";
 
 const P = "650000000000000000000001";
@@ -22,26 +19,6 @@ vi.mock("next/navigation", () => ({
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
-
-const PLAN: StepPlanEntry[] = [
-  { step_id: "S-7.1", state: "applied", missing: false, section_ids: ["fixed:5.1"], reason: "Có trong file, đã có nội dung" },
-];
-
-const step = (id: string, status: StepSummary["status"]): StepSummary => ({
-  id,
-  phase: id.split(".")[0],
-  label_vi: id,
-  label_en: id,
-  kind: "fixed",
-  status,
-  deterministic: false,
-  calls_used: 0,
-  calls_limit: 8,
-  regenerate_used: 0,
-  regenerate_limit: 3,
-  accepted_at: null,
-  running: false,
-});
 
 const serveVersions = (versions: unknown[]) => {
   const calls = { n: 0 };
@@ -62,6 +39,7 @@ const VERSION_00 = {
   cr_ids: [],
   baseline_id: "B01",
   has_clean_file: false,
+  has_tracked_file: false,
   has_original_file: true,
   created_by: "u1",
   created_at: "2026-09-20T03:00:00.000Z",
@@ -72,15 +50,7 @@ const renderTools = (over: Partial<Parameters<typeof Mode1WorkspaceTools>[0]> = 
     <Mode1WorkspaceTools
       projectId={P}
       projectName="Lumen LMS"
-      plan={PLAN}
-      planError={null}
-      busyStep={null}
-      onToggleStep={vi.fn()}
-      steps={[step("S-7.1", "accepted")]}
       flags={[]}
-      signedOff={false}
-      onSelectStep={vi.fn()}
-      getBaseVersion={() => 7}
       onSpineChanged={vi.fn()}
       {...over}
     />
@@ -96,27 +66,28 @@ describe("Mode1WorkspaceTools", () => {
     expect(within(nav).getByRole("link", { name: "Nhập SRS" })).toHaveAttribute("href", `/projects/${P}/import`);
   });
 
-  it("hiện cả kế hoạch step lẫn bảng version", async () => {
+  it("hiện cờ + bảng version; không còn kế hoạch step, ký baseline v1 (mode 1 v3)", async () => {
     serveVersions([VERSION_00]);
     renderTools();
-    expect(screen.getByText("Kế hoạch step theo template")).toBeInTheDocument();
+    expect(screen.getByText("Cờ & change request")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Release" })).toBeInTheDocument();
+    expect(screen.queryByText("Kế hoạch step theo template")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ký baseline v1" })).not.toBeInTheDocument();
   });
 
-  it("ký baseline v1 xong ⇒ tải lại CẢ Spine lẫn danh sách version", async () => {
+  it("release xong ⇒ tải lại CẢ Spine lẫn danh sách version", async () => {
     const versionCalls = serveVersions([VERSION_00]);
     mockServer.use(
-      http.post(`${API_BASE_URL}/projects/:projectId/baseline`, () => HttpResponse.json({ data: { id: "B02", version: "v1.0" }, error: null }, { status: 201 }))
+      http.get(`${API_BASE_URL}/projects/:projectId/spine`, () => HttpResponse.json({ data: { spine_version: 7 }, error: null })),
+      http.post(`${API_BASE_URL}/projects/:projectId/release`, () => HttpResponse.json({ data: { version: { version: "1.0" } }, error: null }, { status: 201 }))
     );
     const onSpineChanged = vi.fn();
     renderTools({ onSpineChanged });
-
     await waitFor(() => expect(versionCalls.n).toBe(1));
-    const before = versionCalls.n;
-    screen.getByRole("button", { name: "Ký baseline v1" }).click();
-
+    fireEvent.click(await screen.findByRole("button", { name: "Release" }));
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận release" }));
     await waitFor(() => expect(onSpineChanged).toHaveBeenCalled());
-    await waitFor(() => expect(versionCalls.n, "bảng version phải tải lại, không để số cũ").toBeGreaterThan(before));
+    await waitFor(() => expect(versionCalls.n, "bảng version phải tải lại").toBeGreaterThan(1));
   });
 
   it("lỗi tải version ⇒ báo ra, không nuốt", async () => {

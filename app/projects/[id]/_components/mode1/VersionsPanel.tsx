@@ -51,7 +51,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
     setError(null);
     try {
       const { blob, filename } = await downloadVersion(projectId, version, variant);
-      const suffix = variant === "original" ? "_original" : isReleaseVersion(version) && variant === "auto" ? "" : "_DRAFT";
+      const suffix = variant === "original" ? "_original" : variant === "tracked" ? "_tracked_DRAFT" : isReleaseVersion(version) ? "" : "_DRAFT";
       saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.docx`);
     } catch (err) {
       setError(errorText(err, "Không tải được file"));
@@ -173,7 +173,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                     disabled={busy !== null}
                     className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50"
                   >
-                    {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản draft (Track Changes)"}
+                    {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản nháp (DRAFT)"}
                   </button>
                   {v.has_original_file && (
                     <button
@@ -186,14 +186,16 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       {busy === `download:${v.version}:original` ? "Đang tải…" : "Tải file gốc"}
                     </button>
                   )}
-                  {release && (
+                  {/* BPMN 3.14 (mode 1 v3): bản có đánh dấu của CR — Track Changes + comment, tác giả là mã CR */}
+                  {v.has_tracked_file && (
                     <button
                       type="button"
                       onClick={() => void download(v.version, "tracked")}
                       disabled={busy !== null}
-                      className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
+                      title={`Track Changes + comment so với bản ${v.based_on ?? "trước"}, tác giả ${v.cr_ids.join(", ")}`}
+                      className="px-2.5 py-1 rounded-[8px] border border-[#DCD8F0] bg-[#F2F1FB] text-[11.5px] font-bold text-[#554DB0] hover:bg-[#E8E6F7] disabled:opacity-50"
                     >
-                      {busy === `download:${v.version}:tracked` ? "Đang tải…" : "Bản có Track Changes"}
+                      {busy === `download:${v.version}:tracked` ? "Đang tải…" : "Tải bản có đánh dấu"}
                     </button>
                   )}
                 </div>

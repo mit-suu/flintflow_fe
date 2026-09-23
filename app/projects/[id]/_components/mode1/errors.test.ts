@@ -31,12 +31,19 @@ describe("errorText", () => {
     expect(errorText(apiError("PATH_LOCKED", "Đang bị khoá", { locked: [] }))).toBe("Đang bị khoá");
   });
 
-  it("CR_NO_LOCATIONS có mục trống ⇒ chỉ sang chạy step (L3), không để người dùng tưởng nút hỏng", () => {
+  it("CR_NO_LOCATIONS có mục trống ⇒ nêu mục, mời sửa mô tả CR (mode 1 v3 không còn chạy step)", () => {
     const text = errorText(
       apiError("CR_NO_LOCATIONS", "không có vị trí", { empty_sections: [{ section_id: "fixed:5.2", title: "Common Requirements", step_id: "S-7.2" }] })
     );
     expect(text).toContain("Common Requirements");
-    expect(text).toContain("S-7.2");
+    expect(text).not.toContain("step");
+    expect(text).toContain("Sửa mô tả CR");
+  });
+
+  it("mã mới của mode 1 v3 có câu tiếng Việt", () => {
+    for (const code of ["MODE1_NO_STEPS", "MODE1_NO_SIGNOFF", "MODE1_NO_WAIVE", "IMPORT_REUPLOAD_NO_STAMP", "CR_NO_OWNER_STEP", "PREVIEW_EXPIRED"]) {
+      expect(errorText(apiError(code, "raw"))).not.toBe("raw");
+    }
   });
 
   it("CR_NO_LOCATIONS không kèm mục trống ⇒ mời sửa mô tả CR cho cụ thể", () => {
