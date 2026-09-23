@@ -84,6 +84,11 @@ interface FlagsPanelProps {
    * định chưa xác nhận ở S-9.1 không có đường xử lý nào ngoài "bỏ qua có lý do".
    */
   onAssumptionDecision?: (decision: { kind: "confirm" | "reject"; id: string }) => void;
+  /**
+   * Xác nhận cả loạt giả định trong một lượt ghi. S-9.1 quét ra vài chục giả định chưa xác nhận, mỗi cái
+   * là một cờ đỏ chặn baseline — bấm từng cái là vài chục lượt ghi, và người dùng thật sẽ bỏ cuộc.
+   */
+  onConfirmAllAssumptions?: (ids: string[]) => void;
 }
 
 const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_user;
@@ -103,13 +108,26 @@ export const sortFlags = (flags: readonly Flag[]): Flag[] =>
 export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_stale" || flag.rule_id === "render_error";
 
 /** Bảng cờ đỏ/vàng (`GET /flags`); waive luật `array_empty`/`dead_reference`/`render_error` bị khoá. */
-export default function FlagsPanel({ flags, busy = false, error, onWaive, onRecompute, onSelectStep, onRedraw, onAssumptionDecision }: FlagsPanelProps) {
+export default function FlagsPanel({
+  flags,
+  busy = false,
+  error,
+  onWaive,
+  onRecompute,
+  onSelectStep,
+  onRedraw,
+  onAssumptionDecision,
+  onConfirmAllAssumptions
+}: FlagsPanelProps) {
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
   const openFlags = sortFlags(flags.filter(isOpen));
   const [redrawing, setRedrawing] = useState<string | null>(null);
   const waivedFlags = flags.filter((f) => f.waived_by_user);
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
+  const unconfirmedAssumptionIds = [
+    ...new Set(openFlags.filter((f) => f.rule_id === "unconfirmed_assumption" && f.target_id).map((f) => f.target_id as string))
+  ];
 
   const openWaiveModal = (flagId: string) => {
     setWaiveError(null);
@@ -152,6 +170,17 @@ export default function FlagsPanel({ flags, busy = false, error, onWaive, onReco
       </div>
 
       {error && <div className="text-[11px] text-[#B03030]">{error}</div>}
+
+      {onConfirmAllAssumptions && unconfirmedAssumptionIds.length > 1 && (
+        <button
+          type="button"
+          onClick={() => onConfirmAllAssumptions(unconfirmedAssumptionIds)}
+          disabled={busy}
+          className="self-start px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 cursor-pointer"
+        >
+          ✓ Đúng hết ({unconfirmedAssumptionIds.length} giả định)
+        </button>
+      )}
 
       {openFlags.length === 0 ? (
         <div className="text-[11.5px] text-[#A8A49C] italic py-2">Không có cờ nào đang mở.</div>
