@@ -533,6 +533,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   if (!ws.ready) return <WorkspaceLoading />;
 
   const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
+  // Chạy được = bước đang xem chưa chốt và không bị bỏ qua. Bước chưa có bản ghi (chưa tới lượt) vẫn cho bấm —
+  // BE là nơi quyết `STEP_NOT_RUNNABLE` và nói rõ lý do.
+  const runnableStep = viewedStep && viewedSummary?.status !== "accepted" && viewedSummary?.status !== "skipped" ? viewedStep : null;
   const reviewMode: ReviewMode = spine?.project.review_mode ?? "balanced";
   /**
    * BUG-30: panel SRS và bản xuất phải mang TÊN HỆ THỐNG tiếng Anh đã chốt (`system_name`), không phải
@@ -594,7 +597,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           baselineVersion={spine?.baselines.at(-1)?.version ?? null}
           progressHidden={!progressOpen}
           onShowProgress={toggleProgress}
-          onRunCurrentStep={currentStep && runner.state.status === "idle" ? () => void runner.run(currentStep) : undefined}
+          // Nút chạy **bước đang xem** (L9): trước đây luôn chạy `current_step` nên quay về bước cũ rồi bấm lại ra bản
+          // accept của bước sau (gặp thật 2026-09-20). Bước đã chốt / bị bỏ qua thì không chạy được — nút biến mất.
+          runnableStep={runnableStep}
+          currentStep={currentStep}
+          onRunCurrentStep={runnableStep && runner.state.status === "idle" ? () => void runner.run(runnableStep) : undefined}
+          onBackToCurrent={viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
+          stepRunningElsewhere={steps?.steps.some((s) => s.id === runnableStep && s.running) ?? false}
           busy={runner.state.busy || savingChange}
           onExportClick={() => setExportOpen((v) => !v)}
           onEnterFocus={() => setFocusMode(true)}
@@ -785,6 +794,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 flags={flags}
                 signedOff={signedOff}
                 onSelectStep={setSelectedStepId}
+                onReopenStep={(stepId) => {
+                  setSelectedStepId(stepId);
+                  void runner.run(stepId, { reopen: true });
+                }}
                 getBaseVersion={getBaseVersion}
                 onSpineChanged={() => onSpineChanged()}
               />

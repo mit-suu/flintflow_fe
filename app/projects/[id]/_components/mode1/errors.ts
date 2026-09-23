@@ -3,7 +3,7 @@
  * (đã là tiếng Việt), không nuốt lỗi.
  */
 import { ApiClientError } from "@/lib/api/client";
-import type { PathLockedMeta } from "@/types/change-request";
+import type { CrNoLocationsMeta, PathLockedMeta } from "@/types/change-request";
 
 const FRIENDLY: Record<string, string> = {
   INSUFFICIENT_CREDIT: "Không đủ credit cho bước AI này — nạp thêm rồi thử lại.",
@@ -17,6 +17,9 @@ const FRIENDLY: Record<string, string> = {
   CORE_STEP_REQUIRED: "Step này thuộc đầu mục mẫu FPT hoặc đã có dữ liệu — không tắt được.",
   STEP_NOT_IN_PLAN: "Step không có trong kế hoạch của dự án.",
   BASELINE_BLOCKED: "Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.",
+  RATE_LIMIT_EXCEEDED: "Máy chủ AI từ chối phục vụ (hết hạn mức, chưa gắn thanh toán, hoặc gọi quá nhanh). Kiểm tra tài khoản nhà cung cấp AI rồi thử lại.",
+  AI_PROVIDER_ERROR: "Máy chủ AI lỗi hoặc trả về rỗng — thử lại; còn lặp lại thì xem log máy chủ.",
+  CR_NOTHING_TO_APPROVE: 'Mọi vị trí đều là "không liên quan" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút "Sửa tay"), hoặc huỷ change request.',
 };
 
 export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): string => {
@@ -26,6 +29,15 @@ export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): s
       if (locked.length) {
         return `Phần tử đang bị change request khác giữ: ${locked.map((l) => `${l.path} (${l.cr_id})`).join(", ")}. Chờ CR đó xong hoặc huỷ rồi thử lại.`;
       }
+    }
+    if (err.code === "CR_NO_LOCATIONS") {
+      // C-3 ra 0 vị trí: mục còn trống thì không có gì để sửa — chỉ sang step thay vì để nút "Tìm vị trí" trông như hỏng
+      const empty = (err.meta as CrNoLocationsMeta | undefined)?.empty_sections ?? [];
+      if (empty.length) {
+        const steps = empty.map((s) => `"${s.title}"${s.step_id ? ` → chạy step ${s.step_id}` : ""}`).join("; ");
+        return `Không có phần tử nào để sửa — mục còn trống: ${steps}. Về workspace chạy step cho AI soạn nội dung, hoặc sửa mô tả CR cho trỏ vào phần tử cụ thể rồi làm rõ lại.`;
+      }
+      return "Không tìm được phần tử nào khớp với change request. Sửa mô tả (nêu mã hoặc tên phần tử, ví dụ UC-01, actor Learner) rồi bấm làm rõ lại.";
     }
     return FRIENDLY[err.code] ?? err.message ?? fallback;
   }

@@ -98,6 +98,8 @@ export interface StepSummary {
   regenerate_used: number;
   regenerate_limit: 3;
   accepted_at: string | null;
+  /** Step đang chạy dở ở một request khác (vd tab cũ chưa xong sau khi reload) — khoá nút chạy thay vì để nhận 409. */
+  running: boolean;
 }
 
 /** `GET /projects/:id/steps`. */
@@ -138,6 +140,8 @@ export type PipelineErrorCode =
   | "CHANGE_RANGE_INVALID"
   | "NOTHING_TO_UNDO"
   | "BASELINE_BLOCKED"
+  | "RATE_LIMIT_EXCEEDED"
+  | "AI_PROVIDER_ERROR"
   | "NOT_IMPLEMENTED";
 
 /** Giai đoạn của một lượt chạy step — nhãn ở `STAGE_ORDER` (`_components/StepProgress.tsx`). */
@@ -249,6 +253,8 @@ export type StepEventType = StepEvent["type"];
 export interface RunStepRequest {
   session_id: string;
   base_version: number;
+  /** Chạy lại step đã chốt (B7 reopen) — BE đặt lại `revision_requested` rồi chạy như thường. */
+  reopen?: boolean;
 }
 
 export interface StepAnswer {
