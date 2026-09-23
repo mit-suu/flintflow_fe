@@ -36,11 +36,11 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/projects/${P}/import`));
   });
 
-  it("mode 1 v3 (bám BPMN): import xong ⇒ không chạy step / ký v1 / waive; cột cờ có lối Tạo CR; panel xem trước ⇒ Tạo CR, không Undo/Hoà giải", async () => {
+  it("mode 1 v3 (bám BPMN): import xong ⇒ không chạy step / ký v1 / waive; cột cờ có lối Tạo CR; sửa qua chat, không Hoàn tác / viết lại mục cũ", async () => {
     await importToGapReview();
     renderWithIntl(<WorkspacePage />);
 
-    const tools = await screen.findByRole("complementary", { name: "Công cụ" });
+    const tools = await screen.findByRole("complementary", { name: "Cờ, change request & version" });
     expect(router.replace).not.toHaveBeenCalled();
     const red = await within(tools).findByRole("region", { name: "Cờ đỏ đang chặn release" });
     expect(within(red).getByRole("link", { name: "Tạo CR" }).getAttribute("href")).toContain("source=gap_report");
@@ -55,10 +55,11 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     expect(screen.queryByRole("button", { name: /^xem tại S-/ })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Hỏi đáp & lệnh sửa" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Sửa tài liệu có xem trước/ }));
-    const panel = await screen.findByRole("complementary", { name: "Change panel" });
-    expect(within(panel).getByText(/mọi thay đổi đi qua change request/)).toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: "Undo op cuối" })).not.toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: "Hoà giải một lượt" })).not.toBeInTheDocument();
+    // Sửa tài liệu đi qua ô chat (chip "Sửa tài liệu"); mode 1 không áp thẳng nên không có Hoàn tác / viết lại mục cũ
+    expect(screen.queryByRole("complementary", { name: "Change panel" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sửa tài liệu" }));
+    expect(screen.getByPlaceholderText(/Mô tả chỗ cần sửa/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hoàn tác" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Viết lại/ })).not.toBeInTheDocument();
   }, 30_000); // dựng cả workspace trên msw — chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts) // dựng cả workspace trên msw — chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts)
 });

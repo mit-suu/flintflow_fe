@@ -5,10 +5,8 @@ import Logo from "@/components/Logo";
 import IconButton from "@/components/ui/IconButton";
 import type { PhaseId } from "@/lib/constants/step-registry";
 import type { StepProgress, StepSummary } from "@/types/pipeline";
-import type { WorkingMode } from "@/types/spine";
 import PhaseNavBar, { visiblePhases } from "./PhaseNavBar";
 import StepProgressBar from "./StepProgressBar";
-import WorkingModeSelect from "./WorkingModeSelect";
 
 interface WorkspaceProgressRailProps {
   /** Ẩn rail (nút ở đầu rail); mở lại bằng nút ở header. */
@@ -23,15 +21,12 @@ interface WorkspaceProgressRailProps {
   reopenableStepIds?: ReadonlySet<string>;
   /** Điểm sẵn sàng (% section accepted) — hiển thị, không phải điều kiện chốt. */
   readinessPercent?: number;
-  workingMode: WorkingMode | null;
-  onChangeWorkingMode: (mode: WorkingMode) => void;
-  busy?: boolean;
 }
 
 /**
  * Rail tiến độ bên trái kiểu sidebar shadcn: chỉ có MỞ hoặc ẨN HẲN (không có dạng cột thu nhỏ — bước đang làm đã hiện
  * ở đầu khung chat). Giai đoạn gom theo nhóm B / S, mỗi giai đoạn gập/mở độc lập; giai đoạn đang làm mở sẵn. Đáy rail
- * là điểm sẵn sàng và cách làm việc (B-0.4).
+ * là % tài liệu đã chốt (cách AI làm việc đã chuyển về ô chat).
  */
 export default function WorkspaceProgressRail({
   onHide,
@@ -43,9 +38,6 @@ export default function WorkspaceProgressRail({
   missingStepIds,
   reopenableStepIds,
   readinessPercent,
-  workingMode,
-  onChangeWorkingMode,
-  busy = false,
 }: WorkspaceProgressRailProps) {
   // Giai đoạn đang mở danh sách bước (nhiều cái cùng lúc). `null` = chưa đụng tới ⇒ mở sẵn giai đoạn đang làm.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
@@ -60,7 +52,7 @@ export default function WorkspaceProgressRail({
   };
 
   return (
-    <nav id="workspace-progress" aria-label="Tiến độ" className="w-[264px] h-full shrink-0 bg-surface-container-lowest flex flex-col">
+    <nav id="workspace-progress" aria-label="Tiến độ" className="w-full h-full bg-surface-container-lowest flex flex-col">
       <div className="h-[58px] shrink-0 pl-5 pr-3 flex items-center justify-between">
         <Logo variant="wordmark" sizeClassName="h-5 w-auto" theme="light" href="/home" />
         <IconButton icon="sidebar" size="sm" label="Ẩn tiến độ" onClick={onHide} />
@@ -100,12 +92,11 @@ export default function WorkspaceProgressRail({
 
       <div className="ff-fade-above [--ff-fade:var(--color-surface-container-lowest)] shrink-0 bg-surface-container-lowest px-4 py-3 flex flex-col gap-2.5">
         {readinessPercent !== undefined && (
-          <div className="flex items-center justify-between text-[12px]" title="Điểm sẵn sàng: % section bắt buộc đã accepted">
-            <span className="text-on-surface-muted font-medium">Sẵn sàng</span>
-            <span className="font-bold text-on-surface tabular-nums">{readinessPercent}% accepted</span>
+          <div className="flex items-center justify-between text-[12px]" title="Phần mục bắt buộc của SRS đã được bạn duyệt xong">
+            <span className="text-on-surface-muted font-medium">Tài liệu đã chốt</span>
+            <span className="font-bold text-on-surface tabular-nums">{readinessPercent}%</span>
           </div>
         )}
-        <WorkingModeSelect value={workingMode} onChange={onChangeWorkingMode} disabled={busy} />
       </div>
     </nav>
   );

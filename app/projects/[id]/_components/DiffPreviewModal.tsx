@@ -16,6 +16,13 @@ interface DiffPreviewModalProps {
   confirmWhenInvalid?: boolean;
 }
 
+/** Nhánh xử lý của BE nói bằng lời dễ hiểu. */
+const BRANCH_LABEL: Record<NonNullable<PreviewResult["branch"]>, string> = {
+  silent: "Không ảnh hưởng mục khác",
+  dependent: "Kéo theo mục liên quan",
+  post_baseline: "Sửa sau khi đã ký bản",
+};
+
 const short = (value: unknown): string => {
   if (value === undefined) return "—";
   if (value === null) return "null";
@@ -53,7 +60,7 @@ export default function DiffPreviewModal({
           <h3 className="font-extrabold text-[15px] text-[#191817]">Xem trước thay đổi</h3>
           <div className="flex items-center gap-2">
             {preview.branch && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F2F1FB] text-[#6A62C4]">{preview.branch}</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F2F1FB] text-[#6A62C4]">{BRANCH_LABEL[preview.branch]}</span>
             )}
             <button type="button" onClick={onCancel} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
               ✕

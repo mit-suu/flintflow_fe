@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Addendum, Spine } from "@/types/spine";
 
 interface BriefSummaryCardProps {
@@ -32,7 +32,7 @@ const STAKES_LABEL: Record<string, string> = {
   regulated: "Có quản lý ngành",
 };
 
-const OTHER_KIND_LABEL: Record<string, string> = {
+export const OTHER_KIND_LABEL: Record<string, string> = {
   risk: "Rủi ro",
   assumption: "Giả định",
   open_question: "Câu hỏi mở",
@@ -57,79 +57,76 @@ export const groupByTarget = (addendum: Addendum[]): [string, Addendum[]][] => {
  *
  * Mục trống nghĩa là bước tương ứng chưa ghi op — hiện rõ chỗ thiếu thay vì im lặng lấp đầy.
  */
+/** Số mục tiêu hiện khi thu gọn — còn lại mở bằng "Xem đầy đủ". */
+const GOALS_PREVIEW = 3;
+
 export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
   const groups = useMemo(() => groupByTarget(spine.addendum), [spine.addendum]);
-  const unconfirmed = spine.assumptions.filter((a) => a.status === "unconfirmed").length;
+  const [full, setFull] = useState(false);
   const { project } = spine;
+  const goals = full ? project.goals : project.goals.slice(0, GOALS_PREVIEW);
 
   const chip = (text: string) => (
-    <span key={text} className="text-[10px] font-bold text-[#6B6862] bg-[#F5F4F1] px-1.5 py-0.5 rounded-full">
+    <span key={text} className="text-[10.5px] font-semibold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">
       {text}
     </span>
   );
+  const missing = (label: string) => <p className="text-[11.5px] text-on-surface-muted italic">Chưa có {label}.</p>;
+  const label = (text: string) => <h6 className="text-[11px] font-semibold text-on-surface-muted">{text}</h6>;
 
-  const missing = (label: string) => (
-    <p className="text-[11px] text-[#B45309] italic">Chưa có {label} — quay lại bước tương ứng để ghi.</p>
-  );
-
+  // Rủi ro & câu hỏi mở nằm ở tab "Chờ bạn quyết" — đây chỉ là những gì đã thống nhất
   return (
-    <div className="flex flex-col gap-3 text-[#191817]">
+    <div className="flex flex-col gap-2.5 text-on-surface">
       <div className="flex flex-wrap gap-1.5">
         {project.form_factor && chip(FORM_FACTOR_LABEL[project.form_factor] ?? project.form_factor)}
         {project.stakes && chip(STAKES_LABEL[project.stakes] ?? project.stakes)}
-        {project.working_mode && chip(project.working_mode === "fast" ? "Chế độ nhanh" : "Chế độ kèm cặp")}
-        {unconfirmed > 0 && chip(`${unconfirmed} giả định chờ xác nhận`)}
       </div>
 
-      <section className="flex flex-col gap-1">
-        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Tầm nhìn</h5>
-        {project.vision ? <p className="text-[12px]">{project.vision}</p> : missing("tầm nhìn (B-1.1)")}
+      <section className="flex flex-col gap-0.5">
+        {label("Tầm nhìn")}
+        {project.vision ? (
+          <p className={`text-[12px] leading-relaxed ${full ? "" : "line-clamp-3"}`}>{project.vision}</p>
+        ) : (
+          missing("tầm nhìn")
+        )}
       </section>
 
-      <section className="flex flex-col gap-1">
-        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Mục tiêu</h5>
+      <section className="flex flex-col gap-0.5">
+        {label(`Mục tiêu (${project.goals.length})`)}
         {project.goals.length > 0 ? (
-          <ul className="list-disc pl-4 text-[12px] space-y-0.5">
-            {project.goals.map((goal) => (
+          <ul className="list-disc pl-4 text-[12px] leading-relaxed space-y-0.5">
+            {goals.map((goal) => (
               <li key={goal}>{goal}</li>
             ))}
           </ul>
         ) : (
-          missing("mục tiêu (B-1.1)")
+          missing("mục tiêu")
         )}
       </section>
 
-      <section className="flex flex-col gap-1.5">
-        <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Ghi chú theo mục tài liệu</h5>
-        {groups.length === 0
-          ? missing("ghi chú nào (B-0.1 → B-1.6)")
-          : groups.map(([target, entries]) => (
-              <div key={target} className="flex flex-col gap-0.5">
-                <span className="text-[10.5px] font-bold text-[#6B6862]">{SECTION_LABEL[target] ?? target}</span>
-                <ul className="list-disc pl-4 text-[11.5px] space-y-0.5">
-                  {entries.map((entry) => (
-                    <li key={entry.id}>
-                      <span className="font-bold">{entry.topic}: </span>
-                      {entry.content}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-      </section>
-
-      {spine.other_requirements.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <h5 className="text-[11px] font-extrabold text-[#8A867E] uppercase tracking-wide">Rủi ro & câu hỏi mở</h5>
-          <ul className="list-disc pl-4 text-[11.5px] space-y-0.5">
-            {spine.other_requirements.map((item) => (
-              <li key={item.id}>
-                <span className="font-bold">{OTHER_KIND_LABEL[item.kind] ?? item.kind}: </span>
-                {item.statement}
-              </li>
-            ))}
-          </ul>
+      {full && groups.length > 0 && (
+        <section className="flex flex-col gap-1.5">
+          {label("Ghi chú theo mục tài liệu")}
+          {groups.map(([target, entries]) => (
+            <div key={target} className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold text-on-surface-variant">{SECTION_LABEL[target] ?? target}</span>
+              <ul className="list-disc pl-4 text-[11.5px] leading-relaxed space-y-0.5">
+                {entries.map((entry) => (
+                  <li key={entry.id}>
+                    <span className="font-semibold">{entry.topic}: </span>
+                    {entry.content}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
+      )}
+
+      {(project.goals.length > GOALS_PREVIEW || groups.length > 0 || (project.vision?.length ?? 0) > 180) && (
+        <button type="button" onClick={() => setFull((v) => !v)} className="self-start text-[11.5px] font-semibold text-primary hover:underline cursor-pointer">
+          {full ? "Thu gọn" : "Xem đầy đủ"}
+        </button>
       )}
     </div>
   );

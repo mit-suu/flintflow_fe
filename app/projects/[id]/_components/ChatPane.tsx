@@ -26,13 +26,22 @@ interface ChatPaneProps {
   isStreaming?: boolean;
   /** Thẻ của pipeline (nhật ký step, cổng chốt) hiển thị sau tin nhắn. */
   children?: ReactNode;
-  /** Thay ô nhập chat, ví dụ ElicitPanel khi step chờ câu trả lời. */
-  footer?: ReactNode;
+  /** Thẻ câu hỏi đặt ngay trên ô nhập (ô nhập vẫn giữ), ví dụ ElicitPanel khi step chờ câu trả lời. */
+  questionCard?: ReactNode;
+  /** Có ⇒ gõ ở ô nhập là trả lời thẳng thẻ câu hỏi ở trên thay vì gửi chat thường. */
+  onDirectReply?: (text: string) => void;
   /**
-   * Session hiện tại không phải pipeline session (`is_pipeline === false`) — ô lệnh sửa chuyển
-   * hướng vào Change panel (UC 6.8) thay vì gửi chat thường.
+   * Nhận lệnh sửa tài liệu (UC 6.8) — gửi khi chip "Sửa tài liệu" đang bật, hoặc khi session hiện tại không phải
+   * pipeline session (`is_pipeline === false`: ô chat khi đó chỉ nhận lệnh sửa).
    */
   onEditInstruction?: (instruction: string) => void;
+  /** Chip "Sửa tài liệu" trên ô nhập. */
+  editMode?: boolean;
+  onToggleEditMode?: () => void;
+  /** Lý do chưa sửa được lúc này (vd. step đang chạy) — chip bị khoá. */
+  editDisabledReason?: string | null;
+  /** Nút thêm trên thanh công cụ ô nhập (menu cách AI làm việc). */
+  inputTools?: ReactNode;
   /** Tiêu đề pane — mặc định của workspace pipeline (mode 2). */
   title?: string;
   /** Thay khung gợi ý khi chưa có tin nhắn (vd mode 1: chat chỉ để hỏi đáp). */
@@ -41,6 +50,8 @@ interface ChatPaneProps {
   inputPlaceholder?: string;
   /** Đầu thanh tiêu đề, trước tên pane (vd. nút lịch sử phiên chat). */
   headerStart?: ReactNode;
+  /** Số dư credit — hiện trong ô nhập. */
+  creditBalance?: number | null;
   /** Khung sát mép trái màn hình (rail tiến độ ẩn / mở rộng trang) ⇒ chỉ bo góc bên phải; còn lại bo hai góc trên. */
   flushLeft?: boolean;
 }
@@ -98,13 +109,19 @@ export default function ChatPane({
   streamingMessage,
   isStreaming = false,
   children,
-  footer,
+  questionCard,
+  onDirectReply,
   onEditInstruction,
   title = "Hội thoại & Duyệt bước",
   emptyState,
   inputPlaceholder,
   headerStart,
   flushLeft = false,
+  creditBalance = null,
+  editMode = false,
+  onToggleEditMode,
+  editDisabledReason = null,
+  inputTools,
 }: ChatPaneProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Ô nhập nổi đè lên đáy danh sách tin nhắn ⇒ đo chiều cao của nó để chừa chỗ cho tin nhắn cuối
@@ -132,18 +149,18 @@ export default function ChatPane({
   const last = messages[messages.length - 1];
   const questionKey = last?.role === "ai" ? `${messages.length}:${last.content}` : null;
   const latestQuestions = useMemo(() => (last?.role === "ai" ? parseQuestions(last.content) : []), [last]);
-  const showQuestions = !footer && latestQuestions.length > 0 && dismissedKey !== questionKey;
+  const showQuestions = !questionCard && latestQuestions.length > 0 && dismissedKey !== questionKey;
 
   // Không có session ⇒ coi như pipeline (không đủ căn cứ chuyển hướng); session._id vắng field
   // mới thì mặc định pipeline để không phá luồng chat hiện có.
   const isNonPipelineSession = session?.is_pipeline === false;
-  const redirectToChangePanel = isNonPipelineSession && Boolean(onEditInstruction);
+  const sendAsEdit = (editMode || isNonPipelineSession) && Boolean(onEditInstruction);
 
   return (
     <section
       id="flintflow-chat-pane"
       style={width ? { width: `${width}px` } : undefined}
-      className={`${width ? "" : "w-[460px]"} flex-none bg-surface ${flushLeft ? "rounded-r-dialog" : "rounded-t-dialog"} flex flex-col overflow-hidden`}
+      className={`${width ? "" : "w-[460px]"} shrink min-w-[320px] bg-surface ${flushLeft ? "rounded-r-dialog" : "rounded-t-dialog"} flex flex-col overflow-hidden`}
     >
       <div className="ff-fade-below px-3 bg-surface flex justify-between items-center gap-2 shrink-0 h-12">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -193,9 +210,9 @@ export default function ChatPane({
           <ChatBubble message={{ role: "ai", content: streamingMessage ?? "", createdAt: new Date().toISOString() }} isStreaming />
         )}
 
-        {redirectToChangePanel && (
+        {isNonPipelineSession && onEditInstruction && (
           <div className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[14px] p-3 text-[12px] text-[#554DB0]">
-            Phiên này không phải phiên pipeline — lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.
+            Phiên này không phải phiên pipeline — gõ bên dưới là lệnh sửa tài liệu, xem trước rồi mới áp dụng.
           </div>
         )}
 
@@ -203,21 +220,24 @@ export default function ChatPane({
       </div>
 
       <div ref={footerRef} className="absolute inset-x-0 bottom-0 z-10">
-      {footer ??
-        (showQuestions ? (
-          <QuestionStepperInput
-            key={questionKey ?? "questions"}
-            questions={latestQuestions}
-            onSendAnswers={(answer) => onSendMessage(answer)}
-            onDismiss={() => setDismissedKey(questionKey)}
-            sending={sending}
-          />
-        ) : (
+          {questionCard ?? (showQuestions && (
+            <QuestionStepperInput
+              key={questionKey ?? "questions"}
+              questions={latestQuestions}
+              onSendAnswers={(answer) => onSendMessage(answer)}
+              onDismiss={() => setDismissedKey(questionKey)}
+              sending={sending}
+            />
+          ))}
+          {/* Ô chat luôn hiện — kể cả khi có thẻ câu hỏi, để trả lời thẳng bằng lời của mình */}
           <ChatInput
             inputMessage={inputMessage}
             setInputMessage={setInputMessage}
             onSendMessage={() => {
-              if (redirectToChangePanel && onEditInstruction) {
+              if (onDirectReply && pendingAttachments.length === 0) {
+                onDirectReply(inputMessage.trim());
+                setInputMessage("");
+              } else if (sendAsEdit && onEditInstruction) {
                 onEditInstruction(inputMessage);
                 setInputMessage("");
               } else {
@@ -228,10 +248,22 @@ export default function ChatPane({
             pendingAttachments={pendingAttachments}
             onSelectAttachment={onSelectAttachment}
             onRemoveAttachment={onRemoveAttachment}
-            actionType="chat"
-            placeholder={redirectToChangePanel ? "Nhập lệnh sửa — gửi vào Change panel…" : inputPlaceholder}
+            compact={Boolean(questionCard) || showQuestions}
+            creditBalance={creditBalance}
+            actionType={sendAsEdit ? "change_instruction" : "chat"}
+            // Session không pipeline luôn là lệnh sửa ⇒ không cần chip
+            onToggleEditMode={isNonPipelineSession ? undefined : onToggleEditMode}
+            editMode={sendAsEdit}
+            editDisabledReason={editDisabledReason}
+            toolbarExtra={inputTools}
+            placeholder={
+              questionCard || showQuestions
+                ? "Hoặc trả lời trực tiếp…"
+                : sendAsEdit
+                  ? "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator"
+                  : inputPlaceholder
+            }
           />
-        ))}
       </div>
       </div>
     </section>
