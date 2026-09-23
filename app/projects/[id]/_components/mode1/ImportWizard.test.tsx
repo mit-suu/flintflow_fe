@@ -122,4 +122,11 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     expect(await screen.findByText(/lớn hơn 10MB/)).toBeInTheDocument();
     expect(mode1State.mode1State.importDoc).toBeNull();
   });
+
+  it("bước upload báo trước: in lại theo cấu trúc file gốc, không giữ định dạng Word, file gốc tải lại được", async () => {
+    renderWizard();
+    await screen.findByTestId("docx-input");
+    expect(screen.getByText("không giữ định dạng Word")).toBeInTheDocument();
+    expect(screen.getByText(/File gốc luôn tải lại được/)).toBeInTheDocument();
+  });
 });
