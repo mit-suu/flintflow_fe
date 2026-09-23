@@ -65,6 +65,9 @@ export interface PreviewResult {
   impact?: Impact;
   clarification?: string;
   preview_id?: string;
+  notes?: string;
+  /** Hoà giải: không có gì cần đổi — xác nhận nguyên trạng để gỡ cờ "đã cũ" (BUG-16). */
+  no_change?: boolean;
 }
 
 /** `POST /projects/:id/changes`, `/undo`, `/reconcile`. */
@@ -137,17 +140,109 @@ export type PipelineErrorCode =
   | "BASELINE_BLOCKED"
   | "NOT_IMPLEMENTED";
 
+/** Giai đoạn của một lượt chạy step — nhãn ở `STAGE_ORDER` (`_components/StepProgress.tsx`). */
+export type RunStage = "intake" | "ask" | "draft" | "check" | "render" | "gate";
+
+/** Một dòng tóm tắt thay đổi đọc được cho người (WP-5), dùng ở "Vừa ghi" và ở gate. */
+export interface ChangeSummary {
+  kind: "add" | "update" | "remove";
+  collection: string;
+  id: string | null;
+  title_vi: string;
+  section_id?: string | null;
+}
+
+export interface AssumptionBrief {
+  id: string;
+  text: string;
+  conflict?: string | null;
+}
+
+/** Bảng thu gọn hiện ngay ở gate (MoSCoW ở S-9.4, ma trận quyền ở S-4.3) — BUG-20. */
+export interface GateTable {
+  title_vi: string;
+  columns: string[];
+  rows: string[][];
+  truncated: number;
+}
+
+export interface GateReadyEvent {
+  type: "gate_ready";
+  step_id: string;
+  actions: GateAction[];
+  regenerate_used: number;
+  calls_used: number;
+  summary?: ChangeSummary[];
+  new_assumptions?: AssumptionBrief[];
+  flags?: { red: number; yellow: number; red_delta: number; yellow_delta: number };
+  duration_ms?: number;
+  credits_used?: number;
+  doc_progress?: { before: number; after: number };
+  table?: GateTable;
+  no_change_reason?: string;
+}
+
 /** Sự kiện SSE của `POST /projects/:id/steps/:stepId/run` (`event: <type>` + `data: <JSON>`). */
 export type StepEvent =
   | { type: "intake"; step_id: string; phase: string; empty_fields: string[] }
   | { type: "elicit"; step_id: string; delta: string }
   | { type: "answer_needed"; step_id: string; questions: Question[] }
+  | { type: "answer_received"; step_id: string; count: number }
   | { type: "draft"; step_id: string; attempt: number }
-  | { type: "ops_applied"; step_id: string; txn: string; spine_version: number; changes: ChangeDiff[] }
+  | { type: "draft_retry"; step_id: string; attempt: number; max: number; reason_vi: string }
+  | { type: "stage"; step_id: string; stage: RunStage; label_vi: string; detail_vi?: string; batch?: { i: number; n: number }; est_ms?: number }
+  | { type: "heartbeat"; step_id: string; stage: RunStage; elapsed_ms: number }
+  | {
+      type: "ops_applied";
+      step_id: string;
+      txn: string;
+      spine_version: number;
+      changes: ChangeDiff[];
+      summary?: ChangeSummary[];
+    }
   | { type: "render"; step_id: string; diagram_id: string; render_status: "ok" | "error"; error?: string }
-  | { type: "flags"; step_id: string; red_open: number; yellow_open: number }
-  | { type: "gate_ready"; step_id: string; actions: GateAction[]; regenerate_used: number; calls_used: number }
+  | {
+      type: "flags";
+      step_id: string;
+      red_open: number;
+      yellow_open: number;
+      red_delta?: number;
+      yellow_delta?: number;
+      new_assumptions?: AssumptionBrief[];
+    }
+  | GateReadyEvent
+  | { type: "auto_accepted"; step_id: string; reason_vi: string }
+  | { type: "phase_progress"; step_id: string; phase: string; step_index: number; step_total: number; needs_user: boolean }
+  | {
+      type: "phase_gate";
+      step_id: string;
+      phase: string;
+      reason_vi: string;
+      /** Tóm tắt của CẢ giai đoạn, gồm cả bước đã tự Accept. */
+      summary: ChangeSummary[];
+      new_assumptions: AssumptionBrief[];
+      steps: { step_id: string; label_vi: string; auto_accepted: boolean }[];
+      flags?: { red: number; yellow: number; red_delta: number; yellow_delta: number };
+    }
   | { type: "error"; step_id: string; code: PipelineErrorCode; message: string; retryable: boolean };
+
+/** `GET /projects/:id/steps/:stepId/run-state` và `GET /projects/:id/run-state/active`. */
+export interface RunState {
+  step_id: string;
+  run_id: string;
+  status: "running" | "waiting_answer" | "gate" | "done" | "interrupted" | "cancelled";
+  stage: RunStage;
+  detail_vi: string | null;
+  batch: { i: number; n: number } | null;
+  started_at: string;
+  last_event_at: string;
+  /** Lượt còn sống (khoá chưa hết hạn). `false` ⇒ lượt đã chết giữa chừng, phải chạy lại. */
+  alive: boolean;
+  questions: Question[] | null;
+  gate_payload: GateReadyEvent | null;
+  events: StepEvent[];
+  error: { code: string; message: string } | null;
+}
 
 export type StepEventType = StepEvent["type"];
 

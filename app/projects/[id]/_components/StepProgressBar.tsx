@@ -14,6 +14,11 @@ interface StepProgressBarProps {
   missingStepIds?: ReadonlySet<string>;
   /** Chỉ hiện bước của một phase; bỏ trống ⇒ mọi phase, gom theo nhóm. */
   phase?: string | null;
+  /**
+   * Bước mở lại được dù chưa tới lượt — vòng S-5 của màn đang để trống (BUG-03). Không có nó thì màn bị
+   * bỏ qua là bỏ qua vĩnh viễn: panel khoá cứng cả năm bước và tài liệu chỉ còn cái tiêu đề.
+   */
+  reopenableStepIds?: ReadonlySet<string>;
 }
 
 /**
@@ -41,7 +46,15 @@ const STATUS_HINT: Record<StepSummary["status"], string> = {
  * Step đã accepted bấm để xem; step hiện tại / cần duyệt lại bấm để chạy. % chỉ hiện sau khi S-4.1 chốt N.
  * Danh sách step là của BE (`GET /steps`) — project mode 1 chỉ có step áp dụng cho template, phase rỗng bị ẩn.
  */
-export default function StepProgressBar({ steps, progress, selectedStepId, onSelectStep, missingStepIds, phase = null }: StepProgressBarProps) {
+export default function StepProgressBar({
+  steps,
+  progress,
+  selectedStepId,
+  onSelectStep,
+  missingStepIds,
+  phase = null,
+  reopenableStepIds,
+}: StepProgressBarProps) {
   const current = progress?.current_step ?? null;
   const isMissing = (step: StepSummary) => !!missingStepIds?.has(step.id) && step.status !== "accepted";
   const missingCount = steps.filter(isMissing).length;
@@ -75,7 +88,10 @@ export default function StepProgressBar({ steps, progress, selectedStepId, onSel
           <ol className="flex flex-col gap-0.5">
             {group.items.map((step) => {
               const isCurrent = step.id === current;
-              const clickable = step.status === "accepted" || isCurrent || step.status === "revision_requested";
+              // BUG-03: vòng S-5 của màn bị để trống nằm ngoài "tới lượt", nhưng user phải mở lại được —
+              // trước đây panel khoá cứng 5 bước của màn đó và không còn đường nào quay lại.
+              const reopenable = reopenableStepIds?.has(step.id) ?? false;
+              const clickable = step.status === "accepted" || isCurrent || step.status === "revision_requested" || reopenable;
               const missing = isMissing(step);
               const cell = missing ? "text-error hover:bg-surface-container" : isCurrent ? activeCellOf(step.phase) : `${CELL[step.status]} ${step.status === "accepted" ? doneTextOf(step.phase) : ""}`;
               return (
@@ -87,7 +103,9 @@ export default function StepProgressBar({ steps, progress, selectedStepId, onSel
                     aria-label={`${step.id} ${stepLabel(step.id)}${missing ? " (Thiếu)" : ""}`}
                     aria-current={isCurrent ? "step" : undefined}
                     data-missing={missing || undefined}
-                    title={`${step.id} · ${stepLabel(step.id)} — ${missing ? "Thiếu: đầu mục FPT file không có" : isCurrent ? "đang làm" : STATUS_HINT[step.status]}`}
+                    title={`${step.id} · ${stepLabel(step.id)} — ${
+                      missing ? "Thiếu: đầu mục FPT file không có" : isCurrent ? "đang làm" : reopenable ? "màn đang để trống — bấm để mở lại" : STATUS_HINT[step.status]
+                    }`}
                     className={`w-full min-h-8 py-1.5 px-2.5 rounded-control text-[12.5px] flex items-center gap-2 text-left transition-colors duration-150 ${cell} ${
                       selectedStepId === step.id && !isCurrent ? "bg-surface-container-high" : ""
                     } ${clickable ? "cursor-pointer" : "cursor-not-allowed"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
