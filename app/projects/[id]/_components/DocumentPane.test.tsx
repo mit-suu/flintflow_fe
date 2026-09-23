@@ -3,7 +3,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import DocumentPane from "./DocumentPane";
+import DocumentPane, { followsHeading } from "./DocumentPane";
 import * as exportApi from "@/lib/api/export";
 import { ApiClientError } from "@/lib/api/client";
 import type { RenderedDocument } from "@/types/document";
@@ -202,5 +202,18 @@ describe("DocumentPane", () => {
     expect(appendix.querySelector("h5")?.textContent).toBe("Phụ lục A Biên bản họp");
     screen.getAllByRole("button", { name: "Mở step" })[0].click();
     expect(onSelectStep).toHaveBeenCalledWith("S-7.1");
+  });
+});
+
+describe("followsHeading", () => {
+  it("bảng đầu section hoặc ngay sau heading con thì cách tiêu đề; sau đoạn văn thì không", () => {
+    const blocks = [
+      { type: "table" as const, header: [], rows: [] },
+      { type: "heading" as const, level: 3, text: "Sub" },
+      { type: "table" as const, header: [], rows: [] },
+      { type: "paragraph" as const, runs: [{ text: "p" }] },
+      { type: "table" as const, header: [], rows: [] },
+    ];
+    expect(blocks.map((_, i) => followsHeading(blocks, i))).toEqual([true, false, true, false, false]);
   });
 });

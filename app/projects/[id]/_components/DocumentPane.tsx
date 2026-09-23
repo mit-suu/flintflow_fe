@@ -99,8 +99,11 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
 
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 
+/** Bảng đứng ngay dưới tiêu đề (tiêu đề section hoặc heading con) — cần khoảng trống để không dính sát tiêu đề. */
+export const followsHeading = (blocks: Block[], index: number): boolean => index === 0 || blocks[index - 1]?.type === "heading";
+
 /** Dùng lại ở `view/page.tsx` (read-only) để không lặp logic render Block. */
-export function BlockView({ block, projectId }: { block: Block; projectId: string }) {
+export function BlockView({ block, projectId, afterHeading = false }: { block: Block; projectId: string; afterHeading?: boolean }) {
   switch (block.type) {
     case "heading": {
       const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
@@ -134,7 +137,7 @@ export function BlockView({ block, projectId }: { block: Block; projectId: strin
       );
     case "table":
       return (
-        <div className="overflow-x-auto mb-2">
+        <div className={`overflow-x-auto mb-2 ${afterHeading ? "mt-2" : ""}`}>
           <table className="w-full border-collapse text-[11.5px]">
             <thead>
               <tr>
@@ -271,7 +274,9 @@ function SectionView({
         </div>
       </div>
       {section.blocks.length > 0 ? (
-        section.blocks.map((block, i) => <BlockView key={i} block={block} projectId={projectId} />)
+        section.blocks.map((block, i) => (
+          <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+        ))
       ) : (
         <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />
       )}
