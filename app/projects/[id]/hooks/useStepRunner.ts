@@ -283,6 +283,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  /** Giai đoạn đang chạy liền: còn giá trị ⇒ Accept xong là chạy tiếp phần còn lại, không bắt bấm lại. */
+  const phaseRef = useRef<string | null>(null);
 
   // Rời trang / đổi project: đóng luồng SSE đang mở
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -319,6 +321,58 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       } catch (err) {
         if (!controller.signal.aborted) dispatch({ type: "failed", ...toFailure(err) });
       } finally {
+        // Bước lỗi giữa chừng vẫn có thể đã ghi vài op ⇒ `spine_version` đã đổi. Không tải lại ở đây thì
+        // nút "Thử lại" gửi `base_version` cũ và nhận 409 ngay, đúng vòng lặp user gặp ở lượt test.
+        onSpineChanged();
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    },
+    [projectId, sessionId, getBaseVersion, onSpineChanged]
+  );
+
+  /**
+   * Chạy liền cả giai đoạn (R2): một luồng, bước yên lặng tự Accept, dừng khi cần bạn. Giữ nguyên mọi
+   * sự kiện của từng bước nên màn hình tiến trình không phải đổi gì.
+   */
+  const runWholePhase = useCallback(
+    async (phase: string) => {
+      const baseVersion = getBaseVersion();
+      if (!sessionId || baseVersion === null) {
+        dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
+        return;
+      }
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      phaseRef.current = phase;
+      dispatch({ type: "startPhase", phase });
+
+      // Chuỗi dừng ở một cổng chốt ⇒ giữ `phaseRef` để Accept xong chạy tiếp. Chuỗi chạy hết giai đoạn
+      // mà không dừng ⇒ quên giai đoạn đi, nếu không Accept của bước lẻ sau đó lại khởi động chuỗi mới.
+      let stoppedAtGate = false;
+      let failed = false;
+      try {
+        await runPhase(projectId, phase, { session_id: sessionId, base_version: baseVersion }, {
+          signal: controller.signal,
+          onEvent: (event) => {
+            if (controller.signal.aborted) return;
+            if (event.type === "phase_progress" || event.type === "auto_accepted" || event.type === "phase_gate") stepRef.current = event.step_id;
+            else if (event.step_id !== stepRef.current && event.type !== "error") stepRef.current = event.step_id;
+            dispatch({ type: "event", event, at: Date.now() });
+            if (event.type === "ops_applied") onSpineChanged(event.spine_version);
+            if (event.type === "gate_ready" || event.type === "auto_accepted") onSpineChanged();
+            if (event.type === "gate_ready" || event.type === "phase_gate") stoppedAtGate = true;
+          },
+        });
+      } catch (err) {
+        failed = true;
+        if (!controller.signal.aborted) dispatch({ type: "failed", ...toFailure(err) });
+      } finally {
+        if (!stoppedAtGate) phaseRef.current = null;
+        // Giai đoạn đã xong: luồng đóng mà không có cổng chốt nào. Không trả về "rảnh" ở đây thì màn hình
+        // treo ở trạng thái đang chạy — không thẻ tiến trình, không thẻ "Bước này sẽ…", không nút nào.
+        if (!stoppedAtGate && !failed && !controller.signal.aborted) dispatch({ type: "reset" });
+        onSpineChanged();
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
@@ -356,6 +410,11 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (res.data) onGateDone?.(res.data);
         if (action === "regenerate" || action === "revision") {
           await run(stepId);
+        } else if (phaseRef.current) {
+          // Đang chạy liền cả giai đoạn: duyệt xong là đi tiếp ngay. Không có nhánh này thì "Chạy cả giai
+          // đoạn" chỉ tiết kiệm được tới câu hỏi đầu tiên, user lại phải bấm chạy cho từng bước còn lại.
+          dispatch({ type: "reset" });
+          await runWholePhase(phaseRef.current);
         } else {
           dispatch({ type: "reset" });
         }
@@ -365,7 +424,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         dispatch({ type: "failed", ...toFailure(err) });
       }
     },
-    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, run]
+    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, run, runWholePhase]
   );
 
   /** Huỷ lượt đang chạy: BE nhả khoá và abort request tới model; FE đóng stream (BUG-05). */
@@ -379,6 +438,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       // Huỷ thất bại thì khoá vẫn tự hết hạn — không chặn user
     }
     abortRef.current?.abort();
+    phaseRef.current = null;
     dispatch({ type: "reset" });
   }, [projectId, state.stepId]);
 
@@ -402,45 +462,9 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     [projectId]
   );
 
-  /**
-   * Chạy liền cả giai đoạn (R2): một luồng, bước yên lặng tự Accept, dừng khi cần bạn. Giữ nguyên mọi
-   * sự kiện của từng bước nên màn hình tiến trình không phải đổi gì.
-   */
-  const runWholePhase = useCallback(
-    async (phase: string) => {
-      const baseVersion = getBaseVersion();
-      if (!sessionId || baseVersion === null) {
-        dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
-        return;
-      }
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      dispatch({ type: "startPhase", phase });
-
-      try {
-        await runPhase(projectId, phase, { session_id: sessionId, base_version: baseVersion }, {
-          signal: controller.signal,
-          onEvent: (event) => {
-            if (controller.signal.aborted) return;
-            if (event.type === "phase_progress" || event.type === "auto_accepted" || event.type === "phase_gate") stepRef.current = event.step_id;
-            else if (event.step_id !== stepRef.current && event.type !== "error") stepRef.current = event.step_id;
-            dispatch({ type: "event", event, at: Date.now() });
-            if (event.type === "ops_applied") onSpineChanged(event.spine_version);
-            if (event.type === "gate_ready" || event.type === "auto_accepted") onSpineChanged();
-          },
-        });
-      } catch (err) {
-        if (!controller.signal.aborted) dispatch({ type: "failed", ...toFailure(err) });
-      } finally {
-        if (abortRef.current === controller) abortRef.current = null;
-      }
-    },
-    [projectId, sessionId, getBaseVersion, onSpineChanged]
-  );
-
   const reset = useCallback(() => {
     abortRef.current?.abort();
+    phaseRef.current = null;
     dispatch({ type: "reset" });
   }, []);
 
