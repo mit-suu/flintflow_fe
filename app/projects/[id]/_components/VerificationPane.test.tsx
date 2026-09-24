@@ -32,24 +32,28 @@ const baseProps = {
 };
 
 describe("VerificationPane", () => {
-  it("hiện readiness summary theo format '% accepted · N chờ duyệt lại · N cờ đỏ'", () => {
-    renderWithIntl(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
+  it("tiêu đề dễ hiểu; tóm tắt đếm vấn đề từ danh sách cờ, không từ % accepted", () => {
+    const fix: Flag = { ...redFlag, id: "FL03", rule_id: "nfr_missing_number", message: "Chưa có NFR reliability nào" };
+    const { container } = renderWithIntl(
+      <VerificationPane {...baseProps} flags={[fix, redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />
+    );
 
-    expect(screen.getByText("72% accepted")).toBeInTheDocument();
-    expect(screen.getByText("4 chờ duyệt lại")).toBeInTheDocument();
-    expect(screen.getByText("2 cờ đỏ")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Kiểm tra tài liệu" })).toBeInTheDocument();
+    // array_empty = mục chờ bước sau, không phải vấn đề
+    expect(container.textContent).toContain("1 vấn đề cần bạn xử lý");
+    expect(container.textContent).toContain("1 mục chờ bước sau");
+    expect(screen.queryByText("72% accepted")).toBeNull();
   });
 
-  it("hiện cờ từ props (page.tsx nâng useFlags lên); không cho waive rule array_empty", () => {
+  it("mục trống vì bước chưa chạy nằm ở nhóm Sẽ điền ở bước sau, không có nút Bỏ qua", () => {
     renderWithIntl(<VerificationPane {...baseProps} flags={[redFlag]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
-    expect(screen.getByText("Actors đang rỗng")).toBeInTheDocument();
-    expect(screen.getByText("array_empty")).toBeInTheDocument();
-    expect(screen.getByText("Không thể waive")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Waive" })).not.toBeInTheDocument();
+    expect(screen.getByText("Sẽ điền ở bước sau")).toBeInTheDocument();
+    expect(screen.queryByText("array_empty")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
   });
 
-  it("cờ waive được thì có nút Waive", () => {
+  it("vấn đề bỏ qua được thì có nút Bỏ qua", () => {
     renderWithIntl(
       <VerificationPane
         {...baseProps}
@@ -60,20 +64,20 @@ describe("VerificationPane", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Waive" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bỏ qua" })).toBeInTheDocument();
   });
 
   it("không còn cờ mở thì hiện thông báo trống", () => {
     renderWithIntl(<VerificationPane {...baseProps} flags={[]} flagsLoading={false} flagsError={null} flagsBusy={false} />);
 
-    expect(screen.getByText("Không có cờ nào đang mở.")).toBeInTheDocument();
+    expect(screen.getByText("Không còn vấn đề nào chặn việc chốt bản.")).toBeInTheDocument();
   });
 
   it("flagsLoading = true hiện spinner, không render FlagsPanel", () => {
     renderWithIntl(<VerificationPane {...baseProps} flags={[]} flagsLoading={true} flagsError={null} flagsBusy={false} />);
 
-    expect(screen.getByText("Đang tải danh sách cờ…")).toBeInTheDocument();
-    expect(screen.queryByText("Không có cờ nào đang mở.")).not.toBeInTheDocument();
+    expect(screen.getByText("Đang tải danh sách vấn đề…")).toBeInTheDocument();
+    expect(screen.queryByText("Không còn vấn đề nào chặn việc chốt bản.")).not.toBeInTheDocument();
   });
 
   it("không còn chuỗi demo cũ (Sinh viên & Tài xế, 84%) trong VerificationPane thật", () => {

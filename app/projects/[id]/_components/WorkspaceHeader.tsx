@@ -32,6 +32,10 @@ interface WorkspaceHeaderProps {
   onExportClick?: () => void;
   /** Mở rộng trang: ẩn header và khối tiến độ. */
   onEnterFocus?: () => void;
+  /** Mở/đóng panel Công cụ (thuật ngữ, đã chốt, hàng đợi màn, lịch sử sửa…) — thay rail icon bên phải cũ. */
+  onToolsClick?: () => void;
+  toolsActive?: boolean;
+  toolsLabel?: string;
   onLogout: () => void;
 }
 
@@ -53,6 +57,9 @@ export default function WorkspaceHeader({
   busy = false,
   onExportClick,
   onEnterFocus,
+  onToolsClick,
+  toolsActive = false,
+  toolsLabel = "Công cụ",
   onLogout,
 }: WorkspaceHeaderProps) {
   return (
@@ -105,6 +112,19 @@ export default function WorkspaceHeader({
           >
             <span className="hidden sm:inline">{stepRunningElsewhere ? "Đang chạy…" : runnableStep ? `Chạy ${runnableStep}` : "Chạy bước này"}</span>
             <span className="sm:hidden">Chạy</span>
+          </Button>
+        )}
+        {onToolsClick && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="folder"
+            onClick={onToolsClick}
+            aria-pressed={toolsActive}
+            title={toolsLabel}
+            className={`shrink-0 ${toolsActive ? "bg-primary-soft text-primary-hover" : ""}`}
+          >
+            <span className="hidden md:inline">{toolsLabel === "Hồ sơ dự án" ? "Hồ sơ" : "Công cụ"}</span>
           </Button>
         )}
         <Button size="sm" variant="ghost" icon="export" onClick={onExportClick} title="Hoàn tất và xuất tài liệu SRS" className="shrink-0">
