@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import type { PreviewResult } from "@/types/pipeline";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
   busy?: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  /** `reason` chỉ có khi nhánh là `post_baseline` — BE bắt buộc, vào §I Record of Changes. */
+  onConfirm: (reason?: string) => void;
 }
 
 const short = (value: unknown): string => {
@@ -19,11 +21,15 @@ const short = (value: unknown): string => {
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
 export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm }: DiffPreviewModalProps) {
+  const [reason, setReason] = useState("");
+  // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
+  // để user bấm Xác nhận rồi ăn lỗi khó hiểu.
+  const needsReason = preview.branch === "post_baseline";
   const hasViolations = preview.violations.length > 0;
   // BUG-27: "Không có thay đổi nào" mà vẫn có nút Xác nhận là mời user bấm vào chỗ không làm gì.
   // Ngoại lệ: lượt hoà giải trả `no_change` — ở đó xác nhận CÓ nghĩa ("nội dung vẫn đúng", gỡ cờ).
   const empty = preview.changes.length === 0 && !preview.no_change;
-  const canConfirm = preview.ok && !hasViolations && !empty && Boolean(preview.preview_id) && !busy;
+  const canConfirm = preview.ok && !hasViolations && !empty && Boolean(preview.preview_id) && !busy && (!needsReason || reason.trim().length > 0);
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -111,6 +117,23 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
           </div>
         )}
 
+        {needsReason && !empty && (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="change-reason" className="text-[11px] font-extrabold text-[#8A867E] tracking-wider uppercase">
+              Lý do thay đổi (bắt buộc sau baseline)
+            </label>
+            <textarea
+              id="change-reason"
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ví dụ: Stakeholder đổi yêu cầu ở họp 20/09"
+              className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-[12px] outline-none resize-none focus:border-[#6A62C4]"
+            />
+            <span className="text-[10.5px] text-[#8A867E]">Câu này đi vào §I Record of Changes của tài liệu.</span>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
@@ -124,7 +147,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
             <button
               type="button"
               disabled={!canConfirm}
-              onClick={onConfirm}
+              onClick={() => onConfirm(needsReason ? reason.trim() : undefined)}
               className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {busy ? "Đang áp dụng…" : preview.no_change ? "Xác nhận không đổi" : "Xác nhận"}

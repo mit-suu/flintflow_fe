@@ -354,8 +354,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       if (baseVersion === null) return;
       setSavingChange(true);
       try {
+        // Sau baseline v1 mọi lô ghi phải kèm lý do ở cấp transaction (change.service `post_baseline`),
+        // nếu không BE trả 400 và cả workspace thành read-only. Op ở đây đều do gate/panel sinh ra kèm sẵn
+        // một câu mô tả — dùng luôn câu đó làm lý do vào Record of Changes, không bắt user gõ thêm.
+        const reason = ops.find((op) => op.reason)?.reason ?? "Chỉnh sửa trong workspace";
         // BUG-06: Spine vừa đổi ở bước khác thì tự đọc lại phiên bản mới và gửi lại một lần
-        const { result } = await applyChangesWithRebase(projectId, { base_version: baseVersion, ops });
+        const { result } = await applyChangesWithRebase(projectId, { base_version: baseVersion, ops, reason });
         bumpVersion(result.spine_version);
         replaceSpine(result.spine);
         void reloadProgress();
