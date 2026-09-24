@@ -13,8 +13,8 @@ interface MappingReviewTableProps {
 }
 
 const DETECTOR_LABELS = {
-  style: "style heading",
-  outline_level: "outline level",
+  style: "kiểu chữ tiêu đề",
+  outline_level: "cấp đề mục",
   numbering_pattern: "số mục",
   user: "bạn chọn",
 } as const;
@@ -60,6 +60,13 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
     const entity = entityOfPath(columnValue(t.block_id, t.column_index, t.field_path));
     if (entity && !(t.block_id in tableEntity)) tableEntity[t.block_id] = entity;
   }
+
+  // Section tạm (`feature:@B0007`) cùng nhãn "Tính năng (tạm)" ⇒ ghép tiêu đề heading sinh ra nó để phân biệt
+  const optionLabel = (id: string) => {
+    const block = /@(B[0-9]+)$/.exec(id)?.[1];
+    const heading = block && profile.heading_map.find((h) => h.block_id === block)?.heading_text;
+    return heading ? `${sectionLabel(id)} — ${heading}` : sectionLabel(id);
+  };
 
   const rows = lowOnly ? profile.heading_map.filter((h) => h.confidence < MAPPING_CONFIDENCE_THRESHOLD) : profile.heading_map;
   const missingRequired = profile.required_sections.filter(
@@ -116,7 +123,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                   <td className="px-3 py-2">
                     <div className="font-semibold text-[#191817]">{h.heading_text}</div>
                     <div className="text-[11px] text-[#A8A49C]">
-                      {h.block_id} · nhận theo {DETECTOR_LABELS[h.detected_by]}
+                      Nhận theo {DETECTOR_LABELS[h.detected_by]}
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -133,7 +140,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                     >
                       {options.map((id) => (
                         <option key={id} value={id}>
-                          {sectionLabel(id)}
+                          {optionLabel(id)}
                         </option>
                       ))}
                     </select>

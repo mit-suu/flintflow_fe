@@ -52,13 +52,14 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
     expect(screen.getByText("Phụ lục B — Biên bản họp", HEADING)).toBeInTheDocument();
     expect(screen.queryByText("1 Product Overview", HEADING)).not.toBeInTheDocument();
     expect(screen.getByText("62%")).toBeInTheDocument();
-    expect(screen.getByText("B0007 · nhận theo số mục")).toBeInTheDocument();
+    expect(screen.getByText("Nhận theo số mục")).toBeInTheDocument();
 
     fireEvent.click(filter);
     expect(filter).not.toBeChecked();
     expect(screen.getByText("1 Product Overview", HEADING)).toBeInTheDocument();
-    expect(screen.getByText("B0004 · nhận theo outline level")).toBeInTheDocument();
-    expect(rowTexts().filter((t) => t.includes("nhận theo"))).toHaveLength(4);
+    expect(screen.getByText("Nhận theo cấp đề mục")).toBeInTheDocument();
+    expect(rowTexts().filter((t) => t.includes("Nhận theo"))).toHaveLength(4);
+    expect(rowTexts().some((t) => /B\d{4}/.test(t) && !t.includes("(tạm)"))).toBe(false);
   });
 
   it("không có dòng độ tin thấp ⇒ mặc định hiện hết; bật lọc thì báo không có dòng nào", () => {
@@ -79,10 +80,11 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
     const options = within(select).getAllByRole("option").map((o) => o.textContent);
     expect(options).toContain("1 Product Overview");
     expect(options).toContain("3.1.2 Screen Descriptions");
-    expect(options).toContain("Feature (tạm) · B0007");
+    expect(options).toContain("Tính năng (tạm) — 3.2.4 Log out of system");
     expect(options.at(-1)).toBe("Không khớp (giữ nguyên, không trích)");
     // section tạm không bị lặp
-    expect(options.filter((o) => o === "Feature (tạm) · B0007")).toHaveLength(1);
+    expect(options.filter((o) => o === "Tính năng (tạm) — 3.2.4 Log out of system")).toHaveLength(1);
+    expect(options.some((o) => /B\d{4}|fixed:/.test(o ?? ""))).toBe(false);
   });
 
   it("đổi section + sửa cột bảng ⇒ lưu chỉ gửi các dòng đã đổi, kèm confirm_all; cột bỏ trống ⇒ field_path null", () => {

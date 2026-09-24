@@ -23,7 +23,6 @@ export default function BlockDiffList({ entries }: { entries: BlockDiffEntry[] }
           <li key={`${e.block_id ?? "new"}-${i}`} className="bg-white border border-[#ECEAE5] rounded-[10px] px-3 py-2 text-[12.5px] flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${style.className}`}>{style.label}</span>
-              <code className="text-[11px] text-[#A8A49C]">{e.block_id ?? "block mới"}</code>
             </div>
             {e.before !== undefined && e.change !== "added" && (
               <del className="text-[#B03030] whitespace-pre-wrap">{e.before}</del>

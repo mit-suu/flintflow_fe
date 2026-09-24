@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { downloadGapReport, getGapReport } from "@/lib/api/import";
 import { saveBlob } from "@/lib/api/files";
-import { sectionLabel } from "@/lib/constants/fpt-sections";
 import type { Flag } from "@/types/spine";
 import type { GapReport } from "@/types/import";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { errorText } from "./errors";
 import { formatDateTime, formatPercent } from "./labels";
 import { crPrefillHref } from "./prefill";
+import { humanizeText, pathLabel, ruleLabel, sectionTitle } from "./spine-labels";
 
 interface GapReportViewProps {
   projectId: string;
@@ -37,8 +37,10 @@ const Tile = ({ label, value, tone }: { label: string; value: number; tone: "red
 const FlagRow = ({ flag }: { flag: Flag }) => (
   <li className="flex items-start gap-2 text-[12.5px]">
     <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${flag.level === "red" ? "bg-[#B03030]" : "bg-[#E8A23D]"}`} aria-label={flag.level === "red" ? "Cờ đỏ" : "Cờ vàng"} />
-    <span className="text-[#33312D]">{flag.message}</span>
-    <code className="ml-auto text-[10.5px] text-[#A8A49C] shrink-0">{flag.rule_id}</code>
+    <span className="text-[#33312D]">{humanizeText(flag.message)}</span>
+    <span className="ml-auto text-[10.5px] text-[#A8A49C] shrink-0 text-right" title={flag.rule_id}>
+      {ruleLabel(flag.rule_id)}
+    </span>
   </li>
 );
 
@@ -48,7 +50,7 @@ const FlagRow = ({ flag }: { flag: Flag }) => (
  */
 export const gapReportPrefill = (report: GapReport): { title: string; description: string } => {
   const reds = report.sections.flatMap((s) =>
-    s.flags.filter((f) => f.level === "red" && f.rule_id !== "section_empty").map((f) => `- ${sectionLabel(s.section_id)}: ${f.message}`)
+    s.flags.filter((f) => f.level === "red" && f.rule_id !== "section_empty").map((f) => `- ${sectionTitle(s.section_id, s.title)}: ${humanizeText(f.message)}`)
   );
   return {
     title: "Sửa theo gap report",
@@ -62,7 +64,7 @@ export const missingSectionsPrefill = (report: GapReport): { title: string; desc
   title: "Bổ sung các mục còn thiếu",
   description: [
     "Soạn nội dung cho các đầu mục mẫu FPT còn thiếu trong gap report của bản " + report.doc_version + ":",
-    ...report.missing_fpt_sections.map((m) => `- ${m.title} (${m.section_id})`),
+    ...report.missing_fpt_sections.map((m) => `- ${sectionTitle(m.section_id, m.title)}`),
   ].join("\n"),
 });
 
@@ -127,29 +129,30 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Tile label="Cờ đỏ" value={report.totals.red} tone="red" />
         <Tile label="Cờ vàng" value={report.totals.yellow} tone="yellow" />
-        <Tile label="Section bắt buộc thiếu" value={report.totals.missing_sections} tone="red" />
-        <Tile label="Heading không khớp" value={report.totals.unmapped_headings} tone="neutral" />
-        <Tile label="Field độ tin thấp" value={report.totals.low_confidence_fields} tone="yellow" />
+        <Tile label="Mục bắt buộc thiếu" value={report.totals.missing_sections} tone="red" />
+        <Tile label="Tiêu đề ngoài mẫu" value={report.totals.unmapped_headings} tone="neutral" />
+        <Tile label="Dữ liệu chưa chắc" value={report.totals.low_confidence_fields} tone="yellow" />
       </div>
 
       {report.missing_fpt_sections.length > 0 && (
         <section className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-4 flex flex-col gap-2" aria-label="Đầu mục FPT còn thiếu">
           <h3 className="font-extrabold text-[#8A4141] text-[14px]">Đầu mục mẫu FPT còn thiếu</h3>
           <p className="text-[12px] text-[#8A4141]">
-            Mục thiếu chặn release (cờ đỏ). Tạo change request để AI soạn nội dung theo quy tắc của step sở hữu mục đó — duyệt xong cờ tự
+            Mục thiếu chặn release (cờ đỏ). Tạo change request để AI soạn nội dung theo quy tắc của mục đó — duyệt xong cờ tự
             đóng.
           </p>
           <ul className="flex flex-col gap-1 text-[12.5px] text-[#33312D]">
             {report.missing_fpt_sections.map((m) => (
               <li key={m.section_id} className="flex items-center gap-2">
-                <span className="font-semibold">{m.title}</span>
-                <span className="text-[#8A867E]">— {m.in_layout ? "có heading, chưa có nội dung" : "file không có"}</span>
-                <code className="ml-auto text-[11px] text-[#A8A49C] shrink-0">{m.section_id}</code>
+                <span className="font-semibold" title={m.section_id}>
+                  {sectionTitle(m.section_id, m.title)}
+                </span>
+                <span className="text-[#8A867E]">— {m.in_layout ? "có tiêu đề, chưa có nội dung" : "file không có"}</span>
               </li>
             ))}
           </ul>
           <Link
-            href={crPrefillHref(projectId, { ...missingSectionsPrefill(report), source: "gap_report", ref: `gap-report ${report.doc_version}` })}
+            href={crPrefillHref(projectId, { ...missingSectionsPrefill(report), source: "gap_report", ref: `Gap report bản ${report.doc_version}` })}
             className="self-start px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold"
           >
             Tạo CR bổ sung mục thiếu
@@ -174,7 +177,7 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
           {downloading ? "Đang tải…" : "Tải gap report (.docx)"}
         </button>
         <Link
-          href={crPrefillHref(projectId, { ...prefill, source: "gap_report", ref: `gap-report ${report.doc_version}` })}
+          href={crPrefillHref(projectId, { ...prefill, source: "gap_report", ref: `Gap report bản ${report.doc_version}` })}
           className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold"
         >
           Cần sửa → Tạo change request
@@ -183,10 +186,10 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
 
       {report.sections.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h3 className="font-extrabold text-[#191817] text-[14px]">Cờ theo section</h3>
+          <h3 className="font-extrabold text-[#191817] text-[14px]">Cờ theo mục</h3>
           {report.sections.map((s) => (
             <article key={s.section_id} className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
-              <h4 className="font-bold text-[#191817] text-[13px]">{s.title && s.title !== s.section_id ? s.title : sectionLabel(s.section_id)}</h4>
+              <h4 className="font-bold text-[#191817] text-[13px]">{sectionTitle(s.section_id, s.title)}</h4>
               <ul className="flex flex-col gap-1.5">
                 {s.flags.map((f) => (
                   <FlagRow key={f.id} flag={f} />
@@ -199,10 +202,10 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
 
       {report.missing_sections.length > 0 && (
         <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
-          <h3 className="font-extrabold text-[#191817] text-[14px]">Section bắt buộc không có trong tài liệu</h3>
+          <h3 className="font-extrabold text-[#191817] text-[14px]">Mục bắt buộc không có trong tài liệu</h3>
           <ul className="list-disc pl-5 text-[12.5px] text-[#33312D]">
             {report.missing_sections.map((m) => (
-              <li key={m.section_id}>{sectionLabel(m.section_id) === m.section_id ? m.title : sectionLabel(m.section_id)}</li>
+              <li key={m.section_id}>{sectionTitle(m.section_id, m.title)}</li>
             ))}
           </ul>
         </section>
@@ -215,7 +218,7 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
           <ul className="list-disc pl-5 text-[12.5px] text-[#33312D] flex flex-col gap-1">
             {report.unrendered_diagrams.map((d) => (
               <li key={`${d.kind}:${d.diagram_id}`}>
-                {d.title}
+                {humanizeText(d.title)}
                 <span className="text-[#6B6760]"> — {d.reason === "error" ? "vẽ lỗi" : "chưa vẽ"}</span>
               </li>
             ))}
@@ -225,11 +228,10 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
 
       {report.unmapped_headings.length > 0 && (
         <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
-          <h3 className="font-extrabold text-[#191817] text-[14px]">Heading không khớp template (giữ nguyên, không trích)</h3>
+          <h3 className="font-extrabold text-[#191817] text-[14px]">Tiêu đề mục ngoài mẫu FPT (giữ nguyên văn, không trích)</h3>
           <ul className="text-[12.5px] text-[#33312D] flex flex-col gap-1">
             {report.unmapped_headings.map((h) => (
               <li key={h.block_id}>
-                <code className="text-[11px] text-[#A8A49C] mr-2">{h.block_id}</code>
                 {h.text}
               </li>
             ))}
@@ -239,11 +241,11 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
 
       {report.low_confidence_fields.length > 0 && (
         <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
-          <h3 className="font-extrabold text-[#191817] text-[14px]">Field còn độ tin thấp</h3>
+          <h3 className="font-extrabold text-[#191817] text-[14px]">Dữ liệu AI trích chưa chắc chắn</h3>
           <ul className="text-[12.5px] text-[#33312D] flex flex-col gap-1">
             {report.low_confidence_fields.map((f) => (
               <li key={`${f.section_id}|${f.path}`}>
-                <code className="font-mono">{f.path}</code> — {formatPercent(f.confidence)}
+                <span title={f.path}>{pathLabel(f.path)}</span> — {formatPercent(f.confidence)}
               </li>
             ))}
           </ul>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import Logo from "@/components/Logo";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -30,6 +31,8 @@ interface WorkspaceHeaderProps {
   stepRunningElsewhere?: boolean;
   busy?: boolean;
   onExportClick?: () => void;
+  /** Nút riêng của chế độ (mode 1: mở popup Gap report / Change request), đứng trước Export. */
+  actions?: ReactNode;
   /** Mở rộng trang: ẩn header và khối tiến độ. */
   onEnterFocus?: () => void;
   /** Mở/đóng panel Công cụ (thuật ngữ, đã chốt, hàng đợi màn, lịch sử sửa…) — thay rail icon bên phải cũ. */
@@ -56,6 +59,7 @@ export default function WorkspaceHeader({
   stepRunningElsewhere = false,
   busy = false,
   onExportClick,
+  actions,
   onEnterFocus,
   onToolsClick,
   toolsActive = false,
@@ -114,6 +118,7 @@ export default function WorkspaceHeader({
             <span className="sm:hidden">Chạy</span>
           </Button>
         )}
+        {actions}
         {onToolsClick && (
           <Button
             size="sm"

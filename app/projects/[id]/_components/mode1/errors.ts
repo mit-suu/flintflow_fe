@@ -4,6 +4,7 @@
  */
 import { ApiClientError } from "@/lib/api/client";
 import type { CrNoLocationsMeta, PathLockedMeta } from "@/types/change-request";
+import { pathLabel } from "./spine-labels";
 
 const FRIENDLY: Record<string, string> = {
   INSUFFICIENT_CREDIT: "Không đủ credit cho bước AI này — nạp thêm rồi thử lại.",
@@ -24,7 +25,7 @@ const FRIENDLY: Record<string, string> = {
   MODE1_NO_SIGNOFF: "Dự án upload SRS không ký baseline v1 — release khi hết cờ đỏ.",
   MODE1_NO_WAIVE: "Dự án upload SRS không waive cờ — xử lý cờ bằng change request.",
   IMPORT_REUPLOAD_NO_STAMP: "File không mang stamp của dự án — chỉ file tải từ FlintFlow mới so khác biệt được.",
-  CR_NO_OWNER_STEP: "Vị trí này thuộc mục riêng, không có step sở hữu — dùng “Sửa trực tiếp”.",
+  CR_NO_OWNER_STEP: "Vị trí này thuộc mục riêng, không có quy tắc soạn để AI sửa — dùng “Sửa trực tiếp”.",
   PREVIEW_EXPIRED: "Bản xem trước đã hết hạn — bấm “Xem trước thay đổi” lại.",
   CR_NOTHING_TO_APPROVE: 'Mọi vị trí đều là "không liên quan" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút "Sửa tay"), hoặc huỷ change request.',
 };
@@ -34,7 +35,7 @@ export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): s
     if (err.code === "PATH_LOCKED") {
       const locked = (err.meta as PathLockedMeta | undefined)?.locked ?? [];
       if (locked.length) {
-        return `Phần tử đang bị change request khác giữ: ${locked.map((l) => `${l.path} (${l.cr_id})`).join(", ")}. Chờ CR đó xong hoặc huỷ rồi thử lại.`;
+        return `Phần tử đang bị change request khác giữ: ${locked.map((l) => `${pathLabel(l.path)} (${l.cr_id})`).join(", ")}. Chờ CR đó xong hoặc huỷ rồi thử lại.`;
       }
     }
     if (err.code === "CR_NO_LOCATIONS") {

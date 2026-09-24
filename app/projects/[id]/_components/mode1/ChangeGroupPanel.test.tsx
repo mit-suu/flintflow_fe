@@ -16,7 +16,7 @@ const location = (id: string, over: Partial<CrLocation> = {}): CrLocation => ({
   owner_step: null,
   conclusion: "edit",
   reason: null,
-  proposal: { old_text: JSON.stringify({ statement: `old ${id}` }), new_text: JSON.stringify({ statement: `new ${id}` }), comment_text: null, spine_ops: [] },
+  proposal: { old_text: JSON.stringify({ statement: `old ${id}` }), new_text: JSON.stringify({ statement: `new ${id}` }), comment_text: null, spine_ops: [], assumptions: [] },
   manual: false,
   redo_count: 0,
   verify: null,
@@ -37,7 +37,7 @@ const group = (id: string, location_ids: string[], over: Partial<CrGroup> = {}):
 
 const LOCATIONS = [
   location("L001"),
-  location("L002", { conclusion: "comment", proposal: { old_text: "x", new_text: null, comment_text: "Xác nhận với PM", spine_ops: [] } }),
+  location("L002", { conclusion: "comment", proposal: { old_text: "x", new_text: null, comment_text: "Xác nhận với PM", spine_ops: [], assumptions: [] } }),
   location("L003", { conclusion: null, proposal: null }),
 ];
 

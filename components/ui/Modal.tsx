@@ -11,8 +11,8 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  /** `lg` cho dialog chứa lưới thẻ (chọn source mode). */
-  size?: "md" | "lg";
+  /** `lg` cho dialog chứa lưới thẻ (chọn source mode); `xl` cho màn làm việc trong popup (gap report, change request mode 1). */
+  size?: "md" | "lg" | "xl";
 }
 
 export default function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
@@ -45,7 +45,7 @@ export default function Modal({ open, onClose, title, children, size = "md" }: M
         aria-modal="true"
         aria-labelledby={titleId}
         className={`bg-surface-container-lowest rounded-dialog p-6 sm:p-7 w-full max-h-[calc(100vh-32px)] overflow-y-auto shadow-[0_30px_80px_rgba(25,24,23,0.3)] ${
-          size === "lg" ? "max-w-[760px]" : "max-w-[480px]"
+          size === "xl" ? "max-w-[1080px]" : size === "lg" ? "max-w-[760px]" : "max-w-[480px]"
         } outline-none`}
         onClick={(e) => e.stopPropagation()}
       >

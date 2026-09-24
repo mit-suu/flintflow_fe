@@ -23,7 +23,8 @@ describe("errorText", () => {
 
   it("PATH_LOCKED ⇒ nêu đích danh path và CR đang giữ", () => {
     const text = errorText(apiError("PATH_LOCKED", "khoá", { locked: [{ path: "nfrs[id=NFR-01]", cr_id: "CR-003" }] }));
-    expect(text).toContain("nfrs[id=NFR-01]");
+    expect(text).toContain("Yêu cầu phi chức năng NFR-01");
+    expect(text).not.toContain("nfrs[");
     expect(text).toContain("CR-003");
   });
 

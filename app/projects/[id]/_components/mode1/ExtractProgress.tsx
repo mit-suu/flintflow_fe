@@ -3,6 +3,7 @@
 import { sectionLabel } from "@/lib/constants/fpt-sections";
 import type { ExtractionSection, ImportedDocument } from "@/types/import";
 import PausedBanner from "./PausedBanner";
+import { humanizeText } from "./spine-labels";
 import Icon, { type IconName } from "@/components/ui/Icon";
 
 interface ExtractProgressProps {
@@ -93,7 +94,7 @@ export default function ExtractProgress({ doc, sections, running, credits, onSta
                     {s.fields_total} field{s.fields_needing_review > 0 && <strong className="text-[#8A6D1F]"> · {s.fields_needing_review} cần xem</strong>}
                   </span>
                 )}
-                {s.error && <span className="text-[11.5px] text-[#B03030]">{s.error}</span>}
+                {s.error && <span className="text-[11.5px] text-[#B03030]">{humanizeText(s.error)}</span>}
               </li>
             );
           })}

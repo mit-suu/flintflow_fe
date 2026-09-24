@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Flag } from "@/types/spine";
 import { crPrefillHref } from "./prefill";
+import { humanizeText, ruleLabel, sectionName } from "./spine-labels";
 
 interface Mode1FlagsPanelProps {
   projectId: string;
@@ -37,15 +38,19 @@ export default function Mode1FlagsPanel({ projectId, flags }: Mode1FlagsPanelPro
           <ul className="flex flex-col gap-1.5">
             {red.map((f) => (
               <li key={f.id} className="flex flex-col gap-1 bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-2.5 py-1.5">
-                <span className="text-[11.5px] text-[#33312D]">{f.message}</span>
+                <span className="text-[11.5px] text-[#33312D]">{humanizeText(f.message)}</span>
                 <span className="flex items-center gap-2">
-                  <code className="text-[10.5px] text-[#8A4141]">{f.rule_id}</code>
+                  <span className="text-[10.5px] text-[#8A4141]" title={f.rule_id}>
+                    {ruleLabel(f.rule_id)}
+                  </span>
                   <Link
                     href={crPrefillHref(projectId, {
-                      title: `Xử lý cờ: ${shortText(f.message)}`,
-                      description: `${f.message}\n(Cờ ${f.rule_id}${f.section_id ? `, mục ${f.section_id}` : ""})`,
+                      title: `Xử lý cờ: ${shortText(humanizeText(f.message))}`,
+                      description: [humanizeText(f.message), [ruleLabel(f.rule_id), f.section_id && `mục ${sectionName(f.section_id)}`].filter(Boolean).join(", ")]
+                        .filter(Boolean)
+                        .join("\n"),
                       source: "gap_report",
-                      ref: f.section_id ?? `flag:${f.id}`,
+                      ref: f.section_id ? sectionName(f.section_id) : undefined,
                     })}
                     className="ml-auto text-[11px] font-bold text-[#6A62C4] hover:underline shrink-0"
                   >

@@ -34,11 +34,13 @@ describe("Mode1FlagsPanel", () => {
     expect(within(list).getByText("Cờ đỏ đang chặn release (1)")).toBeInTheDocument();
     const link = within(list).getByRole("link", { name: "Tạo CR" });
     const href = link.getAttribute("href")!;
-    expect(href.startsWith(`/projects/${P}/change-requests?`)).toBe(true);
+    expect(href.startsWith(`/projects/${P}?panel=cr&`)).toBe(true);
     const prefill = readCrPrefill(new URLSearchParams(href.split("?")[1]));
-    expect(prefill).toMatchObject({ source: "gap_report", ref: "fixed:5.1" });
+    expect(prefill).toMatchObject({ source: "gap_report", ref: "5.1 Business Rules" });
     expect(prefill?.title).toContain("Business Rules trống");
-    expect(prefill?.description).toContain("section_empty");
+    expect(prefill?.description).toContain("Mục còn trống, mục 5.1 Business Rules");
+    expect(prefill?.description).not.toContain("section_empty");
+    expect(within(list).getByText("Mục còn trống")).toHaveAttribute("title", "section_empty");
   });
 
   it("không còn nút chạy / mở lại step, waive hay ký v1", () => {

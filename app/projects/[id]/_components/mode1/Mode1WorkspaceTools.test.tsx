@@ -61,8 +61,8 @@ describe("Mode1WorkspaceTools", () => {
     serveVersions([VERSION_00]);
     renderTools();
     const nav = screen.getByRole("navigation", { name: "Import & change request" });
-    expect(within(nav).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}/gap-report`);
-    expect(within(nav).getByRole("link", { name: "Change request" })).toHaveAttribute("href", `/projects/${P}/change-requests`);
+    expect(within(nav).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
+    expect(within(nav).getByRole("link", { name: "Change request" })).toHaveAttribute("href", `/projects/${P}?panel=cr`);
     expect(within(nav).getByRole("link", { name: "Nhập SRS" })).toHaveAttribute("href", `/projects/${P}/import`);
   });
 

@@ -31,8 +31,27 @@ export type CrAction = "clarify" | "impact" | "propose" | "verify" | "submit" | 
 export const runCrAction = (projectId: string, crId: string, action: CrAction) =>
   apiCall<CrDetail>(`${cr(projectId, crId)}/${action}`, post());
 
+/** Câu trả lời được để trống (= chưa biết — phase 7). */
 export const answerClarifications = (projectId: string, crId: string, answers: string[]) =>
   apiCall<CrDetail>(`${cr(projectId, crId)}/answers`, post({ answers }));
+
+/** Phase 8 (chat): gộp thêm một lệnh sửa vào CR chưa nộp — sau `draft` BE chạy lại làm rõ ngay. */
+export const amendCr = (projectId: string, crId: string, instruction: string) =>
+  apiCall<CrDetail>(`${cr(projectId, crId)}/amend`, post({ instruction }));
+
+/** Phase 7: đính kèm đoạn văn bản nguồn (chỉ khi CR ở `draft` / `awaiting_answers`). */
+export const addCrMaterialText = (projectId: string, crId: string, body: { name: string; text: string }) =>
+  apiCall<CrDetail>(`${cr(projectId, crId)}/materials`, post(body));
+
+/** Phase 7: upload file (.docx/.pdf/.txt/.md/PNG/JPEG) — BE tách chữ, ảnh nhờ AI đọc (1 credit). */
+export const addCrMaterialFile = (projectId: string, crId: string, file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return apiCall<CrDetail>(`${cr(projectId, crId)}/materials`, { method: "POST", body: form });
+};
+
+export const deleteCrMaterial = (projectId: string, crId: string, materialId: string) =>
+  apiCall<CrDetail>(`${cr(projectId, crId)}/materials/${encodeURIComponent(materialId)}`, { method: "DELETE" });
 
 export const patchLocation = (projectId: string, crId: string, locationId: string, body: PatchLocationRequest) =>
   apiCall<CrDetail>(`${cr(projectId, crId)}/locations/${encodeURIComponent(locationId)}`, {

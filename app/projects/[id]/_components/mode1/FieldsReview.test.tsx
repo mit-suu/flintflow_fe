@@ -3,6 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewField } from "@/types/import";
 import FieldsReview, { textToValue, valueToText } from "./FieldsReview";
+import { pathLabel } from "./spine-labels";
 
 const field = (path: string, value: unknown, over: Partial<ReviewField> = {}): ReviewField => ({
   section_id: "fixed:2.1",
@@ -22,7 +23,8 @@ const FIELDS: ReviewField[] = [
   field("project.code", "123"),
 ];
 
-const box = (path: string) => screen.getByRole("textbox", { name: `Giá trị ${path}` });
+const box = (path: string) => screen.getByRole("textbox", { name: `Giá trị ${pathLabel(path)}` });
+const sources = () => screen.getAllByText(/^Nguồn:/).map((e) => e.parentElement!.textContent);
 const confirm = () => fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
 
 describe("valueToText / textToValue — giữ kiểu gốc khi sửa", () => {
@@ -54,18 +56,19 @@ describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () 
     renderWithIntl(<FieldsReview fields={[field("actors[id=A09].name", "Guest", { origin: "vision", confidence: 0.7, section_id: "fixed:2.2.1", source_block_ids: ["B0012"] })]} onSubmit={vi.fn()} />);
     expect(screen.getByText("từ ảnh")).toBeInTheDocument();
     expect(screen.getByText("độ tin 70%")).toBeInTheDocument();
-    expect(screen.getByText(/Nguồn: B0012 · AI đọc từ ảnh/)).toBeInTheDocument();
+    expect(sources()).toEqual(["Nguồn: 1 đoạn trong tài liệu · AI đọc từ ảnh"]);
+    expect(screen.getByTitle("B0012")).toBeInTheDocument();
     expect(screen.getByText(/mọi thay đổi đi qua change request/)).toBeInTheDocument();
   });
 
-  it("hiện path, section, độ tin, block nguồn và cách trích của từng field", () => {
+  it("hiện tên field (không phải path), mục, độ tin, số đoạn nguồn và cách trích của từng field", () => {
     renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={vi.fn()} />);
     expect(screen.getByText(/4 field AI chưa chắc/)).toBeInTheDocument();
-    expect(screen.getByText("nfrs[id=NFR-P02].threshold_ms")).toBeInTheDocument();
+    expect(screen.getByText("Yêu cầu phi chức năng NFR-P02 — Ngưỡng (ms)")).toHaveAttribute("title", "nfrs[id=NFR-P02].threshold_ms");
+    expect(screen.getByRole("textbox", { name: "Giá trị Thông tin dự án — Mã" })).toBeInTheDocument();
     expect(screen.getByText("· 4.2.3 Performance")).toBeInTheDocument();
     expect(screen.getByText("độ tin 61%")).toBeInTheDocument();
-    expect(screen.getByText(/Nguồn: B0010 · AI trích/)).toBeInTheDocument();
-    expect(screen.getByText(/Nguồn: — · trích tất định/)).toBeInTheDocument();
+    expect(sources()).toEqual(expect.arrayContaining(["Nguồn: 1 đoạn trong tài liệu · AI trích", "Nguồn: — · trích tất định"]));
     // chỉ field đọc từ ảnh mới có nhãn "từ ảnh"
     expect(screen.queryByText("từ ảnh")).not.toBeInTheDocument();
     expect(box("nfrs[id=NFR-P02].threshold_ms")).toHaveValue("500");

@@ -1,6 +1,7 @@
 "use client";
 
 import type { PreviewResult } from "@/types/pipeline";
+import { humanizeText, pathLabel, readableValue, ruleLabel, sectionName } from "./mode1/spine-labels";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
@@ -25,11 +26,13 @@ const BRANCH_LABEL: Record<NonNullable<PreviewResult["branch"]>, string> = {
 
 const short = (value: unknown): string => {
   if (value === undefined) return "—";
-  if (value === null) return "null";
+  if (value === null) return "—";
   if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return "(xoá)";
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+  const text = readableValue(value);
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 };
+
+const RELATION_LABELS: Record<string, string> = { owner: "mục chứa", reads: "mục dùng tới", derived: "mục suy ra" };
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
 export default function DiffPreviewModal({
@@ -72,8 +75,9 @@ export default function DiffPreviewModal({
           <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-3 flex flex-col gap-1.5">
             {preview.violations.map((v, i) => (
               <div key={i} className="text-[11.5px] text-[#8A4141]">
-                <span className="font-bold">{v.rule}</span>: {v.message}
-                {v.path && <span className="font-mono text-[10.5px]"> ({v.path})</span>}
+                {ruleLabel(v.rule) && <span className="font-bold">{ruleLabel(v.rule)}: </span>}
+                <span title={[v.rule, v.path].filter(Boolean).join(" · ")}>{humanizeText(v.message)}</span>
+                {v.path && <span className="text-[10.5px]"> ({pathLabel(v.path)})</span>}
               </div>
             ))}
           </div>
@@ -93,15 +97,17 @@ export default function DiffPreviewModal({
             <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Path</th>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Before</th>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Value</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Phần thay đổi</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Trước</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Sau</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.changes.map((change, i) => (
                   <tr key={i}>
-                    <td className="border border-[#ECEAE5] px-2 py-1 font-mono align-top">{change.path}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top" title={change.path}>
+                      {pathLabel(change.path)}
+                    </td>
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before)}</td>
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value)}</td>
                   </tr>
@@ -116,21 +122,21 @@ export default function DiffPreviewModal({
             <div className="font-extrabold text-[10px] text-[#8A867E] tracking-wider uppercase">Phạm vi ảnh hưởng</div>
             {preview.impact.sections.length > 0 && (
               <div>
-                Section:{" "}
+                Mục:{" "}
                 {preview.impact.sections.map((s) => (
-                  <span key={s.id} className="font-mono mr-1.5">
-                    {s.id}
-                    <span className="text-[#A8A49C]">({s.relation})</span>
+                  <span key={s.id} className="mr-1.5" title={s.id}>
+                    {sectionName(s.id)}
+                    <span className="text-[#A8A49C]"> ({RELATION_LABELS[s.relation] ?? s.relation})</span>
                   </span>
                 ))}
               </div>
             )}
             {preview.impact.diagrams.length > 0 && (
-              <div>Diagram render lại: {preview.impact.diagrams.join(", ")}</div>
+              <div>Sơ đồ sẽ vẽ lại: {preview.impact.diagrams.length}</div>
             )}
             {preview.impact.referrers.length > 0 && (
               <div className="text-[#8A6D1F]">
-                Đang bị tham chiếu bởi: {preview.impact.referrers.map((r) => `${r.path}→${r.id}`).join(", ")}
+                Đang được nhắc tới ở: {preview.impact.referrers.map((r) => pathLabel(r.path)).join(", ")}
               </div>
             )}
           </div>

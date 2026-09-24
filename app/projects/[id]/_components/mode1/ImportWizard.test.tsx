@@ -50,12 +50,13 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
 
     // I-4 chạy nền: #6 trả ngay, tiến độ tăng qua poll GET /import tới khi sang fields_review
     expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
-    const value = screen.getByLabelText("Giá trị actors[id=A02].kind");
+    const value = screen.getByLabelText("Giá trị Tác nhân A02 — Loại");
     fireEvent.change(value, { target: { value: "system" } });
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.0" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}/gap-report`));
+    // Xong baseline 0.0 ⇒ sang màn Tài liệu & version, popup gap report mở sẵn
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
     expect(mode1State.mode1State.reviewFields[0]).toMatchObject({ confirmed: true, edited_value: "system" });
     expect(mode1State.mode1State.project.import_state).toBe("gap_review");
   });

@@ -62,12 +62,24 @@ export const FPT_SECTIONS: readonly FptSectionOption[] = [
 
 const PROVISIONAL = /^(feature|function):@(B\d{4,})$/;
 
-/** Nhãn hiển thị của một section id: `2.1 Actors`, `Feature (tạm) · B0040`, `Không khớp`. */
+const KIND = /^(feature|function|custom|group):(.+)$/;
+
+/**
+ * Nhãn hiển thị của một section id — không bao giờ trả mã thô cho người dùng: `2.1 Actors`, `Tính năng (tạm)`,
+ * `Tính năng F2`, `Chức năng FN01`, `Mục riêng`, `Không khớp`. Section tạm cần phân biệt thì ghép tiêu đề heading ở nơi gọi.
+ */
 export const sectionLabel = (id: string | null): string => {
   if (!id || id === "unmapped") return "Không khớp (giữ nguyên, không trích)";
   const known = FPT_SECTIONS.find((s) => s.id === id);
   if (known) return `${known.number} ${known.title}`;
   const provisional = PROVISIONAL.exec(id);
-  if (provisional) return `${provisional[1] === "feature" ? "Feature" : "Function"} (tạm) · ${provisional[2]}`;
+  if (provisional) return `${provisional[1] === "feature" ? "Tính năng" : "Chức năng"} (tạm)`;
+  const kind = KIND.exec(id);
+  if (kind) {
+    if (kind[1] === "custom") return "Mục riêng";
+    if (kind[1] === "group") return `Mục ${kind[2]}`;
+    return `${kind[1] === "feature" ? "Tính năng" : "Chức năng"} ${kind[2]}`;
+  }
+  if (id.startsWith("fixed:")) return `Mục ${id.slice("fixed:".length)}`;
   return id;
 };

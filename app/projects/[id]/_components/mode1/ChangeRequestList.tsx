@@ -9,7 +9,8 @@ import PageSkeleton from "@/components/ui/PageSkeleton";
 import ChangeRequestForm from "./ChangeRequestForm";
 import { errorText } from "./errors";
 import { CR_SOURCE_LABELS, CR_STATUS_LABELS, formatDateTime } from "./labels";
-import type { CrPrefill } from "./prefill";
+import { crHref, type CrPrefill } from "./prefill";
+import { sourceRefLabel } from "./spine-labels";
 
 interface ChangeRequestListProps {
   projectId: string;
@@ -71,7 +72,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
           projectId={projectId}
           prefill={prefill}
           onCancel={() => setFormOpen(false)}
-          onCreated={(d) => router.push(`/projects/${projectId}/change-requests/${d.change_request.cr_id}`)}
+          onCreated={(d) => router.push(crHref(projectId, d.change_request.cr_id), { scroll: false })}
         />
       )}
 
@@ -104,7 +105,8 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
           {shown.map((c) => (
             <li key={c.cr_id}>
               <Link
-                href={`/projects/${projectId}/change-requests/${c.cr_id}`}
+                href={crHref(projectId, c.cr_id)}
+                scroll={false}
                 className="bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-3 flex flex-wrap items-center gap-3 hover:shadow-[0_8px_20px_rgba(25,24,23,0.06)] transition-shadow"
               >
                 <code className="text-[12px] font-bold text-[#6A62C4]">{c.cr_id}</code>
@@ -113,7 +115,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
                 {c.paused && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FDEDED] text-[#B03030]">Tạm dừng</span>}
                 <span className="w-full text-[11.5px] text-[#8A867E]">
                   {CR_SOURCE_LABELS[c.source.kind]}
-                  {c.source.ref ? ` · ${c.source.ref}` : ""} · {c.requester} · {formatDateTime(c.created_at)}
+                  {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · {c.requester} · {formatDateTime(c.created_at)}
                   {c.result_doc_version ? ` · ghi vào bản ${c.result_doc_version}` : ""}
                 </span>
               </Link>

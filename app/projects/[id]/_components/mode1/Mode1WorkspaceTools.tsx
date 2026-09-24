@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Flag } from "@/types/spine";
 import { useDocVersions } from "../../hooks/mode1/useDocVersions";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
+import { crListHref, gapReportHref } from "./prefill";
 import VersionsPanel from "./VersionsPanel";
 
 interface Mode1WorkspaceToolsProps {
@@ -30,10 +31,10 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
       </section>
 
       <nav className="flex flex-wrap gap-1.5" aria-label="Import & change request">
-        <Link href={`/projects/${projectId}/gap-report`} className={link}>
+        <Link href={gapReportHref(projectId)} scroll={false} className={link}>
           Gap report
         </Link>
-        <Link href={`/projects/${projectId}/change-requests`} className={link}>
+        <Link href={crListHref(projectId)} scroll={false} className={link}>
           Change request
         </Link>
         <Link href={`/projects/${projectId}/import`} className={link}>

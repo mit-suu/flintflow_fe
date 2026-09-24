@@ -1,22 +1,16 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import Mode1Shell from "../../_components/mode1/Mode1Shell";
-import CrWorkspace from "../../_components/mode1/CrWorkspace";
-import { useMode1Project } from "../../hooks/mode1/useMode1Project";
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import PageSkeleton from "@/components/ui/PageSkeleton";
+import { crHref } from "../../_components/mode1/prefill";
 
-/** Workspace một change request (mode 1, nút 3.1–3.14). */
+/** Chi tiết một change request (mode 1, nút 3.1–3.14) giờ mở trong popup trên màn "Tài liệu & version". */
 export default function ChangeRequestPage() {
   const params = useParams();
   const projectId = params?.id as string;
   const crId = decodeURIComponent(params?.crId as string);
-  const { project, credits, error, reload } = useMode1Project(projectId);
-
-  return (
-    <Mode1Shell projectId={projectId} project={project} credits={credits} active="change-requests" error={error}>
-      <div className="flex-1 overflow-y-auto p-6">
-        <CrWorkspace projectId={projectId} crId={crId} onChanged={() => void reload()} />
-      </div>
-    </Mode1Shell>
-  );
+  const router = useRouter();
+  useEffect(() => router.replace(crHref(projectId, crId)), [projectId, crId, router]);
+  return <PageSkeleton rows={2} label="Đang mở change request" />;
 }
