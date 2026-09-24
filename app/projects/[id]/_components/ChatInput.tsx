@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
 import { estimateActionCost } from "../../../../lib/api/chat";
 import type { ChatActionType } from "@/types/chat";
 import Icon from "@/components/ui/Icon";
@@ -16,6 +16,17 @@ interface ChatInputProps {
   /** ActionType BE dùng để tính giá credit mỗi tin nhắn. */
   actionType: ChatActionType;
   placeholder?: string;
+  /** Có thẻ câu hỏi ngay trên ⇒ thu ô nhập về một hàng (đính kèm · ô gõ · gửi), ẩn giá credit. */
+  compact?: boolean;
+  /** Số dư credit của user — hiện cạnh giá mỗi tin nhắn. */
+  creditBalance?: number | null;
+  /** Có ⇒ hiện chip "Sửa tài liệu": bật lên thì nội dung gửi đi là lệnh sửa tài liệu, không phải tin chat. */
+  onToggleEditMode?: () => void;
+  editMode?: boolean;
+  /** Lý do khoá chip (vd. step đang chạy) — có ⇒ chip mờ, hover ra lý do. */
+  editDisabledReason?: string | null;
+  /** Nút thêm ở thanh công cụ ô nhập (vd. menu cách AI làm việc) — ẩn khi ô nhập thu gọn. */
+  toolbarExtra?: ReactNode;
 }
 
 // ChatInput mount lại sau mỗi lượt AI; cache giá theo actionType để chỉ gọi BE một lần mỗi loại.
@@ -46,6 +57,12 @@ export default function ChatInput({
   onRemoveAttachment,
   actionType,
   placeholder = "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
+  compact = false,
+  creditBalance = null,
+  onToggleEditMode,
+  editMode = false,
+  editDisabledReason = null,
+  toolbarExtra,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [creditEstimate, setCreditEstimate] = useState<number | null>(null);
@@ -97,19 +114,37 @@ export default function ChatInput({
       )}
 
       {/* Input box */}
-      <div className="rounded-card p-3 flex flex-col gap-2.5 bg-surface-container-lowest shadow-[0_1px_2px_rgba(25,24,23,0.04),0_8px_24px_rgba(25,24,23,0.05)] ring-primary/30 focus-within:ring-2 transition-shadow">
+      <div className={`rounded-card ${compact ? "px-2 py-1.5 flex items-center gap-1.5" : "p-3 flex flex-col gap-2.5"} bg-surface-container-lowest shadow-[0_1px_2px_rgba(25,24,23,0.04),0_8px_24px_rgba(25,24,23,0.05)] ring-primary/30 focus-within:ring-2 transition-shadow`}>
         <textarea
+          id="flintflow-chat-input"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          rows={2}
+          rows={compact ? 1 : 2}
           disabled={sending}
-          className="w-full resize-none outline-none text-[13px] text-on-surface placeholder:text-on-surface-subtle bg-transparent leading-relaxed ff-scroll"
+          className={`${compact ? "order-2 flex-1 min-w-0 py-1" : "w-full"} resize-none outline-none text-[13px] text-on-surface placeholder:text-on-surface-subtle bg-transparent leading-relaxed ff-scroll`}
         />
 
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-1.5">
+        {/* compact: bỏ khung thanh công cụ, nút đính kèm sang trái ô gõ, nút gửi sang phải */}
+        <div className={compact ? "contents" : "flex items-center justify-between pt-1"}>
+          <div className={`flex items-center gap-1.5 ${compact ? "order-1" : ""}`}>
+            {!compact && toolbarExtra}
+            {onToggleEditMode && !compact && (
+              <button
+                type="button"
+                onClick={onToggleEditMode}
+                disabled={Boolean(editDisabledReason) && !editMode}
+                aria-pressed={editMode}
+                title={editDisabledReason && !editMode ? editDisabledReason : editMode ? "Tắt để quay lại trò chuyện" : "Gõ lệnh sửa tài liệu, xem trước rồi mới áp dụng"}
+                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 text-[12px] font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                  editMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
+                }`}
+              >
+                <Icon name="pencil" size={15} weight={editMode ? "fill" : "regular"} />
+                Sửa tài liệu
+              </button>
+            )}
             {/* Attachment Button */}
             <input
               type="file"
@@ -121,6 +156,7 @@ export default function ChatInput({
             />
             <button
               type="button"
+              hidden={editMode}
               onClick={() => fileInputRef.current?.click()}
               className="w-8 h-8 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
               aria-label="Đính kèm tài liệu tham khảo"
@@ -130,12 +166,21 @@ export default function ChatInput({
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            {creditEstimate !== null && (
-              <span className="text-[11px] text-on-surface-subtle tabular-nums">
-                ~{creditEstimate} credit / msg
-              </span>
-            )}
+          <div className={`flex items-center gap-3 ${compact ? "order-3" : ""}`}>
+            {/* compact: chỉ còn số dư — giá "/ msg" không áp khi ô nhập đang trả lời thẻ câu hỏi */}
+            {compact
+              ? creditBalance !== null && (
+                  <span className="text-[11px] text-on-surface-subtle tabular-nums whitespace-nowrap" title="Số credit còn lại">
+                    {creditBalance} credit
+                  </span>
+                )
+              : (creditEstimate !== null || creditBalance !== null) && (
+                  <span className="text-[11px] text-on-surface-subtle tabular-nums" title="Giá mỗi tin nhắn · số credit còn lại">
+                    {creditEstimate !== null && <>~{creditEstimate} credit / {editMode ? "lệnh sửa" : "msg"}</>}
+                    {creditEstimate !== null && creditBalance !== null && " · "}
+                    {creditBalance !== null && <>còn {creditBalance}</>}
+                  </span>
+                )}
 
             <button
               type="button"

@@ -130,7 +130,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
   };
 
-  it("FLF-186: lệnh sửa sau baseline ⇒ BE tạo CR nguồn chat, thẻ “Đã tạo CR-001” mở thẳng CR; không alert, tin nhắn tạm được gỡ", async () => {
+  it("mode 1 v3 (BPMN 3.1): lệnh sửa ⇒ thẻ mời tạo CR, form 3.1 điền sẵn (yêu cầu miệng, ref chat) — BE không tự tạo CR; không alert, tin nhắn tạm được gỡ", async () => {
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     const error = vi.spyOn(console, "error");
     renderWithIntl(<Mode1Chat />);
@@ -138,10 +138,13 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
 
     await send("Đổi tên actor Student thành Learner");
     const card = await screen.findByRole("status");
-    expect(within(card).getByText("Đã tạo CR-001 từ lệnh sửa")).toBeInTheDocument();
+    expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     expect(within(card).getByText("Đổi tên actor Student thành Learner").tagName).toBe("BLOCKQUOTE");
-    expect(within(card).getByRole("link", { name: "Mở CR-001" })).toHaveAttribute("href", `/projects/${MODE1_PROJECT_ID}/change-requests/CR-001`);
-    expect(mode1State.crs.get("CR-001")?.change_request).toMatchObject({ source: { kind: "chat" }, description: "Đổi tên actor Student thành Learner" });
+    const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
+    const prefill = readCrPrefill(new URL(href, "http://x").searchParams);
+    expect(prefill).toMatchObject({ title: "Đổi tên actor Student thành Learner", description: "Đổi tên actor Student thành Learner", source: "verbal" });
+    expect(prefill?.ref).toMatch(/^chat:/);
+    expect(mode1State.crs.size, "3.1 là việc của BA — không tự tạo CR").toBe(0);
 
     // tin nhắn tạm (optimistic) bị gỡ, ô nhập đã xoá, không alert / console.error cho luồng bình thường này
     await waitFor(() => expect(screen.getByRole("button", { name: "Gửi tin nhắn" })).toBeInTheDocument());
@@ -153,16 +156,15 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     error.mockRestore();
   });
 
-  it("Đóng ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới (CR mới)", async () => {
+  it("Bỏ qua ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới", async () => {
     renderWithIntl(<Mode1Chat />);
     await send("Thêm NFR thời gian phản hồi 2 giây");
     const card = await screen.findByRole("status");
-    fireEvent.click(within(card).getByRole("button", { name: "Đóng" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Bỏ qua" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await send("Sửa mô tả actor Guest");
     expect(await screen.findByText("Sửa mô tả actor Guest", { selector: "blockquote" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Mở CR-002" })).toBeInTheDocument();
     expect(screen.queryByText("Thêm NFR thời gian phản hồi 2 giây")).not.toBeInTheDocument();
   });
 

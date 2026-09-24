@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Báo cáo coverage sinh ra (`vitest run --coverage`) — HTML + JS của reporter, không phải mã nguồn.
+    "coverage/**",
   ]),
 ]);
 

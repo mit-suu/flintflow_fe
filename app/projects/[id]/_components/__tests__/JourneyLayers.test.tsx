@@ -1,7 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
-import JourneyBar, { phaseStates, remainingGates } from "../JourneyBar";
 import StepIntroCard, { formatEstimate, readableInputs } from "../StepIntroCard";
 import DecisionsPanel, { topicLabel } from "../DecisionsPanel";
 import { stepDividers } from "../ChatPane";
@@ -20,41 +19,8 @@ const step = (over: Partial<StepSummary> & Pick<StepSummary, "id" | "phase">): S
   regenerate_used: 0,
   regenerate_limit: 3,
   accepted_at: null,
+  running: false,
   ...over,
-});
-
-describe("JourneyBar — Lớp 1 bản đồ hành trình", () => {
-  const steps: StepSummary[] = [
-    step({ id: "B-0.1", phase: "B-0", status: "accepted" }),
-    step({ id: "S-4.1", phase: "S-4" }),
-    step({ id: "S-4.2", phase: "S-4" }),
-    step({ id: "S-5.1@S03", phase: "S-5" }),
-    step({ id: "S-5.5@S03", phase: "S-5" }),
-    step({ id: "S-5.1@S04", phase: "S-5" }),
-  ];
-
-  it("đếm điểm duyệt còn lại theo chế độ, không đếm 91 bước", () => {
-    // Chặt: mỗi bước chưa chốt là một lần bấm
-    expect(remainingGates(steps, "strict")).toBe(5);
-    // Cân bằng: mỗi đơn vị giai đoạn một cổng (S-4, S-5@S03, S-5@S04) + S-4.1 luôn cần người
-    expect(remainingGates(steps, "balanced")).toBe(4);
-  });
-
-  it("đánh dấu giai đoạn đã xong / đang làm, và vị trí màn trong vòng S-5", () => {
-    const states = phaseStates(steps, "S-5.1@S04");
-    expect(states.find((s) => s.phase === "B-0")).toMatchObject({ done: true, current: false });
-    expect(states.find((s) => s.phase === "S-5")).toMatchObject({ current: true, loop: { index: 2, total: 2 } });
-  });
-
-  it("hiện % tài liệu và số điểm duyệt còn lại; bấm vào giai đoạn thì nhảy tới bước đầu của nó", () => {
-    const onSelectPhase = vi.fn();
-    renderWithIntl(<JourneyBar steps={steps} currentStepId="S-4.1" readinessPercent={46} credits={118} onSelectPhase={onSelectPhase} />);
-    expect(screen.getByText("Tài liệu: 46%")).toBeInTheDocument();
-    expect(screen.getByText("118 credit")).toBeInTheDocument();
-    expect(screen.getByText(/còn khoảng \d+ điểm duyệt/)).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button")[0]);
-    expect(onSelectPhase).toHaveBeenCalled();
-  });
 });
 
 describe("StepIntroCard — Lớp 2 bước này sẽ…", () => {

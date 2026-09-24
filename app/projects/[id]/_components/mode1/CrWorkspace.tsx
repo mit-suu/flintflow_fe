@@ -104,7 +104,10 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
     );
   } else if (c.status === "manual_fix") {
     next = (
-      <Step tone="warn" text="AI đã làm lại 2 lần mà vẫn trượt kiểm. Sửa tay các vị trí trượt bên dưới rồi kiểm lại, hoặc huỷ change request.">
+      <Step
+        tone="warn"
+        text="AI đã làm lại 2 lần mà vẫn trượt kiểm. Sửa các vị trí trượt bên dưới — “Sửa trong step” để AI viết lại theo quy tắc của step sở hữu, hoặc sửa trực tiếp — rồi kiểm lại; hoặc huỷ change request."
+      >
         {primary("Kiểm lại", () => after(cr.action("verify")), "Đang kiểm…")}
       </Step>
     );
@@ -115,21 +118,34 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
       </Step>
     );
   } else if (c.status === "in_review") {
-    next = allRejected ? (
-      <Step tone="warn" text="Mọi nhóm đều bị từ chối. Sửa lại CR (khoá lại block, AI đề xuất lại) hoặc đóng CR.">
-        <div className="flex gap-2">
-          <button type="button" disabled={busy} onClick={() => setDialog("close")} className="px-4 py-2 rounded-[10px] border border-[#F2CACA] bg-white text-[13px] font-bold text-[#B03030] disabled:opacity-50">
-            Đóng CR
-          </button>
-          {primary("Sửa lại CR", () => after(cr.action("revise")), "Đang khoá lại…")}
-        </div>
-      </Step>
-    ) : (
-      <Step text="Duyệt hoặc từ chối từng nhóm. Nhóm cuối được quyết mà có nhóm duyệt ⇒ ghi Track Changes thành bản nháp mới." />
-    );
+    // 0 nhóm ⇒ không có gì để duyệt (mọi vị trí "không liên quan", hoặc CR nộp trước khi BE chặn việc này).
+    // Không chỉ lối ra thì màn duyệt trống trơn, không một cái nút — CR kẹt vĩnh viễn ở in_review.
+    next =
+      allRejected || groups.length === 0 ? (
+        <Step
+          tone="warn"
+          text={
+            groups.length === 0
+              ? 'Không có nhóm thay đổi nào để duyệt — mọi vị trí đều kết luận "không liên quan". Sửa lại CR để kết luận lại từng vị trí, hoặc đóng CR.'
+              : "Mọi nhóm đều bị từ chối. Sửa lại CR (khoá lại phần tử, AI đề xuất lại) hoặc đóng CR."
+          }
+        >
+          <div className="flex gap-2">
+            <button type="button" disabled={busy} onClick={() => setDialog("close")} className="px-4 py-2 rounded-[10px] border border-[#F2CACA] bg-white text-[13px] font-bold text-[#B03030] disabled:opacity-50">
+              Đóng CR
+            </button>
+            {primary("Sửa lại CR", () => after(cr.action("revise")), "Đang khoá lại…")}
+          </div>
+        </Step>
+      ) : (
+        <Step text="Duyệt hoặc từ chối từng nhóm. Nhóm cuối được quyết mà có nhóm duyệt ⇒ ghi op vào Spine và render bản mới." />
+      );
   } else if (c.status === "written") {
     next = (
-      <Step tone="ok" text={`Đã ghi Track Changes + comment (tác giả ${c.cr_id}) vào bản ${c.result_doc_version ?? "mới"}.`}>
+      <Step
+        tone="ok"
+        text={`Đã ghi vào bản ${c.result_doc_version ?? "mới"} — tải bản có đánh dấu (Track Changes + comment, tác giả ${c.cr_id}) ở mục Version.`}
+      >
         <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] bg-[#1F7A45] text-white text-[13px] font-bold">
           Xem tài liệu
         </Link>
@@ -167,6 +183,13 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
 
       <p className="text-[13px] text-[#33312D] whitespace-pre-wrap bg-white border border-[#ECEAE5] rounded-[14px] p-3.5">{c.description}</p>
 
+      {c.seed && (
+        <p className="text-[12px] text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] px-3.5 py-2.5" aria-label="Bản xem trước đính kèm">
+          Đính kèm bản xem trước ({c.seed.ops.length} thay đổi{c.seed.targets.length ? ` trên ${c.seed.targets.length} phần tử` : ""}) — AI dùng làm gợi ý khi làm rõ,
+          tìm vị trí và đề xuất.
+        </p>
+      )}
+
       {cr.error && (
         <div role="alert" className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-[12.5px]">
           <span className="flex-1">{cr.error}</span>
@@ -202,6 +225,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
           editable={(EDITABLE as readonly string[]).includes(c.status) && !c.paused}
           busy={cr.busy === "patch"}
           onPatch={(locId, body) => after(cr.patch(locId, body))}
+          onOwnerDraft={c.status === "manual_fix" && !c.paused ? (locId, instruction) => after(cr.ownerDraft(locId, instruction)) : undefined}
         />
       )}
 

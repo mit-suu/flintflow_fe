@@ -14,6 +14,8 @@ export interface DocVersion {
   cr_ids: string[];
   baseline_id: string | null;
   has_clean_file: boolean;
+  /** Mode 1 v3 (BPMN 3.14): có bản Track Changes của CR — tải qua `variant=tracked`. */
+  has_tracked_file: boolean;
   /** Có file gốc người dùng upload (bản import 0.0 — FLF-184), tải qua `variant=original`. */
   has_original_file: boolean;
   created_by: string;

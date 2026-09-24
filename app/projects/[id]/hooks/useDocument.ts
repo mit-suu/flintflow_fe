@@ -24,7 +24,7 @@ const isDraftMeta = (meta: Record<string, unknown> | undefined): meta is Record<
 
 /**
  * `GET /document` — tải lại khi `source`/`baselineId` đổi hoặc `refreshToken` tăng (vd sau khi
- * step ghi op mới hoặc ChangePanel áp một lô).
+ * step ghi op mới hoặc lệnh sửa trong chat áp một lô).
  */
 export function useDocument(
   projectId: string,
@@ -103,7 +103,7 @@ export function useDocument(
   useEffect(() => {
     if (!projectId) return;
     // Lùi một microtask: `reload()` tự `setLoading(true)` đồng bộ (T1) — gọi thẳng trong effect bị
-    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `ChangePanel.tsx`).
+    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `EditHistory.tsx`).
     queueMicrotask(() => void reload());
   }, [projectId, reload, refreshToken]);
 

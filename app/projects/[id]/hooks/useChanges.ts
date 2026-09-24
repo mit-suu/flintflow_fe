@@ -11,6 +11,8 @@ export type PreviewSource = "instruction" | "reconcile";
 export interface UseChangesResult {
   preview: PreviewResult | null;
   previewSource: PreviewSource | null;
+  /** Câu lệnh của bản xem trước đang hiển thị — mode 1 v3 dùng làm mô tả CR. */
+  pendingInstruction: string;
   previewing: boolean;
   applying: boolean;
   /** `NEEDS_CLARIFICATION` (UC 6.11) — câu hỏi làm rõ lệnh, chưa có preview. */
@@ -172,6 +174,7 @@ export function useChanges(
   }, [projectId, getLatestSeq]);
 
   return {
+    pendingInstruction,
     preview,
     previewSource,
     previewing,

@@ -17,7 +17,8 @@ export interface ChatSession {
 }
 
 /** ActionType của BE dùng cho chat; quyết định giá credit mỗi tin nhắn. */
-export type ChatActionType = "chat";
+/** `change_instruction`: lệnh sửa tài liệu gõ ở ô chat (chip "Sửa tài liệu"). */
+export type ChatActionType = "chat" | "change_instruction";
 
 /** Câu hỏi có gợi ý trả lời — model phát trong `questions[]` của CHAT và `answer_needed` của step. */
 export interface DiscoveryQuestion {
