@@ -1,21 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import type { ReactNode } from "react";
 import { MAX_CLARIFY_ROUNDS, type Cr } from "@/types/change-request";
+import QuestionStepperInput from "../QuestionStepperInput";
 
 interface ClarifyPanelProps {
   cr: Cr;
   /** Câu hỏi đang chờ trả lời (`awaiting_answers`). */
   pendingQuestions: string[];
+  /** Câu trả lời theo từng câu; câu bỏ qua là `""` (= chưa biết — phase 7): AI ghi dữ kiện đó là giả định. */
   onAnswer: (answers: string[]) => void;
   busy?: boolean;
+  /** Khối đính kèm tài liệu (phase 7) — người dùng trả lời bằng tài liệu. */
+  materials?: ReactNode;
 }
 
-/** 3.2–3.3 Làm rõ (C-2, UC-49): AI hỏi khi CR mơ hồ, tối đa 3 vòng rồi bắt buộc đi tiếp. */
-export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = false }: ClarifyPanelProps) {
-  const [answers, setAnswers] = useState<string[]>(() => pendingQuestions.map(() => ""));
+/**
+ * 3.2–3.3 Làm rõ (C-2, UC-49): AI hỏi khi CR mơ hồ **hoặc thiếu dữ kiện để viết nội dung** (phase 7), tối đa 3 vòng rồi
+ * bắt buộc đi tiếp. Câu hỏi hiện **như mode tạo SRS** (`QuestionStepperInput`): từng câu một, đáp án AI gợi ý đánh số để
+ * chọn, dòng cuối tự gõ; câu chưa biết thì "Bỏ qua" ⇒ AI giả định. Đính kèm tài liệu có câu trả lời được ở ngay dưới.
+ */
+export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = false, materials }: ClarifyPanelProps) {
   const answered = cr.clarifications.filter((c) => c.answers.length > 0);
-  const complete = answers.length === pendingQuestions.length && answers.every((a) => a.trim());
+  const suggestions = cr.clarifications.at(-1)?.suggestions ?? [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -25,41 +32,29 @@ export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = fa
           {round.questions.map((q, i) => (
             <div key={i}>
               <p className="font-semibold text-[#191817]">❓ {q}</p>
-              <p className="text-[#4B4842] pl-5">↳ {round.answers[i]}</p>
+              <p className={`pl-5 ${round.answers[i]?.trim() ? "text-[#4B4842]" : "text-[#8A867E] italic"}`}>↳ {round.answers[i]?.trim() || "Chưa biết — AI sẽ giả định"}</p>
             </div>
           ))}
         </div>
       ))}
 
       {pendingQuestions.length > 0 && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (complete) onAnswer(answers.map((a) => a.trim()));
-          }}
-          className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] p-3 flex flex-col gap-2.5"
-          aria-label="Trả lời câu hỏi làm rõ"
-        >
-          <p className="text-[12.5px] font-bold text-[#8A6D1F]">
-            AI cần làm rõ trước khi tìm vị trí sửa (vòng {cr.clarifications.length}/{MAX_CLARIFY_ROUNDS}):
+        <section className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] pt-3 pb-2 flex flex-col gap-1" aria-label="Trả lời câu hỏi làm rõ">
+          <p className="px-3 text-[12.5px] font-bold text-[#8A6D1F]">
+            AI cần thêm thông tin trước khi tìm vị trí và viết nội dung (vòng {cr.clarifications.length}/{MAX_CLARIFY_ROUNDS}):
           </p>
-          {pendingQuestions.map((q, i) => (
-            <label key={i} className="flex flex-col gap-1 text-[12.5px] font-semibold text-[#191817]">
-              {q}
-              <textarea
-                rows={2}
-                value={answers[i] ?? ""}
-                onChange={(e) => setAnswers((prev) => prev.map((a, j) => (j === i ? e.target.value : a)))}
-                className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#EFD9A6] bg-white text-[12.5px] font-normal"
-              />
-            </label>
-          ))}
-          <div className="flex justify-end">
-            <button type="submit" disabled={!complete || busy} className="px-4 py-1.5 rounded-[8px] bg-[#191817] text-white text-[12.5px] font-bold disabled:opacity-50">
-              {busy ? "Đang gửi…" : "Gửi câu trả lời"}
-            </button>
-          </div>
-        </form>
+          <p className="px-3 text-[11.5px] text-[#8A6D1F]">
+            Chọn một gợi ý hoặc tự nhập câu trả lời. Câu chưa biết thì “Bỏ qua” — AI sẽ tự giả định và đánh dấu để người duyệt xác nhận.
+          </p>
+          <QuestionStepperInput
+            key={`${cr.cr_id}:${cr.clarifications.length}`}
+            questions={pendingQuestions.map((question, i) => ({ question, suggestedAnswers: suggestions[i] ?? [], multiple: false }))}
+            onSendAnswerList={onAnswer}
+            allowEmpty
+            sending={busy}
+          />
+          {materials && <div className="px-3 pt-1">{materials}</div>}
+        </section>
       )}
     </div>
   );

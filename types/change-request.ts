@@ -42,6 +42,26 @@ export interface CrSeed {
   targets: string[];
 }
 
+/**
+ * Tài liệu bổ sung của CR (mode 1 v3 phase 7): chữ người dùng dán / tách từ file / Gemini đọc từ ảnh — AI dùng làm
+ * dữ kiện ở 3.2, 3.6, 3.9. `round` 0 = đính kèm lúc tạo, n = khi trả lời vòng n.
+ */
+export const CR_MATERIAL_KINDS = ["text", "file", "image"] as const;
+export type CrMaterialKind = (typeof CR_MATERIAL_KINDS)[number];
+export const CR_MAX_MATERIALS = 10;
+/** Đuôi file BE nhận làm tài liệu bổ sung. */
+export const CR_MATERIAL_ACCEPT = ".docx,.pdf,.txt,.md,.png,.jpg,.jpeg";
+
+export interface CrMaterial {
+  material_id: string;
+  kind: CrMaterialKind;
+  name: string;
+  text: string;
+  truncated: boolean;
+  round: number;
+  added_at: IsoDateTime;
+}
+
 export interface CrSource {
   kind: CrSourceKind;
   ref: string | null;
@@ -57,7 +77,8 @@ export interface Cr {
   requester: string;
   status: CrStatus;
   paused: Paused | null;
-  clarifications: { round: number; questions: string[]; answers: string[] }[];
+  /** `suggestions` (phase 7): đáp án AI gợi ý, song song `questions` (`[]` khi không có). */
+  clarifications: { round: number; questions: string[]; answers: string[]; suggestions: string[][] }[];
   base_doc_version: string;
   result_doc_version: string | null;
   created_by: string;
@@ -65,6 +86,11 @@ export interface Cr {
   decided_by: string | null;
   closed_reason: string | null;
   seed: CrSeed | null;
+  materials: CrMaterial[];
+  /** Phase 7: dữ kiện 3.2 báo vẫn thiếu khi buộc đi tiếp — 3.6 viết kèm giả định. */
+  missing_info: string[];
+  /** Phase 8: lệnh sửa gộp thêm từ chat (theo thứ tự). */
+  amendments: { text: string; at: IsoDateTime }[];
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }
@@ -88,7 +114,14 @@ export interface CrLocation {
   owner_step: string | null;
   conclusion: LocationConclusion | null;
   reason: string | null;
-  proposal: { old_text: string; new_text: string | null; comment_text: string | null; spine_ops: unknown[] } | null;
+  proposal: {
+    old_text: string;
+    new_text: string | null;
+    comment_text: string | null;
+    spine_ops: unknown[];
+    /** Phase 7: dữ kiện AI tự giả định — người duyệt cần xác nhận. */
+    assumptions: string[];
+  } | null;
   manual: boolean;
   redo_count: number;
   verify: {
@@ -124,6 +157,13 @@ export const DECISION_REASON_MIN_LENGTH = 10;
 export const MAX_REDO_PER_LOCATION = 2;
 export const MAX_CLARIFY_ROUNDS = 3;
 
+/** Phase 8: CR chưa nộp — chat còn gộp lệnh / dẫn từng bước được. */
+export const CR_OPEN_STATUSES: readonly CrStatus[] = ["draft", "clarifying", "awaiting_answers", "impact_review", "proposing", "verifying", "manual_fix", "ready_to_submit"];
+/** Phase 8: trạng thái BE nhận `POST …/amend`. */
+export const CR_AMENDABLE_STATUSES: readonly CrStatus[] = ["draft", "impact_review", "proposing", "verifying", "manual_fix", "ready_to_submit"];
+/** Phase 8: trạng thái BE nhận "Sửa lại" một vị trí (`owner-step-draft`). */
+export const CR_REDRAFT_STATUSES: readonly CrStatus[] = ["proposing", "verifying", "manual_fix", "ready_to_submit"];
+
 // ─── request ─────────────────────────────────────────────────────
 
 export interface CreateCrRequest {
@@ -133,6 +173,8 @@ export interface CreateCrRequest {
   requester: string;
   /** Mode 1 v3: bản xem trước (`POST /changes/preview`) đính kèm làm gợi ý. Hết hạn ⇒ CR vẫn tạo, `meta.seed_dropped`. */
   preview_id?: string;
+  /** Phase 7: đoạn văn bản nguồn dán ở 3.1 (≤ 5). File upload sau khi tạo qua `addCrMaterialFile`. */
+  materials?: { name: string; text: string }[];
 }
 
 /** `POST …/locations/:locId/owner-step-draft` (BPMN 3.9) — hướng sửa của BA cho skill step sở hữu. */

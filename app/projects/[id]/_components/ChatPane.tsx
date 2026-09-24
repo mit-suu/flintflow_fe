@@ -48,6 +48,8 @@ interface ChatPaneProps {
   emptyState?: ReactNode;
   /** Placeholder ô nhập — mặc định của ChatInput. */
   inputPlaceholder?: string;
+  /** Placeholder khi chip "Sửa tài liệu" bật (mode 1: theo bước của change request trong chat). */
+  editPlaceholder?: string;
   /** Đầu thanh tiêu đề, trước tên pane (vd. nút lịch sử phiên chat). */
   headerStart?: ReactNode;
   /** Số dư credit — hiện trong ô nhập. */
@@ -115,6 +117,7 @@ export default function ChatPane({
   title = "Hội thoại & Duyệt bước",
   emptyState,
   inputPlaceholder,
+  editPlaceholder,
   headerStart,
   flushLeft = false,
   creditBalance = null,
@@ -260,7 +263,7 @@ export default function ChatPane({
               questionCard || showQuestions
                 ? "Hoặc trả lời trực tiếp…"
                 : sendAsEdit
-                  ? "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator"
+                  ? (editPlaceholder ?? "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
                   : inputPlaceholder
             }
           />

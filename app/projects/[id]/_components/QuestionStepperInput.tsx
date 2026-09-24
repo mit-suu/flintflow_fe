@@ -6,7 +6,11 @@ import Icon from "@/components/ui/Icon";
 
 interface QuestionStepperInputProps {
   questions: DiscoveryQuestion[];
-  onSendAnswers: (answersText: string) => void;
+  onSendAnswers?: (answersText: string) => void;
+  /** Có ⇒ gửi câu trả lời theo từng câu (đúng thứ tự, `""` cho câu bỏ qua) thay vì một chuỗi — CR mode 1 (3.3). */
+  onSendAnswerList?: (answers: string[]) => void;
+  /** Cho gửi khi chưa trả lời câu nào (CR mode 1: câu chưa biết ⇒ AI giả định). */
+  allowEmpty?: boolean;
   /** Không truyền ⇒ ẩn nút đóng (vd. step đang chờ trả lời, không bỏ ngang được). */
   onDismiss?: () => void;
   sending?: boolean;
@@ -36,17 +40,20 @@ export const isQuestionMultiple = (q?: DiscoveryQuestion): boolean => {
  * Chuỗi gửi đi: 1 câu ⇒ câu trả lời; nhiều câu ⇒ các dòng `n. câu trả lời` (bỏ câu chưa trả lời).
  * `ElicitPanel.toStepAnswers` tách ngược lại theo đúng định dạng này.
  */
+/** Câu trả lời của một câu: gợi ý đã chọn (nối "; ") và/hoặc dòng tự gõ. */
+export const answerText = (selected: Record<number, string[]>, custom: Record<number, string>, idx: number): string => {
+  const opts = selected[idx] ?? [];
+  const own = (custom[idx] ?? "").trim();
+  if (opts.length > 0 && own) return `${opts.join("; ")} (Bổ sung: ${own})`;
+  return opts.length > 0 ? opts.join("; ") : own;
+};
+
 export const formatAnswers = (
   questionCount: number,
   selected: Record<number, string[]>,
   custom: Record<number, string>
 ): string => {
-  const answerOf = (idx: number): string => {
-    const opts = selected[idx] ?? [];
-    const own = (custom[idx] ?? "").trim();
-    if (opts.length > 0 && own) return `${opts.join("; ")} (Bổ sung: ${own})`;
-    return opts.length > 0 ? opts.join("; ") : own;
-  };
+  const answerOf = (idx: number): string => answerText(selected, custom, idx);
   if (questionCount === 1) return answerOf(0);
   return Array.from({ length: questionCount }, (_, idx) => answerOf(idx))
     .flatMap((ans, idx) => (ans ? [`${idx + 1}. ${ans}`] : []))
@@ -60,6 +67,8 @@ export const formatAnswers = (
 export default function QuestionStepperInput({
   questions,
   onSendAnswers,
+  onSendAnswerList,
+  allowEmpty = false,
   onDismiss,
   sending = false,
 }: QuestionStepperInputProps) {
@@ -91,8 +100,9 @@ export default function QuestionStepperInput({
   const goTo = (idx: number) => setCurrentIndex(Math.min(total - 1, Math.max(0, idx)));
 
   const submit = () => {
-    if (!hasAnyAnswer || sending) return;
-    onSendAnswers(formatAnswers(total, selectedOptions, customAnswers));
+    if ((!hasAnyAnswer && !allowEmpty) || sending) return;
+    if (onSendAnswerList) onSendAnswerList(questions.map((_, idx) => answerText(selectedOptions, customAnswers, idx)));
+    else onSendAnswers?.(formatAnswers(total, selectedOptions, customAnswers));
   };
 
   const next = () => (isLast ? submit() : goTo(index + 1));
@@ -135,10 +145,10 @@ export default function QuestionStepperInput({
 
   // Nút cuối hàng tự trả lời: câu chưa cuối ⇒ Bỏ qua / Tiếp; câu cuối ⇒ Gửi
   const actionLabel = isLast ? "Gửi câu trả lời" : isAnswered(index) ? "Tiếp" : "Bỏ qua";
-  const actionDisabled = isLast && (!hasAnyAnswer || sending);
+  const actionDisabled = isLast && ((!hasAnyAnswer && !allowEmpty) || sending);
   // Câu cuối chưa trả lời vẫn bỏ qua được: đã có câu trả lời khác ⇒ gửi phần đã có; chưa có gì ⇒ đóng thẻ (nếu được)
-  const canSkipLast = isLast && !isAnswered(index) && !sending && (hasAnyAnswer || Boolean(onDismiss));
-  const skipLast = () => (hasAnyAnswer ? submit() : onDismiss?.());
+  const canSkipLast = isLast && !isAnswered(index) && !sending && (hasAnyAnswer || allowEmpty || Boolean(onDismiss));
+  const skipLast = () => (hasAnyAnswer || allowEmpty ? submit() : onDismiss?.());
 
   return (
     // Đứng một mình thì chừa đáy; có ô chat ngay sau (ChatPane) thì để ô chat lo khoảng cách

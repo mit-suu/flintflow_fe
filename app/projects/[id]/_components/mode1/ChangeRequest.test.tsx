@@ -53,8 +53,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Bắt đầu làm rõ (AI)");
-    const form = await screen.findByRole("form", { name: "Trả lời câu hỏi làm rõ" });
-    for (const box of within(form).getAllByRole("textbox")) fireEvent.change(box, { target: { value: "Có, áp cho mọi thiết bị" } });
+    // Câu hỏi như mode tạo SRS: từng câu, chọn gợi ý (câu chọn 1 tự sang câu kế), câu cuối gửi
+    const form = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
+    fireEvent.click(within(form).getByRole("radio", { name: "Có, áp cho mọi thiết bị" }));
+    fireEvent.click(within(form).getByRole("radio", { name: "Có, gửi email thông báo" }));
     fireEvent.click(within(form).getByRole("button", { name: "Gửi câu trả lời" }));
 
     await click("Tìm vị trí ảnh hưởng & khoá");
@@ -90,7 +92,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     fireEvent.click(within(first).getByRole("button", { name: "Lưu sửa tay" }));
     await click("Kiểm đề xuất");
     expect(await screen.findByText(/AI đã làm lại 2 lần mà vẫn trượt/)).toBeInTheDocument();
-    expect(screen.getByText("Kiểm code: trượt")).toBeInTheDocument();
+    expect(screen.getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
 
     const again = (await screen.findAllByRole("article"))[0];
     fireEvent.click(within(again).getByRole("button", { name: "Sửa tay" }));
@@ -159,7 +161,8 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     renderWithIntl(<CrWorkspace projectId={P} crId={second.change_request.cr_id} />);
 
     await click("Tìm vị trí ảnh hưởng & khoá");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Phần tử đang bị change request khác giữ: \S+\[id=[^\]]+\] \(CR-001\)/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Phần tử đang bị change request khác giữ: .+ \(CR-001\)/);
+    expect(screen.getByRole("alert").textContent).not.toContain("[id=");
   });
 
   it("hết credit lúc đề xuất ⇒ banner paused, nạp xong tiếp tục", async () => {

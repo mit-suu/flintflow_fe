@@ -88,29 +88,31 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     expect(tile("Cờ đỏ")).toHaveTextContent("1");
     expect(tile("Cờ đỏ").className).toContain("text-[#B03030]");
     expect(tile("Cờ vàng")).toHaveTextContent("2");
-    expect(tile("Section bắt buộc thiếu")).toHaveTextContent("1");
-    expect(tile("Heading không khớp")).toHaveTextContent("1");
-    expect(tile("Field độ tin thấp")).toHaveTextContent("1");
+    expect(tile("Mục bắt buộc thiếu")).toHaveTextContent("1");
+    expect(tile("Tiêu đề ngoài mẫu")).toHaveTextContent("1");
+    expect(tile("Dữ liệu chưa chắc")).toHaveTextContent("1");
 
     // title trùng id ⇒ nhãn section chuẩn; title riêng ⇒ giữ title BE
     const perf = screen.getByRole("heading", { name: "4.2.3 Performance" }).closest("article")!;
     expect(within(perf).getByLabelText("Cờ đỏ")).toBeInTheDocument();
     expect(within(perf).getByText("NFR-P02 thiếu ngưỡng đo được")).toBeInTheDocument();
-    expect(within(perf).getByText("NFR-MEASURABLE")).toBeInTheDocument();
+    // mã luật lạ ⇒ không in mã, chỉ để tra ở tooltip
+    expect(within(perf).queryByText("NFR-MEASURABLE")).not.toBeInTheDocument();
+    expect(within(perf).getByTitle("NFR-MEASURABLE")).toBeInTheDocument();
     const actors = screen.getByRole("heading", { name: "Actors (tên riêng BE)" }).closest("article")!;
     expect(within(actors).getByLabelText("Cờ vàng")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "1 Product Overview" })).toBeInTheDocument();
   });
 
-  it("section thiếu (nhãn chuẩn, id lạ dùng title BE), heading không khớp kèm block, field độ tin thấp kèm %", async () => {
+  it("section thiếu (nhãn chuẩn, id lạ dùng title BE), heading không khớp không in mã block, field độ tin thấp theo tên kèm %", async () => {
     serveReport();
     renderWithIntl(<GapReportView projectId={P} />);
     await screen.findByText("Gap report — bản 0.0");
 
     expect(screen.getByText("5.3 Application Messages List")).toBeInTheDocument();
     expect(screen.getByText("Mục riêng khách hàng")).toBeInTheDocument();
-    expect(screen.getByText("Phụ lục B — Biên bản họp").closest("li")).toHaveTextContent("B0011");
-    expect(screen.getByText("actors[id=A02].kind").closest("li")).toHaveTextContent("— 55%");
+    expect(screen.getByText("Phụ lục B — Biên bản họp").closest("li")).not.toHaveTextContent("B0011");
+    expect(screen.getByText("Tác nhân A02 — Loại").closest("li")).toHaveTextContent("— 55%");
     // nợ T4: hình chưa vẽ (import lúc thiếu PlantUML) chỉ là thông tin, không phải cờ
     expect(screen.getByText(/Sơ đồ use case/).closest("li")).toHaveTextContent("chưa vẽ");
   });
@@ -138,12 +140,12 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     expect(screen.getByText("Cờ đỏ", { selector: "span" }).parentElement!.className).toContain("bg-white");
 
     const href = screen.getByRole("link", { name: "Cần sửa → Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${P}/change-requests?`)).toBe(true);
+    expect(href.startsWith(`/projects/${P}?panel=cr&`)).toBe(true);
     expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({
       title: "Sửa theo gap report",
       description: "Xử lý các vấn đề trong gap report của bản 0.2:",
       source: "gap_report",
-      ref: "gap-report 0.2",
+      ref: "Gap report bản 0.2",
     });
   });
 

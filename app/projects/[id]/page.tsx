@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { applyChangesWithRebase, renderDiagram } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
@@ -38,7 +39,11 @@ import StepIntroCard from "./_components/StepIntroCard";
 import RunPill from "./_components/RunPill";
 import { getStepStat, recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
+import Mode1CrThread from "./_components/mode1/Mode1CrThread";
+import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
+import Mode1Popup from "./_components/mode1/Mode1Popup";
+import { crListHref, gapReportHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
@@ -153,6 +158,9 @@ export default function WorkspacePage() {
   return <FptWorkspace mode1={mode1} />;
 }
 
+const MODE1_ACTION =
+  "shrink-0 px-3 py-1.5 rounded-full border border-[#DCD8F0] bg-[#F2F1FB] text-[12px] font-bold text-[#554DB0] hover:bg-[#E8E6F7] transition-colors";
+
 /**
  * Workspace pipeline — mode 2 (template FPT) và mode 1 sau import (`mode1`). Mode 1 v3 (bám BPMN Flow 1 ⇒ 3.1): không
  * chạy step / gate / ký v1 / waive, không ghi Spine thẳng — chỉ xem tài liệu, chat, panel "Sửa tài liệu có xem trước"
@@ -163,6 +171,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const projectId = params?.id as string;
 
   const ws = useWorkspace(projectId);
+  /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
+  const crChat = useCrChat(projectId, mode1);
   const spineState = useSpine(projectId, ws.ready);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
   // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
@@ -252,7 +262,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   /** Chip "Sửa tài liệu" trên ô chat: bật ⇒ nội dung gửi đi là lệnh sửa (`/changes/preview`), không phải tin chat. */
-  const [editMode, setEditMode] = useState(false);
+  // Mode 1 (phase 8): chat bên trái mặc định là sửa tài liệu qua change request; tắt chip ⇒ hỏi đáp
+  const [editMode, setEditMode] = useState(mode1);
   const [savingChange, setSavingChange] = useState(false);
   /** Lỗi của lượt ghi op thuần (panel Tên riêng, hàng đợi màn, quyết định giả định) — nói bằng tiếng Việt. */
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -688,6 +699,19 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           stepRunningElsewhere={steps?.steps.some((s) => s.id === runnableStep && s.running) ?? false}
           busy={runner.state.busy || savingChange}
           onExportClick={() => setExportOpen((v) => !v)}
+          // Mode 1: gap report + change request mở dạng popup ngay trên màn tài liệu (`?panel=gap|cr`)
+          actions={
+            mode1 ? (
+              <>
+                <Link href={gapReportHref(projectId)} scroll={false} className={MODE1_ACTION}>
+                  Gap report
+                </Link>
+                <Link href={crListHref(projectId)} scroll={false} className={MODE1_ACTION}>
+                  Change request
+                </Link>
+              </>
+            ) : undefined
+          }
           onEnterFocus={() => setFocusMode(true)}
           onToolsClick={() => togglePanel("tools")}
           toolsActive={rightPanel === "tools"}
@@ -726,7 +750,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           }
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
-          onEditInstruction={submitEditInstruction}
+          onEditInstruction={mode1 ? (text) => void crChat.send(text) : submitEditInstruction}
+          editPlaceholder={mode1 ? crChat.inputHint : undefined}
           editMode={editMode}
           onToggleEditMode={() => (editMode ? setEditMode(false) : startEditing())}
           editDisabledReason={editDisabledReason}
@@ -757,6 +782,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           }
         >
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
+          {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} />}
           {!mode1 && viewingAccepted && viewedStep && (
             <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
@@ -944,11 +970,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             flagsError={flagsError}
             flagsBusy={flagsBusy}
             onClose={() => setRightPanel(null)}
-            onSelectStep={setSelectedStepId}
+            // Mode 1 v3: không có step, không sửa thẳng giả định — cờ chỉ đóng bằng change request
+            onSelectStep={mode1 ? undefined : setSelectedStepId}
             onWaive={mode1 ? undefined : handleFlagWaive}
             onRedraw={handleRedrawDiagram}
-            onAssumptionDecision={(decision) => void applyAssumptionDecision(decision)}
-            onConfirmAllAssumptions={(ids) => void confirmAllAssumptions(ids)}
+            onAssumptionDecision={mode1 ? undefined : (decision) => void applyAssumptionDecision(decision)}
+            onConfirmAllAssumptions={mode1 ? undefined : (ids) => void confirmAllAssumptions(ids)}
             onRecompute={handleFlagRecompute}
           />
         )}
@@ -1005,6 +1032,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onGoToStep={setSelectedStepId}
           getBaseVersion={getBaseVersion}
         />
+      )}
+
+      {mode1 && (
+        <Suspense fallback={null}>
+          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} />
+        </Suspense>
       )}
     </div>
   );

@@ -10,6 +10,8 @@ import { isReleaseVersion, type DocVersion, type DownloadVariant } from "@/types
 import type { Flag } from "@/types/spine";
 import { errorText } from "./errors";
 import { VERSION_KIND_LABELS, formatDateTime } from "./labels";
+import { humanizeText } from "./spine-labels";
+import { crHref } from "./prefill";
 
 interface VersionsPanelProps {
   projectId: string;
@@ -122,7 +124,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
             {blockingFlags.length > 0 && (
               <ul className="list-disc pl-4 mt-1">
                 {blockingFlags.map((f) => (
-                  <li key={f.id}>{f.message}</li>
+                  <li key={f.id}>{humanizeText(f.message)}</li>
                 ))}
               </ul>
             )}
@@ -160,7 +162,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                 {v.cr_ids.length > 0 && (
                   <div className="flex flex-wrap gap-1 text-[11px]">
                     {v.cr_ids.map((id) => (
-                      <Link key={id} href={`/projects/${projectId}/change-requests/${id}`} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold hover:bg-[#E4E1DC]">
+                      <Link key={id} href={crHref(projectId, id)} scroll={false} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold hover:bg-[#E4E1DC]">
                         {id}
                       </Link>
                     ))}

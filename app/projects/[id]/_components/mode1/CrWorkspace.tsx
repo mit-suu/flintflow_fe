@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { CR_TERMINAL_STATUSES, type CrDetail, type CrLocation } from "@/types/change-request";
+import { CR_MAX_MATERIALS, CR_TERMINAL_STATUSES, type CrDetail, type CrLocation } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useChangeRequest } from "../../hooks/mode1/useChangeRequest";
 import ChangeGroupPanel from "./ChangeGroupPanel";
 import ClarifyPanel from "./ClarifyPanel";
+import { MaterialAdder, MaterialList } from "./CrMaterials";
 import CrTimeline from "./CrTimeline";
 import ImpactList from "./ImpactList";
 import { CR_SOURCE_LABELS, CR_STATUS_LABELS, formatDateTime } from "./labels";
+import { sourceRefLabel } from "./spine-labels";
 import PausedBanner from "./PausedBanner";
 import ReasonDialog from "./ReasonDialog";
+import { crListHref } from "./prefill";
 
 /** Vị trí AI cần (đề xuất lại): chưa kết luận, hoặc kiểm trượt mà không phải sửa tay — cùng luật `needsProposal` BE. */
 export const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion === null || (l.verify !== null && !l.verify.code_ok));
@@ -54,6 +57,16 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
   const after = (p: Promise<boolean>) => void p.then((ok) => ok && onChanged?.());
   const terminal = CR_TERMINAL_STATUSES.includes(c.status);
   const allRejected = groups.length > 0 && groups.every((g) => g.decision === "rejected");
+  // Phase 7: tài liệu bổ sung chỉ thêm / xoá được trước khi tìm vị trí (BE: draft, awaiting_answers)
+  const materialsEditable = (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
+  const materialAdder = (
+    <MaterialAdder
+      busy={cr.busy === "material"}
+      full={c.materials.length >= CR_MAX_MATERIALS}
+      onAddText={(name, text) => cr.addMaterialText(name, text)}
+      onAddFile={(file) => cr.addMaterialFile(file)}
+    />
+  );
 
   const primary = (label: string, onClick: () => void, busyLabel = "Đang chạy…") => (
     <button
@@ -72,13 +85,13 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
     next = <PausedBanner paused={c.paused} what={PAUSED_WHAT[c.status] ?? "Bước AI"} busy={cr.busy === "resume"} onResume={() => after(cr.action("resume"))} />;
   } else if (c.status === "draft" || c.status === "clarifying") {
     next = (
-      <Step text="AI đọc yêu cầu và hỏi lại nếu còn mơ hồ (tốn credit).">
+      <Step text="AI đọc yêu cầu và tài liệu đính kèm, hỏi lại nếu còn mơ hồ hoặc thiếu dữ kiện để viết nội dung (tốn credit).">
         {primary("Bắt đầu làm rõ (AI)", () => after(cr.action("clarify")), "AI đang làm rõ…")}
       </Step>
     );
   } else if (c.status === "impact_review" && locations.length === 0) {
     next = (
-      <Step text="Tìm tất định mọi block liên quan (liên kết field, mã được nhắc, từ khoá) và khoá chúng cho CR này — không tốn credit.">
+      <Step text="Tìm mọi chỗ trong tài liệu liên quan tới yêu cầu (qua liên kết giữa các phần, mã được nhắc tới, từ khoá) và giữ chúng cho CR này để không ai sửa chồng — không tốn credit.">
         {primary("Tìm vị trí ảnh hưởng & khoá", () => after(cr.action("impact")), "Đang tìm…")}
       </Step>
     );
@@ -98,7 +111,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
     );
   } else if (c.status === "proposing" || c.status === "verifying") {
     next = (
-      <Step text="Kiểm code (old text khớp, luật Spine, cờ đỏ mới) và AI soát nhất quán (chỉ cờ vàng).">
+      <Step text="Kiểm tra tự động (nội dung gốc chưa bị sửa ở chỗ khác, dữ liệu hợp lệ, không phát sinh lỗi đỏ mới) và AI soát tính nhất quán (chỉ cảnh báo vàng).">
         {primary("Kiểm đề xuất", () => after(cr.action("verify")), "Đang kiểm…")}
       </Step>
     );
@@ -106,7 +119,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
     next = (
       <Step
         tone="warn"
-        text="AI đã làm lại 2 lần mà vẫn trượt kiểm. Sửa các vị trí trượt bên dưới — “Sửa trong step” để AI viết lại theo quy tắc của step sở hữu, hoặc sửa trực tiếp — rồi kiểm lại; hoặc huỷ change request."
+        text="AI đã làm lại 2 lần mà vẫn trượt kiểm. Sửa các vị trí chưa đạt bên dưới — “Nhờ AI sửa theo quy tắc” để AI viết lại theo quy tắc soạn của phần đó, hoặc sửa trực tiếp — rồi kiểm lại; hoặc huỷ change request."
       >
         {primary("Kiểm lại", () => after(cr.action("verify")), "Đang kiểm…")}
       </Step>
@@ -138,7 +151,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
           </div>
         </Step>
       ) : (
-        <Step text="Duyệt hoặc từ chối từng nhóm. Nhóm cuối được quyết mà có nhóm duyệt ⇒ ghi op vào Spine và render bản mới." />
+        <Step text="Duyệt hoặc từ chối từng nhóm. Khi nhóm cuối được quyết mà có nhóm được duyệt ⇒ thay đổi được ghi vào tài liệu và tạo bản mới." />
       );
   } else if (c.status === "written") {
     next = (
@@ -160,7 +173,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex-1 min-w-[260px]">
           <p className="text-[12px]">
-            <Link href={`/projects/${projectId}/change-requests`} className="text-[#8A867E] hover:text-[#191817] font-semibold">
+            <Link href={crListHref(projectId)} scroll={false} className="text-[#8A867E] hover:text-[#191817] font-semibold">
               Change request
             </Link>
             <span className="text-[#D6D2CB]"> / </span>
@@ -169,7 +182,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
           <h2 className="text-[20px] font-extrabold text-[#191817]">{c.title}</h2>
           <p className="text-[11.5px] text-[#8A867E]">
             {CR_SOURCE_LABELS[c.source.kind]}
-            {c.source.ref ? ` · ${c.source.ref}` : ""} · yêu cầu bởi {c.requester} · tạo {formatDateTime(c.created_at)} · trên bản {c.base_doc_version}
+            {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · yêu cầu bởi {c.requester} · tạo {formatDateTime(c.created_at)} · trên bản {c.base_doc_version}
           </p>
         </div>
         {!terminal && (
@@ -190,6 +203,24 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
         </p>
       )}
 
+      {(c.materials.length > 0 || (materialsEditable && c.status === "draft")) && (
+        <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[14px] p-3.5" aria-label="Tài liệu bổ sung của CR">
+          <h3 className="font-bold text-[#191817] text-[13px]">Tài liệu bổ sung ({c.materials.length})</h3>
+          {c.status === "draft" && (
+            <p className="text-[11.5px] text-[#6B6862]">
+              Đính kèm email, biên bản, đặc tả… có dữ kiện cho thay đổi (con số, luật, luồng, trường dữ liệu) — AI viết theo đúng tài
+              liệu thay vì tự đoán.
+            </p>
+          )}
+          <MaterialList
+            items={c.materials.map((m) => ({ key: m.material_id, name: m.name, kind: m.kind, text: m.text, truncated: m.truncated, round: m.round }))}
+            onRemove={materialsEditable ? (id) => void cr.removeMaterial(id) : undefined}
+            busy={cr.busy === "material"}
+          />
+          {materialsEditable && c.status === "draft" && materialAdder}
+        </section>
+      )}
+
       {cr.error && (
         <div role="alert" className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-[12.5px]">
           <span className="flex-1">{cr.error}</span>
@@ -208,7 +239,19 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
           pendingQuestions={c.status === "awaiting_answers" ? pending_questions : []}
           busy={cr.busy === "answers"}
           onAnswer={(answers) => after(cr.answer(answers))}
+          materials={c.status === "awaiting_answers" && materialsEditable ? materialAdder : undefined}
         />
+      )}
+
+      {c.missing_info.length > 0 && !terminal && (
+        <div className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] px-3.5 py-2.5 text-[12.5px] text-[#8A6D1F]" aria-label="Dữ kiện còn thiếu">
+          <p className="font-bold">Còn thiếu dữ kiện — AI sẽ tự giả định và đánh dấu ở từng đề xuất để người duyệt xác nhận:</p>
+          <ul className="list-disc pl-5">
+            {c.missing_info.map((f, i) => (
+              <li key={i}>{f}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {c.status === "in_review" || c.status === "written" || c.status === "rejected" ? (

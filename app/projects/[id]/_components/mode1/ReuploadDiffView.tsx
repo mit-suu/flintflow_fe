@@ -19,10 +19,10 @@ export const reuploadPrefill = (diff: ReuploadDiff) => ({
       b.change === "added"
         ? `- Thêm: ${b.after ?? ""}`
         : b.change === "removed"
-          ? `- Xoá ${b.block_id}: ${b.before ?? ""}`
+          ? `- Xoá: "${b.before ?? ""}"`
           : b.change === "moved"
-            ? `- Di chuyển ${b.block_id}`
-            : `- Sửa ${b.block_id}: "${b.before ?? ""}" → "${b.after ?? ""}"`
+            ? `- Di chuyển${(b.before ?? b.after) ? `: "${b.before ?? b.after}"` : " một đoạn"}`
+            : `- Sửa: "${b.before ?? ""}" → "${b.after ?? ""}"`
     ),
   ].join("\n"),
 });
@@ -70,7 +70,7 @@ export default function ReuploadDiffView({ projectId }: { projectId: string }) {
             </p>
             {diff.blocks.length > 0 && (
               <Link
-                href={crPrefillHref(projectId, { ...reuploadPrefill(diff), source: "reupload", ref: diff.id })}
+                href={crPrefillHref(projectId, { ...reuploadPrefill(diff), source: "reupload", ref: `File tải lại ${diff.original_name}` })}
                 className="px-3 py-1.5 rounded-[8px] btn-gradient-primary text-white text-[12px] font-bold"
               >
                 Tạo CR từ khác biệt

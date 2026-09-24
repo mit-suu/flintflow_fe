@@ -40,6 +40,7 @@ const proposal = (over: Partial<NonNullable<CrLocation["proposal"]>> = {}): NonN
   new_text: null,
   comment_text: null,
   spine_ops: [],
+  assumptions: [],
   ...over,
 });
 
@@ -61,8 +62,8 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
     expect(within(c).getByText("Liên kết field")).toBeInTheDocument();
     expect(within(c).getByText("Nhắc mã")).toBeInTheDocument();
     expect(within(c).getByText("Từ khoá")).toBeInTheDocument();
-    expect(within(c).getByText("· bước S-3.2")).toBeInTheDocument();
-    expect(within(c).getByText("liên quan: actors[id=A01]")).toBeInTheDocument();
+    expect(within(c).getByText("· phần “Actor – mục tiêu”")).toBeInTheDocument();
+    expect(within(c).getByText("liên quan: Tác nhân A01")).toBeInTheDocument();
     expect(within(c).queryByText("Sửa")).not.toBeInTheDocument();
     expect(within(c).queryByRole("button", { name: "Sửa tay" })).not.toBeInTheDocument();
   });
@@ -70,10 +71,10 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
   it("kết luận sửa ⇒ thay đổi theo field: cũ (del) → mới (ins), nhãn “Sửa”, lý do", () => {
     renderWithIntl(<ProposalCard location={location({ conclusion: "edit", reason: "UC-2.4 đổi phạm vi", proposal: proposal({ new_text: NEW }) })} editable={false} onPatch={vi.fn()} />);
     const changes = within(card()).getByLabelText("Thay đổi theo field");
-    expect(within(changes).getByText("description")).toBeInTheDocument();
+    expect(within(changes).getByText("Mô tả")).toHaveAttribute("title", "description");
     expect(within(changes).getByText(UC.description).tagName).toBe("DEL");
     expect(within(changes).getByText("The user is signed out of every device.").tagName).toBe("INS");
-    expect(within(changes).queryByText("name")).not.toBeInTheDocument();
+    expect(within(changes).queryByText("Tên")).not.toBeInTheDocument();
     expect(within(card()).getByText("Sửa")).toBeInTheDocument();
     expect(within(card()).getByText("Lý do: UC-2.4 đổi phạm vi")).toBeInTheDocument();
   });
@@ -107,7 +108,7 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
       />
     );
     expect(card().className).toContain("border-[#F2CACA]");
-    expect(within(card()).getByText("Kiểm code: trượt")).toBeInTheDocument();
+    expect(within(card()).getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
   });
 });
 
@@ -181,15 +182,15 @@ describe("ProposalCard — sửa tay (3.9)", () => {
     expect(within(card()).getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
   });
 
-  it("BPMN 3.9 (manual_fix): nút “Sửa trong step” ⇒ nhập hướng sửa ⇒ onOwnerDraft; sửa JSON thành đường phụ “Sửa trực tiếp”", () => {
+  it("BPMN 3.9 (manual_fix): nút “Nhờ AI sửa theo quy tắc” ⇒ nhập hướng sửa ⇒ onOwnerDraft; sửa JSON thành đường phụ “Sửa trực tiếp”", () => {
     const onOwnerDraft = vi.fn();
     renderWithIntl(<ProposalCard location={location({ owner_step: "S-6.4" })} editable onPatch={vi.fn()} onOwnerDraft={onOwnerDraft} />);
     const c = card();
     expect(within(c).getByRole("button", { name: "Sửa trực tiếp" })).toBeInTheDocument();
-    fireEvent.click(within(c).getByRole("button", { name: "Sửa trong step S-6.4" }));
+    fireEvent.click(within(c).getByRole("button", { name: "Nhờ AI sửa theo quy tắc" }));
     const submit = within(c).getByRole("button", { name: "Viết lại đề xuất (AI)" });
     expect(submit).toBeDisabled();
-    fireEvent.change(within(c).getByLabelText(/AI viết lại theo quy tắc của step S-6.4/), { target: { value: " Giữ ngưỡng 1 giây " } });
+    fireEvent.change(within(c).getByLabelText(/AI viết lại theo quy tắc soạn phần “Hiệu năng”/), { target: { value: " Giữ ngưỡng 1 giây " } });
     fireEvent.click(submit);
     expect(onOwnerDraft).toHaveBeenCalledWith("Giữ ngưỡng 1 giây");
   });

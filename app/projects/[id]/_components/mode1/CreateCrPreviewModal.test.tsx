@@ -35,7 +35,7 @@ describe("CreateCrPreviewModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tạo CR" }));
     expect(push).toHaveBeenCalledTimes(1);
     const href = push.mock.calls[0][0] as string;
-    expect(href.startsWith("/projects/p1/change-requests?")).toBe(true);
+    expect(href.startsWith("/projects/p1?panel=cr&")).toBe(true);
     expect(readCrPrefill(new URLSearchParams(href.split("?")[1]))).toEqual({
       title: "Đổi tên actor A03 thành Administrator",
       description: "Đổi tên actor A03 thành Administrator\nvì khách yêu cầu",

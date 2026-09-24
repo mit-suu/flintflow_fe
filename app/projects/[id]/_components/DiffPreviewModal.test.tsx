@@ -18,10 +18,11 @@ const basePreview: PreviewResult = {
 };
 
 describe("DiffPreviewModal", () => {
-  it("hiện bảng path / before / value từ preview.changes", () => {
+  it("hiện bảng phần thay đổi (tên, không phải path) / trước / sau từ preview.changes", () => {
     renderWithIntl(<DiffPreviewModal preview={basePreview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
 
-    expect(screen.getByText("actors[id=A03].name")).toBeInTheDocument();
+    expect(screen.getByText("Tác nhân A03 — Tên")).toHaveAttribute("title", "actors[id=A03].name");
+    expect(screen.getByRole("columnheader", { name: "Phần thay đổi" })).toBeInTheDocument();
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.getByText("Administrator")).toBeInTheDocument();
   });
@@ -33,8 +34,10 @@ describe("DiffPreviewModal", () => {
     };
     renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
 
-    expect(screen.getByText("invariant_3_dead_reference")).toBeInTheDocument();
+    // mã luật lạ ⇒ không in; path ⇒ tên phần tử
+    expect(screen.queryByText(/invariant_3_dead_reference/)).not.toBeInTheDocument();
     expect(screen.getByText("Tham chiếu chết", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(/Màn hình S14 — Tính năng/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Xác nhận" })).toBeDisabled();
   });
 
@@ -72,9 +75,10 @@ describe("DiffPreviewModal", () => {
     };
     renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
 
-    expect(screen.getByText("fixed:2.1", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("D01", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText(/use_cases\[id=UC01\]\.actor_ids→A03/)).toBeInTheDocument();
+    expect(screen.getByText("2.1 Actors", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Sơ đồ sẽ vẽ lại: 1")).toBeInTheDocument();
+    expect(screen.getByText(/Đang được nhắc tới ở: Use case UC01 — Tác nhân/)).toBeInTheDocument();
+    expect(screen.queryByText(/fixed:|\[id=/)).not.toBeInTheDocument();
   });
 
   it("không có thay đổi nào thì hiện thông báo trống", () => {
