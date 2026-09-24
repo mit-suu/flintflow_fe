@@ -1,41 +1,35 @@
 "use client";
 
-import type { Readiness } from "@/types/pipeline";
+import Icon from "@/components/ui/Icon";
+import type { IssueCounts } from "./flag-rules";
 
 interface ReadinessSummaryProps {
-  readiness: Readiness | null;
+  /** null ⇒ đang tải. */
+  counts: IssueCounts | null;
 }
 
 /**
- * `72% accepted · 4 chờ duyệt lại · 2 cờ đỏ` — chỉ mô tả tình trạng, KHÔNG phải điều kiện chốt
- * baseline (điều kiện chốt là "không còn cờ đỏ chưa waive", kiểm ở `POST /baseline`).
+ * Một dòng trả lời "đã chốt bản được chưa". Mục trống vì bước chưa chạy KHÔNG tính là vấn đề — tách riêng
+ * thành "N mục chờ bước sau". Chỉ mô tả tình trạng; điều kiện chốt thật kiểm ở `POST /baseline`.
  */
-export default function ReadinessSummary({ readiness }: ReadinessSummaryProps) {
-  if (!readiness) {
-    return <div className="text-[11.5px] text-[#A8A49C] italic">Đang tải điểm sẵn sàng…</div>;
+export default function ReadinessSummary({ counts }: ReadinessSummaryProps) {
+  if (!counts) {
+    return <div className="text-[11.5px] text-on-surface-subtle italic">Đang kiểm tra tài liệu…</div>;
   }
-
+  const { blocking, later } = counts;
   return (
-    <div
-      className="bg-white border border-[#ECEAE5] rounded-[14px] p-3.5 flex flex-col gap-1 shadow-2xs"
-      aria-label="Tóm tắt độ sẵn sàng"
-    >
-      <div className="text-[11px] font-extrabold text-[#8A867E] tracking-wider uppercase">Độ sẵn sàng</div>
-      <div className="text-[13px] font-bold text-[#191817] flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        <span>{readiness.accepted_pct}% accepted</span>
-        <span className="text-[#D6D2CB]">·</span>
-        <span className="text-[#8A6D1F]">{readiness.awaiting_reaccept} chờ duyệt lại</span>
-        <span className="text-[#D6D2CB]">·</span>
-        <span className={readiness.red_open > 0 ? "text-[#B03030]" : "text-[#1F7A45]"}>
-          {readiness.red_open} cờ đỏ
-        </span>
-        {readiness.stale > 0 && (
+    <p className="flex items-center gap-2 px-1 text-[12.5px] text-on-surface" aria-label="Tóm tắt kiểm tra tài liệu">
+      <Icon name={blocking > 0 ? "warning" : "check-circle"} size={16} className={blocking > 0 ? "text-error" : "text-success"} />
+      <span>
+        {blocking > 0 ? (
           <>
-            <span className="text-[#D6D2CB]">·</span>
-            <span className="text-[#6B6862]">{readiness.stale} mục cũ</span>
+            <span className="font-bold">{blocking} vấn đề</span> cần bạn xử lý
           </>
+        ) : (
+          <span className="font-semibold">Không có vấn đề cần xử lý</span>
         )}
-      </div>
-    </div>
+        {later > 0 && <span className="text-on-surface-muted"> · {later} mục chờ bước sau</span>}
+      </span>
+    </p>
   );
 }

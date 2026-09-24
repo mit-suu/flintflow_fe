@@ -26,6 +26,7 @@ const step = (id: string, status: StepSummary["status"]): StepSummary => ({
   regenerate_used: 0,
   regenerate_limit: 3,
   accepted_at: null,
+  running: false,
 });
 
 const STEPS = [step("S-2.1", "accepted"), step("S-3.1", "accepted"), step("S-3.2", "in_progress"), step("S-4.1", "pending")];
@@ -41,8 +42,6 @@ const renderRail = (onHide = vi.fn()) =>
       selectedStepId={null}
       onSelectStep={vi.fn()}
       readinessPercent={24}
-      workingMode="fast"
-      onChangeWorkingMode={vi.fn()}
     />
   );
 
@@ -52,7 +51,8 @@ describe("WorkspaceProgressRail", () => {
     const current = screen.getByRole("button", { name: /^S-3\.2/ });
     expect(current).toHaveAttribute("aria-current", "step");
     expect(current).toHaveTextContent(stepLabel("S-3.2"));
-    expect(screen.getByText("24% accepted")).toBeInTheDocument();
+    expect(screen.getByText("Tài liệu đã chốt")).toBeInTheDocument();
+    expect(screen.getByText("24%")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^S2 · / }));
     expect(screen.getByRole("button", { name: /^S-2\.1/ })).toBeInTheDocument();

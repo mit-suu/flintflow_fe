@@ -31,6 +31,7 @@ const version = (v: string, kind: DocVersion["kind"] = "cr_revision"): DocVersio
   cr_ids: [],
   baseline_id: null,
   has_clean_file: kind === "release",
+  has_tracked_file: kind === "cr_revision",
   has_original_file: kind === "imported",
   created_by: "u1",
   created_at: "2026-09-19T00:00:00.000Z",

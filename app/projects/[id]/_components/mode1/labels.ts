@@ -1,5 +1,5 @@
 /** Nhãn tiếng Việt cho trạng thái và mã của mode 1 — chỉ hiển thị, không suy diễn trạng thái ở FE. */
-import type { CrSourceKind, CrStatus, LocationConclusion, LocationFoundBy } from "@/types/change-request";
+import { NEW_CR_SOURCE_KINDS, type CrSourceKind, type CrStatus, type LocationConclusion, type LocationFoundBy } from "@/types/change-request";
 import type { DocVersionKind } from "@/types/doc-version";
 import type { DocBlockKind, ImportStatus } from "@/types/import";
 
@@ -42,17 +42,18 @@ export const CR_SOURCE_LABELS: Record<CrSourceKind, string> = {
   gap_report: "Gap report",
   reupload: "File tải lại (khác biệt)",
   viewer_comment: "Góp ý của người xem",
-  verbal: "Trao đổi miệng",
-  chat: "Lệnh sửa trong chat",
+  verbal: "Yêu cầu miệng (ghi rõ người yêu cầu)",
+  chat: "Lệnh sửa trong chat (CR cũ)",
 };
 
-/** Nguồn người dùng chọn được khi tạo CR tay — `chat` chỉ do hệ thống gán. */
-export const CR_SOURCE_KINDS = (Object.keys(CR_SOURCE_LABELS) as CrSourceKind[]).filter((k) => k !== "chat");
+/** Nguồn chọn được khi tạo CR — đúng 6 nguồn BPMN 3.1 (mode 1 v3: không còn `chat`). */
+export const CR_SOURCE_KINDS = NEW_CR_SOURCE_KINDS;
 
 export const FOUND_BY_LABELS: Record<LocationFoundBy, string> = {
   spine_link: "Liên kết field",
   mention: "Nhắc mã",
   keyword: "Từ khoá",
+  preview: "Từ bản xem trước",
 };
 
 export const CONCLUSION_LABELS: Record<LocationConclusion, string> = {

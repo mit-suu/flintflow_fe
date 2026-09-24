@@ -9,7 +9,21 @@ interface DiffPreviewModalProps {
   onCancel: () => void;
   /** `reason` chỉ có khi nhánh là `post_baseline` — BE bắt buộc, vào §I Record of Changes. */
   onConfirm: (reason?: string) => void;
+  /** Mode 1 v3: "Tạo CR" thay "Xác nhận" — bản xem trước dùng để soạn change request, không áp thẳng. */
+  confirmLabel?: string;
+  busyLabel?: string;
+  /** Dòng giải thích ngay trên nút (vd "tài liệu chỉ đổi sau khi CR được duyệt"). */
+  note?: string;
+  /** Cho bấm xác nhận cả khi bản xem trước lỗi (mode 1 v3: vẫn tạo CR, chỉ không kèm bản xem trước). */
+  confirmWhenInvalid?: boolean;
 }
+
+/** Nhánh xử lý của BE nói bằng lời dễ hiểu. */
+const BRANCH_LABEL: Record<NonNullable<PreviewResult["branch"]>, string> = {
+  silent: "Không ảnh hưởng mục khác",
+  dependent: "Kéo theo mục liên quan",
+  post_baseline: "Sửa sau khi đã ký bản",
+};
 
 const short = (value: unknown): string => {
   if (value === undefined) return "—";
@@ -20,16 +34,32 @@ const short = (value: unknown): string => {
 };
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
-export default function DiffPreviewModal({ preview, busy = false, onCancel, onConfirm }: DiffPreviewModalProps) {
+export default function DiffPreviewModal({
+  preview,
+  busy = false,
+  onCancel,
+  onConfirm,
+  confirmLabel = "Xác nhận",
+  busyLabel = "Đang áp dụng…",
+  note,
+  confirmWhenInvalid = false,
+}: DiffPreviewModalProps) {
   const [reason, setReason] = useState("");
   // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
-  // để user bấm Xác nhận rồi ăn lỗi khó hiểu.
-  const needsReason = preview.branch === "post_baseline";
+  // để user bấm Xác nhận rồi ăn lỗi khó hiểu. Luồng CR (`confirmWhenInvalid`) không áp thẳng — lý do
+  // không đi đâu ở bước này nên không hỏi, tránh bắt gõ một câu rồi âm thầm vứt đi.
+  const needsReason = !confirmWhenInvalid && preview.branch === "post_baseline";
   const hasViolations = preview.violations.length > 0;
   // BUG-27: "Không có thay đổi nào" mà vẫn có nút Xác nhận là mời user bấm vào chỗ không làm gì.
   // Ngoại lệ: lượt hoà giải trả `no_change` — ở đó xác nhận CÓ nghĩa ("nội dung vẫn đúng", gỡ cờ).
-  const empty = preview.changes.length === 0 && !preview.no_change;
-  const canConfirm = preview.ok && !hasViolations && !empty && Boolean(preview.preview_id) && !busy && (!needsReason || reason.trim().length > 0);
+  // Luồng CR của mode 1 v3 (`confirmWhenInvalid`) thì "Tạo CR" vẫn có nghĩa kể cả khi bản xem trước rỗng:
+  // CR dựng từ câu lệnh, bản xem trước chỉ là thứ kèm thêm.
+  const empty = !confirmWhenInvalid && preview.changes.length === 0 && !preview.no_change;
+  const canConfirm =
+    (confirmWhenInvalid || (preview.ok && !hasViolations && Boolean(preview.preview_id))) &&
+    !empty &&
+    !busy &&
+    (!needsReason || reason.trim().length > 0);
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -41,7 +71,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
           <h3 className="font-extrabold text-[15px] text-[#191817]">Xem trước thay đổi</h3>
           <div className="flex items-center gap-2">
             {preview.branch && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F2F1FB] text-[#6A62C4]">{preview.branch}</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F2F1FB] text-[#6A62C4]">{BRANCH_LABEL[preview.branch]}</span>
             )}
             <button type="button" onClick={onCancel} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
               ✕
@@ -134,6 +164,8 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
           </div>
         )}
 
+        {note && <p className="text-[11.5px] text-[#554DB0] bg-[#F2F1FB] rounded-[10px] px-3 py-2">{note}</p>}
+
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
@@ -150,7 +182,7 @@ export default function DiffPreviewModal({ preview, busy = false, onCancel, onCo
               onClick={() => onConfirm(needsReason ? reason.trim() : undefined)}
               className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {busy ? "Đang áp dụng…" : preview.no_change ? "Xác nhận không đổi" : "Xác nhận"}
+              {busy ? busyLabel : preview.no_change && !confirmWhenInvalid ? "Xác nhận không đổi" : confirmLabel}
             </button>
           )}
         </div>

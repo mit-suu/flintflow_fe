@@ -92,6 +92,11 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             }
             title={status === "preflight_rejected" ? "Tải lên file đã sửa" : undefined}
           />
+          <p className="text-[12px] text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">
+            FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng{" "}
+            <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu FPT còn
+            thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.
+          </p>
         </>
       )}
 
