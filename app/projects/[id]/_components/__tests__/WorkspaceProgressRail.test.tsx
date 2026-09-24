@@ -42,8 +42,6 @@ const renderRail = (onHide = vi.fn()) =>
       selectedStepId={null}
       onSelectStep={vi.fn()}
       readinessPercent={24}
-      workingMode="fast"
-      onChangeWorkingMode={vi.fn()}
     />
   );
 
@@ -53,7 +51,8 @@ describe("WorkspaceProgressRail", () => {
     const current = screen.getByRole("button", { name: /^S-3\.2/ });
     expect(current).toHaveAttribute("aria-current", "step");
     expect(current).toHaveTextContent(stepLabel("S-3.2"));
-    expect(screen.getByText("24% accepted")).toBeInTheDocument();
+    expect(screen.getByText("Tài liệu đã chốt")).toBeInTheDocument();
+    expect(screen.getByText("24%")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^S2 · / }));
     expect(screen.getByRole("button", { name: /^S-2\.1/ })).toBeInTheDocument();
