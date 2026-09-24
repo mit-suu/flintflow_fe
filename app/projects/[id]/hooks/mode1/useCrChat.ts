@@ -354,7 +354,11 @@ export function useCrChat(projectId: string, enabled = true) {
     reject: (loc: CrLocation) =>
       void withCr(async (id) => {
         const d = await call("reject", () =>
-          patchLocation(projectId, id, loc.location_id, { conclusion: "not_related", reason: "Người yêu cầu bỏ đề xuất này trong khung chat" })
+          patchLocation(projectId, id, loc.location_id, {
+            conclusion: "not_related",
+            // Vị trí sơ đồ gốc (§4.13): "bỏ" nghĩa là giữ hình người dùng vẽ sẵn
+            reason: loc.found_by.includes("diagram") ? "Người yêu cầu giữ hình gốc của tài liệu" : "Người yêu cầu bỏ đề xuất này trong khung chat",
+          })
         );
         await advance(d);
       }),

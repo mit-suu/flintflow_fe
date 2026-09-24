@@ -186,6 +186,7 @@ export const RULE_LABELS: Readonly<Record<string, string>> = {
   function_without_uc: "Chức năng chưa thuộc use case nào",
   import_semantic: "AI phát hiện vấn đề nội dung",
   import_image_unread: "Ảnh chưa đọc được",
+  original_diagram_stale: "Hình gốc lệch dữ liệu",
   accepted_as_is: "Chấp nhận nguyên trạng",
   goal_not_covered: "Mục tiêu chưa được đáp ứng",
   cr_consistency: "Chưa nhất quán sau khi sửa",

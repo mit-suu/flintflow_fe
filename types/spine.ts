@@ -211,12 +211,17 @@ export interface Addendum {
   captured_at: IsoDateTime;
 }
 
+/** Loại sơ đồ gốc đọc được từ ảnh của file upload (§4.13). */
+export type OriginalDiagramKind = "context" | "usecase" | "screen_flow" | "erd";
+
 /** Khối nguyên văn của mục riêng (FLF-182). */
 export interface CustomBlock {
   kind: "paragraph" | "list_item" | "table" | "image";
   text: string;
   rows: string[][] | null;
   image_ref: string | null;
+  /** Ảnh là sơ đồ gốc của người dùng (§4.13): giữ y hình, PlantUML cùng loại không in. */
+  diagram?: { kind: OriginalDiagramKind; source_hash: string } | null;
 }
 
 /** Mục ngoài mẫu FPT của template người dùng (mode 1 v2) — render ở section `custom:<id>`. */

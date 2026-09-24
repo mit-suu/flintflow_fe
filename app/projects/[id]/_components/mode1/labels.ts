@@ -54,6 +54,7 @@ export const FOUND_BY_LABELS: Record<LocationFoundBy, string> = {
   mention: "Nhắc mã",
   keyword: "Từ khoá",
   preview: "Từ bản xem trước",
+  diagram: "Hình gốc",
 };
 
 export const CONCLUSION_LABELS: Record<LocationConclusion, string> = {
