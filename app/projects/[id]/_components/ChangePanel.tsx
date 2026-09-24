@@ -157,7 +157,7 @@ export default function ChangePanel({ projectId, getBaseVersion, getLatestSeq, o
         </div>
       </div>
 
-      {preview && <DiffPreviewModal preview={preview} busy={applying} onCancel={cancelPreview} onConfirm={() => void confirmPreview()} />}
+      {preview && <DiffPreviewModal preview={preview} busy={applying} onCancel={cancelPreview} onConfirm={(reason) => void confirmPreview(reason)} />}
     </aside>
   );
 }
