@@ -7,6 +7,7 @@ import { isFailing, type CrChat, type CrChatBusy, type CrChatSource } from "../.
 import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import FieldChanges from "./FieldChanges";
+import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
 import { CR_SOURCE_LABELS, CR_STATUS_LABELS } from "./labels";
 import PausedBanner from "./PausedBanner";
 import ValueEditor from "./ValueEditor";
@@ -218,13 +219,15 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   const busy = chat.busy !== null;
   const editing = chat.redraftFor === loc.location_id;
   const openEdit = () => chat.startRedraft(loc.location_id);
+  // Sơ đồ gốc (§4.13): BE tự đề xuất, không có gì để AI soạn lại — chỉ Đồng ý (thay hình) hoặc Giữ hình gốc
+  const diagram = isDiagramLocation(loc);
   const tone = failed ? "border-[#E8A5A5] bg-[#FDF4F4]" : missing ? "border-[#EFD9A6] bg-[#FBF4E4]" : accepted ? "border-[#BFE6CE] bg-[#F3FAF6]" : "border-outline-variant bg-white";
 
   return (
     <article id={`cr-loc-${loc.location_id}`} className={`scroll-mt-4 rounded-[12px] border ${tone} p-2.5 flex flex-col gap-1.5`} aria-label={`Đề xuất ${loc.location_id}`}>
       <header className="flex items-start gap-2">
         <p className="flex-1 min-w-0 text-[12px] font-bold text-on-surface" title={loc.path}>
-          {pathLabel(loc.path)}
+          {diagram ? diagramLocationTitle(loc) : pathLabel(loc.path)}
           <span className="block text-[11px] font-medium text-on-surface-muted">{sectionTitle(loc.section_id, loc.section_title)}</span>
         </p>
         {failed ? (
@@ -239,9 +242,9 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
       </header>
 
       {missing && <p className="text-[#8A6D1F]">AI chưa đưa ra đề xuất cho phần này. Nhờ AI soạn, tự viết nội dung, hoặc bỏ qua nếu phần này không cần đổi.</p>}
-      {loc.conclusion === "edit" && p && <FieldChanges oldText={p.old_text} newText={p.new_text} />}
+      {loc.conclusion === "edit" && p && (diagram ? <OriginalDiagramChange loc={loc} /> : <FieldChanges oldText={p.old_text} newText={p.new_text} />)}
       {loc.conclusion === "comment" && p?.comment_text && <p className="text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {humanizeText(p.comment_text)}</p>}
-      {loc.reason && !missing && <p className="text-on-surface-muted">Lý do: {humanizeText(loc.reason)}</p>}
+      {loc.reason && !missing && !diagram && <p className="text-on-surface-muted">Lý do: {humanizeText(loc.reason)}</p>}
       <AssumptionsNote assumptions={p?.assumptions} />
 
       {failed && (
@@ -280,13 +283,13 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
           <button type="button" disabled={busy} onClick={() => chat.accept(loc)} className={`${btn} bg-[#1F7A45] text-white`}>
             Đồng ý
           </button>
-          {chat.canRedraft && (
+          {chat.canRedraft && !diagram && (
             <button type="button" disabled={busy} onClick={openEdit} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
               Sửa lại
             </button>
           )}
           <button type="button" disabled={busy} onClick={() => chat.reject(loc)} className={`${btn} border border-[#F2CACA] bg-white text-[#B03030]`}>
-            Bỏ
+            {diagram ? "Giữ hình gốc" : "Bỏ"}
           </button>
         </div>
       ) : null}
@@ -304,10 +307,17 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
         {locations.map((l) => (
           <li key={l.location_id} className="flex flex-col gap-1">
             <span>
-              <strong className="text-on-surface">{pathLabel(l.path)}</strong>
+              <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l) : pathLabel(l.path)}</strong>
               {l.reason ? ` — ${humanizeText(l.reason)}` : ""}
             </span>
-            {chat.redraftFor === l.location_id ? (
+            {isDiagramLocation(l) ? (
+              // BE tính lại ngay (không AI): dữ liệu hình thể hiện đã đổi thì đề xuất thay hình quay lại
+              chat.canRedraft && (
+                <button type="button" disabled={chat.busy !== null} onClick={() => void chat.redraft(l.location_id, "Tính lại đề xuất vẽ lại hình gốc")} className="self-start underline">
+                  Xét lại — thay bằng sơ đồ vẽ lại nếu hình đã lệch
+                </button>
+              )
+            ) : chat.redraftFor === l.location_id ? (
               <RedraftBox loc={l} chat={chat} onClose={chat.cancelRedraft} />
             ) : (
               chat.canRedraft && (

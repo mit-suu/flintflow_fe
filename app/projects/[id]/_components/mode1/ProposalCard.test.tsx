@@ -201,3 +201,34 @@ describe("ProposalCard — sửa tay (3.9)", () => {
     expect(within(card()).getByRole("button", { name: "Sửa tay" })).toBeInTheDocument();
   });
 });
+
+describe("ProposalCard — vị trí sơ đồ gốc (§4.13)", () => {
+  const image = { kind: "image", text: "Figure 2 — Use case", rows: null, image_ref: "word/media/image2.png", diagram: { kind: "usecase", source_hash: "h" } };
+  const para = { kind: "paragraph", text: "Vẽ bằng draw.io.", rows: null, image_ref: null };
+  const before = json({ id: "CS03", heading: "", level: 3, source: "import", blocks: [para, image] });
+  const after = json({ id: "CS03", heading: "", level: 3, source: "import", blocks: [para] });
+  const diagramLoc = (over: Partial<CrLocation> = {}) =>
+    location({ path: "custom_sections[id=CS03]", section_id: "custom:CS03", section_title: null, current_text: before, found_by: ["diagram"], entity_paths: ["fixed:2.2.1"], ...over });
+
+  it("edit ⇒ nói bằng lời: thay hình gốc nào bằng sơ đồ vẽ lại, không hiện diff JSON khối ảnh", () => {
+    renderWithIntl(
+      <ProposalCard
+        location={diagramLoc({ conclusion: "edit", reason: "r", proposal: proposal({ old_text: before, new_text: after, spine_ops: [{ op: "remove", path: "custom_sections[id=CS03].blocks[image_ref=word/media/image2.png]" }] }) })}
+        editable={false}
+        onPatch={vi.fn()}
+      />
+    );
+    const card = screen.getByRole("article", { name: "Vị trí L001" });
+    expect(within(card).getByText("Hình gốc — Sơ đồ use case")).toBeInTheDocument();
+    expect(within(card).getByText("Hình gốc")).toBeInTheDocument();
+    const change = within(card).getByLabelText("Thay hình gốc");
+    expect(change).toHaveTextContent("Sơ đồ use case");
+    expect(change).toHaveTextContent("Figure 2 — Use case");
+    expect(within(card).queryByLabelText("Thay đổi theo field")).toBeNull();
+  });
+
+  it("not_related ⇒ không có khối thay hình", () => {
+    renderWithIntl(<ProposalCard location={diagramLoc({ conclusion: "not_related", reason: "giữ", proposal: proposal({ old_text: before }) })} editable={false} onPatch={vi.fn()} />);
+    expect(screen.queryByLabelText("Thay hình gốc")).toBeNull();
+  });
+});

@@ -96,7 +96,8 @@ export interface Cr {
 }
 
 /** `preview` (mode 1 v3): phần tử bị op của bản xem trước đính kèm CR chạm tới. */
-export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview";
+/** `diagram` (§4.13): phần nối giữ hình gốc của người dùng — BE tự đề xuất vẽ lại (không qua AI). */
+export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview" | "diagram";
 export type LocationConclusion = "edit" | "comment" | "not_related";
 
 /**

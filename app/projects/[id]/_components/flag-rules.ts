@@ -28,6 +28,8 @@ const RULE_TITLE: Record<FlagRuleId, string> & Record<string, string> = {
   orphan_screen_at_baseline: "Màn hình không gắn chức năng",
   system_name_missing: "Thiếu tên hệ thống",
   actor_name_shape: "Tên actor chưa đúng dạng",
+  // Mode 1 §4.13: hình người dùng vẽ sẵn không còn khớp dữ liệu — mở CR để thay bằng sơ đồ vẽ lại
+  original_diagram_stale: "Hình gốc lệch dữ liệu",
   function_without_uc: "Chức năng không thuộc use case nào",
   usecase_floating: "Use case không gắn actor",
   usecase_relation_invalid: "Quan hệ giữa use case không hợp lệ",

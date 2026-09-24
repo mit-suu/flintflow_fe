@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CrLocation, LocationConclusion, PatchLocationRequest } from "@/types/change-request";
 import { AssumptionsNote } from "./CrMaterials";
 import FieldChanges from "./FieldChanges";
+import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
 import { CONCLUSION_LABELS, FOUND_BY_LABELS } from "./labels";
 import { valueSummary } from "./value-diff";
 import VerifyResult from "./VerifyResult";
@@ -158,7 +159,7 @@ export default function ProposalCard({ location, editable, onPatch, onOwnerDraft
       <header className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
         {/* F6: vị trí hiện theo mục của tài liệu; path Spine chỉ để tra (tooltip) */}
         <span className="font-bold text-[#191817]" title={location.path}>
-          {sectionTitle(location.section_id, location.section_title) || pathLabel(location.path)}
+          {isDiagramLocation(location) ? diagramLocationTitle(location) : sectionTitle(location.section_id, location.section_title) || pathLabel(location.path)}
         </span>
         {location.found_by.map((f) => (
           <span key={f} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold">
@@ -174,10 +175,10 @@ export default function ProposalCard({ location, editable, onPatch, onOwnerDraft
         )}
       </header>
 
-      {summary && <p className="text-[12.5px] text-[#33312D] whitespace-pre-wrap">{summary}</p>}
+      {summary && !isDiagramLocation(location) && <p className="text-[12.5px] text-[#33312D] whitespace-pre-wrap">{summary}</p>}
       {location.entity_paths.length > 0 && <p className="text-[11px] text-[#8A867E]" title={location.entity_paths.join(", ")}>liên quan: {location.entity_paths.map(pathLabel).join(", ")}</p>}
 
-      {location.conclusion === "edit" && p && <FieldChanges oldText={p.old_text} newText={p.new_text} />}
+      {location.conclusion === "edit" && p && (isDiagramLocation(location) ? <OriginalDiagramChange loc={location} /> : <FieldChanges oldText={p.old_text} newText={p.new_text} />)}
       {location.conclusion === "comment" && p?.comment_text && (
         <p className="text-[12px] text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {p.comment_text}</p>
       )}
