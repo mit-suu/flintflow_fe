@@ -93,9 +93,10 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
-            <span className="material-symbols-outlined text-3xl text-primary ff-spinner">
-              progress_activity
-            </span>
+            <span
+              aria-hidden
+              className="w-7 h-7 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0"
+            />
             <p className="text-xs text-secondary font-medium">{t("checking")}</p>
           </div>
         )}
