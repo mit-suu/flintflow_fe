@@ -726,6 +726,101 @@
       "submit": "Đổi mật khẩu",
       "forgotCurrent": "Quên mật khẩu hiện tại?",
       "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại."
+    },
+    "org": {
+      "roles": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "guard": {
+        "checking": "Đang mở tổ chức của bạn…"
+      },
+      "onboarding": {
+        "title": "Chọn nơi làm việc",
+        "subtitle": "Mọi dự án đều thuộc về một tổ chức. Tạo tổ chức của riêng bạn, hoặc nhập mã mời để tham gia tổ chức có sẵn.",
+        "createTab": "Tạo tổ chức",
+        "joinTab": "Nhập mã mời",
+        "nameLabel": "Tên tổ chức",
+        "namePlaceholder": "Ví dụ: Nhóm SRS của Hiệp",
+        "nameHint": "Bạn sẽ là Lead của tổ chức này. Tổ chức mới dùng gói miễn phí và có sẵn credit để bắt đầu.",
+        "createCta": "Tạo tổ chức",
+        "creating": "Đang tạo…",
+        "codeLabel": "Mã mời",
+        "codePlaceholder": "Nhập mã trong email mời",
+        "codeHint": "Mã do Lead của tổ chức gửi qua email, dùng được một lần.",
+        "checkCode": "Kiểm tra mã",
+        "checking": "Đang kiểm tra…",
+        "previewTitle": "Lời mời hợp lệ",
+        "previewBody": "Bạn sẽ tham gia {org} với vai trò {role}.",
+        "joinCta": "Tham gia tổ chức",
+        "joining": "Đang tham gia…",
+        "nameRequired": "Hãy đặt tên cho tổ chức.",
+        "codeRequired": "Hãy nhập mã mời.",
+        "defaultName": "{name}'s Organization"
+      },
+      "switcher": {
+        "title": "Tổ chức của bạn",
+        "subtitle": "Dự án, ví credit và vai trò đi theo tổ chức đang mở. Chọn tổ chức để làm việc.",
+        "current": "Đang mở",
+        "switch": "Mở tổ chức này",
+        "roleLine": "Vai trò: {role}",
+        "addTitle": "Thêm tổ chức",
+        "addBody": "Tạo một tổ chức mới, hoặc nhập mã mời để tham gia tổ chức khác.",
+        "addCta": "Tạo hoặc tham gia",
+        "loadError": "Không tải được danh sách tổ chức.",
+        "goToProjects": "Vào dự án"
+      },
+      "members": {
+        "title": "Thành viên",
+        "subtitle": "Thành viên của {org}",
+        "you": "Bạn",
+        "joined": "Tham gia {date}",
+        "roleLabel": "Vai trò của {name}",
+        "remove": "Xoá khỏi tổ chức",
+        "removeTitle": "Xoá thành viên?",
+        "removeBody": "{name} sẽ mất quyền vào mọi dự án của tổ chức ngay lập tức. Dự án vẫn ở lại với tổ chức.",
+        "leave": "Rời tổ chức",
+        "leaveTitle": "Rời tổ chức?",
+        "leaveBody": "Bạn sẽ mất quyền vào mọi dự án của {org}. Dự án vẫn ở lại với tổ chức.",
+        "confirm": "Xác nhận",
+        "cancel": "Huỷ",
+        "leadOnly": "Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.",
+        "loadError": "Không tải được danh sách thành viên.",
+        "invite": {
+          "title": "Mời thành viên",
+          "roleLabel": "Vai trò",
+          "emailLabel": "Email (không bắt buộc)",
+          "emailPlaceholder": "nguoi-duoc-moi@congty.vn",
+          "cta": "Tạo mã mời",
+          "creating": "Đang tạo…",
+          "codeTitle": "Mã mời vừa tạo",
+          "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn."
+        },
+        "invitations": {
+          "title": "Lời mời",
+          "empty": "Chưa có lời mời nào.",
+          "noEmail": "Mã dùng chung",
+          "revoke": "Thu hồi",
+          "expires": "Hết hạn {date}",
+          "states": {
+            "pending": "Đang chờ",
+            "accepted": "Đã dùng",
+            "revoked": "Đã thu hồi",
+            "expired": "Hết hạn"
+          }
+        },
+        "danger": {
+          "title": "Xoá tổ chức",
+          "body": "Xoá vĩnh viễn tổ chức cùng mọi dự án, thư mục, ví credit và gói. Không thể khôi phục.",
+          "onlyWhenAlone": "Chỉ xoá được khi bạn là thành viên duy nhất. Hãy xoá các thành viên khác trước.",
+          "cta": "Xoá tổ chức",
+          "dialogTitle": "Xoá vĩnh viễn tổ chức?",
+          "dialogBody": "Toàn bộ dự án của {org} sẽ bị xoá vĩnh viễn, credit còn lại trong ví cũng mất theo.",
+          "confirmLabel": "Gõ lại tên tổ chức để xác nhận: {org}",
+          "confirmCta": "Xoá vĩnh viễn"
+        }
+      }
     }
   },
   "workspace": {
@@ -1115,6 +1210,22 @@
     "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa thể ghi baseline.",
     "NOT_PIPELINE_SESSION": "Phiên này không phải phiên pipeline.",
     "NOT_IMPLEMENTED": "Tính năng này chưa được hỗ trợ.",
-    "NO_DATA": "Không nhận được dữ liệu từ máy chủ."
+    "NO_DATA": "Không nhận được dữ liệu từ máy chủ.",
+    "NO_ACTIVE_ORG": "Bạn chưa chọn tổ chức để làm việc.",
+    "ORG_FORBIDDEN": "Bạn không thuộc tổ chức này.",
+    "ORG_NOT_FOUND": "Không tìm thấy tổ chức.",
+    "ORG_ROLE_FORBIDDEN": "Vai trò của bạn không được phép thực hiện thao tác này.",
+    "LAST_LEAD": "Tổ chức phải còn ít nhất một Lead — hãy chỉ định người khác làm Lead trước.",
+    "ALREADY_MEMBER": "Bạn đã là thành viên của tổ chức này.",
+    "INVITE_INVALID": "Mã mời không dùng được: đã hết hạn, đã dùng hoặc đã bị thu hồi.",
+    "INVITE_NOT_FOUND": "Không tìm thấy lời mời.",
+    "INVITE_ALREADY_USED": "Mã mời đã được dùng.",
+    "PLAN_LIMIT_MEMBERS": "Tổ chức đã đạt trần số thành viên của gói hiện tại.",
+    "ACCOUNT_SUSPENDED": "Tài khoản đã bị khoá.",
+    "MEMBER_NOT_FOUND": "Không tìm thấy thành viên trong tổ chức.",
+    "ORG_NAME_MISMATCH": "Tên xác nhận không khớp với tên tổ chức.",
+    "ORG_HAS_OTHER_MEMBERS": "Chỉ xoá được tổ chức khi bạn là thành viên duy nhất.",
+    "ORG_BUSY": "Tổ chức đang có lượt gọi AI chạy dở — thử lại sau ít phút.",
+    "ORG_PAYMENT_PENDING": "Tổ chức đang có thanh toán chờ xử lý — thử lại khi thanh toán kết thúc."
   }
 }
