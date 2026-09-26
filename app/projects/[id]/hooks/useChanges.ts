@@ -11,6 +11,8 @@ export type PreviewSource = "instruction" | "reconcile";
 export interface UseChangesResult {
   preview: PreviewResult | null;
   previewSource: PreviewSource | null;
+  /** Câu lệnh của bản xem trước đang hiển thị — mode 1 v3 dùng làm mô tả CR. */
+  pendingInstruction: string;
   previewing: boolean;
   applying: boolean;
   /** `NEEDS_CLARIFICATION` (UC 6.11) — câu hỏi làm rõ lệnh, chưa có preview. */
@@ -19,8 +21,11 @@ export interface UseChangesResult {
   history: Change[];
   historyLoading: boolean;
   requestPreview: (instruction: string) => Promise<void>;
-  /** Xác nhận `preview` đang hiển thị — tự chọn `applyChanges` hay `reconcile` theo nguồn gốc. */
-  confirmPreview: () => Promise<void>;
+  /**
+   * Xác nhận `preview` đang hiển thị — tự chọn `applyChanges` hay `reconcile` theo nguồn gốc.
+   * `reason` bắt buộc khi `preview.branch === "post_baseline"` (BE trả 400 nếu thiếu).
+   */
+  confirmPreview: (reason?: string) => Promise<void>;
   cancelPreview: () => void;
   reconcileOnce: () => Promise<void>;
   undo: () => Promise<void>;
@@ -107,27 +112,36 @@ export function useChanges(
     }
   }, [projectId, getBaseVersion, onApplied]);
 
-  const confirmPreview = useCallback(async () => {
-    const baseVersion = getBaseVersion();
-    if (baseVersion === null || !preview?.preview_id || !previewSource) return;
-    setApplying(true);
-    setError(null);
-    try {
-      const res =
-        previewSource === "instruction"
-          ? await applyChanges(projectId, { instruction: pendingInstruction, base_version: baseVersion, preview_id: preview.preview_id })
-          : await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
-      if (res.data && !isPreviewResult(res.data)) {
-        onApplied(res.data, preview.impact?.sections.map((s) => s.id));
-        setPreview(null);
-        setPreviewSource(null);
+  const confirmPreview = useCallback(
+    async (reason?: string) => {
+      const baseVersion = getBaseVersion();
+      if (baseVersion === null || !preview?.preview_id || !previewSource) return;
+      setApplying(true);
+      setError(null);
+      try {
+        const res =
+          previewSource === "instruction"
+            ? await applyChanges(projectId, {
+                instruction: pendingInstruction,
+                base_version: baseVersion,
+                preview_id: preview.preview_id,
+                // Sau baseline BE bắt buộc lý do ở cấp transaction (vào Record of Changes)
+                ...(reason?.trim() ? { reason: reason.trim() } : {}),
+              })
+            : await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
+        if (res.data && !isPreviewResult(res.data)) {
+          onApplied(res.data, preview.impact?.sections.map((s) => s.id));
+          setPreview(null);
+          setPreviewSource(null);
+        }
+      } catch (err) {
+        setError(failureMessage(err));
+      } finally {
+        setApplying(false);
       }
-    } catch (err) {
-      setError(failureMessage(err));
-    } finally {
-      setApplying(false);
-    }
-  }, [projectId, getBaseVersion, preview, previewSource, pendingInstruction, onApplied]);
+    },
+    [projectId, getBaseVersion, preview, previewSource, pendingInstruction, onApplied]
+  );
 
   const undo = useCallback(async () => {
     const baseVersion = getBaseVersion();
@@ -160,6 +174,7 @@ export function useChanges(
   }, [projectId, getLatestSeq]);
 
   return {
+    pendingInstruction,
     preview,
     previewSource,
     previewing,

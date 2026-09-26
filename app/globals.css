@@ -123,9 +123,8 @@
   --radius-dialog: 18px;
 
   /* ── Typography ── */
-  --font-sans:
-    "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
 /* ── Base Styles ── */
@@ -250,6 +249,37 @@ body {
   }
 }
 
+/* ── Skeleton: vệt gradient quét ngang ──
+   Dùng qua `components/ui/Skeleton.tsx`, đừng gắn class này thẳng vào JSX.
+   Nền = `surface-container-high`, vệt sáng = `surface-container-lowest` (trắng) ⇒ cùng tông với nền trang.
+   `background-size: 200%` để vệt có chỗ mà quét; quét từ trái sang phải. */
+@keyframes ff-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.ff-skeleton {
+  background-color: var(--color-surface-container-high);
+  background-image: linear-gradient(
+    90deg,
+    var(--color-surface-container-high) 0%,
+    var(--color-surface-container-high) 30%,
+    var(--color-surface-container-lowest) 50%,
+    var(--color-surface-container-high) 70%,
+    var(--color-surface-container-high) 100%
+  );
+  background-size: 200% 100%;
+}
+/* Tôn trọng "giảm chuyển động": bỏ vệt quét, giữ khối xám tĩnh. */
+@media (prefers-reduced-motion: no-preference) {
+  .ff-skeleton {
+    animation: ff-shimmer 1.6s linear infinite;
+  }
+}
+
 /* ── Grid Pattern Background ── */
 .grid-pattern {
   background-size: 44px 44px;
@@ -267,4 +297,63 @@ body {
 .landing-dots {
   background-image: radial-gradient(rgba(25, 24, 23, 0.14) 1px, transparent 1.5px);
   background-size: 22px 22px;
+}
+
+/* ── Thanh cuộn custom (`ff-scroll`) ──
+   Mảnh, bo tròn, rãnh trong suốt; thumb nhạt và đậm lên khi rê chuột vào vùng cuộn. Chrome/Edge/Safari dùng
+   `::-webkit-scrollbar` (cho bo góc); Firefox chỉ hiểu `scrollbar-width/color` nên khai ở nhánh @supports. */
+.ff-scroll {
+  scrollbar-gutter: stable;
+}
+.ff-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.ff-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ff-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.ff-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-on-surface) 18%, transparent);
+}
+.ff-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-on-surface) 32%, transparent);
+}
+@supports not selector(::-webkit-scrollbar) {
+  .ff-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-on-surface) 20%, transparent) transparent;
+  }
+}
+
+/* ── Dải mờ ở mép vùng cuộn (`ff-fade-below` / `ff-fade-above`) ──
+   Cùng kiểu dải mờ dưới thanh dính của dashboard (`STICKY_FADE` ở app/home/page.tsx): một dải nền đặc 40% rồi dốc
+   đều về trong suốt, để nội dung cuộn qua mờ dần thay vì bị cắt thẳng. Đặt lên thanh tiêu đề (dải phủ xuống nội
+   dung) hoặc lên khối đáy như ô nhập chat (dải phủ ngược lên). Màu dải = `--ff-fade`, mặc định là nền trang. */
+.ff-fade-below,
+.ff-fade-above {
+  position: relative;
+  z-index: 10;
+}
+.ff-fade-below::after,
+.ff-fade-above::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 16px;
+  pointer-events: none;
+}
+.ff-fade-below::after {
+  top: 100%;
+  background: linear-gradient(to bottom, var(--ff-fade, var(--color-surface)) 40%, transparent);
+}
+.ff-fade-above::before {
+  bottom: 100%;
+  background: linear-gradient(to top, var(--ff-fade, var(--color-surface)) 40%, transparent);
 }

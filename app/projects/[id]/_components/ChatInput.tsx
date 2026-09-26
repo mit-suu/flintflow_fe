@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
 import { estimateActionCost } from "../../../../lib/api/chat";
 import type { ChatActionType } from "@/types/chat";
+import Icon from "@/components/ui/Icon";
 
 interface ChatInputProps {
   inputMessage: string;
@@ -15,6 +16,17 @@ interface ChatInputProps {
   /** ActionType BE dùng để tính giá credit mỗi tin nhắn. */
   actionType: ChatActionType;
   placeholder?: string;
+  /** Có thẻ câu hỏi ngay trên ⇒ thu ô nhập về một hàng (đính kèm · ô gõ · gửi), ẩn giá credit. */
+  compact?: boolean;
+  /** Số dư credit của user — hiện cạnh giá mỗi tin nhắn. */
+  creditBalance?: number | null;
+  /** Có ⇒ hiện chip "Sửa tài liệu": bật lên thì nội dung gửi đi là lệnh sửa tài liệu, không phải tin chat. */
+  onToggleEditMode?: () => void;
+  editMode?: boolean;
+  /** Lý do khoá chip (vd. step đang chạy) — có ⇒ chip mờ, hover ra lý do. */
+  editDisabledReason?: string | null;
+  /** Nút thêm ở thanh công cụ ô nhập (vd. menu cách AI làm việc) — ẩn khi ô nhập thu gọn. */
+  toolbarExtra?: ReactNode;
 }
 
 // ChatInput mount lại sau mỗi lượt AI; cache giá theo actionType để chỉ gọi BE một lần mỗi loại.
@@ -45,6 +57,12 @@ export default function ChatInput({
   onRemoveAttachment,
   actionType,
   placeholder = "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
+  compact = false,
+  creditBalance = null,
+  onToggleEditMode,
+  editMode = false,
+  editDisabledReason = null,
+  toolbarExtra,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [creditEstimate, setCreditEstimate] = useState<number | null>(null);
@@ -70,26 +88,25 @@ export default function ChatInput({
   };
 
   return (
-    <div className="p-4 bg-white border-t border-[#ECEAE5] shrink-0">
+    <div className="px-4 pb-4 pt-2">
       {/* Pending Attachments List */}
       {pendingAttachments.length > 0 && (
         <div className="mb-2.5 flex flex-wrap gap-2">
           {pendingAttachments.map((file) => (
             <div
               key={file.name}
-              className="flex items-center gap-1.5 px-3 py-1 bg-[#F2F1FB] border border-[#DCD8F0] rounded-full text-[11.5px] font-semibold text-[#554DB0]"
+              className="flex items-center gap-1.5 pl-2.5 pr-1.5 h-7 bg-primary-soft rounded-inner text-[11.5px] font-semibold text-primary-hover"
             >
-              <span className="material-symbols-outlined text-[14px]">
-                description
-              </span>
+              <Icon name="file" size={14} />
               <span className="truncate max-w-[150px]">{file.name}</span>
               <button
                 type="button"
                 onClick={() => onRemoveAttachment(file.name)}
-                className="hover:text-[#B03030] ml-0.5 cursor-pointer"
+                className="w-5 h-5 grid place-items-center rounded-full hover:bg-error-container hover:text-error cursor-pointer transition-colors"
+                aria-label={`Bỏ file ${file.name}`}
                 title="Bỏ file này"
               >
-                ✕
+                <Icon name="close" size={12} />
               </button>
             </div>
           ))}
@@ -97,19 +114,37 @@ export default function ChatInput({
       )}
 
       {/* Input box */}
-      <div className="border-1.5 border-[#E4E1DC] focus-within:border-[#8E87D6] rounded-[16px] p-3 flex flex-col gap-2.5 transition-all bg-white shadow-2xs">
+      <div className={`rounded-card ${compact ? "px-2 py-1.5 flex items-center gap-1.5" : "p-3 flex flex-col gap-2.5"} bg-surface-container-lowest shadow-[0_1px_2px_rgba(25,24,23,0.04),0_8px_24px_rgba(25,24,23,0.05)] ring-primary/30 focus-within:ring-2 transition-shadow`}>
         <textarea
+          id="flintflow-chat-input"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          rows={2}
+          rows={compact ? 1 : 2}
           disabled={sending}
-          className="w-full resize-none outline-none text-[13px] text-[#191817] placeholder:text-[#A8A49C] bg-transparent leading-relaxed"
+          className={`${compact ? "order-2 flex-1 min-w-0 py-1" : "w-full"} resize-none outline-none text-[13px] text-on-surface placeholder:text-on-surface-subtle bg-transparent leading-relaxed ff-scroll`}
         />
 
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-1.5">
+        {/* compact: bỏ khung thanh công cụ, nút đính kèm sang trái ô gõ, nút gửi sang phải */}
+        <div className={compact ? "contents" : "flex items-center justify-between pt-1"}>
+          <div className={`flex items-center gap-1.5 ${compact ? "order-1" : ""}`}>
+            {!compact && toolbarExtra}
+            {onToggleEditMode && !compact && (
+              <button
+                type="button"
+                onClick={onToggleEditMode}
+                disabled={Boolean(editDisabledReason) && !editMode}
+                aria-pressed={editMode}
+                title={editDisabledReason && !editMode ? editDisabledReason : editMode ? "Tắt để quay lại trò chuyện" : "Gõ lệnh sửa tài liệu, xem trước rồi mới áp dụng"}
+                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 text-[12px] font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                  editMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
+                }`}
+              >
+                <Icon name="pencil" size={15} weight={editMode ? "fill" : "regular"} />
+                Sửa tài liệu
+              </button>
+            )}
             {/* Attachment Button */}
             <input
               type="file"
@@ -121,22 +156,31 @@ export default function ChatInput({
             />
             <button
               type="button"
+              hidden={editMode}
               onClick={() => fileInputRef.current?.click()}
-              className="p-1.5 hover:bg-[#F5F3F0] rounded-[8px] text-[#8A867E] hover:text-[#191817] transition-colors cursor-pointer"
+              className="w-8 h-8 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
+              aria-label="Đính kèm tài liệu tham khảo"
               title="Đính kèm tài liệu tham khảo (.pdf, .docx, .txt)"
             >
-              <span className="material-symbols-outlined text-[18px]">
-                attach_file
-              </span>
+              <Icon name="attach" size={18} />
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            {creditEstimate !== null && (
-              <span className="text-[10.5px] font-mono text-[#A8A49C]">
-                ~{creditEstimate} credit / msg
-              </span>
-            )}
+          <div className={`flex items-center gap-3 ${compact ? "order-3" : ""}`}>
+            {/* compact: chỉ còn số dư — giá "/ msg" không áp khi ô nhập đang trả lời thẻ câu hỏi */}
+            {compact
+              ? creditBalance !== null && (
+                  <span className="text-[11px] text-on-surface-subtle tabular-nums whitespace-nowrap" title="Số credit còn lại">
+                    {creditBalance} credit
+                  </span>
+                )
+              : (creditEstimate !== null || creditBalance !== null) && (
+                  <span className="text-[11px] text-on-surface-subtle tabular-nums" title="Giá mỗi tin nhắn · số credit còn lại">
+                    {creditEstimate !== null && <>~{creditEstimate} credit / {editMode ? "lệnh sửa" : "msg"}</>}
+                    {creditEstimate !== null && creditBalance !== null && " · "}
+                    {creditBalance !== null && <>còn {creditBalance}</>}
+                  </span>
+                )}
 
             <button
               type="button"
@@ -145,20 +189,19 @@ export default function ChatInput({
                 (!inputMessage.trim() && pendingAttachments.length === 0) ||
                 sending
               }
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-white transition-all cursor-pointer ${
+              aria-label="Gửi tin nhắn"
+              className={`w-8 h-8 rounded-control flex items-center justify-center text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer ${
                 (inputMessage.trim() || pendingAttachments.length > 0) &&
                 !sending
-                  ? "bg-[#6A62C4] hover:bg-[#554DB0] shadow-[0_2px_8px_rgba(106,98,196,0.3)]"
-                  : "bg-[#D6D2CB] cursor-not-allowed opacity-60"
+                  ? "bg-primary hover:bg-primary-hover"
+                  : "bg-surface-container-highest text-on-surface-subtle cursor-not-allowed"
               }`}
               title="Gửi tin nhắn (Enter)"
             >
               {sending ? (
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
               ) : (
-                <span className="material-symbols-outlined text-[16px] font-bold">
-                  arrow_upward
-                </span>
+                <Icon name="arrow-up" size={16} weight="bold" />
               )}
             </button>
           </div>

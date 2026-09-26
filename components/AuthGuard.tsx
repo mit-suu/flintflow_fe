@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { isAuthenticated, getUserRole, logoutAndRedirect } from "../lib/auth";
 import { refreshSession, type RefreshOutcome } from "../lib/api";
+import Icon from "./ui/Icon";
+import PageSkeleton from "./ui/PageSkeleton";
+import Skeleton from "./ui/Skeleton";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -13,6 +16,12 @@ interface AuthGuardProps {
 
 /** Lỗi mạng / BE 5xx / cold start: thử lại vài lần trước khi báo lỗi — tuyệt đối không đăng xuất. */
 export const REFRESH_RETRY_DELAYS_MS = [1000, 3000];
+
+/**
+ * Chờ bấy nhiêu mới vẽ khối giữ chỗ. Đường nhanh (token trong localStorage còn hạn) xong ngay trong tick
+ * đầu ⇒ không kịp chớp gì khi reload; chỉ lần nào thật sự phải gọi `/auth/refresh` mới thấy.
+ */
+export const SKELETON_DELAY_MS = 250;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -33,6 +42,13 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
   const [authorized, setAuthorized] = useState<boolean>(false);
   const [connectionError, setConnectionError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [showSkeleton, setShowSkeleton] = useState(false);
+
+  useEffect(() => {
+    if (authorized) return;
+    const timer = setTimeout(() => setShowSkeleton(true), SKELETON_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [authorized]);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,11 +91,11 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
   }, []);
 
   if (!authorized) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
-        {connectionError ? (
+    if (connectionError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-surface">
           <div className="flex flex-col items-center gap-3">
-            <span className="material-symbols-outlined text-3xl text-secondary">cloud_off</span>
+            <Icon name="cloud-off" size={30} className="text-secondary" label={t("offlineTitle")} />
             <p className="text-xs text-secondary font-medium">
               {t("offline")}
             </p>
@@ -91,13 +107,16 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
               {t("retry")}
             </button>
           </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3">
-            <span
-              aria-hidden
-              className="w-7 h-7 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0"
-            />
-            <p className="text-xs text-secondary font-medium">{t("checking")}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-surface p-6 sm:p-8">
+        {showSkeleton && (
+          <div className="flex flex-col gap-6 mx-auto max-w-[1100px]">
+            <Skeleton className="h-7 w-52" />
+            <PageSkeleton label={t("checking")} />
           </div>
         )}
       </div>

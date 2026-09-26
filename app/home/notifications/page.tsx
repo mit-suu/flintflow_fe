@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import type { Locale } from "@/lib/i18n";
 import { useNotificationText } from "@/lib/notification-text";
 import { formatNotificationTime, type TimeTranslator } from "@/lib/time-ago";
@@ -156,10 +157,7 @@ export default function NotificationsPage() {
 
         <div className="bg-white border border-[#ECEAE5] rounded-card overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-[#A8A49C] gap-3">
-              <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
-              <span className="text-[13px] font-medium">{t("loadingList")}</span>
-            </div>
+            <PageSkeleton variant="list" label={t("loadingList")} bare />
           ) : items.length === 0 ? (
             <div className="py-16 text-center text-[13px] text-[#A8A49C]">
               {filter === "unread" ? t("allRead") : t("empty")}

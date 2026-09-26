@@ -61,13 +61,14 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
     );
     expect(screen.getByRole("heading", { name: "Nhóm thay đổi (2)" })).toBeInTheDocument();
     const g1 = article("G1");
-    expect(within(g1).getByText("x[id=L001]")).toBeInTheDocument();
+    // F6 (mode 1 v3): vị trí hiện theo mục của tài liệu, path Spine để ở tooltip
+    expect(within(g1).getByTitle("x[id=L001]")).toHaveTextContent("Product Overview · Sửa");
     expect(within(g1).getByText("old L001").tagName).toBe("DEL");
     expect(within(g1).getByText("new L001").tagName).toBe("INS");
-    expect(within(g1).getByText("x[id=L002]").parentElement).toHaveTextContent("x[id=L002] · Chỉ comment");
+    expect(within(g1).getByTitle("x[id=L002]")).toHaveTextContent("Product Overview · Chỉ comment");
     expect(within(g1).getByText("💬 Xác nhận với PM")).toBeInTheDocument();
     expect(within(g1).queryByText(/L003/)).not.toBeInTheDocument();
-    expect(within(article("G2")).getByText("x[id=L003]").parentElement).toHaveTextContent("x[id=L003] · —");
+    expect(within(article("G2")).getByTitle("x[id=L003]")).toHaveTextContent("Product Overview · —");
     expect(within(g1).getByText("Chờ duyệt")).toBeInTheDocument();
   });
 
@@ -77,11 +78,16 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
     expect(screen.queryByRole("button", { name: "Từ chối" })).not.toBeInTheDocument();
   });
 
-  it("Duyệt ⇒ onDecide(group, approved) không kèm lý do", () => {
+  it(`Duyệt cũng bắt buộc lý do ≥ ${DECISION_REASON_MIN_LENGTH} ký tự (BPMN 3.12, mode 1 v3)`, () => {
     const onDecide = vi.fn();
     renderWithIntl(<ChangeGroupPanel groups={[group(G1, ["L001"])]} locations={LOCATIONS} canDecide onDecide={onDecide} />);
     fireEvent.click(within(article()).getByRole("button", { name: "Duyệt" }));
-    expect(onDecide).toHaveBeenCalledWith(G1, "approved");
+    expect(onDecide).not.toHaveBeenCalled();
+    const confirm = within(article()).getByRole("button", { name: "Xác nhận duyệt" });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(within(article()).getByLabelText(`Lý do duyệt ${G1}`), { target: { value: "  Đúng yêu cầu của khách  " } });
+    fireEvent.click(confirm);
+    expect(onDecide).toHaveBeenCalledWith(G1, "approved", "Đúng yêu cầu của khách");
   });
 
   it(`từ chối bắt buộc lý do ≥ ${DECISION_REASON_MIN_LENGTH} ký tự (không tính khoảng trắng đầu/cuối); gửi lý do đã cắt`, () => {

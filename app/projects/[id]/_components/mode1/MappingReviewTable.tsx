@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { FPT_SECTIONS, sectionLabel } from "@/lib/constants/fpt-sections";
 import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateProfile } from "@/types/import";
 import { formatPercent } from "./labels";
+import { TABLE_FIELD_GROUPS, entityOfPath, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
 
 interface MappingReviewTableProps {
   profile: TemplateProfile;
@@ -31,7 +32,7 @@ const ConfidenceBadge = ({ value }: { value: number }) => (
 );
 
 /**
- * 1.7 Xác nhận mapping (UC-21): heading → section template FPT, cột bảng → field Spine. Mặc định chỉ hiện
+ * 1.7 Xác nhận mapping (UC-21): heading → section template FPT, cột bảng → field Spine (chọn theo nhãn). Mặc định chỉ hiện
  * dòng độ tin < 80%; gửi các dòng đã đổi kèm `confirm_all` để chốt cả phần còn lại như BE đề xuất.
  */
 export default function MappingReviewTable({ profile, onSubmit, busy = false }: MappingReviewTableProps) {
@@ -47,6 +48,18 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
       .filter((id, i, all) => id !== UNMAPPED_SECTION && !FPT_SECTIONS.some((s) => s.id === id) && all.indexOf(id) === i);
     return [...FPT_SECTIONS.map((s) => s.id), ...extra, UNMAPPED_SECTION];
   }, [profile.heading_map]);
+
+  const columnValue = (blockId: string, column: number, suggested: string | null) => {
+    const key = tableKey(blockId, column);
+    return key in tables ? tables[key] : suggested;
+  };
+
+  // BE trích mỗi bảng theo thực thể của cột đầu tiên được gán (extract.service `deterministicTableItems`)
+  const tableEntity: Record<string, string> = {};
+  for (const t of profile.table_map) {
+    const entity = entityOfPath(columnValue(t.block_id, t.column_index, t.field_path));
+    if (entity && !(t.block_id in tableEntity)) tableEntity[t.block_id] = entity;
+  }
 
   const rows = lowOnly ? profile.heading_map.filter((h) => h.confidence < MAPPING_CONFIDENCE_THRESHOLD) : profile.heading_map;
   const missingRequired = profile.required_sections.filter(
@@ -134,32 +147,66 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
 
       {profile.table_map.length > 0 && (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] overflow-hidden">
-          <div className="px-3 py-2 bg-[#FAF9F7] text-[12.5px] font-bold text-[#4B4842]">Cột bảng → field (bảng khớp đủ cột được trích không tốn credit)</div>
+          <div className="px-3 py-2 bg-[#FAF9F7]">
+            <div className="text-[12.5px] font-bold text-[#4B4842]">Cột trong bảng → dữ liệu SRS</div>
+            <p className="text-[11.5px] text-[#8A867E]">
+              Bảng có đủ cột cần thiết được lấy tự động, không tốn credit. Mỗi bảng chỉ lấy một loại dữ liệu — chọn “Không lấy cột
+              này” nếu cột không chứa dữ liệu cần trích.
+            </p>
+          </div>
           <table className="w-full text-[12.5px]">
             <tbody>
               {profile.table_map.map((t) => {
                 const key = tableKey(t.block_id, t.column_index);
-                const value = key in tables ? tables[key] : t.field_path;
+                const value = columnValue(t.block_id, t.column_index, t.field_path);
                 const header = t.header.trim() || `Cột ${t.column_index + 1} (không có tiêu đề)`;
+                const entity = tableEntity[t.block_id];
+                const valueEntity = entityOfPath(value);
+                const known = !value || tableFieldLabel(value) !== value;
+                // Nhóm cùng loại với bảng lên đầu
+                const groups = entity ? [...TABLE_FIELD_GROUPS].sort((a, b) => Number(b.entity === entity) - Number(a.entity === entity)) : TABLE_FIELD_GROUPS;
                 return (
                   <tr key={key} className="border-t border-[#F0EEEA]">
                     <td className="px-3 py-2">
                       <div className="font-semibold text-[#191817]">{header}</div>
                       <div className="text-[11px] text-[#A8A49C]">
-                        {t.block_id} · cột {t.column_index + 1}
+                        {entity ? `Bảng ${tableGroupLabel(entity)}` : "Bảng chưa rõ loại"} · cột {t.column_index + 1}
                       </div>
+                      {valueEntity && entity && valueEntity !== entity && (
+                        <div className="text-[11px] text-[#8A6D1F]">Khác loại với các cột khác của bảng — cột này sẽ không được lấy.</div>
+                      )}
                     </td>
                     <td className="px-3 py-2 w-[90px]">
                       <ConfidenceBadge value={t.confidence} />
                     </td>
                     <td className="px-3 py-2 w-[300px]">
-                      <input
-                        aria-label={`Field cho cột ${header}`}
+                      <select
+                        aria-label={`Dữ liệu cho cột ${header}`}
                         value={value ?? ""}
-                        placeholder="Bỏ trống = không trích cột này"
-                        onChange={(e) => setTables((prev) => ({ ...prev, [key]: e.target.value.trim() || null }))}
-                        className="w-full px-2 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] font-mono text-[12px]"
-                      />
+                        onChange={(e) => setTables((prev) => ({ ...prev, [key]: e.target.value || null }))}
+                        className={`w-full px-2 py-1.5 rounded-[8px] border bg-[#FAF9F7] text-[12.5px] ${
+                          key in tables ? "border-[#6A62C4]" : "border-[#E4E1DC]"
+                        }`}
+                      >
+                        <option value="">Không lấy cột này</option>
+                        {groups.map((g) => (
+                          <optgroup key={g.entity} label={g.label}>
+                            {g.fields.map((f) => {
+                              const path = tableFieldPath(g.entity, f.field);
+                              return (
+                                <option key={path} value={path}>
+                                  {tableFieldLabel(path)}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        ))}
+                        {!known && value && (
+                          <optgroup label="Khác">
+                            <option value={value}>{value}</option>
+                          </optgroup>
+                        )}
+                      </select>
                     </td>
                   </tr>
                 );
