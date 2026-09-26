@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { listCrs } from "@/lib/api/change-requests";
 import { CR_TERMINAL_STATUSES, type Cr } from "@/types/change-request";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import ChangeRequestForm from "./ChangeRequestForm";
 import { errorText } from "./errors";
 import { CR_SOURCE_LABELS, CR_STATUS_LABELS, formatDateTime } from "./labels";
@@ -95,7 +96,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
       </div>
 
       {crs === null ? (
-        <p className="text-[13px] text-[#8A867E]">Đang tải…</p>
+        <PageSkeleton variant="list" rows={3} label="Đang tải change request" />
       ) : shown.length === 0 ? (
         <p className="text-[13px] text-[#8A867E] bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-6 text-center">Chưa có change request nào ở mục này.</p>
       ) : (

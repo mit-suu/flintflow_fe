@@ -91,9 +91,9 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
 
     fireEvent.change(screen.getByRole("combobox", { name: "Section cho 3.2.4 Log out of system" }), { target: { value: "fixed:3.1.2" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Section cho Phụ lục B — Biên bản họp" }), { target: { value: "fixed:5.3" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Field cho cột Actor" }), { target: { value: "  actors[].title  " } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Field cho cột Description" }), { target: { value: "   " } });
-    expect(screen.getByRole("textbox", { name: "Field cho cột Description" })).toHaveValue("");
+    fireEvent.change(screen.getByRole("combobox", { name: "Dữ liệu cho cột Actor" }), { target: { value: "actors[].id" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Dữ liệu cho cột Description" }), { target: { value: "" } });
+    expect(screen.getByRole("combobox", { name: "Dữ liệu cho cột Description" })).toHaveValue("");
     submit();
 
     expect(onSubmit).toHaveBeenCalledWith({
@@ -102,7 +102,7 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
         { block_id: "B0011", section_id: "fixed:5.3" },
       ],
       tables: [
-        { block_id: "B0005", column_index: 0, field_path: "actors[].title" },
+        { block_id: "B0005", column_index: 0, field_path: "actors[].id" },
         { block_id: "B0005", column_index: 1, field_path: null },
       ],
       confirm_all: true,
@@ -126,8 +126,37 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
 
   it("không có bảng ⇒ không hiện phần cột bảng; đang lưu ⇒ nút khoá", () => {
     renderWithIntl(<MappingReviewTable profile={profile({ table_map: [] })} onSubmit={vi.fn()} busy />);
-    expect(screen.queryByText(/Cột bảng → field/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Cột trong bảng → dữ liệu SRS/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
+  });
+});
+
+describe("MappingReviewTable — chọn dữ liệu cho cột theo nhãn, không gõ field_path", () => {
+  it("hiện nhãn tiếng Việt, loại bảng; nhóm cùng loại với bảng đứng đầu; có lựa chọn “Không lấy cột này”", () => {
+    renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
+    const select = screen.getByRole("combobox", { name: "Dữ liệu cho cột Actor" });
+    expect(select).toHaveValue("actors[].name");
+    expect(within(select).getByRole("option", { selected: true })).toHaveTextContent("Tác nhân — Tên tác nhân");
+    const options = within(select).getAllByRole("option").map((o) => o.textContent);
+    expect(options[0]).toBe("Không lấy cột này");
+    expect(options[1]).toBe("Tác nhân — Mã tác nhân");
+    expect(options).toContain("Thuật ngữ — Định nghĩa");
+    expect(options.some((o) => o?.includes("[]"))).toBe(false);
+    expect(screen.getByText("Bảng Tác nhân · cột 1")).toBeInTheDocument();
+    expect(screen.queryByText(/B0005/)).not.toBeInTheDocument();
+  });
+
+  it("cột khác loại với bảng ⇒ cảnh báo không được lấy; field lạ từ BE vẫn giữ trong danh sách", () => {
+    renderWithIntl(
+      <MappingReviewTable
+        profile={profile({ table_map: [column("B0005", 0, "Actor", "actors[].name"), column("B0005", 1, "Ghi chú", "actors[].note")] })}
+        onSubmit={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("combobox", { name: "Dữ liệu cho cột Ghi chú" })).toHaveValue("actors[].note");
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Dữ liệu cho cột Ghi chú" }), { target: { value: "glossary[].term" } });
+    expect(screen.getByText(/Khác loại với các cột khác của bảng/)).toBeInTheDocument();
   });
 });
 
@@ -136,7 +165,7 @@ describe("MappingReviewTable — cột bảng không có tiêu đề (FLF-179)",
     const onSubmit = vi.fn();
     renderWithIntl(<MappingReviewTable profile={profile({ table_map: [column("B0005", 2, "", null, 0.3)] })} onSubmit={onSubmit} />);
     expect(screen.getByText("Cột 3 (không có tiêu đề)")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Field cho cột Cột 3 (không có tiêu đề)"), { target: { value: "use_cases[].name" } });
+    fireEvent.change(screen.getByLabelText("Dữ liệu cho cột Cột 3 (không có tiêu đề)"), { target: { value: "use_cases[].name" } });
     submit();
     expect(onSubmit.mock.calls[0][0].tables).toEqual([{ block_id: "B0005", column_index: 2, field_path: "use_cases[].name" }]);
   });

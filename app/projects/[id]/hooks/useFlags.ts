@@ -44,7 +44,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
   useEffect(() => {
     if (!projectId || spineVersion === null) return;
     // Lùi một microtask: `reload()` tự `setLoading(true)` đồng bộ (T1) — gọi thẳng trong effect bị
-    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `ChangePanel.tsx`).
+    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `EditHistory.tsx`).
     queueMicrotask(() => void reload());
   }, [projectId, spineVersion, reload]);
 

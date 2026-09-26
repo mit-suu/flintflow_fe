@@ -50,6 +50,14 @@ describe("valueToText / textToValue — giữ kiểu gốc khi sửa", () => {
 });
 
 describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () => {
+  it("phase 5: field đọc từ ảnh diagram ⇒ nhãn 'từ ảnh' + nguồn 'AI đọc từ ảnh'; nhắc sau v0 chỉ sửa qua CR", () => {
+    renderWithIntl(<FieldsReview fields={[field("actors[id=A09].name", "Guest", { origin: "vision", confidence: 0.7, section_id: "fixed:2.2.1", source_block_ids: ["B0012"] })]} onSubmit={vi.fn()} />);
+    expect(screen.getByText("từ ảnh")).toBeInTheDocument();
+    expect(screen.getByText("độ tin 70%")).toBeInTheDocument();
+    expect(screen.getByText(/Nguồn: B0012 · AI đọc từ ảnh/)).toBeInTheDocument();
+    expect(screen.getByText(/mọi thay đổi đi qua change request/)).toBeInTheDocument();
+  });
+
   it("hiện path, section, độ tin, block nguồn và cách trích của từng field", () => {
     renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={vi.fn()} />);
     expect(screen.getByText(/4 field AI chưa chắc/)).toBeInTheDocument();
@@ -58,6 +66,8 @@ describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () 
     expect(screen.getByText("độ tin 61%")).toBeInTheDocument();
     expect(screen.getByText(/Nguồn: B0010 · AI trích/)).toBeInTheDocument();
     expect(screen.getByText(/Nguồn: — · trích tất định/)).toBeInTheDocument();
+    // chỉ field đọc từ ảnh mới có nhãn "từ ảnh"
+    expect(screen.queryByText("từ ảnh")).not.toBeInTheDocument();
     expect(box("nfrs[id=NFR-P02].threshold_ms")).toHaveValue("500");
     expect(box("actors[id=A01].aliases")).toHaveValue('["Learner","Student"]');
   });

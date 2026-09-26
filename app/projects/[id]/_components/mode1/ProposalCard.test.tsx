@@ -55,8 +55,8 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
       />
     );
     const c = card();
-    expect(within(c).getByText("use_cases[id=UC-2.4]")).toBeInTheDocument();
-    expect(within(c).getByText("Mục: Use Case Descriptions")).toBeInTheDocument();
+    // F6 (mode 1 v3): tiêu đề vị trí là mục của tài liệu, path Spine ở tooltip
+    expect(within(c).getByTitle("use_cases[id=UC-2.4]")).toHaveTextContent("Use Case Descriptions");
     expect(within(c).getByText("Log out of system")).toBeInTheDocument();
     expect(within(c).getByText("Liên kết field")).toBeInTheDocument();
     expect(within(c).getByText("Nhắc mã")).toBeInTheDocument();
@@ -179,5 +179,24 @@ describe("ProposalCard — sửa tay (3.9)", () => {
     rerender(<ProposalCard location={loc} editable onPatch={onPatch} busy />);
     open();
     expect(within(card()).getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
+  });
+
+  it("BPMN 3.9 (manual_fix): nút “Sửa trong step” ⇒ nhập hướng sửa ⇒ onOwnerDraft; sửa JSON thành đường phụ “Sửa trực tiếp”", () => {
+    const onOwnerDraft = vi.fn();
+    renderWithIntl(<ProposalCard location={location({ owner_step: "S-6.4" })} editable onPatch={vi.fn()} onOwnerDraft={onOwnerDraft} />);
+    const c = card();
+    expect(within(c).getByRole("button", { name: "Sửa trực tiếp" })).toBeInTheDocument();
+    fireEvent.click(within(c).getByRole("button", { name: "Sửa trong step S-6.4" }));
+    const submit = within(c).getByRole("button", { name: "Viết lại đề xuất (AI)" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(within(c).getByLabelText(/AI viết lại theo quy tắc của step S-6.4/), { target: { value: " Giữ ngưỡng 1 giây " } });
+    fireEvent.click(submit);
+    expect(onOwnerDraft).toHaveBeenCalledWith("Giữ ngưỡng 1 giây");
+  });
+
+  it("vị trí mục riêng (không có step sở hữu) ⇒ không có “Sửa trong step”, chỉ “Sửa tay”", () => {
+    renderWithIntl(<ProposalCard location={location({ owner_step: null })} editable onPatch={vi.fn()} onOwnerDraft={vi.fn()} />);
+    expect(within(card()).queryByRole("button", { name: /Sửa trong step/ })).not.toBeInTheDocument();
+    expect(within(card()).getByRole("button", { name: "Sửa tay" })).toBeInTheDocument();
   });
 });

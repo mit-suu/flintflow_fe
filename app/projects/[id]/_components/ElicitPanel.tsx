@@ -27,6 +27,17 @@ export const toStepAnswers = (questions: Question[], text: string): StepAnswer[]
   });
 };
 
+/**
+ * Trả lời gõ thẳng ở ô chat: có dạng `n. ...` thì tách theo câu; không thì cả đoạn là câu trả lời cho câu đầu
+ * (BE chỉ nối câu trả lời làm ngữ cảnh cho model nên một đoạn tự do vẫn dùng được).
+ */
+export const directReplyAnswers = (questions: Question[], text: string): StepAnswer[] => {
+  const trimmed = text.trim();
+  if (!trimmed || questions.length === 0) return [];
+  const split = toStepAnswers(questions, trimmed);
+  return split.length > 0 ? split : [{ question_id: questions[0].id, answer: trimmed }];
+};
+
 export default function ElicitPanel({ questions, onSubmit, onDismiss, sending = false }: ElicitPanelProps) {
   if (questions.length === 0) return null;
   return (
@@ -37,7 +48,7 @@ export default function ElicitPanel({ questions, onSubmit, onDismiss, sending = 
         const answers = toStepAnswers(questions, text);
         if (answers.length > 0) onSubmit(answers);
       }}
-      onDismiss={onDismiss ?? (() => undefined)}
+      onDismiss={onDismiss}
       sending={sending}
     />
   );

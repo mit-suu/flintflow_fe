@@ -61,7 +61,7 @@ export default function AdminMetricsPage() {
         {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
         {loading ? (
-          <LoadingBlock label="Đang tải số liệu…" />
+          <LoadingBlock label="Đang tải số liệu…" variant="cards" />
         ) : (
           metrics && (
             <>

@@ -7,6 +7,7 @@ import { saveBlob } from "@/lib/api/files";
 import { sectionLabel } from "@/lib/constants/fpt-sections";
 import type { Flag } from "@/types/spine";
 import type { GapReport } from "@/types/import";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import { errorText } from "./errors";
 import { formatDateTime, formatPercent } from "./labels";
 import { crPrefillHref } from "./prefill";
@@ -41,17 +42,30 @@ const FlagRow = ({ flag }: { flag: Flag }) => (
   </li>
 );
 
-/** Mô tả CR điền sẵn từ gap report: liệt kê cờ đỏ + section thiếu (người dùng sửa lại trước khi gửi). */
+/**
+ * Mô tả CR điền sẵn từ gap report: cờ đỏ trên nội dung đã có (người dùng sửa lại trước khi gửi). Mục FPT còn thiếu có
+ * CR riêng (`missingSectionsPrefill`) — mode 1 v3 (BPMN Flow 1 ⇒ 3.1) không còn chạy step, C-3 dựng vị trí thêm mới.
+ */
 export const gapReportPrefill = (report: GapReport): { title: string; description: string } => {
-  const reds = report.sections.flatMap((s) => s.flags.filter((f) => f.level === "red").map((f) => `- ${sectionLabel(s.section_id)}: ${f.message}`));
-  const missing = report.missing_sections.map((m) => `- Thiếu mục ${sectionLabel(m.section_id)}`);
+  const reds = report.sections.flatMap((s) =>
+    s.flags.filter((f) => f.level === "red" && f.rule_id !== "section_empty").map((f) => `- ${sectionLabel(s.section_id)}: ${f.message}`)
+  );
   return {
     title: "Sửa theo gap report",
-    description: ["Xử lý các vấn đề trong gap report của bản " + report.doc_version + ":", ...reds, ...missing].join("\n"),
+    description: ["Xử lý các vấn đề trong gap report của bản " + report.doc_version + ":", ...reds].join("\n"),
   };
 };
 
 /** 1.13 Gap report (UC-23): cờ đỏ/vàng theo section, section thiếu, heading không khớp, field còn độ tin thấp. */
+/** Mode 1 v3: CR điền các mục FPT còn thiếu — đích là mã section (C-3 ⇒ vị trí thêm mới), nguồn gap report. */
+export const missingSectionsPrefill = (report: GapReport): { title: string; description: string } => ({
+  title: "Bổ sung các mục còn thiếu",
+  description: [
+    "Soạn nội dung cho các đầu mục mẫu FPT còn thiếu trong gap report của bản " + report.doc_version + ":",
+    ...report.missing_fpt_sections.map((m) => `- ${m.title} (${m.section_id})`),
+  ].join("\n"),
+});
+
 export default function GapReportView({ projectId, projectName, onChanged }: GapReportViewProps) {
   const [report, setReport] = useState<GapReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +103,7 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
         {error}
       </div>
     ) : (
-      <p className="text-[13px] text-[#8A867E]">Đang tải gap report…</p>
+      <PageSkeleton rows={2} label="Đang tải gap report" />
     );
   }
 
@@ -118,10 +132,38 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
         <Tile label="Field độ tin thấp" value={report.totals.low_confidence_fields} tone="yellow" />
       </div>
 
+      {report.missing_fpt_sections.length > 0 && (
+        <section className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-4 flex flex-col gap-2" aria-label="Đầu mục FPT còn thiếu">
+          <h3 className="font-extrabold text-[#8A4141] text-[14px]">Đầu mục mẫu FPT còn thiếu</h3>
+          <p className="text-[12px] text-[#8A4141]">
+            Mục thiếu chặn release (cờ đỏ). Tạo change request để AI soạn nội dung theo quy tắc của step sở hữu mục đó — duyệt xong cờ tự
+            đóng.
+          </p>
+          <ul className="flex flex-col gap-1 text-[12.5px] text-[#33312D]">
+            {report.missing_fpt_sections.map((m) => (
+              <li key={m.section_id} className="flex items-center gap-2">
+                <span className="font-semibold">{m.title}</span>
+                <span className="text-[#8A867E]">— {m.in_layout ? "có heading, chưa có nội dung" : "file không có"}</span>
+                <code className="ml-auto text-[11px] text-[#A8A49C] shrink-0">{m.section_id}</code>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href={crPrefillHref(projectId, { ...missingSectionsPrefill(report), source: "gap_report", ref: `gap-report ${report.doc_version}` })}
+            className="self-start px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold"
+          >
+            Tạo CR bổ sung mục thiếu
+          </Link>
+        </section>
+      )}
+
       <div className="flex flex-wrap gap-3 bg-white border border-[#ECEAE5] rounded-[14px] p-4">
         <div className="flex-1 min-w-[240px] text-[12.5px] text-[#4B4842]">
           <p className="font-bold text-[#191817]">Bước tiếp theo</p>
-          <p>Không cần sửa ⇒ tải báo cáo để gửi. Cần sửa ⇒ tạo change request (nguồn: gap report) — tài liệu đã có baseline nên không sửa trực tiếp.</p>
+          <p>
+            Không cần sửa ⇒ tải báo cáo để gửi (kết thúc). Cần sửa ⇒ tạo change request (nguồn: gap report) — cả nội dung đã có lẫn mục còn
+            thiếu.
+          </p>
         </div>
         <button
           type="button"
@@ -161,6 +203,21 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
           <ul className="list-disc pl-5 text-[12.5px] text-[#33312D]">
             {report.missing_sections.map((m) => (
               <li key={m.section_id}>{sectionLabel(m.section_id) === m.section_id ? m.title : sectionLabel(m.section_id)}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {report.unrendered_diagrams.length > 0 && (
+        <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
+          <h3 className="font-extrabold text-[#191817] text-[14px]">Hình chưa vẽ được</h3>
+          <p className="text-[12px] text-[#6B6760]">Không chặn ký baseline — vẽ lại ở workspace khi máy chủ vẽ hình sẵn sàng.</p>
+          <ul className="list-disc pl-5 text-[12.5px] text-[#33312D] flex flex-col gap-1">
+            {report.unrendered_diagrams.map((d) => (
+              <li key={`${d.kind}:${d.diagram_id}`}>
+                {d.title}
+                <span className="text-[#6B6760]"> — {d.reason === "error" ? "vẽ lỗi" : "chưa vẽ"}</span>
+              </li>
             ))}
           </ul>
         </section>

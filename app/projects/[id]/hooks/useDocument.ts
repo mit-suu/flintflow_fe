@@ -9,7 +9,7 @@ export interface UseDocumentResult {
   document: RenderedDocument | null;
   meta: DraftMeta | null;
   loading: boolean;
-  /** 409 `NO_WORKING_DRAFT` — chưa từng `POST /assemble` (S-8.2). */
+  /** Chưa từng ghép bản nháp (S-8.2). BE trả 200 kèm `meta.state = "not_assembled"` — không phải lỗi. */
   notAssembled: boolean;
   error: string | null;
   reload: () => Promise<void>;
@@ -24,7 +24,7 @@ const isDraftMeta = (meta: Record<string, unknown> | undefined): meta is Record<
 
 /**
  * `GET /document` — tải lại khi `source`/`baselineId` đổi hoặc `refreshToken` tăng (vd sau khi
- * step ghi op mới hoặc ChangePanel áp một lô).
+ * step ghi op mới hoặc lệnh sửa trong chat áp một lô).
  */
 export function useDocument(
   projectId: string,
@@ -47,9 +47,11 @@ export function useDocument(
     return getDocument(projectId, source, baselineId)
       .then((res) => {
         if (request !== requestRef.current) return;
+        // BUG-31: "chưa ghép" là trạng thái bình thường của dự án đang làm dở, BE trả 200 + meta.state
+        const notAssembledYet = res.data === null && res.meta?.state === "not_assembled";
         setDocument(res.data);
         setMeta(isDraftMeta(res.meta) ? res.meta : null);
-        setNotAssembled(false);
+        setNotAssembled(notAssembledYet);
         setError(null);
       })
       .catch((err: unknown) => {
@@ -101,7 +103,7 @@ export function useDocument(
   useEffect(() => {
     if (!projectId) return;
     // Lùi một microtask: `reload()` tự `setLoading(true)` đồng bộ (T1) — gọi thẳng trong effect bị
-    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `ChangePanel.tsx`).
+    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `EditHistory.tsx`).
     queueMicrotask(() => void reload());
   }, [projectId, reload, refreshToken]);
 

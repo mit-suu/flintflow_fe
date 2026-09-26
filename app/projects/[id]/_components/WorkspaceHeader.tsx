@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Logo from "../../../../components/Logo";
+import Logo from "@/components/Logo";
+import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import DropdownMenu from "@/components/ui/DropdownMenu";
+import Icon from "@/components/ui/Icon";
+import IconButton from "@/components/ui/IconButton";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 
@@ -10,77 +15,153 @@ interface WorkspaceHeaderProps {
   user: User | null;
   /** Phiên bản baseline mới nhất trong `spine.baselines[]`; `null` khi chưa ký baseline. */
   baselineVersion?: string | null;
+  /** Rail tiến độ đang ẩn ⇒ đầu header có nút hiện lại + logo (logo nằm trên rail khi rail mở). */
+  progressHidden?: boolean;
+  onShowProgress?: () => void;
+  /** Có ⇒ hiện nút chạy bước (bước **đang xem** — `runnableStep`, không nhất thiết là bước hiện tại). */
+  onRunCurrentStep?: () => void;
+  /** Bước nút "Chạy" sẽ chạy — là bước ĐANG XEM, có thể khác bước hiện tại khi người dùng xem lại bước cũ (L9). */
+  runnableStep?: string | null;
+  /** Bước hiện tại của tiến độ — để nút "Về" nói rõ quay về đâu. */
+  currentStep?: string | null;
+  /** Đang xem bước khác bước hiện tại ⇒ cho đường quay lại (L9). */
+  onBackToCurrent?: () => void;
+  /** BE báo step đang chạy dở ở request khác (lần chạy trước chưa dứt sau khi reload — L2). */
+  stepRunningElsewhere?: boolean;
+  busy?: boolean;
   onExportClick?: () => void;
+  /** Mở rộng trang: ẩn header và khối tiến độ. */
+  onEnterFocus?: () => void;
+  /** Mở/đóng panel Công cụ (thuật ngữ, đã chốt, hàng đợi màn, lịch sử sửa…) — thay rail icon bên phải cũ. */
+  onToolsClick?: () => void;
+  toolsActive?: boolean;
+  toolsLabel?: string;
   onLogout: () => void;
 }
 
+/**
+ * Thanh trên của workspace, cố ý ít chữ: breadcrumb `Dự án / tên` (+ baseline) · chạy bước, Export, mở rộng trang,
+ * menu tài khoản (credits, đăng xuất). Tiến độ giai đoạn/bước nằm ở rail trái (`WorkspaceProgressRail`).
+ */
 export default function WorkspaceHeader({
   project,
   user,
   baselineVersion = null,
+  progressHidden = false,
+  onShowProgress,
+  onRunCurrentStep,
+  runnableStep = null,
+  currentStep = null,
+  onBackToCurrent,
+  stepRunningElsewhere = false,
+  busy = false,
   onExportClick,
+  onEnterFocus,
+  onToolsClick,
+  toolsActive = false,
+  toolsLabel = "Công cụ",
   onLogout,
 }: WorkspaceHeaderProps) {
-
   return (
-    <header className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[58px] z-20">
-      <div className="flex items-center gap-3">
-        <Logo sizeClassName="w-5 h-5" theme="light" href="/home" />
-        <div className="flex items-center text-[13px] text-[#8A867E] gap-1.5">
-          <Link
-            href="/home"
-            className="hover:text-[#191817] font-semibold transition-colors"
-          >
-            Dự án
-          </Link>
-          <span className="text-[#D6D2CB]">/</span>
-          <span className="font-bold text-[#191817] truncate max-w-[220px]">
-            {project?.name || "Dự án SRS"}
-          </span>
+    <header className="shrink-0 bg-surface-container-lowest h-[58px] px-4 flex items-center gap-3">
+      {progressHidden && (
+        <div className="shrink-0 flex items-center gap-2">
+          <IconButton icon="sidebar" label="Hiện tiến độ" onClick={onShowProgress} aria-controls="workspace-progress" aria-expanded={false} />
+          <Logo variant="icon" sizeClassName="w-5 h-5" theme="light" href="/home" />
         </div>
-
-        {project?.domain && (
-          <div className="ml-2 px-2.5 py-0.5 rounded-full bg-[#EEF1FB] text-[#3B4FA8] text-[11px] font-bold flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
-            domain: {project.domain}
-          </div>
-        )}
-
+      )}
+      <nav aria-label="Breadcrumb" className="flex-1 min-w-0 flex items-center gap-1 text-[13px]">
+        <Link href="/home" className="hidden sm:inline text-on-surface-muted hover:text-on-surface font-medium transition-colors">
+          Dự án
+        </Link>
+        <span aria-hidden className="hidden sm:inline text-on-surface-subtle px-0.5">
+          /
+        </span>
+        <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || "Dự án SRS"}</span>
         {baselineVersion && (
-          <div className="px-2.5 py-0.5 rounded-full bg-[#E9F7EE] text-[#1F7A45] text-[11px] font-bold flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A45]" />
+          <Badge tone="success" dot className="hidden md:inline-flex ml-1.5">
             Baseline {baselineVersion}
-          </div>
+          </Badge>
         )}
-      </div>
+      </nav>
 
-      <div className="flex items-center gap-3">
-        {user && (
-          <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-[12px] font-semibold gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
-            {user.balance ?? 0} credits
-          </div>
+      <div className="shrink-0 flex items-center justify-end gap-1.5">
+        {onBackToCurrent && currentStep && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="caret-left"
+            onClick={onBackToCurrent}
+            title={`Quay lại bước hiện tại (${currentStep})`}
+            aria-label={`Về bước ${currentStep}`}
+            className="shrink-0"
+          >
+            <span className="hidden sm:inline">Về {currentStep}</span>
+          </Button>
         )}
-
-        <button
-          type="button"
-          onClick={onExportClick}
-          title="Xuất tài liệu SRS"
-          className="px-3.5 py-1 rounded-full text-[12px] font-bold flex items-center gap-1 transition-all bg-[#191817] text-white hover:bg-[#33312D] cursor-pointer shadow-sm"
-        >
-          <span>Export</span>
-          <span className="text-[11px]">↗</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onLogout}
-          title="Đăng xuất"
-          className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-bold text-[#B03030] hover:bg-[#FDEDED] border border-[#F2CACA] transition-colors cursor-pointer"
-        >
-          <span className="text-sm leading-none">⏻</span>
-          <span className="hidden md:inline">Đăng xuất</span>
-        </button>
+        {onRunCurrentStep && (
+          // Gọi tên bước sẽ chạy: người dùng đang xem bước cũ thì nút chạy ĐÚNG bước đó, không phải bước hiện tại (L9)
+          <Button
+            size="sm"
+            icon="play"
+            onClick={onRunCurrentStep}
+            disabled={busy || stepRunningElsewhere}
+            title={stepRunningElsewhere ? "Lần chạy trước của bước này chưa dứt — chờ vài giây rồi thử lại" : runnableStep ? `Chạy ${runnableStep}` : undefined}
+            aria-label={stepRunningElsewhere ? "Đang chạy" : runnableStep ? `Chạy bước ${runnableStep}` : "Chạy bước này"}
+            className="shrink-0"
+          >
+            <span className="hidden sm:inline">{stepRunningElsewhere ? "Đang chạy…" : runnableStep ? `Chạy ${runnableStep}` : "Chạy bước này"}</span>
+            <span className="sm:hidden">Chạy</span>
+          </Button>
+        )}
+        {onToolsClick && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="folder"
+            onClick={onToolsClick}
+            aria-pressed={toolsActive}
+            title={toolsLabel}
+            className={`shrink-0 ${toolsActive ? "bg-primary-soft text-primary-hover" : ""}`}
+          >
+            <span className="hidden md:inline">{toolsLabel === "Hồ sơ dự án" ? "Hồ sơ" : "Công cụ"}</span>
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" icon="export" onClick={onExportClick} title="Hoàn tất và xuất tài liệu SRS" className="shrink-0">
+          <span className="hidden md:inline">Export</span>
+        </Button>
+        {onEnterFocus && <IconButton icon="expand" label="Mở rộng trang (ẩn thanh trên)" onClick={onEnterFocus} />}
+        <DropdownMenu
+          trigger={(props) => (
+            <button
+              type="button"
+              {...props}
+              aria-label="Tài khoản"
+              title="Tài khoản"
+              className="w-9 h-9 grid place-items-center rounded-control hover:bg-surface-container-high transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span className="w-7 h-7 rounded-full grid place-items-center text-[12px] font-semibold bg-primary-fixed text-primary">
+                {user?.name ? user.name.charAt(0).toUpperCase() : <Icon name="user" size={14} />}
+              </span>
+            </button>
+          )}
+          header={
+            user ? (
+              <div className="flex flex-col gap-1.5 min-w-[200px]">
+                <span className="min-w-0">
+                  <span className="block text-[12.5px] font-semibold text-on-surface truncate">{user.name ?? user.email}</span>
+                  {user.name && <span className="block text-[11px] text-on-surface-muted truncate">{user.email}</span>}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-on-surface">
+                  <Icon name="wallet" size={14} className="text-primary" />
+                  <span className="tabular-nums">{user.balance ?? 0}</span>
+                  <span className="text-on-surface-muted font-medium">credits</span>
+                </span>
+              </div>
+            ) : undefined
+          }
+          items={[{ label: "Đăng xuất", icon: "logout", tone: "danger", onSelect: onLogout }]}
+        />
       </div>
     </header>
   );

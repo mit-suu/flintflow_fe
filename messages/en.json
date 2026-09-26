@@ -212,12 +212,7 @@
       "showField": "Show {field}",
       "hideField": "Hide {field}",
       "fieldPassword": "password",
-      "fieldConfirmPassword": "confirmation password",
-      "strength": {
-        "weak": "Weak",
-        "medium": "Medium",
-        "strong": "Strong"
-      }
+      "fieldConfirmPassword": "confirmation password"
     },
     "google": {
       "continue": "Continue with Google",
@@ -312,6 +307,22 @@
       "failed": "Password reset failed"
     }
   },
+  "password": {
+    "level": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "fair": "Fair",
+      "strong": "Strong"
+    },
+    "notUsable": "{level} — not usable yet",
+    "issue": {
+      "too_short": "Password must be at least {min} characters.",
+      "too_long": "Password must be at most {max} characters.",
+      "not_ascii": "Use only unaccented letters, digits and keyboard symbols — no accented characters and no spaces.",
+      "not_complex": "Password must use at least {classes} of the 4 groups: lowercase, UPPERCASE, digits, symbols.",
+      "not_strong_enough": "Password is not strong enough — use {long} characters or more, or include all 4 groups."
+    }
+  },
   "app": {
     "time": {
       "justNow": "Just now",
@@ -324,7 +335,8 @@
     "authGuard": {
       "offline": "Can't reach the server. You're still signed in.",
       "retry": "Retry",
-      "checking": "Checking access..."
+      "checking": "Checking access...",
+      "offlineTitle": "Connection lost"
     },
     "notifications": {
       "title": "Notifications",
@@ -392,7 +404,8 @@
         "createTx": "Could not create the transaction",
         "changePlan": "Could not change the plan",
         "loadMore": "Could not load more transactions"
-      }
+      },
+      "loadingHistory": "Loading transaction history…"
     },
     "checkout": {
       "back": "Back to billing",
