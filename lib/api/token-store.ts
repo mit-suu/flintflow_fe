@@ -7,6 +7,8 @@ export interface JwtPayload {
   userId?: string;
   email?: string;
   role?: string;
+  /** Org đang mở (task-26). Không có ⇒ tài khoản chưa vào org nào, BE trả 409 NO_ACTIVE_ORG. */
+  orgId?: string;
   exp?: number;
   iat?: number;
 }
@@ -68,6 +70,15 @@ export const getStoredAuthToken = (): string | null => {
 
   const match = document.cookie.match(/(?:^|; )accessToken=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
+};
+
+/**
+ * Org đang mở, đọc từ claim trong access token. Không gọi API: đây đúng là thứ BE dùng để quyết định
+ * `409 NO_ACTIVE_ORG`, nên đọc cùng một nguồn thì không bao giờ lệch.
+ */
+export const getActiveOrgId = (): string | null => {
+  const token = getStoredAuthToken();
+  return (token ? decodeJwt(token)?.orgId : null) ?? null;
 };
 
 export const getUserRole = (): string | null => {
