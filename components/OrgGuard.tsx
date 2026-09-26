@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 
 export const ONBOARDING_PATH = "/home/onboarding";
 
@@ -57,15 +58,10 @@ export default function OrgGuard({ children }: { children: React.ReactNode }) {
   if (onOnboarding) return <>{children}</>;
 
   if (!ready) {
+    // Theo flf-196: khối giữ chỗ thay cho spinner giữa trang (cùng cách AuthGuard làm)
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <span
-            aria-hidden
-            className="w-7 h-7 rounded-full border-3 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0"
-          />
-          <p className="text-xs text-secondary font-medium">{t("checking")}</p>
-        </div>
+      <div className="p-6 sm:p-8">
+        <PageSkeleton label={t("checking")} className="mx-auto max-w-[1100px]" />
       </div>
     );
   }
