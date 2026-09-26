@@ -41,7 +41,7 @@ Mọi lời gọi BE đi qua `lib/api/` — **không `fetch` trực tiếp trong
 - `lib/api/client.ts`: `apiCall()`, envelope `{data, meta, error}`, `ApiClientError {status, code, message}`,
   tự refresh access token. `API_BASE_URL` từ `NEXT_PUBLIC_API_URL`.
 - `lib/api/token-store.ts`: nơi duy nhất giữ/đọc token.
-- Một file một nhóm endpoint: `projects.ts`, `chat.ts`, `spine.ts`, `pipeline.ts`, `flags.ts`,
+- Một file một nhóm endpoint: `projects.ts`, `chat.ts`, `spine.ts`, `pipeline.ts`, `flags.ts`, `orgs.ts`,
   `documents.ts`, `export.ts`, `notifications.ts`, `billing.ts`, `admin.ts`.
 - `types/` phản chiếu kiểu của BE (`spine.ts`, `pipeline.ts`, `flags.ts`, `document.ts`…). Giữ
   **snake_case** đúng như field Spine của BE, đừng đổi sang camelCase.

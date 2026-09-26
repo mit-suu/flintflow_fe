@@ -726,6 +726,101 @@
       "submit": "Change password",
       "forgotCurrent": "Forgot your current password?",
       "forgotNote": "After resetting it you will need to sign in again."
+    },
+    "org": {
+      "roles": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "guard": {
+        "checking": "Opening your organization…"
+      },
+      "onboarding": {
+        "title": "Choose where you work",
+        "subtitle": "Every project belongs to an organization. Create your own, or enter an invitation code to join an existing one.",
+        "createTab": "Create an organization",
+        "joinTab": "Enter an invitation code",
+        "nameLabel": "Organization name",
+        "namePlaceholder": "For example: Hiep’s SRS team",
+        "nameHint": "You will be the Lead of this organization. A new organization starts on the free plan with credits to get going.",
+        "createCta": "Create organization",
+        "creating": "Creating…",
+        "codeLabel": "Invitation code",
+        "codePlaceholder": "Enter the code from your invitation email",
+        "codeHint": "The code comes from an organization Lead by email and works once.",
+        "checkCode": "Check code",
+        "checking": "Checking…",
+        "previewTitle": "Invitation is valid",
+        "previewBody": "You will join {org} as {role}.",
+        "joinCta": "Join organization",
+        "joining": "Joining…",
+        "nameRequired": "Give the organization a name.",
+        "codeRequired": "Enter the invitation code.",
+        "defaultName": "{name}'s Organization"
+      },
+      "switcher": {
+        "title": "Your organizations",
+        "subtitle": "Projects, the credit wallet and your role follow the organization you have open. Choose one to work in.",
+        "current": "Current",
+        "switch": "Open this organization",
+        "roleLine": "Role: {role}",
+        "addTitle": "Add an organization",
+        "addBody": "Create a new organization, or enter an invitation code to join another one.",
+        "addCta": "Create or join",
+        "loadError": "Could not load your organizations.",
+        "goToProjects": "Go to projects"
+      },
+      "members": {
+        "title": "Members",
+        "subtitle": "Members of {org}",
+        "you": "You",
+        "joined": "Joined {date}",
+        "roleLabel": "Role of {name}",
+        "remove": "Remove from organization",
+        "removeTitle": "Remove member?",
+        "removeBody": "{name} loses access to every project of the organization right away. The projects stay with the organization.",
+        "leave": "Leave organization",
+        "leaveTitle": "Leave organization?",
+        "leaveBody": "You will lose access to every project of {org}. The projects stay with the organization.",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "leadOnly": "Only a Lead can invite, change roles or remove members.",
+        "loadError": "Could not load the member list.",
+        "invite": {
+          "title": "Invite a member",
+          "roleLabel": "Role",
+          "emailLabel": "Email (optional)",
+          "emailPlaceholder": "invitee@company.com",
+          "cta": "Create invitation code",
+          "creating": "Creating…",
+          "codeTitle": "New invitation code",
+          "codeBody": "This code is shown only once. Send it to the invitee; it works once and expires."
+        },
+        "invitations": {
+          "title": "Invitations",
+          "empty": "No invitations yet.",
+          "noEmail": "Shared code",
+          "revoke": "Revoke",
+          "expires": "Expires {date}",
+          "states": {
+            "pending": "Pending",
+            "accepted": "Used",
+            "revoked": "Revoked",
+            "expired": "Expired"
+          }
+        },
+        "danger": {
+          "title": "Delete organization",
+          "body": "Permanently delete the organization with every project, folder, credit wallet and plan. This cannot be undone.",
+          "onlyWhenAlone": "You can delete it only when you are the only member. Remove the other members first.",
+          "cta": "Delete organization",
+          "dialogTitle": "Permanently delete the organization?",
+          "dialogBody": "Every project of {org} will be deleted permanently, and the remaining credits in its wallet are lost.",
+          "confirmLabel": "Type the organization name to confirm: {org}",
+          "confirmCta": "Delete permanently"
+        }
+      }
     }
   },
   "workspace": {
@@ -1115,6 +1210,22 @@
     "BASELINE_BLOCKED": "There are unresolved red flags — the baseline can't be recorded yet.",
     "NOT_PIPELINE_SESSION": "This isn't a pipeline session.",
     "NOT_IMPLEMENTED": "This feature isn't supported yet.",
-    "NO_DATA": "No data received from the server."
+    "NO_DATA": "No data received from the server.",
+    "NO_ACTIVE_ORG": "You have not chosen an organization to work in.",
+    "ORG_FORBIDDEN": "You are not a member of this organization.",
+    "ORG_NOT_FOUND": "Organization not found.",
+    "ORG_ROLE_FORBIDDEN": "Your role is not allowed to do this.",
+    "LAST_LEAD": "An organization must keep at least one Lead — make someone else a Lead first.",
+    "ALREADY_MEMBER": "You are already a member of this organization.",
+    "INVITE_INVALID": "This invitation code cannot be used: it has expired, been used, or been revoked.",
+    "INVITE_NOT_FOUND": "Invitation not found.",
+    "INVITE_ALREADY_USED": "This invitation code has already been used.",
+    "PLAN_LIMIT_MEMBERS": "The organization has reached the member limit of its current plan.",
+    "ACCOUNT_SUSPENDED": "This account has been suspended.",
+    "MEMBER_NOT_FOUND": "Member not found in this organization.",
+    "ORG_NAME_MISMATCH": "The confirmation does not match the organization name.",
+    "ORG_HAS_OTHER_MEMBERS": "You can delete the organization only when you are its only member.",
+    "ORG_BUSY": "An AI call is still running in this organization — try again in a few minutes.",
+    "ORG_PAYMENT_PENDING": "A payment for this organization is still pending — try again when it finishes."
   }
 }

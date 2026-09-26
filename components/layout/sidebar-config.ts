@@ -42,10 +42,10 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   {
     id: "org",
     labelKey: "sectionOrg",
-    // Đổi tổ chức nằm trong nhóm Tổ chức (BE chưa có module org) — không chiếm vị trí đầu sidebar
+    // Đổi tổ chức nằm trong nhóm Tổ chức — không chiếm vị trí đầu sidebar (task-26: BE đã có module org)
     items: [
-      { id: "orgSwitcher", icon: "building", status: "soon" },
-      { id: "members", icon: "users", status: "soon" },
+      { id: "orgSwitcher", icon: "building", status: "ready", href: "/home/organizations" },
+      { id: "members", icon: "users", status: "ready", href: "/home/members" },
       { id: "billing", icon: "credit-card", status: "ready", href: "/home/billing" },
     ],
   },

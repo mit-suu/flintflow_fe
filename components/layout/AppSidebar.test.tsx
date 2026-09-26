@@ -60,17 +60,17 @@ describe("AppSidebar", () => {
     await waitFor(() => expect(within(screen.getByRole("link", { name: /Thông báo/ })).getByText("3")).toBeInTheDocument());
   });
 
-  it('Thành viên và đổi tổ chức: hiện, badge "Sắp có", aria-disabled, không phải link, bấm không điều hướng', () => {
-    renderSidebar([]);
-    for (const label of ["Thành viên", "Đổi tổ chức"]) {
-      const item = screen.getByText(label).closest("[aria-disabled]") as HTMLElement;
-      expect(item).toHaveAttribute("aria-disabled", "true");
-      expect(item.tagName).not.toBe("A");
-      expect(within(item).getByText("Sắp có")).toBeInTheDocument();
-      fireEvent.click(item);
-    }
-    expect(screen.queryByRole("link", { name: /Thành viên/ })).toBeNull();
-    expect(push).not.toHaveBeenCalled();
+  // task-26: BE đã có module tổ chức ⇒ hai mục này thôi là "Sắp có", thành link thật.
+  it("Thành viên và đổi tổ chức: là link tới trang của nó, không còn badge \"Sắp có\"", () => {
+    renderSidebar([], "/home/members");
+    const members = screen.getByRole("link", { name: /Thành viên/ });
+    const switcher = screen.getByRole("link", { name: /Đổi tổ chức/ });
+
+    expect(members).toHaveAttribute("href", "/home/members");
+    expect(switcher).toHaveAttribute("href", "/home/organizations");
+    expect(members).toHaveAttribute("aria-current", "page");
+    expect(switcher).not.toHaveAttribute("aria-current");
+    expect(screen.queryByText("Sắp có")).toBeNull();
   });
 
   it('"Gần đây": 3 dự án đang làm mới sửa nhất; ẩn khi chưa có dự án', async () => {
@@ -99,14 +99,15 @@ describe("AppSidebar", () => {
     expect(screen.queryByText("Tổ chức")).toBeNull();
   });
 
-  it("bấm vùng trống của sidebar ⇒ thu gọn/mở rộng; bấm vào một mục (kể cả mục \"Sắp có\") thì không", () => {
+  it("bấm vùng trống của sidebar ⇒ thu gọn/mở rộng; bấm vào một mục thì không", () => {
     renderSidebar([]);
     const card = screen.getByRole("complementary", { name: "Điều hướng chính" }).firstElementChild as HTMLElement;
     // Trạng thái thu gọn được nhớ ở mức module (test trước có thể để lại) ⇒ so với trạng thái ban đầu, không giả định
     const toggleLabel = () => screen.getByRole("button", { name: /thanh bên$/ }).getAttribute("aria-label");
     const initial = toggleLabel();
 
-    fireEvent.click(screen.getAllByText("Đổi tổ chức", { exact: false })[0].closest("[aria-disabled]") as HTMLElement);
+    // Bấm vào một mục (link) thì không thu gọn — mục cũ "Sắp có" nay đã là link thật
+    fireEvent.click(screen.getByRole("link", { name: /Đổi tổ chức/ }));
     expect(toggleLabel()).toBe(initial);
 
     fireEvent.click(card);
