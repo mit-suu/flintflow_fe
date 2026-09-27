@@ -8,15 +8,18 @@ interface ReviewModeSelectProps {
   disabled?: boolean;
 }
 
-/** Tên nói thẳng lúc nào AI dừng chờ duyệt — "Nhanh" cũ trùng tên với cách làm việc "Nhanh". */
+/** Tên nói thẳng lúc nào AI dừng chờ duyệt. Hỏi nhiều hay ít là việc của AI, không phải một chế độ (FLF-220). */
 export const REVIEW_OPTIONS: { value: ReviewMode; label: string; hint: string }[] = [
   { value: "strict", label: "Mọi bước", hint: "Dừng chờ bạn duyệt ở mọi bước." },
-  { value: "balanced", label: "Cuối giai đoạn", hint: "Dừng cuối giai đoạn, cuối mỗi màn và ở bước quan trọng." },
-  { value: "fast", label: "Khi cần", hint: "Chỉ dừng khi bắt buộc, có cờ đỏ mới hoặc lỗi." },
+  { value: "fast", label: "Cuối giai đoạn", hint: "Tự duyệt trong giai đoạn; dừng ở cuối giai đoạn, cuối mỗi màn và khi cần bạn quyết." },
 ];
 
-/** Cách duyệt (`project.review_mode`) — cùng kiểu segmented với `WorkingModeSelect`, nằm trong menu cài đặt AI ở ô chat. */
-export default function ReviewModeSelect({ value, onChange, disabled = false }: ReviewModeSelectProps) {
+/** `balanced` (mặc định của schema, dữ liệu cũ) được BE xử lý như `fast` ⇒ hiển thị là "Cuối giai đoạn". */
+export const displayReviewMode = (mode: ReviewMode): ReviewMode => (mode === "balanced" ? "fast" : mode);
+
+/** Cách duyệt (`project.review_mode`) — segmented control trong menu cài đặt AI ở ô chat. */
+export default function ReviewModeSelect({ value: raw, onChange, disabled = false }: ReviewModeSelectProps) {
+  const value = displayReviewMode(raw);
   return (
     <div role="radiogroup" aria-label="AI dừng chờ duyệt" className="flex items-center gap-0.5 bg-surface-container-high rounded-control p-1">
       {REVIEW_OPTIONS.map((option) => (

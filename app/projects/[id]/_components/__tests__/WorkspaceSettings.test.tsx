@@ -5,21 +5,20 @@ import NamesGlossaryPanel from "../NamesGlossaryPanel";
 import type { Spine } from "@/types/spine";
 
 describe("AiSettingsMenu (ô chat)", () => {
-  it("chip hiện cách làm việc; mở ra đổi được cả cách làm việc lẫn lúc AI dừng chờ duyệt", () => {
-    const onWorking = vi.fn();
+  it("chip hiện chế độ duyệt; chỉ còn 2 lựa chọn, balanced cũ hiện là Cuối giai đoạn", () => {
     const onReview = vi.fn();
-    render(<AiSettingsMenu workingMode="coaching" onChangeWorkingMode={onWorking} reviewMode="balanced" onChangeReviewMode={onReview} />);
+    render(<AiSettingsMenu reviewMode="balanced" onChangeReviewMode={onReview} />);
 
-    const trigger = screen.getByRole("button", { name: /Kèm cặp/ });
+    const trigger = screen.getByRole("button", { name: /Cuối giai đoạn/ });
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(trigger);
 
     const dialog = screen.getByRole("dialog", { name: "Cách AI làm việc với bạn" });
-    expect(dialog).toHaveTextContent("Dừng cuối giai đoạn");
-    fireEvent.click(screen.getByRole("radio", { name: "Nhanh" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Khi cần" }));
-    expect(onWorking).toHaveBeenCalledWith("fast");
-    expect(onReview).toHaveBeenCalledWith("fast");
+    expect(dialog).not.toHaveTextContent("Kèm cặp");
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    expect(screen.getByRole("radio", { name: "Cuối giai đoạn" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("radio", { name: "Mọi bước" }));
+    expect(onReview).toHaveBeenCalledWith("strict");
 
     // Esc đóng
     fireEvent.keyDown(document, { key: "Escape" });
