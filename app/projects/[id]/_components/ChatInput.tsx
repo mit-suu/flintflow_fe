@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
 import { estimateActionCost } from "../../../../lib/api/chat";
 import type { ChatActionType } from "@/types/chat";
 import Icon from "@/components/ui/Icon";
 
+/** ~6 dòng chữ 13px — cao hơn nữa thì ô nhập chiếm mất khung chat, nên cuộn trong ô. */
+const MAX_INPUT_HEIGHT = 132;
+
 interface ChatInputProps {
   inputMessage: string;
   setInputMessage: (msg: string) => void;
-  onSendMessage: () => void;
+  /** Nhận đúng chữ đang gõ — state của trang có thể trễ vài trăm ms so với ô nhập. */
+  onSendMessage: (text: string) => void;
   sending: boolean;
   pendingAttachments: File[];
   onSelectAttachment: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -65,6 +69,42 @@ export default function ChatInput({
   toolbarExtra,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Chữ đang gõ nằm ở state riêng của ô nhập: báo thẳng lên trang mỗi phím thì cả workspace vẽ lại (~30–80ms/phím),
+  // giữ phím (lặp ~30 lần/giây) là phím dồn hàng và ô nhập như bị chặn. Trang chỉ nhận bản đã dừng gõ ~150ms.
+  const [draft, setDraft] = useState(inputMessage);
+  const [lastReported, setLastReported] = useState(inputMessage);
+  const [seenProp, setSeenProp] = useState(inputMessage);
+  // Trang tự đổi ô nhập (xoá sau khi gửi, điền sẵn lệnh sửa) ⇒ ô nhập theo. Giá trị do chính ô nhập báo lên thì bỏ qua.
+  if (inputMessage !== seenProp) {
+    setSeenProp(inputMessage);
+    if (inputMessage !== lastReported) setDraft(inputMessage);
+  }
+  useEffect(() => {
+    if (draft === inputMessage) return;
+    const timer = setTimeout(() => {
+      setLastReported(draft);
+      setInputMessage(draft);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [draft, inputMessage, setInputMessage]);
+
+  const send = () => {
+    if ((!draft.trim() && pendingAttachments.length === 0) || sending) return;
+    onSendMessage(draft);
+    setDraft("");
+  };
+
+  // Ô nhập tự cao theo nội dung, tối đa ~6 dòng rồi mới cuộn. Trước đây `rows` cố định: ở dạng gọn chỉ 1 dòng,
+  // gõ tới cuối dòng thì chữ xuống dòng 2 bị giấu — trông như không gõ được nữa.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`;
+    el.style.overflowY = el.scrollHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden";
+  }, [draft, compact]);
   const [creditEstimate, setCreditEstimate] = useState<number | null>(null);
 
   // Giá credit lấy từ BE; lỗi thì ẩn thay vì hiện số đoán
@@ -81,9 +121,7 @@ export default function ChatInput({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if ((inputMessage.trim() || pendingAttachments.length > 0) && !sending) {
-        onSendMessage();
-      }
+      send();
     }
   };
 
@@ -114,16 +152,17 @@ export default function ChatInput({
       )}
 
       {/* Input box */}
-      <div className={`rounded-card ${compact ? "px-2 py-1.5 flex items-center gap-1.5" : "p-3 flex flex-col gap-2.5"} bg-surface-container-lowest shadow-[0_1px_2px_rgba(25,24,23,0.04),0_8px_24px_rgba(25,24,23,0.05)] ring-primary/30 focus-within:ring-2 transition-shadow`}>
+      <div className={`rounded-card ${compact ? "px-2 py-1.5 flex items-end gap-1.5" : "p-3 flex flex-col gap-2.5"} bg-surface-container-lowest shadow-[0_1px_2px_rgba(25,24,23,0.04),0_8px_24px_rgba(25,24,23,0.05)] ring-primary/30 focus-within:ring-2 transition-shadow`}>
         <textarea
+          ref={textareaRef}
           id="flintflow-chat-input"
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={compact ? 1 : 2}
           disabled={sending}
-          className={`${compact ? "order-2 flex-1 min-w-0 py-1" : "w-full"} resize-none outline-none text-[13px] text-on-surface placeholder:text-on-surface-subtle bg-transparent leading-relaxed ff-scroll`}
+          className={`${compact ? "order-2 flex-1 min-w-0 py-1" : "w-full"} resize-none outline-none text-[13px] text-on-surface placeholder:text-on-surface-subtle bg-transparent leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
         />
 
         {/* compact: bỏ khung thanh công cụ, nút đính kèm sang trái ô gõ, nút gửi sang phải */}
@@ -184,14 +223,14 @@ export default function ChatInput({
 
             <button
               type="button"
-              onClick={onSendMessage}
+              onClick={send}
               disabled={
-                (!inputMessage.trim() && pendingAttachments.length === 0) ||
+                (!draft.trim() && pendingAttachments.length === 0) ||
                 sending
               }
               aria-label="Gửi tin nhắn"
               className={`w-8 h-8 rounded-control flex items-center justify-center text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer ${
-                (inputMessage.trim() || pendingAttachments.length > 0) &&
+                (draft.trim() || pendingAttachments.length > 0) &&
                 !sending
                   ? "bg-primary hover:bg-primary-hover"
                   : "bg-surface-container-highest text-on-surface-subtle cursor-not-allowed"

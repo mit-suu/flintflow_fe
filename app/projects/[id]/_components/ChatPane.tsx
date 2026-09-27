@@ -7,7 +7,8 @@ import { stepLabel as stepLabelOf } from "@/lib/constants/step-registry";
 import Icon from "@/components/ui/Icon";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
-import QuestionStepperInput from "./QuestionStepperInput";
+import QuestionStepperInput, { formatAnswers } from "./QuestionStepperInput";
+import { parseChatQuestion } from "@/lib/question-options";
 
 interface ChatPaneProps {
   width?: number;
@@ -70,25 +71,19 @@ export const stepDividers = (messages: readonly ChatMessage[]): (number | null)[
   });
 };
 
-/** Câu hỏi gợi ý trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step). */
+/**
+ * Câu hỏi CÓ lựa chọn trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step) — vào thẻ hỏi. Câu mở
+ * hiện trong bong bóng AI (`ChatBubble`). Đọc cả tin nhắn cũ (`suggestedAnswers`) lẫn mới (`options`).
+ */
 const parseQuestions = (content: string): DiscoveryQuestion[] => {
   try {
     const parsed: unknown = JSON.parse(content);
     const questions = (parsed as { questions?: unknown }).questions;
     if (!Array.isArray(questions)) return [];
-    return questions
-      .map((q: unknown): DiscoveryQuestion => {
-        if (typeof q === "string") return { question: q, suggestedAnswers: [] };
-        const item = (q ?? {}) as { question?: unknown; suggestedAnswers?: unknown; multiple?: unknown };
-        return {
-          question: typeof item.question === "string" ? item.question : "",
-          suggestedAnswers: Array.isArray(item.suggestedAnswers)
-            ? item.suggestedAnswers.filter((a: unknown): a is string => typeof a === "string" && a.trim().length > 0)
-            : [],
-          multiple: typeof item.multiple === "boolean" ? item.multiple : undefined,
-        };
-      })
-      .filter((q) => q.question.trim().length > 0);
+    return questions.flatMap((q) => {
+      const question = parseChatQuestion(q);
+      return question && question.options.length > 0 ? [question] : [];
+    });
   } catch {
     return [];
   }
@@ -177,7 +172,7 @@ export default function ChatPane({
       <div
         ref={scrollRef}
         style={{ paddingBottom: footerHeight + 12 }}
-        className="h-full overflow-y-auto ff-scroll p-5 space-y-4 flex flex-col [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]"
+        className="h-full overflow-y-auto ff-scroll p-5 gap-4 flex flex-col [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]"
       >
         {messages.length === 0 && !children && (emptyState ?? (
           <div className="my-auto mx-auto max-w-sm text-center flex flex-col items-center gap-3 bg-surface-container-lowest rounded-card p-6">
@@ -224,7 +219,12 @@ export default function ChatPane({
             <QuestionStepperInput
               key={questionKey ?? "questions"}
               questions={latestQuestions}
-              onSendAnswers={(answer) => onSendMessage(answer)}
+              onSubmit={(values) => {
+                // Chữ đang gõ ở ô chat đi cùng lượt gửi (trả lời câu mở trong tin nhắn AI)
+                const draft = inputMessage.trim();
+                onSendMessage([formatAnswers(values), draft].filter(Boolean).join("\n"));
+                if (draft) setInputMessage("");
+              }}
               onDismiss={() => setDismissedKey(questionKey)}
               sending={sending}
             />
@@ -233,15 +233,15 @@ export default function ChatPane({
           <ChatInput
             inputMessage={inputMessage}
             setInputMessage={setInputMessage}
-            onSendMessage={() => {
+            onSendMessage={(text) => {
               if (onDirectReply && pendingAttachments.length === 0) {
-                onDirectReply(inputMessage.trim());
+                onDirectReply(text.trim());
                 setInputMessage("");
               } else if (sendAsEdit && onEditInstruction) {
-                onEditInstruction(inputMessage);
+                onEditInstruction(text);
                 setInputMessage("");
               } else {
-                onSendMessage();
+                onSendMessage(text);
               }
             }}
             sending={sending}

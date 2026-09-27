@@ -7,8 +7,8 @@ import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
-import type { ApplyResult, Op } from "@/types/pipeline";
-import type { ReviewMode, WorkingMode } from "@/types/spine";
+import type { ApplyResult, Op, StepAnswer } from "@/types/pipeline";
+import type { ReviewMode } from "@/types/spine";
 import type { Project } from "@/types/project";
 import type { Flag } from "@/types/flags";
 import PageSkeleton from "@/components/ui/PageSkeleton";
@@ -32,7 +32,8 @@ import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
 import GateCard, { type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
-import ElicitPanel, { directReplyAnswers } from "./_components/ElicitPanel";
+import ElicitPanel, { directReplyAnswers, mergeAnswers, splitQuestions } from "./_components/ElicitPanel";
+import ChatBubble from "./_components/ChatBubble";
 import StepProgress from "./_components/StepProgress";
 import StepIntroCard from "./_components/StepIntroCard";
 import RunPill from "./_components/RunPill";
@@ -424,9 +425,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     [submitOpsNow]
   );
 
-  const changeWorkingMode = (mode: WorkingMode) =>
-    submitOps([{ op: "set", path: "project.working_mode", value: mode, reason: "[C] đổi cách làm việc" }]);
-
   /** R5: đổi mức độ dừng lại hỏi ý — có hiệu lực ngay ở bước kế tiếp. */
   const changeReviewMode = (mode: ReviewMode) =>
     submitOps([{ op: "set", path: "project.review_mode", value: mode, reason: "[C] đổi cách duyệt" }]);
@@ -535,6 +533,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const [editCardOpen, setEditCardOpen] = useState(false);
   const [editDetailOpen, setEditDetailOpen] = useState(false);
   const [appliedEdit, setAppliedEdit] = useState<AppliedEdit | null>(null);
+  /** Câu đang chọn trên thẻ hỏi, theo lượt hỏi — để Enter ở ô chat gửi kèm. */
+  const [cardAnswers, setCardAnswers] = useState<{ key: string; answers: StepAnswer[] }>({ key: "", answers: [] });
   /** Việc vừa gửi lên `/changes` — để biết kết quả trả về là của lệnh sửa, lượt cập nhật mục cũ hay hoàn tác. */
   const editActionRef = useRef<"instruction" | "outdated" | "undo" | null>(null);
   const pendingInstructionRef = useRef("");
@@ -653,6 +653,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       ? (runner.state.error.meta.flags as BlockingFlag[])
       : undefined;
   const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep && !reopenable;
+  // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
+  const openQuestions = splitQuestions(runner.state.questions).open;
+  const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
 
   return (
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
@@ -737,8 +740,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           inputTools={
             mode1 ? undefined : (
               <AiSettingsMenu
-                workingMode={spine?.project.working_mode ?? null}
-                onChangeWorkingMode={(mode) => void changeWorkingMode(mode)}
                 reviewMode={reviewMode}
                 onChangeReviewMode={(mode) => void changeReviewMode(mode)}
                 disabled={runner.state.busy || savingChange}
@@ -747,14 +748,23 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           }
           questionCard={
             !mode1 && runner.state.status === "needs_input" ? (
-              <ElicitPanel questions={runner.state.questions} onSubmit={(answers) => void runner.answer(answers)} sending={runner.state.busy} />
+              <ElicitPanel
+                questions={runner.state.questions}
+                onSubmit={(answers) => void runner.answer(answers)}
+                chatDraft={ws.inputMessage}
+                onChatDraftUsed={() => ws.setInputMessage("")}
+                onCardChange={(answers) => setCardAnswers({ key: questionSetKey, answers })}
+                sending={runner.state.busy}
+              />
             ) : undefined
           }
           // Step đang chờ trả lời ⇒ gõ ở ô chat là trả lời step (không thành tin nhắn chat rời)
           onDirectReply={
             !mode1 && runner.state.status === "needs_input"
               ? (text) => {
-                  const answers = directReplyAnswers(runner.state.questions, text);
+                  // Gõ ở ô chat trả lời câu mở; phần đã chọn trên thẻ đi cùng lượt gửi
+                  const onCard = cardAnswers.key === questionSetKey ? cardAnswers.answers : [];
+                  const answers = mergeAnswers(directReplyAnswers(runner.state.questions, text), onCard);
                   if (answers.length > 0) void runner.answer(answers);
                 }
               : undefined
@@ -779,6 +789,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           )}
           {runnerStep && !background && (
             <StepProgress state={runner.state} onCancel={() => void runner.cancel()} onBackground={() => setBackground(true)} />
+          )}
+          {!mode1 && runner.state.status === "needs_input" && (runner.state.elicitText || openQuestions.length > 0) && (
+            // Lời AI + câu mở của lượt hỏi (câu có lựa chọn nằm ở thẻ hỏi trên ô chat)
+            <ChatBubble
+              message={{
+                role: "ai",
+                content: JSON.stringify({ reply: runner.state.elicitText, questions: openQuestions.map((q) => ({ question: q.text })) }),
+                createdAt: new Date().toISOString(),
+              }}
+              hideBadge
+            />
           )}
           {runner.state.autoAccepted.length > 0 && (
             <ul className="flex flex-col gap-0.5" aria-label="Bước đã tự hoàn tất">
