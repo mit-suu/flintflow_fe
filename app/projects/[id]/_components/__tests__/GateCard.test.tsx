@@ -7,36 +7,36 @@ import type { GateAction, GateReadyEvent } from "@/types/pipeline";
 const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 
 describe("GateCard", () => {
-  it("Accept gọi onAction ngay; Regenerate hiện số lượt đã dùng", () => {
+  it("Duyệt gọi onAction ngay; Làm lại hiện số lượt còn lại", () => {
     const onAction = vi.fn();
     renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={1} onAction={onAction} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Accept$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ }));
     expect(onAction).toHaveBeenCalledWith("accept");
 
-    const regenerate = screen.getByRole("button", { name: /Regenerate \(1\/3\)/ });
+    const regenerate = screen.getByRole("button", { name: /Làm lại · còn 2 lần/ });
     expect(regenerate).not.toBeDisabled();
     fireEvent.click(regenerate);
     expect(onAction).toHaveBeenCalledWith("regenerate");
   });
 
-  it("hết 3 lượt Regenerate ⇒ nút tắt, Accept as-is xuất hiện", () => {
+  it("hết 3 lượt Làm lại ⇒ nút tắt, Duyệt như hiện tại xuất hiện", () => {
     renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "revision", "accept_as_is"]} regenerateUsed={3} onAction={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Regenerate \(3\/3\)/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Accept as-is" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Làm lại · còn 0 lần/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Duyệt như hiện tại" })).toBeInTheDocument();
   });
 
-  it("chưa hết Regenerate thì không hiện Accept as-is", () => {
+  it("chưa hết Làm lại thì không hiện Duyệt như hiện tại", () => {
     renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Accept as-is" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duyệt như hiện tại" })).not.toBeInTheDocument();
   });
 
-  it("Accept as-is bắt buộc lý do trước khi gửi", () => {
+  it("Duyệt như hiện tại bắt buộc lý do trước khi gửi", () => {
     const onAction = vi.fn();
     renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "accept_as_is"]} regenerateUsed={3} onAction={onAction} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Accept as-is" }));
-    const confirm = screen.getByRole("button", { name: "Xác nhận Accept as-is" });
+    fireEvent.click(screen.getByRole("button", { name: "Duyệt như hiện tại" }));
+    const confirm = screen.getByRole("button", { name: "Xác nhận duyệt như hiện tại" });
     expect(confirm).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText(/Lý do chấp nhận/), { target: { value: "   " } });
@@ -47,10 +47,10 @@ describe("GateCard", () => {
     expect(onAction).toHaveBeenCalledWith("accept_as_is", "Khách hàng đồng ý bản này");
   });
 
-  it("Request revision cần ghi chú", () => {
+  it("Yêu cầu sửa cần ghi chú", () => {
     const onAction = vi.fn();
     renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={onAction} />);
-    fireEvent.click(screen.getByRole("button", { name: /Request revision/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Yêu cầu sửa/ }));
     fireEvent.change(screen.getByLabelText("Cần sửa gì?"), { target: { value: "Thiếu actor Guest" } });
     fireEvent.click(screen.getByRole("button", { name: "Gửi yêu cầu sửa" }));
     expect(onAction).toHaveBeenCalledWith("revision", "Thiếu actor Guest");
@@ -58,20 +58,20 @@ describe("GateCard", () => {
 
   it("busy thì khoá mọi hành động", () => {
     renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} busy onAction={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Accept$/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Regenerate/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Làm lại/ })).toBeDisabled();
   });
 
   // L11b: trước đây lô op rỗng đi tới gate y như một lượt chạy thành công — user Accept, cờ đỏ vẫn treo, bấm
   // "Mở lại" lại rơi vào đúng vòng đó cho tới khi cạn trần 8 lượt gọi model (gặp thật 2026-09-20).
   describe("cảnh báo lượt chạy không ghi được gì (L11b)", () => {
-    it("lô op rỗng ⇒ nói thẳng, vẫn cho Accept", () => {
+    it("lô op rỗng ⇒ nói thẳng, vẫn cho Duyệt", () => {
       renderWithIntl(<GateCard stepId="S-7.2" actions={ALL} regenerateUsed={0} wroteOps={false} onAction={vi.fn()} />);
       expect(screen.getByRole("status")).toHaveTextContent("AI không soạn được nội dung nào ở lượt này");
-      expect(screen.getByRole("button", { name: /Accept$/ }), "vẫn là quyết định của người dùng").not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ }), "vẫn là quyết định của người dùng").not.toBeDisabled();
     });
 
-    it("có ghi op nhưng mục vẫn trống ⇒ gọi tên mục và nói rõ Accept không đóng được cờ", () => {
+    it("có ghi op nhưng mục vẫn trống ⇒ gọi tên mục và nói rõ Duyệt không đóng được cờ", () => {
       renderWithIntl(
         <GateCard
           stepId="S-7.2"
@@ -115,13 +115,33 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     doc_progress: { before: 44, after: 46 },
   };
 
-  it("hiện nội dung vừa ghi, chênh lệch cờ, thời gian và credit — không chỉ con số thay đổi", () => {
+  it("hiện nội dung vừa ghi, chênh lệch cờ và credit — không hiện thời gian (gồm cả lúc chờ user)", () => {
     renderWithIntl(<GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
-    expect(screen.getByText(/Bạn vừa có/)).toBeInTheDocument();
+    expect(screen.getByText(/AI đã ghi nhận/)).toBeInTheDocument();
     expect(screen.getByText(/\+2 quyền/)).toBeInTheDocument();
     expect(screen.getByText(/Admin tạo trên Manage Staff/)).toBeInTheDocument();
     expect(screen.getByText(/cờ đỏ 3 → 2/)).toBeInTheDocument();
-    expect(screen.getByText(/58 giây · 4 credit/)).toBeInTheDocument();
+    expect(screen.getByText("4 credit")).toBeInTheDocument();
+    expect(screen.queryByText(/giây/)).toBeNull();
+  });
+
+  it("field dự án dịch sang lời thường; giả định không lặp ở danh sách vừa ghi; không có gì đổi thì ẩn dòng kiểm tra", () => {
+    const brief: GateReadyEvent = {
+      ...payload,
+      summary: [
+        { kind: "update", collection: "project", id: null, title_vi: "complexity: small" },
+        { kind: "add", collection: "assumptions", id: "AS3", title_vi: "Small internal tool" },
+      ],
+      new_assumptions: [{ id: "AS3", text: "Small internal tool" }],
+      flags: { red: 0, yellow: 0, red_delta: 0, yellow_delta: 0 },
+      doc_progress: { before: 0, after: 0 },
+    };
+    renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} regenerateUsed={0} payload={brief} onAction={vi.fn()} />);
+    expect(screen.getByText(/Độ phức tạp: Nhỏ/)).toBeInTheDocument();
+    expect(screen.queryByText(/\+1 giả định/)).toBeNull();
+    expect(screen.getAllByText("Small internal tool")).toHaveLength(1);
+    expect(screen.queryByText("AS3")).toBeNull();
+    expect(screen.queryByText(/Kiểm tra:/)).toBeNull();
   });
 
   it("giả định mới có ba nút Đúng / Sửa / Bỏ và biến mất sau khi quyết (BUG-13)", () => {
@@ -129,14 +149,14 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     renderWithIntl(
       <GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAssumptionDecision={onAssumptionDecision} onAction={vi.fn()} />
     );
-    expect(screen.getByText(/1 giả định mới/)).toBeInTheDocument();
+    expect(screen.getByText(/AI tự giả định/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Sửa" }));
     fireEvent.change(screen.getByLabelText("Sửa giả định AS12"), { target: { value: "Lễ tân được xoá lịch trong ngày" } });
     fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
 
     expect(onAssumptionDecision).toHaveBeenCalledWith({ kind: "edit", id: "AS12", statement: "Lễ tân được xoá lịch trong ngày" });
-    expect(screen.queryByText(/1 giả định mới/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/AI tự giả định/)).not.toBeInTheDocument();
   });
 
   it("step không đổi gì thì nói rõ vì sao", () => {

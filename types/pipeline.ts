@@ -109,10 +109,25 @@ export interface StepsResponse {
   steps: StepSummary[];
 }
 
+/** Một lựa chọn của thẻ hỏi (theo AskUserQuestion). "Khác…" không nằm ở đây — FE tự thêm. */
+export interface QuestionOption {
+  label: string;
+  /** Chọn phương án này được/mất gì. */
+  description?: string;
+  /** Bản so sánh monospace (bố cục màn, cấu trúc bảng). */
+  preview?: string;
+}
+
+/**
+ * Câu hỏi trong `answer_needed` / run-state. Không có `options` ⇒ câu mở, trả lời bằng ô chat.
+ * `options` dạng `string` chỉ còn ở run-state cũ (trước FLF-220) — đọc qua `normalizeOption`.
+ */
 export interface Question {
   id: string;
   text: string;
-  options?: string[];
+  /** Nhãn tab ≤ 12 ký tự. */
+  header?: string;
+  options?: Array<string | QuestionOption>;
   multiple?: boolean;
 }
 

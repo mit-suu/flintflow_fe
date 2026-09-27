@@ -77,6 +77,52 @@ export const groupSummary = (summary: readonly ChangeSummary[]): { key: string; 
   });
 };
 
+/** Field lẻ của `project`: BE ghi tiêu đề dạng "<field>: <giá trị>" — dịch cả hai sang lời thường. */
+const PROJECT_FIELD_VI: Record<string, string> = {
+  name: "Tên dự án",
+  system_name: "Tên hệ thống",
+  vision: "Tầm nhìn",
+  goals: "Mục tiêu",
+  type: "Loại dự án",
+  domain: "Lĩnh vực",
+  complexity: "Độ phức tạp",
+  form_factor: "Nền tảng",
+  stakes: "Mức độ quan trọng",
+  release_scope: "Phạm vi phát hành",
+  review_mode: "Chế độ duyệt",
+};
+
+const PROJECT_VALUE_VI: Record<string, string> = {
+  small: "Nhỏ",
+  low: "Thấp",
+  medium: "Trung bình",
+  high: "Cao",
+  large: "Lớn",
+  web_app: "Web",
+  web_application: "Ứng dụng web",
+  mobile_app: "Ứng dụng di động",
+  desktop_app: "Ứng dụng máy tính",
+  api_service: "Dịch vụ API",
+  cli: "Dòng lệnh (CLI)",
+  embedded: "Hệ thống nhúng",
+  internal: "Nội bộ",
+  production: "Sản phẩm thật",
+  regulated: "Chịu quản lý pháp lý",
+  strict: "Mọi bước",
+  balanced: "Cuối giai đoạn",
+  fast: "Cuối giai đoạn",
+};
+
+/** `"complexity: small"` ⇒ `"Độ phức tạp: Nhỏ"`; tiêu đề khác giữ nguyên. */
+export const projectFieldText = (title: string): string => {
+  const match = /^([a-z_]+):\s*(.*)$/.exec(title.trim());
+  if (!match) return title;
+  const [, field, value] = match;
+  const label = PROJECT_FIELD_VI[field];
+  if (!label) return title;
+  return `${label}: ${PROJECT_VALUE_VI[value.trim()] ?? value}`;
+};
+
 const deltaText = (before: number, after: number): string => {
   const delta = after - before;
   if (delta === 0) return `${after}`;
@@ -112,6 +158,13 @@ export default function GateCard({
   const summary = phaseSummary ?? payload?.summary ?? [];
   const groups = groupSummary(summary);
   const assumptions: AssumptionBrief[] = (payload?.new_assumptions ?? []).filter((a) => !decided[a.id]);
+  const shownGroups = (payload?.new_assumptions ?? []).length > 0 ? groups.filter((g) => !g.key.endsWith("|assumptions")) : groups;
+  // Dòng kiểm tra chỉ đáng đọc khi có gì đổi: cờ mới hoặc % tài liệu tăng/giảm
+  const flagsChanged =
+    payload?.flags !== undefined &&
+    (payload.flags.red_delta !== 0 ||
+      payload.flags.yellow_delta !== 0 ||
+      (payload.doc_progress !== undefined && payload.doc_progress !== null && payload.doc_progress.before !== payload.doc_progress.after));
   const decide = (decision: AssumptionDecision) => {
     setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
     onAssumptionDecision?.(decision);
@@ -131,15 +184,7 @@ export default function GateCard({
 
   return (
     <div className="bg-white border-2 border-[#DCD8F0] rounded-[16px] p-4 flex flex-col gap-3 shadow-[0_8px_24px_rgba(106,98,196,0.08)]" aria-label="Cổng chốt">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <div className="text-[10.5px] font-extrabold text-[#6A62C4] tracking-wider uppercase">Cổng chốt</div>
-          <h4 className="font-extrabold text-[13px] text-[#191817]">{phaseLabel ?? `${stepId} · ${stepLabel(stepId)}`}</h4>
-        </div>
-        <span className="text-[11px] font-bold text-[#6B6862]" data-testid="regenerate-count">
-          Regenerate {regenerateUsed}/{regenerateLimit}
-        </span>
-      </div>
+      <h4 className="font-extrabold text-[13px] text-[#191817]">{phaseLabel ?? `${stepId} · ${stepLabel(stepId)}`}</h4>
 
       {/* L11b: trước đây lô op rỗng vẫn tới gate y như một lượt chạy thành công — user Accept, cờ đỏ vẫn treo,
           bấm "Mở lại" lại rơi vào đúng vòng đó. Nói thẳng ra ở đây kèm lối khác. */}
@@ -157,29 +202,30 @@ export default function GateCard({
                   <code className="text-[10.5px]">{s.section_id}</code>
                 </span>
               ))}
-              . Accept sẽ chốt bước nhưng cờ đỏ <code>section_empty</code> vẫn treo, và chạy lại cũng cho kết quả như
+              . Duyệt sẽ chốt bước nhưng cờ đỏ <code>section_empty</code> vẫn treo, và chạy lại cũng cho kết quả như
               vậy nếu tài liệu gốc không có dữ liệu cho mục đó.
             </p>
           )}
           <p>
-            Lối khác: <b>Request revision</b> để tả rõ cần gì, tự viết nội dung qua chat, hoặc waive cờ ở panel
+            Lối khác: <b>Yêu cầu sửa</b> để tả rõ cần gì, tự viết nội dung qua chat, hoặc waive cờ ở panel
             Verification nếu mục này thật sự không áp dụng.
           </p>
         </div>
       )}
 
-      {/* Lớp 4 "Bạn vừa có" — gate nói nội dung, không chỉ con số (WP-5) */}
-      {groups.length > 0 && (
+      {/* Lớp 4 "Bạn vừa có" — gate nói nội dung, không chỉ con số (WP-5). Giả định mới đã có khung xác nhận
+          riêng bên dưới ⇒ không liệt kê lần hai ở đây. */}
+      {shownGroups.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#6B6862]">Bạn vừa có</span>
-          {groups.map((group) => (
+          <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#6B6862]">AI đã ghi nhận</span>
+          {shownGroups.map((group) => (
             <div key={group.key} className="text-[12px] text-[#191817]">
               <span className="font-bold">{group.label}</span>
               <span className="text-[#4B4842]">
                 {": "}
                 {group.items
                   .slice(0, 5)
-                  .map((item) => item.title_vi)
+                  .map((item) => (item.collection === "project" ? projectFieldText(item.title_vi) : item.title_vi))
                   .join(", ")}
                 {group.items.length > 5 ? `, …(+${group.items.length - 5})` : ""}
               </span>
@@ -195,12 +241,12 @@ export default function GateCard({
       {assumptions.length > 0 && (
         <div className="flex flex-col gap-1.5 bg-[#FBF4E4] rounded-[10px] p-2.5">
           <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#8A6D1F]">
-            Cần bạn xem: {assumptions.length} giả định mới
+            AI tự giả định — bạn xác nhận giúp
           </span>
           {assumptions.map((assumption) => (
             <div key={assumption.id} className="flex flex-col gap-1">
               <span className="text-[12px] text-[#191817]">
-                <span className="font-bold">{assumption.id}</span> {assumption.text}
+                {assumption.text}
                 {assumption.conflict ? <em className="text-[#B03030]"> · mâu thuẫn với: {assumption.conflict}</em> : null}
               </span>
               {editing?.id === assumption.id ? (
@@ -285,19 +331,11 @@ export default function GateCard({
         </details>
       )}
 
-      {payload?.flags && (
+      {payload?.flags && flagsChanged && (
         <p className="text-[11.5px] text-[#4B4842]">
           Kiểm tra: cờ đỏ {deltaText(payload.flags.red - payload.flags.red_delta, payload.flags.red)} · cờ vàng{" "}
           {deltaText(payload.flags.yellow - payload.flags.yellow_delta, payload.flags.yellow)}
           {payload.doc_progress ? ` · tài liệu ${payload.doc_progress.before}% → ${payload.doc_progress.after}%` : ""}
-        </p>
-      )}
-
-      {(payload?.duration_ms !== undefined || payload?.credits_used !== undefined) && (
-        <p className="text-[11px] text-[#6B6862]">
-          {payload.duration_ms !== undefined ? `${Math.round(payload.duration_ms / 1000)} giây` : ""}
-          {payload.duration_ms !== undefined && payload.credits_used !== undefined ? " · " : ""}
-          {payload.credits_used !== undefined ? `${Math.round(payload.credits_used)} credit` : ""}
         </p>
       )}
 
@@ -319,14 +357,14 @@ export default function GateCard({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           disabled={busy || !actions.includes("accept")}
           onClick={() => onAction("accept")}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          ✓ Accept
+          ✓ Duyệt, sang bước tiếp
         </button>
         <button
           type="button"
@@ -335,16 +373,16 @@ export default function GateCard({
           aria-pressed={mode === "revision"}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#ECEAE5] text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          ✎ Request revision
+          ✎ Yêu cầu sửa
         </button>
         <button
           type="button"
           disabled={busy || !regenerateLeft}
           onClick={() => onAction("regenerate")}
-          title={regenerateLeft ? undefined : "Đã hết lượt Regenerate"}
+          title={regenerateLeft ? "AI soạn lại bước này từ đầu" : "Đã hết lượt làm lại"}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#DCD8F0] text-[#6A62C4] hover:bg-[#F2F1FB] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          ↻ Regenerate ({regenerateUsed}/{regenerateLimit})
+          ↻ Làm lại · còn {Math.max(0, regenerateLimit - regenerateUsed)} lần
         </button>
         {showAcceptAsIs && (
           <button
@@ -354,8 +392,11 @@ export default function GateCard({
             aria-pressed={mode === "accept_as_is"}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#F0DFB4] text-[#8A6D1F] bg-[#FBF4E4] hover:bg-[#F7EBCF] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            Accept as-is
+            Duyệt như hiện tại
           </button>
+        )}
+        {payload?.credits_used !== undefined && (
+          <span className="ml-auto text-[11px] text-[#6B6862]">{Math.round(payload.credits_used)} credit</span>
         )}
       </div>
 
@@ -377,7 +418,7 @@ export default function GateCard({
             onClick={submitNote}
             className="self-end px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {mode === "revision" ? "Gửi yêu cầu sửa" : "Xác nhận Accept as-is"}
+            {mode === "revision" ? "Gửi yêu cầu sửa" : "Xác nhận duyệt như hiện tại"}
           </button>
         </div>
       )}

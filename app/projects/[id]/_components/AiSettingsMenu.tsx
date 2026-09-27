@@ -2,28 +2,20 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Icon from "@/components/ui/Icon";
-import type { ReviewMode, WorkingMode } from "@/types/spine";
-import WorkingModeSelect from "./WorkingModeSelect";
-import ReviewModeSelect, { REVIEW_OPTIONS } from "./ReviewModeSelect";
+import type { ReviewMode } from "@/types/spine";
+import ReviewModeSelect, { REVIEW_OPTIONS, displayReviewMode } from "./ReviewModeSelect";
 
 interface AiSettingsMenuProps {
-  workingMode: WorkingMode | null;
-  onChangeWorkingMode: (mode: WorkingMode) => void;
   reviewMode: ReviewMode;
   onChangeReviewMode: (mode: ReviewMode) => void;
   disabled?: boolean;
 }
 
-const WORKING_HINT: Record<WorkingMode, string> = {
-  fast: "Gom câu hỏi, duyệt một lần cuối giai đoạn.",
-  coaching: "Hỏi kỹ từng bước, duyệt từng bước.",
-};
-
 /**
- * "AI làm việc với bạn thế nào" — cách làm việc + lúc nào dừng chờ duyệt, đặt ngay ô chat (như nút chọn model ở
- * các app chat) thay vì đáy rail tiến độ. Chip hiện cách làm việc đang chọn; bấm mở ô nổi lên trên.
+ * "AI dừng chờ duyệt ở đâu" — đặt ngay ô chat (như nút chọn model ở các app chat) thay vì đáy rail tiến độ.
+ * Chip hiện chế độ duyệt đang chọn; bấm mở ô nổi lên trên. AI tự quyết hỏi nhiều hay ít (FLF-220).
  */
-export default function AiSettingsMenu({ workingMode, onChangeWorkingMode, reviewMode, onChangeReviewMode, disabled = false }: AiSettingsMenuProps) {
+export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disabled = false }: AiSettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -45,8 +37,7 @@ export default function AiSettingsMenu({ workingMode, onChangeWorkingMode, revie
     };
   }, [open]);
 
-  const workingLabel = workingMode === "fast" ? "Nhanh" : "Kèm cặp";
-  const review = REVIEW_OPTIONS.find((o) => o.value === reviewMode) ?? REVIEW_OPTIONS[1];
+  const review = REVIEW_OPTIONS.find((o) => o.value === displayReviewMode(reviewMode)) ?? REVIEW_OPTIONS[1];
 
   return (
     <div ref={rootRef} className="relative">
@@ -62,7 +53,7 @@ export default function AiSettingsMenu({ workingMode, onChangeWorkingMode, revie
         }`}
       >
         <Icon name="sparkle" size={14} />
-        {workingLabel}
+        {review.label}
         <Icon name="chevron-down" size={12} />
       </button>
 
@@ -73,11 +64,6 @@ export default function AiSettingsMenu({ workingMode, onChangeWorkingMode, revie
           aria-label="Cách AI làm việc với bạn"
           className="absolute bottom-full left-0 mb-2 z-40 w-[300px] bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-3 flex flex-col gap-3"
         >
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[11.5px] font-bold text-on-surface">Cách làm việc</span>
-            <WorkingModeSelect value={workingMode} onChange={onChangeWorkingMode} disabled={disabled} />
-            {workingMode && <p className="text-[11px] text-on-surface-muted">{WORKING_HINT[workingMode]}</p>}
-          </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-[11.5px] font-bold text-on-surface">AI dừng chờ duyệt</span>
             <ReviewModeSelect value={reviewMode} onChange={onChangeReviewMode} disabled={disabled} />

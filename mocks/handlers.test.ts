@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import type { StepEvent } from "@/types/pipeline";
@@ -28,7 +29,7 @@ const runToGate = async (stepId: string): Promise<StepEvent[]> => {
       if (event.type === "answer_needed") {
         void answerStep(P, stepId, {
           session_id: MOCK_SESSION_ID,
-          answers: event.questions.map((q) => ({ question_id: q.id, answer: q.options?.[0] ?? "Có" })),
+          answers: event.questions.map((q) => ({ question_id: q.id, answer: q.options?.[0] ? normalizeOption(q.options[0]).label : "Có" })),
         });
       }
     },
@@ -109,9 +110,9 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     await expect(runStep(P, "S-3.1", { session_id: MOCK_SESSION_ID, base_version: 1 }, { onEvent: () => {} })).rejects.toThrow();
 
     const before = await version();
-    const res = await applyChanges(P, { base_version: before, ops: [{ op: "set", path: "project.working_mode", value: "fast" }] });
+    const res = await applyChanges(P, { base_version: before, ops: [{ op: "set", path: "project.review_mode", value: "strict" }] });
     expect(res.data).toMatchObject({ spine_version: before + 1 });
-    expect(res.data?.spine.project.working_mode).toBe("fast");
+    expect(res.data?.spine.project.review_mode).toBe("strict");
     await expect(applyChanges(P, { base_version: before, ops: [{ op: "set", path: "project.name", value: "X" }] })).rejects.toMatchObject({
       code: "SPINE_VERSION_CONFLICT",
     });

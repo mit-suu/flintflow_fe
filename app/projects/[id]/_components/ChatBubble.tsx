@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types/chat";
+import { parseChatQuestion } from "@/lib/question-options";
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -9,6 +10,8 @@ interface ChatBubbleProps {
   onRequestRollback?: (index: number) => void;
   disabled?: boolean;
   isStreaming?: boolean;
+  /** Bong bóng hỏi của step đang chạy: nhãn "Chỉ trao đổi" không có nghĩa gì ở đây. */
+  hideBadge?: boolean;
 }
 
 /**
@@ -39,6 +42,7 @@ export default function ChatBubble({
   onRequestRollback,
   disabled = false,
   isStreaming = false,
+  hideBadge = false,
 }: ChatBubbleProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
@@ -70,23 +74,28 @@ export default function ChatBubble({
    * trả một object lớn kèm khối tự chấm tiến độ, và FE đọc từng mẩu trong lúc stream. Discovery giờ là
    * step chạy qua step runner, tiến độ đọc từ Spine — không còn gì để vớt.
    */
-  const parseAiMessage = (content: string): { reply: string } => {
+  const parseAiMessage = (content: string): { reply: string; openQuestions: string[] } => {
     const raw = (content ?? "").trim();
-    if (!raw) return { reply: "" };
-    if (!raw.startsWith("{")) return { reply: raw };
+    if (!raw) return { reply: "", openQuestions: [] };
+    if (!raw.startsWith("{")) return { reply: raw, openQuestions: [] };
     try {
       const data: unknown = JSON.parse(raw);
       if (data && typeof data === "object" && typeof (data as { reply?: unknown }).reply === "string") {
-        return { reply: (data as { reply: string }).reply };
+        // FLF-220: câu mở (không có lựa chọn) nằm ngay trong tin nhắn AI, trả lời bằng ô chat; câu có lựa chọn ở thẻ hỏi
+        const questions = (data as { questions?: unknown }).questions;
+        const openQuestions = (Array.isArray(questions) ? questions : [])
+          .map(parseChatQuestion)
+          .flatMap((q) => (q && q.options.length === 0 ? [q.question] : []));
+        return { reply: (data as { reply: string }).reply, openQuestions };
       }
     } catch (_) {
       // JSON chưa đủ (đang stream) — hiện nguyên văn, ticker bên dưới vẫn chạy
     }
-    return { reply: raw };
+    return { reply: raw, openQuestions: [] };
   };
 
   const parsed = parseAiMessage(message.content);
-  const writeBadge = writeBadgeOf(message);
+  const writeBadge = hideBadge ? null : writeBadgeOf(message);
 
   // Smooth continuous typewriter ticker for streaming
   const [displayedReply, setDisplayedReply] = useState(parsed.reply);
@@ -190,12 +199,12 @@ export default function ChatBubble({
   if (isUser) {
     const formattedTime = formatTimestamp(message.createdAt);
     return (
-      <div className="flex flex-col items-end space-y-1 group">
-        <div className="bg-[#F2F1FB] border border-[#DCD8F0] text-[#191817] px-4 py-2.5 rounded-[16px] rounded-tr-[3px] max-w-[85%] text-[13px] shadow-[0_2px_8px_rgba(106,98,196,0.06)] leading-relaxed flex flex-col gap-0.5">
+      <div className="flex flex-col items-end group">
+        <div className="relative bg-[#F2F1FB] border border-[#DCD8F0] text-[#191817] px-4 py-2.5 rounded-[16px] rounded-tr-[3px] max-w-[85%] text-[13px] shadow-[0_2px_8px_rgba(106,98,196,0.06)] leading-relaxed">
           <p className="whitespace-pre-wrap">{message.content}</p>
 
-          {/* Action bar: Timestamp, Copy, Rollback - phong cách Antigravity (chỉ hiện khi hover) */}
-          <div className="flex items-center justify-end gap-1.5 text-[11px] text-[#8A867E] select-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto mt-0.5">
+          {/* Action bar: Timestamp, Copy, Rollback — nổi bên trái bong bóng khi hover, không chiếm chiều cao bong bóng */}
+          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 flex items-center gap-1.5 text-[11px] text-[#8A867E] select-none whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
             {formattedTime && (
               <span className="text-[10.5px] text-[#8A867E] leading-none">{formattedTime}</span>
             )}
@@ -298,6 +307,18 @@ export default function ChatBubble({
             ) : null}
           </div>
 
+          {!isStreaming && parsed.openQuestions.length > 0 && (
+            <ol className="flex flex-col gap-1.5" aria-label="Câu hỏi của AI">
+              {parsed.openQuestions.map((question, i) => (
+                <li key={i} className="flex items-start gap-2 text-[13px] text-[#33312D] leading-relaxed">
+                  <span className="w-5 h-5 shrink-0 mt-px grid place-items-center rounded-[6px] bg-[#F2F1FB] text-[#6A62C4] text-[11px] font-bold tabular-nums">
+                    {i + 1}
+                  </span>
+                  <span className="flex-1 min-w-0 font-semibold">{question}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       </div>
     </div>
