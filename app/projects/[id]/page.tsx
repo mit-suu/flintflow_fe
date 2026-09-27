@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { applyChangesWithRebase, renderDiagram } from "@/lib/api/spine";
+import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
@@ -446,9 +446,35 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       if (decision.kind === "reject") {
         return submitOps([{ op: "set", path: `${path}.status`, value: "rejected", reason: "User bác bỏ giả định ở cổng chốt" }]);
       }
-      return submitOps([{ op: "set", path: `${path}.statement`, value: decision.statement, reason: "User sửa giả định ở cổng chốt" }]);
+      // FLF-221: user sửa bằng ngôn ngữ của mình ⇒ BE gọi AI dịch sang EN và ghi cả hai bản (tốn một lượt credit).
+      // Nối vào hàng đợi ghi để cầm `spine_version` mới nhất; lỗi ⇒ `false` để thẻ giữ chữ user đã gõ.
+      const run = writeQueueRef.current.catch(() => undefined).then(async (): Promise<boolean> => {
+        const baseVersion = versionRef.current;
+        if (baseVersion === null) return false;
+        setSavingChange(true);
+        try {
+          const res = await editAssumption(projectId, decision.id, { statement_vi: decision.statement, base_version: baseVersion });
+          if (res.data) {
+            bumpVersion(res.data.spine_version);
+            replaceSpine(res.data.spine);
+          }
+          void reloadProgress();
+          refreshUser();
+          setToast("Đã sửa giả định — AI đã cập nhật bản tiếng Anh trong tài liệu");
+          return true;
+        } catch (err) {
+          const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
+          setToast(`Chưa sửa được giả định: ${friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message}`);
+          if (code === "SPINE_VERSION_CONFLICT") void reloadSpine();
+          return false;
+        } finally {
+          setSavingChange(false);
+        }
+      });
+      writeQueueRef.current = run;
+      return run;
     },
-    [submitOps]
+    [submitOps, projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine, refreshUser]
   );
 
   /**
@@ -832,7 +858,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               busy={runner.state.busy}
               payload={gate.payload}
               blockingFlags={blockingFlags}
-              onAssumptionDecision={(decision) => void applyAssumptionDecision(decision)}
+              onAssumptionDecision={applyAssumptionDecision}
               onGoToStep={setSelectedStepId}
               wroteOps={gate.wroteOps}
               emptySections={gate.emptySections}

@@ -31,7 +31,11 @@ interface GateCardProps {
   payload?: GateReadyEvent | null;
   /** Cờ đỏ đang chặn ký baseline (422 BASELINE_BLOCKED khi Accept ở S-9.5). */
   blockingFlags?: BlockingFlag[];
-  onAssumptionDecision?: (decision: AssumptionDecision) => void;
+  /**
+   * "Sửa" (FLF-221) gọi AI dịch câu user gõ rồi ghi cả hai bản — trả `false` khi lỗi để thẻ giữ nguyên ô sửa và chữ
+   * user đã gõ. Đúng/Bỏ không cần chờ.
+   */
+  onAssumptionDecision?: (decision: AssumptionDecision) => void | Promise<boolean | void>;
   onGoToStep?: (stepId: string) => void;
   /** Lượt chạy vừa rồi có ghi được op nào vào Spine không (L11b). */
   wroteOps?: boolean;
@@ -153,6 +157,8 @@ export default function GateCard({
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [decided, setDecided] = useState<Record<string, "confirm" | "reject" | "edit">>({});
+  /** Giả định đang chờ AI dịch bản sửa — ô sửa khoá lại cho tới khi xong. */
+  const [savingEdit, setSavingEdit] = useState<string | null>(null);
 
   // Cổng chốt cuối giai đoạn nói về cả giai đoạn, không chỉ bước cuối
   const summary = phaseSummary ?? payload?.summary ?? [];
@@ -165,9 +171,18 @@ export default function GateCard({
     (payload.flags.red_delta !== 0 ||
       payload.flags.yellow_delta !== 0 ||
       (payload.doc_progress !== undefined && payload.doc_progress !== null && payload.doc_progress.before !== payload.doc_progress.after));
-  const decide = (decision: AssumptionDecision) => {
-    setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
-    onAssumptionDecision?.(decision);
+  const decide = async (decision: AssumptionDecision) => {
+    if (decision.kind !== "edit") {
+      setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
+      void onAssumptionDecision?.(decision);
+      return;
+    }
+    setSavingEdit(decision.id);
+    const ok = await onAssumptionDecision?.(decision);
+    setSavingEdit(null);
+    if (ok === false) return;
+    setEditing(null);
+    setDecided((current) => ({ ...current, [decision.id]: "edit" }));
   };
 
   const regenerateLeft = regenerateUsed < regenerateLimit && actions.includes("regenerate");
@@ -246,7 +261,7 @@ export default function GateCard({
           {assumptions.map((assumption) => (
             <div key={assumption.id} className="flex flex-col gap-1">
               <span className="text-[12px] text-[#191817]">
-                {assumption.text}
+                {assumption.text_vi ?? assumption.text}
                 {assumption.conflict ? <em className="text-[#B03030]"> · mâu thuẫn với: {assumption.conflict}</em> : null}
               </span>
               {editing?.id === assumption.id ? (
@@ -254,37 +269,38 @@ export default function GateCard({
                   <input
                     aria-label={`Sửa giả định ${assumption.id}`}
                     value={editing.text}
+                    disabled={savingEdit === assumption.id}
                     onChange={(e) => setEditing({ id: assumption.id, text: e.target.value })}
                     className="flex-1 px-2 py-1 bg-white border border-[#E5E3DF] rounded-[8px] text-[12px] outline-none"
                   />
                   <button
                     type="button"
-                    disabled={editing.text.trim().length === 0}
-                    onClick={() => decide({ kind: "edit", id: assumption.id, statement: editing.text.trim() })}
+                    disabled={editing.text.trim().length === 0 || savingEdit === assumption.id}
+                    onClick={() => void decide({ kind: "edit", id: assumption.id, statement: editing.text.trim() })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
                   >
-                    Lưu
+                    {savingEdit === assumption.id ? "Đang lưu…" : "Lưu"}
                   </button>
                 </div>
               ) : (
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => decide({ kind: "confirm", id: assumption.id })}
+                    onClick={() => void decide({ kind: "confirm", id: assumption.id })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-[#1F7A45] text-white cursor-pointer"
                   >
                     Đúng
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditing({ id: assumption.id, text: assumption.text })}
+                    onClick={() => setEditing({ id: assumption.id, text: assumption.text_vi ?? assumption.text })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold border border-[#ECEAE5] text-[#191817] cursor-pointer"
                   >
                     Sửa
                   </button>
                   <button
                     type="button"
-                    onClick={() => decide({ kind: "reject", id: assumption.id })}
+                    onClick={() => void decide({ kind: "reject", id: assumption.id })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold border border-[#F0C4C4] text-[#B03030] cursor-pointer"
                   >
                     Bỏ

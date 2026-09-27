@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Op } from "@/types/pipeline";
+import { assumptionText } from "./brief-labels";
 import type { Assumption, AssumptionStatus, Spine } from "@/types/spine";
 
 interface AssumptionSweepPanelProps {
@@ -66,7 +67,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
           {assumption.path}
         </code>
       </div>
-      <p className="text-[11.5px] text-[#191817]">{assumption.statement}</p>
+      <p className="text-[11.5px] text-[#191817]">{assumptionText(assumption)}</p>
       {assumption.rationale && <p className="text-[10.5px] text-[#6B6862] italic">{assumption.rationale}</p>}
       {solo && (
         <span className="self-start text-[10px] font-bold text-[#B45309] bg-[#FEF3C7] px-1.5 py-0.5 rounded-full">

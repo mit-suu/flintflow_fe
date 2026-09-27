@@ -268,7 +268,8 @@ export interface RunState {
   alive: boolean;
   questions: Question[] | null;
   gate_payload: GateReadyEvent | null;
-  events: StepEvent[];
+  /** Mỗi sự kiện lưu kèm `at` (ISO, FLF-221) — dữ liệu cũ không có. */
+  events: (StepEvent & { at?: string })[];
   error: { code: string; message: string } | null;
 }
 

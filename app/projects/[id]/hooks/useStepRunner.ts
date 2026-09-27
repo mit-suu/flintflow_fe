@@ -4,7 +4,7 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { answerStep, cancelRun, getActiveRunState, getRunState, runPhase, runStep, submitGate } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
-import { getStepDef } from "@/lib/constants/step-registry";
+import { getStepDef, orderedSteps, type LoopSource } from "@/lib/constants/step-registry";
 import type {
   ChangeSummary,
   GateAction,
@@ -45,7 +45,8 @@ export interface RunnerGate {
 export interface RunnerState {
   status: RunnerStatus;
   stepId: string | null;
-  events: StepEvent[];
+  /** Sự kiện của lượt (và của các bước trước trong cùng giai đoạn sau reload) — `at` để nhật ký tính thời lượng. */
+  events: (StepEvent & { at?: number | string })[];
   elicitText: string;
   questions: Question[];
   gate: RunnerGate | null;
@@ -83,6 +84,8 @@ export type RunnerAction =
   | { type: "busy"; busy: boolean }
   | { type: "failed"; code: string; message: string; meta?: Record<string, unknown> }
   | { type: "restored"; state: RunState; at?: number }
+  /** Sự kiện của các bước trước trong cùng giai đoạn (chạy liền), dựng lại nhật ký sau reload — FLF-221. */
+  | { type: "history"; events: (StepEvent & { at?: number | string })[] }
   | { type: "reconnecting" }
   | { type: "interrupted" }
   | { type: "reset" };
@@ -167,7 +170,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
 
       const next: RunnerState = {
         ...state,
-        events: [...state.events, event],
+        events: [...state.events, { ...event, at }],
         lastEventAt: at,
         status: STATUS_BY_EVENT[event.type] ?? state.status,
       };
@@ -255,10 +258,24 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       }
       return initialRunnerState;
     }
+    case "history":
+      return { ...state, events: [...action.events, ...state.events] };
     case "reset":
       return initialRunnerState;
   }
 }
+
+/**
+ * Các bước TRƯỚC `stepId` trong cùng đơn vị giai đoạn (phase thường, hoặc một màn của vòng S-5) — khi chạy cả giai đoạn,
+ * nhật ký của lượt gồm cả các bước đó (FLF-221).
+ */
+export const earlierStepsInUnit = (stepId: string, spine: LoopSource): string[] => {
+  const def = getStepDef(stepId);
+  if (!def) return [];
+  const all = orderedSteps(spine);
+  const index = all.findIndex((s) => s.id === stepId);
+  return all.slice(0, Math.max(0, index)).filter((s) => s.phase === def.phase && s.loop === def.loop).map((s) => s.id);
+};
 
 export interface UseStepRunnerOptions {
   projectId: string;
@@ -516,6 +533,15 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (!run || !getStepDef(run.step_id)) return null;
         stepRef.current = run.step_id;
         dispatch({ type: "restored", state: run, at: Date.now() });
+        // Chạy cả giai đoạn: nhật ký gồm các bước trước trong giai đoạn (mỗi bước một run-state). Lỗi đọc ⇒ bỏ qua.
+        const spine = await getSpine(projectId).then((r) => r.data).catch(() => null);
+        if (spine) {
+          const earlier = await Promise.all(
+            earlierStepsInUnit(run.step_id, spine).map((id) => getRunState(projectId, id).then((r) => r.data).catch(() => null))
+          );
+          const history = earlier.flatMap((state) => state?.events ?? []);
+          if (history.length > 0) dispatch({ type: "history", events: history });
+        }
         return run;
       } catch {
         return null;
