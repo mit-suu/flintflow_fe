@@ -25,6 +25,7 @@ import ResizeHandle from "./_components/ResizeHandle";
 import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
 import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
+import BriefPanel from "./_components/BriefPanel";
 import ChatEditCard, { type AppliedEdit } from "./_components/ChatEditCard";
 import DiffPreviewModal from "./_components/DiffPreviewModal";
 import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
@@ -503,6 +504,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
   const inBriefPhase = (spine?.progress.current_phase ?? "").startsWith("B-") || spine?.progress.current_phase === "S-1";
+  /**
+   * Khung phải ở B-0…B-2 là Brief panel, không phải SRS pane (FLF-221): SRS chưa có nội dung trước S-1, và một trang
+   * tài liệu trống làm user tưởng phải viết SRS ngay. Theo giai đoạn của bước đang làm; S-1 trở đi là SRS pane như cũ.
+   */
+  const briefPane = !mode1 && (shownPhase ?? "").startsWith("B-");
 
   const markPlaceholder = (screenId: string) =>
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
@@ -904,6 +910,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
         <ResizeHandle active={chat.resizing} onStart={chat.startResize} onReset={chat.reset} label="Đổi cỡ khung chat" />
 
+        {briefPane ? (
+          <BriefPanel spine={spine} updating={runner.state.busy} />
+        ) : (
         <DocumentPane
           projectId={projectId}
           projectName={documentName}
@@ -923,6 +932,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
         />
+        )}
 
         <Collapse axis="x" open={rightPanel !== null}>
         <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label="Đổi cỡ panel bên phải" />
