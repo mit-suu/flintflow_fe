@@ -7,7 +7,7 @@ import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
 import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
-import type { ApplyResult, Op, StepAnswer } from "@/types/pipeline";
+import type { ApplyResult, Op, RunIntent, StepAnswer } from "@/types/pipeline";
 import type { ReviewMode } from "@/types/spine";
 import type { Project } from "@/types/project";
 import type { Flag } from "@/types/flags";
@@ -33,12 +33,12 @@ import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
 import GateCard, { type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
-import ElicitPanel, { directReplyAnswers, mergeAnswers, splitQuestions } from "./_components/ElicitPanel";
+import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import ChatBubble from "./_components/ChatBubble";
 import StepProgress from "./_components/StepProgress";
-import StepIntroCard from "./_components/StepIntroCard";
+import ChatOpening from "./_components/ChatOpening";
 import RunPill from "./_components/RunPill";
-import { getStepStat, recordStepStat } from "@/lib/step-stats";
+import { recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
@@ -48,7 +48,7 @@ import { useChanges } from "./hooks/useChanges";
 import { issueCounts } from "./_components/flag-rules";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
-import { useStepRunner } from "./hooks/useStepRunner";
+import { unitOfStep, useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
 import { useTurnNotice } from "./hooks/useTurnNotice";
 
@@ -61,9 +61,6 @@ const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
-
-/** Đơn vị giai đoạn để chạy liền (R2): phase thường; vòng S-5 tính theo từng màn. */
-const unitOfStep = (stepId: string, phase: string): string => (stepId.includes("@") ? `${phase}@${stepId.split("@")[1]}` : phase);
 
 // Bề rộng kéo được (px): khung chat, rail tiến độ trái, panel phải — mỗi khung nhớ riêng trong localStorage
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
@@ -649,9 +646,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   if (!ws.ready) return <WorkspaceLoading />;
 
   const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
-  // Chạy được = bước đang xem chưa chốt và không bị bỏ qua. Bước chưa có bản ghi (chưa tới lượt) vẫn cho bấm —
-  // BE là nơi quyết `STEP_NOT_RUNNABLE` và nói rõ lý do.
-  const runnableStep = viewedStep && viewedSummary?.status !== "accepted" && viewedSummary?.status !== "skipped" ? viewedStep : null;
   const reviewMode: ReviewMode = spine?.project.review_mode ?? "balanced";
   /**
    * BUG-30: panel SRS và bản xuất phải mang TÊN HỆ THỐNG tiếng Anh đã chốt (`system_name`), không phải
@@ -670,15 +664,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       .filter((f) => !f.resolved_at && !f.waived_by_user && (f.rule_id === "section_stale_at_baseline" || f.rule_id === "section_awaiting_reaccept"))
       .map((f) => f.remediation_step)
   ]);
-  const viewedStepSummary = steps?.steps.find((s) => s.id === viewedStep);
-  // Bước chưa chạy: hiện thẻ "Bước này sẽ…" thay vì một nút Chạy trơ trọi (Lớp 2)
   const reopenable = viewedStep !== null && reopenableStepIds.has(viewedStep);
-  const showIntro =
-    // Mode 1 v3: tài liệu vào bằng import, không có bước nào để chạy ⇒ không có thẻ "Bước này sẽ…"
-    !mode1 &&
-    runner.state.status === "idle" &&
-    viewedStepSummary !== undefined &&
-    (reopenable || (viewedStepSummary.status !== "accepted" && viewedStep === currentStep));
   // 422 BASELINE_BLOCKED khi Accept ở S-9.5: danh sách cờ đang chặn đi kèm trong `meta.flags` (BUG-01)
   const blockingFlags: BlockingFlag[] | undefined =
     runner.state.error?.code === "BASELINE_BLOCKED" && Array.isArray(runner.state.error.meta?.flags)
@@ -688,6 +674,69 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
   const openQuestions = splitQuestions(runner.state.questions).open;
   const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
+  const stepRunningElsewhere = steps?.steps.some((s) => s.id === viewedStep && s.running) ?? false;
+  const aiWorking = runner.state.busy || stepRunningElsewhere;
+  /** Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). */
+  const stepNotStarted =
+    runner.state.status === "idle" &&
+    viewedStep !== null &&
+    viewedStep === currentStep &&
+    !viewingAccepted &&
+    (viewedSummary === undefined || viewedSummary.status === "pending");
+  /** Mở đầu project mới: B-0.1 chưa chạy, phiên pipeline chưa có tin nhắn, Spine chưa có ghi chú Brief. */
+  const showOpening =
+    !mode1 &&
+    stepNotStarted &&
+    currentStep === "B-0.1" &&
+    (ws.activeSession?.messages.length ?? 0) === 0 &&
+    (spine?.addendum.length ?? 0) === 0;
+
+  /**
+   * Ô chat là nút chạy (FLF-221). Bật "Sửa tài liệu" thì ChatPane đã đưa sang lệnh sửa trước khi tới đây. Còn lại xét
+   * theo thứ tự: AI đang làm ⇒ khoá; đang chờ trả lời ⇒ `/answer` kèm tin (và câu đã chọn trên thẻ); ở cổng ⇒ yêu cầu
+   * sửa (không bao giờ tự duyệt); bước tới lượt chưa chạy ⇒ chạy cả giai đoạn với tin làm lời mở; còn lại ⇒ hỏi đáp.
+   * Đính kèm được tải lên trước; chữ chỉ rời ô chat khi lượt chạy đã mở (lỗi 409 không làm mất chữ).
+   */
+  const sendFromChat = async (custom?: string, intent?: RunIntent) => {
+    if (mode1) return ws.sendMessage(currentStep, custom);
+    if (aiWorking) {
+      setToast("AI đang làm — đợi xong lượt này rồi nhắn tiếp nhé");
+      return;
+    }
+    const raw = (custom ?? ws.inputMessage).trim();
+    const status = runner.state.status;
+    const toRun = stepNotStarted || (reopenable && status === "idle");
+    if (status !== "needs_input" && status !== "gate_ready" && !toRun) return ws.sendMessage(currentStep, custom);
+    if (!(await ws.uploadPendingAttachments())) return;
+    const text = raw || "[Đính kèm tài liệu]";
+
+    if (status === "needs_input") {
+      const onCard = cardAnswers.key === questionSetKey ? cardAnswers.answers : [];
+      setCardAnswers({ key: "", answers: [] });
+      ws.setInputMessage("");
+      ws.appendLocalMessage(text, runner.state.stepId);
+      await runner.answer(onCard, text);
+      return;
+    }
+    if (status === "gate_ready") {
+      ws.setInputMessage("");
+      ws.appendLocalMessage(text, runner.state.stepId);
+      await runner.gate("revision", text);
+      return;
+    }
+    const stepId = viewedStep as string;
+    const start = {
+      message: text,
+      ...(intent ? { intent } : {}),
+      onStarted: () => {
+        if (!custom) ws.setInputMessage("");
+        ws.appendLocalMessage(text, stepId);
+      },
+    };
+    // Bước mở lại (màn để trống / mục đã cũ) chạy lẻ; bước tới lượt chạy cả giai đoạn cho cả hai chế độ duyệt
+    if (reopenable && !stepNotStarted) await runner.run(stepId, start);
+    else await runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
+  };
 
   return (
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
@@ -718,14 +767,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           baselineVersion={spine?.baselines.at(-1)?.version ?? null}
           progressHidden={!mode1 && !railShown}
           onShowProgress={toggleProgress}
-          // Nút chạy **bước đang xem** (L9): trước đây luôn chạy `current_step` nên quay về bước cũ rồi bấm lại ra bản
-          // accept của bước sau (gặp thật 2026-09-20). Bước đã chốt / bị bỏ qua thì không chạy được — nút biến mất.
-          runnableStep={mode1 ? null : runnableStep}
+          // FLF-221: không còn nút chạy — gõ chat là chạy
           currentStep={mode1 ? null : currentStep}
-          onRunCurrentStep={!mode1 && runnableStep && runner.state.status === "idle" ? () => void runner.run(runnableStep) : undefined}
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
-          stepRunningElsewhere={steps?.steps.some((s) => s.id === runnableStep && s.running) ?? false}
-          busy={runner.state.busy || savingChange}
           onExportClick={() => setExportOpen((v) => !v)}
           onEnterFocus={() => setFocusMode(true)}
           onToolsClick={() => togglePanel("tools")}
@@ -749,8 +793,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           stepLabel={!mode1 && viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
-          onSendMessage={(custom) => void ws.sendMessage(currentStep, custom)}
-          sending={ws.sending}
+          onSendMessage={(custom) => void sendFromChat(custom)}
+          sending={ws.sending || (!mode1 && aiWorking)}
+          inputPlaceholder={!mode1 && aiWorking ? "AI đang làm…" : !mode1 && stepNotStarted ? "Kể ý tưởng hoặc điều bạn muốn AI làm ở bước này…" : undefined}
           pendingAttachments={ws.pendingAttachments}
           onSelectAttachment={ws.selectAttachment}
           onRemoveAttachment={ws.removeAttachment}
@@ -793,36 +838,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               />
             ) : undefined
           }
-          // Step đang chờ trả lời ⇒ gõ ở ô chat là trả lời step (không thành tin nhắn chat rời)
-          onDirectReply={
-            !mode1 && runner.state.status === "needs_input"
-              ? (text) => {
-                  // Gõ ở ô chat trả lời câu mở; phần đã chọn trên thẻ đi cùng lượt gửi
-                  const onCard = cardAnswers.key === questionSetKey ? cardAnswers.answers : [];
-                  const answers = mergeAnswers(directReplyAnswers(runner.state.questions, text), onCard);
-                  if (answers.length === 0) return;
-                  setCardAnswers({ key: "", answers: [] });
-                  void runner.answer(answers);
-                }
-              : undefined
-          }
         >
+          {showOpening && <ChatOpening disabled={aiWorking} onPick={(chip) => void sendFromChat(chip.message, chip.intent)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {!mode1 && viewingAccepted && viewedStep && (
             <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
             </div>
-          )}
-          {showIntro && viewedStepSummary && (
-            <StepIntroCard
-              step={viewedStepSummary}
-              lastRun={getStepStat(viewedStepSummary.id)}
-              busy={runner.state.busy || savingChange}
-              onRun={() => void runner.run(viewedStepSummary.id)}
-              {...(reviewMode === "strict" || reopenable
-                ? {}
-                : { onRunPhase: () => void runner.runWholePhase(unitOfStep(viewedStepSummary.id, viewedStepSummary.phase)) })}
-            />
           )}
           {runnerStep && !background && (
             <StepProgress state={runner.state} onCancel={() => void runner.cancel()} onBackground={() => setBackground(true)} />
@@ -870,6 +892,19 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               <span>{saveError}</span>
               <button type="button" onClick={() => setSaveError(null)} className="text-[11.5px] font-bold underline cursor-pointer">
                 Đóng
+              </button>
+            </div>
+          )}
+          {!mode1 && runner.state.status === "interrupted" && !runner.state.error && runner.state.stepId && (
+            // Lượt chết giữa chừng (reload, mất mạng): nút "Chạy lại" là lối duy nhất còn lại để chạy bước này (FLF-221)
+            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-wrap items-center gap-2">
+              <span className="flex-1 min-w-0">Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.</span>
+              <button
+                type="button"
+                onClick={() => void handleErrorAction({ kind: "retry", label: "Chạy lại" })}
+                className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-error text-on-error cursor-pointer"
+              >
+                Chạy lại
               </button>
             </div>
           )}

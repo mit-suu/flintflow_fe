@@ -29,8 +29,6 @@ interface ChatPaneProps {
   children?: ReactNode;
   /** Thẻ câu hỏi đặt ngay trên ô nhập (ô nhập vẫn giữ), ví dụ ElicitPanel khi step chờ câu trả lời. */
   questionCard?: ReactNode;
-  /** Có ⇒ gõ ở ô nhập là trả lời thẳng thẻ câu hỏi ở trên thay vì gửi chat thường. */
-  onDirectReply?: (text: string) => void;
   /**
    * Nhận lệnh sửa tài liệu (UC 6.8) — gửi khi chip "Sửa tài liệu" đang bật, hoặc khi session hiện tại không phải
    * pipeline session (`is_pipeline === false`: ô chat khi đó chỉ nhận lệnh sửa).
@@ -105,7 +103,6 @@ export default function ChatPane({
   isStreaming = false,
   children,
   questionCard,
-  onDirectReply,
   onEditInstruction,
   title = "Hội thoại & Duyệt bước",
   emptyState,
@@ -181,7 +178,7 @@ export default function ChatPane({
             </div>
             <h3 className="font-bold text-on-surface text-[14px]">Bắt đầu bước hiện tại</h3>
             <p className="text-on-surface-muted text-[12.5px] leading-relaxed">
-              Bấm “Chạy bước này” để AI hỏi phần còn thiếu và soạn nháp, hoặc trò chuyện tự do và đính kèm tài liệu tham khảo.
+              Gõ vào ô chat để AI bắt đầu: AI hỏi phần còn thiếu rồi soạn nháp. Có thể đính kèm tài liệu tham khảo.
             </p>
           </div>
         ))}
@@ -234,10 +231,7 @@ export default function ChatPane({
             inputMessage={inputMessage}
             setInputMessage={setInputMessage}
             onSendMessage={(text) => {
-              if (onDirectReply && pendingAttachments.length === 0) {
-                onDirectReply(text.trim());
-                setInputMessage("");
-              } else if (sendAsEdit && onEditInstruction) {
+              if (sendAsEdit && onEditInstruction) {
                 onEditInstruction(text);
                 setInputMessage("");
               } else {

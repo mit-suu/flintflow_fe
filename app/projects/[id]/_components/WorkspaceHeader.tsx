@@ -18,17 +18,10 @@ interface WorkspaceHeaderProps {
   /** Rail tiến độ đang ẩn ⇒ đầu header có nút hiện lại + logo (logo nằm trên rail khi rail mở). */
   progressHidden?: boolean;
   onShowProgress?: () => void;
-  /** Có ⇒ hiện nút chạy bước (bước **đang xem** — `runnableStep`, không nhất thiết là bước hiện tại). */
-  onRunCurrentStep?: () => void;
-  /** Bước nút "Chạy" sẽ chạy — là bước ĐANG XEM, có thể khác bước hiện tại khi người dùng xem lại bước cũ (L9). */
-  runnableStep?: string | null;
   /** Bước hiện tại của tiến độ — để nút "Về" nói rõ quay về đâu. */
   currentStep?: string | null;
   /** Đang xem bước khác bước hiện tại ⇒ cho đường quay lại (L9). */
   onBackToCurrent?: () => void;
-  /** BE báo step đang chạy dở ở request khác (lần chạy trước chưa dứt sau khi reload — L2). */
-  stepRunningElsewhere?: boolean;
-  busy?: boolean;
   onExportClick?: () => void;
   /** Mở rộng trang: ẩn header và khối tiến độ. */
   onEnterFocus?: () => void;
@@ -40,7 +33,7 @@ interface WorkspaceHeaderProps {
 }
 
 /**
- * Thanh trên của workspace, cố ý ít chữ: breadcrumb `Dự án / tên` (+ baseline) · chạy bước, Export, mở rộng trang,
+ * Thanh trên của workspace, cố ý ít chữ: breadcrumb `Dự án / tên` (+ baseline) · Export, mở rộng trang,
  * menu tài khoản (credits, đăng xuất). Tiến độ giai đoạn/bước nằm ở rail trái (`WorkspaceProgressRail`).
  */
 export default function WorkspaceHeader({
@@ -49,12 +42,8 @@ export default function WorkspaceHeader({
   baselineVersion = null,
   progressHidden = false,
   onShowProgress,
-  onRunCurrentStep,
-  runnableStep = null,
   currentStep = null,
   onBackToCurrent,
-  stepRunningElsewhere = false,
-  busy = false,
   onExportClick,
   onEnterFocus,
   onToolsClick,
@@ -97,21 +86,6 @@ export default function WorkspaceHeader({
             className="shrink-0"
           >
             <span className="hidden sm:inline">Về {currentStep}</span>
-          </Button>
-        )}
-        {onRunCurrentStep && (
-          // Gọi tên bước sẽ chạy: người dùng đang xem bước cũ thì nút chạy ĐÚNG bước đó, không phải bước hiện tại (L9)
-          <Button
-            size="sm"
-            icon="play"
-            onClick={onRunCurrentStep}
-            disabled={busy || stepRunningElsewhere}
-            title={stepRunningElsewhere ? "Lần chạy trước của bước này chưa dứt — chờ vài giây rồi thử lại" : runnableStep ? `Chạy ${runnableStep}` : undefined}
-            aria-label={stepRunningElsewhere ? "Đang chạy" : runnableStep ? `Chạy bước ${runnableStep}` : "Chạy bước này"}
-            className="shrink-0"
-          >
-            <span className="hidden sm:inline">{stepRunningElsewhere ? "Đang chạy…" : runnableStep ? `Chạy ${runnableStep}` : "Chạy bước này"}</span>
-            <span className="sm:hidden">Chạy</span>
           </Button>
         )}
         {onToolsClick && (

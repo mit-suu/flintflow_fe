@@ -12,6 +12,7 @@ import type {
   GateResponse,
   Question,
   RunStage,
+  RunIntent,
   RunState,
   StepAnswer,
   StepEvent,
@@ -228,6 +229,8 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       return {
         ...state,
         questions: [],
+        // Lượt chat tự do (FLF-221): AI trả lời lại — lời mới thay lời cũ, không nối vào
+        elicitText: "",
         status: "drafting",
         busy: true,
         detail: action.count ? `Đã nhận ${action.count} câu trả lời · đang soạn…` : "Đã nhận câu trả lời · đang soạn…",
@@ -335,6 +338,20 @@ const isVersionConflict = (err: unknown): boolean => err instanceof ApiClientErr
 /** Đơn vị giai đoạn (`S-4`, `S-5@S03`) — lượt hỏi gộp đầu giai đoạn; id bước luôn có dấu chấm (`S-4.1`). */
 export const isPhaseUnit = (id: string): boolean => !id.split("@")[0].includes(".");
 
+/** Đơn vị giai đoạn của một bước để chạy liền: phase thường; vòng S-5 tính theo từng màn. */
+export const unitOfStep = (stepId: string): string | null => {
+  const def = getStepDef(stepId);
+  if (!def) return null;
+  return def.loop ? `${def.phase}@${def.loop}` : def.phase;
+};
+
+/** Tin chat khởi động lượt chạy (FLF-221). `onStarted`: luồng đã mở (sự kiện đầu tiên) — lúc này mới xoá ô chat. */
+export interface ChatStart {
+  message?: string;
+  intent?: RunIntent;
+  onStarted?: () => void;
+}
+
 /** Theo dõi sự kiện chờ trả lời của một luồng: luồng đóng khi còn đang chờ ⇒ tách lượt, không phải lỗi. */
 const trackAwaiting = () => {
   let awaiting = false;
@@ -358,7 +375,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const run = useCallback(
-    async (stepId: string, options: { reopen?: boolean } = {}) => {
+    async (stepId: string, options: { reopen?: boolean } & ChatStart = {}) => {
       let baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
@@ -378,11 +395,23 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
           let terminated = false;
           const awaiting = trackAwaiting();
           try {
-            await runStep(projectId, stepId, { session_id: sessionId, base_version: baseVersion, ...(options.reopen ? { reopen: true } : {}) }, {
+            let started = false;
+            const request = {
+              session_id: sessionId,
+              base_version: baseVersion,
+              ...(options.reopen ? { reopen: true } : {}),
+              ...(options.message ? { message: options.message } : {}),
+              ...(options.intent ? { intent: options.intent } : {}),
+            };
+            await runStep(projectId, stepId, request, {
               signal: controller.signal,
               onEvent: (event) => {
                 // Luồng cũ đã bị huỷ, hoặc sự kiện của step khác: bỏ qua
                 if (controller.signal.aborted || event.step_id !== stepId) return;
+                if (!started) {
+                  started = true;
+                  options.onStarted?.();
+                }
                 if (isTerminalEvent(event)) terminated = true;
                 awaiting.see(event);
                 dispatch({ type: "event", event, at: Date.now() });
@@ -443,7 +472,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
    * sự kiện của từng bước nên màn hình tiến trình không phải đổi gì.
    */
   const runWholePhase = useCallback(
-    async (phase: string) => {
+    async (phase: string, options: ChatStart = {}) => {
       const baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
@@ -460,11 +489,22 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       let stoppedAtGate = false;
       let failed = false;
       const awaiting = trackAwaiting();
+      let started = false;
+      const request = {
+        session_id: sessionId,
+        base_version: baseVersion,
+        ...(options.message ? { message: options.message } : {}),
+        ...(options.intent ? { intent: options.intent } : {}),
+      };
       try {
-        await runPhase(projectId, phase, { session_id: sessionId, base_version: baseVersion }, {
+        await runPhase(projectId, phase, request, {
           signal: controller.signal,
           onEvent: (event) => {
             if (controller.signal.aborted) return;
+            if (!started) {
+              started = true;
+              options.onStarted?.();
+            }
             if (event.type === "phase_progress" || event.type === "auto_accepted" || event.type === "phase_gate") stepRef.current = event.step_id;
             else if (event.step_id !== stepRef.current && event.type !== "error") stepRef.current = event.step_id;
             dispatch({ type: "event", event, at: Date.now() });
@@ -493,19 +533,31 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
    * Không còn luồng SSE (state dựng lại từ run-state): BE chạy tiếp lượt ở nền. Bước ⇒ canh chừng hỏi run-state
    * mỗi nhịp tới gate/lỗi. Phỏng vấn đầu giai đoạn ⇒ BE chỉ ghi câu trả lời, FE chạy lại cả giai đoạn (FLF-222).
    */
+  /**
+   * `message` (FLF-221): user gõ chat thay vì (hoặc kèm) bấm thẻ — AI đọc, chốt câu được trả lời đúng ý, hỏi lại câu
+   * còn chờ. Lượt phỏng vấn giai đoạn đã tách kết nối mà vẫn còn câu chờ sau lượt chat ⇒ dựng lại thẻ, chưa chạy lại.
+   */
   const answer = useCallback(
-    async (answers: StepAnswer[]) => {
+    async (answers: StepAnswer[], message?: string) => {
       const stepId = stepRef.current;
       if (!stepId || !sessionId) return;
       const restored = state.source === "restored";
       dispatch({ type: "answered", count: answers.length });
       try {
-        await answerStep(projectId, stepId, { session_id: sessionId, answers });
+        await answerStep(projectId, stepId, { session_id: sessionId, answers, ...(message ? { message } : {}) });
       } catch (err) {
         dispatch({ type: "failed", ...toFailure(err) });
         return;
       }
-      if (restored && isPhaseUnit(stepId)) await runWholePhase(stepId);
+      if (!restored || !isPhaseUnit(stepId)) return;
+      if (message) {
+        const waiting = await getRunState(projectId, stepId).then((r) => r.data).catch(() => null);
+        if (waiting?.status === "waiting_answer") {
+          dispatch({ type: "restored", state: waiting, at: Date.now() });
+          return;
+        }
+      }
+      await runWholePhase(stepId);
     },
     [projectId, sessionId, state.source, runWholePhase]
   );
@@ -528,10 +580,11 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (action === "regenerate" || action === "revision") {
           await run(stepId);
         } else if (phaseRef.current) {
-          // Đang chạy liền cả giai đoạn: duyệt xong là đi tiếp ngay. Không có nhánh này thì "Chạy cả giai
-          // đoạn" chỉ tiết kiệm được tới câu hỏi đầu tiên, user lại phải bấm chạy cho từng bước còn lại.
+          // Đang chạy liền cả giai đoạn: duyệt xong là đi tiếp ngay. Duyệt cổng chốt CUỐI giai đoạn ⇒ tự chạy luôn
+          // giai đoạn kế (FLF-221) — trước đây chuỗi chỉ trả "Đã xong giai đoạn" và user phải tự khởi động lại.
+          const nextUnit = res.data?.next_step ? unitOfStep(res.data.next_step) : null;
           dispatch({ type: "reset" });
-          await runWholePhase(phaseRef.current);
+          await runWholePhase(nextUnit ?? phaseRef.current);
         } else {
           dispatch({ type: "reset" });
         }

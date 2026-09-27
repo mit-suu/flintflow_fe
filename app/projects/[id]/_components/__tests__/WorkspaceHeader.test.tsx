@@ -40,25 +40,10 @@ describe("WorkspaceHeader", () => {
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
-  it("chỉ hiện nút chạy bước khi có step chạy được", () => {
-    const onRun = vi.fn();
-    const { rerender } = renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} onLogout={() => {}} />);
-    expect(screen.queryByRole("button", { name: /Chạy bước này/ })).not.toBeInTheDocument();
-    rerender(<WorkspaceHeader project={PROJECT} user={null} onRunCurrentStep={onRun} onLogout={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: /Chạy bước này/ }));
-    expect(onRun).toHaveBeenCalledTimes(1);
-  });
-
-  // L9 (gặp thật 2026-09-20): nút từng luôn chạy `current_step` — quay về bước cũ bấm chạy lại ra bản accept của
-  // bước SAU. Khi dời nút từ PhaseHeader sang header mới (FLF-197) phải giữ: gọi tên đúng bước đang xem.
-  it("nút chạy gọi tên bước đang xem, không phải bước hiện tại (L9)", () => {
-    const onRun = vi.fn();
-    renderWithIntl(
-      <WorkspaceHeader project={PROJECT} user={null} runnableStep="S-3.1" currentStep="S-4.2" onRunCurrentStep={onRun} onLogout={() => {}} />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Chạy bước S-3.1" }));
-    expect(onRun).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: /S-4\.2/ }), "không có nút nào chạy bước hiện tại").not.toBeInTheDocument();
+  // FLF-221: gõ chat là chạy — header không còn nút chạy bước nào
+  it("không có nút chạy bước", () => {
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onLogout={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Chạy/ })).not.toBeInTheDocument();
   });
 
   it("đang xem bước khác bước hiện tại ⇒ có nút quay về (L9)", () => {
@@ -68,16 +53,6 @@ describe("WorkspaceHeader", () => {
     rerender(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onBackToCurrent={onBack} onLogout={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Về bước S-4.2" }));
     expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  // L2: reload giữa lúc chạy ⇒ lượt cũ ở BE chưa dứt; bấm nữa là STEP_NOT_RUNNABLE. Khoá nút và nói lý do.
-  it("BE báo bước đang chạy dở ⇒ nút khoá, nói đang chạy (L2)", () => {
-    renderWithIntl(
-      <WorkspaceHeader project={PROJECT} user={null} runnableStep="S-3.1" stepRunningElsewhere onRunCurrentStep={vi.fn()} onLogout={() => {}} />
-    );
-    const button = screen.getByRole("button", { name: "Đang chạy" });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute("title", expect.stringContaining("chưa dứt"));
   });
 
   it("rail tiến độ ẩn ⇒ đầu header có nút hiện lại", () => {
