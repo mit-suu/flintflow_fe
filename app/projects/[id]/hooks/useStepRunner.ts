@@ -370,12 +370,14 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   const abortRef = useRef<AbortController | null>(null);
   /** Giai đoạn đang chạy liền: còn giá trị ⇒ Accept xong là chạy tiếp phần còn lại, không bắt bấm lại. */
   const phaseRef = useRef<string | null>(null);
+  /** Lượt chạy lẻ mở lại một bước cũ (màn để trống, mục đã cũ) — duyệt xong KHÔNG tự chạy tiếp quy trình. */
+  const standaloneRef = useRef(false);
 
   // Rời trang / đổi project: đóng luồng SSE đang mở
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const run = useCallback(
-    async (stepId: string, options: { reopen?: boolean } & ChatStart = {}) => {
+    async (stepId: string, options: { reopen?: boolean; standalone?: boolean } & ChatStart = {}) => {
       let baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
@@ -388,6 +390,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       const controller = new AbortController();
       abortRef.current = controller;
       stepRef.current = stepId;
+      if (options.standalone !== undefined) standaloneRef.current = options.standalone;
       dispatch({ type: "start", stepId });
 
       try {
@@ -482,6 +485,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       const controller = new AbortController();
       abortRef.current = controller;
       phaseRef.current = phase;
+      standaloneRef.current = false;
       dispatch({ type: "startPhase", phase });
 
       // Chuỗi dừng ở một cổng chốt ⇒ giữ `phaseRef` để Accept xong chạy tiếp. Chuỗi chạy hết giai đoạn
@@ -585,6 +589,11 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
           const nextUnit = res.data?.next_step ? unitOfStep(res.data.next_step) : null;
           dispatch({ type: "reset" });
           await runWholePhase(nextUnit ?? phaseRef.current);
+        } else if (!standaloneRef.current && res.data?.next_step && (action === "accept" || action === "accept_as_is")) {
+          // Cổng dựng lại sau reload (không còn chuỗi đang chạy): duyệt xong vẫn tự sang bước/giai đoạn kế (FLF-221)
+          const nextUnit = unitOfStep(res.data.next_step);
+          dispatch({ type: "reset" });
+          if (nextUnit) await runWholePhase(nextUnit);
         } else {
           dispatch({ type: "reset" });
         }

@@ -674,7 +674,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
   const openQuestions = splitQuestions(runner.state.questions).open;
   const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
-  const stepRunningElsewhere = steps?.steps.some((s) => s.id === viewedStep && s.running) ?? false;
+  // Chỉ tính "đang chạy ở nơi khác" khi tab này không giữ lượt nào: lượt của chính tab (đang ở cổng, đang chờ trả lời)
+  // cũng làm `running` bật nhưng ô chat vẫn phải dùng được để yêu cầu sửa / trả lời.
+  const stepRunningElsewhere = runner.state.status === "idle" && (steps?.steps.some((s) => s.id === viewedStep && s.running) ?? false);
   const aiWorking = runner.state.busy || stepRunningElsewhere;
   /** Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). */
   const stepNotStarted =
@@ -734,7 +736,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       },
     };
     // Bước mở lại (màn để trống / mục đã cũ) chạy lẻ; bước tới lượt chạy cả giai đoạn cho cả hai chế độ duyệt
-    if (reopenable && !stepNotStarted) await runner.run(stepId, start);
+    if (reopenable && !stepNotStarted) await runner.run(stepId, { ...start, standalone: true });
     else await runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
   };
 
