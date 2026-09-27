@@ -2,7 +2,7 @@
  * Step registry FE — dữ liệu copy từ BE `assets/step-registry.json` (nguồn sự thật, Phases §6.4)
  * bằng `npm run sync:registry`. Logic đếm/mở rộng phải khớp BE `modules/pipeline/step-registry.ts`.
  *
- *   Tổng = 51 + 5 × N,  N = số màn + 1 nếu có non-screen function
+ *   Tổng = 50 + 5 × N,  N = số màn + 1 nếu có non-screen function
  */
 import registry from "./step-registry.json";
 import type { StepStatus } from "@/types/spine";
@@ -47,7 +47,7 @@ export const PHASE_LABELS_VI: Readonly<Record<PhaseId, string>> = {
 
 export const LOOP_PHASE: PhaseId = "S-5";
 export const NONSCREEN_LOOP = "nonscreen";
-export const FIXED_STEP_COUNT = 51;
+export const FIXED_STEP_COUNT = 50;
 export const STEPS_PER_LOOP = 5;
 /** Phases §3: trần 8 lượt gọi model / step, 3 lần Regenerate / step. */
 export const CALLS_LIMIT = 8;

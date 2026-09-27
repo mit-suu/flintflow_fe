@@ -15,22 +15,22 @@ import {
 const screens = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `S${String(i + 1).padStart(2, "0")}`, queue_order: i }));
 
 describe("step registry FE (đồng bộ BE)", () => {
-  it("13 Brief + 38 SRS cố định + 5 template S-5; mọi phase có nhãn", () => {
-    expect(STEP_REGISTRY.filter((s) => s.id.startsWith("B-"))).toHaveLength(13);
+  it("12 Brief + 38 SRS cố định + 5 template S-5; mọi phase có nhãn", () => {
+    expect(STEP_REGISTRY.filter((s) => s.id.startsWith("B-"))).toHaveLength(12);
     expect(STEP_REGISTRY.filter((s) => s.kind !== "loop")).toHaveLength(FIXED_STEP_COUNT);
     expect(STEP_REGISTRY.filter((s) => s.kind === "loop")).toHaveLength(5);
     for (const phase of PHASES) expect(PHASE_LABELS_VI[phase]).toBeTruthy();
   });
 
-  it("N = 1 ⇒ 56 step; N = 20 (19 màn + non-screen) ⇒ 151 step", () => {
+  it("N = 1 ⇒ 55 step; N = 20 (19 màn + non-screen) ⇒ 150 step", () => {
     const one = { screens: screens(1), functions: [] };
-    expect(totalSteps(one)).toBe(56);
-    expect(orderedSteps(one)).toHaveLength(56);
+    expect(totalSteps(one)).toBe(55);
+    expect(orderedSteps(one)).toHaveLength(55);
 
     const twenty = { screens: screens(19), functions: [{ screen_id: null }] };
     expect(loopKeys(twenty)).toHaveLength(20);
-    expect(totalSteps(twenty)).toBe(151);
-    expect(orderedSteps(twenty)).toHaveLength(151);
+    expect(totalSteps(twenty)).toBe(150);
+    expect(orderedSteps(twenty)).toHaveLength(150);
   });
 
   it("getStepDef / stepLabel / phaseOfStep", () => {

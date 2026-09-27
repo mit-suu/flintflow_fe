@@ -1,7 +1,7 @@
 # FlintFlow — Frontend
 
 Next.js app cho nền tảng AI soạn thảo SRS. Người dùng trò chuyện theo một quy trình có hướng dẫn
-(12 phase, `51 + 5 × N` step), xem tài liệu sinh ra ở pane bên phải, và **sửa tài liệu qua chat** chứ
+(12 phase, `50 + 5 × N` step), xem tài liệu sinh ra ở pane bên phải, và **sửa tài liệu qua chat** chứ
 không gõ trực tiếp vào tài liệu.
 
 Repo này đang trong đợt refactor lớn cùng `flintflow_be`. Kế hoạch, quy tắc và báo cáo nằm ở repo riêng

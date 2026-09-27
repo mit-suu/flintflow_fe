@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { answerStep, cancelRun, getActiveRunState, getRunState, runPhase, runStep, submitGate } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
+import { getStepDef } from "@/lib/constants/step-registry";
 import type {
   ChangeSummary,
   GateAction,
@@ -511,7 +512,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       try {
         const res = stepId ? await getRunState(projectId, stepId) : await getActiveRunState(projectId);
         const run = res.data;
-        if (!run) return null;
+        // Lượt của step đã rời registry (B-0.4 cũ, FLF-221): không dựng lại cổng của một step không còn chạy được.
+        if (!run || !getStepDef(run.step_id)) return null;
         stepRef.current = run.step_id;
         dispatch({ type: "restored", state: run, at: Date.now() });
         return run;

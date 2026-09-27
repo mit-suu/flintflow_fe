@@ -249,6 +249,8 @@ export interface Assumption {
   id: string;
   path: string;
   statement: string;
+  /** Bản ngôn ngữ của user (FLF-221) — hiện ở cổng duyệt/Brief; Spine cũ không có ⇒ hiện `statement`. */
+  statement_vi?: string | null;
   rationale: string;
   origin_step_id: string;
   status: AssumptionStatus;
