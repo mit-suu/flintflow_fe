@@ -750,7 +750,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             !mode1 && runner.state.status === "needs_input" ? (
               <ElicitPanel
                 questions={runner.state.questions}
-                onSubmit={(answers) => void runner.answer(answers)}
+                onSubmit={(answers) => {
+                  setCardAnswers({ key: "", answers: [] });
+                  void runner.answer(answers);
+                }}
                 chatDraft={ws.inputMessage}
                 onChatDraftUsed={() => ws.setInputMessage("")}
                 onCardChange={(answers) => setCardAnswers({ key: questionSetKey, answers })}
@@ -765,7 +768,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                   // Gõ ở ô chat trả lời câu mở; phần đã chọn trên thẻ đi cùng lượt gửi
                   const onCard = cardAnswers.key === questionSetKey ? cardAnswers.answers : [];
                   const answers = mergeAnswers(directReplyAnswers(runner.state.questions, text), onCard);
-                  if (answers.length > 0) void runner.answer(answers);
+                  if (answers.length === 0) return;
+                  setCardAnswers({ key: "", answers: [] });
+                  void runner.answer(answers);
                 }
               : undefined
           }

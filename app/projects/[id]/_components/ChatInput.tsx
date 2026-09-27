@@ -79,8 +79,17 @@ export default function ChatInput({
   // Trang tự đổi ô nhập (xoá sau khi gửi, điền sẵn lệnh sửa) ⇒ ô nhập theo. Giá trị do chính ô nhập báo lên thì bỏ qua.
   if (inputMessage !== seenProp) {
     setSeenProp(inputMessage);
-    if (inputMessage !== lastReported) setDraft(inputMessage);
+    if (inputMessage !== lastReported) {
+      setDraft(inputMessage);
+      setLastReported(inputMessage);
+    }
   }
+  // Rời ô nhập (vd. bấm "Gửi" trên thẻ hỏi) ⇒ báo ngay, không chờ 150ms — nơi khác đọc chữ này phải thấy đủ.
+  const flush = () => {
+    if (draft === inputMessage) return;
+    setLastReported(draft);
+    setInputMessage(draft);
+  };
   useEffect(() => {
     if (draft === inputMessage) return;
     const timer = setTimeout(() => {
@@ -158,6 +167,7 @@ export default function ChatInput({
           id="flintflow-chat-input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          onBlur={flush}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={compact ? 1 : 2}
