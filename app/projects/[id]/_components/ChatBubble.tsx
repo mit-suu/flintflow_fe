@@ -30,6 +30,8 @@ export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boole
       return { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false };
     }
     if (data.kind === "change_clarification" || data.kind === "change_error") return { text: "Chưa ghi gì", wrote: false };
+    // Lượt hỏi của bước (lời đáp + câu hỏi): không phải hỏi đáp tự do, nhãn "Chỉ trao đổi" không có nghĩa gì
+    if (Array.isArray((data as { questions?: unknown }).questions)) return null;
   } catch {
     return { text: "Chỉ trao đổi", wrote: false };
   }
@@ -167,7 +169,7 @@ export default function ChatBubble({
         return (
           <li
             key={i}
-            className="ml-4 list-disc text-[13px] text-[#33312D] leading-relaxed py-0.5"
+            className="ml-5 list-disc text-[14px] text-on-surface leading-7"
           >
             <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-*]\s+/, "") }} />
             {cursorElement}
@@ -187,7 +189,7 @@ export default function ChatBubble({
       return (
         <p
           key={i}
-          className="text-[13px] text-[#33312D] leading-relaxed mb-1"
+          className="text-[14px] text-on-surface leading-7"
         >
           <span dangerouslySetInnerHTML={{ __html: formatted }} />
           {cursorElement}
@@ -200,7 +202,7 @@ export default function ChatBubble({
     const formattedTime = formatTimestamp(message.createdAt);
     return (
       <div className="flex flex-col items-end group">
-        <div className="relative bg-[#F2F1FB] border border-[#DCD8F0] text-[#191817] px-4 py-2.5 rounded-[16px] rounded-tr-[3px] max-w-[85%] text-[13px] shadow-[0_2px_8px_rgba(106,98,196,0.06)] leading-relaxed">
+        <div className="relative bg-primary-soft text-on-surface px-4 py-2.5 rounded-[20px] max-w-[80%] text-[14px] leading-6">
           <p className="whitespace-pre-wrap">{message.content}</p>
 
           {/* Action bar: Timestamp, Copy, Rollback — nổi bên trái bong bóng khi hover, không chiếm chiều cao bong bóng */}
@@ -264,21 +266,12 @@ export default function ChatBubble({
   }
 
   return (
-    <div className="flex items-start gap-3">
-      <div
-        className="w-7 h-7 rounded-[9px] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-[0_4px_10px_rgba(106,98,196,0.3)] mt-1"
-        style={{
-          background: "linear-gradient(135deg,#8E87D6,#6A62C4)",
-        }}
-      >
-        F
-      </div>
+    <div className="flex">
 
-      <div className="flex flex-col gap-1.5 w-full max-w-[90%]">
+      {/* Lời AI nằm thẳng trên nền khung chat như trả lời của một trợ lý, không bong bóng; tin user mới có bong bóng */}
+      <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+        {(isStreaming || writeBadge) && (
         <div className="flex items-center gap-2">
-          <span className="text-[10.5px] font-bold text-[#A8A49C]">
-            FlintFlow AI Analyst
-          </span>
           {isStreaming && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#6A62C4] bg-[#F2F1FB] px-2 py-0.5 rounded-full border border-[#DCD8F0] animate-pulse">
               <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
@@ -296,7 +289,8 @@ export default function ChatBubble({
             </span>
           )}
         </div>
-        <div className="bg-white border border-[#ECEAE5] rounded-[18px] rounded-tl-[3px] p-5 shadow-[0_4px_16px_rgba(25,24,23,0.04)] space-y-3.5">
+        )}
+        <div className="space-y-3">
           <div className="text-[#191817] space-y-1.5 relative">
             {activeReply ? (
               renderMarkdown(activeReply, isStreaming)
@@ -310,11 +304,11 @@ export default function ChatBubble({
           {!isStreaming && parsed.openQuestions.length > 0 && (
             <ol className="flex flex-col gap-1.5" aria-label="Câu hỏi của AI">
               {parsed.openQuestions.map((question, i) => (
-                <li key={i} className="flex items-start gap-2 text-[13px] text-[#33312D] leading-relaxed">
-                  <span className="w-5 h-5 shrink-0 mt-px grid place-items-center rounded-[6px] bg-[#F2F1FB] text-[#6A62C4] text-[11px] font-bold tabular-nums">
+                <li key={i} className="flex items-baseline gap-2.5 text-[14px] text-on-surface leading-7">
+                  <span className="w-5 h-5 shrink-0 inline-grid place-items-center rounded-[6px] bg-primary-soft text-primary-hover text-[11px] leading-none font-bold tabular-nums">
                     {i + 1}
                   </span>
-                  <span className="flex-1 min-w-0 font-semibold">{question}</span>
+                  <span className="flex-1 min-w-0 font-medium">{question}</span>
                 </li>
               ))}
             </ol>

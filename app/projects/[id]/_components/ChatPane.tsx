@@ -12,6 +12,8 @@ import { parseChatQuestion } from "@/lib/question-options";
 
 interface ChatPaneProps {
   width?: number;
+  /** Không có khung bên phải (Brief chưa có dữ liệu) ⇒ khung chat giãn hết chỗ còn lại. */
+  fill?: boolean;
   session: ChatSession | null;
   /** Nhãn step hiện tại (`S-3.1 · Actor`). */
   stepLabel?: string | null;
@@ -53,6 +55,11 @@ interface ChatPaneProps {
   creditBalance?: number | null;
   /** Khung sát mép trái màn hình (rail tiến độ ẩn / mở rộng trang) ⇒ chỉ bo góc bên phải; còn lại bo hai góc trên. */
   flushLeft?: boolean;
+  /**
+   * Ẩn tin AI cuối của lịch sử: nó là lời đáp của lượt hỏi đang chờ và đã được gộp vào bong bóng câu hỏi (children) —
+   * hiện cả hai là một câu trả lời bị tách làm đôi.
+   */
+  hideTrailingAiMessage?: boolean;
 }
 
 /**
@@ -89,6 +96,7 @@ const parseQuestions = (content: string): DiscoveryQuestion[] => {
 
 export default function ChatPane({
   width,
+  fill = false,
   session,
   stepLabel,
   inputMessage,
@@ -109,6 +117,7 @@ export default function ChatPane({
   inputPlaceholder,
   headerStart,
   flushLeft = false,
+  hideTrailingAiMessage = false,
   creditBalance = null,
   editMode = false,
   onToggleEditMode,
@@ -126,7 +135,10 @@ export default function ChatPane({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
+  const messages = useMemo(() => {
+    const all = session?.messages ?? [];
+    return hideTrailingAiMessage && all.at(-1)?.role === "ai" ? all.slice(0, -1) : all;
+  }, [session?.messages, hideTrailingAiMessage]);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -151,10 +163,10 @@ export default function ChatPane({
   return (
     <section
       id="flintflow-chat-pane"
-      style={width ? { width: `${width}px` } : undefined}
-      className={`${width ? "" : "w-[460px]"} shrink min-w-[320px] bg-surface ${flushLeft ? "rounded-r-dialog" : "rounded-t-dialog"} flex flex-col overflow-hidden`}
+      style={width && !fill ? { width: `${width}px` } : undefined}
+      className={`${fill ? "flex-1" : width ? "" : "w-[460px]"} shrink min-w-[320px] bg-surface-container-low ${flushLeft ? "rounded-r-dialog" : "rounded-t-dialog"} flex flex-col overflow-hidden`}
     >
-      <div className="ff-fade-below px-3 bg-surface flex justify-between items-center gap-2 shrink-0 h-12">
+      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] px-3 bg-surface-container-low flex justify-between items-center gap-2 shrink-0 h-12">
         <div className="flex items-center gap-1.5 min-w-0">
           {headerStart}
           <h2 className="font-bold text-on-surface text-[13px] truncate">{title}</h2>
@@ -169,8 +181,10 @@ export default function ChatPane({
       <div
         ref={scrollRef}
         style={{ paddingBottom: footerHeight + 12 }}
-        className="h-full overflow-y-auto ff-scroll p-5 gap-4 flex flex-col [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]"
+        className="h-full overflow-y-auto ff-scroll px-6 pt-4 [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]"
       >
+        {/* Cột đọc giới hạn bề rộng, khoảng thở rộng giữa các lượt — kiểu ChatGPT */}
+        <div className="mx-auto w-full max-w-[720px] min-h-full flex flex-col gap-6">
         {messages.length === 0 && !children && (emptyState ?? (
           <div className="my-auto mx-auto max-w-sm text-center flex flex-col items-center gap-3 bg-surface-container-lowest rounded-card p-6">
             <div className="w-10 h-10 rounded-control bg-primary-soft text-primary flex items-center justify-center">
@@ -209,9 +223,12 @@ export default function ChatPane({
         )}
 
         {children}
+        </div>
       </div>
 
       <div ref={footerRef} className="absolute inset-x-0 bottom-0 z-10">
+        {/* Thẻ hỏi + ô nhập cùng bề rộng với cột tin nhắn (720px + lề 2×24px), không giãn theo khung chat */}
+        <div className="mx-auto w-full max-w-[768px]">
           {questionCard ?? (showQuestions && (
             <QuestionStepperInput
               key={questionKey ?? "questions"}
@@ -258,6 +275,7 @@ export default function ChatPane({
                   : inputPlaceholder
             }
           />
+        </div>
       </div>
       </div>
     </section>

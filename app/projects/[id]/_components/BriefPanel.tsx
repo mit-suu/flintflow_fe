@@ -7,12 +7,10 @@ import Skeleton from "@/components/ui/Skeleton";
 import { ASSUMPTION_STATUS_LABEL, assumptionText, formFactorLabel, stakesLabel } from "./brief-labels";
 
 interface BriefPanelProps {
-  spine: Pick<Spine, "project" | "assumptions"> | null;
+  spine: Pick<Spine, "project" | "assumptions" | "addendum"> | null;
   /** AI đang chạy một bước của pha Brief — panel sẽ đổi sau khi bước ghi xong. */
   updating?: boolean;
 }
-
-const EMPTY = "Chưa có — AI sẽ hỏi khi cần";
 
 const STATUS_TONE: Record<Assumption["status"], string> = {
   unconfirmed: "bg-accent-gold-soft text-accent-gold-text",
@@ -30,7 +28,19 @@ function Tile({ label, children, className = "" }: { label: string; children: Re
   );
 }
 
-const Empty = () => <span className="text-[12px] italic text-on-surface-muted">{EMPTY}</span>;
+/** Brief đã có gì để hiện chưa — chưa có thì workspace ẩn hẳn khung này (khung chat chiếm chỗ). */
+export const briefHasData = (spine: Pick<Spine, "project" | "assumptions" | "addendum">): boolean => {
+  const project = spine.project;
+  return Boolean(
+    project.system_name?.trim() ||
+      formFactorLabel(project.form_factor) ||
+      stakesLabel(project.stakes) ||
+      project.vision?.trim() ||
+      project.goals.length ||
+      spine.addendum.some((entry) => entry.content.trim() !== "") ||
+      spine.assumptions.length
+  );
+};
 
 /**
  * Khung phải ở pha Brief (B-0…B-2, FLF-221): "Brief đang hình thành" — những gì AI đã hiểu về ý tưởng, đọc thẳng từ
@@ -43,6 +53,14 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
   const project = spine?.project;
   const formFactor = formFactorLabel(project?.form_factor);
   const stakes = stakesLabel(project?.stakes);
+  const systemName = project?.system_name?.trim();
+  const vision = project?.vision?.trim();
+  const goals = project?.goals ?? [];
+  // Điều user đã kể mà chưa thành field của project (mục đích, người dùng, quy mô…) — bằng chính lời user
+  const notes = (spine?.addendum ?? []).filter((entry) => entry.content.trim() !== "");
+  // Ô nào chưa có dữ liệu thì ẩn hẳn. Brief chưa có gì thì workspace không dựng khung này (`briefHasData`); skeleton
+  // chỉ còn cho lúc đang tải Spine.
+  const hasProjectInfo = Boolean(systemName || formFactor || stakes || vision || goals.length);
 
   return (
     <section aria-labelledby={headingId} className="flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
@@ -76,42 +94,66 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
             </div>
           ) : (
             <>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Tile label="Tên hệ thống" className="sm:col-span-2">
-                  {project?.system_name?.trim() ? (
-                    <span className="text-[16px] font-bold text-on-surface break-words">{project.system_name}</span>
-                  ) : (
-                    <Empty />
-                  )}
-                </Tile>
-                <Tile label="Nền tảng">{formFactor ?? <Empty />}</Tile>
-                <Tile label="Mức độ quan trọng">{stakes ?? <Empty />}</Tile>
-                <Tile label="Tầm nhìn" className="sm:col-span-2">
-                  {project?.vision?.trim() ? <p className="leading-relaxed">{project.vision}</p> : <Empty />}
-                </Tile>
-                <Tile label={`Mục tiêu${project?.goals.length ? ` (${project.goals.length})` : ""}`} className="sm:col-span-2">
-                  {project?.goals.length ? (
-                    <ul className="flex flex-col gap-1 leading-relaxed">
-                      {project.goals.map((goal) => (
-                        <li key={goal} className="flex gap-2">
-                          <Icon name="check" size={14} className="mt-0.5 shrink-0 text-primary" />
-                          <span>{goal}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <Empty />
-                  )}
-                </Tile>
-              </dl>
 
-              <section aria-labelledby="brief-panel-assumptions" className="bg-surface-container-low rounded-card px-4 py-3 flex flex-col gap-2">
-                <h3 id="brief-panel-assumptions" className="text-[11px] font-semibold text-on-surface-muted">
-                  Giả định AI đang dùng{assumptions.length ? ` (${assumptions.length})` : ""}
-                </h3>
-                {assumptions.length === 0 ? (
-                  <p className="text-[12px] italic text-on-surface-muted">Chưa có giả định nào — AI ghi lại mỗi khi phải tự điền một điều bạn chưa nói.</p>
-                ) : (
+              {hasProjectInfo ? (
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {systemName ? (
+                    <Tile label="Tên hệ thống" className="sm:col-span-2">
+                      <span className="text-[16px] font-bold text-on-surface break-words">{systemName}</span>
+                    </Tile>
+                  ) : null}
+                  {/* Chỉ có một trong hai ô ngắn ⇒ ô đó chiếm cả hàng cho khỏi lệch. */}
+                  {formFactor ? (
+                    <Tile label="Nền tảng" className={stakes ? "" : "sm:col-span-2"}>
+                      {formFactor}
+                    </Tile>
+                  ) : null}
+                  {stakes ? (
+                    <Tile label="Mức độ quan trọng" className={formFactor ? "" : "sm:col-span-2"}>
+                      {stakes}
+                    </Tile>
+                  ) : null}
+                  {vision ? (
+                    <Tile label="Tầm nhìn" className="sm:col-span-2">
+                      <p className="leading-relaxed">{vision}</p>
+                    </Tile>
+                  ) : null}
+                  {goals.length ? (
+                    <Tile label={`Mục tiêu (${goals.length})`} className="sm:col-span-2">
+                      <ul className="flex flex-col gap-1 leading-relaxed">
+                        {goals.map((goal) => (
+                          <li key={goal} className="flex gap-2">
+                            <Icon name="check" size={14} className="mt-0.5 shrink-0 text-primary" />
+                            <span>{goal}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </Tile>
+                  ) : null}
+                </dl>
+              ) : null}
+
+              {notes.length ? (
+                <section aria-labelledby="brief-panel-notes" className="bg-surface-container-low rounded-card px-4 py-3 flex flex-col gap-2">
+                  <h3 id="brief-panel-notes" className="text-[11px] font-semibold text-on-surface-muted">
+                    Điều bạn đã kể ({notes.length})
+                  </h3>
+                  <ul className="flex flex-col gap-1.5">
+                    {notes.map((entry) => (
+                      <li key={entry.id} className="flex gap-2 text-[12.5px] text-on-surface leading-relaxed">
+                        <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-on-surface-muted" />
+                        <span className="min-w-0">{entry.content}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {assumptions.length ? (
+                <section aria-labelledby="brief-panel-assumptions" className="bg-surface-container-low rounded-card px-4 py-3 flex flex-col gap-2">
+                  <h3 id="brief-panel-assumptions" className="text-[11px] font-semibold text-on-surface-muted">
+                    Giả định AI đang dùng ({assumptions.length})
+                  </h3>
                   <ul className="flex flex-col gap-2">
                     {assumptions.map((assumption) => (
                       <li key={assumption.id} className="flex items-start gap-2 text-[12.5px] text-on-surface leading-relaxed">
@@ -122,8 +164,8 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
                       </li>
                     ))}
                   </ul>
-                )}
-              </section>
+                </section>
+              ) : null}
             </>
           )}
         </div>
