@@ -155,9 +155,18 @@ export function useWorkspace(projectId: string) {
    * Hiện ngay tin user vừa gửi khi tin đó đi thẳng vào lượt chạy bước (BE ghi transcript, FLF-221) — không chờ tải lại
    * phiên chat.
    */
-  const appendLocalMessage = useCallback((content: string, step: string | null) => {
-    const message: ChatMessage = { role: "user", content, step: step ?? "chat", createdAt: new Date().toISOString() };
+  const appendLocalMessage = useCallback((content: string, step: string | null, role: ChatMessage["role"] = "user") => {
+    const message: ChatMessage = { role, content, step: step ?? "chat", createdAt: new Date().toISOString() };
     setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, message] } : prev));
+  }, []);
+
+  /** Gỡ tin vừa hiện tạm khi lượt gửi không đi tới đâu (chữ trả về ô nhập) — không để tin "ma" trong khung chat. */
+  const dropLocalMessage = useCallback((content: string) => {
+    setActiveSession((prev) => {
+      if (!prev) return prev;
+      const index = prev.messages.findLastIndex((m) => m.role === "user" && m.content === content);
+      return index < 0 ? prev : { ...prev, messages: prev.messages.filter((_, i) => i !== index) };
+    });
   }, []);
 
   /** Hỏi đáp tự do trong chat; step hiện tại gửi kèm để BE lưu transcript theo step. */
@@ -247,6 +256,7 @@ export function useWorkspace(projectId: string) {
       sendMessage,
       uploadPendingAttachments,
       appendLocalMessage,
+      dropLocalMessage,
       selectAttachment,
       removeAttachment,
       refreshUser,
@@ -270,6 +280,7 @@ export function useWorkspace(projectId: string) {
       sendMessage,
       uploadPendingAttachments,
       appendLocalMessage,
+      dropLocalMessage,
       selectAttachment,
       removeAttachment,
       refreshUser,

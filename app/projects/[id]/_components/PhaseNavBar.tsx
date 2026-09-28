@@ -41,7 +41,7 @@ export const shortPhase = (phase: string) => phase.replace("-", "");
  */
 export const PHASE_GROUPS = [
   { letter: "B", name: "Brief", text: "text-on-surface" },
-  { letter: "S", name: "Software Requirements Specification", text: "text-primary" },
+  { letter: "S", name: "Tài liệu SRS", text: "text-primary" },
 ] as const;
 
 /** Màu chữ "đã xong" theo nhóm — dùng chung cho dòng giai đoạn và bước con. */

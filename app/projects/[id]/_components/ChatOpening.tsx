@@ -37,16 +37,9 @@ export default function ChatOpening({ onPick, disabled = false }: ChatOpeningPro
   );
 
   return (
-    <section className="flex items-start gap-3" aria-label="Bắt đầu dự án">
-      <div
-        aria-hidden
-        className="w-7 h-7 rounded-[9px] text-white flex items-center justify-center font-extrabold text-xs shrink-0 mt-0.5"
-        style={{ background: "linear-gradient(135deg,#8E87D6,#6A62C4)" }}
-      >
-        F
-      </div>
+    <section className="flex items-start" aria-label="Bắt đầu dự án">
       <div className="flex-1 min-w-0 flex flex-col gap-3">
-        <p className="text-[13px] leading-relaxed text-on-surface">{CHAT_OPENING_GREETING}</p>
+        <p className="text-[14px] leading-7 text-on-surface">{CHAT_OPENING_GREETING}</p>
         <div className="flex flex-col gap-2">
           <p className="text-[11.5px] font-semibold text-on-surface-muted">{CHAT_OPENING_HINT}</p>
           <ul className="flex flex-wrap gap-2" aria-label="Gợi ý bắt đầu">

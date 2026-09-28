@@ -93,15 +93,8 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
   const actionsClass = slow ? "flex" : "hidden group-hover:flex group-focus-within:flex";
 
   return (
-    <section className="group flex items-start gap-3" aria-label="Tiến trình bước">
-      <div
-        aria-hidden
-        className="w-7 h-7 rounded-[9px] text-white flex items-center justify-center font-extrabold text-xs shrink-0 mt-0.5"
-        style={{ background: "linear-gradient(135deg,#8E87D6,#6A62C4)" }}
-      >
-        F
-      </div>
-      <div className="flex-1 min-w-0 pt-1 flex flex-col gap-1.5">
+    <section className="group flex items-start" aria-label="Tiến trình bước">
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
         <div className="flex items-start gap-2 min-w-0">
           {showLog ? (
             <div className="flex-1 min-w-0" role="status" aria-live="polite">

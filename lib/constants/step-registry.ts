@@ -32,7 +32,7 @@ export const STEP_REGISTRY: readonly StepDef[] = registry as unknown as StepDef[
 /** Nhãn phase trên UI (tiếng Việt). */
 export const PHASE_LABELS_VI: Readonly<Record<PhaseId, string>> = {
   "B-0": "Tiếp nhận",
-  "B-1": "Product Brief",
+  "B-1": "Soạn Brief",
   "B-2": "Chốt Brief",
   "S-1": "Phân tích Brief",
   "S-2": "Tổng quan sản phẩm",

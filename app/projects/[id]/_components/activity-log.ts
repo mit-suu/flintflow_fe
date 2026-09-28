@@ -1,10 +1,14 @@
 /**
  * Nhật ký hoạt động của một lượt chạy (FLF-221) — danh sách việc THẬT runner đã làm, dựng từ `state.events` (sống qua
  * SSE, hoặc từ `run-state.events` sau reload). Không bịa tiến độ: mỗi dòng ứng với một sự kiện BE đã phát.
+ *
+ * Viết như IDE báo việc của agent: mỗi dòng là một hành động kèm KẾT QUẢ user quan tâm ("Cập nhật Brief" + các mục vừa
+ * ghi bên dưới), không phải số đếm nội bộ ("còn thiếu 5 mục", "Hỏi bạn 3 câu", "Đã nhận 0 câu trả lời") hay thời lượng
+ * từng dòng. Việc đã có thẻ riêng trên màn hình (câu hỏi, cổng duyệt) không lặp lại thành dòng.
  */
 import { stepLabel } from "@/lib/constants/step-registry";
 import type { ChangeSummary, StepEvent } from "@/types/pipeline";
-import { formatDuration } from "./StepProgress";
+import { projectFieldText } from "./GateCard";
 
 /** Sự kiện đã lưu kèm thời điểm: SSE sống ⇒ ms (reducer gắn), run-state sau reload ⇒ ISO (BE gắn). */
 export type LoggedEvent = StepEvent & { at?: number | string };
@@ -16,8 +20,8 @@ export interface ActivityLine {
   kind: "step" | "task";
   text: string;
   status: ActivityStatus;
-  /** "00:12" — chỉ có khi biết cả lúc bắt đầu lẫn lúc xong. */
-  duration: string | null;
+  /** Chi tiết thụt dòng dưới việc — những gì vừa được ghi, bằng lời thường. */
+  details: string[];
 }
 
 const COLLECTION_LABEL: Record<string, string> = {
@@ -40,6 +44,10 @@ const COLLECTION_LABEL: Record<string, string> = {
 };
 
 const PREFIX: Record<ChangeSummary["kind"], string> = { add: "+", update: "~", remove: "−" };
+const VERB: Record<ChangeSummary["kind"], string> = { add: "Thêm", update: "Cập nhật", remove: "Xoá" };
+
+/** Số mục chi tiết tối đa dưới một việc ghi — còn lại gộp thành "và N mục khác". */
+const MAX_DETAILS = 5;
 
 /** "+3 actor ~1 use case" — gộp theo loại thay đổi và nhóm dữ liệu. */
 export const summaryCounts = (rows: readonly ChangeSummary[]): string => {
@@ -54,40 +62,37 @@ export const summaryCounts = (rows: readonly ChangeSummary[]): string => {
   }).join(" ");
 };
 
-const timeOf = (event: LoggedEvent): number | null => {
-  if (typeof event.at === "number") return event.at;
-  if (typeof event.at === "string") {
-    const parsed = Date.parse(event.at);
-    return Number.isNaN(parsed) ? null : parsed;
-  }
-  return null;
+/** Một dòng thay đổi bằng lời thường: "Tên hệ thống: Internal Hub", "Thêm giả định: …". */
+const changeText = (row: ChangeSummary): string =>
+  row.collection === "project"
+    ? projectFieldText(row.title_vi)
+    : `${VERB[row.kind]} ${COLLECTION_LABEL[row.collection] ?? row.collection}: ${row.title_vi}`;
+
+const changeDetails = (rows: readonly ChangeSummary[]): string[] => {
+  const shown = rows.slice(0, MAX_DETAILS).map(changeText);
+  return rows.length > MAX_DETAILS ? [...shown, `và ${rows.length - MAX_DETAILS} mục khác`] : shown;
 };
 
-/** Một sự kiện ⇒ một dòng việc (null ⇒ không đáng thành một dòng: heartbeat, stage, elicit từng chữ…). */
-const taskText = (event: StepEvent): { text: string; failed?: boolean } | null => {
+/** Một sự kiện ⇒ một dòng việc (null ⇒ không đáng thành một dòng: nội bộ, hoặc đã có thẻ riêng trên màn hình). */
+const taskOf = (event: StepEvent): { text: string; details?: string[]; failed?: boolean; transient?: boolean } | null => {
   switch (event.type) {
-    case "intake":
-      return { text: event.empty_fields.length > 0 ? `Đọc dữ liệu · còn thiếu ${event.empty_fields.length} mục` : "Đọc dữ liệu" };
-    case "answer_needed":
-      return { text: `Hỏi bạn ${event.questions.length} câu` };
     case "answer_received":
-      return { text: `Đã nhận ${event.count} câu trả lời` };
+      // Chỉ là trạng thái lúc AI đang đọc — xong thì lời đáp của AI đã nói điều đó, không để lại thành dòng
+      return { text: event.count > 0 ? "Đọc câu trả lời của bạn" : "Đọc tin nhắn của bạn", transient: true };
     case "draft":
-      return { text: event.attempt > 1 ? `AI soạn lại (lần ${event.attempt})` : "AI soạn nội dung" };
-    case "draft_retry":
-      return { text: `Thử lại lần ${event.attempt}/${event.max}` };
+      // Lượt soạn lại do bản nháp sai khuôn là việc nội bộ — với user vẫn chỉ là một việc "Soạn nội dung"
+      return event.attempt > 1 ? null : { text: "Soạn nội dung" };
     case "ops_applied": {
-      const counts = summaryCounts(event.summary ?? []);
-      return { text: counts ? `Đã ghi ${counts}` : `Đã ghi ${event.changes.length} thay đổi` };
+      const rows = event.summary ?? [];
+      if (rows.length === 0) return { text: `Ghi ${event.changes.length} thay đổi` };
+      return { text: `Ghi ${summaryCounts(rows)}`, details: changeDetails(rows) };
     }
     case "render":
-      return { text: `Vẽ sơ đồ ${event.diagram_id}`, failed: event.render_status === "error" };
+      return event.render_status === "error"
+        ? { text: `Vẽ sơ đồ ${event.diagram_id} lỗi`, failed: true }
+        : { text: `Vẽ sơ đồ ${event.diagram_id}` };
     case "flags":
-      return { text: (event.red_delta ?? 0) > 0 ? `Kiểm tra: ${event.red_delta} cờ đỏ mới` : "Kiểm tra quy tắc và tham chiếu" };
-    case "auto_accepted":
-      return { text: "Tự hoàn tất — không có gì cần bạn quyết" };
-    case "gate_ready":
-      return { text: "Xong, chờ bạn duyệt" };
+      return (event.red_delta ?? 0) > 0 ? { text: `Phát hiện ${event.red_delta} lỗi cần sửa`, failed: true } : null;
     case "error":
       return { text: event.message, failed: true };
     default:
@@ -96,39 +101,31 @@ const taskText = (event: StepEvent): { text: string; failed?: boolean } | null =
 };
 
 /**
- * Dòng việc theo thứ tự thời gian, có dòng tiêu đề mỗi khi sang bước khác (chạy cả giai đoạn). Dòng cuối là việc đang
- * làm khi `running`; mọi dòng trước nó đã xong. Thời lượng = từ sự kiện này tới sự kiện kế tiếp.
+ * Dòng việc theo thứ tự thời gian. Chạy liền nhiều bước (cả giai đoạn) thì có dòng tiêu đề mỗi khi sang bước khác;
+ * một bước lẻ thì không — thẻ ngay dưới đã nói bước nào. Dòng cuối là việc đang làm khi `running`.
  */
 export const activityLines = (events: readonly LoggedEvent[], running: boolean): ActivityLine[] => {
   const lines: ActivityLine[] = [];
-  const starts: (number | null)[] = [];
   let currentStep: string | null = null;
-  let lastTask = -1;
+  // Việc "tạm" chỉ hiện khi nó là việc cuối và lượt còn đang chạy
+  const lastTaskIndex = events.reduce((last, event, index) => (taskOf(event) ? index : last), -1);
 
   events.forEach((event, index) => {
-    const task = taskText(event);
+    const task = taskOf(event);
     if (!task) return;
-    const time = timeOf(event);
-    // Việc trước kết thúc khi việc kế tiếp bắt đầu
-    const previous = lastTask;
-    if (previous >= 0 && starts[previous] !== null && time !== null) {
-      lines[previous].duration = formatDuration(time - (starts[previous] as number));
-    }
+    if (task.transient && !(running && index === lastTaskIndex)) return;
     if (event.step_id !== currentStep && event.type !== "error") {
       currentStep = event.step_id;
       const label = stepLabel(event.step_id);
-      lines.push({ key: `step-${event.step_id}-${index}`, kind: "step", text: label ? `${event.step_id} · ${label}` : event.step_id, status: "done", duration: null });
-      starts.push(null);
+      lines.push({ key: `step-${event.step_id}-${index}`, kind: "step", text: label ? `${event.step_id} · ${label}` : event.step_id, status: "done", details: [] });
     }
-    lines.push({ key: `${event.type}-${index}`, kind: "task", text: task.text, status: task.failed ? "failed" : "done", duration: null });
-    starts.push(time);
-    lastTask = lines.length - 1;
+    lines.push({ key: `${event.type}-${index}`, kind: "task", text: task.text, status: task.failed ? "failed" : "done", details: task.details ?? [] });
   });
 
-  const last = lines.length - 1;
-  if (running && last >= 0 && lines[last].kind === "task" && lines[last].status !== "failed") {
-    lines[last].status = "running";
-    lines[last].duration = null;
-  }
-  return lines;
+  const out = lines.filter((line) => line.kind === "task").length === 0 || lines.filter((line) => line.kind === "step").length > 1
+    ? lines
+    : lines.filter((line) => line.kind === "task");
+  const last = out.length - 1;
+  if (running && last >= 0 && out[last].kind === "task" && out[last].status !== "failed") out[last].status = "running";
+  return out;
 };

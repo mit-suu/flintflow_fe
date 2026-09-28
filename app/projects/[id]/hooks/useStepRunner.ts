@@ -197,7 +197,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         case "answer_needed":
           return { ...next, questions: event.questions, busy: false, detail: `Chờ bạn trả lời ${event.questions.length} câu hỏi` };
         case "answer_received":
-          return { ...next, questions: [], busy: true, detail: `Đã nhận ${event.count} câu trả lời · đang soạn…` };
+          return { ...next, questions: [], busy: true, detail: event.count > 0 ? "Đang đọc câu trả lời của bạn…" : "Đang đọc tin nhắn của bạn…" };
         case "draft_retry":
           return { ...next, status: "drafting", retry: { attempt: event.attempt, max: event.max, reason: event.reason_vi } };
         case "ops_applied":
@@ -214,8 +214,9 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
             busy: !event.needs_user,
           };
         case "auto_accepted":
-          // Bước tự hoàn tất: một dòng trong nhật ký, không phải một cổng chốt phải bấm
-          return { ...next, status: state.status, autoAccepted: [...state.autoAccepted, { step_id: event.step_id, reason_vi: event.reason_vi }] };
+          // Bước tự hoàn tất: không phải một cổng chốt phải bấm — bỏ `gate_ready` của nó, chuỗi chạy tiếp (kể cả sang giai
+          // đoạn kế trên cùng luồng khi cả giai đoạn tự qua); giữ thẻ lại thì user thấy cổng của một bước đã chốt.
+          return { ...next, status: "drafting", stage: null, detail: null, gate: null, busy: true, autoAccepted: [...state.autoAccepted, { step_id: event.step_id, reason_vi: event.reason_vi }] };
         case "phase_gate":
           return { ...next, status: state.status, phaseGate: event };
         case "error":
@@ -233,7 +234,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         elicitText: "",
         status: "drafting",
         busy: true,
-        detail: action.count ? `Đã nhận ${action.count} câu trả lời · đang soạn…` : "Đã nhận câu trả lời · đang soạn…",
+        detail: action.count ? "Đang đọc câu trả lời của bạn…" : "Đang đọc tin nhắn của bạn…",
         lastEventAt: Date.now()
       };
     case "busy":
@@ -323,6 +324,8 @@ const toFailure = (err: unknown): { code: string; message: string; meta?: Record
  * Lần chạy trước của chính step này còn dở ở BE (reload trang giữa chừng): BE huỷ lượt gọi model đang bay rồi
  * nhả khoá, nhưng mất một nhịp. Chờ rồi thử lại thay vì ném "đang được xử lý ở một request khác" vào mặt người dùng.
  */
+export type GateOutcome = "ok" | "failed";
+
 const isStepBusy = (err: unknown): boolean => err instanceof ApiClientError && err.code === "STEP_NOT_RUNNABLE" && /request khác/.test(err.message);
 const BUSY_RETRIES = 3;
 const BUSY_DELAY_MS = 1500;
@@ -516,6 +519,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
             if (event.type === "ops_applied") onSpineChanged(event.spine_version);
             if (event.type === "gate_ready" || event.type === "auto_accepted") onSpineChanged();
             if (event.type === "gate_ready" || event.type === "phase_gate") stoppedAtGate = true;
+            // gate_ready của bước được tự duyệt ngay sau đó không phải chỗ dừng
+            if (event.type === "auto_accepted") stoppedAtGate = false;
           },
         });
       } catch (err) {
@@ -566,11 +571,16 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     [projectId, sessionId, state.source, runWholePhase]
   );
 
+  /**
+   * BE nói bước không còn ở cổng chốt (reload/resume đã đưa nó về chờ chạy) — thẻ cổng trên màn hình là cũ. Đó là
+   * chuyện của hệ thống, không phải của user: tự đọc lại Spine rồi chạy lại bước đó với đúng lời user vừa nhắn (nếu
+   * có), không bắt user gõ lại hay bấm gửi lần nữa.
+   */
   const gate = useCallback(
-    async (action: GateAction, note?: string) => {
+    async (action: GateAction, note?: string): Promise<GateOutcome> => {
       const stepId = stepRef.current;
       const baseVersion = getBaseVersion();
-      if (!stepId || !sessionId || baseVersion === null) return;
+      if (!stepId || !sessionId || baseVersion === null) return "failed";
       dispatch({ type: "busy", busy: true });
       try {
         const res = await submitGate(projectId, stepId, {
@@ -597,10 +607,22 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         } else {
           dispatch({ type: "reset" });
         }
+        return "ok";
       } catch (err) {
+        if (err instanceof ApiClientError && err.code === "STEP_NOT_RUNNABLE" && !isStepBusy(err)) {
+          phaseRef.current = null;
+          const fresh = await getSpine(projectId)
+            .then((res) => res.data?.spine_version)
+            .catch(() => undefined);
+          onSpineChanged(fresh);
+          dispatch({ type: "reset" });
+          await runWholePhase(unitOfStep(stepId) ?? stepId, note ? { message: note } : {});
+          return "ok";
+        }
         // Tài liệu vừa đổi ở bước khác: tải lại Spine rồi để user bấm lại — không tự ghi đè (BUG-06)
         if (err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT") onSpineChanged();
         dispatch({ type: "failed", ...toFailure(err) });
+        return "failed";
       }
     },
     [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, run, runWholePhase]
@@ -631,7 +653,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         const res = stepId ? await getRunState(projectId, stepId) : await getActiveRunState(projectId);
         const run = res.data;
         // Lượt của step đã rời registry (B-0.4 cũ, FLF-221): không dựng lại cổng của một step không còn chạy được.
-        if (!run || !getStepDef(run.step_id)) return null;
+        // Đơn vị giai đoạn (`S-4`, `S-5@S03`) không phải step nhưng là lượt phỏng vấn đầu giai đoạn — vẫn dựng lại thẻ hỏi.
+        if (!run || (!getStepDef(run.step_id) && !isPhaseUnit(run.step_id))) return null;
         stepRef.current = run.step_id;
         dispatch({ type: "restored", state: run, at: Date.now() });
         // Chạy cả giai đoạn: nhật ký gồm các bước trước trong giai đoạn (mỗi bước một run-state). Lỗi đọc ⇒ bỏ qua.
