@@ -621,6 +621,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Việc vừa gửi lên `/changes` — để biết kết quả trả về là của lệnh sửa, lượt cập nhật mục cũ hay hoàn tác. */
   const editActionRef = useRef<"instruction" | "outdated" | "undo" | null>(null);
   const pendingInstructionRef = useRef("");
+  /**
+   * Lệnh sửa là một lượt hội thoại của phiên đang mở: BE đọc các tin trước (trả lời câu hỏi làm rõ không mất yêu cầu
+   * gốc) và ghi lệnh + kết quả vào phiên. FE hiện tạm tin user, xong lượt thì tải lại phiên để thấy đúng transcript.
+   */
+  const activeSessionId = ws.activeSession?._id ?? null;
+  const lastMessageStep = ws.activeSession?.messages.at(-1)?.step ?? null;
+  const { appendLocalMessage, dropLocalMessage, reloadActiveSession } = ws;
+  const getSessionId = useCallback(() => activeSessionId, [activeSessionId]);
   const onChangesApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       handleChangeApplied(result, impactedSectionIds);
@@ -633,14 +641,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       } else if (action === "instruction") {
         setEditDetailOpen(false);
         setAppliedEdit({ instruction: pendingInstructionRef.current, count: result.changes.length, version: result.spine_version });
+        // BE đã ghi tin "Đã áp dụng …" vào phiên
+        if (activeSessionId) void reloadActiveSession(activeSessionId);
       } else {
         // Lần áp khác (cập nhật mục cũ) đè lên ⇒ thẻ cũ không còn là lần mới nhất, thôi hoàn tác
         setAppliedEdit(null);
       }
     },
-    [handleChangeApplied]
+    [handleChangeApplied, activeSessionId, reloadActiveSession]
   );
-  const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied);
+  const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
   const documentIssues = issueCounts(flags, outdatedSections);
   /** Chip sửa khoá khi step đang chạy / chờ trả lời: hai luồng cùng ghi Spine sẽ vấp 409 SPINE_VERSION_CONFLICT. */
@@ -658,9 +668,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       setAppliedEdit(null);
       setEditDetailOpen(false);
       setEditCardOpen(true);
-      void requestPreview(instruction);
+      const sessionId = activeSessionId;
+      if (sessionId) appendLocalMessage(instruction.trim(), lastMessageStep);
+      void requestPreview(instruction).then((outcome) => {
+        if (!sessionId) return;
+        // Chưa gửi đi đâu ⇒ không để tin "ma" trong khung chat
+        if (outcome === "skipped") return dropLocalMessage(instruction.trim());
+        void reloadActiveSession(sessionId);
+        // Câu hỏi làm rõ đã thành một tin trong chat — đóng thẻ, chip sửa vẫn bật để user trả lời ngay ở ô chat
+        if (outcome === "clarification") {
+          cancelPreview();
+          setEditCardOpen(false);
+        }
+      });
     },
-    [requestPreview]
+    [requestPreview, cancelPreview, activeSessionId, lastMessageStep, appendLocalMessage, dropLocalMessage, reloadActiveSession]
   );
   const closeEditCard = () => {
     cancelPreview();
@@ -719,6 +741,24 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       .map((f) => f.remediation_step)
   ]);
   const reopenable = viewedStep !== null && reopenableStepIds.has(viewedStep);
+  /**
+   * Mục đã cũ mà bước đang xem phải làm mới. Bấm › ở panel "Cần bạn duyệt lại" chỉ đổi bước đang xem — không có
+   * thẻ này thì khung chat vẫn là lịch sử cũ, không nói phải làm gì, và chip "Sửa tài liệu" đang bật còn biến câu
+   * gõ vào thành lệnh sửa thay vì chạy lại bước.
+   */
+  const staleSectionsOfViewed = [
+    ...new Set(
+      flags
+        .filter(
+          (f) =>
+            !f.resolved_at &&
+            !f.waived_by_user &&
+            f.remediation_step === viewedStep &&
+            (f.rule_id === "section_stale_at_baseline" || f.rule_id === "section_awaiting_reaccept")
+        )
+        .map((f) => f.section_id)
+    ),
+  ];
   // Giả định chưa xác nhận của cả Brief — cổng chốt hiện lại để user quyết, không chỉ giả định mới của bước này
   const pendingAssumptions = (spine?.assumptions ?? [])
     .filter((a) => a.status === "unconfirmed")
@@ -741,13 +781,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   // cũng làm `running` bật nhưng ô chat vẫn phải dùng được để yêu cầu sửa / trả lời.
   const stepRunningElsewhere = runner.state.status === "idle" && (steps?.steps.some((s) => s.id === viewedStep && s.running) ?? false);
   const aiWorking = runner.state.busy || stepRunningElsewhere;
-  /** Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). */
+  /**
+   * Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). Gồm cả bước tới lượt đang
+   * `revision_requested` (bị mở lại, hoà giải): thiếu nó thì tin nhắn rơi vào hỏi đáp thường, AI chỉ trả lời "xem như
+   * đã duyệt" mà bước không bao giờ chạy lại được.
+   */
   const stepNotStarted =
     runner.state.status === "idle" &&
     viewedStep !== null &&
     viewedStep === currentStep &&
     !viewingAccepted &&
-    (viewedSummary === undefined || viewedSummary.status === "pending");
+    (viewedSummary === undefined || viewedSummary.status === "pending" || viewedSummary.status === "revision_requested");
   /** Mở đầu project mới: B-0.1 chưa chạy, phiên pipeline chưa có tin nhắn, Spine chưa có ghi chú Brief. */
   const showOpening =
     !mode1 &&
@@ -833,6 +877,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     // Bước mở lại (màn để trống / mục đã cũ) chạy lẻ; bước tới lượt chạy cả giai đoạn cho cả hai chế độ duyệt
     if (reopenable && !stepNotStarted) await runner.run(stepId, { ...start, standalone: true });
     else await runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
+  };
+
+  /**
+   * Nút trên thẻ "mục đã cũ": chạy lẻ lại bước sở hữu, không đi qua ô chat (chip "Sửa tài liệu" có thể đang bật).
+   * `reopen`: cờ có thể trễ hơn Spine (mục đã được chốt lại ở nơi khác) — khi đó BE không coi bước là cũ nữa và
+   * từ chối chạy bước đã accepted; user đã bấm chủ động nên mở lại bước (B7) thay vì báo "Bước này đã chốt".
+   */
+  const rerunStaleStep = async (stepId: string) => {
+    const text = "Cập nhật lại bước này theo dữ liệu mới";
+    await runner.run(stepId, { message: text, standalone: true, reopen: true, onStarted: () => ws.appendLocalMessage(text, stepId) });
   };
 
   return (
@@ -946,6 +1000,22 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {!mode1 && viewingAccepted && viewedStep && !aiWorking && !runner.state.autoAccepted.some((item) => item.step_id === viewedStep) && (
             <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
               Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
+            </div>
+          )}
+          {!mode1 && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
+            <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-[12px] text-accent-gold-text">
+              <p className="leading-relaxed">
+                Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt, nhưng{" "}
+                <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu
+                bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.
+              </p>
+              <button
+                type="button"
+                onClick={() => void rerunStaleStep(viewedStep)}
+                className="self-start h-8 px-3.5 rounded-control text-[12px] font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+              >
+                Cập nhật lại bước này
+              </button>
             </div>
           )}
           {runnerStep && !background && (

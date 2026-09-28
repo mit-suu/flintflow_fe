@@ -29,6 +29,10 @@ export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boole
       const count = Array.isArray(data.changes) ? data.changes.length : 0;
       return { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false };
     }
+    if (data.kind === "change_applied") {
+      const count = typeof (data as { count?: unknown }).count === "number" ? (data as { count: number }).count : 0;
+      return count > 0 ? { text: `Đã ghi ${count} thay đổi`, wrote: true } : { text: "Không đổi gì", wrote: false };
+    }
     if (data.kind === "change_clarification" || data.kind === "change_error") return { text: "Chưa ghi gì", wrote: false };
     // Lượt hỏi của bước (lời đáp + câu hỏi): không phải hỏi đáp tự do, nhãn "Chỉ trao đổi" không có nghĩa gì
     if (Array.isArray((data as { questions?: unknown }).questions)) return null;

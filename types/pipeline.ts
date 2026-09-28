@@ -23,6 +23,8 @@ export interface ChangeRequest {
   instruction?: string;
   reason?: string;
   preview_id?: string;
+  /** Phiên chat nơi gõ lệnh sửa — BE đọc đuôi hội thoại và ghi lượt sửa vào phiên (contract-change 2026-09-28). */
+  session_id?: string;
 }
 
 export interface Violation {
