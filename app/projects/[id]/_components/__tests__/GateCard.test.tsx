@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import GateCard, { groupSummary } from "../GateCard";
@@ -69,6 +69,25 @@ describe("GateCard", () => {
       renderWithIntl(<GateCard stepId="S-7.2" actions={ALL} regenerateUsed={0} wroteOps={false} onAction={vi.fn()} />);
       expect(screen.getByRole("status")).toHaveTextContent("AI không soạn được nội dung nào ở lượt này");
       expect(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ }), "vẫn là quyết định của người dùng").not.toBeDisabled();
+    });
+
+    it("AI không được gọi vì field đã chốt ở bước trước ⇒ không cảnh báo, chỉ nói lý do", () => {
+      const settled = {
+        type: "gate_ready",
+        step_id: "B-0.2",
+        actions: ALL,
+        regenerate_used: 0,
+        calls_used: 0,
+        spine_version: 5,
+        wrote_ops: false,
+        empty_sections: [],
+        summary: [],
+        new_assumptions: [],
+        no_change_reason: "Nền tảng đã chốt ở bước Kể hết ý tưởng — không cần hỏi lại.",
+      } as unknown as GateReadyEvent;
+      renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} regenerateUsed={0} wroteOps={false} payload={settled} onAction={vi.fn()} />);
+      expect(screen.queryByText("AI không soạn được nội dung nào ở lượt này")).not.toBeInTheDocument();
+      expect(screen.getByText(/Nền tảng đã chốt ở bước Kể hết ý tưởng/)).toBeInTheDocument();
     });
 
     it("có ghi op nhưng mục vẫn trống ⇒ gọi tên mục và nói rõ Duyệt không đóng được cờ", () => {
@@ -144,7 +163,7 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     expect(screen.queryByText(/Kiểm tra:/)).toBeNull();
   });
 
-  it("giả định mới có ba nút Đúng / Sửa / Bỏ và biến mất sau khi quyết (BUG-13)", () => {
+  it("giả định mới có ba nút Đúng / Sửa / Bỏ và biến mất sau khi quyết (BUG-13)", async () => {
     const onAssumptionDecision = vi.fn();
     renderWithIntl(
       <GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAssumptionDecision={onAssumptionDecision} onAction={vi.fn()} />
@@ -156,7 +175,8 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
 
     expect(onAssumptionDecision).toHaveBeenCalledWith({ kind: "edit", id: "AS12", statement: "Lễ tân được xoá lịch trong ngày" });
-    expect(screen.queryByText(/AI tự giả định/)).not.toBeInTheDocument();
+    // "Sửa" chờ BE dịch bản sửa xong (FLF-221) rồi thẻ mới ẩn
+    await waitFor(() => expect(screen.queryByText(/AI tự giả định/)).not.toBeInTheDocument());
   });
 
   it("step không đổi gì thì nói rõ vì sao", () => {

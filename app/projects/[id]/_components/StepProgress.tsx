@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import type { ChangeSummary, RunStage, StepEvent } from "@/types/pipeline";
 import type { RunnerState } from "../hooks/useStepRunner";
+import RunActivityLog from "./RunActivityLog";
+import { activityLines } from "./activity-log";
 
 /**
  * Lớp 3 "Tiến trình trực tiếp" (`03-live-status-flow.md`): trong lúc chờ, màn hình phải trả lời được
@@ -76,10 +78,11 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
   const quiet = state.lastEventAt ? now - state.lastEventAt : 0;
   const slow = state.busy && quiet > SLOW_AFTER_MS;
 
-  // Đang chờ user trả lời: thẻ hỏi và bong bóng câu hỏi đã nói rõ tới lượt ai — không cần thêm dòng nào.
-  if (state.status === "needs_input") return null;
-
   const working = state.busy || state.status === "reconnecting";
+  // FLF-221: nhật ký hoạt động thay dòng loading — trừ lúc mất kết nối/gián đoạn, khi câu báo trạng thái quan trọng hơn
+  const showLog = state.status !== "reconnecting" && state.status !== "interrupted" && activityLines(state.events, working).length > 0;
+  // Đang chờ user trả lời: thẻ hỏi đã nói rõ tới lượt ai — chỉ còn nhật ký những việc đã làm, không có dòng nào khác.
+  if (state.status === "needs_input" && !showLog) return null;
   const headline =
     state.status === "reconnecting"
       ? "Mất kết nối với lượt chạy, đang kết nối lại…"
@@ -90,16 +93,15 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
   const actionsClass = slow ? "flex" : "hidden group-hover:flex group-focus-within:flex";
 
   return (
-    <section className="group flex items-start gap-3" aria-label="Tiến trình bước">
-      <div
-        aria-hidden
-        className="w-7 h-7 rounded-[9px] text-white flex items-center justify-center font-extrabold text-xs shrink-0 mt-0.5"
-        style={{ background: "linear-gradient(135deg,#8E87D6,#6A62C4)" }}
-      >
-        F
-      </div>
-      <div className="flex-1 min-w-0 pt-1 flex flex-col gap-1.5">
-        <div className="flex items-center gap-2 min-w-0">
+    <section className="group flex items-start" aria-label="Tiến trình bước">
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        <div className="flex items-start gap-2 min-w-0">
+          {showLog ? (
+            <div className="flex-1 min-w-0" role="status" aria-live="polite">
+              <RunActivityLog events={state.events} running={working} />
+            </div>
+          ) : (
+          <div className="flex-1 min-w-0 flex items-center gap-2">
           {working && (
             <span className="flex items-center gap-1 shrink-0" aria-hidden>
               {[0, 150, 300].map((delay) => (
@@ -113,6 +115,8 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
           >
             {headline}
           </p>
+          </div>
+          )}
           <div className={`${actionsClass} items-center gap-2 shrink-0`}>
           {working && onBackground && (
             <button

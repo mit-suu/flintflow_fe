@@ -2,7 +2,7 @@
  * Spine, lịch sử thay đổi, hoà giải, undo, traceability — theo danh sách endpoint T08.
  * Chốt request/response theo `pipeline-contract.md` ở T12/T16.
  */
-import type { ApplyResult, ChangeRequest, PreviewResult } from "@/types/pipeline";
+import type { ApplyResult, AssumptionEditRequest, ChangeRequest, PreviewResult } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
 import type { TraceabilityQuery, TraceabilityResponse } from "@/types/flags";
 import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
@@ -76,6 +76,16 @@ export const reconcile = (projectId: string, request: { base_version: number; pr
 export const undoLastChange = (projectId: string, request: { base_version: number }) =>
   apiCall<ApplyResult>(`/projects/${projectId}/undo`, {
     method: "POST",
+    body: JSON.stringify(request),
+  });
+
+/**
+ * "Sửa" giả định (FLF-221): gửi câu user gõ bằng ngôn ngữ của mình; BE gọi AI dịch sang tiếng Anh và ghi cả
+ * `statement_vi` lẫn `statement`. Tốn một lượt credit; lỗi thì không ghi gì.
+ */
+export const editAssumption = (projectId: string, assumptionId: string, request: AssumptionEditRequest) =>
+  apiCall<{ spine_version: number; spine: Spine }>(`/projects/${projectId}/assumptions/${encodeURIComponent(assumptionId)}`, {
+    method: "PATCH",
     body: JSON.stringify(request),
   });
 

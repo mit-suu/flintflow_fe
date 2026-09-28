@@ -76,11 +76,29 @@ describe("runWholePhase + gate", () => {
     const { result } = setup();
 
     await act(async () => result.current.runWholePhase("B-1"));
-    await act(async () => result.current.run("B-2.1"));
+    // Lượt chạy lẻ mở lại một bước cũ (FLF-221: `standalone`) — duyệt xong không chạy tiếp quy trình
+    submitGate.mockResolvedValue({ data: { spine_version: 13, accepted: true, next_step: "B-2.2" } });
+    await act(async () => result.current.run("B-2.1", { standalone: true }));
     await waitFor(() => expect(result.current.state.status).toBe("gate_ready"));
 
     await act(async () => result.current.gate("accept"));
     expect(runPhase).toHaveBeenCalledTimes(1);
     expect(result.current.state.status).toBe("idle");
+  });
+
+  it("FLF-221: duyệt cổng chốt cuối giai đoạn ⇒ tự chạy giai đoạn kế", async () => {
+    runPhase.mockImplementation(async (_p: string, phase: string, _req: unknown, h: { onEvent: (e: unknown) => void }) => {
+      if (phase === "B-0") h.onEvent(gateAt("B-0.3"));
+    });
+    submitGate.mockResolvedValue({ data: { spine_version: 13, accepted: true, next_step: "B-1.1" } });
+    const { result } = setup();
+
+    await act(async () => result.current.runWholePhase("B-0", { message: "Ý tưởng", intent: undefined }));
+    await waitFor(() => expect(result.current.state.status).toBe("gate_ready"));
+    expect(runPhase.mock.calls[0][2]).toMatchObject({ message: "Ý tưởng" });
+
+    await act(async () => result.current.gate("accept"));
+    await waitFor(() => expect(runPhase).toHaveBeenCalledTimes(2));
+    expect(runPhase.mock.calls[1][1]).toBe("B-1");
   });
 });

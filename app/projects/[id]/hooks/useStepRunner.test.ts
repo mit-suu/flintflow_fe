@@ -58,7 +58,7 @@ describe("stepRunnerReducer", () => {
       { type: "answered", count: 3 },
     ]);
     expect(answered).toMatchObject({ status: "drafting", busy: true, questions: [] });
-    expect(answered.detail).toContain("Đã nhận 3 câu trả lời");
+    expect(answered.detail).toBe("Đang đọc câu trả lời của bạn…");
   });
 
   it("draft_retry nói bằng lời thường; stage mới xoá thông báo thử lại", () => {

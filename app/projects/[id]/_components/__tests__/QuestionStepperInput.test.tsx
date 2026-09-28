@@ -132,6 +132,21 @@ describe("ElicitPanel — câu mở và câu có lựa chọn", () => {
   });
 });
 
+describe("QuestionStepperInput — thu gọn", () => {
+  it("thu gọn còn một dòng câu hỏi, ẩn lựa chọn và nút gửi; mở lại giữ nguyên lựa chọn", () => {
+    render(<QuestionStepperInput questions={[questions[0]]} onSubmit={vi.fn()} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Xe cũ/ }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Thu gọn câu hỏi" }));
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Gửi câu trả lời" })).toBeNull();
+    expect(screen.getByText("Mô hình kinh doanh?")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mở rộng câu hỏi" }));
+    expect(screen.getByRole("radio", { name: /Xe cũ/ }).getAttribute("aria-checked")).toBe("true");
+  });
+});
+
 describe("question-options", () => {
   it("tin nhắn CHAT cũ (suggestedAnswers) và mới (options object) đọc ra cùng một dạng", () => {
     expect(parseChatQuestion({ question: "Nền tảng?", suggestedAnswers: ["Web", "Mobile"] })?.options).toEqual(opts("Web", "Mobile"));

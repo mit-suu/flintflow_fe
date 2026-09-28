@@ -1,54 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Addendum, Spine } from "@/types/spine";
+import type { Spine } from "@/types/spine";
+import { SECTION_LABEL, formFactorLabel, groupByTarget, stakesLabel } from "./brief-labels";
 
 interface BriefSummaryCardProps {
   spine: Pick<Spine, "project" | "addendum" | "assumptions" | "other_requirements">;
 }
 
-/** Nhãn tiếng Việt cho section đích của addendum — khớp mục của tài liệu, không phải khoá thô. */
-const SECTION_LABEL: Record<string, string> = {
-  "fixed:1": "Tổng quan sản phẩm",
-  "fixed:2.1": "Actor",
-  "fixed:3.1.2": "Mô tả màn",
-  "fixed:4.2.2": "Độ tin cậy",
-  "fixed:4.2.3": "Hiệu năng",
-  "fixed:5.4": "Yêu cầu khác (để dành)",
-};
-
-const FORM_FACTOR_LABEL: Record<string, string> = {
-  web_app: "Web",
-  mobile_app: "Mobile",
-  desktop_app: "Desktop",
-  api_service: "API",
-  cli: "CLI",
-  embedded: "Nhúng",
-};
-
-const STAKES_LABEL: Record<string, string> = {
-  internal: "Nội bộ",
-  production: "Chạy thật",
-  regulated: "Có quản lý ngành",
-};
-
-export const OTHER_KIND_LABEL: Record<string, string> = {
-  risk: "Rủi ro",
-  assumption: "Giả định",
-  open_question: "Câu hỏi mở",
-  technical_risk: "Rủi ro kỹ thuật",
-};
-
-/** Nhóm addendum theo `target_section` — đúng cách chúng sẽ đi vào tài liệu. */
-export const groupByTarget = (addendum: Addendum[]): [string, Addendum[]][] => {
-  const groups = new Map<string, Addendum[]>();
-  for (const entry of addendum) {
-    const list = groups.get(entry.target_section);
-    if (list) list.push(entry);
-    else groups.set(entry.target_section, [entry]);
-  }
-  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-};
+export { OTHER_KIND_LABEL, groupByTarget } from "./brief-labels";
 
 /**
  * Thẻ tóm tắt Brief — thay `SummaryReviewCard` cũ (đọc `discoverySummaryData` map cứng, dựng lại từ nội
@@ -78,8 +38,8 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
   return (
     <div className="flex flex-col gap-2.5 text-on-surface">
       <div className="flex flex-wrap gap-1.5">
-        {project.form_factor && chip(FORM_FACTOR_LABEL[project.form_factor] ?? project.form_factor)}
-        {project.stakes && chip(STAKES_LABEL[project.stakes] ?? project.stakes)}
+        {project.form_factor && chip(formFactorLabel(project.form_factor) as string)}
+        {project.stakes && chip(stakesLabel(project.stakes) as string)}
       </div>
 
       <section className="flex flex-col gap-0.5">

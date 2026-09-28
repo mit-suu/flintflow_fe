@@ -13,6 +13,9 @@ import Skeleton from "./Skeleton";
  */
 export type PageSkeletonVariant = "page" | "cards" | "list" | "table" | "form" | "workspace";
 
+/** Khung phải của workspace sắp hiện: tài liệu SRS, Brief đang hình thành, hoặc không có (khung chat chiếm hết chỗ). */
+export type WorkspacePane = "document" | "brief" | "none";
+
 interface PageSkeletonProps {
   variant?: PageSkeletonVariant;
   /** Số dòng/thẻ giữ chỗ. Mỗi variant có mặc định riêng. */
@@ -22,6 +25,8 @@ interface PageSkeletonProps {
   /** Trang đã tự bọc thẻ trắng quanh chỗ này rồi ⇒ bỏ viền/nền của skeleton cho khỏi lồng hai lớp. */
   bare?: boolean;
   className?: string;
+  /** Chỉ cho `workspace`: giữ chỗ đúng khung phải sắp hiện, khỏi nhảy bố cục khi dữ liệu về. Mặc định `document`. */
+  workspacePane?: WorkspacePane;
 }
 
 const DEFAULT_ROWS: Record<PageSkeletonVariant, number> = {
@@ -41,7 +46,7 @@ function Card({ bare, children, className }: { bare: boolean; children: React.Re
   return <div className={`${chrome} ${className ?? ""}`}>{children}</div>;
 }
 
-function Body({ variant, rows, bare }: { variant: PageSkeletonVariant; rows: number; bare: boolean }) {
+function Body({ variant, rows, bare, workspacePane }: { variant: PageSkeletonVariant; rows: number; bare: boolean; workspacePane: WorkspacePane }) {
   switch (variant) {
     case "cards":
       return (
@@ -112,13 +117,13 @@ function Body({ variant, rows, bare }: { variant: PageSkeletonVariant; rows: num
       // Cùng khung với main của workspace: pane chat nền `surface` rộng 460px bo góc trên | pane tài liệu
       return (
         <div className="flex-1 flex gap-2 min-h-0">
-          {/* Pane chat */}
-          <div className="w-[460px] shrink-0 bg-surface rounded-t-dialog flex flex-col overflow-hidden">
+          {/* Pane chat — không có khung phải thì giãn hết chỗ, nội dung trong cột đọc như khung chat thật */}
+          <div className={`${workspacePane === "none" ? "flex-1 min-w-0" : "w-[460px] shrink-0"} bg-surface rounded-t-dialog flex flex-col overflow-hidden`}>
             <div className="h-12 shrink-0 px-3 flex items-center gap-2">
               <Skeleton className="size-7 shrink-0" />
               <Skeleton className="h-3.5 w-32" />
             </div>
-            <div className="flex-1 min-h-0 px-5 py-3 flex flex-col gap-4">
+            <div className="flex-1 min-h-0 px-5 py-3 flex flex-col gap-4 w-full max-w-[768px] mx-auto">
               {range(4).map((i) => (
                 <div key={i} className={`flex flex-col gap-2 ${i % 2 ? "items-end" : ""}`}>
                   <Skeleton className={`h-3 ${i % 2 ? "w-1/3" : "w-2/5"}`} />
@@ -126,19 +131,40 @@ function Body({ variant, rows, bare }: { variant: PageSkeletonVariant; rows: num
                 </div>
               ))}
             </div>
-            <div className="shrink-0 p-3">
+            <div className="shrink-0 p-3 w-full max-w-[768px] mx-auto">
               <Skeleton className="h-16 w-full rounded-card" />
             </div>
           </div>
-          {/* Pane tài liệu */}
-          <Card bare={bare} className="flex-1 min-w-0 px-8 py-6 flex flex-col gap-3.5">
-            <Skeleton className="h-5 w-1/3" />
-            <Skeleton className="h-2.5 w-1/5" />
-            <div className="h-2" />
-            {range(9).map((i) => (
-              <Skeleton key={i} className={`h-3 ${i % 4 === 3 ? "w-2/3" : "w-full"}`} />
-            ))}
-          </Card>
+          {workspacePane === "brief" && (
+            // Khung "Brief đang hình thành": đầu khung (icon + tiêu đề) và các ô thông tin nền fill
+            <div className="flex-1 min-w-[320px] px-6 py-6">
+              <div className="max-w-[600px] mx-auto flex flex-col gap-4">
+                <div className="flex items-start gap-3">
+                  <Skeleton className="size-9 shrink-0 rounded-control" />
+                  <div className="flex-1 flex flex-col gap-2 pt-0.5">
+                    <Skeleton className="h-4 w-44" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                </div>
+                <Skeleton className="h-16 w-full rounded-card" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-16 rounded-card" />
+                  <Skeleton className="h-16 rounded-card" />
+                </div>
+                <Skeleton className="h-28 w-full rounded-card" />
+              </div>
+            </div>
+          )}
+          {workspacePane === "document" && (
+            <Card bare={bare} className="flex-1 min-w-0 px-8 py-6 flex flex-col gap-3.5">
+              <Skeleton className="h-5 w-1/3" />
+              <Skeleton className="h-2.5 w-1/5" />
+              <div className="h-2" />
+              {range(9).map((i) => (
+                <Skeleton key={i} className={`h-3 ${i % 4 === 3 ? "w-2/3" : "w-full"}`} />
+              ))}
+            </Card>
+          )}
         </div>
       );
 
@@ -165,7 +191,7 @@ function Body({ variant, rows, bare }: { variant: PageSkeletonVariant; rows: num
  * liệu về thì nội dung thế vào đúng chỗ thay vì đẩy layout nhảy một phát.
  * Dùng cho phần thân trang; thanh điều hướng/topbar thật nên vẽ luôn (không cần giữ chỗ).
  */
-export default function PageSkeleton({ variant = "page", rows, label, bare = false, className }: PageSkeletonProps) {
+export default function PageSkeleton({ variant = "page", rows, label, bare = false, className, workspacePane = "document" }: PageSkeletonProps) {
   return (
     <div
       role="status"
@@ -175,7 +201,7 @@ export default function PageSkeleton({ variant = "page", rows, label, bare = fal
       data-testid="page-skeleton"
       data-variant={variant}
     >
-      <Body variant={variant} rows={rows ?? DEFAULT_ROWS[variant]} bare={bare} />
+      <Body variant={variant} rows={rows ?? DEFAULT_ROWS[variant]} bare={bare} workspacePane={workspacePane} />
     </div>
   );
 }

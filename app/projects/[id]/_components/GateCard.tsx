@@ -29,9 +29,25 @@ interface GateCardProps {
   phaseSummary?: ChangeSummary[];
   /** Toàn bộ payload `gate_ready` — Lớp 4 "Bạn vừa có" (tóm tắt, cờ, giả định, thời gian, credit). */
   payload?: GateReadyEvent | null;
+  /**
+   * Lý do AI đặt từng giả định (`assumptions[].rationale` trong Spine), theo id. `gate_ready` chỉ mang câu giả định,
+   * không mang lý do — thiếu dòng này user phải xác nhận một điều mà không biết AI dựa vào đâu.
+   */
+  assumptionReasons?: Readonly<Record<string, string>>;
+  /**
+   * Giả định còn "chưa xác nhận" trong Spine (kể cả của bước trước). `gate_ready` chỉ mang giả định MỚI của bước này —
+   * user bấm Duyệt ở bước trước mà chưa bấm Đúng/Bỏ thì giả định đó phải hiện lại ở cổng kế, không trôi mất.
+   */
+  pendingAssumptions?: AssumptionBrief[];
+  /** Duyệt = xác nhận luôn các giả định đang hiện mà user chưa Bỏ/Sửa. Chờ ghi xong rồi mới chốt bước. */
+  onConfirmAssumptions?: (ids: string[]) => Promise<unknown>;
   /** Cờ đỏ đang chặn ký baseline (422 BASELINE_BLOCKED khi Accept ở S-9.5). */
   blockingFlags?: BlockingFlag[];
-  onAssumptionDecision?: (decision: AssumptionDecision) => void;
+  /**
+   * "Sửa" (FLF-221) gọi AI dịch câu user gõ rồi ghi cả hai bản — trả `false` khi lỗi để thẻ giữ nguyên ô sửa và chữ
+   * user đã gõ. Đúng/Bỏ không cần chờ.
+   */
+  onAssumptionDecision?: (decision: AssumptionDecision) => void | Promise<boolean | void>;
   onGoToStep?: (stepId: string) => void;
   /** Lượt chạy vừa rồi có ghi được op nào vào Spine không (L11b). */
   wroteOps?: boolean;
@@ -142,6 +158,9 @@ export default function GateCard({
   phaseLabel,
   phaseSummary,
   payload = null,
+  assumptionReasons,
+  pendingAssumptions = [],
+  onConfirmAssumptions,
   blockingFlags,
   onAssumptionDecision,
   onGoToStep,
@@ -153,11 +172,26 @@ export default function GateCard({
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [decided, setDecided] = useState<Record<string, "confirm" | "reject" | "edit">>({});
+  /** Giả định đang chờ AI dịch bản sửa — ô sửa khoá lại cho tới khi xong. */
+  const [savingEdit, setSavingEdit] = useState<string | null>(null);
 
   // Cổng chốt cuối giai đoạn nói về cả giai đoạn, không chỉ bước cuối
   const summary = phaseSummary ?? payload?.summary ?? [];
   const groups = groupSummary(summary);
-  const assumptions: AssumptionBrief[] = (payload?.new_assumptions ?? []).filter((a) => !decided[a.id]);
+  const fresh = payload?.new_assumptions ?? [];
+  const assumptions: AssumptionBrief[] = [...fresh, ...pendingAssumptions.filter((p) => !fresh.some((a) => a.id === p.id))].filter(
+    (a) => !decided[a.id]
+  );
+  /** Duyệt (kể cả "chấp nhận như hiện tại") ⇒ xác nhận các giả định còn lại trước, rồi mới chốt bước. */
+  const act = async (action: GateAction, actionNote?: string) => {
+    if ((action === "accept" || action === "accept_as_is") && assumptions.length > 0 && onConfirmAssumptions) {
+      const ids = assumptions.map((a) => a.id);
+      setDecided((current) => ({ ...current, ...Object.fromEntries(ids.map((id) => [id, "confirm" as const])) }));
+      await onConfirmAssumptions(ids);
+    }
+    if (actionNote === undefined) onAction(action);
+    else onAction(action, actionNote);
+  };
   const shownGroups = (payload?.new_assumptions ?? []).length > 0 ? groups.filter((g) => !g.key.endsWith("|assumptions")) : groups;
   // Dòng kiểm tra chỉ đáng đọc khi có gì đổi: cờ mới hoặc % tài liệu tăng/giảm
   const flagsChanged =
@@ -165,10 +199,23 @@ export default function GateCard({
     (payload.flags.red_delta !== 0 ||
       payload.flags.yellow_delta !== 0 ||
       (payload.doc_progress !== undefined && payload.doc_progress !== null && payload.doc_progress.before !== payload.doc_progress.after));
-  const decide = (decision: AssumptionDecision) => {
-    setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
-    onAssumptionDecision?.(decision);
+  const decide = async (decision: AssumptionDecision) => {
+    if (decision.kind !== "edit") {
+      setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
+      void onAssumptionDecision?.(decision);
+      return;
+    }
+    setSavingEdit(decision.id);
+    const ok = await onAssumptionDecision?.(decision);
+    setSavingEdit(null);
+    if (ok === false) return;
+    setEditing(null);
+    setDecided((current) => ({ ...current, [decision.id]: "edit" }));
   };
+
+  // AI không được gọi (bước chỉ chốt một field đã có từ bước trước): ghi 0 op là đúng, không phải lỗi — không cảnh báo
+  const nothingToDo = payload?.calls_used === 0 && Boolean(payload.no_change_reason) && emptySections.length === 0;
+  const warnNoOps = !wroteOps && !nothingToDo;
 
   const regenerateLeft = regenerateUsed < regenerateLimit && actions.includes("regenerate");
   const showAcceptAsIs = actions.includes("accept_as_is") || regenerateUsed >= regenerateLimit;
@@ -177,18 +224,18 @@ export default function GateCard({
 
   const submitNote = () => {
     if (!mode || !canSubmitNote) return;
-    onAction(mode, note.trim());
+    void act(mode, note.trim());
     setNote("");
     setMode(null);
   };
 
   return (
-    <div className="bg-white border-2 border-[#DCD8F0] rounded-[16px] p-4 flex flex-col gap-3 shadow-[0_8px_24px_rgba(106,98,196,0.08)]" aria-label="Cổng chốt">
+    <div className="bg-surface-container-lowest rounded-[16px] p-4 flex flex-col gap-3" aria-label="Cổng chốt">
       <h4 className="font-extrabold text-[13px] text-[#191817]">{phaseLabel ?? `${stepId} · ${stepLabel(stepId)}`}</h4>
 
       {/* L11b: trước đây lô op rỗng vẫn tới gate y như một lượt chạy thành công — user Accept, cờ đỏ vẫn treo,
           bấm "Mở lại" lại rơi vào đúng vòng đó. Nói thẳng ra ở đây kèm lối khác. */}
-      {(!wroteOps || emptySections.length > 0) && (
+      {(warnNoOps || emptySections.length > 0) && (
         <div role="status" className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] px-3 py-2.5 flex flex-col gap-1 text-[11.5px] text-[#8A6D1F]">
           <p className="font-bold text-[#191817]">
             {wroteOps ? "Chạy xong nhưng mục vẫn trống" : "AI không soạn được nội dung nào ở lượt này"}
@@ -243,48 +290,55 @@ export default function GateCard({
           <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#8A6D1F]">
             AI tự giả định — bạn xác nhận giúp
           </span>
+          {onConfirmAssumptions ? (
+            <span className="text-[11px] text-[#6B6862]">Bấm Duyệt là đồng ý luôn những giả định bạn chưa Bỏ hay Sửa.</span>
+          ) : null}
           {assumptions.map((assumption) => (
             <div key={assumption.id} className="flex flex-col gap-1">
               <span className="text-[12px] text-[#191817]">
-                {assumption.text}
+                {assumption.text_vi ?? assumption.text}
                 {assumption.conflict ? <em className="text-[#B03030]"> · mâu thuẫn với: {assumption.conflict}</em> : null}
               </span>
+              {assumptionReasons?.[assumption.id] ? (
+                <span className="text-[11.5px] leading-relaxed text-[#6B6862]">Vì sao: {assumptionReasons[assumption.id]}</span>
+              ) : null}
               {editing?.id === assumption.id ? (
                 <div className="flex gap-1.5">
                   <input
                     aria-label={`Sửa giả định ${assumption.id}`}
                     value={editing.text}
+                    disabled={savingEdit === assumption.id}
                     onChange={(e) => setEditing({ id: assumption.id, text: e.target.value })}
                     className="flex-1 px-2 py-1 bg-white border border-[#E5E3DF] rounded-[8px] text-[12px] outline-none"
                   />
                   <button
                     type="button"
-                    disabled={editing.text.trim().length === 0}
-                    onClick={() => decide({ kind: "edit", id: assumption.id, statement: editing.text.trim() })}
+                    disabled={editing.text.trim().length === 0 || savingEdit === assumption.id}
+                    onClick={() => void decide({ kind: "edit", id: assumption.id, statement: editing.text.trim() })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
                   >
-                    Lưu
+                    {savingEdit === assumption.id ? "Đang lưu…" : "Lưu"}
                   </button>
                 </div>
               ) : (
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => decide({ kind: "confirm", id: assumption.id })}
+                    onClick={() => void decide({ kind: "confirm", id: assumption.id })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-[#1F7A45] text-white cursor-pointer"
                   >
                     Đúng
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditing({ id: assumption.id, text: assumption.text })}
+                    onClick={() => setEditing({ id: assumption.id, text: assumption.text_vi ?? assumption.text })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold border border-[#ECEAE5] text-[#191817] cursor-pointer"
                   >
                     Sửa
                   </button>
                   <button
                     type="button"
-                    onClick={() => decide({ kind: "reject", id: assumption.id })}
+                    onClick={() => void decide({ kind: "reject", id: assumption.id })}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold border border-[#F0C4C4] text-[#B03030] cursor-pointer"
                   >
                     Bỏ
@@ -361,7 +415,7 @@ export default function GateCard({
         <button
           type="button"
           disabled={busy || !actions.includes("accept")}
-          onClick={() => onAction("accept")}
+          onClick={() => void act("accept")}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           ✓ Duyệt, sang bước tiếp

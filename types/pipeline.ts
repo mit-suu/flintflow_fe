@@ -173,7 +173,10 @@ export interface ChangeSummary {
 
 export interface AssumptionBrief {
   id: string;
+  /** `statement` (EN, vào SRS). */
   text: string;
+  /** `statement_vi` — bản ngôn ngữ user (FLF-221); BE cũ / dữ liệu cũ không có. */
+  text_vi?: string;
   conflict?: string | null;
 }
 
@@ -265,7 +268,8 @@ export interface RunState {
   alive: boolean;
   questions: Question[] | null;
   gate_payload: GateReadyEvent | null;
-  events: StepEvent[];
+  /** Mỗi sự kiện lưu kèm `at` (ISO, FLF-221) — dữ liệu cũ không có. */
+  events: (StepEvent & { at?: string })[];
   error: { code: string; message: string } | null;
 }
 
@@ -276,7 +280,13 @@ export interface RunStepRequest {
   base_version: number;
   /** Chạy lại step đã chốt (B7 reopen) — BE đặt lại `revision_requested` rồi chạy như thường. */
   reopen?: boolean;
+  /** Tin chat khởi động lượt chạy (FLF-221: chat là nút chạy) — BE ghi vào transcript của step. */
+  message?: string;
+  /** `no_idea`: chip "Mình chưa có ý tưởng" — B-0.1 hỏi gợi mở, không đưa lựa chọn. */
+  intent?: RunIntent;
 }
+
+export type RunIntent = "no_idea";
 
 export interface StepAnswer {
   question_id: string;
@@ -285,7 +295,16 @@ export interface StepAnswer {
 
 export interface StepAnswerRequest {
   session_id: string;
+  /** Được rỗng khi có `message` (FLF-221). */
   answers: StepAnswer[];
+  /** Chat tự do khi đang chờ trả lời: AI chốt câu nào được trả lời đúng ý, nhắc câu còn chờ. */
+  message?: string;
+}
+
+/** `PATCH /projects/:id/assumptions/:assumptionId` (FLF-221) — AI dịch `statement_vi` sang `statement`. */
+export interface AssumptionEditRequest {
+  statement_vi: string;
+  base_version: number;
 }
 
 /** `revision` và `accept_as_is` bắt buộc `note`. `session_id` bắt buộc (contract-change 2026-09-15). */

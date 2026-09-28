@@ -48,7 +48,7 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
         aria-expanded={open}
         aria-controls={panelId}
         title="Cách AI làm việc với bạn"
-        className={`h-8 pl-2 pr-1.5 rounded-control flex items-center gap-1 text-[12px] font-bold transition-colors cursor-pointer ${
+        className={`h-8 pl-2 pr-1.5 rounded-control flex items-center gap-1 whitespace-nowrap text-[12px] font-bold transition-colors cursor-pointer ${
           open ? "bg-surface-container-high text-on-surface" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
         }`}
       >

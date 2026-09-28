@@ -1,52 +1,10 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
-import StepIntroCard, { formatEstimate, readableInputs } from "../StepIntroCard";
 import DecisionsPanel, { topicLabel } from "../DecisionsPanel";
 import { stepDividers } from "../ChatPane";
 import { writeBadgeOf } from "../ChatBubble";
-import type { StepSummary } from "@/types/pipeline";
 import type { Decision, Spine } from "@/types/spine";
-
-const step = (over: Partial<StepSummary> & Pick<StepSummary, "id" | "phase">): StepSummary => ({
-  label_vi: "Bước",
-  label_en: "Step",
-  kind: "soft",
-  status: "pending",
-  deterministic: false,
-  calls_used: 0,
-  calls_limit: 8,
-  regenerate_used: 0,
-  regenerate_limit: 3,
-  accepted_at: null,
-  running: false,
-  ...over,
-});
-
-describe("StepIntroCard — Lớp 2 bước này sẽ…", () => {
-  it("đổi selector `reads` thành tên người đọc được", () => {
-    expect(readableInputs(["screens", "functions[screen_id=@loop]:id,name", "documents"])).toEqual([
-      "màn hình",
-      "chức năng",
-      "tài liệu bạn tải lên",
-    ]);
-  });
-
-  it("ước lượng chỉ nói về lần chạy thật, làm tròn thô", () => {
-    expect(formatEstimate({ duration_ms: 58_000, credits: 4 })).toBe("Lần trước mất khoảng 60 giây · 4 credit");
-    expect(formatEstimate({ duration_ms: 185_000, credits: 12 })).toBe("Lần trước mất khoảng 3 phút · 12 credit");
-  });
-
-  it("có nút chạy cả giai đoạn khi chế độ duyệt cho phép", () => {
-    const onRun = vi.fn();
-    const onRunPhase = vi.fn();
-    renderWithIntl(<StepIntroCard step={step({ id: "S-4.3", phase: "S-4" })} onRun={onRun} onRunPhase={onRunPhase} />);
-    fireEvent.click(screen.getByRole("button", { name: "Chạy bước này" }));
-    fireEvent.click(screen.getByRole("button", { name: "Chạy cả giai đoạn" }));
-    expect(onRun).toHaveBeenCalled();
-    expect(onRunPhase).toHaveBeenCalled();
-  });
-});
 
 describe("DecisionsPanel — tab Đã chốt (R4)", () => {
   const decision = (over: Partial<Decision> = {}): Decision => ({

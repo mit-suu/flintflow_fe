@@ -131,6 +131,44 @@ export function useWorkspace(projectId: string) {
     [projectId, sessions, activeSession, selectSession]
   );
 
+  /**
+   * Tải các tệp đang đính kèm lên `/documents` (dùng chung cho chat hỏi đáp và chat khởi động bước — FLF-221). Lỗi ⇒
+   * `false`, giữ nguyên danh sách đính kèm để user thử lại; không có tệp nào ⇒ `true`.
+   */
+  const uploadPendingAttachments = useCallback(async (): Promise<boolean> => {
+    if (pendingAttachments.length === 0) return true;
+    try {
+      for (const file of pendingAttachments) {
+        const formData = new FormData();
+        formData.append("file", file);
+        await apiCall(`/projects/${projectId}/documents`, { method: "POST", body: formData });
+      }
+      setPendingAttachments([]);
+      return true;
+    } catch (err) {
+      alert(errorMessage(err, "Không thể tải tệp đính kèm lên"));
+      return false;
+    }
+  }, [pendingAttachments, projectId]);
+
+  /**
+   * Hiện ngay tin user vừa gửi khi tin đó đi thẳng vào lượt chạy bước (BE ghi transcript, FLF-221) — không chờ tải lại
+   * phiên chat.
+   */
+  const appendLocalMessage = useCallback((content: string, step: string | null, role: ChatMessage["role"] = "user") => {
+    const message: ChatMessage = { role, content, step: step ?? "chat", createdAt: new Date().toISOString() };
+    setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, message] } : prev));
+  }, []);
+
+  /** Gỡ tin vừa hiện tạm khi lượt gửi không đi tới đâu (chữ trả về ô nhập) — không để tin "ma" trong khung chat. */
+  const dropLocalMessage = useCallback((content: string) => {
+    setActiveSession((prev) => {
+      if (!prev) return prev;
+      const index = prev.messages.findLastIndex((m) => m.role === "user" && m.content === content);
+      return index < 0 ? prev : { ...prev, messages: prev.messages.filter((_, i) => i !== index) };
+    });
+  }, []);
+
   /** Hỏi đáp tự do trong chat; step hiện tại gửi kèm để BE lưu transcript theo step. */
   const sendMessage = useCallback(
     async (currentStep: string | null, customContent?: string) => {
@@ -146,12 +184,12 @@ export function useWorkspace(projectId: string) {
       setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev));
 
       try {
-        for (const file of pendingAttachments) {
-          const formData = new FormData();
-          formData.append("file", file);
-          await apiCall(`/projects/${projectId}/documents`, { method: "POST", body: formData });
+        if (!(await uploadPendingAttachments())) {
+          // Tệp chưa lên được (đã báo lỗi): gỡ tin tạm, trả chữ về ô chat để user gửi lại
+          setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+          setInputMessage(text);
+          return;
         }
-        setPendingAttachments([]);
 
         setStreamingMessage("");
         await streamChatMessage({
@@ -181,7 +219,7 @@ export function useWorkspace(projectId: string) {
         setSending(false);
       }
     },
-    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending]
+    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments]
   );
 
   const selectAttachment = useCallback((event: ChangeEvent<HTMLInputElement>) => {
@@ -216,6 +254,9 @@ export function useWorkspace(projectId: string) {
       selectSession,
       deleteSession,
       sendMessage,
+      uploadPendingAttachments,
+      appendLocalMessage,
+      dropLocalMessage,
       selectAttachment,
       removeAttachment,
       refreshUser,
@@ -237,6 +278,9 @@ export function useWorkspace(projectId: string) {
       selectSession,
       deleteSession,
       sendMessage,
+      uploadPendingAttachments,
+      appendLocalMessage,
+      dropLocalMessage,
       selectAttachment,
       removeAttachment,
       refreshUser,

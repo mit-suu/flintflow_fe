@@ -176,7 +176,7 @@ export default function ChatInput({
         />
 
         {/* compact: bỏ khung thanh công cụ, nút đính kèm sang trái ô gõ, nút gửi sang phải */}
-        <div className={compact ? "contents" : "flex items-center justify-between pt-1"}>
+        <div className={compact ? "contents" : "@container flex items-center justify-between gap-2 pt-1"}>
           <div className={`flex items-center gap-1.5 ${compact ? "order-1" : ""}`}>
             {!compact && toolbarExtra}
             {onToggleEditMode && !compact && (
@@ -186,7 +186,7 @@ export default function ChatInput({
                 disabled={Boolean(editDisabledReason) && !editMode}
                 aria-pressed={editMode}
                 title={editDisabledReason && !editMode ? editDisabledReason : editMode ? "Tắt để quay lại trò chuyện" : "Gõ lệnh sửa tài liệu, xem trước rồi mới áp dụng"}
-                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 text-[12px] font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 whitespace-nowrap text-[12px] font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
                   editMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
                 }`}
               >
@@ -224,9 +224,10 @@ export default function ChatInput({
                   </span>
                 )
               : (creditEstimate !== null || creditBalance !== null) && (
-                  <span className="text-[11px] text-on-surface-subtle tabular-nums" title="Giá mỗi tin nhắn · số credit còn lại">
-                    {creditEstimate !== null && <>~{creditEstimate} credit / {editMode ? "lệnh sửa" : "msg"}</>}
-                    {creditEstimate !== null && creditBalance !== null && " · "}
+                  <span className="text-[11px] text-on-surface-subtle tabular-nums whitespace-nowrap" title="Giá mỗi tin nhắn · số credit còn lại">
+                    {/* Khung chat hẹp: chỉ giữ số dư, giá mỗi tin nằm trong tooltip */}
+                    {creditEstimate !== null && <span className="hidden @[470px]:inline">~{creditEstimate} credit / {editMode ? "lệnh sửa" : "msg"}</span>}
+                    {creditEstimate !== null && creditBalance !== null && <span className="hidden @[470px]:inline"> · </span>}
                     {creditBalance !== null && <>còn {creditBalance}</>}
                   </span>
                 )}

@@ -129,6 +129,12 @@ const cases: EndpointCase[] = [
     post({ base_version: 4 }),
   ],
   [
+    "editAssumption (FLF-221)",
+    () => spine.editAssumption("p1", "AS01", { statement_vi: "Chỉ dùng nội bộ", base_version: 4 }),
+    "/projects/p1/assumptions/AS01",
+    { method: "PATCH", body: JSON.stringify({ statement_vi: "Chỉ dùng nội bộ", base_version: 4 }) },
+  ],
+  [
     "getTraceability",
     () => spine.getTraceability("p1", { entity: "actor", id: "A01" }),
     "/projects/p1/traceability?entity=actor&id=A01",
@@ -140,6 +146,12 @@ const cases: EndpointCase[] = [
     () => pipeline.answerStep("p1", "S-3.1", { session_id: "c1", answers: [{ question_id: "q1", answer: "Có" }] }),
     "/projects/p1/steps/S-3.1/answer",
     post({ session_id: "c1", answers: [{ question_id: "q1", answer: "Có" }] }),
+  ],
+  [
+    "answerStep (message, FLF-221)",
+    () => pipeline.answerStep("p1", "S-3.1", { session_id: "c1", answers: [], message: "Bản web trước" }),
+    "/projects/p1/steps/S-3.1/answer",
+    post({ session_id: "c1", answers: [], message: "Bản web trước" }),
   ],
   [
     "submitGate",

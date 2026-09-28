@@ -58,6 +58,8 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
   const [tab, setTab] = useState(0);
   const [answers, setAnswers] = useState<Record<number, CardAnswer>>({});
   const [focusedOption, setFocusedOption] = useState<number | null>(null);
+  /** Thu gọn thẻ còn một dòng (tab + câu hỏi) để đọc lại hội thoại phía trên; câu trả lời đã chọn vẫn giữ. */
+  const [collapsed, setCollapsed] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const otherRef = useRef<HTMLInputElement>(null);
 
@@ -156,7 +158,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
         role="group"
         aria-label={onReview ? "Xem lại câu trả lời" : `Câu hỏi ${current + 1} trên ${total}`}
         onKeyDown={handleCardKeyDown}
-        className="@container rounded-card bg-surface-container-lowest p-2 flex flex-col gap-1 outline-none"
+        className="@container rounded-card bg-surface-container-lowest p-2 flex flex-col gap-0.5 outline-none"
       >
         {/* Hàng tab: mỗi câu một tab theo header, tab cuối "Xem lại" · đóng */}
         <div className="flex items-center gap-1 pl-1 pr-1 pt-0.5">
@@ -196,6 +198,21 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
               </span>
             )}
           </div>
+          {collapsed && question && (
+            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-on-surface" title={question.question}>
+              {question.question}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Mở rộng câu hỏi" : "Thu gọn câu hỏi"}
+            title={collapsed ? "Mở rộng" : "Thu gọn"}
+            className="w-6 h-6 shrink-0 grid place-items-center rounded-inner text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors"
+          >
+            <Icon name={collapsed ? "chevron-up" : "chevron-down"} size={14} />
+          </button>
           {onDismiss && (
             <button
               type="button"
@@ -209,13 +226,13 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
           )}
         </div>
 
-        {onReview ? (
+        {collapsed ? null : onReview ? (
           <QuestionReview questions={questions} values={values} onEdit={goTo} />
         ) : (
           question && (
             <>
-              <div className="flex flex-col gap-0.5 px-2 pt-1 pb-1">
-                <p className="text-[13px] font-bold text-on-surface leading-relaxed">{question.question}</p>
+              <div className="flex flex-col gap-0.5 px-2 pt-0.5 pb-0.5">
+                <p className="text-[12.5px] font-bold text-on-surface leading-snug">{question.question}</p>
                 {isMultiple && <span className="text-[11px] text-on-surface-muted">Chọn một hoặc nhiều đáp án</span>}
               </div>
 
@@ -244,10 +261,10 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
                   })}
 
                   {/* "Khác…": luôn có, gõ tự do */}
-                  <label className="flex items-center gap-2.5 px-2 py-1.5 rounded-control hover:bg-surface-container transition-colors cursor-text">
+                  <label className="flex items-center gap-2 px-2 py-1 rounded-control hover:bg-surface-container transition-colors cursor-text">
                     <span
                       aria-hidden
-                      className={`w-6 h-6 shrink-0 grid place-items-center rounded-inner text-[11px] font-bold tabular-nums ${
+                      className={`w-5 h-5 shrink-0 grid place-items-center rounded-inner text-[10.5px] font-bold tabular-nums ${
                         answer.custom.trim() ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-muted"
                       }`}
                     >
@@ -268,7 +285,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
                       }}
                       aria-label="Câu trả lời khác"
                       placeholder="Khác…"
-                      className="flex-1 min-w-0 bg-transparent outline-none text-[12.5px] text-on-surface placeholder:text-on-surface-subtle"
+                      className="flex-1 min-w-0 bg-transparent outline-none text-[12px] text-on-surface placeholder:text-on-surface-subtle"
                     />
                   </label>
                 </div>
@@ -287,7 +304,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
         )}
 
         {/* Hành động */}
-        <div className="flex items-center justify-end gap-2 px-1 pt-1 pb-0.5">
+        <div hidden={collapsed} className={`${collapsed ? "hidden" : "flex"} items-center justify-end gap-2 px-1 pt-0.5 pb-0.5`}>
           {isSubmitTab && !hasAnyAnswer && onDismiss && (
             <button
               type="button"
