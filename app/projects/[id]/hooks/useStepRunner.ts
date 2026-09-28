@@ -72,6 +72,11 @@ export interface RunnerState {
   autoAccepted: { step_id: string; reason_vi: string }[];
   /** Cổng chốt cuối giai đoạn: tóm tắt của cả giai đoạn. */
   phaseGate: Extract<StepEvent, { type: "phase_gate" }> | null;
+  /**
+   * `live`: đang nghe luồng SSE của lượt. `restored`: state dựng lại từ run-state (reload, BE restart, luồng đóng
+   * lúc đang chờ trả lời) — không có SSE nên tiến trình sau khi trả lời phải theo dõi bằng cách hỏi run-state (FLF-222).
+   */
+  source: "live" | "restored";
 }
 
 export type RunnerAction =
@@ -84,6 +89,7 @@ export type RunnerAction =
   | { type: "restored"; state: RunState; at?: number }
   | { type: "reconnecting" }
   | { type: "interrupted" }
+  | { type: "detached" }
   | { type: "reset" };
 
 export const initialRunnerState: RunnerState = {
@@ -106,6 +112,7 @@ export const initialRunnerState: RunnerState = {
   phaseProgress: null,
   autoAccepted: [],
   phaseGate: null,
+  source: "live",
 };
 
 const STATUS_BY_STAGE: Record<RunStage, RunnerStatus> = {
@@ -242,6 +249,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         summary,
         stage: run.stage,
         detail: run.detail_vi,
+        source: "restored",
         batch: run.batch,
         startedAt: new Date(run.started_at).getTime(),
         lastEventAt: at,
@@ -250,10 +258,14 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       if (run.status === "waiting_answer" && run.questions) return { ...base, status: "needs_input", questions: run.questions };
       if (run.status === "running" && run.alive) return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true };
       if (run.status === "interrupted" || (run.status === "running" && !run.alive)) {
-        return { ...base, status: "interrupted", detail: "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ." };
+        // Lỗi của lượt (vd lượt chạy tiếp ở nền sau khi trả lời) hiện ở khối lỗi kèm nút làm lại
+        return { ...base, status: "interrupted", detail: "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.", error: run.error ?? null };
       }
       return initialRunnerState;
     }
+    case "detached":
+      // Luồng đóng lúc đang chờ trả lời (BE hết giờ chờ): câu hỏi vẫn trả lời được, chỉ là không còn SSE nữa
+      return { ...state, status: "needs_input", busy: false, source: "restored" };
     case "reset":
       return initialRunnerState;
   }
@@ -302,6 +314,21 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 const isVersionConflict = (err: unknown): boolean => err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT";
 
+/** Đơn vị giai đoạn (`S-4`, `S-5@S03`) — lượt hỏi gộp đầu giai đoạn; id bước luôn có dấu chấm (`S-4.1`). */
+export const isPhaseUnit = (id: string): boolean => !id.split("@")[0].includes(".");
+
+/** Theo dõi sự kiện chờ trả lời của một luồng: luồng đóng khi còn đang chờ ⇒ tách lượt, không phải lỗi. */
+const trackAwaiting = () => {
+  let awaiting = false;
+  return {
+    see: (event: StepEvent) => {
+      if (event.type === "answer_needed") awaiting = true;
+      else if (event.type === "answer_received" || isTerminalEvent(event)) awaiting = false;
+    },
+    awaiting: () => awaiting,
+  };
+};
+
 export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
@@ -331,6 +358,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       try {
         for (let attempt = 0; ; attempt++) {
           let terminated = false;
+          const awaiting = trackAwaiting();
           try {
             await runStep(projectId, stepId, { session_id: sessionId, base_version: baseVersion, ...(options.reopen ? { reopen: true } : {}) }, {
               signal: controller.signal,
@@ -338,6 +366,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
                 // Luồng cũ đã bị huỷ, hoặc sự kiện của step khác: bỏ qua
                 if (controller.signal.aborted || event.step_id !== stepId) return;
                 if (isTerminalEvent(event)) terminated = true;
+                awaiting.see(event);
                 dispatch({ type: "event", event, at: Date.now() });
                 if (event.type === "ops_applied") onSpineChanged(event.spine_version);
                 // gate_ready mang version CUỐI (sau render + recompute cờ) — cao hơn ops_applied. Nhận nó ở đây
@@ -349,7 +378,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
               },
             });
             if (!controller.signal.aborted && !terminated) {
-              dispatch({ type: "failed", code: STREAM_CLOSED, message: "Kết nối tới step bị đóng giữa chừng. Vui lòng chạy lại." });
+              if (awaiting.awaiting()) dispatch({ type: "detached" });
+              else dispatch({ type: "failed", code: STREAM_CLOSED, message: "Kết nối tới step bị đóng giữa chừng. Vui lòng chạy lại." });
             }
             return;
           } catch (err) {
@@ -411,6 +441,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       // mà không dừng ⇒ quên giai đoạn đi, nếu không Accept của bước lẻ sau đó lại khởi động chuỗi mới.
       let stoppedAtGate = false;
       let failed = false;
+      const awaiting = trackAwaiting();
       try {
         await runPhase(projectId, phase, { session_id: sessionId, base_version: baseVersion }, {
           signal: controller.signal,
@@ -419,6 +450,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
             if (event.type === "phase_progress" || event.type === "auto_accepted" || event.type === "phase_gate") stepRef.current = event.step_id;
             else if (event.step_id !== stepRef.current && event.type !== "error") stepRef.current = event.step_id;
             dispatch({ type: "event", event, at: Date.now() });
+            awaiting.see(event);
             if (event.type === "ops_applied") onSpineChanged(event.spine_version);
             if (event.type === "gate_ready" || event.type === "auto_accepted") onSpineChanged();
             if (event.type === "gate_ready" || event.type === "phase_gate") stoppedAtGate = true;
@@ -431,7 +463,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (!stoppedAtGate) phaseRef.current = null;
         // Giai đoạn đã xong: luồng đóng mà không có cổng chốt nào. Không trả về "rảnh" ở đây thì màn hình
         // treo ở trạng thái đang chạy — không thẻ tiến trình, không thẻ "Bước này sẽ…", không nút nào.
-        if (!stoppedAtGate && !failed && !controller.signal.aborted) dispatch({ type: "reset" });
+        if (!stoppedAtGate && !failed && !controller.signal.aborted) dispatch(awaiting.awaiting() ? { type: "detached" } : { type: "reset" });
         onSpineChanged();
         if (abortRef.current === controller) abortRef.current = null;
       }
@@ -439,18 +471,25 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     [projectId, sessionId, getBaseVersion, onSpineChanged]
   );
 
+  /**
+   * Không còn luồng SSE (state dựng lại từ run-state): BE chạy tiếp lượt ở nền. Bước ⇒ canh chừng hỏi run-state
+   * mỗi nhịp tới gate/lỗi. Phỏng vấn đầu giai đoạn ⇒ BE chỉ ghi câu trả lời, FE chạy lại cả giai đoạn (FLF-222).
+   */
   const answer = useCallback(
     async (answers: StepAnswer[]) => {
       const stepId = stepRef.current;
       if (!stepId || !sessionId) return;
+      const restored = state.source === "restored";
       dispatch({ type: "answered", count: answers.length });
       try {
         await answerStep(projectId, stepId, { session_id: sessionId, answers });
       } catch (err) {
         dispatch({ type: "failed", ...toFailure(err) });
+        return;
       }
+      if (restored && isPhaseUnit(stepId)) await runWholePhase(stepId);
     },
-    [projectId, sessionId]
+    [projectId, sessionId, state.source, runWholePhase]
   );
 
   const gate = useCallback(
@@ -529,22 +568,31 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   }, []);
 
   // ─── canh chừng: không có tín hiệu nào quá lâu ⇒ hỏi BE lượt còn sống không (03 §3) ───
-  const waiting = state.busy && (state.status === "drafting" || state.status === "intake" || state.status === "eliciting" || state.status === "rendering");
+  // Không có SSE (state dựng lại từ run-state) thì run-state là nguồn tin duy nhất: hỏi mỗi nhịp, không chờ quá
+  // hạn heartbeat, và không báo "mất kết nối" — đó là cách theo dõi bình thường chứ không phải sự cố (FLF-222).
+  const waiting = state.busy && (state.status === "drafting" || state.status === "intake" || state.status === "eliciting" || state.status === "applied" || state.status === "rendering");
+  const polling = state.source === "restored";
   useEffect(() => {
     if (!waiting || !state.stepId) return;
     const timer = setInterval(() => {
-      if (state.lastEventAt === null || Date.now() - state.lastEventAt < HEARTBEAT_TIMEOUT_MS) return;
-      dispatch({ type: "reconnecting" });
+      if (!polling && (state.lastEventAt === null || Date.now() - state.lastEventAt < HEARTBEAT_TIMEOUT_MS)) return;
+      if (!polling) dispatch({ type: "reconnecting" });
       void getRunState(projectId, state.stepId as string)
         .then((res) => {
           const run = res.data;
-          if (!run || !run.alive) dispatch({ type: "interrupted" });
-          else dispatch({ type: "restored", state: run, at: Date.now() });
+          if (!run || !run.alive) {
+            dispatch({ type: "interrupted" });
+            return;
+          }
+          dispatch({ type: "restored", state: run, at: Date.now() });
+          // Lượt nền đã ghi Spine: tải lại tài liệu/tiến độ, và giữ `spine_version` cuối cho lượt ghi kế tiếp
+          if (polling && run.status === "gate") onSpineChanged(run.gate_payload?.spine_version);
+          else if (polling && run.status === "interrupted") onSpineChanged();
         })
         .catch(() => dispatch({ type: "interrupted" }));
     }, WATCHDOG_TICK_MS);
     return () => clearInterval(timer);
-  }, [waiting, state.stepId, state.lastEventAt, projectId]);
+  }, [waiting, polling, state.stepId, state.lastEventAt, projectId, onSpineChanged]);
 
   return { state, run, runWholePhase, answer, gate, cancel, restore, reset };
 }
