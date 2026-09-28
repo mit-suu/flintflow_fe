@@ -117,7 +117,13 @@ const readWorkspacePane = (projectId: string): WorkspacePane => {
   }
 };
 
-const WorkspaceLoading = ({ projectId }: { projectId: string }) => (
+// localStorage không phát sự kiện trong cùng tab — chỉ cần đọc lại sau hydrate, không cần đăng ký
+const subscribeNothing = () => () => {};
+
+const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
+  // Server snapshot `none` ⇒ lần render hydrate khớp HTML server; ngay sau đó client đọc khung phải đã lưu
+  const workspacePane = useSyncExternalStore(subscribeNothing, () => readWorkspacePane(projectId), () => "none" as const);
+  return (
   <div className="h-screen flex overflow-hidden bg-surface-container-lowest">
     {/* Giữ chỗ rail tiến độ trái — cùng bề rộng/chiều cao hàng với WorkspaceProgressRail */}
     <div aria-hidden className="w-[264px] shrink-0 flex flex-col">
@@ -153,14 +159,15 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => (
       </div>
       <PageSkeleton
         variant="workspace"
-        workspacePane={readWorkspacePane(projectId)}
+        workspacePane={workspacePane}
         bare
         label="Đang tải không gian làm việc SRS"
         className="flex-1 min-h-0"
       />
     </div>
   </div>
-);
+  );
+};
 
 /**
  * Rẽ nhánh theo `project.mode`: mode 2 (`fpt`) ⇒ workspace pipeline. Mode 1 (`import`, upload SRS có sẵn) v2
