@@ -738,7 +738,13 @@
       "saving": "Updating…",
       "submit": "Change password",
       "forgotCurrent": "Forgot your current password?",
-      "forgotNote": "After resetting it you will need to sign in again."
+      "forgotNote": "After resetting it you will need to sign in again.",
+      "logoutAllTitle": "Sign out of all devices",
+      "logoutAllBody": "End every session of this account, including this device. Use it if you forgot to sign out elsewhere or suspect your password has leaked. Other devices are signed out within a few minutes.",
+      "logoutAllCta": "Sign out of all devices",
+      "logoutAllConfirm": "You will be signed out of every device, including this one. Continue?",
+      "logoutAllConfirmCta": "Sign out everywhere",
+      "logoutAllFailed": "Could not sign out of all devices. Please try again."
     },
     "org": {
       "roles": {
