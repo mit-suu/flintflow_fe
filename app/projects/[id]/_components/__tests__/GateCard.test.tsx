@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
-import GateCard, { groupSummary } from "../GateCard";
+import GateCard, { groupSummary, joinSummaryTexts } from "../GateCard";
 import type { GateAction, GateReadyEvent } from "@/types/pipeline";
 
 const ALL: GateAction[] = ["accept", "revision", "regenerate"];
@@ -163,7 +163,7 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     expect(screen.queryByText(/Kiểm tra:/)).toBeNull();
   });
 
-  it("giả định mới có ba nút Đúng / Sửa / Bỏ và biến mất sau khi quyết (BUG-13)", async () => {
+  it("giả định mới có ba nút Đúng / Sửa / Bỏ; Sửa xong vẫn hiện câu mới với nhãn Đã sửa", async () => {
     const onAssumptionDecision = vi.fn();
     renderWithIntl(
       <GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAssumptionDecision={onAssumptionDecision} onAction={vi.fn()} />
@@ -175,8 +175,112 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
 
     expect(onAssumptionDecision).toHaveBeenCalledWith({ kind: "edit", id: "AS12", statement: "Lễ tân được xoá lịch trong ngày" });
-    // "Sửa" chờ BE dịch bản sửa xong (FLF-221) rồi thẻ mới ẩn
-    await waitFor(() => expect(screen.queryByText(/AI tự giả định/)).not.toBeInTheDocument());
+    // "Sửa" chờ BE dịch bản sửa xong rồi mới đổi dòng: giả định không biến mất, hiện câu mới, hết nút quyết
+    await waitFor(() => expect(screen.getByText("Đã sửa:")).toBeInTheDocument());
+    expect(screen.getByText("Lễ tân được xoá lịch trong ngày")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull();
+  });
+
+  it("giả định về nền tảng: Sửa mở danh sách lựa chọn, chọn ⇒ quyết định pick, không mở ô gõ", async () => {
+    const onAssumptionDecision = vi.fn().mockResolvedValue(true);
+    const brief: GateReadyEvent = {
+      ...payload,
+      summary: [{ kind: "update", collection: "project", id: null, title_vi: "form_factor: web_app" }],
+      new_assumptions: [{ id: "AS1", text: "Web app", text_vi: "Nền tảng là web" }],
+    };
+    renderWithIntl(
+      <GateCard
+        stepId="B-0.1"
+        actions={ALL}
+        regenerateUsed={0}
+        payload={brief}
+        assumptionPaths={{ AS1: "project.form_factor" }}
+        onAssumptionDecision={onAssumptionDecision}
+        onAction={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Sửa" }));
+    expect(screen.queryByLabelText("Sửa giả định AS1")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Mobile" }));
+
+    expect(onAssumptionDecision).toHaveBeenCalledWith({ kind: "pick", id: "AS1", path: "project.form_factor", value: "mobile_app", label: "Mobile" });
+    await waitFor(() => expect(screen.getByText("Nền tảng: Mobile")).toBeInTheDocument());
+    // Giá trị cũ không còn hiện ở "AI đã ghi nhận"
+    expect(screen.queryByText(/Nền tảng: Web/)).toBeNull();
+  });
+
+  it("bấm Duyệt 2 lần trong lúc chờ xác nhận giả định ⇒ chỉ một lượt Duyệt, nút khoá", async () => {
+    let release: () => void = () => undefined;
+    const onConfirmAssumptions = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+    const onAction = vi.fn();
+    const brief: GateReadyEvent = { ...payload, new_assumptions: [{ id: "AS1", text: "A" }] };
+    renderWithIntl(
+      <GateCard stepId="B-1.2" actions={ALL} regenerateUsed={0} payload={brief} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
+    );
+    const accept = screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ });
+    fireEvent.click(accept);
+    fireEvent.click(accept);
+    await waitFor(() => expect(accept).toBeDisabled());
+    release();
+    await waitFor(() => expect(onAction).toHaveBeenCalledTimes(1));
+    expect(onConfirmAssumptions).toHaveBeenCalledTimes(1);
+  });
+
+  it("reload: giả định trong payload đã xác nhận ở Spine không hiện lại để hỏi", () => {
+    const brief: GateReadyEvent = { ...payload, new_assumptions: [{ id: "AS1", text: "Web app" }] };
+    renderWithIntl(<GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={brief} settledAssumptionIds={new Set(["AS1"])} onAction={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull();
+  });
+
+  it("reload sau khi chọn Mobile: dòng tóm tắt cũ 'Nền tảng: Web' không hiện lại", () => {
+    const brief: GateReadyEvent = {
+      ...payload,
+      summary: [{ kind: "update", collection: "project", id: null, title_vi: "form_factor: web_app" }],
+      new_assumptions: [{ id: "AS1", text: "Web app", text_vi: "Nền tảng là web" }],
+    };
+    renderWithIntl(
+      <GateCard
+        stepId="B-0.1"
+        actions={ALL}
+        regenerateUsed={0}
+        payload={brief}
+        assumptionPaths={{ AS1: "project.form_factor" }}
+        settledAssumptionIds={new Set(["AS1"])}
+        onAction={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/Nền tảng: Web/)).toBeNull();
+  });
+
+  it("Duyệt chỉ xác nhận giả định chưa quyết — giả định đã Sửa không gửi lại", async () => {
+    const onConfirmAssumptions = vi.fn().mockResolvedValue(undefined);
+    const onAction = vi.fn();
+    const brief: GateReadyEvent = {
+      ...payload,
+      new_assumptions: [
+        { id: "AS1", text: "A" },
+        { id: "AS2", text: "B" },
+      ],
+    };
+    renderWithIntl(
+      <GateCard
+        stepId="B-0.1"
+        actions={ALL}
+        regenerateUsed={0}
+        payload={brief}
+        onAssumptionDecision={vi.fn().mockResolvedValue(true)}
+        onConfirmAssumptions={onConfirmAssumptions}
+        onAction={onAction}
+      />
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Sửa" })[0]);
+    fireEvent.change(screen.getByLabelText("Sửa giả định AS1"), { target: { value: "A mới" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+    await waitFor(() => expect(screen.getByText("A mới")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ }));
+    await waitFor(() => expect(onAction).toHaveBeenCalledWith("accept"));
+    expect(onConfirmAssumptions).toHaveBeenCalledWith(["AS2"]);
   });
 
   it("step không đổi gì thì nói rõ vì sao", () => {
@@ -211,5 +315,31 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
 
   it("groupSummary gộp theo loại thay đổi và collection", () => {
     expect(groupSummary(payload.summary ?? []).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
+  });
+
+  it("nối tóm tắt: bỏ dấu câu cuối mỗi mục, nối bằng '; '", () => {
+    expect(joinSummaryTexts(["Tuân thủ quy định nhà nước.", "Từ 50 người dùng,", "  ", "Bảo mật;"])).toBe(
+      "Tuân thủ quy định nhà nước; Từ 50 người dùng; Bảo mật"
+    );
+  });
+
+  it("trường đang có giả định chờ không hiện ở 'AI đã ghi nhận'; không còn ', .' hay '., '", () => {
+    const brief: GateReadyEvent = {
+      ...payload,
+      summary: [
+        { kind: "update", collection: "project", id: null, title_vi: "form_factor: web_app" },
+        { kind: "update", collection: "project", id: null, title_vi: "complexity: small" },
+        { kind: "add", collection: "addendum", id: "AD1", title_vi: "Tuân thủ quy định nhà nước." },
+        { kind: "add", collection: "addendum", id: "AD2", title_vi: "Từ 50 người dùng." },
+      ],
+      new_assumptions: [{ id: "AS1", text: "Web app", text_vi: "Nền tảng là web" }],
+    };
+    const { container } = renderWithIntl(
+      <GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={brief} assumptionPaths={{ AS1: "project.form_factor" }} onAction={vi.fn()} />
+    );
+    expect(screen.queryByText(/Nền tảng: Web/)).toBeNull();
+    expect(screen.getByText(/~1 thông tin dự án/)).toBeInTheDocument();
+    expect(screen.getByText(/Tuân thủ quy định nhà nước; Từ 50 người dùng/)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/, \.|\., /);
   });
 });

@@ -33,7 +33,7 @@ import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
-import GateCard, { type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
+import GateCard, { PICKABLE_FIELDS, type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import ChatBubble from "./_components/ChatBubble";
 import StepProgress from "./_components/StepProgress";
@@ -444,9 +444,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * 409. Nối đuôi nhau thì lượt sau luôn thấy phiên bản mới nhất.
    */
   const submitOpsNow = useCallback(
-    async (ops: Op[]) => {
+    async (ops: Op[]): Promise<boolean> => {
       const baseVersion = versionRef.current;
-      if (baseVersion === null) return;
+      if (baseVersion === null) return false;
       setSavingChange(true);
       try {
         // Sau baseline v1 mọi lô ghi phải kèm lý do ở cấp transaction (change.service `post_baseline`),
@@ -458,11 +458,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         bumpVersion(result.spine_version);
         replaceSpine(result.spine);
         void reloadProgress();
+        return true;
       } catch (err) {
         const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
         const raw = err instanceof ApiClientError ? err.rawMessage : err instanceof Error ? err.message : "";
         setSaveError(friendlyError(code, raw).message);
         if (code === "SPINE_VERSION_CONFLICT") void reloadSpine();
+        return false;
       } finally {
         setSavingChange(false);
       }
@@ -500,6 +502,18 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       }
       if (decision.kind === "reject") {
         return submitOps([{ op: "set", path: `${path}.status`, value: "rejected", reason: "User bác bỏ giả định ở cổng chốt" }]);
+      }
+      // Giả định về nền tảng / mức độ quan trọng: đổi luôn trường thật và xác nhận giả định trong một lượt ghi — câu
+      // giả định dựng từ nhãn user chọn, không gọi AI dịch (không tốn credit).
+      if (decision.kind === "pick") {
+        const { title, titleEn } = PICKABLE_FIELDS[decision.path];
+        return submitOps([
+          { op: "set", path: decision.path, value: decision.value, reason: "User sửa giả định ở cổng chốt" },
+          { op: "set", path: `${path}.statement`, value: `${titleEn}: ${decision.value.replace(/_/g, " ")}` },
+          { op: "set", path: `${path}.statement_vi`, value: `${title}: ${decision.label}` },
+          { op: "set", path: `${path}.status`, value: "confirmed" },
+          { op: "set", path: `${path}.confirmed_at`, value: new Date().toISOString() },
+        ]);
       }
       // FLF-221: user sửa bằng ngôn ngữ của mình ⇒ BE gọi AI dịch sang EN và ghi cả hai bản (tốn một lượt credit).
       // Nối vào hàng đợi ghi để cầm `spine_version` mới nhất; lỗi ⇒ `false` để thẻ giữ chữ user đã gõ.
@@ -783,6 +797,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     .map((a) => ({ id: a.id, text: a.statement, ...(a.statement_vi ? { text_vi: a.statement_vi } : {}) }));
   // Lý do của từng giả định nằm ở Spine (`gate_ready` chỉ mang câu giả định) — cổng duyệt hiện "Vì sao". Chỉ lấy
   // bản ngôn ngữ user: `rationale` là tiếng Anh cho SRS, hiện cạnh câu tiếng Việt thì lẫn hai thứ tiếng.
+  const assumptionPaths = Object.fromEntries((spine?.assumptions ?? []).map((a) => [a.id, a.path] as const));
+  const settledAssumptionIds = new Set((spine?.assumptions ?? []).filter((a) => a.status !== "unconfirmed").map((a) => a.id));
   const assumptionReasons = Object.fromEntries(
     (spine?.assumptions ?? []).flatMap((a) => (a.rationale_vi ? [[a.id, a.rationale_vi] as const] : []))
   );
@@ -845,11 +861,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     ws.appendLocalMessage(content, runner.state.stepId, "ai");
   };
 
-  /** Câu trả lời trên thẻ vào lịch sử ngay, mỗi dòng "câu hỏi: lựa chọn" — đúng dạng BE ghi transcript. */
+  /**
+   * Câu trả lời trên thẻ vào lịch sử ngay: một bong bóng, mỗi đáp án một dòng — câu hỏi đã nằm ở tin AI ngay trên. Đúng
+   * dạng BE ghi transcript.
+   */
   const showCardAnswers = (answers: readonly StepAnswer[]) => {
-    if (answers.length === 0) return;
-    const questionOf = (id: string) => runner.state.questions.find((q) => q.id === id)?.text ?? id;
-    const lines = answers.map((a) => `${questionOf(a.question_id)}: ${Array.isArray(a.answer) ? a.answer.join(", ") : a.answer}`);
+    const lines = answers.map((a) => (Array.isArray(a.answer) ? a.answer.join(", ") : a.answer).trim()).filter((line) => line !== "");
+    if (lines.length === 0) return;
     ws.appendLocalMessage(lines.join("\n"), runner.state.stepId);
   };
 
@@ -1077,6 +1095,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               payload={gate.payload}
               assumptionReasons={assumptionReasons}
               pendingAssumptions={pendingAssumptions}
+              assumptionPaths={assumptionPaths}
+              settledAssumptionIds={settledAssumptionIds}
               onConfirmAssumptions={(ids) => confirmAllAssumptions(ids)}
               blockingFlags={blockingFlags}
               onAssumptionDecision={applyAssumptionDecision}
@@ -1224,7 +1244,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             {!mode1 && (
               <ProjectRecordPanel
                 spine={spine}
-                onSubmitOps={submitOps}
+                onSubmitOps={async (ops) => void (await submitOps(ops))}
                 onMarkPlaceholder={(id) => void markPlaceholder(id)}
                 busy={savingChange}
                 inBriefPhase={inBriefPhase}
