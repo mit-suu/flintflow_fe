@@ -10,7 +10,8 @@ import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { USER_AVATAR } from "@/components/layout/AppSidebar";
 import { ApiClientError } from "../../../lib/api/client";
-import { changeMyPassword, fetchMe, updateMyName } from "../../../lib/api/users";
+import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../../../lib/api/users";
+import { logoutAndRedirect } from "../../../lib/auth";
 import type { User } from "../../../types/user";
 
 const cardClass = "bg-white border border-[#ECEAE5] rounded-[16px] p-5 sm:p-6 flex flex-col gap-4";
@@ -329,6 +330,77 @@ function ChangePasswordCard({ user }: { user: User }) {
   );
 }
 
+function LogoutAllCard() {
+  const t = useTranslations("app.profile");
+  const tc = useTranslations("app.common");
+  const [confirming, setConfirming] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogoutAll = async () => {
+    setWorking(true);
+    setError(null);
+    try {
+      await logoutAllDevices();
+    } catch (err) {
+      // BE chưa thu hồi được ⇒ vẫn còn đăng nhập, không được chuyển về /login như thể đã xong
+      setError(err instanceof Error ? err.message : t("logoutAllFailed"));
+      setWorking(false);
+      return;
+    }
+    await logoutAndRedirect("/login");
+  };
+
+  return (
+    <section className={cardClass}>
+      <div>
+        <h2 className="text-[15px] font-extrabold text-[#191817]">{t("logoutAllTitle")}</h2>
+        <p className="text-[12.5px] text-[#8A867E] mt-1 leading-[1.6]">{t("logoutAllBody")}</p>
+      </div>
+
+      {error && (
+        <div className="p-3 rounded-[10px] bg-[#FDEDED] border border-[#F2CACA] text-[12px] text-[#8A4141]">{error}</div>
+      )}
+
+      {confirming ? (
+        <div className="flex flex-col gap-3 p-3.5 rounded-[10px] bg-[#FDF6F6] border border-[#F2CACA]">
+          <p className="text-[12.5px] font-semibold text-[#8A4141]">{t("logoutAllConfirm")}</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleLogoutAll()}
+              disabled={working}
+              className="px-4 py-2.5 rounded-[10px] bg-[#B03030] hover:bg-[#962828] text-white text-[13px] font-bold flex items-center gap-2 disabled:opacity-60"
+            >
+              {working ? <Spinner /> : null}
+              {t("logoutAllConfirmCta")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              disabled={working}
+              className="px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] text-[13px] font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] transition-colors disabled:opacity-60"
+            >
+              {tc("cancel")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setConfirming(true);
+            setError(null);
+          }}
+          className="self-start px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#F2CACA] text-[13px] font-bold text-[#B03030] bg-white hover:bg-[#FDEDED] transition-colors"
+        >
+          {t("logoutAllCta")}
+        </button>
+      )}
+    </section>
+  );
+}
+
 export default function ProfilePage() {
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
@@ -371,6 +443,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-6 max-w-[760px]">
             <ProfileInfoCard user={user} onUpdated={setUser} />
             <ChangePasswordCard user={user} />
+            <LogoutAllCard />
           </div>
         )}
       </div>

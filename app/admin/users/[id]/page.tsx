@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import BackLink from "@/components/ui/BackLink";
 import { useParams } from "next/navigation";
-import { fetchAdminUser, formatDateTime, formatNumber, type AdminUserDetail } from "@/lib/api/admin";
+import {
+  fetchAdminUser,
+  formatDateTime,
+  formatNumber,
+  setAdminUserStatus,
+  type AdminUserDetail,
+  type AdminUserStatus,
+} from "@/lib/api/admin";
 import type { CreditTransaction } from "@/lib/api/billing";
 import {
   AdminTopBar,
@@ -21,6 +28,114 @@ const TX_LABELS: Record<CreditTransaction["type"], string> = {
   purchase: "Nạp credit",
   monthly_reset: "Reset hằng tháng",
 };
+
+const REASON_MIN_LENGTH = 3;
+
+/** UC-66 khoá (bắt buộc lý do) / UC-67 mở khoá tài khoản. */
+function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChanged: (status: AdminUserStatus) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reasonTooShort = reason.trim().length < REASON_MIN_LENGTH;
+
+  const submit = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const status = await setAdminUserStatus(
+        user._id,
+        user.isActive ? { isActive: false, reason: reason.trim() } : { isActive: true }
+      );
+      onChanged(status);
+      setConfirming(false);
+      setReason("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể cập nhật trạng thái tài khoản");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancel = () => {
+    setConfirming(false);
+    setReason("");
+    setError(null);
+  };
+
+  return (
+    <div className="bg-white border border-[#ECEAE5] rounded-[16px] px-6 py-5 flex flex-col gap-3">
+      <div>
+        <h2 className="text-[14px] font-bold text-[#191817]">Trạng thái tài khoản</h2>
+        {user.isActive ? (
+          <p className="text-[12.5px] text-[#8A867E] mt-1">
+            Khoá tài khoản sẽ đăng xuất người này khỏi mọi thiết bị và chặn đăng nhập cho tới khi được mở khoá.
+          </p>
+        ) : (
+          <p className="text-[12.5px] text-[#8A4141] mt-1">
+            Đã khoá lúc {formatDateTime(user.suspendedAt)}
+            {user.suspendReason && <> · Lý do: {user.suspendReason}</>}
+          </p>
+        )}
+      </div>
+
+      {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
+
+      {!confirming ? (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className={`self-start h-9 px-4 rounded-[10px] text-[12.5px] font-bold transition-colors ${
+            user.isActive
+              ? "border border-[#F2CACA] text-[#B03030] bg-white hover:bg-[#FDEDED]"
+              : "border border-[#C2E5CF] text-[#1F7A45] bg-white hover:bg-[#EAF6EE]"
+          }`}
+        >
+          {user.isActive ? "Khoá tài khoản" : "Mở khoá tài khoản"}
+        </button>
+      ) : (
+        <div className="flex flex-col gap-3 max-w-[520px]">
+          {user.isActive ? (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-bold text-[#6B6862]">Lý do khoá (bắt buộc)</span>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                maxLength={500}
+                rows={3}
+                autoFocus
+                className="px-3 py-2 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#6A62C4]"
+              />
+            </label>
+          ) : (
+            <p className="text-[12.5px] text-[#33312D]">Mở khoá để người này đăng nhập lại được?</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={saving || (user.isActive && reasonTooShort)}
+              className={`h-9 px-4 rounded-[10px] text-white text-[12.5px] font-bold disabled:opacity-60 ${
+                user.isActive ? "bg-[#B03030] hover:bg-[#962828]" : "bg-[#2F7A4F] hover:bg-[#276742]"
+              }`}
+            >
+              {saving ? "Đang lưu…" : user.isActive ? "Xác nhận khoá" : "Xác nhận mở khoá"}
+            </button>
+            <button
+              type="button"
+              onClick={cancel}
+              disabled={saving}
+              className="h-9 px-4 rounded-[10px] border border-[#E4E1DC] text-[12.5px] font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] disabled:opacity-60"
+            >
+              Huỷ
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -85,15 +200,55 @@ export default function AdminUserDetailPage() {
                 </div>
               </div>
 
+              <AccountStatusCard user={user} onChanged={(status) => setUser({ ...user, ...status })} />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                  label="Số dư credit"
-                  value={formatNumber(user.wallet?.balance ?? 0)}
-                  hint={user.wallet ? `Đang giữ ${formatNumber(user.wallet.reserved)}` : "Chưa có ví"}
-                />
+                <StatCard label="Tổ chức" value={formatNumber(user.organizations.length)} />
                 <StatCard label="Dự án" value={formatNumber(user.projectsCount)} />
                 <StatCard label="Đăng nhập gần nhất" value={<span className="text-[15px]">{formatDateTime(user.lastLoginAt)}</span>} />
                 <StatCard label="Ngày tạo" value={<span className="text-[15px]">{formatDateTime(user.createdAt)}</span>} />
+              </div>
+
+              <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
+                <h2 className="px-5 py-3.5 border-b border-[#F3F1EE] text-[14px] font-bold text-[#191817]">
+                  Tổ chức tham gia
+                </h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-[#FAF9F7]">
+                      <tr>
+                        <th className={tableHeadClass}>Tổ chức</th>
+                        <th className={tableHeadClass}>Vai trò</th>
+                        <th className={tableHeadClass}>Tham gia</th>
+                        <th className={`${tableHeadClass} text-right`}>Số dư ví</th>
+                        <th className={`${tableHeadClass} text-right`}>Đang giữ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F3F1EE]">
+                      {user.organizations.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-[13px] text-[#A8A49C]">
+                            Chưa tham gia tổ chức nào
+                          </td>
+                        </tr>
+                      ) : (
+                        user.organizations.map((org) => (
+                          <tr key={org.id}>
+                            <td className={`${tableCellClass} font-semibold`}>{org.name}</td>
+                            <td className={tableCellClass}>{org.role}</td>
+                            <td className={tableCellClass}>{formatDateTime(org.joinedAt)}</td>
+                            <td className={`${tableCellClass} text-right`}>
+                              {org.wallet ? formatNumber(org.wallet.balance) : "Chưa có ví"}
+                            </td>
+                            <td className={`${tableCellClass} text-right`}>
+                              {org.wallet ? formatNumber(org.wallet.reserved) : "—"}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">

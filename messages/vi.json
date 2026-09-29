@@ -738,7 +738,13 @@
       "saving": "Đang cập nhật…",
       "submit": "Đổi mật khẩu",
       "forgotCurrent": "Quên mật khẩu hiện tại?",
-      "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại."
+      "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại.",
+      "logoutAllTitle": "Đăng xuất mọi thiết bị",
+      "logoutAllBody": "Kết thúc mọi phiên đăng nhập của tài khoản, kể cả thiết bị này. Dùng khi bạn quên đăng xuất ở máy khác hoặc nghi bị lộ mật khẩu. Các thiết bị khác sẽ bị đăng xuất trong vòng vài phút.",
+      "logoutAllCta": "Đăng xuất mọi thiết bị",
+      "logoutAllConfirm": "Bạn sẽ bị đăng xuất khỏi tất cả thiết bị, kể cả thiết bị này. Tiếp tục?",
+      "logoutAllConfirmCta": "Đăng xuất tất cả",
+      "logoutAllFailed": "Không đăng xuất được mọi thiết bị. Vui lòng thử lại."
     },
     "org": {
       "roles": {
