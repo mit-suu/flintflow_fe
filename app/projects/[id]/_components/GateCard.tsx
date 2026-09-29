@@ -1,14 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { REGENERATE_LIMIT, stepLabel } from "@/lib/constants/step-registry";
 import type { AssumptionBrief, ChangeSummary, GateAction, GateReadyEvent } from "@/types/pipeline";
+import { FORM_FACTOR_LABEL, STAKES_LABEL } from "./brief-labels";
 
 /** Quyết định của user về một giả định AI vừa đặt ra (WP-5 · BUG-13). */
 export type AssumptionDecision =
   | { kind: "confirm"; id: string }
   | { kind: "reject"; id: string }
-  | { kind: "edit"; id: string; statement: string };
+  | { kind: "edit"; id: string; statement: string }
+  /** Giả định về một trường có tập giá trị cố định (nền tảng, mức độ quan trọng): chọn giá trị, không gõ, không gọi AI. */
+  | { kind: "pick"; id: string; path: PickablePath; value: string; label: string };
+
+/**
+ * Trường `project` sửa bằng chọn giá trị — nhãn tiếng Việt dùng chung với Brief panel; `titleEn` dựng câu giả định
+ * tiếng Anh (bản vào SRS).
+ */
+export const PICKABLE_FIELDS = {
+  "project.form_factor": { title: "Nền tảng", titleEn: "Platform", labels: FORM_FACTOR_LABEL },
+  "project.stakes": { title: "Mức độ quan trọng", titleEn: "Stakes", labels: STAKES_LABEL },
+} as const;
+
+export type PickablePath = keyof typeof PICKABLE_FIELDS;
+
+const isPickable = (path: string | undefined): path is PickablePath => path !== undefined && path in PICKABLE_FIELDS;
 
 export interface BlockingFlag {
   id: string;
@@ -39,6 +55,10 @@ interface GateCardProps {
    * user bấm Duyệt ở bước trước mà chưa bấm Đúng/Bỏ thì giả định đó phải hiện lại ở cổng kế, không trôi mất.
    */
   pendingAssumptions?: AssumptionBrief[];
+  /** `path` của từng giả định trong Spine, theo id — giả định về nền tảng / mức độ quan trọng sửa bằng chọn giá trị. */
+  assumptionPaths?: Readonly<Record<string, string>>;
+  /** Giả định đã xác nhận/bỏ trong Spine — `gate_ready` khôi phục sau reload vẫn mang chúng, không hỏi lại. */
+  settledAssumptionIds?: ReadonlySet<string>;
   /** Duyệt = xác nhận luôn các giả định đang hiện mà user chưa Bỏ/Sửa. Chờ ghi xong rồi mới chốt bước. */
   onConfirmAssumptions?: (ids: string[]) => Promise<unknown>;
   /** Cờ đỏ đang chặn ký baseline (422 BASELINE_BLOCKED khi Accept ở S-9.5). */
@@ -139,6 +159,35 @@ export const projectFieldText = (title: string): string => {
   return `${label}: ${PROJECT_VALUE_VI[value.trim()] ?? value}`;
 };
 
+/**
+ * Trường `project` AI suy ra kèm một giả định về chính giá trị đó — dòng "AI đã ghi nhận" và giả định nói cùng một điều.
+ * Trường khác (mục tiêu, tầm nhìn…) có giả định về một khía cạnh riêng, vẫn hiện ở cả hai chỗ.
+ */
+const INFERRED_FIELD_PATHS: ReadonlySet<string> = new Set([
+  "project.form_factor",
+  "project.stakes",
+  "project.system_name",
+  "project.type",
+  "project.domain",
+  "project.complexity",
+]);
+
+/** Path trong Spine mà một dòng tóm tắt nói tới — `project.<field>` hoặc `<collection>[id=<id>]`; không suy được ⇒ null. */
+export const summaryPath = (item: ChangeSummary): string | null => {
+  if (item.collection === "project") {
+    const field = /^([a-z_]+):/.exec(item.title_vi.trim())?.[1];
+    return field ? `project.${field}` : null;
+  }
+  return item.id ? `${item.collection}[id=${item.id}]` : null;
+};
+
+/** Nối các mục tóm tắt: bỏ dấu câu cuối mỗi mục rồi nối bằng "; " — không còn "nhà nước., Từ…". */
+export const joinSummaryTexts = (texts: readonly string[]): string =>
+  texts
+    .map((text) => text.trim().replace(/[\s.,;:]+$/u, ""))
+    .filter((text) => text !== "")
+    .join("; ");
+
 const deltaText = (before: number, after: number): string => {
   const delta = after - before;
   if (delta === 0) return `${after}`;
@@ -160,6 +209,8 @@ export default function GateCard({
   payload = null,
   assumptionReasons,
   pendingAssumptions = [],
+  assumptionPaths,
+  settledAssumptionIds,
   onConfirmAssumptions,
   blockingFlags,
   onAssumptionDecision,
@@ -171,27 +222,59 @@ export default function GateCard({
   const [mode, setMode] = useState<"revision" | "accept_as_is" | null>(null);
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
-  const [decided, setDecided] = useState<Record<string, "confirm" | "reject" | "edit">>({});
+  /** Giả định đang mở danh sách chọn giá trị (nền tảng / mức độ quan trọng). */
+  const [picking, setPicking] = useState<{ id: string; path: PickablePath } | null>(null);
+  /** Câu mới của giả định user đã Sửa — vẫn hiện trong thẻ với nhãn "Đã sửa", kể cả khi Spine đã xác nhận nó. */
+  const [edited, setEdited] = useState<{ id: string; text: string }[]>([]);
+  const [decided, setDecided] = useState<Record<string, AssumptionDecision["kind"]>>({});
   /** Giả định đang chờ AI dịch bản sửa — ô sửa khoá lại cho tới khi xong. */
   const [savingEdit, setSavingEdit] = useState<string | null>(null);
 
   // Cổng chốt cuối giai đoạn nói về cả giai đoạn, không chỉ bước cuối
   const summary = phaseSummary ?? payload?.summary ?? [];
-  const groups = groupSummary(summary);
-  const fresh = payload?.new_assumptions ?? [];
+  // `gate_ready` khôi phục sau reload vẫn mang giả định đã xác nhận/bỏ trong Spine — không hỏi lại chúng
+  const fresh = (payload?.new_assumptions ?? []).filter((a) => !settledAssumptionIds?.has(a.id));
   const assumptions: AssumptionBrief[] = [...fresh, ...pendingAssumptions.filter((p) => !fresh.some((a) => a.id === p.id))].filter(
     (a) => !decided[a.id]
   );
-  /** Duyệt (kể cả "chấp nhận như hiện tại") ⇒ xác nhận các giả định còn lại trước, rồi mới chốt bước. */
-  const act = async (action: GateAction, actionNote?: string) => {
-    if ((action === "accept" || action === "accept_as_is") && assumptions.length > 0 && onConfirmAssumptions) {
-      const ids = assumptions.map((a) => a.id);
-      setDecided((current) => ({ ...current, ...Object.fromEntries(ids.map((id) => [id, "confirm" as const])) }));
-      await onConfirmAssumptions(ids);
-    }
-    if (actionNote === undefined) onAction(action);
-    else onAction(action, actionNote);
+  // Trường AI suy ra có giả định (đang chờ, hoặc vừa Sửa ở thẻ này) chỉ hiện ở khung giả định — không kể lần hai ở
+  // "AI đã ghi nhận" (và sau khi chọn "Mobile" thì không còn dòng "Nền tảng: Web" cũ). Gồm cả giả định của chính cổng này
+  // đã chốt trong Spine: sau F5 `edited` rỗng, còn dòng tóm tắt là ảnh chụp cũ của `gate_ready` — hiện lại là sai giá trị
+  const assumedPaths = new Set(
+    [...assumptions.map((a) => a.id), ...edited.map((e) => e.id), ...(payload?.new_assumptions ?? []).map((a) => a.id)].flatMap((id) =>
+      assumptionPaths?.[id] ? [assumptionPaths[id]] : []
+    )
+  );
+  const underAssumption = (item: ChangeSummary): boolean => {
+    const path = summaryPath(item);
+    return path !== null && INFERRED_FIELD_PATHS.has(path) && assumedPaths.has(path);
   };
+  const groups = groupSummary(summary.filter((item) => !underAssumption(item)));
+  /** Duyệt (kể cả "chấp nhận như hiện tại") ⇒ xác nhận các giả định còn lại trước, rồi mới chốt bước. */
+  // Khoá mọi hành động từ cú bấm đầu tới khi lệnh đã gửi: lúc chờ xác nhận giả định (~1 s) `busy` của runner chưa bật,
+  // bấm Duyệt lần hai gửi thêm một lượt gate + chạy giai đoạn ⇒ 409 và thanh "Lượt chạy bị gián đoạn". Ref chặn cả hai
+  // cú bấm rơi vào cùng một lượt render; state để khoá nút trên màn hình.
+  const submittingRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const act = async (action: GateAction, actionNote?: string) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      if ((action === "accept" || action === "accept_as_is") && assumptions.length > 0 && onConfirmAssumptions) {
+        const ids = assumptions.map((a) => a.id);
+        setDecided((current) => ({ ...current, ...Object.fromEntries(ids.map((id) => [id, "confirm" as const])) }));
+        await onConfirmAssumptions(ids);
+      }
+      if (actionNote === undefined) onAction(action);
+      else onAction(action, actionNote);
+    } finally {
+      // Lệnh đã giao cho runner — từ đây `busy` của runner giữ khoá; lệnh lỗi thì thẻ dùng lại được
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  };
+  const locked = busy || submitting;
   const shownGroups = (payload?.new_assumptions ?? []).length > 0 ? groups.filter((g) => !g.key.endsWith("|assumptions")) : groups;
   // Dòng kiểm tra chỉ đáng đọc khi có gì đổi: cờ mới hoặc % tài liệu tăng/giảm
   const flagsChanged =
@@ -200,7 +283,7 @@ export default function GateCard({
       payload.flags.yellow_delta !== 0 ||
       (payload.doc_progress !== undefined && payload.doc_progress !== null && payload.doc_progress.before !== payload.doc_progress.after));
   const decide = async (decision: AssumptionDecision) => {
-    if (decision.kind !== "edit") {
+    if (decision.kind === "confirm" || decision.kind === "reject") {
       setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
       void onAssumptionDecision?.(decision);
       return;
@@ -210,7 +293,10 @@ export default function GateCard({
     setSavingEdit(null);
     if (ok === false) return;
     setEditing(null);
-    setDecided((current) => ({ ...current, [decision.id]: "edit" }));
+    setPicking(null);
+    const text = decision.kind === "edit" ? decision.statement : `${PICKABLE_FIELDS[decision.path].title}: ${decision.label}`;
+    setEdited((current) => [...current.filter((e) => e.id !== decision.id), { id: decision.id, text }]);
+    setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
   };
 
   // AI không được gọi (bước chỉ chốt một field đã có từ bước trước): ghi 0 op là đúng, không phải lỗi — không cảnh báo
@@ -220,7 +306,7 @@ export default function GateCard({
   const regenerateLeft = regenerateUsed < regenerateLimit && actions.includes("regenerate");
   const showAcceptAsIs = actions.includes("accept_as_is") || regenerateUsed >= regenerateLimit;
   const noteRequired = mode !== null;
-  const canSubmitNote = note.trim().length > 0 && !busy;
+  const canSubmitNote = note.trim().length > 0 && !locked;
 
   const submitNote = () => {
     if (!mode || !canSubmitNote) return;
@@ -270,11 +356,10 @@ export default function GateCard({
               <span className="font-bold">{group.label}</span>
               <span className="text-[#4B4842]">
                 {": "}
-                {group.items
-                  .slice(0, 5)
-                  .map((item) => (item.collection === "project" ? projectFieldText(item.title_vi) : item.title_vi))
-                  .join(", ")}
-                {group.items.length > 5 ? `, …(+${group.items.length - 5})` : ""}
+                {joinSummaryTexts(
+                  group.items.slice(0, 5).map((item) => (item.collection === "project" ? projectFieldText(item.title_vi) : item.title_vi))
+                )}
+                {group.items.length > 5 ? `; …(+${group.items.length - 5})` : ""}
               </span>
             </div>
           ))}
@@ -285,12 +370,12 @@ export default function GateCard({
         <p className="text-[12px] text-[#6B6862]">Bước này không thay đổi tài liệu: {payload.no_change_reason}</p>
       )}
 
-      {assumptions.length > 0 && (
+      {(assumptions.length > 0 || edited.length > 0) && (
         <div className="flex flex-col gap-1.5 bg-[#FBF4E4] rounded-[10px] p-2.5">
           <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#8A6D1F]">
             AI tự giả định — bạn xác nhận giúp
           </span>
-          {onConfirmAssumptions ? (
+          {onConfirmAssumptions && assumptions.length > 0 ? (
             <span className="text-[11px] text-[#6B6862]">Bấm Duyệt là đồng ý luôn những giả định bạn chưa Bỏ hay Sửa.</span>
           ) : null}
           {assumptions.map((assumption) => (
@@ -302,7 +387,28 @@ export default function GateCard({
               {assumptionReasons?.[assumption.id] ? (
                 <span className="text-[11.5px] leading-relaxed text-[#6B6862]">Vì sao: {assumptionReasons[assumption.id]}</span>
               ) : null}
-              {editing?.id === assumption.id ? (
+              {picking?.id === assumption.id ? (
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Chọn giá trị cho giả định ${assumption.id}`}>
+                  {Object.entries(PICKABLE_FIELDS[picking.path].labels).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={savingEdit === assumption.id}
+                      onClick={() => void decide({ kind: "pick", id: assumption.id, path: picking.path, value, label })}
+                      className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-white text-[#191817] hover:bg-[#F2F1FB] disabled:opacity-50 cursor-pointer"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPicking(null)}
+                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold text-[#6B6862] cursor-pointer"
+                  >
+                    Huỷ
+                  </button>
+                </div>
+              ) : editing?.id === assumption.id ? (
                 <div className="flex gap-1.5">
                   <input
                     aria-label={`Sửa giả định ${assumption.id}`}
@@ -331,7 +437,11 @@ export default function GateCard({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditing({ id: assumption.id, text: assumption.text_vi ?? assumption.text })}
+                    onClick={() => {
+                      const path = assumptionPaths?.[assumption.id];
+                      if (isPickable(path)) setPicking({ id: assumption.id, path });
+                      else setEditing({ id: assumption.id, text: assumption.text_vi ?? assumption.text });
+                    }}
                     className="px-2.5 py-1 rounded-full text-[11.5px] font-bold border border-[#ECEAE5] text-[#191817] cursor-pointer"
                   >
                     Sửa
@@ -346,6 +456,12 @@ export default function GateCard({
                 </div>
               )}
             </div>
+          ))}
+          {edited.map((item) => (
+            <span key={item.id} className="text-[12px] text-[#191817]">
+              <span className="font-bold text-[#1F7A45]">Đã sửa: </span>
+              {item.text}
+            </span>
           ))}
         </div>
       )}
@@ -414,7 +530,7 @@ export default function GateCard({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          disabled={busy || !actions.includes("accept")}
+          disabled={locked || !actions.includes("accept")}
           onClick={() => void act("accept")}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
@@ -422,7 +538,7 @@ export default function GateCard({
         </button>
         <button
           type="button"
-          disabled={busy || !actions.includes("revision")}
+          disabled={locked || !actions.includes("revision")}
           onClick={() => setMode(mode === "revision" ? null : "revision")}
           aria-pressed={mode === "revision"}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#ECEAE5] text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -431,8 +547,8 @@ export default function GateCard({
         </button>
         <button
           type="button"
-          disabled={busy || !regenerateLeft}
-          onClick={() => onAction("regenerate")}
+          disabled={locked || !regenerateLeft}
+          onClick={() => void act("regenerate")}
           title={regenerateLeft ? "AI soạn lại bước này từ đầu" : "Đã hết lượt làm lại"}
           className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#DCD8F0] text-[#6A62C4] hover:bg-[#F2F1FB] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
@@ -441,7 +557,7 @@ export default function GateCard({
         {showAcceptAsIs && (
           <button
             type="button"
-            disabled={busy}
+            disabled={locked}
             onClick={() => setMode(mode === "accept_as_is" ? null : "accept_as_is")}
             aria-pressed={mode === "accept_as_is"}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#F0DFB4] text-[#8A6D1F] bg-[#FBF4E4] hover:bg-[#F7EBCF] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
