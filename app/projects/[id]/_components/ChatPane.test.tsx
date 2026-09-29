@@ -173,7 +173,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     const card = screen.getByRole("status");
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}/change-requests?`)).toBe(true);
+    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}?panel=cr&`)).toBe(true);
     expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({ title: "Đổi tên actor", description: "Đổi tên actor Student", source: "verbal", ref: undefined });
   });
 });

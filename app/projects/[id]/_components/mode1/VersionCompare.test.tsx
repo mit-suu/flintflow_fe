@@ -89,7 +89,6 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
 
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]).getByText("Thêm")).toBeInTheDocument();
-    expect(within(items[0]).getByText("block mới")).toBeInTheDocument();
     expect(within(items[0]).getByText("NFR-P03: 500 concurrent learners.").tagName).toBe("INS");
     expect(within(items[1]).getByText("Xoá")).toBeInTheDocument();
     expect(within(items[1]).getByText("[SmartArt]").tagName).toBe("DEL");

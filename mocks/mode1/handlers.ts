@@ -17,8 +17,8 @@ import type { Project, ProjectMode } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
 import type { DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
-import type { Cr, CrDetail, CrLocation, CrStatus } from "@/types/change-request";
-import { CR_TERMINAL_STATUSES, DECISION_REASON_MIN_LENGTH, MAX_CLARIFY_ROUNDS, MAX_REDO_PER_LOCATION, NEW_CR_SOURCE_KINDS } from "@/types/change-request";
+import type { Cr, CrDetail, CrLocation, CrMaterial, CrStatus } from "@/types/change-request";
+import { CR_AMENDABLE_STATUSES, CR_MAX_MATERIALS, CR_REDRAFT_STATUSES, CR_TERMINAL_STATUSES, DECISION_REASON_MIN_LENGTH, MAX_CLARIFY_ROUNDS, MAX_REDO_PER_LOCATION, NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { compareDocVersions, isReleaseVersion } from "@/types/doc-version";
 import { MODE1_PROJECT_ID, MODE1_USER_ID, initialBlocks } from "./state";
 import * as stateModule from "./state";
@@ -266,7 +266,13 @@ const runClarify = (detail: CrDetail) => {
   const round = cr.clarifications.length;
   const vague = /mơ hồ|ambiguous/i.test(cr.description);
   if (vague && round < MAX_CLARIFY_ROUNDS - 1 && cr.clarifications.every((c) => c.answers.length === 0)) {
-    cr.clarifications.push({ round: round + 1, questions: ["Thay đổi áp cho cả ứng dụng mobile không?", "Có cần thông báo cho các phiên bị đăng xuất không?"], answers: [] });
+    cr.clarifications.push({
+      round: round + 1,
+      questions: ["Thay đổi áp cho cả ứng dụng mobile không?", "Có cần thông báo cho các phiên bị đăng xuất không?"],
+      answers: [],
+      // Phase 7: đáp án AI gợi ý song song câu hỏi
+      suggestions: [["Có, áp cho mọi thiết bị", "Chỉ áp cho web"], ["Có, gửi email thông báo", "Không cần thông báo"]],
+    });
     detail.pending_questions = cr.clarifications.at(-1)!.questions;
     setCrStatus(detail, "awaiting_answers");
     return;
@@ -300,11 +306,18 @@ const runPropose = (detail: CrDetail) => {
       const next = { ...value, [field]: `${String(value[field] ?? "")} (${cr.title})` };
       loc.conclusion = "edit";
       loc.reason = `Vị trí chính của ${cr.cr_id}`;
-      loc.proposal = { old_text: text, new_text: valueText(next), comment_text: null, spine_ops: [{ op: "set", path: `${loc.path}.${field}`, value: next[field] }] };
+      loc.proposal = {
+        old_text: text,
+        new_text: valueText(next),
+        comment_text: null,
+        spine_ops: [{ op: "set", path: `${loc.path}.${field}`, value: next[field] }],
+        // Phase 7: câu trả lời để trống / còn dữ kiện thiếu ⇒ giả định (như BE: model ghi `assumptions`)
+        assumptions: cr.missing_info.map((f) => `Giả định: ${f}`),
+      };
     } else {
       loc.conclusion = "not_related";
       loc.reason = "Chỉ trùng từ khoá, không nói về thay đổi này";
-      loc.proposal = { old_text: text, new_text: null, comment_text: null, spine_ops: [] };
+      loc.proposal = { old_text: text, new_text: null, comment_text: null, spine_ops: [], assumptions: [] };
     }
   });
   regroup(detail);
@@ -377,6 +390,21 @@ const writeCr = (detail: CrDetail) => {
   setCrStatus(detail, "written");
 };
 
+/** Phase 7: thêm tài liệu bổ sung vào CR (mock chỉ đọc chữ của .txt/.md; file khác ghi chỗ giữ). */
+const pushMaterial = (cr: Cr, kind: CrMaterial["kind"], name: string, raw: string) => {
+  const next = cr.materials.reduce((n, m) => Math.max(n, Number(m.material_id.slice(1))), 0) + 1;
+  const text = raw.trim();
+  cr.materials.push({
+    material_id: `M${String(next).padStart(2, "0")}`,
+    kind,
+    name,
+    text: text.slice(0, 20_000),
+    truncated: text.length > 20_000,
+    round: cr.status === "awaiting_answers" ? cr.clarifications.length : 0,
+    added_at: now(),
+  });
+};
+
 const CHANGE_VERB = /^\s*(đổi|sửa|thêm|xoá|xóa|bỏ|rename|change|add|remove|delete|update)\b/i;
 const newCr = (title: string, description: string, source: Cr["source"], requester: string, seed: Cr["seed"] = null): CrDetail => {
   S().crSeq += 1;
@@ -397,6 +425,9 @@ const newCr = (title: string, description: string, source: Cr["source"], request
     decided_by: null,
     closed_reason: null,
     seed,
+    materials: [],
+    missing_info: [],
+    amendments: [],
     created_at: now(),
     updated_at: now(),
   };
@@ -728,6 +759,9 @@ export const mode1Handlers = [
       // Mock không giữ kho bản xem trước: có `preview_id` ⇒ seed gợi ý từ mô tả (BE: lệnh + op + phần tử bị chạm)
       const seed = body.preview_id ? { instruction: String(body.description), ops: [], targets: [] } : null;
       const detail = newCr(String(body.title), String(body.description), { kind: source.kind as Cr["source"]["kind"], ref: source.ref ?? null, note: source.note ?? null }, String(body.requester), seed);
+      const pasted = (body.materials as { name: string; text: string }[] | undefined) ?? [];
+      if (pasted.length > 5) return fail(400, "VALIDATION_ERROR", "Tối đa 5 đoạn văn bản khi tạo");
+      pasted.forEach((m) => pushMaterial(detail.change_request, "text", m.name, m.text));
       return okCr(detail, 201);
     }),
   ),
@@ -769,12 +803,74 @@ export const mode1Handlers = [
       if (d.change_request.status !== "awaiting_answers") return invalidTransition(d.change_request, "clarifying");
       const answers = ((await readJson(request)).answers as string[] | undefined) ?? [];
       const round = d.change_request.clarifications.at(-1)!;
-      if (answers.length !== round.questions.length || answers.some((a) => !String(a).trim())) {
+      if (answers.length !== round.questions.length) {
         return fail(400, "VALIDATION_ERROR", `Cần đúng ${round.questions.length} câu trả lời`);
       }
-      round.answers = answers;
+      round.answers = answers.map((a) => String(a).trim());
+      // Phase 7: câu để trống ⇒ dữ kiện còn thiếu, AI sẽ giả định (BE: C-2 trả `missing_info`)
+      d.change_request.missing_info = round.questions.filter((_, i) => !round.answers[i]);
       setCrStatus(d, "clarifying");
       runClarify(d);
+      return okCr(d);
+    }),
+  ),
+
+  // Phase 8: gộp thêm lệnh sửa (chat) — draft chỉ ghi; sau đó làm rõ lại ngay
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/amend"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      if (!(CR_AMENDABLE_STATUSES as readonly string[]).includes(cr.status)) return invalidTransition(cr, "clarifying");
+      const instruction = String((await readJson(request)).instruction ?? "").trim();
+      if (!instruction) return fail(400, "VALIDATION_ERROR", "Cần nội dung lệnh sửa");
+      cr.amendments.push({ text: instruction, at: now() });
+      cr.paused = null;
+      if (cr.status === "draft") return okCr(d);
+      setCrStatus(d, "clarifying");
+      runClarify(d);
+      return okCr(d);
+    }),
+  ),
+
+  // Phase 7: tài liệu bổ sung — JSON { name, text } hoặc multipart `file`; chỉ draft / awaiting_answers
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/materials"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      if (cr.status !== "draft" && cr.status !== "awaiting_answers") return invalidTransition(cr, cr.status);
+      if (cr.materials.length >= CR_MAX_MATERIALS) return fail(409, "CR_MATERIAL_LIMIT", `Mỗi change request đính kèm tối đa ${CR_MAX_MATERIALS} tài liệu`);
+      if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+        const entry = (await request.formData()).get("file");
+        const raw = asFile(entry);
+        if (!raw) return fail(400, "VALIDATION_ERROR", "Thiếu file");
+        // File của jsdom qua undici mất tên (thành `blob`) ⇒ coi như file chữ để test UI vẫn đi được
+        const file = raw.name === "blob" ? { ...raw, name: "tài-liệu.txt" } : raw;
+        const image = /\.(png|jpe?g)$/i.test(file.name);
+        if (!image && !/\.(docx|pdf|txt|md)$/i.test(file.name)) return fail(422, "CR_MATERIAL_UNSUPPORTED", "Chỉ nhận .docx, .pdf, .txt, .md hoặc ảnh PNG / JPEG");
+        if (image && !spend(1)) return fail(402, "INSUFFICIENT_CREDIT", "Không đủ credit để AI đọc ảnh");
+        // Mock không đọc nội dung file (Blob khác realm của jsdom treo khi `text()`) — ghi chỗ giữ như chữ BE đã tách
+        pushMaterial(cr, image ? "image" : "file", file.name, `(nội dung đọc từ ${file.name})`);
+      } else {
+        const body = await readJson(request);
+        if (!String(body.name ?? "").trim() || !String(body.text ?? "").trim()) return fail(400, "VALIDATION_ERROR", "Cần tên và nội dung");
+        pushMaterial(cr, "text", String(body.name), String(body.text));
+      }
+      return okCr(d, 201);
+    }),
+  ),
+  http.delete(
+    api("/projects/:projectId/change-requests/:crId/materials/:mid"),
+    mode1(({ params }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      if (cr.status !== "draft" && cr.status !== "awaiting_answers") return invalidTransition(cr, cr.status);
+      if (!cr.materials.some((m) => m.material_id === params.mid)) return fail(404, "CR_MATERIAL_NOT_FOUND", "Không tìm thấy tài liệu này");
+      cr.materials = cr.materials.filter((m) => m.material_id !== params.mid);
       return okCr(d);
     }),
   ),
@@ -786,7 +882,9 @@ export const mode1Handlers = [
       const d = crOr404(params.crId);
       if (d instanceof Response) return d;
       const cr = d.change_request;
-      if (cr.status !== "impact_review" || d.locations.length > 0) return invalidTransition(cr, "impact_review");
+      if (cr.status !== "impact_review") return invalidTransition(cr, "impact_review");
+      // Phase 8: CR được gộp thêm lệnh ⇒ vị trí đã có giữ nguyên (mock không tìm thêm phần tử mới)
+      if (d.locations.length > 0) return okCr(d);
       // FLF-186: vị trí = phần tử Spine chứa từ khoá của CR (không có ⇒ NFR đầu tiên)
       const words = keywordsOf(cr);
       const hits = S().elements.filter((e) => words.some((w) => valueText(e.value).toLowerCase().includes(w)));
@@ -853,8 +951,11 @@ export const mode1Handlers = [
         new_text: body.new_value !== undefined ? valueText(body.new_value) : (loc.proposal?.new_text ?? null),
         comment_text: body.comment_text ?? loc.proposal?.comment_text ?? null,
         spine_ops: body.new_value !== undefined ? [{ op: "set", path: loc.path, value: body.new_value }] : (body.spine_ops ?? loc.proposal?.spine_ops ?? []),
+        assumptions: body.new_value !== undefined || body.spine_ops || loc.conclusion === "not_related" ? [] : (loc.proposal?.assumptions ?? []),
       };
       loc.manual = true;
+      // như BE (location.service): sửa tay ⇒ kết quả kiểm cũ không còn giá trị
+      loc.verify = null;
       regroup(d);
       if (cr.status === "ready_to_submit") setCrStatus(d, "verifying");
       return okCr(d);
@@ -868,16 +969,19 @@ export const mode1Handlers = [
       const d = crOr404(params.crId);
       if (d instanceof Response) return d;
       const cr = d.change_request;
-      if (cr.status !== "manual_fix") return invalidTransition(cr, "verifying");
+      // Phase 8: "Sửa lại" trong chat — mọi bước đã có đề xuất, trước khi nộp; mục riêng cũng được
+      if (!(CR_REDRAFT_STATUSES as readonly string[]).includes(cr.status)) return invalidTransition(cr, "verifying");
       const loc = d.locations.find((l) => l.location_id === params.locId);
       if (!loc) return fail(404, "CR_LOCATION_NOT_FOUND", `Không có vị trí ${String(params.locId)}`);
-      if (!loc.owner_step) return fail(409, "CR_NO_OWNER_STEP", "Vị trí thuộc mục riêng — sửa trực tiếp", { location_id: loc.location_id });
-      if (!String((await readJson(request)).instruction ?? "").trim()) return fail(400, "VALIDATION_ERROR", "Cần hướng sửa");
+      const instruction = String((await readJson(request)).instruction ?? "").trim();
+      if (!instruction) return fail(400, "VALIDATION_ERROR", "Cần hướng sửa");
       loc.conclusion = "edit";
-      loc.reason = `Viết lại theo ${loc.owner_step}`;
+      loc.reason = `Soạn lại theo hướng: ${instruction}`;
+      loc.proposal = { ...(loc.proposal ?? { old_text: loc.current_text, comment_text: null, spine_ops: [], assumptions: [] }), new_text: `${loc.current_text} (${instruction})`, assumptions: [] };
       loc.manual = true;
       loc.verify = null;
       regroup(d);
+      if (cr.status === "ready_to_submit") setCrStatus(d, "verifying");
       return okCr(d);
     }),
   ),

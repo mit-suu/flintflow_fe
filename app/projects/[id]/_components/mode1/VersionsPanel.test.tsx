@@ -171,7 +171,7 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     expect(items[1]).toHaveTextContent("Bản nháp sau CR");
     expect(items[3]).toHaveTextContent("Bản import");
     expect(items[2].className).toContain("border-[#6A62C4]");
-    expect(within(items[1]).getByRole("link", { name: "CR-003" })).toHaveAttribute("href", `/projects/${P}/change-requests/CR-003`);
+    expect(within(items[1]).getByRole("link", { name: "CR-003" })).toHaveAttribute("href", `/projects/${P}?panel=cr&cr=CR-003`);
 
     fireEvent.click(screen.getByRole("button", { name: "Xem bản 0.0" }));
     expect(props.onSelect).toHaveBeenCalledWith("0.0");

@@ -20,6 +20,8 @@ interface QuestionStepperInputProps {
   onSubmit: (answers: (string | string[] | null)[]) => void;
   /** Báo câu trả lời đang có mỗi lần đổi — để ô chat gửi kèm phần đã chọn. */
   onChange?: (answers: (string | string[] | null)[]) => void;
+  /** Cho gửi khi chưa trả lời câu nào (CR mode 1: câu chưa biết ⇒ AI giả định). */
+  allowEmpty?: boolean;
   /** Không truyền ⇒ ẩn nút đóng (vd. step đang chờ trả lời, không bỏ ngang được). */
   onDismiss?: () => void;
   sending?: boolean;
@@ -53,7 +55,7 @@ export const formatAnswers = (answers: (string | string[] | null)[]): string => 
  * Thẻ hỏi kiểu AskUserQuestion: hàng tab theo `header`, lựa chọn đánh số kèm mô tả, dòng "Khác…" luôn có,
  * `preview` monospace cạnh danh sách, tab "Xem lại" trước khi gửi. Câu chọn 1: chọn xong tự sang câu kế.
  */
-export default function QuestionStepperInput({ questions, onSubmit, onChange, onDismiss, sending = false }: QuestionStepperInputProps) {
+export default function QuestionStepperInput({ questions, onSubmit, onChange, allowEmpty = false, onDismiss, sending = false }: QuestionStepperInputProps) {
   // Bộ câu hỏi mới được mount lại qua `key`, nên state tự reset — không cần effect.
   const [tab, setTab] = useState(0);
   const [answers, setAnswers] = useState<Record<number, CardAnswer>>({});
@@ -96,7 +98,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, on
   };
 
   const submit = () => {
-    if (!hasAnyAnswer || sending) return;
+    if ((!hasAnyAnswer && !allowEmpty) || sending) return;
     onSubmit(values);
   };
 

@@ -36,7 +36,7 @@ const location = (over: Partial<CrLocation> = {}): CrLocation => ({
   owner_step: null,
   conclusion: "edit",
   reason: null,
-  proposal: { old_text: "a", new_text: "b", comment_text: null, spine_ops: [] },
+  proposal: { old_text: "a", new_text: "b", comment_text: null, spine_ops: [], assumptions: [] },
   manual: false,
   redo_count: 0,
   verify: null,
@@ -54,7 +54,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
 
   it("code đạt, không cờ ⇒ nhãn xanh, không có số lần làm lại", () => {
     renderWithIntl(<VerifyResult location={location({ verify: { code_ok: true, violations: [], ai_flags: [], at: AT } })} />);
-    const badge = within(result()).getByText("Kiểm code: đạt");
+    const badge = within(result()).getByText("Kiểm tra tự động: đạt");
     expect(badge.className).toContain("text-[#1F7A45]");
     expect(within(result()).queryByText(/AI đã làm lại/)).not.toBeInTheDocument();
   });
@@ -75,11 +75,13 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
         })}
       />
     );
-    const badge = within(result()).getByText("Kiểm code: trượt");
+    const badge = within(result()).getByText("Kiểm tra tự động: chưa đạt");
     expect(badge.className).toContain("text-[#B03030]");
     const red = within(result()).getByText(/Text block đã đổi so với old_text/);
-    expect(red.className).toContain("text-[#B03030]");
-    expect(within(red).getByText("OLD_TEXT_MISMATCH")).toBeInTheDocument();
+    expect(red.closest("p")!.className).toContain("text-[#B03030]");
+    // mã luật lạ ⇒ không in mã, chỉ để tra ở tooltip
+    expect(red).toHaveAttribute("title", "OLD_TEXT_MISMATCH");
+    expect(within(result()).queryByText(/OLD_TEXT_MISMATCH/)).not.toBeInTheDocument();
     expect(within(result()).getByText(/Xoá actor còn được use case tham chiếu/)).toBeInTheDocument();
   });
 
@@ -89,10 +91,10 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
         location={location({ verify: { code_ok: true, violations: [], ai_flags: [{ rule: "AI-CONSISTENCY", message: "Tiêu đề cột bảng chưa đổi theo" }], at: AT } })}
       />
     );
-    expect(within(result()).getByText("Kiểm code: đạt")).toBeInTheDocument();
+    expect(within(result()).getByText("Kiểm tra tự động: đạt")).toBeInTheDocument();
     const yellow = within(result()).getByText(/Tiêu đề cột bảng chưa đổi theo/);
-    expect(yellow.className).toContain("text-[#8A6D1F]");
-    expect(within(yellow).getByText("AI-CONSISTENCY")).toBeInTheDocument();
+    expect(yellow.closest("p")!.className).toContain("text-[#8A6D1F]");
+    expect(yellow).toHaveAttribute("title", "AI-CONSISTENCY");
   });
 
   it(`số lần AI làm lại hiện theo mức tối đa ${MAX_REDO_PER_LOCATION}`, () => {
@@ -100,7 +102,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     expect(within(result()).getByText(`AI đã làm lại 1/${MAX_REDO_PER_LOCATION} lần`)).toBeInTheDocument();
     rerender(<VerifyResult location={location({ redo_count: 2, verify: { code_ok: false, violations: [{ rule: "R", message: "vẫn trượt" }], ai_flags: [], at: AT } })} />);
     expect(within(result()).getByText(`AI đã làm lại 2/${MAX_REDO_PER_LOCATION} lần`)).toBeInTheDocument();
-    expect(within(result()).getByText("Kiểm code: trượt")).toBeInTheDocument();
+    expect(within(result()).getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
   });
 
   it("trên mock: sửa tay vẫn trượt ⇒ CR sang manual_fix, vị trí mang kết quả đỏ + cờ vi phạm", async () => {
@@ -118,7 +120,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     expect(failed.manual).toBe(true);
     renderWithIntl(<VerifyResult location={failed} />);
     const box = screen.getByLabelText(`Kết quả kiểm ${failed.location_id}`);
-    expect(within(box).getByText("Kiểm code: trượt")).toBeInTheDocument();
+    expect(within(box).getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
     expect(failed.verify!.violations.length).toBeGreaterThan(0);
     expect(within(box).getByText(new RegExp(failed.verify!.violations[0].message.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeInTheDocument();
   });

@@ -7,7 +7,7 @@ import Logo from "@/components/Logo";
 import type { Project } from "@/types/project";
 import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "./labels";
 
-export type Mode1Tab = "document" | "import" | "gap-report" | "change-requests";
+export type Mode1Tab = "document" | "import";
 
 interface Mode1ShellProps {
   projectId: string;
@@ -21,9 +21,8 @@ interface Mode1ShellProps {
 
 const TABS: { id: Mode1Tab; label: string; path: string; needsBaseline: boolean }[] = [
   { id: "import", label: "Nhập SRS", path: "/import", needsBaseline: false },
-  { id: "gap-report", label: "Gap report", path: "/gap-report", needsBaseline: true },
+  // Gap report + change request là popup trên màn này (nút ở thanh trên)
   { id: "document", label: "Tài liệu & version", path: "", needsBaseline: true },
-  { id: "change-requests", label: "Change request", path: "/change-requests", needsBaseline: true },
 ];
 
 /**

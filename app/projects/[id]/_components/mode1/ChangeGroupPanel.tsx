@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { DECISION_REASON_MIN_LENGTH, type CrGroup, type CrLocation } from "@/types/change-request";
+import { AssumptionsNote } from "./CrMaterials";
 import FieldChanges from "./FieldChanges";
+import { humanizeText, pathLabel, sectionTitle } from "./spine-labels";
 import { CONCLUSION_LABELS, formatDateTime } from "./labels";
 
 interface ChangeGroupPanelProps {
@@ -27,27 +29,35 @@ function GroupCard({ group, locations, canDecide, onDecide, busy }: { group: CrG
   const [deciding, setDeciding] = useState<"approved" | "rejected" | null>(null);
   const [reason, setReason] = useState("");
   const tooShort = reason.trim().length < DECISION_REASON_MIN_LENGTH;
+  const assumed = locations.reduce((n, l) => n + (l.conclusion === "not_related" ? 0 : (l.proposal?.assumptions?.length ?? 0)), 0);
 
   return (
     <article className="bg-white border border-[#ECEAE5] rounded-[14px] p-3.5 flex flex-col gap-2" aria-label={`Nhóm ${group.group_id}`}>
       <header className="flex items-center gap-2">
-        <code className="text-[11px] text-[#A8A49C]">{group.group_id}</code>
-        <h4 className="flex-1 font-bold text-[#191817] text-[13px] truncate">{group.title}</h4>
+        <h4 className="flex-1 font-bold text-[#191817] text-[13px] truncate" title={group.group_id}>
+          {humanizeText(group.title)}
+        </h4>
         <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${DECISION_TONE[group.decision]}`}>{DECISION_LABEL[group.decision]}</span>
       </header>
       {locations.map((l) => (
         <div key={l.location_id} className="text-[12px] border-l-2 border-[#ECEAE5] pl-2.5">
           {/* F6: hiển thị theo mục của tài liệu; path Spine chỉ để tra (tooltip) */}
           <p className="text-[11px] text-[#8A867E]" title={l.path}>
-            {l.section_title || l.path} · {l.conclusion ? CONCLUSION_LABELS[l.conclusion] : "—"}
+            {sectionTitle(l.section_id, l.section_title) || pathLabel(l.path)} · {l.conclusion ? CONCLUSION_LABELS[l.conclusion] : "—"}
           </p>
           {l.conclusion === "edit" && l.proposal ? (
             <FieldChanges oldText={l.proposal.old_text} newText={l.proposal.new_text} />
           ) : l.proposal?.comment_text ? (
             <p className="text-[#3B4FA8]">💬 {l.proposal.comment_text}</p>
           ) : null}
+          {l.conclusion !== "not_related" && <AssumptionsNote assumptions={l.proposal?.assumptions} />}
         </div>
       ))}
+      {canDecide && group.decision === "pending" && assumed > 0 && (
+        <p className="text-[11.5px] font-semibold text-[#8A6D1F]">
+          Nhóm này có {assumed} giả định AI tự đặt — xác nhận với người yêu cầu trước khi duyệt, hoặc ghi rõ trong lý do.
+        </p>
+      )}
       {group.decision !== "pending" && (
         <p className="text-[11.5px] text-[#6B6862]">
           {group.reason ? `Lý do: ${group.reason} · ` : ""}

@@ -13,6 +13,8 @@ const { router } = vi.hoisted(() => ({ router: { push: vi.fn(), replace: vi.fn()
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
   useParams: () => ({ id: MODE1_PROJECT_ID }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => `/projects/${MODE1_PROJECT_ID}`,
 }));
 // Đã đăng nhập: AuthGuard/useWorkspace không gọi refresh
 vi.mock("@/lib/auth", async (importOriginal) => ({ ...(await importOriginal<object>()), isAuthenticated: () => true }));
@@ -46,7 +48,7 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     expect(within(red).getByRole("link", { name: "Tạo CR" }).getAttribute("href")).toContain("source=gap_report");
     expect(within(tools).queryByRole("button", { name: "Ký baseline v1" })).not.toBeInTheDocument();
     expect(within(tools).queryByRole("button", { name: /Waive|Bật|Tắt/ })).not.toBeInTheDocument();
-    expect(within(tools).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}/gap-report`);
+    expect(within(tools).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
     expect(await within(tools).findByRole("button", { name: "Tải file gốc" })).toBeInTheDocument();
     // panel ghi Spine thẳng (tên riêng, hàng đợi màn) không có ở mode 1; không có nút chạy bước
     expect(within(tools).queryByText("Tên riêng & thuật ngữ")).not.toBeInTheDocument();
@@ -55,10 +57,14 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     expect(screen.queryByRole("button", { name: /^xem tại S-/ })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Hỏi đáp & lệnh sửa" })).toBeInTheDocument();
 
-    // Sửa tài liệu đi qua ô chat (chip "Sửa tài liệu"); mode 1 không áp thẳng nên không có Hoàn tác / viết lại mục cũ
+    // Phase 8: chat bên trái mặc định là sửa tài liệu qua change request (chip bật sẵn); tắt chip ⇒ hỏi đáp.
+    // Mode 1 không áp thẳng nên không có Hoàn tác / viết lại mục cũ
     expect(screen.queryByRole("complementary", { name: "Change panel" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sửa tài liệu" })).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByLabelText("Hướng dẫn sửa tài liệu")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Gõ yêu cầu sửa tài liệu/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sửa tài liệu" }));
-    expect(screen.getByPlaceholderText(/Mô tả chỗ cần sửa/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Hướng dẫn sửa tài liệu")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hoàn tác" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Viết lại/ })).not.toBeInTheDocument();
   }, 30_000); // dựng cả workspace trên msw — chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts) // dựng cả workspace trên msw — chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts)

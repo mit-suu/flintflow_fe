@@ -14,6 +14,7 @@ import MappingReviewTable from "./MappingReviewTable";
 import PausedBanner from "./PausedBanner";
 import PreflightIssues from "./PreflightIssues";
 import UploadStep from "./UploadStep";
+import { gapReportHref } from "./prefill";
 
 interface ImportWizardProps {
   projectId: string;
@@ -156,7 +157,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
                 disabled={imp.busy === "finalize"}
                 onClick={() =>
                   void after(imp.finalize()).then((res) => {
-                    if (res) router.push(`/projects/${projectId}/gap-report`);
+                    // Xong baseline 0.0 ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
+                    if (res) router.push(gapReportHref(projectId));
                   })
                 }
                 className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
@@ -174,8 +176,11 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             Import xong — tài liệu đã thành version 0.0. Bản sửa ngoài FlintFlow tải lên ở tab <strong>Tài liệu &amp; version</strong> để
             xem khác biệt.
           </span>
-          <Link href={`/projects/${projectId}/gap-report`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
+          <Link href={gapReportHref(projectId)} className="px-4 py-2 rounded-[8px] border border-[#1F7A45] text-[#1F7A45] font-bold">
             Xem gap report
+          </Link>
+          <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
+            Mở tài liệu &amp; version
           </Link>
         </div>
       )}
