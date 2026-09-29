@@ -128,7 +128,7 @@ export default function AdminUsersPage() {
                     <th className={tableHeadClass}>Email</th>
                     <th className={tableHeadClass}>Vai trò</th>
                     <th className={tableHeadClass}>Trạng thái</th>
-                    <th className={`${tableHeadClass} text-right`}>Credit</th>
+                    <th className={`${tableHeadClass} text-right`}>Tổ chức</th>
                     <th className={`${tableHeadClass} text-right`}>Dự án</th>
                     <th className={tableHeadClass}>Đăng nhập gần nhất</th>
                     <th className={tableHeadClass}>Ngày tạo</th>
@@ -166,7 +166,7 @@ export default function AdminUsersPage() {
                             <span className="text-[#B03030] font-semibold">Đã khoá</span>
                           )}
                         </td>
-                        <td className={`${tableCellClass} text-right`}>{formatNumber(u.walletBalance)}</td>
+                        <td className={`${tableCellClass} text-right`}>{formatNumber(u.organizationsCount)}</td>
                         <td className={`${tableCellClass} text-right`}>{formatNumber(u.projectsCount)}</td>
                         <td className={tableCellClass}>{formatDateTime(u.lastLoginAt)}</td>
                         <td className={tableCellClass}>{formatDateTime(u.createdAt)}</td>
