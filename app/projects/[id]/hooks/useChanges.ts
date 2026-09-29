@@ -7,6 +7,8 @@ import type { ApplyResult, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 
 export type PreviewSource = "instruction" | "reconcile";
+/** `skipped`: chưa gửi gì (chưa biết version, lệnh rỗng). */
+export type PreviewOutcome = "preview" | "clarification" | "error" | "skipped";
 
 export interface UseChangesResult {
   preview: PreviewResult | null;
@@ -20,7 +22,8 @@ export interface UseChangesResult {
   error: string | null;
   history: Change[];
   historyLoading: boolean;
-  requestPreview: (instruction: string) => Promise<void>;
+  /** Xong khi BE đã trả lời (và đã ghi lượt này vào phiên nếu có `getSessionId`) — trả về BE trả lời bằng gì. */
+  requestPreview: (instruction: string) => Promise<PreviewOutcome>;
   /**
    * Xác nhận `preview` đang hiển thị — tự chọn `applyChanges` hay `reconcile` theo nguồn gốc.
    * `reason` bắt buộc khi `preview.branch === "post_baseline"` (BE trả 400 nếu thiếu).
@@ -42,7 +45,9 @@ export function useChanges(
    * về 20 dòng gần nhất thay vì tải toàn bộ lịch sử. `null` khi chưa xác định được (tải không giới hạn). */
   getLatestSeq: () => number | null,
   /** `impactedSectionIds` (từ `preview.impact.sections`, nếu preview có) — cha dùng để highlight DocumentPane. */
-  onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void
+  onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void,
+  /** Phiên chat đang mở — lệnh sửa gửi kèm để model đọc được các tin trước và lượt sửa nằm lại trong phiên. */
+  getSessionId: () => string | null = () => null
 ): UseChangesResult {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
@@ -57,33 +62,40 @@ export function useChanges(
   const failureMessage = (err: unknown) => (err instanceof Error ? err.message : "Thao tác thất bại");
 
   const requestPreview = useCallback(
-    async (instruction: string) => {
+    async (instruction: string): Promise<PreviewOutcome> => {
       const baseVersion = getBaseVersion();
-      if (baseVersion === null || !instruction.trim()) return;
+      if (baseVersion === null || !instruction.trim()) return "skipped";
       setPreviewing(true);
       setError(null);
       setClarification(null);
       setPreview(null);
       setPendingInstruction(instruction.trim());
       try {
-        const res = await previewChanges(projectId, { instruction: instruction.trim(), base_version: baseVersion });
+        const sessionId = getSessionId();
+        const res = await previewChanges(projectId, {
+          instruction: instruction.trim(),
+          base_version: baseVersion,
+          ...(sessionId ? { session_id: sessionId } : {}),
+        });
         if (res.data?.clarification) {
           setClarification(res.data.clarification);
-        } else {
-          setPreview(res.data);
-          setPreviewSource("instruction");
+          return "clarification";
         }
+        setPreview(res.data);
+        setPreviewSource("instruction");
+        return "preview";
       } catch (err) {
         if (err instanceof ApiClientError && err.code === "NEEDS_CLARIFICATION") {
           setClarification(err.message);
-        } else {
-          setError(failureMessage(err));
+          return "clarification";
         }
+        setError(failureMessage(err));
+        return "error";
       } finally {
         setPreviewing(false);
       }
     },
-    [projectId, getBaseVersion]
+    [projectId, getBaseVersion, getSessionId]
   );
 
   const cancelPreview = useCallback(() => {
@@ -118,6 +130,7 @@ export function useChanges(
       if (baseVersion === null || !preview?.preview_id || !previewSource) return;
       setApplying(true);
       setError(null);
+      const sessionId = getSessionId();
       try {
         const res =
           previewSource === "instruction"
@@ -125,6 +138,7 @@ export function useChanges(
                 instruction: pendingInstruction,
                 base_version: baseVersion,
                 preview_id: preview.preview_id,
+                ...(sessionId ? { session_id: sessionId } : {}),
                 // Sau baseline BE bắt buộc lý do ở cấp transaction (vào Record of Changes)
                 ...(reason?.trim() ? { reason: reason.trim() } : {}),
               })
@@ -140,7 +154,7 @@ export function useChanges(
         setApplying(false);
       }
     },
-    [projectId, getBaseVersion, preview, previewSource, pendingInstruction, onApplied]
+    [projectId, getBaseVersion, getSessionId, preview, previewSource, pendingInstruction, onApplied]
   );
 
   const undo = useCallback(async () => {

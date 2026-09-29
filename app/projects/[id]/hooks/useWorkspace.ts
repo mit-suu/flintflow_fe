@@ -160,6 +160,22 @@ export function useWorkspace(projectId: string) {
     setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, message] } : prev));
   }, []);
 
+  /**
+   * Tải lại phiên đang mở từ BE (lỗi ⇒ giữ nguyên, không báo) — sau lệnh sửa tài liệu, BE đã ghi lệnh + kết quả vào
+   * phiên; tải lại thay tin hiện tạm bằng đúng transcript. Người dùng đã chuyển phiên khác thì bỏ qua.
+   */
+  const reloadActiveSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        const res = await apiCall<ChatSession>(`/projects/${projectId}/chats/${sessionId}`);
+        if (res.data) setActiveSession((prev) => (prev?._id === sessionId ? res.data! : prev));
+      } catch {
+        // Tin hiện tạm vẫn còn — lần mở phiên sau sẽ thấy transcript đầy đủ
+      }
+    },
+    [projectId]
+  );
+
   /** Gỡ tin vừa hiện tạm khi lượt gửi không đi tới đâu (chữ trả về ô nhập) — không để tin "ma" trong khung chat. */
   const dropLocalMessage = useCallback((content: string) => {
     setActiveSession((prev) => {
@@ -257,6 +273,7 @@ export function useWorkspace(projectId: string) {
       uploadPendingAttachments,
       appendLocalMessage,
       dropLocalMessage,
+      reloadActiveSession,
       selectAttachment,
       removeAttachment,
       refreshUser,
@@ -281,6 +298,7 @@ export function useWorkspace(projectId: string) {
       uploadPendingAttachments,
       appendLocalMessage,
       dropLocalMessage,
+      reloadActiveSession,
       selectAttachment,
       removeAttachment,
       refreshUser,
