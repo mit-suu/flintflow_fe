@@ -319,7 +319,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
           <button
             type="button"
             onClick={next}
-            disabled={isSubmitTab && (!hasAnyAnswer || sending)}
+            disabled={isSubmitTab && ((!hasAnyAnswer && !allowEmpty) || sending)}
             className={`h-7 px-3 shrink-0 rounded-control text-[11.5px] font-bold flex items-center gap-1.5 transition-colors ${
               isSubmitTab
                 ? "bg-primary text-on-primary hover:bg-primary-hover disabled:bg-surface-container-highest disabled:text-on-surface-subtle"
