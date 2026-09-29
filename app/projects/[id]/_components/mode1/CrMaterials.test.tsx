@@ -114,8 +114,9 @@ describe("CrWorkspace — tài liệu, câu trả lời trống, giả định",
     await waitFor(() => expect(S().crs.get("CR-001")!.change_request.materials).toHaveLength(1));
     expect(await screen.findByText("khi trả lời vòng 1")).toBeInTheDocument();
 
-    // không trả lời câu nào: bỏ qua câu 1, câu cuối vẫn gửi được ⇒ AI sẽ giả định
+    // không trả lời câu nào: bỏ qua cả 2 câu, màn Xem lại vẫn gửi được ⇒ AI sẽ giả định
     const answering = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
+    fireEvent.click(within(answering).getByRole("button", { name: "Bỏ qua" }));
     fireEvent.click(within(answering).getByRole("button", { name: "Bỏ qua" }));
     fireEvent.click(within(answering).getByRole("button", { name: "Gửi câu trả lời" }));
     const missing = await screen.findByLabelText("Dữ kiện còn thiếu");
@@ -131,22 +132,25 @@ describe("CrWorkspace — tài liệu, câu trả lời trống, giả định",
     expect(await screen.findByText(/Nhóm này có 2 giả định AI tự đặt/)).toBeInTheDocument();
   });
 
-  it("câu hỏi như mode tạo SRS: từng câu, gợi ý AI + tự nhập thêm, câu chưa biết bỏ qua ⇒ gửi theo đúng từng câu", async () => {
+  it("câu hỏi như mode tạo SRS: từng câu, gợi ý AI hoặc tự nhập, câu chưa biết bỏ qua ⇒ gửi theo đúng từng câu", async () => {
     const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
     await click("Bắt đầu làm rõ (AI)");
 
     const box = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
     expect(within(box).getByRole("group", { name: "Câu hỏi 1 trên 2" })).toHaveTextContent("Thay đổi áp cho cả ứng dụng mobile không?");
-    // chọn gợi ý ⇒ tự sang câu 2; quay lại câu 1 vẫn thấy đã chọn, gõ thêm ở dòng tự trả lời
+    // chọn gợi ý ⇒ tự sang câu 2; quay lại tab câu 1 vẫn thấy đã chọn
     fireEvent.click(within(box).getByRole("radio", { name: "Chỉ áp cho web" }));
     expect(within(box).getByRole("group", { name: "Câu hỏi 2 trên 2" })).toBeInTheDocument();
-    fireEvent.click(within(box).getByRole("button", { name: "Câu trước" }));
+    fireEvent.click(within(box).getByRole("tab", { name: "Câu 1" }));
     expect(within(box).getByRole("radio", { name: "Chỉ áp cho web" })).toHaveAttribute("aria-checked", "true");
-    fireEvent.change(within(box).getByLabelText("Câu trả lời khác"), { target: { value: "trừ app cũ" } });
+    // câu chọn một: tự nhập ở dòng "Khác…" thay cho gợi ý đã chọn
+    fireEvent.change(within(box).getByLabelText("Câu trả lời khác"), { target: { value: "Chỉ áp cho web, trừ app cũ" } });
+    expect(within(box).getByRole("radio", { name: "Chỉ áp cho web" })).toHaveAttribute("aria-checked", "false");
     fireEvent.click(within(box).getByRole("button", { name: "Tiếp" }));
-    // câu 2 chưa biết ⇒ gửi luôn (câu đó để trống)
+    // câu 2 chưa biết ⇒ bỏ qua, gửi ở màn Xem lại (câu đó để trống)
+    fireEvent.click(within(box).getByRole("button", { name: "Bỏ qua" }));
     fireEvent.click(within(box).getByRole("button", { name: "Gửi câu trả lời" }));
-    await waitFor(() => expect(S().crs.get("CR-001")!.change_request.clarifications[0].answers).toEqual(["Chỉ áp cho web (Bổ sung: trừ app cũ)", ""]));
+    await waitFor(() => expect(S().crs.get("CR-001")!.change_request.clarifications[0].answers).toEqual(["Chỉ áp cho web, trừ app cũ", ""]));
   });
 });
