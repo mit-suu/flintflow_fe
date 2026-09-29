@@ -19,6 +19,11 @@ export const updateMyLocale = async (locale: Locale): Promise<User> => {
   return res.data as User;
 };
 
+/** UC-06: thu hồi mọi phiên của tài khoản (kể cả phiên này); BE xoá luôn cookie HttpOnly của thiết bị đang dùng. */
+export const logoutAllDevices = async (): Promise<void> => {
+  await apiCall("/auth/logout-all", { method: "POST" });
+};
+
 /** Sai mật khẩu hiện tại ⇒ `ApiClientError` code `INVALID_CURRENT_PASSWORD` (HTTP 400). */
 export const changeMyPassword = async (currentPassword: string, newPassword: string): Promise<void> => {
   await apiCall("/users/me/password", {

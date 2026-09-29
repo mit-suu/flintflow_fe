@@ -1,6 +1,7 @@
 import { apiCall } from "./client";
 import type { CreditTransaction } from "./billing";
 import type { FeedbackCategory } from "./feedback";
+import type { OrgRole } from "@/types/organization";
 
 export type AdminUserRole = "user" | "admin";
 export type AiCostGroupBy = "day" | "actionType" | "provider" | "user";
@@ -11,16 +12,29 @@ export interface AdminUser {
   name: string | null;
   role: AdminUserRole;
   isActive: boolean;
+  /** UC-66: thời điểm và lý do khoá; null khi đang hoạt động. */
+  suspendedAt: string | null;
+  suspendReason: string | null;
   emailVerified: boolean;
   authProvider: string;
   createdAt: string;
-  walletBalance: number;
+  /** task-26: ví thuộc tổ chức, không thuộc người ⇒ BE không còn trả `walletBalance`. */
+  organizationsCount: number;
   projectsCount: number;
   lastLoginAt: string | null;
 }
 
-export interface AdminUserDetail extends AdminUser {
+/** UC-65: một tổ chức người này tham gia, kèm ví của tổ chức đó (null nếu org chưa có ví). */
+export interface AdminUserOrganization {
+  id: string;
+  name: string;
+  role: OrgRole;
+  joinedAt: string;
   wallet: { balance: number; reserved: number } | null;
+}
+
+export interface AdminUserDetail extends AdminUser {
+  organizations: AdminUserOrganization[];
   recentTransactions: CreditTransaction[];
 }
 
@@ -105,6 +119,28 @@ export async function fetchAdminUsers(params: FetchUsersParams = {}) {
 export async function fetchAdminUser(id: string): Promise<AdminUserDetail> {
   const res = await apiCall<AdminUserDetail>(`/admin/users/${id}`);
   return unwrap(res.data, "người dùng");
+}
+
+export interface AdminUserStatus {
+  _id: string;
+  isActive: boolean;
+  suspendedAt: string | null;
+  suspendReason: string | null;
+}
+
+/**
+ * UC-66 khoá (bắt buộc lý do) / UC-67 mở khoá. Khoá thì BE thu hồi mọi phiên của tài khoản;
+ * tự khoá chính mình ⇒ `ApiClientError` code `CANNOT_SUSPEND_SELF`.
+ */
+export async function setAdminUserStatus(
+  id: string,
+  body: { isActive: false; reason: string } | { isActive: true }
+): Promise<AdminUserStatus> {
+  const res = await apiCall<AdminUserStatus>(`/admin/users/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  return unwrap(res.data, "trạng thái tài khoản");
 }
 
 export async function fetchAdminMetrics(): Promise<AdminMetrics> {
