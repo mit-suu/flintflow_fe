@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types/chat";
-import { parseChatQuestion } from "@/lib/question-options";
+import { parseChatQuestion, replyContainsQuestion } from "@/lib/question-options";
+import { displayUserText } from "./user-text";
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -87,12 +88,13 @@ export default function ChatBubble({
     try {
       const data: unknown = JSON.parse(raw);
       if (data && typeof data === "object" && typeof (data as { reply?: unknown }).reply === "string") {
-        // FLF-220: câu mở (không có lựa chọn) nằm ngay trong tin nhắn AI, trả lời bằng ô chat; câu có lựa chọn ở thẻ hỏi
+        // FLF-220: câu mở (không có lựa chọn) nằm ngay trong tin nhắn AI; câu `inline` chỉ bỏ khi `reply` đã chứa nó; trả lời bằng ô chat; câu có lựa chọn ở thẻ hỏi
         const questions = (data as { questions?: unknown }).questions;
+        const reply = (data as { reply: string }).reply;
         const openQuestions = (Array.isArray(questions) ? questions : [])
           .map(parseChatQuestion)
-          .flatMap((q) => (q && q.options.length === 0 ? [q.question] : []));
-        return { reply: (data as { reply: string }).reply, openQuestions };
+          .flatMap((q) => (q && q.options.length === 0 && !(q.inline && replyContainsQuestion(reply, q.question)) ? [q.question] : []));
+        return { reply, openQuestions };
       }
     } catch (_) {
       // JSON chưa đủ (đang stream) — hiện nguyên văn, ticker bên dưới vẫn chạy
@@ -207,7 +209,7 @@ export default function ChatBubble({
     return (
       <div className="flex flex-col items-end group">
         <div className="relative bg-primary-soft text-on-surface px-4 py-2.5 rounded-[20px] max-w-[80%] text-[14px] leading-6">
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap">{displayUserText(message.content)}</p>
 
           {/* Action bar: Timestamp, Copy, Rollback — nổi bên trái bong bóng khi hover, không chiếm chiều cao bong bóng */}
           <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 flex items-center gap-1.5 text-[11px] text-[#8A867E] select-none whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
