@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import BriefPanel, { briefHasData } from "../BriefPanel";
-import { assumptionText, formFactorLabel, stakesLabel } from "../brief-labels";
+import { assumptionText, briefVisionGoals, formFactorLabel, isBriefCoreTopic, stakesLabel } from "../brief-labels";
 import type { Spine } from "@/types/spine";
 
 const project = (patch: Partial<Spine["project"]> = {}): Spine["project"] => ({
@@ -112,5 +112,48 @@ describe("BriefPanel (FLF-221)", () => {
     expect(formFactorLabel(null)).toBeNull();
     expect(stakesLabel("regulated")).toBe("Có quản lý ngành");
     expect(assumptionText({ statement: "EN", statement_vi: "  " })).toBe("EN");
+  });
+
+  const entry = (id: string, topic: string, content: string): Spine["addendum"][number] => ({
+    id,
+    topic,
+    content,
+    content_en: `en ${content}`,
+    target_section: "fixed:1",
+    captured_at: "2026-09-30T00:00:00.000Z",
+  });
+
+  it("tầm nhìn/mục tiêu đọc từ addendum lõi (tiếng user), không lặp ở \"Điều bạn đã kể\", hai mục tiêu trùng chữ vẫn render đủ", () => {
+    const addendum = [
+      entry("AD01", "vision", "Ứng dụng đặt lịch khám cho phòng khám nhỏ"),
+      entry("AD02", " Goals ", "Giảm cuộc gọi đặt lịch"),
+      entry("AD03", "goals", "Giảm cuộc gọi đặt lịch"),
+      entry("AD04", "users", "Lễ tân và bệnh nhân"),
+    ];
+    render(<BriefPanel spine={{ project: project({ vision: "English vision", goals: ["English goal"] }), assumptions: [], addendum }} />);
+    expect(screen.getByText("Ứng dụng đặt lịch khám cho phòng khám nhỏ")).toBeTruthy();
+    expect(screen.getByText("Mục tiêu (2)")).toBeTruthy();
+    expect(screen.getAllByText("Giảm cuộc gọi đặt lịch")).toHaveLength(2);
+    expect(screen.getByText("Điều bạn đã kể (1)")).toBeTruthy();
+    expect(screen.getByText("Lễ tân và bệnh nhân")).toBeTruthy();
+    expect(screen.queryByText(/English/)).toBeNull();
+    expect(screen.queryByText(/vision|goals/i)).toBeNull();
+  });
+
+  it("dự án cũ không có addendum lõi ⇒ fallback project.vision/goals", () => {
+    const spine = { project: project({ vision: "Cổng nội bộ", goals: ["Giảm thời gian duyệt"] }), assumptions: [], addendum: [entry("AD01", "users", "Nhân viên")] };
+    expect(briefHasData(spine)).toBe(true);
+    render(<BriefPanel spine={spine} />);
+    expect(screen.getByText("Cổng nội bộ")).toBeTruthy();
+    expect(screen.getByText("Giảm thời gian duyệt")).toBeTruthy();
+    expect(screen.getByText("Điều bạn đã kể (1)")).toBeTruthy();
+  });
+
+  it("briefVisionGoals: ưu tiên lõi khi có cả hai; topic hoa-thường/khoảng trắng vẫn khớp", () => {
+    const both = briefVisionGoals({ project: project({ vision: "EN", goals: ["EN goal"] }), addendum: [entry("AD01", " VISION ", "Tầm nhìn VI")] });
+    expect(both.vision).toBe("Tầm nhìn VI");
+    expect(both.goals).toEqual([]);
+    expect(isBriefCoreTopic(" Goals ")).toBe(true);
+    expect(isBriefCoreTopic("users")).toBe(false);
   });
 });

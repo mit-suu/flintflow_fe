@@ -351,6 +351,22 @@ describe("GateCard — cờ và bảng", () => {
     expect(screen.getByText(/và 2 dòng nữa/)).toBeInTheDocument();
   });
 
+  it("bảng S-1.1 (Brief của bạn | Bản đưa vào SRS) mở sẵn", () => {
+    const payload = {
+      type: "gate_ready",
+      step_id: "S-1.1",
+      actions: ALL,
+      regenerate_used: 0,
+      calls_used: 1,
+      summary: [],
+      table: { title_vi: "Tầm nhìn và mục tiêu", columns: ["Brief của bạn", "Bản đưa vào SRS"], rows: [["Ứng dụng đặt lịch khám", "Appointment booking app"]], truncated: 0 },
+    } as unknown as GateReadyEvent;
+    const { container } = renderWithIntl(<GateCard stepId="S-1.1" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+    expect(container.querySelector("details")?.hasAttribute("open")).toBe(true);
+    expect(screen.getByText("Bản đưa vào SRS")).toBeInTheDocument();
+    expect(screen.getByText("Appointment booking app")).toBeInTheDocument();
+  });
+
   it("cổng cuối giai đoạn dùng message của giai đoạn, không lấy lời của bước cuối", () => {
     const stepGate = { type: "gate_ready", step_id: "S-3.6", actions: ALL, regenerate_used: 0, calls_used: 1, message_vi: "Lời của bước cuối" } as GateReadyEvent;
     renderWithIntl(
