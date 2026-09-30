@@ -5,6 +5,7 @@ import Tabs from "@/components/ui/Tabs";
 import type { Op } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
 import BriefSummaryCard, { OTHER_KIND_LABEL } from "./BriefSummaryCard";
+import { otherRequirementText } from "./brief-labels";
 import DecisionsPanel from "./DecisionsPanel";
 import NamesGlossaryPanel from "./NamesGlossaryPanel";
 import AssumptionSweepPanel from "./AssumptionSweepPanel";
@@ -100,10 +101,10 @@ export default function ProjectRecordPanel({
           <>
             {inBriefPhase && (
               <>
-                <Block title="Giả định cần xác nhận" hint="AI tự giả định khi Brief còn thiếu. Xác nhận đúng hay sai.">
+                <Block title="Những điều tôi đang hiểu" hint="Điều AI tạm hiểu khi bạn chưa nói rõ. Xác nhận đúng hay sai.">
                   <AssumptionSweepPanel spine={spine} onSubmitOps={onSubmitOps} busy={busy} />
                 </Block>
-                <Block title="Ghi chú Brief" hint="Chọn giữ, để dành cho phụ lục, hoặc bỏ từng ghi chú.">
+                <Block title="Ghi chú" hint="Chọn giữ, để dành cho phụ lục, hoặc bỏ từng ghi chú.">
                   <AddendumTriagePanel spine={spine} onSubmitOps={onSubmitOps} busy={busy} />
                 </Block>
               </>
@@ -114,7 +115,7 @@ export default function ProjectRecordPanel({
                   {openItems.map((item) => (
                     <li key={item.id} className="text-[12px] leading-relaxed text-on-surface">
                       <span className="text-[11px] font-semibold text-on-surface-muted">{OTHER_KIND_LABEL[item.kind] ?? item.kind} · </span>
-                      {item.statement}
+                      {otherRequirementText(item)}
                     </li>
                   ))}
                 </ul>
