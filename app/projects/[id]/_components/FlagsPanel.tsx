@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Tabs from "@/components/ui/Tabs";
-import { stepLabel } from "@/lib/constants/step-registry";
+import { workspaceStepLabel as stepLabel } from "./phase-labels";
 import { isFlagWaivable } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
-import { ACTION_INFO, flagGroupTitle, groupByAction, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup } from "./flag-rules";
+import { ACTION_INFO, WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup } from "./flag-rules";
 
-const WAIVE_REASON_MIN_LENGTH = 20;
 /** Nhóm dài hơn mức này chỉ hiện chừng ấy dòng đầu + "Xem thêm". */
 const PREVIEW_ROWS = 5;
 

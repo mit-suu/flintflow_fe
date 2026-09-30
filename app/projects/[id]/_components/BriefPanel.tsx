@@ -1,22 +1,16 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { Assumption, Spine } from "@/types/spine";
+import type { Spine } from "@/types/spine";
 import Icon from "@/components/ui/Icon";
 import Skeleton from "@/components/ui/Skeleton";
-import { ASSUMPTION_STATUS_LABEL, assumptionText, formFactorLabel, stakesLabel } from "./brief-labels";
+import { assumptionText, formFactorLabel, stakesLabel } from "./brief-labels";
 
 interface BriefPanelProps {
   spine: Pick<Spine, "project" | "assumptions" | "addendum"> | null;
   /** AI đang chạy một bước của pha Brief — panel sẽ đổi sau khi bước ghi xong. */
   updating?: boolean;
 }
-
-const STATUS_TONE: Record<Assumption["status"], string> = {
-  unconfirmed: "bg-accent-gold-soft text-accent-gold-text",
-  confirmed: "bg-success-soft text-success",
-  rejected: "bg-surface-container-high text-on-surface-muted",
-};
 
 /** Một ô thông tin: nhãn nhỏ phía trên, nội dung phía dưới, nền fill (không viền, không bóng). */
 function Tile({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
@@ -43,13 +37,14 @@ export const briefHasData = (spine: Pick<Spine, "project" | "assumptions" | "add
 };
 
 /**
- * Khung phải ở pha Brief (B-0…B-2, FLF-221): "Brief đang hình thành" — những gì AI đã hiểu về ý tưởng, đọc thẳng từ
+ * Khung phải ở pha Brief (B-0…B-2, FLF-221): "Tóm tắt đang hình thành" — những gì AI đã hiểu về ý tưởng, đọc thẳng từ
  * Spine. Cố ý KHÔNG giống tài liệu SRS (không trang giấy, không mục đánh số, không nút tải/phiên bản): user chưa có SRS
  * nào ở pha này, chỉ có ý tưởng đang được chốt dần. SRS pane quay lại từ S-1.
  */
 export default function BriefPanel({ spine, updating = false }: BriefPanelProps) {
   const headingId = "brief-panel-title";
-  const assumptions = spine?.assumptions ?? [];
+  // Điều AI đang tạm hiểu mà bạn chưa xác nhận — chỉ đọc; sửa hay xác nhận bằng cách nhắn ở ô chat
+  const understood = (spine?.assumptions ?? []).filter((a) => a.status === "unconfirmed");
   const project = spine?.project;
   const formFactor = formFactorLabel(project?.form_factor);
   const stakes = stakesLabel(project?.stakes);
@@ -72,7 +67,7 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
             </span>
             <div className="flex-1 min-w-0">
               <h2 id={headingId} className="text-[15px] font-bold text-on-surface">
-                Brief đang hình thành
+                Tóm tắt đang hình thành
               </h2>
               <p className="text-[12px] text-on-surface-muted">Tóm tắt ý tưởng — chưa phải tài liệu SRS</p>
             </div>
@@ -87,7 +82,7 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
           </header>
 
           {!spine ? (
-            <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải Brief">
+            <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải tóm tắt">
               <Skeleton className="h-16 w-full rounded-card" />
               <Skeleton className="h-16 w-full rounded-card" />
               <Skeleton className="h-24 w-full rounded-card" />
@@ -149,18 +144,16 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
                 </section>
               ) : null}
 
-              {assumptions.length ? (
-                <section aria-labelledby="brief-panel-assumptions" className="bg-surface-container-low rounded-card px-4 py-3 flex flex-col gap-2">
-                  <h3 id="brief-panel-assumptions" className="text-[11px] font-semibold text-on-surface-muted">
-                    Giả định AI đang dùng ({assumptions.length})
+              {understood.length ? (
+                <section aria-labelledby="brief-panel-understood" className="bg-surface-container-low rounded-card px-4 py-3 flex flex-col gap-2">
+                  <h3 id="brief-panel-understood" className="text-[11px] font-semibold text-on-surface-muted">
+                    Những điều tôi đang hiểu ({understood.length})
                   </h3>
-                  <ul className="flex flex-col gap-2">
-                    {assumptions.map((assumption) => (
-                      <li key={assumption.id} className="flex items-start gap-2 text-[12.5px] text-on-surface leading-relaxed">
-                        <span className="flex-1 min-w-0">{assumptionText(assumption)}</span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${STATUS_TONE[assumption.status]}`}>
-                          {ASSUMPTION_STATUS_LABEL[assumption.status]}
-                        </span>
+                  <ul className="flex flex-col gap-1.5">
+                    {understood.map((assumption) => (
+                      <li key={assumption.id} className="flex gap-2 text-[12.5px] text-on-surface leading-relaxed">
+                        <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-on-surface-muted" />
+                        <span className="min-w-0">{assumptionText(assumption)}</span>
                       </li>
                     ))}
                   </ul>

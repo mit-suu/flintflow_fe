@@ -79,7 +79,7 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
 
     case "REGENERATE_LIMIT":
       return {
-        message: "Đã hết 3 lượt soạn lại cho bước này. Dùng “Yêu cầu sửa” để nói rõ cần đổi gì.",
+        message: "Đã hết 3 lượt soạn lại cho bước này. Nhắn tôi ở ô chat để nói rõ cần đổi gì.",
         actions: [{ kind: "dismiss", label: "Đã hiểu" }]
       };
 

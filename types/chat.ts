@@ -29,6 +29,8 @@ export interface DiscoveryQuestion {
   /** Rỗng ⇒ câu mở (trả lời bằng ô chat, không vào thẻ). */
   options: QuestionOption[];
   multiple?: boolean;
+  /** Câu mở đã được hỏi ngay trong lời AI — không hiện lại thành dòng/thẻ riêng. */
+  inline?: boolean;
 }
 
 export interface ActionCostEstimate {

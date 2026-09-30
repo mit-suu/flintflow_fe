@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import type { ChatMessage, DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
-import { stepLabel as stepLabelOf } from "@/lib/constants/step-registry";
+import { workspaceStepLabel as stepLabelOf } from "./phase-labels";
 import Icon from "@/components/ui/Icon";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
@@ -15,8 +15,10 @@ interface ChatPaneProps {
   /** Không có khung bên phải (Brief chưa có dữ liệu) ⇒ khung chat giãn hết chỗ còn lại. */
   fill?: boolean;
   session: ChatSession | null;
-  /** Nhãn step hiện tại (`S-3.1 · Actor`). */
+  /** Nhãn step hiện tại, tên đời thường (`Actor`) — không hiện mã B-x.y / S-x.y. */
   stepLabel?: string | null;
+  /** Mã step (`S-3.1`) — chỉ để trong tooltip của nhãn. */
+  stepCode?: string | null;
   inputMessage: string;
   setInputMessage: (msg: string) => void;
   onSendMessage: (customContent?: string) => void;
@@ -53,8 +55,6 @@ interface ChatPaneProps {
   editPlaceholder?: string;
   /** Đầu thanh tiêu đề, trước tên pane (vd. nút lịch sử phiên chat). */
   headerStart?: ReactNode;
-  /** Số dư credit — hiện trong ô nhập. */
-  creditBalance?: number | null;
   /** Khung sát mép trái màn hình (rail tiến độ ẩn / mở rộng trang) ⇒ chỉ bo góc bên phải; còn lại bo hai góc trên. */
   flushLeft?: boolean;
   /**
@@ -101,6 +101,7 @@ export default function ChatPane({
   fill = false,
   session,
   stepLabel,
+  stepCode = null,
   inputMessage,
   setInputMessage,
   onSendMessage,
@@ -114,14 +115,13 @@ export default function ChatPane({
   children,
   questionCard,
   onEditInstruction,
-  title = "Hội thoại & Duyệt bước",
+  title = "Trò chuyện và duyệt",
   emptyState,
   inputPlaceholder,
   editPlaceholder,
   headerStart,
   flushLeft = false,
   hideTrailingAiMessage = false,
-  creditBalance = null,
   editMode = false,
   onToggleEditMode,
   editDisabledReason = null,
@@ -175,7 +175,9 @@ export default function ChatPane({
           <h2 className="font-bold text-on-surface text-[13px] truncate">{title}</h2>
         </div>
         {stepLabel && (
-          <span className="text-[11px] font-bold text-primary-hover bg-primary-soft px-2.5 py-0.5 rounded-full truncate max-w-[200px]">{stepLabel}</span>
+          <span title={stepCode ?? undefined} className="text-[11px] font-bold text-primary-hover bg-primary-soft px-2.5 py-0.5 rounded-full truncate max-w-[200px]">
+            {stepLabel}
+          </span>
         )}
       </div>
 
@@ -203,10 +205,10 @@ export default function ChatPane({
         {messages.map((msg, idx) => (
           <div key={idx} className="contents">
             {dividers[idx] !== null && msg.step && (
-              <div className="flex items-center gap-2 pt-1" aria-label={`Bắt đầu bước ${msg.step}`}>
+              <div className="flex items-center gap-2 pt-1" title={msg.step} aria-label={`Bắt đầu bước ${stepLabelOf(msg.step)}`}>
                 <span className="h-px flex-1 bg-outline-variant" />
                 <span className="text-[10.5px] font-bold uppercase tracking-wider text-on-surface-muted shrink-0">
-                  {msg.step} · {stepLabelOf(msg.step)}
+                  {stepLabelOf(msg.step)}
                 </span>
                 <span className="h-px flex-1 bg-outline-variant" />
               </div>
@@ -263,8 +265,6 @@ export default function ChatPane({
             onSelectAttachment={onSelectAttachment}
             onRemoveAttachment={onRemoveAttachment}
             compact={Boolean(questionCard) || showQuestions}
-            creditBalance={creditBalance}
-            actionType={sendAsEdit ? "change_instruction" : "chat"}
             // Session không pipeline luôn là lệnh sửa ⇒ không cần chip
             onToggleEditMode={isNonPipelineSession ? undefined : onToggleEditMode}
             editMode={sendAsEdit}

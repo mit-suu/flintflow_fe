@@ -113,3 +113,6 @@ export const issueCounts = (flags: readonly Flag[], outdated = 0): IssueCounts =
     later: new Set(open.filter((f) => actionOf(f.rule_id) === "run_step").map((f) => f.section_id)).size,
   };
 };
+
+/** Lý do bỏ qua một cờ phải dài ít nhất chừng này ký tự (in kèm trong tài liệu). */
+export const WAIVE_REASON_MIN_LENGTH = 20;
