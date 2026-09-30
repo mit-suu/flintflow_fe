@@ -71,6 +71,8 @@ const plainWording = (text: string): string => text.replace(/giả định/gi, "
 const changeText = (row: ChangeSummary): string => {
   if (row.collection === "project") return projectFieldText(row.title_vi);
   if (row.collection === "assumptions") return `${row.kind === "add" ? "Tôi tạm hiểu" : row.kind === "update" ? "Cập nhật điều tôi tạm hiểu" : "Bỏ điều tôi tạm hiểu"}: ${plainWording(row.title_vi)}`;
+  // Yêu cầu khác chỉ có bản tiếng Anh (statement) — khung chat pha Brief không hiện câu tiếng Anh, chỉ nói có thêm mục
+  if (row.collection === "other_requirements") return `${VERB[row.kind]} ${COLLECTION_LABEL[row.collection]}`;
   return `${VERB[row.kind]} ${COLLECTION_LABEL[row.collection] ?? row.collection}: ${row.title_vi}`;
 };
 

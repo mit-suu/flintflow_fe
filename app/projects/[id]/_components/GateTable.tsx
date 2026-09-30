@@ -1,10 +1,11 @@
 import type { GateTable as GateTableData } from "@/types/pipeline";
 
 /** Bảng thu gọn dưới tin gate (MoSCoW, ma trận quyền…): mở khi bấm, ô phân tách bằng khoảng trắng và nền fill, không kẻ viền. */
-export default function GateTable({ table }: { table: GateTableData }) {
+/** `defaultOpen`: bảng là nội dung cần soát (S-1.1 song ngữ) nên mở sẵn thay vì thu gọn. */
+export default function GateTable({ table, defaultOpen = false }: { table: GateTableData; defaultOpen?: boolean }) {
   if (table.rows.length === 0) return null;
   return (
-    <details className="bg-surface-container-low rounded-card px-3.5 py-2.5">
+    <details open={defaultOpen || undefined} className="bg-surface-container-low rounded-card px-3.5 py-2.5">
       <summary className="text-[12.5px] font-semibold text-on-surface cursor-pointer focus-visible:outline-2 focus-visible:outline-primary">
         Xem bảng: {table.title_vi} ({table.rows.length + table.truncated} dòng)
       </summary>
@@ -23,7 +24,7 @@ export default function GateTable({ table }: { table: GateTableData }) {
             {table.rows.map((row, i) => (
               <tr key={i}>
                 {row.map((cell, j) => (
-                  <td key={j} className="bg-surface-container-lowest px-2 py-1 align-top rounded-inner">
+                  <td key={j} className="bg-surface-container-lowest px-2 py-1 align-top rounded-inner whitespace-pre-wrap break-words">
                     {cell}
                   </td>
                 ))}
