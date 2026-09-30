@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
-import { estimateActionCost } from "../../../../lib/api/chat";
-import type { ChatActionType } from "@/types/chat";
 import Icon from "@/components/ui/Icon";
 
 /** ~6 dòng chữ 13px — cao hơn nữa thì ô nhập chiếm mất khung chat, nên cuộn trong ô. */
@@ -17,13 +15,9 @@ interface ChatInputProps {
   pendingAttachments: File[];
   onSelectAttachment: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemoveAttachment: (fileName: string) => void;
-  /** ActionType BE dùng để tính giá credit mỗi tin nhắn. */
-  actionType: ChatActionType;
   placeholder?: string;
-  /** Có thẻ câu hỏi ngay trên ⇒ thu ô nhập về một hàng (đính kèm · ô gõ · gửi), ẩn giá credit. */
+  /** Có thẻ câu hỏi ngay trên ⇒ thu ô nhập về một hàng (đính kèm · ô gõ · gửi). */
   compact?: boolean;
-  /** Số dư credit của user — hiện cạnh giá mỗi tin nhắn. */
-  creditBalance?: number | null;
   /** Có ⇒ hiện chip "Sửa tài liệu": bật lên thì nội dung gửi đi là lệnh sửa tài liệu, không phải tin chat. */
   onToggleEditMode?: () => void;
   editMode?: boolean;
@@ -33,24 +27,6 @@ interface ChatInputProps {
   toolbarExtra?: ReactNode;
 }
 
-// ChatInput mount lại sau mỗi lượt AI; cache giá theo actionType để chỉ gọi BE một lần mỗi loại.
-// Request lỗi bị xoá khỏi cache để lần mount sau thử lại.
-const costRequests = new Map<ChatActionType, Promise<number | null>>();
-
-const loadActionCost = (actionType: ChatActionType): Promise<number | null> => {
-  let request = costRequests.get(actionType);
-  if (!request) {
-    request = estimateActionCost(actionType)
-      .then((res) => res.data?.cost ?? null)
-      .catch(() => {
-        costRequests.delete(actionType);
-        return null;
-      });
-    costRequests.set(actionType, request);
-  }
-  return request;
-};
-
 export default function ChatInput({
   inputMessage,
   setInputMessage,
@@ -59,10 +35,8 @@ export default function ChatInput({
   pendingAttachments,
   onSelectAttachment,
   onRemoveAttachment,
-  actionType,
   placeholder = "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
   compact = false,
-  creditBalance = null,
   onToggleEditMode,
   editMode = false,
   editDisabledReason = null,
@@ -114,19 +88,6 @@ export default function ChatInput({
     el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`;
     el.style.overflowY = el.scrollHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden";
   }, [draft, compact]);
-  const [creditEstimate, setCreditEstimate] = useState<number | null>(null);
-
-  // Giá credit lấy từ BE; lỗi thì ẩn thay vì hiện số đoán
-  useEffect(() => {
-    let cancelled = false;
-    loadActionCost(actionType).then((cost) => {
-      if (!cancelled) setCreditEstimate(cost);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [actionType]);
-
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -216,22 +177,6 @@ export default function ChatInput({
           </div>
 
           <div className={`flex items-center gap-3 ${compact ? "order-3" : ""}`}>
-            {/* compact: chỉ còn số dư — giá "/ msg" không áp khi ô nhập đang trả lời thẻ câu hỏi */}
-            {compact
-              ? creditBalance !== null && (
-                  <span className="text-[11px] text-on-surface-subtle tabular-nums whitespace-nowrap" title="Số credit còn lại">
-                    {creditBalance} credit
-                  </span>
-                )
-              : (creditEstimate !== null || creditBalance !== null) && (
-                  <span className="text-[11px] text-on-surface-subtle tabular-nums whitespace-nowrap" title="Giá mỗi tin nhắn · số credit còn lại">
-                    {/* Khung chat hẹp: chỉ giữ số dư, giá mỗi tin nằm trong tooltip */}
-                    {creditEstimate !== null && <span className="hidden @[470px]:inline">~{creditEstimate} credit / {editMode ? "lệnh sửa" : "msg"}</span>}
-                    {creditEstimate !== null && creditBalance !== null && <span className="hidden @[470px]:inline"> · </span>}
-                    {creditBalance !== null && <>còn {creditBalance}</>}
-                  </span>
-                )}
-
             <button
               type="button"
               onClick={send}

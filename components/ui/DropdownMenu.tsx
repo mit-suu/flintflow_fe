@@ -8,6 +8,8 @@ export interface DropdownMenuItem {
   icon?: IconName;
   tone?: "default" | "danger";
   onSelect: () => void;
+  /** Mục mờ, không chọn được (vd. đã hết lượt). */
+  disabled?: boolean;
   /** Phần bên phải dòng (vd. nhãn gói trong menu user). */
   trailing?: ReactNode;
 }
@@ -49,7 +51,7 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
     };
     document.addEventListener("mousedown", onMouseDown);
     document.addEventListener("keydown", onKeyDown);
-    menuRef.current?.querySelector<HTMLElement>("[role='menuitem']")?.focus();
+    menuRef.current?.querySelector<HTMLElement>("[role='menuitem']:not(:disabled)")?.focus();
     return () => {
       document.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("keydown", onKeyDown);
@@ -59,7 +61,7 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
   const moveFocus = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     e.preventDefault();
-    const nodes = Array.from(menuRef.current?.querySelectorAll<HTMLElement>("[role='menuitem']") ?? []);
+    const nodes = Array.from(menuRef.current?.querySelectorAll<HTMLElement>("[role='menuitem']:not(:disabled)") ?? []);
     const index = nodes.indexOf(document.activeElement as HTMLElement);
     const next = (index + (e.key === "ArrowDown" ? 1 : -1) + nodes.length) % nodes.length;
     nodes[next]?.focus();
@@ -100,13 +102,14 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
               key={item.label}
               type="button"
               role="menuitem"
+              disabled={item.disabled}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setOpen(false);
                 item.onSelect();
               }}
-              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-inner text-[12.5px] font-semibold text-left w-full cursor-pointer transition-colors focus-visible:outline-none ${
+              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-inner text-[12.5px] font-semibold text-left w-full cursor-pointer transition-colors focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
                 item.tone === "danger"
                   ? "text-error hover:bg-error-container focus-visible:bg-error-container"
                   : "text-on-surface-dark hover:bg-surface-container focus-visible:bg-surface-container"

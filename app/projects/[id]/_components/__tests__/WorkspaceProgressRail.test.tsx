@@ -48,26 +48,50 @@ const renderRail = (onHide = vi.fn()) =>
 describe("WorkspaceProgressRail", () => {
   it("giai đoạn đang làm mở sẵn; mở thêm giai đoạn khác không đóng cái cũ; nút thu gọn tất cả", async () => {
     renderRail();
-    const current = screen.getByRole("button", { name: /^S-3\.2/ });
+    const current = screen.getByRole("button", { name: stepLabel("S-3.2") });
     expect(current).toHaveAttribute("aria-current", "step");
     expect(current).toHaveTextContent(stepLabel("S-3.2"));
     expect(screen.getByText("Tài liệu đã chốt")).toBeInTheDocument();
     expect(screen.getByText("24%")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^S2 · / }));
-    expect(screen.getByRole("button", { name: /^S-2\.1/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tổng quan" }));
+    expect(screen.getByRole("button", { name: stepLabel("S-2.1") })).toBeInTheDocument();
     // Mở giai đoạn khác không tự đóng giai đoạn đang mở
-    expect(screen.getByRole("button", { name: /^S-3\.2/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: stepLabel("S-3.2") })).toBeInTheDocument();
 
     // Một nút bật/tắt: đang mở ⇒ gập hết; gập hết ⇒ mở hết
     fireEvent.click(screen.getByRole("button", { name: "Thu gọn tất cả bước" }));
     // Danh sách bước trượt đóng xong mới gỡ khỏi DOM
-    await waitFor(() => expect(screen.queryByRole("button", { name: /^S-2\.1/ })).not.toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: /^S-3\.2/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: stepLabel("S-2.1") })).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: stepLabel("S-3.2") })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Mở rộng tất cả bước" }));
-    for (const id of [/^S-2\.1/, /^S-3\.2/, /^S-4\.1/]) expect(screen.getByRole("button", { name: id })).toBeInTheDocument();
+    for (const id of ["S-2.1", "S-3.2", "S-4.1"]) expect(screen.getByRole("button", { name: stepLabel(id) })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Thu gọn tất cả bước" })).toBeInTheDocument();
+  });
+
+  it("Ý tưởng (B-0) là một mục: không liệt kê B-0.1/0.2/0.3, bấm là mở thẳng bước đang làm", () => {
+    const onSelectStep = vi.fn();
+    renderWithIntl(
+      <WorkspaceProgressRail
+        onHide={vi.fn()}
+        currentPhase="B-0"
+        steps={[step("B-0.1", "accepted"), step("B-0.2", "in_progress"), step("B-0.3", "pending"), step("B-1.1", "pending")]}
+        progress={{ done: 1, total: 4, current_phase: "B-0", current_step: "B-0.2", show_percent: false }}
+        selectedStepId={null}
+        onSelectStep={onSelectStep}
+      />
+    );
+    // Giai đoạn hiện tại là B-0 nhưng không xổ bước con
+    for (const id of ["B-0.1", "B-0.2", "B-0.3"]) expect(screen.queryByRole("button", { name: stepLabel(id) })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ý tưởng" }));
+    expect(onSelectStep).toHaveBeenCalledWith("B-0.2");
+  });
+
+  it("rail không hiện chuỗi mã dạng B-0.1 / S-3.2 ở nhãn nhìn thấy", () => {
+    const { container } = renderRail();
+    expect(container.textContent).not.toMatch(/[BS]-\d+\.\d+/);
+    expect(container.textContent).not.toMatch(/\b[BS]-\d\b/);
   });
 
   it("nút ẩn ở đầu rail", () => {

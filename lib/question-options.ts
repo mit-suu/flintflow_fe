@@ -16,18 +16,34 @@ export const splitRecommended = (label: string): { text: string; recommended: bo
 
 export const stripRecommended = (label: string): string => splitRecommended(label).text;
 
+const normalizeText = (text: string): string => text.replace(/[ \t\r\n]+/g, " ").trim().toLowerCase();
+
+/** Lời AI đã chứa nguyên câu hỏi chưa (bỏ qua khác biệt khoảng trắng / hoa thường). */
+export const replyContainsQuestion = (reply: string, question: string): boolean => {
+  const needle = normalizeText(question);
+  return needle !== "" && normalizeText(reply).includes(needle);
+};
+
 /** Câu hỏi của step dưới dạng thẻ hỏi dùng chung. */
 export const toDiscoveryQuestion = (question: Question): DiscoveryQuestion => ({
   question: question.text,
   ...(question.header ? { header: question.header } : {}),
   options: (question.options ?? []).map(normalizeOption).filter((o) => o.label.trim().length > 0),
   multiple: question.multiple,
+  ...(question.inline ? { inline: true } : {}),
 });
 
 /** Tin nhắn CHAT: dạng mới `options` object, tin nhắn cũ `suggestedAnswers: string[]`, hoặc chuỗi trơn. */
 export const parseChatQuestion = (raw: unknown): DiscoveryQuestion | null => {
   if (typeof raw === "string") return raw.trim() ? { question: raw, options: [] } : null;
-  const item = (raw ?? {}) as { question?: unknown; header?: unknown; options?: unknown; suggestedAnswers?: unknown; multiple?: unknown };
+  const item = (raw ?? {}) as {
+    question?: unknown;
+    header?: unknown;
+    options?: unknown;
+    suggestedAnswers?: unknown;
+    multiple?: unknown;
+    inline?: unknown;
+  };
   if (typeof item.question !== "string" || item.question.trim() === "") return null;
   const source = Array.isArray(item.options) ? item.options : Array.isArray(item.suggestedAnswers) ? item.suggestedAnswers : [];
   const options = source.flatMap((o: unknown): QuestionOption[] => {
@@ -47,5 +63,6 @@ export const parseChatQuestion = (raw: unknown): DiscoveryQuestion | null => {
     ...(typeof item.header === "string" && item.header ? { header: item.header } : {}),
     options,
     multiple: typeof item.multiple === "boolean" ? item.multiple : undefined,
+    ...(item.inline === true ? { inline: true } : {}),
   };
 };

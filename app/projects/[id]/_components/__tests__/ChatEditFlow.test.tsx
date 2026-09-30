@@ -7,8 +7,6 @@ import { describeChange, describeTarget } from "../describe-change";
 import type { PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 
-vi.mock("../../../../../lib/api/chat", () => ({ estimateActionCost: vi.fn(() => Promise.resolve({ data: { cost: 3 } })) }));
-
 const preview = (over: Partial<PreviewResult> = {}): PreviewResult => ({
   ok: true,
   txn: "t1",
@@ -130,7 +128,6 @@ describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
     pendingAttachments: [],
     onSelectAttachment: vi.fn(),
     onRemoveAttachment: vi.fn(),
-    actionType: "chat" as const,
   };
 
   it("chip bật/tắt chế độ sửa; bị khoá kèm lý do khi step đang chạy", () => {
@@ -145,9 +142,9 @@ describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
     expect(chip).toHaveAttribute("title", "Bước đang chạy");
   });
 
-  it("thu gọn (có thẻ câu hỏi) ⇒ một dòng, không chip sửa, vẫn hiện số credit còn lại", () => {
-    render(<ChatInput {...inputProps} compact creditBalance={812} onToggleEditMode={vi.fn()} />);
+  it("thu gọn (có thẻ câu hỏi) ⇒ một dòng, không chip sửa, không hiện credit", () => {
+    const { container } = render(<ChatInput {...inputProps} compact onToggleEditMode={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Sửa tài liệu" })).toBeNull();
-    expect(screen.getByText("812 credit")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(/credit/);
   });
 });

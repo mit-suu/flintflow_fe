@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
@@ -167,9 +167,18 @@ interface LogEntry {
   step: string;
   text: string;
 }
+/** Chạy tiếp theo đoạn (E2E_PROJECT_ID): nhật ký thao tác và tình huống đã gặp nằm ở OUT, nạp lại để transcript đủ. */
+const STATE_FILE = join(OUT, "driver-state.json");
 const log: LogEntry[] = [];
+if (RESUME_ID && existsSync(STATE_FILE)) {
+  const saved = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { log: LogEntry[]; situations: typeof situations };
+  log.push(...saved.log);
+  Object.assign(situations, saved.situations);
+}
 const note = (kind: LogEntry["kind"], step: string, text: string) => {
   log.push({ at: Date.now(), kind, step, text });
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(STATE_FILE, JSON.stringify({ log, situations }));
   // Lượt chạy ~30 phút: in tiến trình để biết kẹt ở đâu khi nhìn log của reporter
   console.log(`[${new Date().toISOString().slice(11, 19)}] ${kind} ${step}: ${text.slice(0, 120).replace(/\n/g, " ⏎ ")}`);
 };

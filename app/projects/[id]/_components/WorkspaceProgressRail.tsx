@@ -6,6 +6,7 @@ import IconButton from "@/components/ui/IconButton";
 import type { PhaseId } from "@/lib/constants/step-registry";
 import type { StepProgress, StepSummary } from "@/types/pipeline";
 import PhaseNavBar, { visiblePhases } from "./PhaseNavBar";
+import { SINGLE_ITEM_PHASES } from "./phase-labels";
 import StepProgressBar from "./StepProgressBar";
 
 interface WorkspaceProgressRailProps {
@@ -42,9 +43,21 @@ export default function WorkspaceProgressRail({
   // Giai đoạn đang mở danh sách bước (nhiều cái cùng lúc). `null` = chưa đụng tới ⇒ mở sẵn giai đoạn đang làm.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
   const openPhases: ReadonlySet<string> = picked ?? new Set(currentPhase ? [currentPhase] : []);
-  const allPhases = visiblePhases(steps);
+  // Mục đơn (Ý tưởng) không có danh sách bước con ⇒ không tính vào "mở/thu gọn tất cả"
+  const allPhases = visiblePhases(steps).filter((phase) => !SINGLE_ITEM_PHASES.has(phase));
+
+  /** Mục đơn bấm là xem thẳng bước đang làm của giai đoạn đó (hoặc bước cuối nếu đã xong hết). */
+  const openSinglePhase = (phase: PhaseId) => {
+    const inPhase = steps.filter((s) => s.phase === phase);
+    const target = inPhase.find((s) => s.id === progress?.current_step) ?? inPhase.find((s) => s.status !== "accepted") ?? inPhase.at(-1);
+    if (target) onSelectStep(target.id);
+  };
 
   const togglePhase = (phase: PhaseId) => {
+    if (SINGLE_ITEM_PHASES.has(phase)) {
+      openSinglePhase(phase);
+      return;
+    }
     const next = new Set(openPhases);
     if (next.has(phase)) next.delete(phase);
     else next.add(phase);
