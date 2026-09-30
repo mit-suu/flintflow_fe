@@ -177,3 +177,33 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({ title: "Đổi tên actor", description: "Đổi tên actor Student", source: "verbal", ref: undefined });
   });
 });
+
+describe("ChatPane — nhãn đời thường, credit chỉ ở header", () => {
+  it("nhãn bước ở đầu khung và dòng chia bước không lộ mã B-x.y / S-x.y (mã nằm trong tooltip)", () => {
+    const session: ChatSession = {
+      ...baseSession,
+      messages: [
+        { role: "user", content: "Kể ý tưởng", createdAt: "2026-09-30T00:00:00.000Z", step: "B-0.1" },
+        { role: "ai", content: "Mình hiểu rồi.", createdAt: "2026-09-30T00:00:01.000Z", step: "B-0.1" },
+      ],
+    };
+    const { container } = renderWithIntl(
+      <ChatPane
+        session={session}
+        stepLabel="Kể hết ý tưởng"
+        stepCode="B-0.1"
+        inputMessage=""
+        setInputMessage={() => {}}
+        onSendMessage={() => {}}
+        sending={false}
+        pendingAttachments={[]}
+        onSelectAttachment={() => {}}
+        onRemoveAttachment={() => {}}
+      />
+    );
+    expect(screen.getAllByText("Kể hết ý tưởng")[0]).toBeInTheDocument();
+    expect(screen.getAllByTitle("B-0.1")).toHaveLength(2); // nhãn đầu khung + dòng chia bước
+    expect(container.textContent).not.toMatch(/[BS]-\d+\.\d+/);
+    expect(container.textContent).not.toMatch(/credit/i);
+  });
+});

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { stepLabel } from "@/lib/constants/step-registry";
+import { workspaceStepLabel as stepLabel } from "./phase-labels";
 import type { Op } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
 
