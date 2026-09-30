@@ -35,6 +35,7 @@ import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
 import GateCard, { PICKABLE_FIELDS, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
+import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
 import ChatBubble from "./_components/ChatBubble";
@@ -517,8 +518,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       // giả định dựng từ nhãn user chọn, không gọi AI dịch (không tốn credit).
       if (decision.kind === "pick") {
         const { title, titleEn } = PICKABLE_FIELDS[decision.path];
+        // Nền tảng là mảng (FLF-237): nền tảng vừa chọn thành nền tảng chính, các nền tảng khác đã có giữ nguyên phía sau
+        const pickedValue =
+          decision.path === "project.form_factor"
+            ? [decision.value, ...formFactorList(spineState.spine?.project.form_factor).filter((v) => v !== decision.value)]
+            : decision.value;
         return submitOps([
-          { op: "set", path: decision.path, value: decision.value, reason: "User sửa giả định ở cổng chốt" },
+          { op: "set", path: decision.path, value: pickedValue, reason: "User sửa giả định ở cổng chốt" },
           { op: "set", path: `${path}.statement`, value: `${titleEn}: ${decision.value.replace(/_/g, " ")}` },
           { op: "set", path: `${path}.statement_vi`, value: `${title}: ${decision.label}` },
           { op: "set", path: `${path}.status`, value: "confirmed" },
