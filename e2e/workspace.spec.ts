@@ -109,12 +109,17 @@ test.describe("workspace end-to-end trên BE thật", () => {
     const spine = await api<{ spine_version: number }>(request, "get", `/projects/${projectId}/spine`, token);
     expect(spine.status).toBe(200);
 
+    // Pha Brief không ghi project.vision/goals (FLF-233): tầm nhìn của Brief là một ghi chú addendum topic "vision"
     const vision = "E2E vision: turn a raw idea into a complete SRS through a guided conversation.";
     const applied = await api<{ spine_version: number }>(request, "post", `/projects/${projectId}/changes`, token, {
       base_version: spine.json.data!.spine_version,
       ops: [
-        { op: "set", path: "project.vision", value: vision, reason: "e2e seed" },
-        { op: "set", path: "project.goals", value: ["Ship a usable draft in one day"], reason: "e2e seed" },
+        {
+          op: "add",
+          path: "addendum[]",
+          value: { id: "AD1", topic: "vision", content: "Tầm nhìn e2e: biến ý tưởng thô thành SRS đầy đủ qua hội thoại có dẫn dắt.", content_en: vision, target_section: "fixed:1", captured_at: new Date().toISOString() },
+          reason: "e2e seed",
+        },
       ],
     });
     expect(applied.status, "áp op qua change flow (T17)").toBe(200);
