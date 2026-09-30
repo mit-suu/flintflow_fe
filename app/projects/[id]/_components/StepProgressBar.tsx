@@ -1,8 +1,9 @@
 "use client";
 
-import { PHASES, PHASE_LABELS_VI, stepLabel, type PhaseId } from "@/lib/constants/step-registry";
+import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
 import type { StepProgress, StepSummary } from "@/types/pipeline";
 import { activeCellOf, doneTextOf } from "./PhaseNavBar";
+import { PHASE_NAV_LABELS, workspaceStepLabel as stepLabel } from "./phase-labels";
 
 interface StepProgressBarProps {
   steps: StepSummary[];
@@ -120,7 +121,7 @@ export default function StepProgressBar({
         const { open, dormantLoops } = splitLoops(group.items, current);
         return (
         <div key={group.phase} className="flex flex-col gap-1.5">
-          {!phase && <span className="text-[11px] font-bold text-on-surface-muted">{PHASE_LABELS_VI[group.phase as PhaseId] ?? group.phase}</span>}
+          {!phase && <span className="text-[11px] font-bold text-on-surface-muted">{PHASE_NAV_LABELS[group.phase as PhaseId] ?? group.phase}</span>}
           <ol className="flex flex-col gap-0.5">
             {open.map((step) => {
               const isCurrent = step.id === current;
@@ -136,7 +137,7 @@ export default function StepProgressBar({
                     type="button"
                     disabled={!clickable}
                     onClick={() => onSelectStep(step.id)}
-                    aria-label={`${step.id} ${stepLabel(step.id)}${missing ? " (Thiếu)" : ""}`}
+                    aria-label={`${stepLabel(step.id)}${missing ? " (Thiếu)" : ""}`}
                     aria-current={isCurrent ? "step" : undefined}
                     data-missing={missing || undefined}
                     title={`${step.id} · ${stepLabel(step.id)} — ${
