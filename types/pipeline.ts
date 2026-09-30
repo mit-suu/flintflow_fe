@@ -131,6 +131,8 @@ export interface Question {
   header?: string;
   options?: Array<string | QuestionOption>;
   multiple?: boolean;
+  /** Câu mở đã hỏi ngay trong lời AI (`reply`) — không render thành thẻ/dòng riêng, nhưng vẫn trả lời được bằng ô chat. */
+  inline?: boolean;
 }
 
 export type PipelineErrorCode =
@@ -210,6 +212,8 @@ export interface GateReadyEvent {
   wrote_ops?: boolean;
   /** Mục step này nuôi mà chạy xong vẫn trống (L11b). Cả ba để optional vì BE cũ hơn không gửi. */
   empty_sections?: { section_id: string; title: string }[];
+  /** Lời AI ở cổng chốt (2–4 câu, tiếng Việt). Vắng ở dự án cũ ⇒ FE dựng câu tạm từ `summary`. */
+  message_vi?: string;
 }
 
 /** Sự kiện SSE của `POST /projects/:id/steps/:stepId/run` (`event: <type>` + `data: <JSON>`). */
@@ -253,6 +257,8 @@ export type StepEvent =
       new_assumptions: AssumptionBrief[];
       steps: { step_id: string; label_vi: string; auto_accepted: boolean }[];
       flags?: { red: number; yellow: number; red_delta: number; yellow_delta: number };
+      /** Lời AI ở cổng chốt cuối giai đoạn; vắng ở dự án cũ. */
+      message_vi?: string;
     }
   | { type: "error"; step_id: string; code: PipelineErrorCode; message: string; retryable: boolean };
 
@@ -329,6 +335,8 @@ export interface GateResponse {
   step: StepSummary;
   next_step: string | null;
   spine_version: number;
+  /** Sau `revision`: lời AI nói đã sửa gì (vắng khi BE không có gì để nói). */
+  message_vi?: string;
 }
 
 // ─── progress ────────────────────────────────────────────────────

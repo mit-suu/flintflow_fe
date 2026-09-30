@@ -51,12 +51,36 @@ describe("activityLines (FLF-221)", () => {
       false
     );
     expect(lines.map((l) => [l.kind, l.text])).toEqual([
-      ["step", expect.stringContaining("B-0.1")],
+      ["step", expect.not.stringMatching(/B-[0-9]/)],
       ["task", "Ghi ~1 thông tin dự án"],
-      ["step", expect.stringContaining("B-1.1")],
+      ["step", expect.not.stringMatching(/B-[0-9]/)],
       ["task", "Soạn nội dung"],
     ]);
     expect(lines[1].details).toEqual(["Tên hệ thống: Internal Hub"]);
+  });
+
+  it("không lộ mã bước hay chữ giả định; mã chỉ ở tooltip", () => {
+    const lines = activityLines(
+      [
+        {
+          type: "ops_applied",
+          step_id: "B-2.1",
+          txn: "t",
+          spine_version: 2,
+          changes: [],
+          summary: [
+            { kind: "add", collection: "assumptions", id: "AS1", title_vi: "Bệnh nhân dùng app điện thoại" },
+            { kind: "add", collection: "assumptions", id: "AS2", title_vi: "Không gửi SMS" },
+          ],
+        },
+        { type: "draft", step_id: "B-1.6", attempt: 1 },
+      ],
+      false
+    );
+    const visible = lines.flatMap((l) => [l.text, ...l.details]).join(" | ");
+    expect(visible).not.toMatch(/B-[0-9]|giả định/i);
+    expect(visible).toContain("+2 điều tôi tạm hiểu");
+    expect(lines.filter((l) => l.kind === "step").map((l) => l.title)).toEqual(["B-2.1", "B-1.6"]);
   });
 
   it("đang chạy ⇒ dòng cuối là việc đang làm", () => {

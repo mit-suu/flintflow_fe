@@ -10,7 +10,8 @@ export interface UseSpineResult {
   version: number | null;
   loading: boolean;
   error: string | null;
-  reload: () => Promise<void>;
+  /** Trả `spine_version` vừa đọc (null ⇒ lỗi, hoặc đã có lần đọc mới hơn thay thế) để nơi gọi cập nhật `base_version` ngay. */
+  reload: () => Promise<number | null>;
   /** Nhận Spine mới từ response ghi (ApplyResult) mà không gọi lại API. */
   replace: (spine: Spine) => void;
 }
@@ -31,13 +32,15 @@ export function useSpine(projectId: string, enabled = true): UseSpineResult {
     const request = ++requestRef.current;
     return getSpine(projectId)
       .then((res) => {
-        if (request !== requestRef.current) return;
+        if (request !== requestRef.current) return null;
         const next = res.data;
         setSpine((current) => (next ? newer(current, next) : next));
         setError(null);
+        return next?.spine_version ?? null;
       })
-      .catch((err: unknown) => {
+      .catch((err: unknown): null => {
         if (request === requestRef.current) setError(err instanceof Error ? err.message : "Không tải được Spine");
+        return null;
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);
