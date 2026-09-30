@@ -39,7 +39,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
   return (
     <div className="flex flex-col gap-2.5 text-on-surface">
       <div className="flex flex-wrap gap-1.5">
-        {project.form_factor && chip(formFactorLabel(project.form_factor) as string)}
+        {formFactorLabel(project.form_factor) && chip(formFactorLabel(project.form_factor) as string)}
         {project.stakes && chip(stakesLabel(project.stakes) as string)}
       </div>
 
@@ -70,7 +70,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
           {label("Ghi chú theo mục tài liệu")}
           {groups.map(([target, entries]) => (
             <div key={target} className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-on-surface-variant">{SECTION_LABEL[target] ?? target}</span>
+              <span className="text-[11px] font-semibold text-on-surface-variant">{SECTION_LABEL[target] ?? "Mục khác"}</span>
               <ul className="list-disc pl-4 text-[11.5px] leading-relaxed space-y-0.5">
                 {entries.map((entry) => (
                   <li key={entry.id}>

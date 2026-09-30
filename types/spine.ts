@@ -38,7 +38,8 @@ export interface SpineProject {
   type: string | null;
   domain: string | null;
   complexity: string | null;
-  form_factor: string | null;
+  /** Các nền tảng, phần tử đầu là chính; `[]` = chưa chốt (FLF-237). API cũ / cache có thể còn trả chuỗi. */
+  form_factor: string[];
   stakes: string | null;
   working_mode: WorkingMode | null;
   /** Mức độ dừng lại hỏi ý (FLF-208 R5). */
@@ -193,6 +194,8 @@ export interface OtherRequirement {
   id: string;
   kind: OtherRequirementKind;
   statement: string;
+  /** Câu bằng ngôn ngữ user (FLF-237); dữ liệu cũ không có ⇒ hiện `statement`. */
+  statement_vi?: string | null;
 }
 
 export interface GlossaryTerm {
