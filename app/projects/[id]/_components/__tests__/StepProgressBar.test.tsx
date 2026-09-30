@@ -32,17 +32,20 @@ const progress = (over: Partial<StepProgress> = {}): StepProgress => ({
 });
 
 describe("StepProgressBar", () => {
-  it("mỗi bước là thẻ có tên; không ghi tổng số bước; ẩn % khi N chưa chốt", () => {
+  it("mỗi bước là thẻ có tên đời thường (mã chỉ ở tooltip); không ghi tổng số bước; ẩn % khi N chưa chốt", () => {
     renderWithIntl(<StepProgressBar steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /^S-3\.1/ })).toHaveTextContent(stepLabel("S-3.1"));
+    const named = screen.getByRole("button", { name: stepLabel("S-3.1") });
+    expect(named).toHaveTextContent(stepLabel("S-3.1"));
+    expect(named).not.toHaveTextContent("S-3.1");
+    expect(named).toHaveAttribute("title", expect.stringContaining("S-3.1"));
     expect(screen.queryByText(/17\/56/)).not.toBeInTheDocument();
     expect(screen.queryByTestId("step-percent")).not.toBeInTheDocument();
   });
 
   it("`phase` ⇒ chỉ hiện bước của phase đó", () => {
     renderWithIntl(<StepProgressBar phase="S-3" steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: /^S-2\.5/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^S-3\.2/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: stepLabel("S-2.5") })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: stepLabel("S-3.2") })).toBeInTheDocument();
   });
 
   it("hiện % sau khi S-4.1 chốt N", () => {
@@ -54,15 +57,15 @@ describe("StepProgressBar", () => {
     const onSelectStep = vi.fn();
     renderWithIntl(<StepProgressBar steps={steps} progress={progress()} selectedStepId={null} onSelectStep={onSelectStep} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^S-2\.5/ }));
+    fireEvent.click(screen.getByRole("button", { name: stepLabel("S-2.5") }));
     expect(onSelectStep).toHaveBeenCalledWith("S-2.5");
 
-    const current = screen.getByRole("button", { name: /^S-3\.1/ });
+    const current = screen.getByRole("button", { name: stepLabel("S-3.1") });
     expect(current).toHaveAttribute("aria-current", "step");
     fireEvent.click(current);
     expect(onSelectStep).toHaveBeenCalledWith("S-3.1");
 
-    expect(screen.getByRole("button", { name: /^S-3\.2/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: stepLabel("S-3.2") })).toBeDisabled();
   });
 
   it("mode 1 v2 (FLF-185): step của đầu mục FPT thiếu ⇒ chấm đỏ + nhãn Thiếu; hết khi step đã chốt", () => {
@@ -71,9 +74,9 @@ describe("StepProgressBar", () => {
       <StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} missingStepIds={new Set(["S-7.1", "S-2.5"])} />
     );
     expect(screen.getByTestId("step-missing")).toHaveTextContent("Thiếu 1");
-    expect(screen.getByRole("button", { name: /^S-7\.1 .*\(Thiếu\)$/ })).toHaveAttribute("data-missing", "true");
+    expect(screen.getByRole("button", { name: `${stepLabel("S-7.1")} (Thiếu)` })).toHaveAttribute("data-missing", "true");
     // S-2.5 thuộc kế hoạch "thiếu" nhưng đã accepted ⇒ không còn đỏ
-    expect(screen.getByRole("button", { name: /^S-2\.5/ })).not.toHaveAttribute("data-missing");
+    expect(screen.getByRole("button", { name: stepLabel("S-2.5") })).not.toHaveAttribute("data-missing");
     rerender(<StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
     expect(screen.queryByTestId("step-missing")).not.toBeInTheDocument();
   });

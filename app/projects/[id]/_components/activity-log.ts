@@ -6,7 +6,7 @@
  * ghi bên dưới), không phải số đếm nội bộ ("còn thiếu 5 mục", "Hỏi bạn 3 câu", "Đã nhận 0 câu trả lời") hay thời lượng
  * từng dòng. Việc đã có thẻ riêng trên màn hình (câu hỏi, cổng duyệt) không lặp lại thành dòng.
  */
-import { stepLabel } from "@/lib/constants/step-registry";
+import { workspaceStepLabel as stepLabel } from "./phase-labels";
 import type { ChangeSummary, StepEvent } from "@/types/pipeline";
 import { projectFieldText } from "./GateCard";
 
@@ -20,6 +20,8 @@ export interface ActivityLine {
   kind: "step" | "task";
   text: string;
   status: ActivityStatus;
+  /** Tooltip: mã bước — chỉ để tra cứu, không nằm trong chữ hiện ra. */
+  title?: string;
   /** Chi tiết thụt dòng dưới việc — những gì vừa được ghi, bằng lời thường. */
   details: string[];
 }
@@ -27,7 +29,7 @@ export interface ActivityLine {
 const COLLECTION_LABEL: Record<string, string> = {
   project: "thông tin dự án",
   addendum: "ghi chú",
-  assumptions: "giả định",
+  assumptions: "điều tôi tạm hiểu",
   other_requirements: "yêu cầu khác",
   actors: "actor",
   roles: "vai trò",
@@ -62,11 +64,15 @@ export const summaryCounts = (rows: readonly ChangeSummary[]): string => {
   }).join(" ");
 };
 
-/** Một dòng thay đổi bằng lời thường: "Tên hệ thống: Internal Hub", "Thêm giả định: …". */
-const changeText = (row: ChangeSummary): string =>
-  row.collection === "project"
-    ? projectFieldText(row.title_vi)
-    : `${VERB[row.kind]} ${COLLECTION_LABEL[row.collection] ?? row.collection}: ${row.title_vi}`;
+/** Nhật ký nói "điều tôi tạm hiểu" như panel Brief, không dùng chữ "giả định" của tài liệu. */
+const plainWording = (text: string): string => text.replace(/giả định/gi, "điều tôi tạm hiểu");
+
+/** Một dòng thay đổi bằng lời thường: "Tên hệ thống: Internal Hub", "Tôi tạm hiểu: …". */
+const changeText = (row: ChangeSummary): string => {
+  if (row.collection === "project") return projectFieldText(row.title_vi);
+  if (row.collection === "assumptions") return `${row.kind === "add" ? "Tôi tạm hiểu" : row.kind === "update" ? "Cập nhật điều tôi tạm hiểu" : "Bỏ điều tôi tạm hiểu"}: ${plainWording(row.title_vi)}`;
+  return `${VERB[row.kind]} ${COLLECTION_LABEL[row.collection] ?? row.collection}: ${row.title_vi}`;
+};
 
 const changeDetails = (rows: readonly ChangeSummary[]): string[] => {
   const shown = rows.slice(0, MAX_DETAILS).map(changeText);
@@ -116,8 +122,10 @@ export const activityLines = (events: readonly LoggedEvent[], running: boolean):
     if (task.transient && !(running && index === lastTaskIndex)) return;
     if (event.step_id !== currentStep && event.type !== "error") {
       currentStep = event.step_id;
+      // Chữ hiện ra chỉ có tên bước; mã bước nằm ở tooltip
       const label = stepLabel(event.step_id);
-      lines.push({ key: `step-${event.step_id}-${index}`, kind: "step", text: label ? `${event.step_id} · ${label}` : event.step_id, status: "done", details: [] });
+      const named = label !== event.step_id;
+      lines.push({ key: `step-${event.step_id}-${index}`, kind: "step", text: named ? plainWording(label) : "Bước tiếp theo", title: event.step_id, status: "done", details: [] });
     }
     lines.push({ key: `${event.type}-${index}`, kind: "task", text: task.text, status: task.failed ? "failed" : "done", details: task.details ?? [] });
   });

@@ -22,7 +22,7 @@ export default function RunActivityLog({ events, running }: RunActivityLogProps)
     <ol className="flex flex-col gap-1" aria-label="Nhật ký hoạt động của AI">
       {lines.map((line) =>
         line.kind === "step" ? (
-          <li key={line.key} className="pt-1 first:pt-0 text-[11.5px] font-semibold text-on-surface-variant">
+          <li key={line.key} title={line.title} className="pt-1 first:pt-0 text-[11.5px] font-semibold text-on-surface-variant">
             {line.text}
           </li>
         ) : (

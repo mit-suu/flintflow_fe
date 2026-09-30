@@ -3,8 +3,9 @@
 import type { ReactNode } from "react";
 import Collapse from "@/components/ui/Collapse";
 import Icon from "@/components/ui/Icon";
-import { PHASES, PHASE_LABELS_VI, type PhaseId } from "@/lib/constants/step-registry";
+import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
 import type { StepSummary } from "@/types/pipeline";
+import { PHASE_NAV_LABELS, SINGLE_ITEM_PHASES } from "./phase-labels";
 
 interface PhaseNavBarProps {
   currentPhase: string | null;
@@ -32,15 +33,12 @@ export const phaseState = (phase: PhaseId, currentPhase: string | null, steps: S
 export const visiblePhases = (steps: StepSummary[]): PhaseId[] =>
   PHASES.filter((phase) => steps.length === 0 || steps.some((s) => s.phase === phase));
 
-/** Mã hiển thị gọn: "B-0" → "B0" (chỉ để đọc; id giai đoạn vẫn giữ gạch nối như registry). */
-export const shortPhase = (phase: string) => phase.replace("-", "");
-
 /**
  * Hai nhóm giai đoạn theo màu logo: B (Brief) đen như chữ "Flint", S (Software Requirements Specification) tím như
  * chữ "Flow" — cho tiêu đề nhóm, chữ "đã xong" (`doneTextOf`) và ô "đang làm" (`activeCellOf`). Dòng giai đoạn chỉ ghi số.
  */
 export const PHASE_GROUPS = [
-  { letter: "B", name: "Brief", text: "text-on-surface" },
+  { letter: "B", name: "Tóm tắt ý tưởng", text: "text-on-surface" },
   { letter: "S", name: "Tài liệu SRS", text: "text-primary" },
 ] as const;
 
@@ -62,8 +60,9 @@ const rowClass = (phase: string, state: PhaseState) =>
       : "text-on-surface-muted font-medium hover:bg-surface-container";
 
 /**
- * 12 giai đoạn B-0…S-9 (Phases §1.1) xếp dọc trong rail tiến độ bên trái, gom theo nhóm B / S; mỗi giai đoạn là một
- * mục gập được độc lập (mở cái này không đóng cái khác).
+ * 12 giai đoạn (Phases §1.1) xếp dọc trong rail tiến độ bên trái, gom theo nhóm B / S, gọi bằng tên đời thường — mã
+ * B-x / S-x chỉ nằm trong tooltip. Mỗi giai đoạn là một mục gập được độc lập; riêng giai đoạn đầu (Ý tưởng) là một mục
+ * đơn, không có bước con.
  */
 export default function PhaseNavBar({
   currentPhase,
@@ -90,29 +89,30 @@ export default function PhaseNavBar({
             const state = phaseState(phase, currentPhase, steps);
             const open = !!openPhases?.has(phase);
             const hasMissing = !!missingStepIds && steps.some((s) => s.phase === phase && s.status !== "accepted" && missingStepIds.has(s.id));
-            const label = PHASE_LABELS_VI[phase];
-            const code = shortPhase(phase);
+            const label = PHASE_NAV_LABELS[phase];
+            const single = SINGLE_ITEM_PHASES.has(phase);
             return (
               <li key={phase} aria-current={state === "active" ? "step" : undefined} data-state={state} className="ml-[18px]">
                 <button
                   type="button"
                   onClick={() => onSelectPhase?.(phase)}
-                  aria-expanded={open}
-                  aria-label={`${code} · ${label}`}
+                  aria-expanded={single ? undefined : open}
+                  title={`Giai đoạn ${phase}`}
                   className={`group relative w-full flex items-start rounded-control transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-9 py-2 px-2.5 gap-2.5 ${rowClass(phase, state)}`}
                 >
-                  <span className="w-4 shrink-0 text-left font-bold tabular-nums text-[12px] leading-[18px]">{phase.split("-")[1]}</span>
                   <span className="flex-1 min-w-0 text-left text-[13px] leading-snug break-words">{label}</span>
                   {hasMissing && <span className="mt-0.5 shrink-0 text-[9.5px] font-bold px-1.5 rounded-[4px] bg-error-container text-error">Thiếu</span>}
-                  {/* Mũi tên chỉ hiện khi rê chuột hoặc đang mở — không lặp trên mọi dòng */}
-                  <Icon
-                    name="caret-right"
-                    size={13}
-                    className={`shrink-0 mt-[3px] transition-[transform,opacity] duration-200 ${open ? "rotate-90 opacity-60" : "opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60"}`}
-                  />
+                  {/* Mũi tên chỉ hiện khi rê chuột hoặc đang mở — không lặp trên mọi dòng; mục đơn không có bước con nên không có mũi tên */}
+                  {!single && (
+                    <Icon
+                      name="caret-right"
+                      size={13}
+                      className={`shrink-0 mt-[3px] transition-[transform,opacity] duration-200 ${open ? "rotate-90 opacity-60" : "opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60"}`}
+                    />
+                  )}
                 </button>
                 {/* Bước con như sub-menu của shadcn: một đường dọc mảnh dưới số giai đoạn, danh sách thụt vào; mở/gập trượt mượt */}
-                {renderPhaseBody && (
+                {renderPhaseBody && !single && (
                   <Collapse open={open}>
                     <div className="ml-[17px] pl-2 my-1 border-l border-outline-variant">{renderPhaseBody(phase)}</div>
                   </Collapse>

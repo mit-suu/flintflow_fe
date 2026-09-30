@@ -29,11 +29,11 @@ describe("BriefPanel (FLF-221)", () => {
 
   it("nói rõ đây là Brief, chưa phải SRS; đang tải Spine thì là skeleton giữ chỗ", () => {
     render(<BriefPanel spine={null} />);
-    expect(screen.getByRole("heading", { name: "Brief đang hình thành" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Tóm tắt đang hình thành" })).toBeTruthy();
     expect(screen.getByText("Tóm tắt ý tưởng — chưa phải tài liệu SRS")).toBeTruthy();
-    expect(screen.getByLabelText("Đang tải Brief").getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByLabelText("Đang tải tóm tắt").getAttribute("aria-busy")).toBe("true");
     expect(screen.queryByText("Tầm nhìn")).toBeNull();
-    expect(screen.queryByText(/Giả định AI đang dùng/)).toBeNull();
+    expect(screen.queryByText(/Những điều tôi đang hiểu/)).toBeNull();
   });
 
   it("ẩn ô chưa có dữ liệu, chỉ hiện ô đã có", () => {
@@ -43,10 +43,10 @@ describe("BriefPanel (FLF-221)", () => {
     expect(screen.queryByText("Mức độ quan trọng")).toBeNull();
     expect(screen.queryByText("Tầm nhìn")).toBeNull();
     expect(screen.queryByText(/Mục tiêu/)).toBeNull();
-    expect(screen.queryByLabelText("Đang tải Brief")).toBeNull();
+    expect(screen.queryByLabelText("Đang tải tóm tắt")).toBeNull();
   });
 
-  it("hiện tên hệ thống, nền tảng, mức độ và giả định bằng ngôn ngữ user kèm trạng thái", () => {
+  it("hiện tên hệ thống, nền tảng, mức độ; \"Những điều tôi đang hiểu\" chỉ liệt kê giả định chưa xác nhận, chỉ đọc", () => {
     render(
       <BriefPanel
         spine={{
@@ -63,11 +63,30 @@ describe("BriefPanel (FLF-221)", () => {
     expect(screen.getByText("Salon Slot")).toBeTruthy();
     expect(screen.getByText("Mobile")).toBeTruthy();
     expect(screen.getByText("Chạy thật")).toBeTruthy();
+    expect(screen.getByText("Những điều tôi đang hiểu (1)")).toBeTruthy();
     expect(screen.getByText("Ưu tiên điện thoại.")).toBeTruthy();
-    expect(screen.getByText("Real customers.")).toBeTruthy();
-    expect(screen.getByText("Chưa xác nhận")).toBeTruthy();
-    expect(screen.getByText("Đã xác nhận")).toBeTruthy();
+    // Giả định đã xác nhận không còn là "điều tôi đang hiểu"; panel không có nhãn trạng thái hay nút
+    expect(screen.queryByText("Real customers.")).toBeNull();
+    expect(screen.queryByText("Chưa xác nhận")).toBeNull();
+    expect(screen.queryByText("Đã xác nhận")).toBeNull();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
     expect(screen.getByText("AI đang cập nhật")).toBeTruthy();
+  });
+
+  it("không còn giả định chưa xác nhận ⇒ ẩn hẳn mục, không khung rỗng", () => {
+    render(
+      <BriefPanel
+        spine={{
+          project: project({ system_name: "Salon Slot" }),
+          assumptions: [
+            { id: "AS02", path: "project.stakes", statement: "Real customers.", rationale: "", origin_step_id: "B-0.1", status: "confirmed", confirmed_at: "2026-09-28T00:00:00.000Z" },
+            { id: "AS03", path: "project.type", statement: "Dropped.", rationale: "", origin_step_id: "B-0.1", status: "rejected", confirmed_at: null },
+          ],
+          addendum: [],
+        }}
+      />
+    );
+    expect(screen.queryByText(/Những điều tôi đang hiểu/)).toBeNull();
   });
 
   it("hiện điều user đã kể (addendum) bằng lời của user", () => {
