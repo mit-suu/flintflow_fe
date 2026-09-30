@@ -81,8 +81,6 @@
       "documents"
     ],
     "writes": [
-      "project.vision",
-      "project.goals",
       "addendum",
       "other_requirements",
       "assumptions"
@@ -293,6 +291,7 @@
     ],
     "writes": [
       "project",
+      "addendum",
       "other_requirements",
       "assumptions"
     ],
@@ -301,7 +300,7 @@
       "2.3"
     ],
     "deterministic": false,
-    "description": "Chuyển B-1 và addendum thành dữ liệu có cấu trúc."
+    "description": "Dựng tầm nhìn và mục tiêu tiếng Anh cho SRS từ Brief; chuyển addendum thành dữ liệu có cấu trúc."
   },
   {
     "id": "S-1.2",
@@ -753,7 +752,14 @@
     "kind": "fixed",
     "reads": [
       "entities",
-      "features:id,name"
+      "features:id,name",
+      "project:name,system_name,release_scope",
+      "actors:id,name,kind",
+      "use_cases:id,name",
+      "screens:id,name",
+      "functions:id,name,screen_id,description",
+      "assumptions[origin_step_id=S-4.5]:id,path,statement,status",
+      "business_rules:id,statement"
     ],
     "writes": [
       "entities",

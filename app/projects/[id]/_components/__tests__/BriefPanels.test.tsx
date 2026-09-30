@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildDecisionOps, needsSingleReview } from "../AssumptionSweepPanel";
 import { PARKED_SECTION, buildDropOp, buildRetargetOp } from "../AddendumTriagePanel";
-import { groupByTarget } from "../BriefSummaryCard";
+import BriefSummaryCard, { groupByTarget } from "../BriefSummaryCard";
+import { render, screen } from "@testing-library/react";
 import type { Addendum } from "@/types/spine";
 
 const AT = "2026-09-16T00:00:00.000Z";
@@ -77,5 +78,36 @@ describe("BriefSummaryCard — nhóm ghi chú theo mục tài liệu", () => {
 
   it("không có ghi chú ⇒ không nhóm nào", () => {
     expect(groupByTarget([])).toEqual([]);
+  });
+});
+
+describe("BriefSummaryCard — addendum lõi", () => {
+  const baseProject = {
+    name: "P", system_name: null, vision: "English vision", goals: ["English goal"], type: null, domain: null, complexity: null,
+    form_factor: null, stakes: null, working_mode: null, review_mode: "balanced", release_scope: { in: [], out: [] },
+  } as unknown as import("@/types/spine").Spine["project"];
+
+  it("hiện tầm nhìn/mục tiêu bằng tiếng user, không hiện khoá topic thô", () => {
+    render(
+      <BriefSummaryCard
+        spine={{
+          project: baseProject,
+          assumptions: [],
+          other_requirements: [],
+          addendum: [addendum("AD01", "fixed:1", "vision"), addendum("AD02", "fixed:1", "goals"), addendum("AD03", "fixed:2.1", "users")],
+        }}
+      />
+    );
+    expect(screen.getByText("nội dung AD01")).toBeTruthy();
+    expect(screen.getByText("nội dung AD02")).toBeTruthy();
+    expect(screen.queryByText(/English/)).toBeNull();
+    screen.getByRole("button", { name: "Xem đầy đủ" }).click();
+    expect(screen.queryByText(/users:/)).toBeNull();
+  });
+
+  it("dự án cũ ⇒ fallback project.vision/goals", () => {
+    render(<BriefSummaryCard spine={{ project: baseProject, assumptions: [], other_requirements: [], addendum: [] }} />);
+    expect(screen.getByText("English vision")).toBeTruthy();
+    expect(screen.getByText("English goal")).toBeTruthy();
   });
 });
