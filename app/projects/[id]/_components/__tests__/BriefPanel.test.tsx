@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import BriefPanel, { briefHasData } from "../BriefPanel";
-import { assumptionText, briefVisionGoals, formFactorLabel, isBriefCoreTopic, stakesLabel } from "../brief-labels";
+import { assumptionText, briefVisionGoals, formFactorLabel, isBriefCoreTopic, otherRequirementText, stakesLabel } from "../brief-labels";
 import type { Spine } from "@/types/spine";
 
 const project = (patch: Partial<Spine["project"]> = {}): Spine["project"] => ({
@@ -12,7 +12,7 @@ const project = (patch: Partial<Spine["project"]> = {}): Spine["project"] => ({
   type: null,
   domain: null,
   complexity: null,
-  form_factor: null,
+  form_factor: [],
   stakes: null,
   working_mode: null,
   review_mode: "balanced",
@@ -24,7 +24,7 @@ describe("BriefPanel (FLF-221)", () => {
   it("Brief chưa có gì ⇒ workspace ẩn khung (briefHasData false); có một mục bất kỳ ⇒ hiện", () => {
     expect(briefHasData({ project: project(), assumptions: [], addendum: [] })).toBe(false);
     expect(briefHasData({ project: project({ system_name: "  " }), assumptions: [], addendum: [] })).toBe(false);
-    expect(briefHasData({ project: project({ form_factor: "web_app" }), assumptions: [], addendum: [] })).toBe(true);
+    expect(briefHasData({ project: project({ form_factor: ["web_app"] }), assumptions: [], addendum: [] })).toBe(true);
   });
 
   it("nói rõ đây là Brief, chưa phải SRS; đang tải Spine thì là skeleton giữ chỗ", () => {
@@ -37,7 +37,7 @@ describe("BriefPanel (FLF-221)", () => {
   });
 
   it("ẩn ô chưa có dữ liệu, chỉ hiện ô đã có", () => {
-    render(<BriefPanel spine={{ project: project({ system_name: "Internal Hub", form_factor: "web_app" }), assumptions: [], addendum: [] }} />);
+    render(<BriefPanel spine={{ project: project({ system_name: "Internal Hub", form_factor: ["web_app"] }), assumptions: [], addendum: [] }} />);
     expect(screen.getByText("Internal Hub")).toBeTruthy();
     expect(screen.getByText("Web")).toBeTruthy();
     expect(screen.queryByText("Mức độ quan trọng")).toBeNull();
@@ -50,7 +50,7 @@ describe("BriefPanel (FLF-221)", () => {
     render(
       <BriefPanel
         spine={{
-          project: project({ system_name: "Salon Slot", form_factor: "mobile_app", stakes: "production", goals: ["Giảm khách bỏ hẹn"] }),
+          project: project({ system_name: "Salon Slot", form_factor: ["mobile_app", "web_app"], stakes: "production", goals: ["Giảm khách bỏ hẹn"] }),
           assumptions: [
             { id: "AS01", path: "project.form_factor", statement: "Mobile first.", statement_vi: "Ưu tiên điện thoại.", rationale: "", origin_step_id: "B-0.1", status: "unconfirmed", confirmed_at: null },
             { id: "AS02", path: "project.stakes", statement: "Real customers.", rationale: "", origin_step_id: "B-0.1", status: "confirmed", confirmed_at: "2026-09-28T00:00:00.000Z" },
@@ -61,7 +61,7 @@ describe("BriefPanel (FLF-221)", () => {
       />
     );
     expect(screen.getByText("Salon Slot")).toBeTruthy();
-    expect(screen.getByText("Mobile")).toBeTruthy();
+    expect(screen.getByText("Mobile · Web")).toBeTruthy();
     expect(screen.getByText("Chạy thật")).toBeTruthy();
     expect(screen.getByText("Những điều tôi đang hiểu (1)")).toBeTruthy();
     expect(screen.getByText("Ưu tiên điện thoại.")).toBeTruthy();
@@ -108,8 +108,12 @@ describe("BriefPanel (FLF-221)", () => {
   });
 
   it("helper nhãn dùng chung", () => {
+    expect(formFactorLabel(["web_app", "mobile_app"])).toBe("Web · Mobile");
     expect(formFactorLabel("web_app")).toBe("Web");
+    expect(formFactorLabel([])).toBeNull();
     expect(formFactorLabel(null)).toBeNull();
+    expect(otherRequirementText({ statement: "Gateway may be down.", statement_vi: "Cổng thanh toán có thể sập." })).toBe("Cổng thanh toán có thể sập.");
+    expect(otherRequirementText({ statement: "Gateway may be down." })).toBe("Gateway may be down.");
     expect(stakesLabel("regulated")).toBe("Có quản lý ngành");
     expect(assumptionText({ statement: "EN", statement_vi: "  " })).toBe("EN");
   });

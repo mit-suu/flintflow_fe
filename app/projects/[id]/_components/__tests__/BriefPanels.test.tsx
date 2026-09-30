@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildDecisionOps, needsSingleReview } from "../AssumptionSweepPanel";
 import { PARKED_SECTION, buildDropOp, buildRetargetOp } from "../AddendumTriagePanel";
+import AddendumTriagePanel from "../AddendumTriagePanel";
 import BriefSummaryCard, { groupByTarget } from "../BriefSummaryCard";
 import { render, screen } from "@testing-library/react";
 import type { Addendum } from "@/types/spine";
@@ -62,6 +63,16 @@ describe("AddendumTriagePanel — để dành là đổi đích, không phải x
   });
 });
 
+describe("AddendumTriagePanel — thẻ ghi chú bằng ngôn ngữ user", () => {
+  it("tiêu đề là mục tài liệu tiếng Việt, không hiện khoá topic thô, không hiện bản tiếng Anh", () => {
+    render(<AddendumTriagePanel spine={{ addendum: [addendum("AD05", "fixed:2.1", "Hospital context")] }} onSubmitOps={() => undefined} />);
+    expect(screen.getByText("nội dung AD05")).toBeTruthy();
+    expect(screen.getByText("Actor")).toBeTruthy();
+    expect(screen.queryByText("Hospital context")).toBeNull();
+    expect(screen.queryByText("content AD05")).toBeNull();
+  });
+});
+
 describe("BriefSummaryCard — nhóm ghi chú theo mục tài liệu", () => {
   it("gom theo target_section và sắp xếp ổn định", () => {
     const groups = groupByTarget([
@@ -84,7 +95,7 @@ describe("BriefSummaryCard — nhóm ghi chú theo mục tài liệu", () => {
 describe("BriefSummaryCard — addendum lõi", () => {
   const baseProject = {
     name: "P", system_name: null, vision: "English vision", goals: ["English goal"], type: null, domain: null, complexity: null,
-    form_factor: null, stakes: null, working_mode: null, review_mode: "balanced", release_scope: { in: [], out: [] },
+    form_factor: [], stakes: null, working_mode: null, review_mode: "balanced", release_scope: { in: [], out: [] },
   } as unknown as import("@/types/spine").Spine["project"];
 
   it("hiện tầm nhìn/mục tiêu bằng tiếng user, không hiện khoá topic thô", () => {

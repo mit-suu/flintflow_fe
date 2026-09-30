@@ -22,6 +22,8 @@ interface DecisionsPanelProps {
 /** Nhãn tiếng Việt cho các chủ đề chuẩn; chủ đề tự do hiện nguyên khoá. */
 const TOPIC_LABELS: Record<string, string> = {
   system_name: "Tên hệ thống",
+  form_factor: "Nền tảng",
+  stakes: "Mức độ quan trọng",
   uptime: "Uptime",
   concurrent_users: "Số người dùng đồng thời",
   response_time: "Thời gian phản hồi",

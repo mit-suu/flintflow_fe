@@ -374,8 +374,9 @@ test.describe("luồng Brief với model thật", () => {
 
       // Một lần mỗi lượt chạy: sửa nền tảng bằng chat khi AI đã chốt nền tảng
       if (situations.gateCorrection === 0) {
-        const spine = await api<{ project: { form_factor?: string | null } }>(request, "get", `/projects/${projectId}/spine`);
-        if (spine.data?.project.form_factor) {
+        const spine = await api<{ project: { form_factor?: string[] | string | null } }>(request, "get", `/projects/${projectId}/spine`);
+        const platforms = spine.data?.project.form_factor;
+        if (Array.isArray(platforms) ? platforms.length > 0 : Boolean(platforms)) {
           situations.gateCorrection++;
           await sendChat(GATE_CORRECTION, run.step_id);
           return;

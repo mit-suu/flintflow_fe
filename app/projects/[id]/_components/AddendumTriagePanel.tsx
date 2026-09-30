@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Op } from "@/types/pipeline";
 import type { Addendum, Spine } from "@/types/spine";
+import { SECTION_LABEL } from "./brief-labels";
 
 interface AddendumTriagePanelProps {
   spine: Pick<Spine, "addendum">;
@@ -75,7 +76,8 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
     return (
       <li key={entry.id} className="rounded-[10px] border border-[#ECEAE5] bg-white p-2.5 flex flex-col gap-1.5">
         <div className="flex items-start justify-between gap-2">
-          <span className="text-[11px] font-extrabold text-[#191817]">{entry.topic || entry.id}</span>
+          {/* Tiêu đề là mục tài liệu đích bằng tiếng Việt — không hiện khoá `topic` thô (tiếng Anh) của model */}
+          <span className="text-[11px] font-extrabold text-[#191817]">{entry.topic === "vision" ? "Tầm nhìn" : entry.topic === "goals" ? "Mục tiêu" : (SECTION_LABEL[entry.target_section] ?? "Ghi chú")}</span>
           {parked && (
             <span className="text-[10px] font-bold text-[#6B6862] bg-[#F5F4F1] px-1.5 py-0.5 rounded-full shrink-0">
               Để dành
@@ -83,9 +85,6 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
           )}
         </div>
         <p className="text-[11.5px] text-[#191817]">{entry.content}</p>
-        {entry.content_en && entry.content_en !== entry.content && (
-          <p className="text-[10.5px] text-[#6B6862] italic">{entry.content_en}</p>
-        )}
 
         <label className="flex items-center gap-1.5 pt-0.5">
           <span className="text-[10.5px] font-bold text-[#8A867E] shrink-0">Đưa vào</span>
@@ -96,7 +95,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
             className="flex-1 text-[11px] rounded-[8px] border border-[#ECEAE5] bg-white px-1.5 py-1 cursor-pointer disabled:opacity-50"
           >
             {TARGET_OPTIONS.some((o) => o.id === entry.target_section) ? null : (
-              <option value={entry.target_section}>{entry.target_section}</option>
+              <option value={entry.target_section}>Mục khác</option>
             )}
             {TARGET_OPTIONS.map((o) => (
               <option key={o.id} value={o.id}>
