@@ -214,6 +214,11 @@ export interface GateReadyEvent {
   empty_sections?: { section_id: string; title: string }[];
   /** Lời AI ở cổng chốt (2–4 câu, tiếng Việt). Vắng ở dự án cũ ⇒ FE dựng câu tạm từ `summary`. */
   message_vi?: string;
+  /**
+   * Bước im trong lượt chạy liền giai đoạn: server tự Accept ngay — không phải cổng chờ user, không dựng thẻ cổng/chip.
+   * Vắng ⇒ cổng thật.
+   */
+  auto?: boolean;
 }
 
 /** Sự kiện SSE của `POST /projects/:id/steps/:stepId/run` (`event: <type>` + `data: <JSON>`). */
@@ -262,6 +267,8 @@ export type StepEvent =
     }
   | { type: "error"; step_id: string; code: PipelineErrorCode; message: string; retryable: boolean };
 
+export type PhaseGateEvent = Extract<StepEvent, { type: "phase_gate" }>;
+
 /** `GET /projects/:id/steps/:stepId/run-state` và `GET /projects/:id/run-state/active`. */
 export interface RunState {
   step_id: string;
@@ -276,6 +283,8 @@ export interface RunState {
   alive: boolean;
   questions: Question[] | null;
   gate_payload: GateReadyEvent | null;
+  /** Cổng chốt cuối giai đoạn (tin nhắn + mọi giả định của giai đoạn) — dựng lại đúng cổng sau reload. Vắng/null ⇒ bước lẻ. */
+  phase_gate?: PhaseGateEvent | null;
   /** Mỗi sự kiện lưu kèm `at` (ISO, FLF-221) — dữ liệu cũ không có. */
   events: (StepEvent & { at?: string })[];
   error: { code: string; message: string } | null;
