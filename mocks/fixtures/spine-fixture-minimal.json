@@ -11,7 +11,7 @@
     "type": "web_application",
     "domain": "Requirements engineering / AI-assisted documentation",
     "complexity": "high",
-    "form_factor": "responsive_web",
+    "form_factor": ["web_app"],
     "stakes": "production",
     "working_mode": "coaching",
     "release_scope": {
