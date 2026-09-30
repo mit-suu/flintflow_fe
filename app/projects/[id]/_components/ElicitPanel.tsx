@@ -1,7 +1,7 @@
 "use client";
 
 import type { Question, StepAnswer } from "@/types/pipeline";
-import { toDiscoveryQuestion } from "@/lib/question-options";
+import { replyContainsQuestion, toDiscoveryQuestion } from "@/lib/question-options";
 import QuestionStepperInput from "./QuestionStepperInput";
 
 interface ElicitPanelProps {
@@ -19,11 +19,15 @@ interface ElicitPanelProps {
 
 const hasOptions = (q: Question): boolean => (q.options ?? []).length > 0;
 
-/** Câu có lựa chọn vào thẻ; câu mở hiện trong tin nhắn AI và trả lời bằng ô chat. */
-export const splitQuestions = (questions: Question[]): { card: Question[]; open: Question[] } => ({
-  card: questions.filter(hasOptions),
-  open: questions.filter((q) => !hasOptions(q)),
-});
+/**
+ * Câu có lựa chọn vào thẻ; câu mở trả lời bằng ô chat. `open` gồm mọi câu mở (để ghép câu trả lời gõ tay); `listed` là
+ * phần câu mở phải hiện thành dòng riêng trong tin AI — câu `inline` chỉ được bỏ khi lời AI (`reply`) đã chứa nó.
+ */
+export const splitQuestions = (questions: Question[], reply = ""): { card: Question[]; open: Question[]; listed: Question[] } => {
+  const open = questions.filter((q) => !hasOptions(q));
+  // `inline` chỉ được ẩn khi lời AI thật sự chứa câu đó — nếu không, user sẽ không thấy câu đang chờ trả lời
+  return { card: questions.filter(hasOptions), open, listed: open.filter((q) => !q.inline || !replyContainsQuestion(reply, q.text)) };
+};
 
 /** Một đoạn chữ thành `answers[]`: dạng `n. ...` thì tách theo thứ tự câu, không thì cả đoạn cho câu đầu. */
 export const toStepAnswers = (questions: Question[], text: string): StepAnswer[] => {

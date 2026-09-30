@@ -1,41 +1,68 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
-import GateCard, { groupSummary, joinSummaryTexts } from "../GateCard";
+import GateCard, { groupSummary, joinSummaryTexts, type GateNewFlag } from "../GateCard";
+import { fallbackGateMessage } from "../gate-helpers";
 import type { GateAction, GateReadyEvent } from "@/types/pipeline";
 
 const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 
-describe("GateCard", () => {
-  it("Duyệt gọi onAction ngay; Làm lại hiện số lượt còn lại", () => {
+const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
+
+describe("GateCard — tin nhắn AI + chip", () => {
+  it("hiện lời AI (message_vi), chip Đúng rồi đi tiếp / Tôi muốn sửa, và không còn khung form cũ", () => {
+    const payload = { type: "gate_ready", step_id: "B-0.1", actions: ALL, regenerate_used: 0, calls_used: 2, message_vi: "Mình hiểu đây là app đặt lịch khám. Bạn xem giúp nhé." } as GateReadyEvent;
+    renderWithIntl(<GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+
+    const gate = screen.getByLabelText("Cổng chốt");
+    expect(gate).toHaveTextContent("Mình hiểu đây là app đặt lịch khám. Bạn xem giúp nhé.");
+    expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tôi muốn sửa" })).toBeInTheDocument();
+    for (const gone of [/Giai đoạn/, /AI đã ghi nhận/, /AI tự giả định/, /credit/, /B-0\.1/]) expect(gate).not.toHaveTextContent(gone);
+    expect(screen.queryByRole("button", { name: /Yêu cầu sửa/ })).toBeNull();
+  });
+
+  it("Đúng rồi, đi tiếp gọi onAction('accept'); Tôi muốn sửa chỉ đưa con trỏ vào ô chat", () => {
+    const onAction = vi.fn();
+    const onWantEdit = vi.fn();
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={1} onWantEdit={onWantEdit} onAction={onAction} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Tôi muốn sửa" }));
+    expect(onWantEdit).toHaveBeenCalledTimes(1);
+    expect(onAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ }));
+    expect(onAction).toHaveBeenCalledWith("accept");
+  });
+
+  it("menu ⋯: Làm lại hiện số lượt còn lại và gọi regenerate", () => {
     const onAction = vi.fn();
     renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={1} onAction={onAction} />);
-
-    fireEvent.click(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ }));
-    expect(onAction).toHaveBeenCalledWith("accept");
-
-    const regenerate = screen.getByRole("button", { name: /Làm lại · còn 2 lần/ });
+    openMenu();
+    const regenerate = screen.getByRole("menuitem", { name: /Làm lại · còn 2 lần/ });
     expect(regenerate).not.toBeDisabled();
     fireEvent.click(regenerate);
     expect(onAction).toHaveBeenCalledWith("regenerate");
   });
 
-  it("hết 3 lượt Làm lại ⇒ nút tắt, Duyệt như hiện tại xuất hiện", () => {
-    renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "revision", "accept_as_is"]} regenerateUsed={3} onAction={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Làm lại · còn 0 lần/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Duyệt như hiện tại" })).toBeInTheDocument();
-  });
+  it("hết 3 lượt Làm lại ⇒ mục tắt, Duyệt như hiện tại xuất hiện; chưa hết thì không có", () => {
+    const { unmount } = renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={vi.fn()} />);
+    openMenu();
+    expect(screen.queryByRole("menuitem", { name: /Duyệt như hiện tại/ })).not.toBeInTheDocument();
+    unmount();
 
-  it("chưa hết Làm lại thì không hiện Duyệt như hiện tại", () => {
-    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Duyệt như hiện tại" })).not.toBeInTheDocument();
+    renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "revision", "accept_as_is"]} regenerateUsed={3} onAction={vi.fn()} />);
+    openMenu();
+    expect(screen.getByRole("menuitem", { name: /Làm lại · còn 0 lần/ })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: /Duyệt như hiện tại/ })).toBeInTheDocument();
   });
 
   it("Duyệt như hiện tại bắt buộc lý do trước khi gửi", () => {
     const onAction = vi.fn();
     renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "accept_as_is"]} regenerateUsed={3} onAction={onAction} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Duyệt như hiện tại" }));
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Duyệt như hiện tại/ }));
     const confirm = screen.getByRole("button", { name: "Xác nhận duyệt như hiện tại" });
     expect(confirm).toBeDisabled();
 
@@ -47,28 +74,19 @@ describe("GateCard", () => {
     expect(onAction).toHaveBeenCalledWith("accept_as_is", "Khách hàng đồng ý bản này");
   });
 
-  it("Yêu cầu sửa cần ghi chú", () => {
-    const onAction = vi.fn();
-    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={onAction} />);
-    fireEvent.click(screen.getByRole("button", { name: /Yêu cầu sửa/ }));
-    fireEvent.change(screen.getByLabelText("Cần sửa gì?"), { target: { value: "Thiếu actor Guest" } });
-    fireEvent.click(screen.getByRole("button", { name: "Gửi yêu cầu sửa" }));
-    expect(onAction).toHaveBeenCalledWith("revision", "Thiếu actor Guest");
-  });
-
-  it("busy thì khoá mọi hành động", () => {
+  it("busy thì khoá chip chính và mục Làm lại", () => {
     renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} busy onAction={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Làm lại/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Tôi muốn sửa" })).toBeDisabled();
   });
 
   // L11b: trước đây lô op rỗng đi tới gate y như một lượt chạy thành công — user Accept, cờ đỏ vẫn treo, bấm
   // "Mở lại" lại rơi vào đúng vòng đó cho tới khi cạn trần 8 lượt gọi model (gặp thật 2026-09-20).
   describe("cảnh báo lượt chạy không ghi được gì (L11b)", () => {
-    it("lô op rỗng ⇒ nói thẳng, vẫn cho Duyệt", () => {
+    it("lô op rỗng ⇒ nói thẳng bằng một câu, vẫn cho Duyệt", () => {
       renderWithIntl(<GateCard stepId="S-7.2" actions={ALL} regenerateUsed={0} wroteOps={false} onAction={vi.fn()} />);
       expect(screen.getByRole("status")).toHaveTextContent("AI không soạn được nội dung nào ở lượt này");
-      expect(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ }), "vẫn là quyết định của người dùng").not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ }), "vẫn là quyết định của người dùng").not.toBeDisabled();
     });
 
     it("AI không được gọi vì field đã chốt ở bước trước ⇒ không cảnh báo, chỉ nói lý do", () => {
@@ -86,11 +104,11 @@ describe("GateCard", () => {
         no_change_reason: "Nền tảng đã chốt ở bước Kể hết ý tưởng — không cần hỏi lại.",
       } as unknown as GateReadyEvent;
       renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} regenerateUsed={0} wroteOps={false} payload={settled} onAction={vi.fn()} />);
-      expect(screen.queryByText("AI không soạn được nội dung nào ở lượt này")).not.toBeInTheDocument();
+      expect(screen.queryByText(/AI không soạn được nội dung nào ở lượt này/)).not.toBeInTheDocument();
       expect(screen.getByText(/Nền tảng đã chốt ở bước Kể hết ý tưởng/)).toBeInTheDocument();
     });
 
-    it("có ghi op nhưng mục vẫn trống ⇒ gọi tên mục và nói rõ Duyệt không đóng được cờ", () => {
+    it("có ghi op nhưng mục vẫn trống ⇒ gọi tên mục, nói rõ Duyệt không đóng được cờ và chỉ lối ra", () => {
       renderWithIntl(
         <GateCard
           stepId="S-7.2"
@@ -104,8 +122,8 @@ describe("GateCard", () => {
       const banner = screen.getByRole("status");
       expect(banner).toHaveTextContent("Chạy xong nhưng mục vẫn trống");
       expect(banner).toHaveTextContent("Common Requirements");
-      expect(banner).toHaveTextContent("fixed:5.2");
-      expect(banner, "phải chỉ lối ra, không chỉ báo lỗi").toHaveTextContent(/waive|chat/i);
+      expect(banner, "không lộ mã mục nội bộ").not.toHaveTextContent("fixed:5.2");
+      expect(banner, "phải chỉ lối ra, không chỉ báo lỗi").toHaveTextContent(/bỏ qua cờ|chat/i);
     });
 
     it("chạy bình thường thì không có cảnh báo nào", () => {
@@ -115,7 +133,7 @@ describe("GateCard", () => {
   });
 });
 
-describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
+describe("GateCard — dự án cũ chưa có message_vi", () => {
   const payload: GateReadyEvent = {
     type: "gate_ready",
     step_id: "S-4.3",
@@ -134,125 +152,33 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     doc_progress: { before: 44, after: 46 },
   };
 
-  it("hiện nội dung vừa ghi, chênh lệch cờ và credit — không hiện thời gian (gồm cả lúc chờ user)", () => {
+  it("dựng một câu tạm từ tóm tắt; không hiện giả định, credit, số cờ hay thời gian", () => {
     renderWithIntl(<GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
-    expect(screen.getByText(/AI đã ghi nhận/)).toBeInTheDocument();
-    expect(screen.getByText(/\+2 quyền/)).toBeInTheDocument();
-    expect(screen.getByText(/Admin tạo trên Manage Staff/)).toBeInTheDocument();
-    expect(screen.getByText(/cờ đỏ 3 → 2/)).toBeInTheDocument();
-    expect(screen.getByText("4 credit")).toBeInTheDocument();
+    const gate = screen.getByLabelText("Cổng chốt");
+    expect(gate).toHaveTextContent(/Tôi đã cập nhật: thêm 2 quyền \(Admin tạo trên Manage Staff; Admin xoá trên Manage Staff\), sửa 1 chức năng/);
+    expect(gate).toHaveTextContent("Bạn xem giúp, ổn thì mình đi tiếp nhé.");
+    expect(screen.queryByText(/credit/)).toBeNull();
+    expect(screen.queryByText(/Lễ tân không được xoá/)).toBeNull();
+    expect(screen.queryByText(/cờ đỏ/)).toBeNull();
     expect(screen.queryByText(/giây/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull();
   });
 
-  it("field dự án dịch sang lời thường; giả định không lặp ở danh sách vừa ghi; không có gì đổi thì ẩn dòng kiểm tra", () => {
-    const brief: GateReadyEvent = {
-      ...payload,
-      summary: [
+  it("field dự án dịch sang lời thường; giả định không kể lần hai", () => {
+    expect(
+      fallbackGateMessage([
         { kind: "update", collection: "project", id: null, title_vi: "complexity: small" },
         { kind: "add", collection: "assumptions", id: "AS3", title_vi: "Small internal tool" },
-      ],
-      new_assumptions: [{ id: "AS3", text: "Small internal tool" }],
-      flags: { red: 0, yellow: 0, red_delta: 0, yellow_delta: 0 },
-      doc_progress: { before: 0, after: 0 },
-    };
-    renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} regenerateUsed={0} payload={brief} onAction={vi.fn()} />);
-    expect(screen.getByText(/Độ phức tạp: Nhỏ/)).toBeInTheDocument();
-    expect(screen.queryByText(/\+1 giả định/)).toBeNull();
-    expect(screen.getAllByText("Small internal tool")).toHaveLength(1);
-    expect(screen.queryByText("AS3")).toBeNull();
-    expect(screen.queryByText(/Kiểm tra:/)).toBeNull();
+      ])
+    ).toBe("Tôi đã cập nhật: sửa 1 thông tin dự án (Độ phức tạp: Nhỏ). Bạn xem giúp, ổn thì mình đi tiếp nhé.");
   });
 
-  it("giả định mới có ba nút Đúng / Sửa / Bỏ; Sửa xong vẫn hiện câu mới với nhãn Đã sửa", async () => {
-    const onAssumptionDecision = vi.fn();
-    renderWithIntl(
-      <GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAssumptionDecision={onAssumptionDecision} onAction={vi.fn()} />
-    );
-    expect(screen.getByText(/AI tự giả định/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Sửa" }));
-    fireEvent.change(screen.getByLabelText("Sửa giả định AS12"), { target: { value: "Lễ tân được xoá lịch trong ngày" } });
-    fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
-
-    expect(onAssumptionDecision).toHaveBeenCalledWith({ kind: "edit", id: "AS12", statement: "Lễ tân được xoá lịch trong ngày" });
-    // "Sửa" chờ BE dịch bản sửa xong rồi mới đổi dòng: giả định không biến mất, hiện câu mới, hết nút quyết
-    await waitFor(() => expect(screen.getByText("Đã sửa:")).toBeInTheDocument());
-    expect(screen.getByText("Lễ tân được xoá lịch trong ngày")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull();
+  it("chỉ có giả định hoặc không có gì ⇒ vẫn là một câu đọc được", () => {
+    expect(fallbackGateMessage([])).toBe("Tôi đã xong bước này. Bạn xem giúp, ổn thì mình đi tiếp nhé.");
+    expect(fallbackGateMessage([{ kind: "add", collection: "assumptions", id: "AS3", title_vi: "X" }])).toMatch(/^Tôi đã xong bước này/);
   });
 
-  it("giả định về nền tảng: Sửa mở danh sách lựa chọn, chọn ⇒ quyết định pick, không mở ô gõ", async () => {
-    const onAssumptionDecision = vi.fn().mockResolvedValue(true);
-    const brief: GateReadyEvent = {
-      ...payload,
-      summary: [{ kind: "update", collection: "project", id: null, title_vi: "form_factor: web_app" }],
-      new_assumptions: [{ id: "AS1", text: "Web app", text_vi: "Nền tảng là web" }],
-    };
-    renderWithIntl(
-      <GateCard
-        stepId="B-0.1"
-        actions={ALL}
-        regenerateUsed={0}
-        payload={brief}
-        assumptionPaths={{ AS1: "project.form_factor" }}
-        onAssumptionDecision={onAssumptionDecision}
-        onAction={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Sửa" }));
-    expect(screen.queryByLabelText("Sửa giả định AS1")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Mobile" }));
-
-    expect(onAssumptionDecision).toHaveBeenCalledWith({ kind: "pick", id: "AS1", path: "project.form_factor", value: "mobile_app", label: "Mobile" });
-    await waitFor(() => expect(screen.getByText("Nền tảng: Mobile")).toBeInTheDocument());
-    // Giá trị cũ không còn hiện ở "AI đã ghi nhận"
-    expect(screen.queryByText(/Nền tảng: Web/)).toBeNull();
-  });
-
-  it("bấm Duyệt 2 lần trong lúc chờ xác nhận giả định ⇒ chỉ một lượt Duyệt, nút khoá", async () => {
-    let release: () => void = () => undefined;
-    const onConfirmAssumptions = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
-    const onAction = vi.fn();
-    const brief: GateReadyEvent = { ...payload, new_assumptions: [{ id: "AS1", text: "A" }] };
-    renderWithIntl(
-      <GateCard stepId="B-1.2" actions={ALL} regenerateUsed={0} payload={brief} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
-    );
-    const accept = screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ });
-    fireEvent.click(accept);
-    fireEvent.click(accept);
-    await waitFor(() => expect(accept).toBeDisabled());
-    release();
-    await waitFor(() => expect(onAction).toHaveBeenCalledTimes(1));
-    expect(onConfirmAssumptions).toHaveBeenCalledTimes(1);
-  });
-
-  it("reload: giả định trong payload đã xác nhận ở Spine không hiện lại để hỏi", () => {
-    const brief: GateReadyEvent = { ...payload, new_assumptions: [{ id: "AS1", text: "Web app" }] };
-    renderWithIntl(<GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={brief} settledAssumptionIds={new Set(["AS1"])} onAction={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull();
-  });
-
-  it("reload sau khi chọn Mobile: dòng tóm tắt cũ 'Nền tảng: Web' không hiện lại", () => {
-    const brief: GateReadyEvent = {
-      ...payload,
-      summary: [{ kind: "update", collection: "project", id: null, title_vi: "form_factor: web_app" }],
-      new_assumptions: [{ id: "AS1", text: "Web app", text_vi: "Nền tảng là web" }],
-    };
-    renderWithIntl(
-      <GateCard
-        stepId="B-0.1"
-        actions={ALL}
-        regenerateUsed={0}
-        payload={brief}
-        assumptionPaths={{ AS1: "project.form_factor" }}
-        settledAssumptionIds={new Set(["AS1"])}
-        onAction={vi.fn()}
-      />
-    );
-    expect(screen.queryByText(/Nền tảng: Web/)).toBeNull();
-  });
-
-  it("Duyệt chỉ xác nhận giả định chưa quyết — giả định đã Sửa không gửi lại", async () => {
+  it("Duyệt vẫn xác nhận các giả định mới trước khi chốt bước (chưa có ô Đúng/Sửa/Bỏ)", async () => {
     const onConfirmAssumptions = vi.fn().mockResolvedValue(undefined);
     const onAction = vi.fn();
     const brief: GateReadyEvent = {
@@ -268,22 +194,67 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
         actions={ALL}
         regenerateUsed={0}
         payload={brief}
-        onAssumptionDecision={vi.fn().mockResolvedValue(true)}
+        settledAssumptionIds={new Set(["AS2"])}
         onConfirmAssumptions={onConfirmAssumptions}
         onAction={onAction}
       />
     );
-    fireEvent.click(screen.getAllByRole("button", { name: "Sửa" })[0]);
-    fireEvent.change(screen.getByLabelText("Sửa giả định AS1"), { target: { value: "A mới" } });
-    fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
-    await waitFor(() => expect(screen.getByText("A mới")).toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole("button", { name: /Duyệt, sang bước tiếp/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ }));
     await waitFor(() => expect(onAction).toHaveBeenCalledWith("accept"));
-    expect(onConfirmAssumptions).toHaveBeenCalledWith(["AS2"]);
+    // AS2 đã chốt ở Spine ⇒ không gửi lại; chỉ xác nhận đúng giả định tin của cổng đã nói
+    expect(onConfirmAssumptions).toHaveBeenCalledWith(["AS1"]);
   });
 
-  it("step không đổi gì thì nói rõ vì sao", () => {
+  it("cổng cuối giai đoạn: chỉ xác nhận giả định của tin cổng, không kéo theo giả định khác đang treo", async () => {
+    const onConfirmAssumptions = vi.fn().mockResolvedValue(undefined);
+    const onAction = vi.fn();
+    renderWithIntl(
+      <GateCard
+        stepId="B-1.6"
+        actions={ALL}
+        regenerateUsed={0}
+        phaseSummary={[]}
+        message="Tôi tạm hiểu là không gửi SMS."
+        payload={{ ...payload, new_assumptions: [{ id: "AS-STEP", text: "Của bước cuối" }] }}
+        spokenAssumptions={[{ id: "AS3", text: "Không SMS" }, { id: "AS4", text: "BHYT tại viện" }]}
+        onConfirmAssumptions={onConfirmAssumptions}
+        onAction={onAction}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ }));
+    await waitFor(() => expect(onAction).toHaveBeenCalledWith("accept"));
+    expect(onConfirmAssumptions).toHaveBeenCalledWith(["AS3", "AS4"]);
+  });
+
+  it("không có giả định nào được nói ⇒ Accept không ghi xác nhận nào", async () => {
+    const onConfirmAssumptions = vi.fn().mockResolvedValue(undefined);
+    const onAction = vi.fn();
+    renderWithIntl(
+      <GateCard stepId="B-1.2" actions={ALL} regenerateUsed={0} payload={{ ...payload, new_assumptions: [] }} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ }));
+    await waitFor(() => expect(onAction).toHaveBeenCalledWith("accept"));
+    expect(onConfirmAssumptions).not.toHaveBeenCalled();
+  });
+
+  it("bấm Đúng rồi 2 lần trong lúc chờ xác nhận giả định ⇒ chỉ một lượt Duyệt, chip khoá", async () => {
+    let release: () => void = () => undefined;
+    const onConfirmAssumptions = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+    const onAction = vi.fn();
+    const brief: GateReadyEvent = { ...payload, new_assumptions: [{ id: "AS1", text: "A" }] };
+    renderWithIntl(
+      <GateCard stepId="B-1.2" actions={ALL} regenerateUsed={0} payload={brief} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
+    );
+    const accept = screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ });
+    fireEvent.click(accept);
+    fireEvent.click(accept);
+    await waitFor(() => expect(accept).toBeDisabled());
+    release();
+    await waitFor(() => expect(onAction).toHaveBeenCalledTimes(1));
+    expect(onConfirmAssumptions).toHaveBeenCalledTimes(1);
+  });
+
+  it("step không đổi gì thì nói rõ vì sao trong lời AI", () => {
     renderWithIntl(
       <GateCard
         stepId="S-5.3@S03"
@@ -296,7 +267,19 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
     expect(screen.getByText(/không thay đổi tài liệu/)).toBeInTheDocument();
   });
 
-  it("BUG-01: Accept ở S-9.5 bị chặn ⇒ hiện cờ đang chặn kèm lối đi tới step xử lý", () => {
+  it("groupSummary gộp theo loại thay đổi và collection", () => {
+    expect(groupSummary(payload.summary ?? []).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
+  });
+
+  it("nối tóm tắt: bỏ dấu câu cuối mỗi mục, nối bằng '; '", () => {
+    expect(joinSummaryTexts(["Tuân thủ quy định nhà nước.", "Từ 50 người dùng,", "  ", "Bảo mật;"])).toBe(
+      "Tuân thủ quy định nhà nước; Từ 50 người dùng; Bảo mật"
+    );
+  });
+});
+
+describe("GateCard — cờ và bảng", () => {
+  it("cờ đỏ chặn baseline ⇒ một câu + chip Xem chỗ bị chặn dẫn tới step xử lý", () => {
     const onGoToStep = vi.fn();
     renderWithIntl(
       <GateCard
@@ -309,37 +292,83 @@ describe("GateCard — Lớp 4 \"Bạn vừa có\" (WP-5)", () => {
       />
     );
     expect(screen.getByText(/còn 1 cờ đỏ chưa xử lý/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /S-9.1/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Xem chỗ bị chặn/ }));
     expect(onGoToStep).toHaveBeenCalledWith("S-9.1");
+    // Chip Duyệt không bị chặn: BE vẫn là nơi quyết định
+    expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ })).not.toBeDisabled();
   });
 
-  it("groupSummary gộp theo loại thay đổi và collection", () => {
-    expect(groupSummary(payload.summary ?? []).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
+  const flag: GateNewFlag = { id: "FL07", level: "red", message: "Use case UC03 chưa có chức năng", waivable: true };
+
+  it("cờ mới: câu nêu cờ + Sửa theo đề xuất gọi onFixFlag", () => {
+    const onFixFlag = vi.fn();
+    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[flag]} onFixFlag={onFixFlag} onKeepFlag={vi.fn()} onAction={vi.fn()} />);
+    expect(screen.getByText(/Vấn đề cần xử lý:/)).toBeInTheDocument();
+    expect(screen.getByText(/Use case UC03 chưa có chức năng/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sửa theo đề xuất" }));
+    expect(onFixFlag).toHaveBeenCalledWith(flag);
   });
 
-  it("nối tóm tắt: bỏ dấu câu cuối mỗi mục, nối bằng '; '", () => {
-    expect(joinSummaryTexts(["Tuân thủ quy định nhà nước.", "Từ 50 người dùng,", "  ", "Bảo mật;"])).toBe(
-      "Tuân thủ quy định nhà nước; Từ 50 người dùng; Bảo mật"
+  it("Giữ nguyên mở ô lý do (≥ 20 ký tự) rồi mới waive; lỗi hiện ngay dưới chip", async () => {
+    const onKeepFlag = vi.fn().mockRejectedValueOnce(new Error("Không bỏ qua được")).mockResolvedValueOnce(undefined);
+    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[flag]} onFixFlag={vi.fn()} onKeepFlag={onKeepFlag} onAction={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên" }));
+    const confirm = screen.getByRole("button", { name: "Xác nhận giữ nguyên" });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Vì sao bạn muốn giữ nguyên/), { target: { value: "ngắn quá" } });
+    expect(confirm).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/Vì sao bạn muốn giữ nguyên/), { target: { value: "Use case này để dành cho giai đoạn sau" } });
+    fireEvent.click(confirm);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không bỏ qua được");
+    expect(onKeepFlag).toHaveBeenCalledWith(flag, "Use case này để dành cho giai đoạn sau");
+
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận giữ nguyên" }));
+    await waitFor(() => expect(screen.queryByLabelText(/Vì sao bạn muốn giữ nguyên/)).toBeNull());
+  });
+
+  it("cờ không waive được ⇒ chỉ có Sửa theo đề xuất", () => {
+    renderWithIntl(
+      <GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[{ ...flag, waivable: false }]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={vi.fn()} />
     );
+    expect(screen.queryByRole("button", { name: "Giữ nguyên" })).toBeNull();
   });
 
-  it("trường đang có giả định chờ không hiện ở 'AI đã ghi nhận'; không còn ', .' hay '., '", () => {
-    const brief: GateReadyEvent = {
-      ...payload,
-      summary: [
-        { kind: "update", collection: "project", id: null, title_vi: "form_factor: web_app" },
-        { kind: "update", collection: "project", id: null, title_vi: "complexity: small" },
-        { kind: "add", collection: "addendum", id: "AD1", title_vi: "Tuân thủ quy định nhà nước." },
-        { kind: "add", collection: "addendum", id: "AD2", title_vi: "Từ 50 người dùng." },
-      ],
-      new_assumptions: [{ id: "AS1", text: "Web app", text_vi: "Nền tảng là web" }],
-    };
-    const { container } = renderWithIntl(
-      <GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={brief} assumptionPaths={{ AS1: "project.form_factor" }} onAction={vi.fn()} />
+  it("bảng thu gọn dưới tin, mở khi bấm", () => {
+    const payload = {
+      type: "gate_ready",
+      step_id: "S-9.4",
+      actions: ALL,
+      regenerate_used: 0,
+      calls_used: 1,
+      summary: [],
+      table: { title_vi: "Ưu tiên MoSCoW", columns: ["Yêu cầu", "Mức"], rows: [["Đặt lịch", "Must"]], truncated: 2 },
+    } as unknown as GateReadyEvent;
+    renderWithIntl(<GateCard stepId="S-9.4" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+    expect(screen.getByText(/Xem bảng: Ưu tiên MoSCoW \(3 dòng\)/)).toBeInTheDocument();
+    expect(screen.getByText("Must")).toBeInTheDocument();
+    expect(screen.getByText(/và 2 dòng nữa/)).toBeInTheDocument();
+  });
+
+  it("cổng cuối giai đoạn dùng message của giai đoạn, không lấy lời của bước cuối", () => {
+    const stepGate = { type: "gate_ready", step_id: "S-3.6", actions: ALL, regenerate_used: 0, calls_used: 1, message_vi: "Lời của bước cuối" } as GateReadyEvent;
+    renderWithIntl(
+      <GateCard
+        stepId="S-3.6"
+        actions={ALL}
+        regenerateUsed={0}
+        payload={stepGate}
+        phaseSummary={[{ kind: "add", collection: "actors", id: "A01", title_vi: "Bệnh nhân" }]}
+        message="Xong phần Người dùng rồi, bạn xem giúp nhé."
+        onAction={vi.fn()}
+      />
     );
-    expect(screen.queryByText(/Nền tảng: Web/)).toBeNull();
-    expect(screen.getByText(/~1 thông tin dự án/)).toBeInTheDocument();
-    expect(screen.getByText(/Tuân thủ quy định nhà nước; Từ 50 người dùng/)).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/, \.|\., /);
+    expect(screen.getByLabelText("Cổng chốt")).toHaveTextContent("Xong phần Người dùng rồi");
+    expect(screen.queryByText(/Lời của bước cuối/)).toBeNull();
+
+    // Giai đoạn cũ chưa có message_vi ⇒ câu tạm dựng từ tóm tắt cả giai đoạn
+    renderWithIntl(<GateCard stepId="S-3.6" actions={ALL} regenerateUsed={0} payload={stepGate} phaseSummary={[{ kind: "add", collection: "actors", id: "A01", title_vi: "Bệnh nhân" }]} onAction={vi.fn()} />);
+    expect(screen.getAllByLabelText("Cổng chốt")[1]).toHaveTextContent("thêm 1 actor (Bệnh nhân)");
   });
 });

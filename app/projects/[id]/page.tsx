@@ -7,7 +7,8 @@ import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api
 import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
-import { getStepDef, stepLabel } from "@/lib/constants/step-registry";
+import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
+import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
 import type { ReviewMode } from "@/types/spine";
 import type { Project } from "@/types/project";
@@ -33,8 +34,9 @@ import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
-import GateCard, { PICKABLE_FIELDS, type AssumptionDecision, type BlockingFlag } from "./_components/GateCard";
+import GateCard, { PICKABLE_FIELDS, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
+import { replyContainsQuestion } from "@/lib/question-options";
 import ChatBubble from "./_components/ChatBubble";
 import StepProgress from "./_components/StepProgress";
 import ChatOpening from "./_components/ChatOpening";
@@ -50,7 +52,8 @@ import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
-import { issueCounts } from "./_components/flag-rules";
+import { issueCounts, readableMessage } from "./_components/flag-rules";
+import { isFlagWaivable } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { unitOfStep, useStepRunner } from "./hooks/useStepRunner";
@@ -67,11 +70,13 @@ const viewportWidth = () => window.innerWidth;
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
 /** Tin AI của lượt hỏi trong lịch sử là `{reply, questions}` (BE ghi kèm câu hỏi) hoặc chữ thường — lấy phần lời đáp. */
+/** Cổng chốt nêu tối đa chừng này cờ mới — nhiều hơn thì user xem tiếp ở panel Kiểm tra. */
+const MAX_GATE_FLAGS = 3;
 /** Thao tác ở cổng duyệt như một lượt của user trong lịch sử — cùng câu chữ BE ghi transcript. */
 const GATE_ACTION_TEXT: Record<GateAction, (note?: string) => string> = {
-  accept: () => "Duyệt, sang bước tiếp",
-  regenerate: () => "Làm lại bước này",
-  revision: (note) => `Yêu cầu sửa: ${note ?? ""}`.trim(),
+  accept: () => ACCEPT_USER_TEXT,
+  regenerate: () => REGENERATE_USER_TEXT,
+  revision: (note) => (note ?? "").trim() || "Tôi muốn sửa",
   accept_as_is: (note) => `Duyệt như hiện tại: ${note ?? ""}`.trim(),
 };
 
@@ -350,9 +355,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     await recomputeFlagsFn();
     // Recompute GHI cờ ⇒ `spine_version` đổi. Không đọc lại thì lần chạy step ngay sau đó gửi phiên bản
     // cũ và ăn 409 — đúng chuỗi thao tác "tính lại cờ rồi chạy lại bước đang bị cờ chỉ tới".
-    await reloadSpine();
+    // Nâng `versionRef` ngay từ kết quả đọc: chỉ trông vào effect theo `spineState.version` thì nó chạy SAU lệnh kế tiếp
+    // (Duyệt cổng gọi `/gate` ngay khi hàm này trả về) ⇒ `base_version` cũ hơn một bậc ⇒ 409 SPINE_VERSION_CONFLICT.
+    bumpVersion(await reloadSpine());
     void reloadProgress();
-  }, [recomputeFlagsFn, reloadProgress, reloadSpine]);
+  }, [recomputeFlagsFn, reloadProgress, reloadSpine, bumpVersion]);
 
   const { refreshUser } = ws;
 
@@ -405,6 +412,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     getBaseVersion,
     onSpineChanged,
     onGateDone: (res) => setSelectedStepId(res.next_step),
+    // Lời AI xác nhận việc vừa sửa hiện ngay như một tin của AI, trước khi bước chạy lại
+    onRevisionMessage: (message, stepId) => ws.appendLocalMessage(message, stepId, "ai"),
   });
 
   // Lớp 5: tới lượt user mà tab đang ẩn thì đổi tiêu đề tab (và báo, nếu user đã cho phép)
@@ -738,6 +747,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     }, 0);
   };
 
+  /** "Tôi muốn sửa" ở cổng chốt: chỉ đưa con trỏ vào ô chat — gõ xong gửi đi là yêu cầu sửa của cổng, không bật chip sửa tài liệu. */
+  const focusChatInput = () => {
+    document.getElementById("flintflow-chat-input")?.focus();
+  };
+
   // ─── resize chat pane ─────────────────────────────────────────
   const chat = useResizableWidth({
     storageKey: CHAT_WIDTH_KEY,
@@ -791,25 +805,35 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         .map((f) => f.section_id)
     ),
   ];
-  // Giả định chưa xác nhận của cả Brief — cổng chốt hiện lại để user quyết, không chỉ giả định mới của bước này
-  const pendingAssumptions = (spine?.assumptions ?? [])
-    .filter((a) => a.status === "unconfirmed")
-    .map((a) => ({ id: a.id, text: a.statement, ...(a.statement_vi ? { text_vi: a.statement_vi } : {}) }));
-  // Lý do của từng giả định nằm ở Spine (`gate_ready` chỉ mang câu giả định) — cổng duyệt hiện "Vì sao". Chỉ lấy
-  // bản ngôn ngữ user: `rationale` là tiếng Anh cho SRS, hiện cạnh câu tiếng Việt thì lẫn hai thứ tiếng.
-  const assumptionPaths = Object.fromEntries((spine?.assumptions ?? []).map((a) => [a.id, a.path] as const));
+  // "Đúng rồi, đi tiếp" chỉ xác nhận giả định mà tin của cổng này đã nói; phần còn lại dành cho danh sách rà (B-2.1 / S-9.1)
+  const spokenAssumptions = runner.state.phaseGate ? runner.state.phaseGate.new_assumptions : gate?.payload?.new_assumptions;
   const settledAssumptionIds = new Set((spine?.assumptions ?? []).filter((a) => a.status !== "unconfirmed").map((a) => a.id));
-  const assumptionReasons = Object.fromEntries(
-    (spine?.assumptions ?? []).flatMap((a) => (a.rationale_vi ? [[a.id, a.rationale_vi] as const] : []))
-  );
   // 422 BASELINE_BLOCKED khi Accept ở S-9.5: danh sách cờ đang chặn đi kèm trong `meta.flags` (BUG-01)
   const blockingFlags: BlockingFlag[] | undefined =
     runner.state.error?.code === "BASELINE_BLOCKED" && Array.isArray(runner.state.error.meta?.flags)
       ? (runner.state.error.meta.flags as BlockingFlag[])
       : undefined;
+  // Cờ MỚI của lượt này: BE chỉ báo số cờ đỏ/vàng tăng thêm (`red_delta`/`yellow_delta`), nên lấy chừng ấy cờ mở mới nhất.
+  // Giả định chưa xác nhận đã có chip "Đúng rồi, đi tiếp" lo, không nêu lần hai ở đây.
+  const gateFlagDelta = runner.state.phaseGate?.flags ?? gate?.payload?.flags;
+  const newestOpenFlags = (level: "red" | "yellow", count: number) =>
+    flags
+      .filter((f) => f.level === level && !f.resolved_at && !f.waived_by_user && f.rule_id !== "unconfirmed_assumption")
+      .sort((a, b) => b.opened_at_version - a.opened_at_version)
+      .slice(0, Math.max(0, count));
+  const newGateFlags: GateNewFlag[] =
+    mode1 || !gate || !gateFlagDelta
+      ? []
+      : [...newestOpenFlags("red", gateFlagDelta.red_delta), ...newestOpenFlags("yellow", gateFlagDelta.yellow_delta)]
+          .slice(0, MAX_GATE_FLAGS)
+          .map((f) => ({
+            id: f.id,
+            level: f.level === "red" ? "red" : "yellow",
+            message: readableMessage(f.message, f.section_id, sectionLabels.get(f.section_id)),
+            waivable: isFlagWaivable(f.rule_id),
+          }));
   const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep && !reopenable;
   // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
-  const openQuestions = splitQuestions(runner.state.questions).open;
   const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
   // Chỉ tính "đang chạy ở nơi khác" khi tab này không giữ lượt nào: lượt của chính tab (đang ở cổng, đang chờ trả lời)
   // cũng làm `running` bật nhưng ô chat vẫn phải dùng được để yêu cầu sửa / trả lời.
@@ -850,6 +874,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       ? replyOfAsk(lastChatMessage.content)
       : null;
   const askReply = runner.state.elicitText || trailingAskReply || "";
+  const openQuestions = splitQuestions(runner.state.questions, askReply).listed;
 
   /**
    * Lượt hỏi tới qua SSE nên chưa có trong lịch sử trên màn hình — trả lời xong là thẻ hỏi đóng và câu hỏi biến mất theo.
@@ -857,18 +882,32 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    */
   const keepAskInHistory = () => {
     if (trailingAskReply !== null || runner.state.questions.length === 0) return;
-    const content = JSON.stringify({ reply: askReply, questions: runner.state.questions.map((q) => ({ question: q.text })) });
+    // Câu `inline` mà lời AI đã chứa thì không lưu lại thành dòng câu hỏi riêng
+    const content = JSON.stringify({
+      reply: askReply,
+      questions: runner.state.questions.filter((q) => !(q.inline && replyContainsQuestion(askReply, q.text))).map((q) => ({ question: q.text })),
+    });
     ws.appendLocalMessage(content, runner.state.stepId, "ai");
   };
 
   /**
-   * Câu trả lời trên thẻ vào lịch sử ngay: một bong bóng, mỗi đáp án một dòng — câu hỏi đã nằm ở tin AI ngay trên. Đúng
-   * dạng BE ghi transcript.
+   * Câu trả lời trên thẻ vào lịch sử ngay: MỘT bong bóng, mỗi đáp án một dòng, chữ gõ ở ô chat (`typed`) nối ngay sau —
+   * câu hỏi đã nằm ở tin AI ngay trên. Đúng dạng BE ghi transcript.
    */
-  const showCardAnswers = (answers: readonly StepAnswer[]) => {
-    const lines = answers.map((a) => (Array.isArray(a.answer) ? a.answer.join(", ") : a.answer).trim()).filter((line) => line !== "");
+  const showCardAnswers = (answers: readonly StepAnswer[], typed = "") => {
+    const lines = [...answers.map((a) => (Array.isArray(a.answer) ? a.answer.join(", ") : a.answer).trim()), typed.trim()].filter((line) => line !== "");
     if (lines.length === 0) return;
     ws.appendLocalMessage(lines.join("\n"), runner.state.stepId);
+  };
+
+  /** Chip "Sửa theo đề xuất" của một cờ mới: gửi yêu cầu sửa nêu đúng vấn đề đó, như user tự gõ ở ô chat. */
+  const fixFlagByChat = (flag: GateNewFlag) => {
+    if (!runnerStep) return;
+    const said = `Sửa giúp tôi theo đề xuất cho vấn đề này: ${flag.message}`;
+    ws.appendLocalMessage(said, runnerStep);
+    void runner.gate("revision", said).then((outcome) => {
+      if (outcome !== "ok") ws.dropLocalMessage(said);
+    });
   };
 
   const sendFromChat = async (custom?: string, intent?: RunIntent) => {
@@ -889,8 +928,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       setCardAnswers({ key: "", answers: [] });
       ws.setInputMessage("");
       keepAskInHistory();
-      showCardAnswers(onCard);
-      ws.appendLocalMessage(text, runner.state.stepId);
+      showCardAnswers(onCard, text);
       await runner.answer(onCard, text);
       return;
     }
@@ -991,13 +1029,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           width={chat.width}
           fill={briefHidden}
           session={ws.activeSession}
-          creditBalance={ws.user?.balance ?? null}
-          stepLabel={!mode1 && viewedStep ? `${viewedStep} · ${stepLabel(viewedStep)}` : null}
+          stepLabel={!mode1 && viewedStep ? stepLabel(viewedStep) : null}
+          stepCode={!mode1 ? viewedStep : null}
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
           onSendMessage={(custom) => void sendFromChat(custom)}
           sending={ws.sending || (!mode1 && aiWorking)}
-          inputPlaceholder={!mode1 && aiWorking ? "AI đang làm…" : !mode1 && stepNotStarted ? "Kể ý tưởng hoặc điều bạn muốn AI làm ở bước này…" : undefined}
+          inputPlaceholder={
+            !mode1 && aiWorking
+              ? "AI đang làm…"
+              : !mode1 && gate
+                ? "Muốn sửa gì thì bạn nhắn tôi nhé…"
+                : !mode1 && stepNotStarted
+                  ? "Kể ý tưởng hoặc điều bạn muốn AI làm…"
+                  : undefined
+          }
           pendingAttachments={ws.pendingAttachments}
           onSelectAttachment={ws.selectAttachment}
           onRemoveAttachment={ws.removeAttachment}
@@ -1050,13 +1096,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {/* Bước được tự duyệt (không cần chốt) không hiện gì trong khung chat — chỉ dấu ✓ trên rail tiến độ */}
           {!mode1 && viewingAccepted && viewedStep && !aiWorking && !runner.state.autoAccepted.some((item) => item.step_id === viewedStep) && (
             <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
-              Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
+              Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
             </div>
           )}
           {!mode1 && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
             <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-[12px] text-accent-gold-text">
               <p className="leading-relaxed">
-                Bước <strong>{viewedStep}</strong> ({getStepDef(viewedStep)?.label_vi}) đã chốt, nhưng{" "}
+                Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt, nhưng{" "}
                 <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu
                 bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.
               </p>
@@ -1085,26 +1131,25 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           )}
           {gate && runnerStep && (
             <GateCard
-              {...(runner.state.phaseGate
-                ? { phaseLabel: `Giai đoạn ${runner.state.phaseGate.phase} · ${runner.state.phaseGate.reason_vi}`, phaseSummary: runner.state.phaseGate.summary }
-                : {})}
+              {...(runner.state.phaseGate ? { phaseSummary: runner.state.phaseGate.summary } : {})}
               stepId={runnerStep}
               actions={gate.actions}
               regenerateUsed={gate.regenerate_used}
               busy={runner.state.busy}
               payload={gate.payload}
-              assumptionReasons={assumptionReasons}
-              pendingAssumptions={pendingAssumptions}
-              assumptionPaths={assumptionPaths}
+              message={runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate.payload?.message_vi}
+              spokenAssumptions={spokenAssumptions ?? []}
               settledAssumptionIds={settledAssumptionIds}
               onConfirmAssumptions={(ids) => confirmAllAssumptions(ids)}
               blockingFlags={blockingFlags}
-              onAssumptionDecision={applyAssumptionDecision}
+              newFlags={newGateFlags}
+              onFixFlag={fixFlagByChat}
+              onKeepFlag={(flag, reason) => handleFlagWaive(flag.id, reason)}
+              onWantEdit={focusChatInput}
               onGoToStep={setSelectedStepId}
               wroteOps={gate.wroteOps}
               emptySections={gate.emptySections}
-              onAction={(action, note) =>
-              {
+              onAction={(action, note) => {
                 // Hiện ngay như một lượt của user (gate có thể chờ cả chuỗi bước sau chạy xong mới trả về); không thành thì gỡ
                 const said = GATE_ACTION_TEXT[action](note);
                 ws.appendLocalMessage(said, runnerStep);
