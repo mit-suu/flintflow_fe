@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { Spine } from "@/types/spine";
 import Icon from "@/components/ui/Icon";
 import Skeleton from "@/components/ui/Skeleton";
-import { assumptionText, formFactorLabel, stakesLabel } from "./brief-labels";
+import { assumptionText, briefVisionGoals, formFactorLabel, isBriefCoreTopic, stakesLabel } from "./brief-labels";
 
 interface BriefPanelProps {
   spine: Pick<Spine, "project" | "assumptions" | "addendum"> | null;
@@ -29,8 +29,8 @@ export const briefHasData = (spine: Pick<Spine, "project" | "assumptions" | "add
     project.system_name?.trim() ||
       formFactorLabel(project.form_factor) ||
       stakesLabel(project.stakes) ||
-      project.vision?.trim() ||
-      project.goals.length ||
+      briefVisionGoals(spine).vision ||
+      briefVisionGoals(spine).goals.length ||
       spine.addendum.some((entry) => entry.content.trim() !== "") ||
       spine.assumptions.length
   );
@@ -49,10 +49,9 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
   const formFactor = formFactorLabel(project?.form_factor);
   const stakes = stakesLabel(project?.stakes);
   const systemName = project?.system_name?.trim();
-  const vision = project?.vision?.trim();
-  const goals = project?.goals ?? [];
+  const { vision, goals } = spine ? briefVisionGoals(spine) : { vision: null, goals: [] };
   // Điều user đã kể mà chưa thành field của project (mục đích, người dùng, quy mô…) — bằng chính lời user
-  const notes = (spine?.addendum ?? []).filter((entry) => entry.content.trim() !== "");
+  const notes = (spine?.addendum ?? []).filter((entry) => entry.content.trim() !== "" && !isBriefCoreTopic(entry.topic));
   // Ô nào chưa có dữ liệu thì ẩn hẳn. Brief chưa có gì thì workspace không dựng khung này (`briefHasData`); skeleton
   // chỉ còn cho lúc đang tải Spine.
   const hasProjectInfo = Boolean(systemName || formFactor || stakes || vision || goals.length);
@@ -117,9 +116,9 @@ export default function BriefPanel({ spine, updating = false }: BriefPanelProps)
                     <Tile label={`Mục tiêu (${goals.length})`} className="sm:col-span-2">
                       <ul className="flex flex-col gap-1 leading-relaxed">
                         {goals.map((goal) => (
-                          <li key={goal} className="flex gap-2">
+                          <li key={goal.id} className="flex gap-2">
                             <Icon name="check" size={14} className="mt-0.5 shrink-0 text-primary" />
-                            <span>{goal}</span>
+                            <span>{goal.text}</span>
                           </li>
                         ))}
                       </ul>
