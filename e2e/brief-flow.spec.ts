@@ -79,7 +79,9 @@ interface ChatSession {
 // ── Người dùng giả lập ─────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Tình huống bắt buộc mỗi lượt chạy — đếm để transcript ghi đủ/thiếu. */
-const situations = { numbered: 0, askBack: 0, pushback: 0, qualitative: 0, gateCorrection: 0 };
+const situations = { numbered: 0, askBack: 0, pushback: 0, qualitative: 0, gateCorrection: 0, secondTab: 0 };
+/** Tab thứ hai mở giữa lượt chạy (FLF-235): BE xong ⇒ UI tab đó phải hiện câu hỏi / cổng trong ≤ 5 s + một nhịp đo. */
+const SECOND_TAB_LIMIT_MS = 7_000;
 // Chạy tiếp project dở: tình huống đã có ở phần trước (vd `numbered,askBack,gateCorrection`) không cần lặp lại
 for (const key of (process.env.E2E_SITUATIONS_DONE ?? "").split(",")) if (key in situations) situations[key as keyof typeof situations]++;
 
@@ -224,8 +226,10 @@ test.describe("luồng Brief với model thật", () => {
   test.skip(process.env.E2E_REAL_AI !== "1", "chỉ chạy khi E2E_REAL_AI=1 (gọi model thật, tốn credit)");
   test.setTimeout(RUN_TIMEOUT_MS + 5 * 60_000);
 
-  test("từ ý tưởng tới duyệt xong Chốt Brief", async ({ page, request }) => {
+  test("từ ý tưởng tới duyệt xong Chốt Brief", async ({ page, request, context }) => {
     mkdirSync(OUT, { recursive: true });
+    /** Thời gian tab thứ hai thấy UI rảnh sau khi BE xong lượt (ms); null = chưa đo được. Gói trong object vì gán trong closure. */
+    const secondTab: { ms: number | null; tries: number } = { ms: null, tries: 0 };
     const startedAt = Date.now();
     await login(request);
 
@@ -409,6 +413,50 @@ test.describe("luồng Brief với model thật", () => {
       const run = await activeRun();
       if (run?.status === "running" && run.alive) {
         idleSince = 0;
+        // Một lần mỗi lượt chạy, ở B-2 (bước có hỏi / cổng): mở tab thứ hai giữa lượt, đo lúc BE xong tới lúc tab đó hiện UI
+        // Lượt chạy có thể chết giữa chừng (model bị từ chối lô op) ⇒ thử lại tối đa 3 lần, chỉ tính là gặp khi đo được
+        if (situations.secondTab === 0 && secondTab.tries < 3 && /^B-2\./.test(run.step_id)) {
+          secondTab.tries++;
+          await attempt(`second-tab-${run.step_id}`, async () => {
+            const tab = await context.newPage();
+            try {
+              await tab.goto(`/projects/${projectId}`, { timeout: 180_000 });
+              await expect(tab.getByText(PROJECT_NAME).first()).toBeVisible({ timeout: 180_000 });
+              const box = tab.locator("textarea").first();
+              await expect(box).toHaveAttribute("placeholder", "AI đang làm…", { timeout: 30_000 });
+              await screenshot(tab, `second-tab-running-${run.step_id}`);
+              note("note", run.step_id, "tab thứ hai mở giữa lượt chạy: ô nhập 'AI đang làm…'");
+              // Chờ BE xong lượt (hỏi hoặc cổng) theo API, mỗi giây một lần
+              let settled: RunState | null = null;
+              const until = Date.now() + 10 * 60_000;
+              while (Date.now() < until) {
+                const now = await activeRun();
+                if (now && (now.status === "waiting_answer" || now.status === "gate")) {
+                  settled = now;
+                  break;
+                }
+                if (!now || now.status !== "running") break;
+                await tab.waitForTimeout(1_000);
+              }
+              if (!settled) {
+                note("note", run.step_id, "tab thứ hai: lượt không dừng ở câu hỏi / cổng — không đo được");
+                return;
+              }
+              const doneAt = Date.now();
+              await expect(box).not.toHaveAttribute("placeholder", "AI đang làm…", { timeout: 60_000 });
+              if (settled.status === "gate") {
+                await expect(tab.getByRole("button", { name: /Duyệt, sang bước tiếp|Đúng rồi, đi tiếp/ }).last()).toBeVisible({ timeout: 60_000 });
+              }
+              secondTab.ms = Date.now() - doneAt;
+              situations.secondTab++;
+              await screenshot(tab, `second-tab-settled-${settled.step_id}`);
+              note("note", settled.step_id, `tab thứ hai hiện ${settled.status === "gate" ? "cổng" : "câu hỏi"} sau ${secondTab.ms} ms kể từ lúc BE xong (mục tiêu ≤ ${SECOND_TAB_LIMIT_MS})`);
+            } finally {
+              await tab.close();
+            }
+          });
+          continue;
+        }
         await page.waitForTimeout(3_000);
         continue;
       }
@@ -488,6 +536,8 @@ test.describe("luồng Brief với model thật", () => {
     writeFileSync(join(OUT, "transcript.md"), renderTranscript(session, projectId, startedAt, finishedAt, done));
 
     expect(done, `luồng Brief phải tới được hết ${LAST_BRIEF_STEP} trong ${RUN_TIMEOUT_MS / 60_000} phút`).toBeTruthy();
+    expect.soft(secondTab.ms, "tab thứ hai mở giữa lượt phải đo được thời gian BE xong → UI hiện").not.toBeNull();
+    if (secondTab.ms !== null) expect.soft(secondTab.ms, "tab thứ hai thấy câu hỏi / cổng sau khi BE xong").toBeLessThanOrEqual(SECOND_TAB_LIMIT_MS);
   });
 });
 
