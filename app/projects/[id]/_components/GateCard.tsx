@@ -162,7 +162,7 @@ export default function GateCard({
         locked={locked}
       />
 
-      {payload?.table && <GateTable table={payload.table} />}
+      {payload?.table && <GateTable table={payload.table} defaultOpen={stepId === "S-1.1"} />}
 
       {asIs && (
         <div className="flex flex-col gap-2">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Spine } from "@/types/spine";
-import { SECTION_LABEL, formFactorLabel, groupByTarget, stakesLabel } from "./brief-labels";
+import { SECTION_LABEL, briefVisionGoals, formFactorLabel, groupByTarget, isBriefCoreTopic, stakesLabel } from "./brief-labels";
 
 interface BriefSummaryCardProps {
   spine: Pick<Spine, "project" | "addendum" | "assumptions" | "other_requirements">;
@@ -21,10 +21,11 @@ export { OTHER_KIND_LABEL, groupByTarget } from "./brief-labels";
 const GOALS_PREVIEW = 3;
 
 export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
-  const groups = useMemo(() => groupByTarget(spine.addendum), [spine.addendum]);
+  const groups = useMemo(() => groupByTarget(spine.addendum.filter((entry) => !isBriefCoreTopic(entry.topic))), [spine.addendum]);
   const [full, setFull] = useState(false);
   const { project } = spine;
-  const goals = full ? project.goals : project.goals.slice(0, GOALS_PREVIEW);
+  const { vision, goals: allGoals } = useMemo(() => briefVisionGoals(spine), [spine]);
+  const goals = full ? allGoals : allGoals.slice(0, GOALS_PREVIEW);
 
   const chip = (text: string) => (
     <span key={text} className="text-[10.5px] font-semibold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">
@@ -44,19 +45,19 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
 
       <section className="flex flex-col gap-0.5">
         {label("Tầm nhìn")}
-        {project.vision ? (
-          <p className={`text-[12px] leading-relaxed ${full ? "" : "line-clamp-3"}`}>{project.vision}</p>
+        {vision ? (
+          <p className={`text-[12px] leading-relaxed ${full ? "" : "line-clamp-3"}`}>{vision}</p>
         ) : (
           missing("tầm nhìn")
         )}
       </section>
 
       <section className="flex flex-col gap-0.5">
-        {label(`Mục tiêu (${project.goals.length})`)}
-        {project.goals.length > 0 ? (
+        {label(`Mục tiêu (${allGoals.length})`)}
+        {allGoals.length > 0 ? (
           <ul className="list-disc pl-4 text-[12px] leading-relaxed space-y-0.5">
             {goals.map((goal) => (
-              <li key={goal}>{goal}</li>
+              <li key={goal.id}>{goal.text}</li>
             ))}
           </ul>
         ) : (
@@ -73,7 +74,6 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
               <ul className="list-disc pl-4 text-[11.5px] leading-relaxed space-y-0.5">
                 {entries.map((entry) => (
                   <li key={entry.id}>
-                    <span className="font-semibold">{entry.topic}: </span>
                     {entry.content}
                   </li>
                 ))}
@@ -83,7 +83,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
         </section>
       )}
 
-      {(project.goals.length > GOALS_PREVIEW || groups.length > 0 || (project.vision?.length ?? 0) > 180) && (
+      {(allGoals.length > GOALS_PREVIEW || groups.length > 0 || (vision?.length ?? 0) > 180) && (
         <button type="button" onClick={() => setFull((v) => !v)} className="self-start text-[11.5px] font-semibold text-primary hover:underline cursor-pointer">
           {full ? "Thu gọn" : "Xem đầy đủ"}
         </button>
