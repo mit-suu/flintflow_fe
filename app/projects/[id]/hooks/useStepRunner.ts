@@ -304,6 +304,8 @@ export interface UseStepRunnerOptions {
    */
   onSpineChanged: (spineVersion?: number) => void;
   onGateDone?: (response: GateResponse) => void;
+  /** Sau `revision`: lời AI (`message_vi`) nói đã sửa gì — gọi trước khi bước chạy lại. */
+  onRevisionMessage?: (message: string, stepId: string) => void;
 }
 
 /** Luồng SSE của `/run` chỉ được đóng sau hai sự kiện này (contract §2). */
@@ -367,7 +369,7 @@ const trackAwaiting = () => {
   };
 };
 
-export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone }: UseStepRunnerOptions) {
+export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -495,6 +497,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       // mà không dừng ⇒ quên giai đoạn đi, nếu không Accept của bước lẻ sau đó lại khởi động chuỗi mới.
       let stoppedAtGate = false;
       let failed = false;
+      // Sự kiện `error` cũng đóng luồng: giữ lại lỗi để hiện khối lỗi + nút thử lại, không reset về rảnh
+      let sawError = false;
       const awaiting = trackAwaiting();
       let started = false;
       const request = {
@@ -512,6 +516,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
               started = true;
               options.onStarted?.();
             }
+            if (event.type === "error") sawError = true;
             if (event.type === "phase_progress" || event.type === "auto_accepted" || event.type === "phase_gate") stepRef.current = event.step_id;
             else if (event.step_id !== stepRef.current && event.type !== "error") stepRef.current = event.step_id;
             dispatch({ type: "event", event, at: Date.now() });
@@ -530,7 +535,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (!stoppedAtGate) phaseRef.current = null;
         // Giai đoạn đã xong: luồng đóng mà không có cổng chốt nào. Không trả về "rảnh" ở đây thì màn hình
         // treo ở trạng thái đang chạy — không thẻ tiến trình, không thẻ "Bước này sẽ…", không nút nào.
-        if (!stoppedAtGate && !failed && !controller.signal.aborted) dispatch(awaiting.awaiting() ? { type: "detached" } : { type: "reset" });
+        if (!stoppedAtGate && !failed && !sawError && !controller.signal.aborted) dispatch(awaiting.awaiting() ? { type: "detached" } : { type: "reset" });
         onSpineChanged();
         if (abortRef.current === controller) abortRef.current = null;
       }
@@ -591,6 +596,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         });
         onSpineChanged(res.data?.spine_version);
         if (res.data) onGateDone?.(res.data);
+        if (action === "revision" && res.data?.message_vi?.trim()) onRevisionMessage?.(res.data.message_vi.trim(), stepId);
         if (action === "regenerate" || action === "revision") {
           await run(stepId);
         } else if (phaseRef.current) {
@@ -625,7 +631,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         return "failed";
       }
     },
-    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, run, runWholePhase]
+    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, run, runWholePhase]
   );
 
   /** Huỷ lượt đang chạy: BE nhả khoá và abort request tới model; FE đóng stream (BUG-05). */
@@ -693,8 +699,15 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       void getRunState(projectId, state.stepId as string)
         .then((res) => {
           const run = res.data;
-          if (!run || !run.alive) {
+          if (!run) {
             dispatch({ type: "interrupted" });
+            return;
+          }
+          if (!run.alive) {
+            // Lượt chết kèm lỗi (vd DRAFT_REJECTED sau khi thử lại hết lần) ⇒ dựng lại để khối lỗi hiện nút thử lại
+            if (run.status === "interrupted" || run.status === "running") dispatch({ type: "restored", state: run, at: Date.now() });
+            else dispatch({ type: "interrupted" });
+            if (polling) onSpineChanged();
             return;
           }
           dispatch({ type: "restored", state: run, at: Date.now() });

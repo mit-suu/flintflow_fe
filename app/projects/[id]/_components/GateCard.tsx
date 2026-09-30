@@ -1,36 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { REGENERATE_LIMIT, stepLabel } from "@/lib/constants/step-registry";
+import DropdownMenu from "@/components/ui/DropdownMenu";
+import Icon from "@/components/ui/Icon";
+import { REGENERATE_LIMIT } from "@/lib/constants/step-registry";
 import type { AssumptionBrief, ChangeSummary, GateAction, GateReadyEvent } from "@/types/pipeline";
-import { FORM_FACTOR_LABEL, STAKES_LABEL } from "./brief-labels";
+import GateFlags, { type GateNewFlag } from "./GateFlags";
+import GateTable from "./GateTable";
+import QuickReplyChips, { QuickReplyChip } from "./QuickReplyChips";
+import { fallbackGateMessage, type BlockingFlag } from "./gate-helpers";
 
-/** Quyết định của user về một giả định AI vừa đặt ra (WP-5 · BUG-13). */
-export type AssumptionDecision =
-  | { kind: "confirm"; id: string }
-  | { kind: "reject"; id: string }
-  | { kind: "edit"; id: string; statement: string }
-  /** Giả định về một trường có tập giá trị cố định (nền tảng, mức độ quan trọng): chọn giá trị, không gõ, không gọi AI. */
-  | { kind: "pick"; id: string; path: PickablePath; value: string; label: string };
-
-/**
- * Trường `project` sửa bằng chọn giá trị — nhãn tiếng Việt dùng chung với Brief panel; `titleEn` dựng câu giả định
- * tiếng Anh (bản vào SRS).
- */
-export const PICKABLE_FIELDS = {
-  "project.form_factor": { title: "Nền tảng", titleEn: "Platform", labels: FORM_FACTOR_LABEL },
-  "project.stakes": { title: "Mức độ quan trọng", titleEn: "Stakes", labels: STAKES_LABEL },
-} as const;
-
-export type PickablePath = keyof typeof PICKABLE_FIELDS;
-
-const isPickable = (path: string | undefined): path is PickablePath => path !== undefined && path in PICKABLE_FIELDS;
-
-export interface BlockingFlag {
-  id: string;
-  message: string;
-  remediation_step?: string;
-}
+// Các helper thuần nằm ở `gate-helpers.ts`; re-export để nơi khác (page, activity-log, test) giữ nguyên đường import.
+export { PICKABLE_FIELDS, groupSummary, joinSummaryTexts, projectFieldText } from "./gate-helpers";
+export type { AssumptionDecision, BlockingFlag, PickablePath } from "./gate-helpers";
+export type { GateNewFlag } from "./GateFlags";
 
 interface GateCardProps {
   stepId: string;
@@ -39,36 +22,31 @@ interface GateCardProps {
   regenerateUsed: number;
   regenerateLimit?: number;
   busy?: boolean;
-  /** Fast path: một GateCard gộp cuối phase. */
-  phaseLabel?: string;
-  /** Tóm tắt của CẢ giai đoạn khi đây là cổng chốt cuối phase (R2) — gồm cả bước đã tự Accept. */
+  /** Lời AI (`message_vi`) của cổng này; vắng (dự án cũ) ⇒ dựng câu tạm từ tóm tắt. */
+  message?: string;
+  /** Có ⇒ đây là cổng chốt cuối giai đoạn: tóm tắt của CẢ giai đoạn, gồm cả bước đã tự Accept. */
   phaseSummary?: ChangeSummary[];
-  /** Toàn bộ payload `gate_ready` — Lớp 4 "Bạn vừa có" (tóm tắt, cờ, giả định, thời gian, credit). */
+  /** Toàn bộ payload `gate_ready` — tóm tắt, bảng, lý do không đổi. */
   payload?: GateReadyEvent | null;
   /**
-   * Lý do AI đặt từng giả định (`assumptions[].rationale` trong Spine), theo id. `gate_ready` chỉ mang câu giả định,
-   * không mang lý do — thiếu dòng này user phải xác nhận một điều mà không biết AI dựa vào đâu.
+   * Giả định tin của cổng NÀY đã nói (cổng bước ⇒ `new_assumptions` của bước; cổng cuối giai đoạn ⇒ của cả giai đoạn).
+   * Bấm "Đúng rồi, đi tiếp" chỉ xác nhận đúng chừng đó; giả định khác còn treo để dành cho danh sách rà ở B-2.1 / S-9.1.
+   * Vắng ⇒ lấy `payload.new_assumptions`.
    */
-  assumptionReasons?: Readonly<Record<string, string>>;
-  /**
-   * Giả định còn "chưa xác nhận" trong Spine (kể cả của bước trước). `gate_ready` chỉ mang giả định MỚI của bước này —
-   * user bấm Duyệt ở bước trước mà chưa bấm Đúng/Bỏ thì giả định đó phải hiện lại ở cổng kế, không trôi mất.
-   */
-  pendingAssumptions?: AssumptionBrief[];
-  /** `path` của từng giả định trong Spine, theo id — giả định về nền tảng / mức độ quan trọng sửa bằng chọn giá trị. */
-  assumptionPaths?: Readonly<Record<string, string>>;
-  /** Giả định đã xác nhận/bỏ trong Spine — `gate_ready` khôi phục sau reload vẫn mang chúng, không hỏi lại. */
+  spokenAssumptions?: AssumptionBrief[];
+  /** Giả định đã xác nhận/bỏ trong Spine — `gate_ready` khôi phục sau reload vẫn mang chúng, không xác nhận lại. */
   settledAssumptionIds?: ReadonlySet<string>;
-  /** Duyệt = xác nhận luôn các giả định đang hiện mà user chưa Bỏ/Sửa. Chờ ghi xong rồi mới chốt bước. */
+  /** Chờ ghi xong xác nhận giả định rồi mới chốt bước. */
   onConfirmAssumptions?: (ids: string[]) => Promise<unknown>;
   /** Cờ đỏ đang chặn ký baseline (422 BASELINE_BLOCKED khi Accept ở S-9.5). */
   blockingFlags?: BlockingFlag[];
-  /**
-   * "Sửa" (FLF-221) gọi AI dịch câu user gõ rồi ghi cả hai bản — trả `false` khi lỗi để thẻ giữ nguyên ô sửa và chữ
-   * user đã gõ. Đúng/Bỏ không cần chờ.
-   */
-  onAssumptionDecision?: (decision: AssumptionDecision) => void | Promise<boolean | void>;
   onGoToStep?: (stepId: string) => void;
+  /** Cờ đỏ/vàng mới của lượt này, nêu trong tin kèm chip xử lý. */
+  newFlags?: GateNewFlag[];
+  onFixFlag?: (flag: GateNewFlag) => void;
+  onKeepFlag?: (flag: GateNewFlag, reason: string) => Promise<void>;
+  /** "Tôi muốn sửa": đưa con trỏ vào ô chat — sửa là nhắn tin, không có form. */
+  onWantEdit?: () => void;
   /** Lượt chạy vừa rồi có ghi được op nào vào Spine không (L11b). */
   wroteOps?: boolean;
   /** Mục step này nuôi mà chạy xong vẫn trống — accept cũng không đóng được cờ `section_empty` (L11b). */
@@ -76,127 +54,19 @@ interface GateCardProps {
   onAction: (action: GateAction, note?: string) => void;
 }
 
-const KIND_PREFIX: Record<ChangeSummary["kind"], string> = { add: "+", update: "~", remove: "−" };
-
-const COLLECTION_VI: Record<string, string> = {
-  project: "thông tin dự án",
-  features: "nhóm chức năng",
-  actors: "actor",
-  roles: "vai trò",
-  use_cases: "use case",
-  screens: "màn hình",
-  permissions: "quyền",
-  entities: "thực thể",
-  functions: "chức năng",
-  validations: "ràng buộc",
-  nfrs: "yêu cầu phi chức năng",
-  business_rules: "quy tắc nghiệp vụ",
-  common_requirements: "yêu cầu chung",
-  messages: "thông điệp",
-  other_requirements: "yêu cầu khác",
-  glossary: "thuật ngữ",
-  addendum: "ghi chú Brief",
-  assumptions: "giả định",
-  diagrams: "sơ đồ",
-};
-
-/** Gom tóm tắt theo (loại thay đổi × collection) để hiện "+3 use case: A, B, C". */
-export const groupSummary = (summary: readonly ChangeSummary[]): { key: string; label: string; items: ChangeSummary[] }[] => {
-  const groups = new Map<string, ChangeSummary[]>();
-  for (const row of summary) {
-    const key = `${row.kind}|${row.collection}`;
-    groups.set(key, [...(groups.get(key) ?? []), row]);
+/** Một câu cảnh báo khi lượt chạy không ghi gì / mục còn trống (L11b) — nói thẳng kèm lối ra. */
+const warningSentence = (warnNoOps: boolean, emptySections: readonly { title: string }[]): string | null => {
+  const base = warnNoOps ? "AI không soạn được nội dung nào ở lượt này" : "Chạy xong nhưng mục vẫn trống";
+  if (emptySections.length > 0) {
+    const titles = emptySections.map((s) => s.title).join(", ");
+    return `${base}. Còn trống: ${titles}. Duyệt vẫn chốt được bước nhưng cờ "mục trống" sẽ còn, bạn bổ sung qua chat hoặc bỏ qua cờ ở panel Kiểm tra nếu mục này không áp dụng.`;
   }
-  return [...groups.entries()].map(([key, items]) => {
-    const [kind, collection] = key.split("|") as [ChangeSummary["kind"], string];
-    return { key, label: `${KIND_PREFIX[kind]}${items.length} ${COLLECTION_VI[collection] ?? collection}`, items };
-  });
-};
-
-/** Field lẻ của `project`: BE ghi tiêu đề dạng "<field>: <giá trị>" — dịch cả hai sang lời thường. */
-const PROJECT_FIELD_VI: Record<string, string> = {
-  name: "Tên dự án",
-  system_name: "Tên hệ thống",
-  vision: "Tầm nhìn",
-  goals: "Mục tiêu",
-  type: "Loại dự án",
-  domain: "Lĩnh vực",
-  complexity: "Độ phức tạp",
-  form_factor: "Nền tảng",
-  stakes: "Mức độ quan trọng",
-  release_scope: "Phạm vi phát hành",
-  review_mode: "Chế độ duyệt",
-};
-
-const PROJECT_VALUE_VI: Record<string, string> = {
-  small: "Nhỏ",
-  low: "Thấp",
-  medium: "Trung bình",
-  high: "Cao",
-  large: "Lớn",
-  web_app: "Web",
-  web_application: "Ứng dụng web",
-  mobile_app: "Ứng dụng di động",
-  desktop_app: "Ứng dụng máy tính",
-  api_service: "Dịch vụ API",
-  cli: "Dòng lệnh (CLI)",
-  embedded: "Hệ thống nhúng",
-  internal: "Nội bộ",
-  production: "Sản phẩm thật",
-  regulated: "Chịu quản lý pháp lý",
-  strict: "Mọi bước",
-  balanced: "Cuối giai đoạn",
-  fast: "Cuối giai đoạn",
-};
-
-/** `"complexity: small"` ⇒ `"Độ phức tạp: Nhỏ"`; tiêu đề khác giữ nguyên. */
-export const projectFieldText = (title: string): string => {
-  const match = /^([a-z_]+):\s*(.*)$/.exec(title.trim());
-  if (!match) return title;
-  const [, field, value] = match;
-  const label = PROJECT_FIELD_VI[field];
-  if (!label) return title;
-  return `${label}: ${PROJECT_VALUE_VI[value.trim()] ?? value}`;
+  return warnNoOps ? `${base} — bạn nhắn tôi cần bổ sung gì qua chat, hoặc làm lại ở menu ⋯ nhé.` : null;
 };
 
 /**
- * Trường `project` AI suy ra kèm một giả định về chính giá trị đó — dòng "AI đã ghi nhận" và giả định nói cùng một điều.
- * Trường khác (mục tiêu, tầm nhìn…) có giả định về một khía cạnh riêng, vẫn hiện ở cả hai chỗ.
- */
-const INFERRED_FIELD_PATHS: ReadonlySet<string> = new Set([
-  "project.form_factor",
-  "project.stakes",
-  "project.system_name",
-  "project.type",
-  "project.domain",
-  "project.complexity",
-]);
-
-/** Path trong Spine mà một dòng tóm tắt nói tới — `project.<field>` hoặc `<collection>[id=<id>]`; không suy được ⇒ null. */
-export const summaryPath = (item: ChangeSummary): string | null => {
-  if (item.collection === "project") {
-    const field = /^([a-z_]+):/.exec(item.title_vi.trim())?.[1];
-    return field ? `project.${field}` : null;
-  }
-  return item.id ? `${item.collection}[id=${item.id}]` : null;
-};
-
-/** Nối các mục tóm tắt: bỏ dấu câu cuối mỗi mục rồi nối bằng "; " — không còn "nhà nước., Từ…". */
-export const joinSummaryTexts = (texts: readonly string[]): string =>
-  texts
-    .map((text) => text.trim().replace(/[\s.,;:]+$/u, ""))
-    .filter((text) => text !== "")
-    .join("; ");
-
-const deltaText = (before: number, after: number): string => {
-  const delta = after - before;
-  if (delta === 0) return `${after}`;
-  return `${before} → ${after} (${delta > 0 ? "+" : "−"}${Math.abs(delta)})`;
-};
-
-/**
- * Cổng chốt (Phases §3): Accept · Request revision (ghi chú) · Regenerate (n/3, tắt khi hết) ·
- * Accept as-is (chỉ khi hết Regenerate hoặc BE mở, bắt buộc lý do).
+ * Cổng chốt như một tin nhắn AI: lời AI, chip "Đúng rồi, đi tiếp" / "Tôi muốn sửa", menu ⋯ (Làm lại · Duyệt như hiện tại).
+ * Dùng chung cho cả hai chế độ duyệt. Sửa = nhắn tin ở ô chat (revision), không có form ở đây.
  */
 export default function GateCard({
   stepId,
@@ -204,53 +74,30 @@ export default function GateCard({
   regenerateUsed,
   regenerateLimit = REGENERATE_LIMIT,
   busy = false,
-  phaseLabel,
+  message,
   phaseSummary,
   payload = null,
-  assumptionReasons,
-  pendingAssumptions = [],
-  assumptionPaths,
+  spokenAssumptions,
   settledAssumptionIds,
   onConfirmAssumptions,
   blockingFlags,
-  onAssumptionDecision,
   onGoToStep,
+  newFlags,
+  onFixFlag,
+  onKeepFlag,
+  onWantEdit,
   wroteOps = true,
   emptySections = [],
   onAction,
 }: GateCardProps) {
-  const [mode, setMode] = useState<"revision" | "accept_as_is" | null>(null);
+  const [asIs, setAsIs] = useState(false);
   const [note, setNote] = useState("");
-  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
-  /** Giả định đang mở danh sách chọn giá trị (nền tảng / mức độ quan trọng). */
-  const [picking, setPicking] = useState<{ id: string; path: PickablePath } | null>(null);
-  /** Câu mới của giả định user đã Sửa — vẫn hiện trong thẻ với nhãn "Đã sửa", kể cả khi Spine đã xác nhận nó. */
-  const [edited, setEdited] = useState<{ id: string; text: string }[]>([]);
-  const [decided, setDecided] = useState<Record<string, AssumptionDecision["kind"]>>({});
-  /** Giả định đang chờ AI dịch bản sửa — ô sửa khoá lại cho tới khi xong. */
-  const [savingEdit, setSavingEdit] = useState<string | null>(null);
 
-  // Cổng chốt cuối giai đoạn nói về cả giai đoạn, không chỉ bước cuối
   const summary = phaseSummary ?? payload?.summary ?? [];
-  // `gate_ready` khôi phục sau reload vẫn mang giả định đã xác nhận/bỏ trong Spine — không hỏi lại chúng
-  const fresh = (payload?.new_assumptions ?? []).filter((a) => !settledAssumptionIds?.has(a.id));
-  const assumptions: AssumptionBrief[] = [...fresh, ...pendingAssumptions.filter((p) => !fresh.some((a) => a.id === p.id))].filter(
-    (a) => !decided[a.id]
-  );
-  // Trường AI suy ra có giả định (đang chờ, hoặc vừa Sửa ở thẻ này) chỉ hiện ở khung giả định — không kể lần hai ở
-  // "AI đã ghi nhận" (và sau khi chọn "Mobile" thì không còn dòng "Nền tảng: Web" cũ). Gồm cả giả định của chính cổng này
-  // đã chốt trong Spine: sau F5 `edited` rỗng, còn dòng tóm tắt là ảnh chụp cũ của `gate_ready` — hiện lại là sai giá trị
-  const assumedPaths = new Set(
-    [...assumptions.map((a) => a.id), ...edited.map((e) => e.id), ...(payload?.new_assumptions ?? []).map((a) => a.id)].flatMap((id) =>
-      assumptionPaths?.[id] ? [assumptionPaths[id]] : []
-    )
-  );
-  const underAssumption = (item: ChangeSummary): boolean => {
-    const path = summaryPath(item);
-    return path !== null && INFERRED_FIELD_PATHS.has(path) && assumedPaths.has(path);
-  };
-  const groups = groupSummary(summary.filter((item) => !underAssumption(item)));
-  /** Duyệt (kể cả "chấp nhận như hiện tại") ⇒ xác nhận các giả định còn lại trước, rồi mới chốt bước. */
+  const text = (phaseSummary ? message : (message ?? payload?.message_vi))?.trim() || fallbackGateMessage(summary, payload?.no_change_reason);
+  // `gate_ready` khôi phục sau reload vẫn mang giả định đã xác nhận/bỏ trong Spine — không xác nhận lại chúng
+  const assumptions = (spokenAssumptions ?? payload?.new_assumptions ?? []).filter((a) => !settledAssumptionIds?.has(a.id));
+
   // Khoá mọi hành động từ cú bấm đầu tới khi lệnh đã gửi: lúc chờ xác nhận giả định (~1 s) `busy` của runner chưa bật,
   // bấm Duyệt lần hai gửi thêm một lượt gate + chạy giai đoạn ⇒ 409 và thanh "Lượt chạy bị gián đoạn". Ref chặn cả hai
   // cú bấm rơi vào cùng một lượt render; state để khoá nút trên màn hình.
@@ -262,9 +109,7 @@ export default function GateCard({
     setSubmitting(true);
     try {
       if ((action === "accept" || action === "accept_as_is") && assumptions.length > 0 && onConfirmAssumptions) {
-        const ids = assumptions.map((a) => a.id);
-        setDecided((current) => ({ ...current, ...Object.fromEntries(ids.map((id) => [id, "confirm" as const])) }));
-        await onConfirmAssumptions(ids);
+        await onConfirmAssumptions(assumptions.map((a) => a.id));
       }
       if (actionNote === undefined) onAction(action);
       else onAction(action, actionNote);
@@ -275,323 +120,94 @@ export default function GateCard({
     }
   };
   const locked = busy || submitting;
-  const shownGroups = (payload?.new_assumptions ?? []).length > 0 ? groups.filter((g) => !g.key.endsWith("|assumptions")) : groups;
-  // Dòng kiểm tra chỉ đáng đọc khi có gì đổi: cờ mới hoặc % tài liệu tăng/giảm
-  const flagsChanged =
-    payload?.flags !== undefined &&
-    (payload.flags.red_delta !== 0 ||
-      payload.flags.yellow_delta !== 0 ||
-      (payload.doc_progress !== undefined && payload.doc_progress !== null && payload.doc_progress.before !== payload.doc_progress.after));
-  const decide = async (decision: AssumptionDecision) => {
-    if (decision.kind === "confirm" || decision.kind === "reject") {
-      setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
-      void onAssumptionDecision?.(decision);
-      return;
-    }
-    setSavingEdit(decision.id);
-    const ok = await onAssumptionDecision?.(decision);
-    setSavingEdit(null);
-    if (ok === false) return;
-    setEditing(null);
-    setPicking(null);
-    const text = decision.kind === "edit" ? decision.statement : `${PICKABLE_FIELDS[decision.path].title}: ${decision.label}`;
-    setEdited((current) => [...current.filter((e) => e.id !== decision.id), { id: decision.id, text }]);
-    setDecided((current) => ({ ...current, [decision.id]: decision.kind }));
-  };
 
   // AI không được gọi (bước chỉ chốt một field đã có từ bước trước): ghi 0 op là đúng, không phải lỗi — không cảnh báo
   const nothingToDo = payload?.calls_used === 0 && Boolean(payload.no_change_reason) && emptySections.length === 0;
-  const warnNoOps = !wroteOps && !nothingToDo;
+  const warning = warningSentence(!wroteOps && !nothingToDo, emptySections);
 
   const regenerateLeft = regenerateUsed < regenerateLimit && actions.includes("regenerate");
   const showAcceptAsIs = actions.includes("accept_as_is") || regenerateUsed >= regenerateLimit;
-  const noteRequired = mode !== null;
-  const canSubmitNote = note.trim().length > 0 && !locked;
+  const menuItems = [
+    {
+      label: `↻ Làm lại · còn ${Math.max(0, regenerateLimit - regenerateUsed)} lần`,
+      disabled: locked || !regenerateLeft,
+      onSelect: () => void act("regenerate"),
+    },
+    ...(showAcceptAsIs ? [{ label: "✓ Duyệt như hiện tại", disabled: locked, onSelect: () => setAsIs((open) => !open) }] : []),
+  ];
 
-  const submitNote = () => {
-    if (!mode || !canSubmitNote) return;
-    void act(mode, note.trim());
+  const submitAsIs = () => {
+    if (note.trim().length === 0 || locked) return;
+    void act("accept_as_is", note.trim());
     setNote("");
-    setMode(null);
+    setAsIs(false);
   };
 
   return (
-    <div className="bg-surface-container-lowest rounded-[16px] p-4 flex flex-col gap-3" aria-label="Cổng chốt">
-      <h4 className="font-extrabold text-[13px] text-[#191817]">{phaseLabel ?? `${stepId} · ${stepLabel(stepId)}`}</h4>
+    <div className="flex flex-col gap-3" aria-label="Cổng chốt">
+      <p className="text-[14px] leading-7 text-on-surface whitespace-pre-line">{text}</p>
 
-      {/* L11b: trước đây lô op rỗng vẫn tới gate y như một lượt chạy thành công — user Accept, cờ đỏ vẫn treo,
-          bấm "Mở lại" lại rơi vào đúng vòng đó. Nói thẳng ra ở đây kèm lối khác. */}
-      {(warnNoOps || emptySections.length > 0) && (
-        <div role="status" className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] px-3 py-2.5 flex flex-col gap-1 text-[11.5px] text-[#8A6D1F]">
-          <p className="font-bold text-[#191817]">
-            {wroteOps ? "Chạy xong nhưng mục vẫn trống" : "AI không soạn được nội dung nào ở lượt này"}
-          </p>
-          {emptySections.length > 0 && (
-            <p>
-              Còn trống:{" "}
-              {emptySections.map((s) => (
-                <span key={s.section_id} className="font-semibold text-[#33312D]">
-                  {s.title}{" "}
-                  <code className="text-[10.5px]">{s.section_id}</code>
-                </span>
-              ))}
-              . Duyệt sẽ chốt bước nhưng cờ đỏ <code>section_empty</code> vẫn treo, và chạy lại cũng cho kết quả như
-              vậy nếu tài liệu gốc không có dữ liệu cho mục đó.
-            </p>
-          )}
-          <p>
-            Lối khác: <b>Yêu cầu sửa</b> để tả rõ cần gì, tự viết nội dung qua chat, hoặc waive cờ ở panel
-            Verification nếu mục này thật sự không áp dụng.
-          </p>
-        </div>
-      )}
-
-      {/* Lớp 4 "Bạn vừa có" — gate nói nội dung, không chỉ con số (WP-5). Giả định mới đã có khung xác nhận
-          riêng bên dưới ⇒ không liệt kê lần hai ở đây. */}
-      {shownGroups.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#6B6862]">AI đã ghi nhận</span>
-          {shownGroups.map((group) => (
-            <div key={group.key} className="text-[12px] text-[#191817]">
-              <span className="font-bold">{group.label}</span>
-              <span className="text-[#4B4842]">
-                {": "}
-                {joinSummaryTexts(
-                  group.items.slice(0, 5).map((item) => (item.collection === "project" ? projectFieldText(item.title_vi) : item.title_vi))
-                )}
-                {group.items.length > 5 ? `; …(+${group.items.length - 5})` : ""}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {payload && summary.length === 0 && payload.no_change_reason && (
-        <p className="text-[12px] text-[#6B6862]">Bước này không thay đổi tài liệu: {payload.no_change_reason}</p>
-      )}
-
-      {(assumptions.length > 0 || edited.length > 0) && (
-        <div className="flex flex-col gap-1.5 bg-[#FBF4E4] rounded-[10px] p-2.5">
-          <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-[#8A6D1F]">
-            AI tự giả định — bạn xác nhận giúp
-          </span>
-          {onConfirmAssumptions && assumptions.length > 0 ? (
-            <span className="text-[11px] text-[#6B6862]">Bấm Duyệt là đồng ý luôn những giả định bạn chưa Bỏ hay Sửa.</span>
-          ) : null}
-          {assumptions.map((assumption) => (
-            <div key={assumption.id} className="flex flex-col gap-1">
-              <span className="text-[12px] text-[#191817]">
-                {assumption.text_vi ?? assumption.text}
-                {assumption.conflict ? <em className="text-[#B03030]"> · mâu thuẫn với: {assumption.conflict}</em> : null}
-              </span>
-              {assumptionReasons?.[assumption.id] ? (
-                <span className="text-[11.5px] leading-relaxed text-[#6B6862]">Vì sao: {assumptionReasons[assumption.id]}</span>
-              ) : null}
-              {picking?.id === assumption.id ? (
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Chọn giá trị cho giả định ${assumption.id}`}>
-                  {Object.entries(PICKABLE_FIELDS[picking.path].labels).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      disabled={savingEdit === assumption.id}
-                      onClick={() => void decide({ kind: "pick", id: assumption.id, path: picking.path, value, label })}
-                      className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-white text-[#191817] hover:bg-[#F2F1FB] disabled:opacity-50 cursor-pointer"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setPicking(null)}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold text-[#6B6862] cursor-pointer"
-                  >
-                    Huỷ
-                  </button>
-                </div>
-              ) : editing?.id === assumption.id ? (
-                <div className="flex gap-1.5">
-                  <input
-                    aria-label={`Sửa giả định ${assumption.id}`}
-                    value={editing.text}
-                    disabled={savingEdit === assumption.id}
-                    onChange={(e) => setEditing({ id: assumption.id, text: e.target.value })}
-                    className="flex-1 px-2 py-1 bg-white border border-[#E5E3DF] rounded-[8px] text-[12px] outline-none"
-                  />
-                  <button
-                    type="button"
-                    disabled={editing.text.trim().length === 0 || savingEdit === assumption.id}
-                    onClick={() => void decide({ kind: "edit", id: assumption.id, statement: editing.text.trim() })}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
-                  >
-                    {savingEdit === assumption.id ? "Đang lưu…" : "Lưu"}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => void decide({ kind: "confirm", id: assumption.id })}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-[#1F7A45] text-white cursor-pointer"
-                  >
-                    Đúng
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const path = assumptionPaths?.[assumption.id];
-                      if (isPickable(path)) setPicking({ id: assumption.id, path });
-                      else setEditing({ id: assumption.id, text: assumption.text_vi ?? assumption.text });
-                    }}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold border border-[#ECEAE5] text-[#191817] cursor-pointer"
-                  >
-                    Sửa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void decide({ kind: "reject", id: assumption.id })}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold border border-[#F0C4C4] text-[#B03030] cursor-pointer"
-                  >
-                    Bỏ
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-          {edited.map((item) => (
-            <span key={item.id} className="text-[12px] text-[#191817]">
-              <span className="font-bold text-[#1F7A45]">Đã sửa: </span>
-              {item.text}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {payload?.table && payload.table.rows.length > 0 && (
-        <details className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[10px] p-2.5">
-          <summary className="text-[11.5px] font-bold text-[#191817] cursor-pointer">
-            {payload.table.title_vi} ({payload.table.rows.length + payload.table.truncated} dòng)
-          </summary>
-          <div className="overflow-x-auto mt-2">
-            <table className="w-full border-collapse text-[11px]">
-              <thead>
-                <tr>
-                  {payload.table.columns.map((column) => (
-                    <th key={column} className="border border-[#ECEAE5] bg-white px-2 py-1 text-left font-bold">
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {payload.table.rows.map((row, i) => (
-                  <tr key={i}>
-                    {row.map((cell, j) => (
-                      <td key={j} className="border border-[#ECEAE5] px-2 py-1 align-top bg-white">
-                        {cell}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {payload.table.truncated > 0 && (
-            <p className="text-[11px] text-[#6B6862] mt-1">và {payload.table.truncated} dòng nữa — xem đủ trong tài liệu.</p>
-          )}
-        </details>
-      )}
-
-      {payload?.flags && flagsChanged && (
-        <p className="text-[11.5px] text-[#4B4842]">
-          Kiểm tra: cờ đỏ {deltaText(payload.flags.red - payload.flags.red_delta, payload.flags.red)} · cờ vàng{" "}
-          {deltaText(payload.flags.yellow - payload.flags.yellow_delta, payload.flags.yellow)}
-          {payload.doc_progress ? ` · tài liệu ${payload.doc_progress.before}% → ${payload.doc_progress.after}%` : ""}
+      {warning && (
+        <p role="status" className="bg-accent-gold-soft text-accent-gold-text rounded-card px-3.5 py-2.5 text-[13px] leading-6">
+          {warning}
         </p>
       )}
 
-      {blockingFlags && blockingFlags.length > 0 && (
-        <div className="flex flex-col gap-1.5 bg-[#FDF2F2] rounded-[10px] p-2.5" role="alert">
-          <span className="text-[11.5px] font-bold text-[#B03030]">
-            Chưa ký được baseline — còn {blockingFlags.length} cờ đỏ chưa xử lý
-          </span>
-          {blockingFlags.map((flag) => (
-            <div key={flag.id} className="text-[11.5px] text-[#4B4842] flex items-center gap-2">
-              <span className="flex-1 min-w-0">{flag.message}</span>
-              {flag.remediation_step && onGoToStep && (
-                <button type="button" onClick={() => onGoToStep(flag.remediation_step as string)} className="font-bold underline cursor-pointer shrink-0">
-                  → {flag.remediation_step}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <GateFlags
+        blockingFlags={blockingFlags}
+        onGoToStep={onGoToStep}
+        newFlags={newFlags}
+        onFixFlag={onFixFlag}
+        onKeepFlag={onKeepFlag}
+        locked={locked}
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={locked || !actions.includes("accept")}
-          onClick={() => void act("accept")}
-          className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#1F7A45] text-white hover:bg-[#19663A] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-        >
-          ✓ Duyệt, sang bước tiếp
-        </button>
-        <button
-          type="button"
-          disabled={locked || !actions.includes("revision")}
-          onClick={() => setMode(mode === "revision" ? null : "revision")}
-          aria-pressed={mode === "revision"}
-          className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#ECEAE5] text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-        >
-          ✎ Yêu cầu sửa
-        </button>
-        <button
-          type="button"
-          disabled={locked || !regenerateLeft}
-          onClick={() => void act("regenerate")}
-          title={regenerateLeft ? "AI soạn lại bước này từ đầu" : "Đã hết lượt làm lại"}
-          className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#DCD8F0] text-[#6A62C4] hover:bg-[#F2F1FB] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-        >
-          ↻ Làm lại · còn {Math.max(0, regenerateLimit - regenerateUsed)} lần
-        </button>
-        {showAcceptAsIs && (
-          <button
-            type="button"
-            disabled={locked}
-            onClick={() => setMode(mode === "accept_as_is" ? null : "accept_as_is")}
-            aria-pressed={mode === "accept_as_is"}
-            className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#F0DFB4] text-[#8A6D1F] bg-[#FBF4E4] hover:bg-[#F7EBCF] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            Duyệt như hiện tại
-          </button>
-        )}
-        {payload?.credits_used !== undefined && (
-          <span className="ml-auto text-[11px] text-[#6B6862]">{Math.round(payload.credits_used)} credit</span>
-        )}
-      </div>
+      {payload?.table && <GateTable table={payload.table} />}
 
-      {noteRequired && (
+      {asIs && (
         <div className="flex flex-col gap-2">
-          <label htmlFor={`gate-note-${stepId}`} className="text-[11.5px] font-semibold text-[#6B6862]">
-            {mode === "revision" ? "Cần sửa gì?" : "Lý do chấp nhận bản hiện tại (bắt buộc)"}
+          <label htmlFor={`gate-note-${stepId}`} className="text-[12px] font-semibold text-on-surface-variant">
+            Lý do chấp nhận bản hiện tại (bắt buộc)
           </label>
           <textarea
             id={`gate-note-${stepId}`}
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-[#E5E3DF] focus:border-[#6A62C4] rounded-[10px] text-[12px] outline-none resize-none"
+            className="w-full px-3 py-2 rounded-control bg-surface-container text-[13px] outline-none resize-none focus:bg-surface-container-high"
           />
-          <button
-            type="button"
-            disabled={!canSubmitNote}
-            onClick={submitNote}
-            className="self-end px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {mode === "revision" ? "Gửi yêu cầu sửa" : "Xác nhận duyệt như hiện tại"}
-          </button>
+          <div className="self-end">
+            <QuickReplyChip tone="primary" disabled={note.trim().length === 0 || locked} onClick={submitAsIs}>
+              Xác nhận duyệt như hiện tại
+            </QuickReplyChip>
+          </div>
         </div>
       )}
+
+      <QuickReplyChips>
+        <QuickReplyChip tone="primary" busy={locked} disabled={!actions.includes("accept")} onClick={() => void act("accept")}>
+          Đúng rồi, đi tiếp
+        </QuickReplyChip>
+        {actions.includes("revision") && (
+          <QuickReplyChip tone="soft" disabled={locked} onClick={() => onWantEdit?.()}>
+            Tôi muốn sửa
+          </QuickReplyChip>
+        )}
+        <DropdownMenu
+          items={menuItems}
+          placement="top"
+          trigger={(props) => (
+            <button
+              type="button"
+              {...props}
+              aria-label="Thêm lựa chọn"
+              className="size-9 grid place-items-center rounded-control bg-surface-container text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <Icon name="more-horizontal" size={18} />
+            </button>
+          )}
+        />
+      </QuickReplyChips>
     </div>
   );
 }
