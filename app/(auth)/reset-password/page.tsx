@@ -19,6 +19,7 @@ import {
 } from "../_components/auth-ui";
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import { checkPassword, PASSWORD_ISSUE_VALUES, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
+import { localizeApiError } from "@/lib/api/error-messages";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -70,7 +71,7 @@ function ResetPasswordContent() {
       if (!res.ok || json.error) {
         const code: string | undefined = json.error?.code;
         if (code === "OTP_EXPIRED" || code === "OTP_TOO_MANY_ATTEMPTS") expireNow();
-        throw new Error(json.error?.message || t("otpFailed"));
+        throw new Error(localizeApiError(code, json.error?.message || t("otpFailed")));
       }
 
       setResetToken(json.data.resetToken);
@@ -101,7 +102,7 @@ function ResetPasswordContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || to("resendFailed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || to("resendFailed")));
       }
       const expiresIn = Number(json.data?.otpExpiresIn) || 120;
       restart(expiresIn);
@@ -146,7 +147,7 @@ function ResetPasswordContent() {
           expireNow();
           setStep("otp");
         }
-        throw new Error(json.error?.message || t("failed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
       setStep("success");
