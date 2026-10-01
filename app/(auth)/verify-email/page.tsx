@@ -7,6 +7,7 @@ import Skeleton from "@/components/ui/Skeleton";
 import { saveAuthToken } from "../../../lib/auth";
 import OtpInput, { OtpSpamHint, emptyOtp } from "../../../components/OtpInput";
 import { buildVerifyEmailHref, formatOtpTime, useOtpCountdown } from "../../../lib/otp";
+import { localizeApiError } from "@/lib/api/error-messages";
 import {
   AuthAlert,
   AuthCard,
@@ -72,7 +73,7 @@ function VerifyEmailContent() {
           if (json.error?.code === "OTP_EXPIRED" || json.error?.code === "OTP_TOO_MANY_ATTEMPTS") {
             expireNow();
           }
-          throw new Error(json.error?.message || t("failed"));
+          throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
         }
 
         const userRole = json.data?.user?.role || json.data?.role;
@@ -109,7 +110,7 @@ function VerifyEmailContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || to("resendFailed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || to("resendFailed")));
       }
       const expiresIn = Number(json.data?.otpExpiresIn) || 120;
       restart(expiresIn);
