@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import GoogleButton from "../../../components/GoogleButton";
 import { getRememberedEmail, saveAuthToken, setRememberedEmail } from "../../../lib/auth";
 import { buildVerifyEmailHref } from "../../../lib/otp";
+import { localizeApiError } from "@/lib/api/error-messages";
 import {
   AuthAlert,
   AuthCard,
@@ -73,7 +74,7 @@ export default function LoginPage() {
         if (json.error?.code === "EMAIL_NOT_VERIFIED") {
           setIsUnverified(true);
         }
-        throw new Error(json.error?.message || t("failed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
       completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, email);
@@ -94,9 +95,7 @@ export default function LoginPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
-        throw new Error(
-          json.error?.message || t("resendFailed"),
-        );
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("resendFailed")));
       }
       router.push(
         buildVerifyEmailHref(
@@ -123,7 +122,7 @@ export default function LoginPage() {
       });
       const json = await res.json();
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || t("googleFailed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("googleFailed")));
       }
       completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, json.data?.user?.email);
     } catch (err) {
