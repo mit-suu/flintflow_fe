@@ -18,6 +18,7 @@ import {
 } from "../_components/auth-ui";
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import { checkPassword, PASSWORD_ISSUE_VALUES, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
+import { localizeApiError } from "@/lib/api/error-messages";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -68,7 +69,7 @@ export default function RegisterPage() {
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || t("failed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
       // Success -> nhập OTP vừa gửi tới email
@@ -92,7 +93,7 @@ export default function RegisterPage() {
       });
       const json = await res.json();
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || t("googleFailed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("googleFailed")));
       }
       if (json.data?.accessToken) {
         saveAuthToken(json.data.accessToken, undefined, { persistent: true });
