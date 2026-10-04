@@ -25,9 +25,10 @@ export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boole
   const raw = (message.content ?? "").trim();
   if (!raw.startsWith("{")) return { text: "Chỉ trao đổi", wrote: false };
   try {
-    const data = JSON.parse(raw) as { kind?: unknown; changes?: unknown };
+    const data = JSON.parse(raw) as { kind?: unknown; changes?: unknown; change_count?: unknown };
     if (data.kind === "change_preview") {
-      const count = Array.isArray(data.changes) ? data.changes.length : 0;
+      // FLF-244: BE chỉ lưu `change_count`; tin cũ còn mảng `changes`
+      const count = typeof data.change_count === "number" ? data.change_count : Array.isArray(data.changes) ? data.changes.length : 0;
       return { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false };
     }
     if (data.kind === "change_applied") {

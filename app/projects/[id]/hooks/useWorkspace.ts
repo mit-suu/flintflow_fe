@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { ApiClientError, apiCall, refreshSession } from "@/lib/api";
 import { streamChatMessage } from "@/lib/ai-stream";
 import { getStoredAuthToken, isAuthenticated, logoutAndRedirect } from "@/lib/auth";
+import { fetchOrganization } from "@/lib/api/orgs";
+import { getActiveOrgId } from "@/lib/api/token-store";
+import type { OrgRole } from "@/types/organization";
 import type { ChangeRequiresCrMeta } from "@/types/change-request";
 import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
@@ -32,6 +35,10 @@ export function useWorkspace(projectId: string) {
    */
   const [crPrefill, setCrPrefill] = useState<(ChangeRequiresCrMeta["prefill"] & { instruction: string }) | null>(null);
   const didInit = useRef(false);
+  /** Thông báo lỗi hiện ở pill toast của trang (thay `alert()` — FLF-244). */
+  const [notice, setNotice] = useState<string | null>(null);
+  /** Vai trò trong org đang mở — Viewer chỉ đọc (FLF-244). `null` khi chưa biết: không khoá gì, BE vẫn chặn. */
+  const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
 
   const refreshUser = useCallback(() => {
     apiCall<User>("/users/me")
@@ -39,18 +46,49 @@ export function useWorkspace(projectId: string) {
       .catch(() => undefined);
   }, []);
 
-  const createSession = useCallback(async () => {
-    try {
-      const res = await apiCall<ChatSession>(`/projects/${projectId}/chats`, { method: "POST" });
-      if (res.data) {
-        const created = res.data;
-        setSessions((prev) => [created, ...prev.map((s) => ({ ...s, isActive: false }))]);
-        setActiveSession(created);
+  /** Tải đủ lịch sử một phiên (`GET /chats` chỉ kèm tin cuối — FLF-244). */
+  const fetchSession = useCallback(
+    async (sessionId: string): Promise<ChatSession | null> => {
+      const res = await apiCall<ChatSession>(`/projects/${projectId}/chats/${sessionId}`);
+      return res.data ?? null;
+    },
+    [projectId]
+  );
+
+  const selectSession = useCallback(
+    async (session: ChatSession) => {
+      try {
+        const full = await fetchSession(session._id);
+        if (full) setActiveSession(full);
+      } catch (err) {
+        setNotice(errorMessage(err, "Không thể tải cuộc trò chuyện"));
       }
-    } catch (err) {
-      alert(errorMessage(err, "Không thể tạo cuộc trò chuyện mới"));
-    }
-  }, [projectId]);
+    },
+    [fetchSession]
+  );
+
+  /**
+   * Phiên mới. Đã có phiên phụ chưa nhắn gì ⇒ mở lại phiên đó thay vì tạo thêm phiên rỗng (FLF-244). `quiet`: lúc vào
+   * workspace mà Viewer không được tạo phiên (403) thì im lặng — khung chat chỉ để đọc.
+   */
+  const createSession = useCallback(
+    async (options: { quiet?: boolean } = {}) => {
+      const empty = sessions.find((s) => s.is_pipeline === false && (s.messages?.length ?? 0) === 0);
+      if (empty) return selectSession(empty);
+      try {
+        const res = await apiCall<ChatSession>(`/projects/${projectId}/chats`, { method: "POST" });
+        if (res.data) {
+          const created = res.data;
+          setSessions((prev) => [created, ...prev]);
+          setActiveSession(created);
+        }
+      } catch (err) {
+        if (options.quiet && err instanceof ApiClientError && err.status === 403) return;
+        setNotice(errorMessage(err, "Không thể tạo cuộc trò chuyện mới"));
+      }
+    },
+    [projectId, sessions, selectSession]
+  );
 
   useEffect(() => {
     if (!projectId || didInit.current) return;
@@ -67,6 +105,14 @@ export function useWorkspace(projectId: string) {
         return;
       }
 
+      // Không chặn việc mở workspace: lỗi thì coi như được sửa (BE vẫn trả 403 nếu không có quyền)
+      const orgId = getActiveOrgId();
+      if (orgId) {
+        fetchOrganization(orgId)
+          .then((org) => setOrgRole(org.role))
+          .catch(() => undefined);
+      }
+
       try {
         const [projectRes, userRes, sessionsRes] = await Promise.all([
           apiCall<Project>(`/projects/${projectId}`),
@@ -77,9 +123,10 @@ export function useWorkspace(projectId: string) {
         setUser(userRes.data);
         const list = sessionsRes.data ?? [];
         setSessions(list);
-        const active = list.find((s) => s.isActive) ?? list[0];
-        if (active) setActiveSession(active);
-        else await createSession();
+        // FLF-244: vào workspace luôn mở phiên chính (quy trình chạy ở đó), không phải phiên mới nhất
+        const preferred = list.find((s) => s.is_pipeline) ?? list[0];
+        if (preferred) setActiveSession((await fetchSession(preferred._id).catch(() => null)) ?? preferred);
+        else await createSession({ quiet: true });
       } catch (err) {
         console.error("Workspace init failed:", err);
         if ((err as { status?: number }).status === 401) {
@@ -90,7 +137,7 @@ export function useWorkspace(projectId: string) {
             await logoutAndRedirect();
           } else {
             // Token hết hạn nhưng refresh chỉ lỗi mạng / 5xx ⇒ giữ phiên
-            alert("Không kết nối được máy chủ. Vui lòng tải lại trang.");
+            setNotice("Không kết nối được máy chủ. Vui lòng tải lại trang.");
           }
         }
       } finally {
@@ -98,22 +145,7 @@ export function useWorkspace(projectId: string) {
       }
     };
     void init();
-  }, [projectId, createSession]);
-
-  const selectSession = useCallback(
-    async (session: ChatSession) => {
-      try {
-        const res = await apiCall<ChatSession>(`/projects/${projectId}/chats/${session._id}`);
-        if (res.data) {
-          setActiveSession(res.data);
-          setSessions((prev) => prev.map((s) => ({ ...s, isActive: s._id === session._id })));
-        }
-      } catch (err) {
-        alert(errorMessage(err, "Không thể tải cuộc trò chuyện"));
-      }
-    },
-    [projectId]
-  );
+  }, [projectId, createSession, fetchSession]);
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -122,15 +154,27 @@ export function useWorkspace(projectId: string) {
         const remaining = sessions.filter((s) => s._id !== sessionId);
         setSessions(remaining);
         if (activeSession?._id === sessionId) {
-          if (remaining[0]) await selectSession(remaining[0]);
-          else setActiveSession(null);
+          // Về phiên chính; không còn phiên nào (dữ liệu cũ) ⇒ tạo phiên mới để khung chat không trống
+          const next = remaining.find((s) => s.is_pipeline) ?? remaining[0];
+          if (next) await selectSession(next);
+          else {
+            setActiveSession(null);
+            await createSession();
+          }
         }
       } catch (err) {
-        alert("Không thể xoá cuộc trò chuyện: " + errorMessage(err, "Lỗi"));
+        setNotice("Không thể xoá cuộc trò chuyện: " + errorMessage(err, "Lỗi"));
       }
     },
-    [projectId, sessions, activeSession, selectSession]
+    [projectId, sessions, activeSession, selectSession, createSession]
   );
+
+  /** Phiên chạy quy trình (bất biến 7) — step runner luôn gửi id này, kể cả khi user đang xem phiên phụ. */
+  const pipelineSession = useMemo(() => sessions.find((s) => s.is_pipeline) ?? null, [sessions]);
+  /** Phiên đang mở là phiên chính (thiếu cờ ⇒ coi như chính, giữ hành vi cũ). Phiên phụ chỉ hỏi đáp và nhận lệnh sửa. */
+  const isPipelineActive = activeSession?.is_pipeline !== false;
+  /** Viewer không gửi tin, không chạy bước, không tạo/xoá phiên — ẩn các thao tác đó thay vì để bấm rồi 403. */
+  const canEdit = orgRole !== "viewer";
 
   /**
    * Tải các tệp đang đính kèm lên `/documents` (dùng chung cho chat hỏi đáp và chat khởi động bước — FLF-221). Lỗi ⇒
@@ -147,7 +191,7 @@ export function useWorkspace(projectId: string) {
       setPendingAttachments([]);
       return true;
     } catch (err) {
-      alert(errorMessage(err, "Không thể tải tệp đính kèm lên"));
+      setNotice(errorMessage(err, "Không thể tải tệp đính kèm lên"));
       return false;
     }
   }, [pendingAttachments, projectId]);
@@ -216,7 +260,9 @@ export function useWorkspace(projectId: string) {
           step,
           onTextDelta: (delta) => setStreamingMessage((prev) => (prev ?? "") + delta),
           onFinish: ({ session }) => {
-            setActiveSession(session);
+            // User đã chuyển/tạo phiên khác giữa chừng ⇒ không kéo khung chat về phiên cũ; chỉ cập nhật xem trước
+            setActiveSession((prev) => (prev?._id === session._id ? session : prev));
+            setSessions((prev) => prev.map((s) => (s._id === session._id ? { ...s, messages: session.messages.slice(-1) } : s)));
             setStreamingMessage(null);
             refreshUser();
           },
@@ -231,7 +277,7 @@ export function useWorkspace(projectId: string) {
         setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
         const meta = err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR" ? (err.meta as ChangeRequiresCrMeta | undefined) : undefined;
         if (meta?.prefill) setCrPrefill({ ...meta.prefill, instruction: content });
-        else alert(errorMessage(err, "Không thể gửi tin nhắn"));
+        else setNotice(errorMessage(err, "Không thể gửi tin nhắn"));
       } finally {
         setSending(false);
       }
@@ -270,6 +316,9 @@ export function useWorkspace(projectId: string) {
       createSession,
       selectSession,
       deleteSession,
+      pipelineSession,
+      isPipelineActive,
+      canEdit,
       sendMessage,
       uploadPendingAttachments,
       appendLocalMessage,
@@ -281,6 +330,8 @@ export function useWorkspace(projectId: string) {
       logout,
       crPrefill,
       dismissCrPrefill: () => setCrPrefill(null),
+      notice,
+      clearNotice: () => setNotice(null),
     }),
     [
       ready,
@@ -295,6 +346,9 @@ export function useWorkspace(projectId: string) {
       createSession,
       selectSession,
       deleteSession,
+      pipelineSession,
+      isPipelineActive,
+      canEdit,
       sendMessage,
       uploadPendingAttachments,
       appendLocalMessage,
@@ -305,6 +359,7 @@ export function useWorkspace(projectId: string) {
       refreshUser,
       logout,
       crPrefill,
+      notice,
     ]
   );
 }

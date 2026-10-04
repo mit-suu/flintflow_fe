@@ -506,10 +506,13 @@ export const handlers = [
   http.get(api("/projects/:projectId/documents"), () => ok([])),
   http.get(api("/verification/projects/:projectId"), () => ok({})),
 
-  http.get(api("/projects/:projectId/chats"), () => ok(mockState.sessions.map(withPipelineFlag))),
+  // FLF-244: danh sách chỉ kèm tin cuối mỗi phiên — lịch sử đủ ở GET /chats/:chatId
+  http.get(api("/projects/:projectId/chats"), () =>
+    ok(mockState.sessions.map((s) => withPipelineFlag({ ...s, messages: s.messages.slice(-1) })))
+  ),
   http.post(api("/projects/:projectId/chats"), () => {
-    const session = { _id: `${Date.now()}`, projectId: mockState.project._id, messages: [], isActive: true, createdAt: new Date().toISOString() };
-    mockState.sessions = [session, ...mockState.sessions.map((s) => ({ ...s, isActive: false }))];
+    const session = { _id: `${Date.now()}`, projectId: mockState.project._id, messages: [], createdAt: new Date().toISOString() };
+    mockState.sessions = [session, ...mockState.sessions];
     return ok(withPipelineFlag(session));
   }),
   http.get(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
@@ -517,6 +520,7 @@ export const handlers = [
     return session ? ok(withPipelineFlag(session)) : fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
   }),
   http.delete(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
+    if (params.chatId === MOCK_SESSION_ID) return fail(409, "PIPELINE_SESSION_LOCKED", "Không xoá được phiên chính của dự án");
     mockState.sessions = mockState.sessions.filter((s) => s._id !== params.chatId);
     return ok(null);
   }),
@@ -535,7 +539,7 @@ export const handlers = [
           await delay(mockTiming.stepDelayMs / 10);
         }
         session.messages = [...session.messages, user, ai];
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish", session, cost: 1 })}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish", session: withPipelineFlag(session), cost: 1 })}\n\n`));
         controller.close();
       },
     });
@@ -558,6 +562,9 @@ export const handlers = [
   http.post(api("/projects/:projectId/steps/:stepId/run"), async ({ params, request }) => {
     const stepId = String(params.stepId);
     const body = (await request.json()) as RunStepRequest;
+    if (body.session_id && body.session_id !== MOCK_SESSION_ID) {
+      return fail(403, "NOT_PIPELINE_SESSION", "Session này không phải session pipeline của dự án");
+    }
     if (!getStepDef(stepId)) return fail(404, "STEP_NOT_FOUND", `Không có step ${stepId}`);
     if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
     if (stepStatusOf(mockState, stepId) === "accepted") return fail(409, "STEP_NOT_RUNNABLE", `Step ${stepId} đã accepted`);

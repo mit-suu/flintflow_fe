@@ -110,7 +110,10 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
       return { message: "Tài liệu chưa được ghép lần nào. Chạy bước Ghép tài liệu để ghép bản nháp.", actions: [{ kind: "goto_step", label: "Đi tới bước Ghép tài liệu", stepId: "S-8.2" }] };
 
     case "NOT_PIPELINE_SESSION":
-      return { message: "Phiên chat này chỉ để hỏi đáp, không chạy được quy trình. Mở lại dự án để tiếp tục.", actions: [RETRY] };
+      return { message: "Phiên chat này chỉ để hỏi đáp — quy trình soạn tài liệu chạy ở phiên chính. Bấm \"Về phiên chính\" để tiếp tục.", actions: [RETRY] };
+
+    case "ORG_ROLE_FORBIDDEN":
+      return { message: "Vai trò Viewer chỉ xem được tài liệu — không chạy bước AI hay sửa nội dung. Nhờ Lead đổi vai trò nếu cần.", actions: [] };
 
     case "OP_INVALID":
     case "INVARIANT_VIOLATION":

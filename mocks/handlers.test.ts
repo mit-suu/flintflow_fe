@@ -5,7 +5,9 @@ import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate 
 import type { StepEvent } from "@/types/pipeline";
 import { mockTiming } from "./handlers";
 import { mockServer } from "./server";
-import { MOCK_PROJECT_ID, MOCK_SESSION_ID, resetMockState } from "./state";
+import { MOCK_PROJECT_ID, MOCK_SESSION_ID, mockState, resetMockState } from "./state";
+import { apiCall } from "@/lib/api";
+import type { ChatSession } from "@/types/chat";
 
 const P = MOCK_PROJECT_ID;
 
@@ -97,6 +99,27 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     await expect(submitGate(P, "S-3.1", { session_id: "other-session", action: "accept", base_version })).rejects.toMatchObject({
       code: "NOT_PIPELINE_SESSION",
       status: 403,
+    });
+  });
+
+  it("FLF-244: /run từ session phụ ⇒ 403 NOT_PIPELINE_SESSION", async () => {
+    const base_version = await version();
+    await expect(runStep(P, "S-3.1", { session_id: "other-session", base_version }, { onEvent: () => {} })).rejects.toMatchObject({
+      code: "NOT_PIPELINE_SESSION",
+      status: 403,
+    });
+  });
+
+  it("FLF-244: GET /chats chỉ kèm tin cuối; xoá phiên chính ⇒ 409 PIPELINE_SESSION_LOCKED", async () => {
+    mockState.sessions[0].messages = [
+      { role: "user", content: "một", createdAt: "2026-10-01T00:00:00Z" },
+      { role: "ai", content: "hai", createdAt: "2026-10-01T00:00:01Z" },
+    ];
+    const list = await apiCall<ChatSession[]>(`/projects/${P}/chats`);
+    expect(list.data?.[0].messages.map((m) => m.content)).toEqual(["hai"]);
+    await expect(apiCall(`/projects/${P}/chats/${MOCK_SESSION_ID}`, { method: "DELETE" })).rejects.toMatchObject({
+      code: "PIPELINE_SESSION_LOCKED",
+      status: 409,
     });
   });
 

@@ -60,7 +60,7 @@ export const createMockState = (): MockState => ({
     updatedAt: now(),
   },
   user: { id: "650000000000000000000010", email: "mock@flintflow.local", balance: 500 },
-  sessions: [{ _id: MOCK_SESSION_ID, projectId: MOCK_PROJECT_ID, messages: [], isActive: true, createdAt: now() }],
+  sessions: [{ _id: MOCK_SESSION_ID, projectId: MOCK_PROJECT_ID, messages: [], createdAt: now() }],
   spine: initialSpine(),
   counters: new Map(),
   waiting: new Map(),

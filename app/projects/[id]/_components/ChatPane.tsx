@@ -34,10 +34,14 @@ interface ChatPaneProps {
   /** Thẻ câu hỏi đặt ngay trên ô nhập (ô nhập vẫn giữ), ví dụ ElicitPanel khi step chờ câu trả lời. */
   questionCard?: ReactNode;
   /**
-   * Nhận lệnh sửa tài liệu (UC 6.8) — gửi khi chip "Sửa tài liệu" đang bật, hoặc khi session hiện tại không phải
-   * pipeline session (`is_pipeline === false`: ô chat khi đó chỉ nhận lệnh sửa).
+   * Nhận lệnh sửa tài liệu (UC 6.8) — gửi khi chip "Sửa tài liệu" đang bật. Phiên phụ (`is_pipeline === false`) vẫn
+   * hỏi đáp như thường; trước FLF-244 ô chat ở đó bị ép thành lệnh sửa.
    */
   onEditInstruction?: (instruction: string) => void;
+  /** Phiên phụ: nút "Về phiên chính" trên dải thông báo (quy trình soạn tài liệu chạy ở phiên chính). */
+  onGoToPipeline?: () => void;
+  /** Có ⇒ chế độ chỉ đọc (Viewer): thay ô nhập và thẻ hỏi bằng dòng thông báo này (FLF-244). */
+  readOnlyNotice?: string;
   /** Chip "Sửa tài liệu" trên ô nhập. */
   editMode?: boolean;
   onToggleEditMode?: () => void;
@@ -115,6 +119,8 @@ export default function ChatPane({
   children,
   questionCard,
   onEditInstruction,
+  onGoToPipeline,
+  readOnlyNotice,
   title = "Trò chuyện và duyệt",
   emptyState,
   inputPlaceholder,
@@ -158,10 +164,10 @@ export default function ChatPane({
   const latestQuestions = useMemo(() => (last?.role === "ai" ? parseQuestions(last.content) : []), [last]);
   const showQuestions = !questionCard && latestQuestions.length > 0 && dismissedKey !== questionKey;
 
-  // Không có session ⇒ coi như pipeline (không đủ căn cứ chuyển hướng); session._id vắng field
-  // mới thì mặc định pipeline để không phá luồng chat hiện có.
+  // Không có session hoặc session vắng field ⇒ coi như pipeline. Phiên phụ chỉ khác ở dải thông báo — gửi là hỏi đáp,
+  // bật chip là lệnh sửa, như phiên chính (FLF-244).
   const isNonPipelineSession = session?.is_pipeline === false;
-  const sendAsEdit = (editMode || isNonPipelineSession) && Boolean(onEditInstruction);
+  const sendAsEdit = editMode && Boolean(onEditInstruction);
 
   return (
     <section
@@ -221,9 +227,20 @@ export default function ChatPane({
           <ChatBubble message={{ role: "ai", content: streamingMessage ?? "", createdAt: new Date().toISOString() }} isStreaming />
         )}
 
-        {isNonPipelineSession && onEditInstruction && (
-          <div className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[14px] p-3 text-[12px] text-[#554DB0]">
-            Cuộc trò chuyện này không chạy quy trình soạn tài liệu — gõ bên dưới là lệnh sửa tài liệu, xem trước rồi mới áp dụng.
+        {isNonPipelineSession && (
+          <div className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[14px] p-3 text-[12px] text-[#554DB0] flex flex-wrap items-center gap-2">
+            <span className="flex-1 min-w-0">
+              Phiên hỏi đáp — hỏi AI về dự án, hoặc bật &quot;Sửa tài liệu&quot; để sửa. Quy trình soạn tài liệu chạy ở phiên chính.
+            </span>
+            {onGoToPipeline && (
+              <button
+                type="button"
+                onClick={onGoToPipeline}
+                className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-[#554DB0] text-white cursor-pointer"
+              >
+                Về phiên chính
+              </button>
+            )}
           </div>
         )}
 
@@ -234,50 +251,57 @@ export default function ChatPane({
       <div ref={footerRef} className="absolute inset-x-0 bottom-0 z-10">
         {/* Thẻ hỏi + ô nhập cùng bề rộng với cột tin nhắn (720px + lề 2×24px), không giãn theo khung chat */}
         <div className="mx-auto w-full max-w-[768px]">
-          {questionCard ?? (showQuestions && (
-            <QuestionStepperInput
-              key={questionKey ?? "questions"}
-              questions={latestQuestions}
-              onSubmit={(values) => {
-                // Chữ đang gõ ở ô chat đi cùng lượt gửi (trả lời câu mở trong tin nhắn AI)
-                const draft = inputMessage.trim();
-                onSendMessage([formatAnswers(values), draft].filter(Boolean).join("\n"));
-                if (draft) setInputMessage("");
-              }}
-              onDismiss={() => setDismissedKey(questionKey)}
-              sending={sending}
-            />
-          ))}
-          {/* Ô chat luôn hiện — kể cả khi có thẻ câu hỏi, để trả lời thẳng bằng lời của mình */}
-          <ChatInput
-            inputMessage={inputMessage}
-            setInputMessage={setInputMessage}
-            onSendMessage={(text) => {
-              if (sendAsEdit && onEditInstruction) {
-                onEditInstruction(text);
-                setInputMessage("");
-              } else {
-                onSendMessage(text);
-              }
-            }}
-            sending={sending}
-            pendingAttachments={pendingAttachments}
-            onSelectAttachment={onSelectAttachment}
-            onRemoveAttachment={onRemoveAttachment}
-            compact={Boolean(questionCard) || showQuestions}
-            // Session không pipeline luôn là lệnh sửa ⇒ không cần chip
-            onToggleEditMode={isNonPipelineSession ? undefined : onToggleEditMode}
-            editMode={sendAsEdit}
-            editDisabledReason={editDisabledReason}
-            toolbarExtra={inputTools}
-            placeholder={
-              questionCard || showQuestions
-                ? "Hoặc trả lời trực tiếp…"
-                : sendAsEdit
-                  ? (editPlaceholder ?? "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
-                  : inputPlaceholder
-            }
-          />
+          {readOnlyNotice ? (
+            <p role="note" className="mb-4 mx-6 bg-surface-container rounded-[14px] px-4 py-3 text-[12.5px] text-on-surface-muted">
+              {readOnlyNotice}
+            </p>
+          ) : (
+            <>
+              {questionCard ?? (showQuestions && (
+                <QuestionStepperInput
+                  key={questionKey ?? "questions"}
+                  questions={latestQuestions}
+                  onSubmit={(values) => {
+                    // Chữ đang gõ ở ô chat đi cùng lượt gửi (trả lời câu mở trong tin nhắn AI)
+                    const draft = inputMessage.trim();
+                    onSendMessage([formatAnswers(values), draft].filter(Boolean).join("\n"));
+                    if (draft) setInputMessage("");
+                  }}
+                  onDismiss={() => setDismissedKey(questionKey)}
+                  sending={sending}
+                />
+              ))}
+              {/* Ô chat luôn hiện — kể cả khi có thẻ câu hỏi, để trả lời thẳng bằng lời của mình */}
+              <ChatInput
+                inputMessage={inputMessage}
+                setInputMessage={setInputMessage}
+                onSendMessage={(text) => {
+                  if (sendAsEdit && onEditInstruction) {
+                    onEditInstruction(text);
+                    setInputMessage("");
+                  } else {
+                    onSendMessage(text);
+                  }
+                }}
+                sending={sending}
+                pendingAttachments={pendingAttachments}
+                onSelectAttachment={onSelectAttachment}
+                onRemoveAttachment={onRemoveAttachment}
+                compact={Boolean(questionCard) || showQuestions}
+                onToggleEditMode={onToggleEditMode}
+                editMode={sendAsEdit}
+                editDisabledReason={editDisabledReason}
+                toolbarExtra={inputTools}
+                placeholder={
+                  questionCard || showQuestions
+                    ? "Hoặc trả lời trực tiếp…"
+                    : sendAsEdit
+                      ? (editPlaceholder ?? "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
+                      : inputPlaceholder
+                }
+              />
+            </>
+          )}
         </div>
       </div>
       </div>

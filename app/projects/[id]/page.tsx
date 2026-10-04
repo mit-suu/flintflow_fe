@@ -427,12 +427,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   const runner = useStepRunner({
     projectId,
-    sessionId: ws.activeSession?._id ?? null,
+    // FLF-244: quy trình chạy ở phiên chính dù user đang xem phiên phụ (dữ liệu cũ thiếu cờ ⇒ phiên đang mở)
+    sessionId: ws.pipelineSession?._id ?? (ws.isPipelineActive ? (ws.activeSession?._id ?? null) : null),
     getBaseVersion,
     onSpineChanged,
     onGateDone: (res) => setSelectedStepId(res.next_step),
     // Lời AI xác nhận việc vừa sửa hiện ngay như một tin của AI, trước khi bước chạy lại
-    onRevisionMessage: (message, stepId) => ws.appendLocalMessage(message, stepId, "ai"),
+    onRevisionMessage: (message, stepId) => {
+      if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
+    },
   });
 
   // Lớp 5: tới lượt user mà tab đang ẩn thì đổi tiêu đề tab (và báo, nếu user đã cho phép)
@@ -797,7 +800,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   if (!ws.ready) return <WorkspaceLoading projectId={projectId} />;
 
-  const gate = runner.state.status === "gate_ready" ? runner.state.gate : null;
+  /** FLF-244: phiên phụ chỉ hỏi đáp + lệnh sửa — thẻ hỏi, thẻ cổng, tiến trình bước chỉ hiện ở phiên chính. */
+  const onPipelineSession = ws.isPipelineActive;
+  /** FLF-244: Viewer chỉ đọc — ẩn ô nhập, thẻ hỏi, thẻ cổng và mọi nút chạy bước (BE cũng chặn 403). */
+  const canEdit = ws.canEdit;
+  const gate = onPipelineSession && runner.state.status === "gate_ready" ? runner.state.gate : null;
   const reviewMode: ReviewMode = spine?.project.review_mode ?? "balanced";
   /**
    * BUG-30: panel SRS và bản xuất phải mang TÊN HỆ THỐNG tiếng Anh đã chốt (`system_name`), không phải
@@ -880,6 +887,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Mở đầu project mới: B-0.1 chưa chạy, phiên pipeline chưa có tin nhắn, Spine chưa có ghi chú Brief. */
   const showOpening =
     !mode1 &&
+    canEdit &&
+    onPipelineSession &&
     stepNotStarted &&
     currentStep === "B-0.1" &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
@@ -897,7 +906,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    */
   const lastChatMessage = ws.activeSession?.messages.at(-1);
   const trailingAskReply =
-    !mode1 && runner.state.status === "needs_input" && lastChatMessage?.role === "ai"
+    !mode1 && onPipelineSession && runner.state.status === "needs_input" && lastChatMessage?.role === "ai"
       ? replyOfAsk(lastChatMessage.content)
       : null;
   const askReply = runner.state.elicitText || trailingAskReply || "";
@@ -939,6 +948,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   const sendFromChat = async (custom?: string, intent?: RunIntent) => {
     if (mode1) return ws.sendMessage(currentStep, custom);
+    // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
+    if (!onPipelineSession) return ws.sendMessage(currentStep, custom);
     if (aiWorking) {
       setToast("AI đang làm — đợi xong lượt này rồi nhắn tiếp nhé");
       return;
@@ -1063,7 +1074,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onSendMessage={(custom) => void sendFromChat(custom)}
           sending={ws.sending || (!mode1 && aiWorking)}
           inputPlaceholder={
-            !mode1 && aiWorking
+            !mode1 && !onPipelineSession
+              ? "Hỏi AI về dự án, hoặc bật Sửa tài liệu để sửa…"
+              : !mode1 && aiWorking
               ? "AI đang làm…"
               : !mode1 && gate
                 ? "Muốn sửa gì thì bạn nhắn tôi nhé…"
@@ -1078,6 +1091,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             <ChatSessionHistory
               sessions={ws.sessions}
               activeSessionId={ws.activeSession?._id ?? null}
+              pipelineSessionId={ws.pipelineSession?._id ?? null}
+              createDisabled={ws.sending || runner.state.busy}
+              readOnly={!canEdit}
               onSelectSession={ws.selectSession}
               onCreateSession={ws.createSession}
               onDeleteSession={ws.deleteSession}
@@ -1086,6 +1102,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
           onEditInstruction={mode1 ? (text) => void crChat.send(text) : submitEditInstruction}
+          onGoToPipeline={ws.pipelineSession ? () => void ws.selectSession(ws.pipelineSession!) : undefined}
+          readOnlyNotice={canEdit ? undefined : "Bạn đang xem với vai trò Viewer — chỉ đọc được tài liệu, không gửi tin hay chạy bước AI."}
           editPlaceholder={mode1 ? crChat.inputHint : undefined}
           editMode={editMode}
           onToggleEditMode={() => (editMode ? setEditMode(false) : startEditing())}
@@ -1100,7 +1118,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             )
           }
           questionCard={
-            !mode1 && runner.state.status === "needs_input" ? (
+            !mode1 && canEdit && onPipelineSession && runner.state.status === "needs_input" ? (
               <ElicitPanel
                 questions={runner.state.questions}
                 onSubmit={(answers) => {
@@ -1121,12 +1139,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} />}
           {/* Bước được tự duyệt (không cần chốt) không hiện gì trong khung chat — chỉ dấu ✓ trên rail tiến độ */}
-          {!mode1 && viewingAccepted && viewedStep && !aiWorking && !runner.state.autoAccepted.some((item) => item.step_id === viewedStep) && (
+          {!mode1 && onPipelineSession && viewingAccepted && viewedStep && !aiWorking && !runner.state.autoAccepted.some((item) => item.step_id === viewedStep) && (
             <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
               Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
             </div>
           )}
-          {!mode1 && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
+          {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
             <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-[12px] text-accent-gold-text">
               <p className="leading-relaxed">
                 Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt, nhưng{" "}
@@ -1142,10 +1160,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               </button>
             </div>
           )}
-          {runnerStep && !background && (
+          {runnerStep && !background && onPipelineSession && (
             <StepProgress state={runner.state} onCancel={() => void runner.cancel()} onBackground={() => setBackground(true)} />
           )}
-          {!mode1 && runner.state.status === "needs_input" && (askReply || openQuestions.length > 0) && (
+          {!mode1 && onPipelineSession && runner.state.status === "needs_input" && (askReply || openQuestions.length > 0) && (
             // Lời AI + câu mở của lượt hỏi (câu có lựa chọn nằm ở thẻ hỏi trên ô chat)
             <ChatBubble
               message={{
@@ -1156,7 +1174,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               hideBadge
             />
           )}
-          {gate && runnerStep && (
+          {gate && runnerStep && canEdit && (
             <GateCard
               {...(runner.state.phaseGate ? { phaseSummary: runner.state.phaseGate.summary } : {})}
               stepId={runnerStep}
@@ -1194,7 +1212,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               </button>
             </div>
           )}
-          {!mode1 && runner.state.status === "interrupted" && !runner.state.error && runner.state.stepId && (
+          {!mode1 && canEdit && onPipelineSession && runner.state.status === "interrupted" && !runner.state.error && runner.state.stepId && (
             // Lượt chết giữa chừng (reload, mất mạng): nút "Chạy lại" là lối duy nhất còn lại để chạy bước này (FLF-221)
             <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-wrap items-center gap-2">
               <span className="flex-1 min-w-0">Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.</span>
@@ -1371,17 +1389,32 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       </main>
       </div>
 
-      {background && runnerStep && (
-        <RunPill state={runner.state} onOpen={() => setBackground(false)} onCancel={() => void runner.cancel()} />
+      {/* Ở phiên phụ, bước đang chạy của phiên chính hiện thành pill thay cho khối tiến trình trong khung chat */}
+      {(background || !onPipelineSession) && runnerStep && (
+        <RunPill
+          state={runner.state}
+          onOpen={() => {
+            setBackground(false);
+            if (!onPipelineSession && ws.pipelineSession) void ws.selectSession(ws.pipelineSession);
+          }}
+          onCancel={() => void runner.cancel()}
+        />
       )}
 
-      {toast && (
+      {(toast ?? ws.notice) && (
         <div
           role="status"
           className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-[12px] font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
         >
-          <span>{toast}</span>
-          <button type="button" onClick={() => setToast(null)} className="text-[11px] underline cursor-pointer">
+          <span>{toast ?? ws.notice}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setToast(null);
+              ws.clearNotice();
+            }}
+            className="text-[11px] underline cursor-pointer"
+          >
             Đóng
           </button>
         </div>
