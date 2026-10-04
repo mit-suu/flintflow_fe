@@ -226,7 +226,8 @@ export const ruleLabel = (ruleId: string): string => RULE_LABELS[ruleId] ?? "";
 const TAG_IN_TEXT = /(^|\s)\[[a-z_]+\]\s*/g;
 const SECTION_IN_TEXT = /\b(?:(?:fixed|group):[0-9IVX]+(?:\.[0-9]+)*|(?:custom|feature|function):@?[A-Za-z0-9_-]+)/g;
 // Chỉ mã có "_" — tránh đụng từ tiếng Anh thường (vd "conflict")
-const RULE_IN_TEXT = new RegExp(`\b(?:${Object.keys(RULE_LABELS).filter((k) => k.includes("_")).join("|")})\b`, "g");
+// `\\b` (không phải `\b`): trong template literal `\b` là ký tự backspace ⇒ regex không bao giờ khớp
+const RULE_IN_TEXT = new RegExp(`\\b(?:${Object.keys(RULE_LABELS).filter((k) => k.includes("_")).join("|")})\\b`, "g");
 
 /**
  * Câu thông báo của BE / AI ⇒ chữ thường: bỏ tiền tố `[ambiguity]`, path Spine ⇒ tên phần tử,
