@@ -1315,8 +1315,6 @@
     "PAYMENT_ORDER_NOT_FOUND": "The payment wasn't found at the payment gateway.",
     "ASSUMPTION_NOT_FOUND": "That item wasn't found — it may have just changed. Reload and try again.",
     "NEEDS_USER_INPUT": "The AI couldn't produce valid content after several tries. Run it again, or describe the request more clearly in the chat.",
-    "OP_INVALID": "Couldn't apply this change. Name the item to change more clearly and try again.",
-    "INVARIANT_VIOLATION": "Couldn't apply this change because the result would be invalid. Rephrase the request and try again.",
     "SPINE_SCHEMA_INVALID": "The edited document data was invalid, so nothing was saved. Please try again.",
     "CHANGE_INVALID": "The change was invalid, so nothing was saved. Please try again.",
     "CHANGE_RANGE_INVALID": "That set of changes no longer exists. Reload the page and try again.",
@@ -1340,6 +1338,8 @@
     "AI_CALL_ABORTED": "The AI call was cancelled.",
     "CREDIT_LEDGER_INCONSISTENT": "Something went wrong while charging credits. Please try again later or contact an administrator.",
     "LOG_NOT_FOUND": "That AI run wasn't found.",
-    "ORG_CONTEXT_MISSING": "Couldn't determine your organization. Please reload the page."
+    "ORG_CONTEXT_MISSING": "Couldn't determine your organization. Please reload the page.",
+    "METHOD_NOT_ALLOWED": "This action isn't supported.",
+    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported."
   }
 }

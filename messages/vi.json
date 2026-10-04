@@ -1315,8 +1315,6 @@
     "PAYMENT_ORDER_NOT_FOUND": "Không tìm thấy giao dịch trên cổng thanh toán.",
     "ASSUMPTION_NOT_FOUND": "Không tìm thấy mục cần sửa — có thể nó vừa được thay đổi. Tải lại rồi thử lại.",
     "NEEDS_USER_INPUT": "AI chưa tạo được nội dung hợp lệ sau nhiều lần thử. Bạn có thể chạy lại, hoặc nói rõ hơn yêu cầu ở ô chat.",
-    "OP_INVALID": "Chưa áp được thay đổi này. Hãy nói rõ tên mục cần sửa rồi thử lại.",
-    "INVARIANT_VIOLATION": "Chưa áp được thay đổi này vì dữ liệu sau khi sửa không hợp lệ. Hãy diễn đạt lại yêu cầu rồi thử lại.",
     "SPINE_SCHEMA_INVALID": "Dữ liệu tài liệu sau khi sửa không hợp lệ nên chưa được lưu. Vui lòng thử lại.",
     "CHANGE_INVALID": "Thay đổi không hợp lệ nên chưa được lưu. Vui lòng thử lại.",
     "CHANGE_RANGE_INVALID": "Không tìm thấy nhóm thay đổi này nữa. Tải lại trang rồi thử lại.",
@@ -1340,6 +1338,8 @@
     "AI_CALL_ABORTED": "Lượt gọi AI đã bị huỷ.",
     "CREDIT_LEDGER_INCONSISTENT": "Hệ thống gặp lỗi khi trừ credit. Vui lòng thử lại sau hoặc liên hệ quản trị viên.",
     "LOG_NOT_FOUND": "Không tìm thấy lượt chạy AI này.",
-    "ORG_CONTEXT_MISSING": "Hệ thống gặp lỗi khi xác định tổ chức. Vui lòng tải lại trang."
+    "ORG_CONTEXT_MISSING": "Hệ thống gặp lỗi khi xác định tổ chức. Vui lòng tải lại trang.",
+    "METHOD_NOT_ALLOWED": "Thao tác này không được hỗ trợ.",
+    "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ."
   }
 }
