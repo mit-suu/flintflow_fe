@@ -225,11 +225,14 @@ export function useWorkspace(projectId: string) {
     [projectId]
   );
 
-  /** Gỡ tin vừa hiện tạm khi lượt gửi không đi tới đâu (chữ trả về ô nhập) — không để tin "ma" trong khung chat. */
-  const dropLocalMessage = useCallback((content: string) => {
+  /**
+   * Gỡ tin vừa hiện tạm khi lượt gửi không đi tới đâu (chữ trả về ô nhập) — không để tin "ma" trong khung chat.
+   * `role` để gỡ được cả tin AI hiện tạm (tin cổng chốt), không chỉ tin user.
+   */
+  const dropLocalMessage = useCallback((content: string, role: ChatMessage["role"] = "user") => {
     setActiveSession((prev) => {
       if (!prev) return prev;
-      const index = prev.messages.findLastIndex((m) => m.role === "user" && m.content === content);
+      const index = prev.messages.findLastIndex((m) => m.role === role && m.content === content);
       return index < 0 ? prev : { ...prev, messages: prev.messages.filter((_, i) => i !== index) };
     });
   }, []);
