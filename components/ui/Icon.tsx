@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { Archive } from "@phosphor-icons/react/dist/ssr/Archive";
+import { ArrowClockwise } from "@phosphor-icons/react/dist/ssr/ArrowClockwise";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr/ArrowRight";
 import { ArrowUp } from "@phosphor-icons/react/dist/ssr/ArrowUp";
 import { ArrowsIn } from "@phosphor-icons/react/dist/ssr/ArrowsIn";
@@ -80,6 +81,7 @@ const ICONS = {
   export: Export,
   history: ClockCounterClockwise,
   play: Play,
+  refresh: ArrowClockwise,
   "shield-check": ShieldCheck,
   sidebar: SidebarSimple,
   toolbox: Toolbox,

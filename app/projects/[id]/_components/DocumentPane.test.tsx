@@ -237,6 +237,50 @@ describe("DocumentPane", () => {
   });
 });
 
+describe("DocumentPane — nút Vẽ lại sơ đồ theo mục", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  // Đúng dạng BE trả: `GET /document` đã thay `diagram-ref:<id>` bằng PNG base64 — ảnh KHÔNG mang id sơ đồ
+  const withErd: RenderedDocument = {
+    ...fixture,
+    sections: [
+      { id: "fixed:3.1.5", number: "3.1.5", heading: "Entity Relationship Diagram", level: 2, status: "accepted", blocks: [{ type: "image", png: "iVBORw0KGgo=", caption: "ERD" }] },
+      { id: "fixed:2.1", number: "2.1", heading: "Actors", level: 2, status: "accepted", blocks: [{ type: "paragraph", runs: [{ text: "No diagram here" }] }] },
+    ],
+  };
+
+  beforeEach(() => {
+    getDocument.mockReset();
+    getDocument.mockResolvedValue({ data: withErd, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+  });
+
+  it("mục có sơ đồ (ảnh base64 thật) ⇒ có nút; bấm gọi vẽ lại đúng mục", async () => {
+    const onRedrawSection = vi.fn().mockResolvedValue(undefined);
+    renderWithIntl(<DocumentPane projectId="p1" onRedrawSection={onRedrawSection} hasDiagrams={(id) => id === "fixed:3.1.5"} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Vẽ lại sơ đồ" }));
+    await waitFor(() => expect(onRedrawSection).toHaveBeenCalledWith("fixed:3.1.5"));
+    expect(screen.getAllByRole("button", { name: "Vẽ lại sơ đồ" })).toHaveLength(1);
+  });
+
+  it("vẽ lại lỗi ⇒ báo ngay dưới sơ đồ", async () => {
+    const onRedrawSection = vi.fn().mockRejectedValue(new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại."));
+    renderWithIntl(<DocumentPane projectId="p1" onRedrawSection={onRedrawSection} hasDiagrams={() => true} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Vẽ lại sơ đồ" }));
+    expect(await screen.findByText(/Không tìm thấy sơ đồ này/)).toBeInTheDocument();
+  });
+
+  it("không truyền onRedrawSection (mode 1, trang read-only) hoặc Spine không có sơ đồ của mục ⇒ không có nút", async () => {
+    const { unmount } = renderWithIntl(<DocumentPane projectId="p1" hasDiagrams={() => true} />);
+    await screen.findByAltText("ERD");
+    expect(screen.queryByRole("button", { name: "Vẽ lại sơ đồ" })).toBeNull();
+    unmount();
+
+    renderWithIntl(<DocumentPane projectId="p1" onRedrawSection={vi.fn()} hasDiagrams={() => false} />);
+    await screen.findByAltText("ERD");
+    expect(screen.queryByRole("button", { name: "Vẽ lại sơ đồ" })).toBeNull();
+  });
+});
+
 describe("followsHeading", () => {
   it("bảng đầu section hoặc ngay sau heading con thì cách tiêu đề; sau đoạn văn thì không", () => {
     const blocks = [

@@ -46,6 +46,46 @@ interface DocumentPaneProps {
   onSectionsLoaded?: (sections: readonly RenderedSection[]) => void;
   /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
   headerEnd?: ReactNode;
+  /**
+   * Nút "Vẽ lại sơ đồ" dưới các hình của một mục. Ảnh tới FE đã là PNG thật (BE thay `diagram-ref:<id>` lúc trả tài liệu),
+   * không còn id sơ đồ ⇒ nút theo MỤC, trang workspace biết mục nào có sơ đồ nào qua `diagrams[].section`.
+   * Không truyền ⇒ không có nút (mode 1, trang xem read-only).
+   */
+  onRedrawSection?: (sectionId: string) => Promise<void>;
+  /** Mục có sơ đồ vẽ lại được (có trong `diagrams[]` của Spine). */
+  hasDiagrams?: (sectionId: string) => boolean;
+}
+
+/** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
+function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const redraw = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onRedraw();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center justify-center gap-2 mb-2">
+      <button
+        type="button"
+        onClick={() => void redraw()}
+        disabled={busy}
+        title="Vẽ lại sơ đồ của mục này từ dữ liệu hiện tại"
+        className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Icon name="refresh" size={11} />
+        {busy ? "Đang vẽ…" : "Vẽ lại sơ đồ"}
+      </button>
+      {error && <span className="text-[10.5px] text-error">{error}</span>}
+    </div>
+  );
 }
 
 /** Nhãn đọc được của một mục: `§2.2.2 Actors`. */
@@ -247,8 +287,10 @@ function SectionView({
   emptyHint,
   mode1 = false,
   onEdit,
+  onRedraw,
 }: {
   onEdit?: (sectionLabel: string) => void;
+  onRedraw?: () => Promise<void>;
   section: RenderedSection;
   projectId: string;
   /** Vấn đề đang mở của mục: số lượng và có cái nào chặn chốt bản không. */
@@ -315,9 +357,12 @@ function SectionView({
         </div>
       </div>
       {section.blocks.length > 0 ? (
-        section.blocks.map((block, i) => (
-          <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
-        ))
+        <>
+          {section.blocks.map((block, i) => (
+            <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+          ))}
+          {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
+        </>
       ) : (
         <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />
       )}
@@ -343,6 +388,8 @@ export default function DocumentPane({
   rewriteError = null,
   onSectionsLoaded,
   headerEnd,
+  onRedrawSection,
+  hasDiagrams,
 }: DocumentPaneProps) {
   const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
     projectId,
@@ -477,6 +524,7 @@ export default function DocumentPane({
               emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
               mode1={mode1}
               onEdit={onEditSection}
+              onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
             />
           ))}
       </div>

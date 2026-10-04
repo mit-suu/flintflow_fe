@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { PreviewResult } from "@/types/pipeline";
-import { humanizeText, pathLabel, readableValue, ruleLabel, sectionName } from "./mode1/spine-labels";
+import { pathLabel, readableValue, ruleLabel, sectionName, violationText } from "./mode1/spine-labels";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
@@ -87,7 +87,7 @@ export default function DiffPreviewModal({
             {preview.violations.map((v, i) => (
               <div key={i} className="text-[11.5px] text-[#8A4141]">
                 {ruleLabel(v.rule) && <span className="font-bold">{ruleLabel(v.rule)}: </span>}
-                <span title={[v.rule, v.path].filter(Boolean).join(" · ")}>{humanizeText(v.message)}</span>
+                <span title={[v.rule, v.path, v.message].filter(Boolean).join(" · ")}>{violationText(v)}</span>
                 {v.path && <span className="text-[10.5px]"> ({pathLabel(v.path)})</span>}
               </div>
             ))}

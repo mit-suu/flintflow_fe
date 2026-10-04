@@ -10,7 +10,7 @@ import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
-import type { ReviewMode } from "@/types/spine";
+import type { Diagram, ReviewMode } from "@/types/spine";
 import type { Project } from "@/types/project";
 import type { Flag } from "@/types/flags";
 import PageSkeleton, { type WorkspacePane } from "@/components/ui/PageSkeleton";
@@ -71,6 +71,8 @@ const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+/** Nút "Vẽ lại sơ đồ" dưới hình của mỗi mục trong DocumentPane — tạm ẩn; đổi thành `true` để hiện lại. */
+const REDRAW_SECTION_ENABLED = false;
 /** Tin AI của lượt hỏi trong lịch sử là `{reply, questions}` (BE ghi kèm câu hỏi) hoặc chữ thường — lấy phần lời đáp. */
 /** Cổng chốt nêu tối đa chừng này cờ mới — nhiều hơn thì user xem tiếp ở panel Kiểm tra. */
 const MAX_GATE_FLAGS = 3;
@@ -365,32 +367,47 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   const { refreshUser } = ws;
 
+  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+
   /**
-   * BUG-17: cờ `diagram_stale` / `render_error` nay có nút "Vẽ lại" — vẽ đúng hình của cờ đó rồi quét lại
-   * để cờ tự đóng. `target_id` của cờ là id sơ đồ; kind và owner lấy từ Spine đang hiển thị.
+   * Vẽ lại các sơ đồ (một lời gọi cho mỗi cặp kind + owner: `screen_flow` nhiều phần vẽ chung một lượt) rồi quét lại cờ và
+   * tải lại tài liệu — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới. Ném lỗi bằng câu tiếng Việt.
    */
-  const handleRedrawDiagram = useCallback(
-    async (flag: Flag) => {
-      const diagram = spineState.spine?.diagrams.find((d) => d.id === flag.target_id);
-      if (!diagram) {
-        setSaveError("Không tìm thấy sơ đồ của cờ này — tải lại trang rồi thử lại.");
-        return;
-      }
+  const redrawDiagrams = useCallback(
+    async (diagrams: readonly Diagram[]) => {
+      if (diagrams.length === 0) throw new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại.");
+      const targets = [...new Map(diagrams.map((d) => [`${d.kind}:${d.owner_id ?? ""}`, d])).values()];
       try {
-        await renderDiagram(projectId, diagram.kind, diagram.owner_id);
-        await recomputeFlagsFn();
-        void reloadSpine();
-        void reloadProgress();
-        setToast(`Đã vẽ lại sơ đồ ${diagram.id}`);
+        for (const d of targets) await renderDiagram(projectId, d.kind, d.owner_id);
       } catch (err) {
         const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-        setSaveError(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message);
+        throw new Error(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message);
       }
+      await recomputeFlagsFn();
+      void reloadSpine();
+      void reloadProgress();
+      setDocumentRefreshToken((v) => v + 1);
+      setToast("Đã vẽ lại sơ đồ");
     },
-    [projectId, spineState.spine, recomputeFlagsFn, reloadSpine, reloadProgress]
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress]
   );
 
-  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  const diagramsOfSection = useCallback(
+    (sectionId: string) => spineState.spine?.diagrams.filter((d) => d.section === sectionId) ?? [],
+    [spineState.spine]
+  );
+
+  /** BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ, vẽ xong cờ tự đóng. */
+  const handleRedrawDiagram = useCallback(
+    async (flag: Flag) => {
+      try {
+        await redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === flag.target_id) ?? []);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
+      }
+    },
+    [redrawDiagrams, spineState.spine]
+  );
   const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
     (spineVersion?: number) => {
@@ -1274,6 +1291,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
           rewriteError={!editCardOpen ? changes.error : null}
           onSectionsLoaded={handleSectionsLoaded}
+          // Mode 1 v3: tài liệu chỉ đổi qua change request — không vẽ lại thẳng.
+          // Tạm ẩn nút "Vẽ lại sơ đồ" dưới hình: bật lại bằng REDRAW_SECTION_ENABLED.
+          onRedrawSection={mode1 || !REDRAW_SECTION_ENABLED ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
+          hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
         />
