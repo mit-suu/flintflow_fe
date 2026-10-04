@@ -1197,11 +1197,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               wroteOps={gate.wroteOps}
               emptySections={gate.emptySections}
               onAction={(action, note) => {
-                // Hiện ngay như một lượt của user (gate có thể chờ cả chuỗi bước sau chạy xong mới trả về); không thành thì gỡ
+                // Hiện ngay như một lượt của user (gate có thể chờ cả chuỗi bước sau chạy xong mới trả về); không thành thì gỡ.
+                // Thẻ cổng dựng từ lượt chạy đang sống nên chốt xong là biến mất: tin cổng phải ở lại khung chat ngay trước
+                // thao tác vừa bấm, đúng thứ tự BE ghi transcript — thiếu nó thì đọc lại chỉ thấy "Đúng rồi, đi tiếp" một mình.
+                const spoken = runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate.payload?.message_vi;
                 const said = GATE_ACTION_TEXT[action](note);
+                if (spoken) ws.appendLocalMessage(spoken, runnerStep, "ai");
                 ws.appendLocalMessage(said, runnerStep);
                 void runner.gate(action, note).then((outcome) => {
-                  if (outcome !== "ok") ws.dropLocalMessage(said);
+                  if (outcome === "ok") return;
+                  ws.dropLocalMessage(said);
+                  if (spoken) ws.dropLocalMessage(spoken, "ai");
                 });
               }}
             />
