@@ -717,7 +717,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   );
   const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
-  const documentIssues = issueCounts(flags, outdatedSections);
+  // FLF-248: cờ "rỗng" của bước đã chốt là vấn đề thật (chặn ký baseline), không phải "sẽ điền ở bước sau"
+  const acceptedSteps = new Set((steps?.steps ?? []).filter((s) => s.status === "accepted").map((s) => s.id));
+  const documentIssues = issueCounts(flags, outdatedSections, acceptedSteps);
   /** Chip sửa khoá khi step đang chạy / chờ trả lời: hai luồng cùng ghi Spine sẽ vấp 409 SPINE_VERSION_CONFLICT. */
   const editDisabledReason =
     !mode1 && runner.state.busy
@@ -1349,6 +1351,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               },
               rewriting: changes.applying && changes.previewSource !== "instruction",
               onEditSection: (label) => startEditing(`Trong ${label}: `),
+              acceptedSteps,
             }}
             readiness={progress?.readiness ?? null}
             flags={flags}

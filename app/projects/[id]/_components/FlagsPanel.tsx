@@ -104,6 +104,8 @@ interface FlagsPanelProps {
   rewriting?: boolean;
   /** "Sửa trong chat" trên một vấn đề — bật chip Sửa tài liệu, điền sẵn tên mục. */
   onEditSection?: (sectionLabel: string) => void;
+  /** Bước đã chốt: cờ "rỗng" của bước đã chốt là vấn đề cần xử lý, không phải "sẽ điền ở bước sau" (FLF-248). */
+  acceptedSteps?: ReadonlySet<string>;
 }
 
 const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_user;
@@ -153,6 +155,7 @@ export default function FlagsPanel({
   onRewriteOutdated,
   rewriting = false,
   onEditSection,
+  acceptedSteps,
 }: FlagsPanelProps) {
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
@@ -167,14 +170,14 @@ export default function FlagsPanel({
   );
 
   const openFlags = sortFlags(flags.filter(isOpen)).filter((f) => !focusSectionId || f.section_id === focusSectionId);
-  const redGroups = groupByAction(openFlags.filter((f) => f.level === "red"));
-  const yellowGroups = groupByAction(openFlags.filter((f) => f.level === "yellow"));
+  const redGroups = groupByAction(openFlags.filter((f) => f.level === "red"), acceptedSteps);
+  const yellowGroups = groupByAction(openFlags.filter((f) => f.level === "yellow"), acceptedSteps);
   const waivedFlags = flags.filter((f) => f.waived_by_user);
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
   const showOutdated = !focusSectionId && outdatedCount > 0 && Boolean(onRewriteOutdated);
   // Tài liệu chưa tải xong ⇒ tên mục theo mẫu FPT, không hiện mã `fixed:3.1.2` (FLF-247)
   const sectionName = (id: string) => sectionLabelOf?.(id) ?? (fptSectionName(id) || id);
-  const counts = issueCounts(openFlags, showOutdated ? outdatedCount : 0);
+  const counts = issueCounts(openFlags, showOutdated ? outdatedCount : 0, acceptedSteps);
 
   const closeWaiveModal = () => {
     setWaiveError(null);

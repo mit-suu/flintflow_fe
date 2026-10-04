@@ -99,6 +99,22 @@ describe("DocumentPane", () => {
     expect(screen.getByText("Founder")).toBeInTheDocument();
   });
 
+  it("FLF-248: mục feature (tiêu đề nhóm, không có thân) không hiện 'Chưa hoàn thiện'; mục cố định rỗng vẫn hiện", async () => {
+    const doc: RenderedDocument = {
+      ...fixture,
+      sections: [
+        { id: "feature:F1", number: "3.2", heading: "Authentication", level: 2, status: "accepted", blocks: [] },
+        { id: "fixed:5.2", number: "5.2", heading: "Common Requirements", level: 2, status: "accepted", blocks: [] },
+      ],
+    };
+    getDocument.mockResolvedValueOnce({ data: doc, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+
+    renderWithIntl(<DocumentPane projectId="p1" projectName="FlintFlow" />);
+
+    await waitFor(() => expect(screen.getByText(/3\.2\. Authentication/)).toBeInTheDocument());
+    expect(screen.getAllByText(/Chưa hoàn thiện/)).toHaveLength(1);
+  });
+
   it("tài liệu cũ hơn Spine (meta.stale): nút Làm mới ghép lại ở version hiện tại, không lộ chữ 'stale'", async () => {
     const assembleDocument = vi.mocked(exportApi.assembleDocument);
     assembleDocument.mockResolvedValueOnce({ data: { spine_version: 6, sections: 40, generated_at: "2026-09-23T00:00:00.000Z" }, error: null } as never);

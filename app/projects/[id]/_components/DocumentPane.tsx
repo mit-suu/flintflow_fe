@@ -364,7 +364,9 @@ function SectionView({
           ))}
           {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
         </>
-      ) : (
+      ) : section.id.startsWith("feature:") ? null : (
+        // FLF-248: `feature:*` (§3.2…) chỉ là tiêu đề nhóm — Spine feature không có thân (`id·name·order`), nội dung
+        // nằm ở các function con. Câu "Chưa hoàn thiện" cạnh nhãn Accepted làm người dùng tưởng mục bị bỏ trống.
         <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />
       )}
     </article>
