@@ -3,6 +3,7 @@
 import Icon from "@/components/ui/Icon";
 import type { PreviewResult } from "@/types/pipeline";
 import { describeChange } from "./describe-change";
+import { violationText } from "./mode1/spine-labels";
 
 /** Kết quả lần sửa vừa áp — chỉ lần mới nhất mới được hoàn tác (BE undo lô gần nhất của cả dự án). */
 export interface AppliedEdit {
@@ -96,9 +97,9 @@ export default function ChatEditCard({
       {preview && !applied && (
         <>
           {blocked ? (
-            <p className="text-[12px] text-error leading-relaxed">
-              Không áp được lệnh này: {preview.violations[0]?.message ?? "tài liệu sẽ mâu thuẫn sau khi sửa."} Thử diễn đạt lại
-              hoặc xem chi tiết.
+            <p className="text-[12px] text-error leading-relaxed" title={preview.violations[0]?.message}>
+              Không áp được lệnh này: {preview.violations[0] ? violationText(preview.violations[0]) : "tài liệu sẽ mâu thuẫn sau khi sửa."}{" "}
+              Thử diễn đạt lại hoặc xem chi tiết.
             </p>
           ) : empty ? (
             <p className="text-[12px] text-on-surface-muted">Không tìm thấy chỗ nào cần đổi theo lệnh này.</p>
