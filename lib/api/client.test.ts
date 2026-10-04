@@ -76,9 +76,29 @@ describe("apiCall", () => {
 
   it("mã không có bản dịch (VALIDATION_ERROR mang chi tiết) ⇒ giữ nguyên message BE", async () => {
     fetchMock.mockResolvedValueOnce(
-      jsonResponse(400, { data: null, error: { code: "VALIDATION_ERROR", message: "name: Too small" } })
+      jsonResponse(400, { data: null, error: { code: "VALIDATION_ERROR", message: "Tên dự án quá ngắn" } })
     );
-    await expect(apiCall("/projects")).rejects.toMatchObject({ code: "VALIDATION_ERROR", message: "name: Too small" });
+    await expect(apiCall("/projects")).rejects.toMatchObject({ code: "VALIDATION_ERROR", message: "Tên dự án quá ngắn" });
+  });
+
+  it("message BE là text kỹ thuật (Zod, tiếng Anh) ⇒ câu chung, câu gốc giữ ở rawMessage (FLF-247)", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(400, { data: null, error: { code: "VALIDATION_ERROR", message: "✖ Invalid input → at base_version" } })
+    );
+    await expect(apiCall("/projects")).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "Có lỗi xảy ra. Vui lòng thử lại sau.",
+      rawMessage: "✖ Invalid input → at base_version",
+    });
+  });
+
+  it("lỗi mạng (fetch ném TypeError) ⇒ ApiClientError NETWORK_ERROR với câu cho người (FLF-247)", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(apiCall("/projects")).rejects.toMatchObject({
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
+    });
   });
 
   it("body không phải JSON thì ném PARSE_ERROR", async () => {

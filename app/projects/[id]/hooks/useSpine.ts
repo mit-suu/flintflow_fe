@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { resumeProject } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
 import type { Spine } from "@/types/spine";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export interface UseSpineResult {
   spine: Spine | null;
@@ -39,7 +40,7 @@ export function useSpine(projectId: string, enabled = true): UseSpineResult {
         return next?.spine_version ?? null;
       })
       .catch((err: unknown): null => {
-        if (request === requestRef.current) setError(err instanceof Error ? err.message : "Không tải được Spine");
+        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được dữ liệu tài liệu"));
         return null;
       })
       .finally(() => {

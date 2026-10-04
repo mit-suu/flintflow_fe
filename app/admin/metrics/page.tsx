@@ -18,6 +18,7 @@ import {
   tableCellClass,
   tableHeadClass,
 } from "../_components/AdminPage";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const toDateInput = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(date);
@@ -41,7 +42,7 @@ export default function AdminMetricsPage() {
         setMetrics(nextMetrics);
         setCost7d(nextCost);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Không thể tải số liệu");
+        if (!cancelled) setError(userErrorMessage(err, "Không thể tải số liệu"));
       } finally {
         if (!cancelled) setLoading(false);
       }

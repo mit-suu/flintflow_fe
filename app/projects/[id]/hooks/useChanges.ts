@@ -5,6 +5,7 @@ import { ApiClientError } from "@/lib/api/client";
 import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } from "@/lib/api/spine";
 import type { ApplyResult, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export type PreviewSource = "instruction" | "reconcile";
 /** `skipped`: chưa gửi gì (chưa biết version, lệnh rỗng). */
@@ -59,7 +60,7 @@ export function useChanges(
   const [history, setHistory] = useState<Change[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  const failureMessage = (err: unknown) => (err instanceof Error ? err.message : "Thao tác thất bại");
+  const failureMessage = (err: unknown) => userErrorMessage(err, "Thao tác chưa thực hiện được. Vui lòng thử lại.");
 
   const requestPreview = useCallback(
     async (instruction: string): Promise<PreviewOutcome> => {
@@ -86,7 +87,8 @@ export function useChanges(
         return "preview";
       } catch (err) {
         if (err instanceof ApiClientError && err.code === "NEEDS_CLARIFICATION") {
-          setClarification(err.message);
+          // Câu hỏi làm rõ của AI là nội dung, không phải lỗi — lấy nguyên văn, không qua bộ lọc text kỹ thuật
+          setClarification(err.rawMessage || err.message);
           return "clarification";
         }
         setError(failureMessage(err));

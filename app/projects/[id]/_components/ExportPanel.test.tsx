@@ -61,7 +61,7 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("409 NO_WORKING_DRAFT (chưa ghép): hiện lý do tiếng Việt + nút 'Đi tới S-8.2', bấm gọi onGoToStep và đóng panel", async () => {
+  it("409 NO_WORKING_DRAFT (chưa ghép): hiện lý do tiếng Việt + nút 'Đi tới bước Ghép tài liệu', bấm gọi onGoToStep và đóng panel", async () => {
     getDocument.mockRejectedValue(
       new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).")
     );
@@ -70,8 +70,8 @@ describe("ExportPanel", () => {
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={onClose} onGoToStep={onGoToStep} />);
 
-    expect(await screen.findByText(/Chưa ghép tài liệu/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Đi tới S-8.2/ }));
+    expect(await screen.findByText(/Tài liệu chưa được ghép/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Đi tới bước Ghép tài liệu/ }));
 
     expect(onGoToStep).toHaveBeenCalledWith("S-8.2");
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe("ExportPanel", () => {
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
 
-    expect(await screen.findByText("Chưa ghép tài liệu — chạy S-8.2 trước.")).toBeInTheDocument();
+    expect(await screen.findByText("Tài liệu chưa được ghép. Hãy chạy bước Ghép tài liệu trước.")).toBeInTheDocument();
     expect(screen.queryByText(/thông điệp thô từ BE/)).not.toBeInTheDocument();
   });
 
