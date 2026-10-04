@@ -42,10 +42,10 @@ describe("Trang xác thực — song ngữ", () => {
 
   it("số credit của gói Free trong tiêu đề đăng ký format theo locale", () => {
     const { unmount } = renderWithIntl(<RegisterPage />, "vi");
-    expect(screen.getByText(/Miễn phí 100 credit mỗi tháng/)).toBeInTheDocument();
+    expect(screen.getByText(/Miễn phí 300 credit mỗi tháng/)).toBeInTheDocument();
     unmount();
 
     renderWithIntl(<RegisterPage />, "en");
-    expect(screen.getByText(/100 free credits every month/)).toBeInTheDocument();
+    expect(screen.getByText(/300 free credits every month/)).toBeInTheDocument();
   });
 });

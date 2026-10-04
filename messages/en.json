@@ -186,7 +186,7 @@
       "headline": "Your next project",
       "headlineAccent": "starts from clear requirements.",
       "button": "Create your first project",
-      "note": "Free · No card needed · 100 credits on us",
+      "note": "Free · No card needed · {credits, number} credits on us",
       "copyright": "© {year} FlintFlow"
     }
   },
@@ -435,7 +435,8 @@
         "purchase": "Credit purchase",
         "monthly_reset": "Monthly reset",
         "other": "AI action"
-      }
+      },
+      "leadOnlyPurchase": "Only the organization Lead can buy credits or change the plan. When the organization needs more credits, let your Lead know."
     },
     "checkout": {
       "back": "Back to billing",
@@ -686,6 +687,8 @@
     "home": {
       "onboardingTitle": "Start your first SRS project",
       "onboardingBody": "Pick where you are starting — FlintFlow walks you through the right process for that case.",
+      "viewerEmptyTitle": "This organization has no projects yet",
+      "viewerEmptyBody": "You are a Viewer — projects created by a Lead or Analyst will show up here.",
       "searchLabel": "Search projects by name",
       "searchPlaceholder": "Search projects…",
       "newProject": "New project",
@@ -839,12 +842,14 @@
         "invite": {
           "title": "Invite a member",
           "roleLabel": "Role",
-          "emailLabel": "Email (optional)",
+          "emailLabel": "Invitee email",
           "emailPlaceholder": "invitee@company.com",
           "cta": "Create invitation code",
           "creating": "Creating…",
           "codeTitle": "New invitation code",
-          "codeBody": "This code is shown only once. Send it to the invitee; it works once and expires."
+          "codeBody": "This code is shown only once. Send it to the invitee; it works once and expires.",
+          "emailRequired": "Enter the invitee email — the invitation code is sent to that address.",
+          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires — if the invitee cannot find the email, you can send them this code directly."
         },
         "invitations": {
           "title": "Invitations",
@@ -868,7 +873,9 @@
           "dialogBody": "Every project of {org} will be deleted permanently, and the remaining credits in its wallet are lost.",
           "confirmLabel": "Type the organization name to confirm: {org}",
           "confirmCta": "Delete permanently"
-        }
+        },
+        "soleLeadHint": "You are the only Lead — make another member a Lead before you leave.",
+        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
       }
     }
   },

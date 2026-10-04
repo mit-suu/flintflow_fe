@@ -1,11 +1,9 @@
 "use client";
 
 import AuthGuard from "@/components/AuthGuard";
-import OrgGuard from "@/components/OrgGuard";
-import AppShell from "@/components/layout/AppShell";
-import AppSidebar, { type SidebarUser } from "@/components/layout/AppSidebar";
+import HomeFrame from "@/components/layout/HomeFrame";
+import { type SidebarUser } from "@/components/layout/AppSidebar";
 import { getStoredAuthToken, decodeJwt } from "@/lib/auth";
-import { ProjectsProvider } from "@/lib/hooks/use-projects";
 
 function getUserInfo(): SidebarUser {
   const token = getStoredAuthToken();
@@ -23,11 +21,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <AuthGuard>
-      <ProjectsProvider>
-        <AppShell sidebar={<AppSidebar user={user} />}>
-          <OrgGuard>{children}</OrgGuard>
-        </AppShell>
-      </ProjectsProvider>
+      <HomeFrame user={user}>{children}</HomeFrame>
     </AuthGuard>
   );
 }

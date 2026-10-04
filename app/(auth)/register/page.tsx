@@ -20,11 +20,9 @@ import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import { checkPassword, PASSWORD_ISSUE_VALUES, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { localizeApiError } from "@/lib/api/error-messages";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { FREE_PLAN_CREDITS } from "@/lib/constants/plans";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
-
-/** Gói Free của BE (`plan.config.ts`) — đổi ở BE thì đổi ở đây. */
-const FREE_MONTHLY_CREDITS = 100;
 
 export default function RegisterPage() {
   const t = useTranslations("auth.register");
@@ -109,8 +107,7 @@ export default function RegisterPage() {
 
   return (
     <AuthCard>
-      {/* Số credit khớp `plan.config.ts` của BE (gói Free: 100 credit mỗi tháng) */}
-      <AuthHeading title={t("title")}>{t("subtitle", { credits: FREE_MONTHLY_CREDITS })}</AuthHeading>
+      <AuthHeading title={t("title")}>{t("subtitle", { credits: FREE_PLAN_CREDITS })}</AuthHeading>
 
       <GoogleButton label={tg("continue")} disabled={loading} onSuccess={handleGoogle} onError={(msg) => setError(msg)} />
       <Divider>{t("orEmail")}</Divider>

@@ -90,16 +90,16 @@ export const leaveOrganization = async (orgId: string): Promise<void> => {
 export const fetchInvitations = async (orgId: string): Promise<Invitation[]> =>
   unwrap(await apiCall<Invitation[]>(`/orgs/${orgId}/invitations`));
 
-/** UC-08 — chỉ Lead. `code` trong kết quả là lần duy nhất thấy mã thô. */
+/** UC-08 — chỉ Lead. Email bắt buộc: BE gửi mã tới đó. `code` trong kết quả là lần duy nhất thấy mã thô. */
 export const createInvitation = async (
   orgId: string,
   role: InvitableRole,
-  email?: string
+  email: string
 ): Promise<CreatedInvitation> =>
   unwrap(
     await apiCall<CreatedInvitation>(`/orgs/${orgId}/invitations`, {
       method: "POST",
-      body: JSON.stringify({ role, ...(email ? { email } : {}) }),
+      body: JSON.stringify({ role, email }),
     })
   );
 

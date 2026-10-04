@@ -12,6 +12,7 @@ import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import { logoutAndRedirect } from "@/lib/auth";
 import { selectRecentProjects, useProjects } from "@/lib/hooks/use-projects";
+import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 import { useAppShell } from "./AppShell";
 import RecentProjects from "./RecentProjects";
 import SidebarNavItem, {
@@ -44,6 +45,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
   } = useAppShell();
   const { projects } = useProjects();
   const unreadCount = useUnreadNotificationCount();
+  const activeOrg = useActiveOrganization();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Drawer mobile luôn mở rộng; thu gọn chỉ áp dụng trên desktop
@@ -130,8 +132,17 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                     className="h-px bg-on-surface/[0.07] mx-2 mb-2"
                   />
                 ) : (
-                  <div className="px-3 pb-1 text-[11.5px] font-medium text-on-surface-muted">
-                    {t(section.labelKey)}
+                  <div className="px-3 pb-1">
+                    <div className="text-[11.5px] font-medium text-on-surface-muted">{t(section.labelKey)}</div>
+                    {/* Tổ chức đang mở — người ở nhiều tổ chức trước đây chỉ biết mình đang ở đâu khi mở trang "Đổi tổ chức" */}
+                    {section.id === "org" && activeOrg ? (
+                      <div
+                        data-testid="active-org-name"
+                        title={activeOrg.name}
+                        className="mt-0.5 text-[13px] font-semibold text-on-surface truncate">
+                        {activeOrg.name}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               {section.items.map((item) => (

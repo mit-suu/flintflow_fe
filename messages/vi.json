@@ -186,7 +186,7 @@
       "headline": "Dự án tiếp theo của bạn",
       "headlineAccent": "bắt đầu từ yêu cầu rõ ràng.",
       "button": "Tạo dự án đầu tiên",
-      "note": "Miễn phí · Không cần thẻ · Tặng 100 credit",
+      "note": "Miễn phí · Không cần thẻ · Tặng {credits, number} credit",
       "copyright": "© {year} FlintFlow"
     }
   },
@@ -435,7 +435,8 @@
         "purchase": "Nạp credit",
         "monthly_reset": "Reset hằng tháng",
         "other": "Thao tác AI"
-      }
+      },
+      "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead."
     },
     "checkout": {
       "back": "Quay lại trang thanh toán",
@@ -686,6 +687,8 @@
     "home": {
       "onboardingTitle": "Bắt đầu dự án SRS đầu tiên",
       "onboardingBody": "Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.",
+      "viewerEmptyTitle": "Tổ chức chưa có dự án nào",
+      "viewerEmptyBody": "Bạn đang xem với vai trò Viewer — dự án do Lead hoặc Analyst tạo sẽ hiện ở đây.",
       "searchLabel": "Tìm dự án theo tên",
       "searchPlaceholder": "Tìm dự án…",
       "newProject": "Dự án mới",
@@ -839,12 +842,14 @@
         "invite": {
           "title": "Mời thành viên",
           "roleLabel": "Vai trò",
-          "emailLabel": "Email (không bắt buộc)",
+          "emailLabel": "Email người được mời",
           "emailPlaceholder": "nguoi-duoc-moi@congty.vn",
           "cta": "Tạo mã mời",
           "creating": "Đang tạo…",
           "codeTitle": "Mã mời vừa tạo",
-          "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn."
+          "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn.",
+          "emailRequired": "Hãy nhập email người được mời — mã mời sẽ được gửi tới email đó.",
+          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn — nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này."
         },
         "invitations": {
           "title": "Lời mời",
@@ -868,7 +873,9 @@
           "dialogBody": "Toàn bộ dự án của {org} sẽ bị xoá vĩnh viễn, credit còn lại trong ví cũng mất theo.",
           "confirmLabel": "Gõ lại tên tổ chức để xác nhận: {org}",
           "confirmCta": "Xoá vĩnh viễn"
-        }
+        },
+        "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
+        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
       }
     }
   },
