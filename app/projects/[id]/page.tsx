@@ -10,7 +10,7 @@ import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
-import type { ReviewMode } from "@/types/spine";
+import type { Diagram, ReviewMode } from "@/types/spine";
 import type { Project } from "@/types/project";
 import type { Flag } from "@/types/flags";
 import PageSkeleton, { type WorkspacePane } from "@/components/ui/PageSkeleton";
@@ -365,16 +365,18 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   const { refreshUser } = ws;
 
+  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+
   /**
-   * Vẽ lại một sơ đồ theo id rồi quét lại cờ: kind và owner lấy từ Spine đang hiển thị. Ném lỗi bằng câu tiếng Việt —
-   * nút "Vẽ lại" dưới sơ đồ trong tài liệu hiện lỗi ngay tại chỗ, nút trên cờ đưa vào `saveError`.
+   * Vẽ lại các sơ đồ (một lời gọi cho mỗi cặp kind + owner: `screen_flow` nhiều phần vẽ chung một lượt) rồi quét lại cờ và
+   * tải lại tài liệu — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới. Ném lỗi bằng câu tiếng Việt.
    */
-  const redrawDiagram = useCallback(
-    async (diagramId: string) => {
-      const diagram = spineState.spine?.diagrams.find((d) => d.id === diagramId);
-      if (!diagram) throw new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại.");
+  const redrawDiagrams = useCallback(
+    async (diagrams: readonly Diagram[]) => {
+      if (diagrams.length === 0) throw new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại.");
+      const targets = [...new Map(diagrams.map((d) => [`${d.kind}:${d.owner_id ?? ""}`, d])).values()];
       try {
-        await renderDiagram(projectId, diagram.kind, diagram.owner_id);
+        for (const d of targets) await renderDiagram(projectId, d.kind, d.owner_id);
       } catch (err) {
         const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
         throw new Error(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message);
@@ -382,24 +384,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       await recomputeFlagsFn();
       void reloadSpine();
       void reloadProgress();
+      setDocumentRefreshToken((v) => v + 1);
       setToast("Đã vẽ lại sơ đồ");
     },
-    [projectId, spineState.spine, recomputeFlagsFn, reloadSpine, reloadProgress]
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress]
+  );
+
+  const diagramsOfSection = useCallback(
+    (sectionId: string) => spineState.spine?.diagrams.filter((d) => d.section === sectionId) ?? [],
+    [spineState.spine]
   );
 
   /** BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ, vẽ xong cờ tự đóng. */
   const handleRedrawDiagram = useCallback(
     async (flag: Flag) => {
       try {
-        await redrawDiagram(flag.target_id ?? "");
+        await redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === flag.target_id) ?? []);
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
       }
     },
-    [redrawDiagram]
+    [redrawDiagrams, spineState.spine]
   );
-
-  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
   const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
     (spineVersion?: number) => {
@@ -1284,7 +1290,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           rewriteError={!editCardOpen ? changes.error : null}
           onSectionsLoaded={handleSectionsLoaded}
           // Mode 1 v3: tài liệu chỉ đổi qua change request — không vẽ lại thẳng
-          onRedrawDiagram={mode1 ? undefined : redrawDiagram}
+          onRedrawSection={mode1 ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
+          hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
         />
