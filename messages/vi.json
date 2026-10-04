@@ -1245,6 +1245,8 @@
     "ORG_NAME_MISMATCH": "Tên xác nhận không khớp với tên tổ chức.",
     "ORG_HAS_OTHER_MEMBERS": "Chỉ xoá được tổ chức khi bạn là thành viên duy nhất.",
     "ORG_BUSY": "Tổ chức đang có lượt gọi AI chạy dở — thử lại sau ít phút.",
-    "ORG_PAYMENT_PENDING": "Tổ chức đang có thanh toán chờ xử lý — thử lại khi thanh toán kết thúc."
+    "ORG_PAYMENT_PENDING": "Tổ chức đang có thanh toán chờ xử lý — thử lại khi thanh toán kết thúc.",
+    "SCHEMA_MISMATCH": "AI trả kết quả không đúng dạng. Thử lại, hoặc nói rõ hơn yêu cầu.",
+    "PARSE_FAILED": "AI trả kết quả không đọc được. Thử lại, hoặc nói rõ hơn yêu cầu."
   }
 }

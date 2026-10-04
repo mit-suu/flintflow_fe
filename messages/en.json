@@ -1245,6 +1245,8 @@
     "ORG_NAME_MISMATCH": "The confirmation does not match the organization name.",
     "ORG_HAS_OTHER_MEMBERS": "You can delete the organization only when you are its only member.",
     "ORG_BUSY": "An AI call is still running in this organization — try again in a few minutes.",
-    "ORG_PAYMENT_PENDING": "A payment for this organization is still pending — try again when it finishes."
+    "ORG_PAYMENT_PENDING": "A payment for this organization is still pending — try again when it finishes.",
+    "SCHEMA_MISMATCH": "The AI returned a result in the wrong shape. Try again, or describe the request more clearly.",
+    "PARSE_FAILED": "The AI returned a result that could not be read. Try again, or describe the request more clearly."
   }
 }

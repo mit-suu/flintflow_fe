@@ -30,6 +30,15 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(localizeApiError("USER_NOT_FOUND", "User not found")).toBe("Không tìm thấy người dùng.");
   });
 
+  it("AI trả sai khuôn (SCHEMA_MISMATCH / PARSE_FAILED) ⇒ câu cho người, không lộ thông báo Zod", () => {
+    setPage("vi");
+    const raw = "AI response failed Zod schema validation for action 'change_instruction': [...]";
+    expect(localizeApiError("SCHEMA_MISMATCH", raw)).toBe("AI trả kết quả không đúng dạng. Thử lại, hoặc nói rõ hơn yêu cầu.");
+    expect(localizeApiError("PARSE_FAILED", raw)).not.toContain("Zod");
+    setPage("en");
+    expect(localizeApiError("SCHEMA_MISMATCH", raw)).not.toContain("Zod");
+  });
+
   it("lang lạ ⇒ mặc định vi", () => {
     setPage("fr");
     expect(currentLocale()).toBe("vi");

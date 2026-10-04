@@ -74,6 +74,15 @@ describe("ChatEditCard", () => {
     expect(screen.queryByRole("button", { name: "Áp dụng" })).toBeNull();
   });
 
+  it("lỗi sai schema ⇒ nói bằng lời, không lộ tên field / thông báo Zod (câu gốc chỉ nằm ở title)", () => {
+    const raw = 'Sai schema tại "screens.0": Unrecognized key: "authorized_role_ids"';
+    render(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "schema_invalid", message: raw }] })} />);
+    const line = screen.getByText(/Không áp được lệnh này/);
+    expect(line).toHaveTextContent("AI đề xuất sửa vào một chỗ không có trong tài liệu.");
+    expect(line).not.toHaveTextContent("authorized_role_ids");
+    expect(line).toHaveAttribute("title", raw);
+  });
+
   it("mode 1 ⇒ nút chính là Tạo change request", () => {
     render(<ChatEditCard {...cardProps} preview={preview()} requiresCr />);
     expect(screen.getByRole("button", { name: "Tạo change request" })).toBeInTheDocument();
