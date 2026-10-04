@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { usePathname } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchBalance } from "@/lib/api/billing";
 import { listProjects } from "@/lib/api/projects";
 import { logoutAndRedirect } from "@/lib/auth";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
@@ -15,6 +16,8 @@ vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 120, planLabel: "Pro" })) }));
+const activeOrg = vi.hoisted(() => ({ value: null as null | { id: string; name: string; role: "lead" } }));
+vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
 vi.mock("@/lib/api/notifications", () => ({
   fetchUnreadCount: vi.fn(async () => 3),
   onNotificationsChanged: () => () => {},
@@ -134,5 +137,45 @@ describe("AppSidebar", () => {
     renderSidebar([]);
     fireEvent.click(screen.getByRole("button", { name: "Gửi góp ý" }));
     expect(screen.getByRole("dialog", { name: "Gửi góp ý" })).toBeInTheDocument();
+  });
+});
+
+describe("tổ chức đang mở", () => {
+  it("hiện tên tổ chức đang mở dưới nhãn Tổ chức", () => {
+    activeOrg.value = { id: "org-1", name: "Tien's Organization", role: "lead" };
+    renderSidebar([]);
+    // Trạng thái thu gọn nhớ ở mức module (test trước có thể để lại) — thu gọn thì chỉ còn icon, không có chỗ hiện tên
+    const expand = screen.queryByRole("button", { name: "Mở rộng thanh bên" });
+    if (expand) fireEvent.click(expand);
+    expect(screen.getByTestId("active-org-name")).toHaveTextContent("Tien's Organization");
+    activeOrg.value = null;
+  });
+
+  it("chưa biết tổ chức (đang tải / chưa có) thì không hiện gì", () => {
+    activeOrg.value = null;
+    renderSidebar([]);
+    expect(screen.queryByTestId("active-org-name")).toBeNull();
+  });
+});
+
+describe("AppShell — số dư theo vai trò", () => {
+  beforeEach(() => {
+    vi.mocked(fetchBalance).mockClear();
+  });
+
+  it("Lead/Analyst ⇒ tải số dư, nhãn gói lấy từ BE", async () => {
+    activeOrg.value = { id: "o1", name: "Org", role: "lead" };
+    renderSidebar([]);
+    await waitFor(() => expect(fetchBalance).toHaveBeenCalled());
+    expect(await screen.findByText(/Pro/)).toBeInTheDocument();
+    activeOrg.value = null;
+  });
+
+  it("Viewer ⇒ không gọi /billing/balance (BE chỉ cho Lead/Analyst, gọi là 403)", async () => {
+    activeOrg.value = { id: "o1", name: "Org", role: "viewer" as never };
+    renderSidebar([]);
+    await waitFor(() => expect(listProjects).toHaveBeenCalled());
+    expect(fetchBalance).not.toHaveBeenCalled();
+    activeOrg.value = null;
   });
 });

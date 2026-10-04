@@ -32,14 +32,18 @@ const baseSession: ChatSession = {
   _id: "s1",
   projectId: "p1",
   messages: [],
-  isActive: true,
   createdAt: "2026-09-15T00:00:00.000Z",
 };
 
 /** `is_pipeline` không có trong `types/chat.ts` (T07, R với T16) — mở rộng cục bộ như `ChatPane.tsx`. */
 const withPipelineFlag = (isPipeline: boolean): ChatSession => ({ ...baseSession, is_pipeline: isPipeline }) as ChatSession;
 
-const renderPane = (session: ChatSession, onEditInstruction = vi.fn(), onSendMessage = vi.fn()) => {
+const renderPane = (
+  session: ChatSession,
+  onEditInstruction = vi.fn(),
+  onSendMessage = vi.fn(),
+  extra: { editMode?: boolean; onGoToPipeline?: () => void; onToggleEditMode?: () => void; readOnlyNotice?: string } = {}
+) => {
   renderWithIntl(
     <ChatPane
       session={session}
@@ -51,30 +55,58 @@ const renderPane = (session: ChatSession, onEditInstruction = vi.fn(), onSendMes
       onSelectAttachment={() => {}}
       onRemoveAttachment={() => {}}
       onEditInstruction={onEditInstruction}
+      {...extra}
     />
   );
   return { onEditInstruction, onSendMessage };
 };
 
-describe("ChatPane — forward lệnh sửa vào Change panel (session không pipeline)", () => {
+describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip (FLF-244)", () => {
   beforeEach(() => {
     vi.mocked(estimateActionCost).mockClear();
   });
 
-  it("session.is_pipeline === false: gửi lệnh gọi onEditInstruction, không gọi onSendMessage", () => {
+  it("session.is_pipeline === false: gửi thường là hỏi đáp (onSendMessage), không bị ép thành lệnh sửa", () => {
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(false));
 
-    expect(screen.getByText(/không chạy quy trình soạn tài liệu/)).toBeInTheDocument();
+    expect(screen.getByText(/Phiên hỏi đáp/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
+
+    expect(onSendMessage).toHaveBeenCalledTimes(1);
+    expect(onEditInstruction).not.toHaveBeenCalled();
+  });
+
+  it("phiên phụ + chip Sửa tài liệu bật: gửi là lệnh sửa (onEditInstruction)", () => {
+    const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(false), vi.fn(), vi.fn(), { editMode: true, onToggleEditMode: vi.fn() });
+
     fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
 
     expect(onEditInstruction).toHaveBeenCalledWith("Đổi tên actor A03 thành Administrator");
     expect(onSendMessage).not.toHaveBeenCalled();
   });
 
-  it("session.is_pipeline === true: gửi tin nhắn gọi onSendMessage như bình thường", () => {
+  it("phiên phụ: nút Về phiên chính gọi onGoToPipeline", () => {
+    const onGoToPipeline = vi.fn();
+    renderPane(withPipelineFlag(false), vi.fn(), vi.fn(), { onGoToPipeline });
+
+    fireEvent.click(screen.getByRole("button", { name: "Về phiên chính" }));
+
+    expect(onGoToPipeline).toHaveBeenCalledTimes(1);
+  });
+
+  it("readOnlyNotice (Viewer): không có ô nhập, nút gửi hay chip sửa — chỉ dòng thông báo", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { readOnlyNotice: "Bạn đang xem với vai trò Viewer" });
+
+    expect(screen.getByRole("note")).toHaveTextContent("Bạn đang xem với vai trò Viewer");
+    expect(screen.queryByRole("button", { name: "Gửi tin nhắn" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sửa tài liệu" })).not.toBeInTheDocument();
+  });
+
+  it("session.is_pipeline === true: không có dải phiên hỏi đáp, gửi tin gọi onSendMessage", () => {
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(true));
 
-    expect(screen.queryByText(/không chạy quy trình soạn tài liệu/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Phiên hỏi đáp/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
 
     expect(onSendMessage).toHaveBeenCalledTimes(1);

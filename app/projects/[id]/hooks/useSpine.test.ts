@@ -5,7 +5,8 @@ import { useSpine } from "./useSpine";
 const getSpine = vi.fn();
 
 vi.mock("@/lib/api/spine", () => ({ getSpine: (...args: unknown[]) => getSpine(...args) }));
-vi.mock("@/lib/api/pipeline", () => ({ resumeProject: vi.fn().mockResolvedValue({}) }));
+const resumeProject = vi.fn<(projectId: string) => Promise<unknown>>(() => Promise.resolve({}));
+vi.mock("@/lib/api/pipeline", () => ({ resumeProject: (projectId: string) => resumeProject(projectId) }));
 
 const spineAt = (version: number) => ({ data: { projectId: "p1", spine_version: version } });
 
@@ -34,5 +35,23 @@ describe("useSpine.reload", () => {
       version = await result.current.reload();
     });
     expect(version).toBeNull();
+  });
+});
+
+describe("useSpine — Viewer", () => {
+  it("canEdit = false ⇒ chỉ đọc Spine, không gọi POST /resume (thao tác ghi, Viewer luôn nhận 403)", async () => {
+    resumeProject.mockClear();
+    getSpine.mockResolvedValueOnce(spineAt(5));
+    const { result } = renderHook(() => useSpine("p1", true, false));
+    await waitFor(() => expect(result.current.version).toBe(5));
+    expect(resumeProject).not.toHaveBeenCalled();
+  });
+
+  it("canEdit = true ⇒ resume trước rồi mới đọc Spine", async () => {
+    resumeProject.mockClear();
+    getSpine.mockResolvedValueOnce(spineAt(6));
+    const { result } = renderHook(() => useSpine("p1", true, true));
+    await waitFor(() => expect(result.current.version).toBe(6));
+    expect(resumeProject).toHaveBeenCalledWith("p1");
   });
 });

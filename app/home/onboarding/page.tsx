@@ -9,6 +9,7 @@ import {
   switchOrganization,
 } from "@/lib/api/orgs";
 import { fetchMe } from "@/lib/api/users";
+import Tabs from "@/components/ui/Tabs";
 import type { InvitationPreview } from "@/types/organization";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
@@ -96,13 +97,6 @@ export default function OnboardingPage() {
     });
   };
 
-  const tabClass = (value: Tab) =>
-    `flex-1 rounded-lg px-4 py-2.5 text-[13px] font-semibold transition ${
-      tab === value
-        ? "bg-primary text-white"
-        : "bg-surface-container text-on-surface-muted hover:bg-surface-container-high"
-    }`;
-
   return (
     <section className="w-full max-w-[560px] mx-auto flex flex-col gap-6 pt-10 pb-12">
       <div className="flex flex-col gap-2">
@@ -110,32 +104,22 @@ export default function OnboardingPage() {
         <p className="text-[13.5px] text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
       </div>
 
-      <div role="tablist" aria-label={t("title")} className="flex gap-2">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "create"}
-          className={tabClass("create")}
-          onClick={() => {
-            setTab("create");
-            setError(null);
-          }}
-        >
-          {t("createTab")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "join"}
-          className={tabClass("join")}
-          onClick={() => {
-            setTab("join");
-            setError(null);
-          }}
-        >
-          {t("joinTab")}
-        </button>
-      </div>
+      {/* Tab dạng segmented dùng chung (components/ui/Tabs). Trước đây tab đang chọn tô tím đặc, trùng chữ và trùng
+          màu với nút "Tạo tổ chức" bên dưới ⇒ trông như hai nút giống hệt nhau. */}
+      <Tabs
+        label={t("title")}
+        idBase="org-onboarding"
+        value={tab}
+        className="self-start"
+        options={[
+          { value: "create", label: t("createTab") },
+          { value: "join", label: t("joinTab") },
+        ]}
+        onChange={(next) => {
+          setTab(next);
+          setError(null);
+        }}
+      />
 
       {error ? (
         <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-[13px] text-on-error-container">
@@ -144,7 +128,7 @@ export default function OnboardingPage() {
       ) : null}
 
       {tab === "create" ? (
-        <form onSubmit={handleCreate} className="flex flex-col gap-3">
+        <form onSubmit={handleCreate} role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
           <label htmlFor="org-name" className="text-[13px] font-semibold text-on-surface">
             {t("nameLabel")}
           </label>
@@ -166,7 +150,7 @@ export default function OnboardingPage() {
           </button>
         </form>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
           <form onSubmit={handleCheckCode} className="flex flex-col gap-3">
             <label htmlFor="invite-code" className="text-[13px] font-semibold text-on-surface">
               {t("codeLabel")}

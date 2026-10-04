@@ -22,7 +22,11 @@ const newer = (current: Spine | null, next: Spine): Spine =>
   current && current.projectId === next.projectId && current.spine_version > next.spine_version ? current : next;
 
 /** `GET /projects/:id/spine`; `version` là `spine_version` dùng làm `base_version` khi ghi. */
-export function useSpine(projectId: string, enabled = true): UseSpineResult {
+/**
+ * `canEdit` = false (Viewer): không gọi `POST /resume` khi mở — đó là thao tác ghi (revert step bỏ dở), Viewer luôn
+ * nhận 403. Viewer chỉ đọc Spine.
+ */
+export function useSpine(projectId: string, enabled = true, canEdit = true): UseSpineResult {
   const [spine, setSpine] = useState<Spine | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,11 +60,15 @@ export function useSpine(projectId: string, enabled = true): UseSpineResult {
 
   useEffect(() => {
     if (!enabled || !projectId) return;
+    if (!canEdit) {
+      void reload();
+      return;
+    }
     // Mở workspace: BE revert step bỏ dở giữa Draft (endpoint 24) rồi mới đọc Spine; resume lỗi không chặn tải.
     void resumeProject(projectId)
       .catch(() => undefined)
       .then(() => reload());
-  }, [enabled, projectId, reload]);
+  }, [enabled, canEdit, projectId, reload]);
 
   return { spine, version: spine?.spine_version ?? null, loading, error, reload, replace };
 }

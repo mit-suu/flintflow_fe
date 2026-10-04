@@ -126,8 +126,13 @@ export default function MembersPage() {
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgId) return;
+    // Email bắt buộc (góp ý mentor): mã được gửi tới email này, mời mà không biết gửi cho ai là trái lẽ thường.
+    if (!inviteEmail.trim()) {
+      setError(t("invite.emailRequired"));
+      return;
+    }
     void run(async () => {
-      const created = await createInvitation(orgId, inviteRole, inviteEmail.trim() || undefined);
+      const created = await createInvitation(orgId, inviteRole, inviteEmail.trim());
       setCreatedCode(created);
       setInviteEmail("");
       await load();
@@ -156,6 +161,7 @@ export default function MembersPage() {
   const closePending = () => {
     setPending(null);
     setConfirmText("");
+    setError(null);
   };
 
   const confirmPending = () => {
@@ -179,6 +185,8 @@ export default function MembersPage() {
   };
 
   const aloneAsLead = isLead && members.length === 1;
+  // BR-02: Lead duy nhất không rời được — khoá nút ngay từ đầu thay vì để bấm rồi mới báo lỗi.
+  const soleLead = isLead && members.filter((m) => m.role === "lead").length === 1;
   const deleteConfirmed = org !== null && confirmText.trim() === org.name;
 
   const displayName = (m: OrgMember) => m.name || m.email;
@@ -192,7 +200,8 @@ export default function MembersPage() {
         {org && !isLead ? <p className="text-[12.5px] text-on-surface-muted">{t("leadOnly")}</p> : null}
       </div>
 
-      {error ? (
+      {/* Đang mở hộp thoại thì lỗi hiện TRONG hộp thoại — ở đây sẽ nằm sau lớp mờ, người dùng không đọc được */}
+      {error && pending === null ? (
         <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-[13px] text-on-error-container">
           {error}
         </p>
@@ -212,6 +221,11 @@ export default function MembersPage() {
                   {isSelf ? <span className="ml-2 text-[12px] font-medium text-primary">{t("you")}</span> : null}
                 </p>
                 <p className="text-[12px] text-on-surface-muted">{t("joined", { date: date(m.joinedAt) })}</p>
+                {isSelf && soleLead ? (
+                  <p id="sole-lead-hint" className="mt-1 text-[12px] text-on-surface-muted">
+                    {aloneAsLead ? t("soleLeadAloneHint") : t("soleLeadHint")}
+                  </p>
+                ) : null}
               </div>
               <div className="flex items-center gap-2">
                 {isLead && !isSelf ? (
@@ -237,7 +251,13 @@ export default function MembersPage() {
                   </Button>
                 ) : null}
                 {isSelf ? (
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPending({ kind: "leave" })}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy || soleLead}
+                    aria-describedby={soleLead ? "sole-lead-hint" : undefined}
+                    onClick={() => setPending({ kind: "leave" })}
+                  >
                     {t("leave")}
                   </Button>
                 ) : null}
@@ -269,6 +289,7 @@ export default function MembersPage() {
               {t("invite.emailLabel")}
               <input
                 type="email"
+                required
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder={t("invite.emailPlaceholder")}
@@ -286,7 +307,9 @@ export default function MembersPage() {
               <p className="my-1 font-mono text-[20px] font-bold tracking-[0.2em] text-primary" data-testid="invite-code">
                 {createdCode.code}
               </p>
-              <p className="text-[12px] text-on-surface-muted">{t("invite.codeBody")}</p>
+              <p className="text-[12px] text-on-surface-muted">
+                {createdCode.email ? t("invite.codeSent", { email: createdCode.email }) : t("invite.codeBody")}
+              </p>
             </div>
           ) : null}
 
@@ -356,6 +379,11 @@ export default function MembersPage() {
                 ? t("danger.dialogBody", { org: org?.name ?? "" })
                 : t("leaveBody", { org: org?.name ?? "" })}
           </p>
+          {error ? (
+            <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-[13px] text-on-error-container">
+              {error}
+            </p>
+          ) : null}
           {pending?.kind === "delete" ? (
             <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-on-surface">
               {t("danger.confirmLabel", { org: org?.name ?? "" })}

@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import Logo from "@/components/Logo";
+import { FREE_PLAN_CREDITS } from "@/lib/constants/plans";
 import { NAV_LINKS } from "./content";
 import * as motion from "motion/react-client";
 import { fadeUp, inView } from "./motion";
@@ -31,7 +32,7 @@ export default function FinalCta() {
                 {t("cta.button")}
                 <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </ButtonLink>
-              <p className="text-[13px] text-on-primary-container">{t("cta.note")}</p>
+              <p className="text-[13px] text-on-primary-container">{t("cta.note", { credits: FREE_PLAN_CREDITS })}</p>
             </div>
           </div>
         </motion.div>

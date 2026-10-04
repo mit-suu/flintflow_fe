@@ -77,7 +77,8 @@ interface FlagsPanelProps {
   error?: string | null;
   /** Không truyền ⇒ không có nút bỏ qua (mode 1 v3: cờ chỉ đóng bằng change request). */
   onWaive?: (flagId: string, reason: string) => Promise<void>;
-  onRecompute: () => void;
+  /** Không truyền ⇒ không có nút kiểm lại (Viewer: kiểm lại là thao tác ghi). */
+  onRecompute?: () => void;
   onSelectStep?: (stepId: string) => void;
   /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
   onRedraw?: (flag: Flag) => Promise<void> | void;
@@ -492,9 +493,11 @@ export default function FlagsPanel({
       </div>
 
       {/* BE tự kiểm lại sau mỗi lần ghi — nút này chỉ để dùng khi nghi số liệu lệch */}
-      <button type="button" onClick={onRecompute} disabled={busy} className="self-start px-1 text-[11px] font-semibold text-on-surface-muted hover:text-on-surface hover:underline cursor-pointer disabled:opacity-50">
-        Kiểm tra lại toàn bộ tài liệu
-      </button>
+      {onRecompute && (
+        <button type="button" onClick={onRecompute} disabled={busy} className="self-start px-1 text-[11px] font-semibold text-on-surface-muted hover:text-on-surface hover:underline cursor-pointer disabled:opacity-50">
+          Kiểm tra lại toàn bộ tài liệu
+        </button>
+      )}
 
       {waivingFlag && <WaiveModal flag={waivingFlag} busy={busy} error={waiveError} onCancel={closeWaiveModal} onSubmit={(reason) => void submitWaive(reason)} />}
     </div>

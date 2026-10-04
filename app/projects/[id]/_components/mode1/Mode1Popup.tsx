@@ -13,13 +13,15 @@ interface Mode1PopupProps {
   projectName?: string;
   /** CR ghi xong / gap report đổi trạng thái ⇒ màn tài liệu đọc lại (version, cờ, nội dung). */
   onChanged?: () => void;
+  /** Viewer: xem gap report / CR nhưng không tạo hay thao tác CR. */
+  readOnly?: boolean;
 }
 
 /**
  * Mode 1: gap report và change request là popup trên màn "Tài liệu & version" — mở theo query `panel=gap` /
  * `panel=cr` (+ `cr=<id>` ⇒ chi tiết ngay trong popup, `new=1&…` ⇒ form tạo CR điền sẵn). Đóng ⇒ bỏ query.
  */
-export default function Mode1Popup({ projectId, projectName, onChanged }: Mode1PopupProps) {
+export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false }: Mode1PopupProps) {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -32,17 +34,22 @@ export default function Mode1Popup({ projectId, projectName, onChanged }: Mode1P
 
   return (
     <Modal open onClose={close} title={title} size="xl">
-      {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} />}
+      {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} readOnly={readOnly} />}
       {panel === "cr" && crId && (
         <div className="flex flex-col gap-3">
           <Link href={crListHref(projectId)} scroll={false} className="self-start text-[12px] font-bold text-[#6A62C4] hover:underline">
             ← Danh sách change request
           </Link>
-          <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} />
+          <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} readOnly={readOnly} />
         </div>
       )}
       {panel === "cr" && !crId && (
-        <ChangeRequestList key={params?.toString() ?? ""} projectId={projectId} prefill={readCrPrefill(new URLSearchParams(params?.toString() ?? ""))} />
+        <ChangeRequestList
+          key={params?.toString() ?? ""}
+          projectId={projectId}
+          prefill={readOnly ? null : readCrPrefill(new URLSearchParams(params?.toString() ?? ""))}
+          readOnly={readOnly}
+        />
       )}
     </Modal>
   );

@@ -20,6 +20,7 @@ import {
 } from "../../../lib/api/billing";
 import { emitNotificationsChanged } from "../../../lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 
 const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "purchase" || tx.type === "monthly_reset") return `+${tx.amount}`;
@@ -45,6 +46,11 @@ export default function BillingPage() {
   const [ledgerTotalPages, setLedgerTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  // Ví là của tổ chức và chỉ Lead được nạp / đổi gói (UC-59, UC-62). Biết chắc không phải Lead thì ẩn nút mua —
+  // trước đây Analyst bấm "Mua ngay" chỉ nhận câu chung chung "Vai trò của bạn không được phép...". Chưa biết vai
+  // trò (đang tải / lỗi) thì vẫn hiện: BE vẫn chặn, và Lead không bao giờ bị mất nút.
+  const activeOrg = useActiveOrganization();
+  const canPurchase = activeOrg === null || activeOrg.role === "lead";
   const [error, setError] = useState<string | null>(null);
 
   const loadBalance = useCallback(async () => {
@@ -193,6 +199,11 @@ export default function BillingPage() {
             {/* Packages */}
             <section className="flex flex-col gap-3">
               <h2 className="text-[15px] font-extrabold text-[#191817]">{t("buyCredits")}</h2>
+              {canPurchase ? null : (
+                <p role="note" className="rounded-lg bg-[#F4F3FE] px-3 py-2 text-[12.5px] text-[#4B4842]">
+                  {t("leadOnlyPurchase")}
+                </p>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {packages.map((pkg) => (
                   <div key={pkg.id} className="bg-white border border-[#ECEAE5] rounded-card p-5 flex flex-col gap-3">
@@ -204,6 +215,7 @@ export default function BillingPage() {
                       </div>
                       <div className="text-[13px] text-[#6B6862]">{formatVnd(pkg.amount)}</div>
                     </div>
+                    {canPurchase ? (
                     <button
                       type="button"
                       onClick={() => handleBuy(pkg)}
@@ -212,6 +224,7 @@ export default function BillingPage() {
                     >
                       {busy === pkg.id ? t("creatingTx") : t("buyNow")}
                     </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -244,7 +257,7 @@ export default function BillingPage() {
                         <span className="px-3 py-1 rounded-full bg-[#EFEEF9] text-[11.5px] font-bold text-[#554DB0]">
                           {t("current")}
                         </span>
-                      ) : (
+                      ) : canPurchase ? (
                         <button
                           type="button"
                           onClick={() => handleUpgrade(plan)}
@@ -259,7 +272,7 @@ export default function BillingPage() {
                               ? t("buyPlan", { plan: plan.label })
                               : t("switchTo", { plan: plan.label })}
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}

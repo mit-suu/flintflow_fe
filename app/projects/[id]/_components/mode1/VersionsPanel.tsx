@@ -25,13 +25,15 @@ interface VersionsPanelProps {
   onSelect?: (version: string) => void;
   /** Sau release: tải lại danh sách, header. */
   onReleased: () => void;
+  /** Viewer: ẩn mục Release — vẫn xem và tải các version. */
+  readOnly?: boolean;
 }
 
 /**
  * Version & release (Flow 6, UC-57): `0.0` import → `0.x` sau mỗi CR (Track Changes + DRAFT) → `x.0` release
  * (bản sạch). Release bị khoá khi còn cờ đỏ (BR-04, mode 1 không waive) — BE vẫn chặn lần nữa.
  */
-export default function VersionsPanel({ projectId, projectName, versions, redOpen, selected, onSelect, onReleased }: VersionsPanelProps) {
+export default function VersionsPanel({ projectId, projectName, versions, redOpen, selected, onSelect, onReleased, readOnly = false }: VersionsPanelProps) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
 
   return (
     <div className="flex flex-col gap-4">
+      {!readOnly && (
       <section className="flex flex-col gap-2">
         <h3 className="font-extrabold text-[#191817] text-[13.5px]">Release</h3>
         <p className="text-[11.5px] text-[#8A867E] leading-relaxed">
@@ -131,6 +134,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
           </div>
         )}
       </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h3 className="font-extrabold text-[#191817] text-[13.5px]">Các version</h3>

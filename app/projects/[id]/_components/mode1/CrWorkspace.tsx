@@ -33,13 +33,15 @@ interface CrWorkspaceProps {
   crId: string;
   /** Sau bước có thể đổi credit / version (header). */
   onChanged?: () => void;
+  /** Viewer: chỉ xem CR — ẩn mọi nút hành động (BE cũng chặn ghi với 403). */
+  readOnly?: boolean;
 }
 
 /**
  * Workspace một change request (3.1–3.14): mọi nút hành động chọn theo `status` BE trả. Bước AI (làm rõ, đề
  * xuất, kiểm) chạy đồng bộ; hết credit / lỗi AI ⇒ CR `paused` + nút tiếp tục.
  */
-export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceProps) {
+export default function CrWorkspace({ projectId, crId, onChanged, readOnly = false }: CrWorkspaceProps) {
   const cr = useChangeRequest(projectId, crId);
   const [dialog, setDialog] = useState<"cancel" | "close" | null>(null);
 
@@ -58,7 +60,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
   const terminal = CR_TERMINAL_STATUSES.includes(c.status);
   const allRejected = groups.length > 0 && groups.every((g) => g.decision === "rejected");
   // Phase 7: tài liệu bổ sung chỉ thêm / xoá được trước khi tìm vị trí (BE: draft, awaiting_answers)
-  const materialsEditable = (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
+  const materialsEditable = !readOnly && (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
   const materialAdder = (
     <MaterialAdder
       busy={cr.busy === "material"}
@@ -168,6 +170,11 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
     next = <Step tone="muted" text={`${CR_STATUS_LABELS[c.status]}${c.closed_reason ? ` — ${c.closed_reason}` : ""}.`} />;
   }
 
+  // Viewer: thay bước tiếp theo (toàn nút hành động) bằng lời nhắc; CR đã kết thúc thì vẫn hiện kết quả như thường
+  if (readOnly && !terminal) {
+    next = <Step tone="muted" text="Bạn đang xem với vai trò Viewer — chỉ Lead hoặc Analyst thao tác được change request." />;
+  }
+
   return (
     <div className="flex flex-col gap-4 max-w-[980px] w-full mx-auto">
       <div className="flex flex-wrap items-start gap-3">
@@ -185,7 +192,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
             {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · yêu cầu bởi {c.requester} · tạo {formatDateTime(c.created_at)} · trên bản {c.base_doc_version}
           </p>
         </div>
-        {!terminal && (
+        {!terminal && !readOnly && (
           <button type="button" onClick={() => setDialog("cancel")} disabled={busy} className="px-3 py-1.5 rounded-[8px] border border-[#F2CACA] bg-white text-[12px] font-bold text-[#B03030] disabled:opacity-50">
             Huỷ CR
           </button>
@@ -236,7 +243,7 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
         <ClarifyPanel
           key={`${c.clarifications.length}:${pending_questions.join("|")}`}
           cr={c}
-          pendingQuestions={c.status === "awaiting_answers" ? pending_questions : []}
+          pendingQuestions={c.status === "awaiting_answers" && !readOnly ? pending_questions : []}
           busy={cr.busy === "answers"}
           onAnswer={(answers) => after(cr.answer(answers))}
           materials={c.status === "awaiting_answers" && materialsEditable ? materialAdder : undefined}
@@ -258,17 +265,17 @@ export default function CrWorkspace({ projectId, crId, onChanged }: CrWorkspaceP
         <ChangeGroupPanel
           groups={groups}
           locations={locations}
-          canDecide={c.status === "in_review"}
+          canDecide={c.status === "in_review" && !readOnly}
           busy={busy}
           onDecide={(gid, decision, reason) => after(cr.decide(gid, decision, reason))}
         />
       ) : (
         <ImpactList
           locations={locations}
-          editable={(EDITABLE as readonly string[]).includes(c.status) && !c.paused}
+          editable={!readOnly && (EDITABLE as readonly string[]).includes(c.status) && !c.paused}
           busy={cr.busy === "patch"}
           onPatch={(locId, body) => after(cr.patch(locId, body))}
-          onOwnerDraft={c.status === "manual_fix" && !c.paused ? (locId, instruction) => after(cr.ownerDraft(locId, instruction)) : undefined}
+          onOwnerDraft={!readOnly && c.status === "manual_fix" && !c.paused ? (locId, instruction) => after(cr.ownerDraft(locId, instruction)) : undefined}
         />
       )}
 

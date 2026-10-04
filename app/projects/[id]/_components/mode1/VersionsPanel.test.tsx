@@ -231,3 +231,12 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Không có version 0.0");
   });
 });
+
+describe("VersionsPanel — Viewer (readOnly)", () => {
+  it("không có mục Release, vẫn xem được các version", () => {
+    renderPanel({ readOnly: true });
+    expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Các version" })).toBeInTheDocument();
+  });
+});

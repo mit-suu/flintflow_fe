@@ -61,3 +61,12 @@ describe("Mode1FlagsPanel", () => {
     expect(screen.queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
   });
 });
+
+describe("Mode1FlagsPanel — Viewer (readOnly)", () => {
+  it("vẫn liệt kê cờ đỏ nhưng không có lối Tạo CR", () => {
+    renderWithIntl(<Mode1FlagsPanel projectId={P} flags={[flag("F1")]} readOnly />);
+    const list = screen.getByRole("region", { name: "Cờ đỏ đang chặn release" });
+    expect(within(list).getByText("Cờ đỏ đang chặn release (1)")).toBeInTheDocument();
+    expect(within(list).queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
+  });
+});

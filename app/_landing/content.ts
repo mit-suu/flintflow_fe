@@ -1,3 +1,4 @@
+import { FREE_PLAN_CREDITS, PRO_PLAN_CREDITS } from "@/lib/constants/plans";
 import type { PhaseId } from "@/lib/constants/step-registry";
 
 /*
@@ -72,14 +73,14 @@ export const PLANS = [
     /** Giá theo nghìn đồng mỗi tháng. */
     priceK: 0,
     /** Số credit mỗi tháng — format theo locale trong chính chuỗi `…features.credits`. */
-    credits: 100,
+    credits: FREE_PLAN_CREDITS,
     features: ["plans.free.features.credits", "plans.free.features.modes", "plans.free.features.export"],
     recommended: false,
   },
   {
     id: "pro",
     priceK: 199,
-    credits: 1000,
+    credits: PRO_PLAN_CREDITS,
     features: ["plans.pro.features.credits", "plans.pro.features.everything", "plans.pro.features.upgrade"],
     recommended: true,
   },

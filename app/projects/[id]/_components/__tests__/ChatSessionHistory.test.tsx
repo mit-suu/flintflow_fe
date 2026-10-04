@@ -9,9 +9,9 @@ const session = (id: string, content?: string) =>
 
 const SESSIONS = [session("aaaa1111", '{"reply":"Xin chào"}'), session("bbbb2222")];
 
-const setup = () => {
+const setup = (extra: { pipelineSessionId?: string; createDisabled?: boolean; readOnly?: boolean } = {}) => {
   const props = { onSelectSession: vi.fn(), onCreateSession: vi.fn(), onDeleteSession: vi.fn() };
-  renderWithIntl(<ChatSessionHistory sessions={SESSIONS} activeSessionId="aaaa1111" {...props} />);
+  renderWithIntl(<ChatSessionHistory sessions={SESSIONS} activeSessionId="aaaa1111" {...extra} {...props} />);
   return props;
 };
 
@@ -41,5 +41,38 @@ describe("ChatSessionHistory", () => {
     expect(onDeleteSession).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Xoá phiên" }));
     expect(onDeleteSession).toHaveBeenCalledWith("bbbb2222");
+  });
+
+  it("FLF-244: phiên chính có nhãn và không có nút xoá; phiên phụ vẫn xoá được", () => {
+    setup({ pipelineSessionId: "aaaa1111" });
+    fireEvent.click(screen.getByRole("button", { name: "Lịch sử phiên chat" }));
+    const panel = screen.getByRole("dialog", { name: "Lịch sử phiên chat" });
+
+    expect(within(panel).getByText("Phiên chính")).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: "Xoá phiên #1111" })).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Xoá phiên #2222" })).toBeInTheDocument();
+  });
+
+  it("FLF-244: createDisabled ⇒ nút Phiên mới bị khoá", () => {
+    const { onCreateSession } = setup({ createDisabled: true });
+    fireEvent.click(screen.getByRole("button", { name: "Lịch sử phiên chat" }));
+    const create = screen.getByRole("button", { name: "Phiên mới" });
+
+    expect(create).toBeDisabled();
+    fireEvent.click(create);
+    expect(onCreateSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("ChatSessionHistory — Viewer (FLF-244)", () => {
+  it("readOnly ⇒ không có Phiên mới, không có nút xoá; vẫn chọn xem phiên được", () => {
+    const { onSelectSession } = setup({ readOnly: true });
+    fireEvent.click(screen.getByRole("button", { name: "Lịch sử phiên chat" }));
+    const panel = screen.getByRole("dialog", { name: "Lịch sử phiên chat" });
+
+    expect(within(panel).queryByRole("button", { name: "Phiên mới" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: /Xoá phiên/ })).not.toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole("button", { name: /Phiên #2222/ }));
+    expect(onSelectSession).toHaveBeenCalledWith(SESSIONS[1]);
   });
 });
