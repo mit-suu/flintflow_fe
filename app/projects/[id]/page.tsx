@@ -366,28 +366,37 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const { refreshUser } = ws;
 
   /**
-   * BUG-17: cờ `diagram_stale` / `render_error` nay có nút "Vẽ lại" — vẽ đúng hình của cờ đó rồi quét lại
-   * để cờ tự đóng. `target_id` của cờ là id sơ đồ; kind và owner lấy từ Spine đang hiển thị.
+   * Vẽ lại một sơ đồ theo id rồi quét lại cờ: kind và owner lấy từ Spine đang hiển thị. Ném lỗi bằng câu tiếng Việt —
+   * nút "Vẽ lại" dưới sơ đồ trong tài liệu hiện lỗi ngay tại chỗ, nút trên cờ đưa vào `saveError`.
    */
-  const handleRedrawDiagram = useCallback(
-    async (flag: Flag) => {
-      const diagram = spineState.spine?.diagrams.find((d) => d.id === flag.target_id);
-      if (!diagram) {
-        setSaveError("Không tìm thấy sơ đồ của cờ này — tải lại trang rồi thử lại.");
-        return;
-      }
+  const redrawDiagram = useCallback(
+    async (diagramId: string) => {
+      const diagram = spineState.spine?.diagrams.find((d) => d.id === diagramId);
+      if (!diagram) throw new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại.");
       try {
         await renderDiagram(projectId, diagram.kind, diagram.owner_id);
-        await recomputeFlagsFn();
-        void reloadSpine();
-        void reloadProgress();
-        setToast(`Đã vẽ lại sơ đồ ${diagram.id}`);
       } catch (err) {
         const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-        setSaveError(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message);
+        throw new Error(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message);
       }
+      await recomputeFlagsFn();
+      void reloadSpine();
+      void reloadProgress();
+      setToast("Đã vẽ lại sơ đồ");
     },
     [projectId, spineState.spine, recomputeFlagsFn, reloadSpine, reloadProgress]
+  );
+
+  /** BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ, vẽ xong cờ tự đóng. */
+  const handleRedrawDiagram = useCallback(
+    async (flag: Flag) => {
+      try {
+        await redrawDiagram(flag.target_id ?? "");
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
+      }
+    },
+    [redrawDiagram]
   );
 
   const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
@@ -1274,6 +1283,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
           rewriteError={!editCardOpen ? changes.error : null}
           onSectionsLoaded={handleSectionsLoaded}
+          // Mode 1 v3: tài liệu chỉ đổi qua change request — không vẽ lại thẳng
+          onRedrawDiagram={mode1 ? undefined : redrawDiagram}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
         />

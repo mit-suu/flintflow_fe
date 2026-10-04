@@ -5,6 +5,7 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DocumentPane, { followsHeading } from "./DocumentPane";
 import * as exportApi from "@/lib/api/export";
+import * as spineApi from "@/lib/api/spine";
 import { ApiClientError } from "@/lib/api/client";
 import type { RenderedDocument } from "@/types/document";
 import type { Flag } from "@/types/flags";
@@ -13,6 +14,7 @@ vi.mock("@/lib/api/export", () => ({
   getDocument: vi.fn(),
   assembleDocument: vi.fn(),
 }));
+vi.mock("@/lib/api/spine", () => ({ fetchDiagramPng: vi.fn() }));
 
 const fixture: RenderedDocument = {
   projectId: "p1",
@@ -234,6 +236,51 @@ describe("DocumentPane", () => {
     expect(appendix.querySelector("h5")?.textContent).toBe("Phụ lục A Biên bản họp");
     screen.getAllByRole("button", { name: "Mở step" })[0].click();
     expect(onSelectStep).toHaveBeenCalledWith("S-7.1");
+  });
+});
+
+describe("DocumentPane — nút Vẽ lại dưới sơ đồ", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const fetchDiagramPng = vi.mocked(spineApi.fetchDiagramPng);
+  const withErd: RenderedDocument = {
+    ...fixture,
+    sections: [{ id: "fixed:3.1.5", number: "3.1.5", heading: "Entity Relationship Diagram", level: 2, status: "accepted", blocks: [{ type: "image", png: "diagram-ref:D04", caption: "ERD" }] }],
+  };
+
+  beforeEach(() => {
+    getDocument.mockReset();
+    fetchDiagramPng.mockReset();
+    getDocument.mockResolvedValue({ data: withErd, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    fetchDiagramPng.mockResolvedValueOnce("blob:first").mockResolvedValueOnce("blob:second");
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  it("bấm Vẽ lại ⇒ gọi vẽ lại đúng id sơ đồ rồi tải lại ảnh (id giữ nguyên nên phải tải lại chủ động)", async () => {
+    const onRedrawDiagram = vi.fn().mockResolvedValue(undefined);
+    renderWithIntl(<DocumentPane projectId="p1" onRedrawDiagram={onRedrawDiagram} />);
+
+    await waitFor(() => expect(screen.getByAltText("ERD")).toHaveAttribute("src", "blob:first"));
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại" }));
+
+    await waitFor(() => expect(screen.getByAltText("ERD")).toHaveAttribute("src", "blob:second"));
+    expect(onRedrawDiagram).toHaveBeenCalledWith("D04");
+    expect(fetchDiagramPng).toHaveBeenCalledTimes(2);
+  });
+
+  it("vẽ lại lỗi ⇒ báo ngay dưới sơ đồ, ảnh cũ giữ nguyên", async () => {
+    const onRedrawDiagram = vi.fn().mockRejectedValue(new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại."));
+    renderWithIntl(<DocumentPane projectId="p1" onRedrawDiagram={onRedrawDiagram} />);
+
+    await waitFor(() => expect(screen.getByAltText("ERD")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại" }));
+    expect(await screen.findByText(/Không tìm thấy sơ đồ này/)).toBeInTheDocument();
+    expect(screen.getByAltText("ERD")).toHaveAttribute("src", "blob:first");
+  });
+
+  it("không truyền onRedrawDiagram (trang xem read-only, mode 1) ⇒ không có nút", async () => {
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await waitFor(() => expect(screen.getByAltText("ERD")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Vẽ lại" })).toBeNull();
   });
 });
 

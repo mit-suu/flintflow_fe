@@ -46,6 +46,8 @@ interface DocumentPaneProps {
   onSectionsLoaded?: (sections: readonly RenderedSection[]) => void;
   /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
   headerEnd?: ReactNode;
+  /** Nút "Vẽ lại" dưới mỗi sơ đồ; không truyền ⇒ không có nút. */
+  onRedrawDiagram?: RedrawDiagram;
 }
 
 /** Nhãn đọc được của một mục: `§2.2.2 Actors`. */
@@ -81,16 +83,41 @@ const Runs = ({ runs }: { runs: InlineRun[] }) => (
 
 const Cell = ({ cell }: { cell: TableCell }) => <Runs runs={cell} />;
 
-/** Ảnh trong tài liệu: base64 thật hoặc tham chiếu `diagram-ref:<id>` (cache nội bộ BE lộ ra). */
-function DocumentImage({ projectId, png, caption }: { projectId: string; png: string; caption?: string }) {
+/** Vẽ lại một sơ đồ theo id (`diagram-ref:<id>`) — trang workspace truyền xuống; trang xem read-only thì không. */
+export type RedrawDiagram = (diagramId: string) => Promise<void>;
+
+/**
+ * Ảnh trong tài liệu: base64 thật hoặc tham chiếu `diagram-ref:<id>` (cache nội bộ BE lộ ra). Sơ đồ có nút "Vẽ lại": vẽ lại
+ * bằng code hiện tại dù dữ liệu không đổi (đổi kiểu đường ERD, sửa renderer) — trước đây chỉ vẽ lại được khi có cờ "sơ đồ cũ".
+ */
+function DocumentImage({ projectId, png, caption, onRedraw }: { projectId: string; png: string; caption?: string; onRedraw?: RedrawDiagram }) {
   const isDiagramRef = png.startsWith("diagram-ref:");
+  const diagramId = isDiagramRef ? png.slice("diagram-ref:".length) : null;
   const directSrc = isDiagramRef ? null : `data:image/png;base64,${png}`;
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Vẽ lại giữ nguyên id sơ đồ ⇒ `png` không đổi; tăng số này để tải lại ảnh
+  const [version, setVersion] = useState(0);
+  const [redrawing, setRedrawing] = useState(false);
+  const [redrawError, setRedrawError] = useState<string | null>(null);
+
+  const redraw = async () => {
+    if (!onRedraw || !diagramId) return;
+    setRedrawing(true);
+    setRedrawError(null);
+    try {
+      await onRedraw(diagramId);
+      setError(null);
+      setVersion((v) => v + 1);
+    } catch (err) {
+      setRedrawError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
+    } finally {
+      setRedrawing(false);
+    }
+  };
 
   useEffect(() => {
-    if (!isDiagramRef) return;
-    const diagramId = png.slice("diagram-ref:".length);
+    if (!diagramId) return;
     let cancelled = false;
     let objectUrl: string | null = null;
     fetchDiagramPng(projectId, diagramId)
@@ -109,13 +136,36 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [projectId, png, isDiagramRef]);
+  }, [projectId, diagramId, version]);
 
   const src = directSrc ?? resolvedSrc;
-  if (error) return <div className="text-[11px] text-[#B03030] italic">Không tải được ảnh: {error}</div>;
-  if (!src) return <div className="text-[11px] text-[#A8A49C] italic">Đang tải ảnh…</div>;
-  // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
-  return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
+  const image = error ? (
+    <div className="text-[11px] text-[#B03030] italic">Không tải được ảnh: {error}</div>
+  ) : !src ? (
+    <div className="text-[11px] text-[#A8A49C] italic">Đang tải ảnh…</div>
+  ) : (
+    // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
+    <img src={src} alt={caption ?? "Diagram"} className={`max-w-full rounded-[8px] border border-[#ECEAE5] ${redrawing ? "opacity-50" : ""}`} />
+  );
+  if (!onRedraw || !diagramId) return image;
+  return (
+    <>
+      {image}
+      <span className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void redraw()}
+          disabled={redrawing}
+          title="Vẽ lại sơ đồ này từ dữ liệu hiện tại"
+          className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Icon name="refresh" size={11} />
+          {redrawing ? "Đang vẽ…" : "Vẽ lại"}
+        </button>
+        {redrawError && <span className="text-[10.5px] text-error">{redrawError}</span>}
+      </span>
+    </>
+  );
 }
 
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
@@ -124,7 +174,17 @@ const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 export const followsHeading = (blocks: Block[], index: number): boolean => index === 0 || blocks[index - 1]?.type === "heading";
 
 /** Dùng lại ở `view/page.tsx` (read-only) để không lặp logic render Block. */
-export function BlockView({ block, projectId, afterHeading = false }: { block: Block; projectId: string; afterHeading?: boolean }) {
+export function BlockView({
+  block,
+  projectId,
+  afterHeading = false,
+  onRedrawDiagram,
+}: {
+  block: Block;
+  projectId: string;
+  afterHeading?: boolean;
+  onRedrawDiagram?: RedrawDiagram;
+}) {
   switch (block.type) {
     case "heading": {
       const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
@@ -186,7 +246,7 @@ export function BlockView({ block, projectId, afterHeading = false }: { block: B
     case "image":
       return (
         <div className="mb-2 flex flex-col items-center gap-1">
-          <DocumentImage projectId={projectId} png={block.png} caption={block.caption} />
+          <DocumentImage projectId={projectId} png={block.png} caption={block.caption} onRedraw={onRedrawDiagram} />
           {block.caption && <span className="text-[10.5px] text-[#8A867E] italic">{block.caption}</span>}
         </div>
       );
@@ -247,8 +307,10 @@ function SectionView({
   emptyHint,
   mode1 = false,
   onEdit,
+  onRedrawDiagram,
 }: {
   onEdit?: (sectionLabel: string) => void;
+  onRedrawDiagram?: RedrawDiagram;
   section: RenderedSection;
   projectId: string;
   /** Vấn đề đang mở của mục: số lượng và có cái nào chặn chốt bản không. */
@@ -316,7 +378,7 @@ function SectionView({
       </div>
       {section.blocks.length > 0 ? (
         section.blocks.map((block, i) => (
-          <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+          <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} onRedrawDiagram={onRedrawDiagram} />
         ))
       ) : (
         <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />
@@ -343,6 +405,7 @@ export default function DocumentPane({
   rewriteError = null,
   onSectionsLoaded,
   headerEnd,
+  onRedrawDiagram,
 }: DocumentPaneProps) {
   const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
     projectId,
@@ -477,6 +540,7 @@ export default function DocumentPane({
               emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
               mode1={mode1}
               onEdit={onEditSection}
+              onRedrawDiagram={onRedrawDiagram}
             />
           ))}
       </div>
