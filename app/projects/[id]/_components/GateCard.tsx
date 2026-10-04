@@ -15,6 +15,9 @@ export { PICKABLE_FIELDS, groupSummary, joinSummaryTexts, projectFieldText } fro
 export type { AssumptionDecision, BlockingFlag, PickablePath } from "./gate-helpers";
 export type { GateNewFlag } from "./GateFlags";
 
+/** Bước ký baseline: Accept ở đây chụp bản chốt (BE `SIGN_OFF_STEP`). */
+const SIGN_OFF_STEP = "S-9.5";
+
 interface GateCardProps {
   stepId: string;
   /** Hành động BE cho phép (sự kiện `gate_ready`). */
@@ -186,7 +189,8 @@ export default function GateCard({
 
       <QuickReplyChips>
         <QuickReplyChip tone="primary" busy={locked} disabled={!actions.includes("accept")} onClick={() => void act("accept")}>
-          Đúng rồi, đi tiếp
+          {/* FLF-248: Accept ở S-9.5 là ký baseline — nhãn chung "đi tiếp" làm người dùng đi tìm nút ký ở chat */}
+          {stepId === SIGN_OFF_STEP ? "Ký baseline" : "Đúng rồi, đi tiếp"}
         </QuickReplyChip>
         {actions.includes("revision") && (
           <QuickReplyChip tone="soft" disabled={locked} onClick={() => onWantEdit?.()}>
