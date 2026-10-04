@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { Change } from "@/types/spine";
 import { describeChange } from "./describe-change";
+import { workspaceStepLabel } from "./phase-labels";
 
 interface EditHistoryProps {
   history: Change[];
@@ -31,7 +32,7 @@ export default function EditHistory({ history, loading, onLoad }: EditHistoryPro
         <li key={`${change.txn}:${change.seq}`} className="rounded-inner bg-surface-container-lowest px-2.5 py-1.5 flex flex-col gap-0.5">
           <span className="text-[11.5px] text-on-surface leading-relaxed break-words">{describeChange(change)}</span>
           <span className="text-[10.5px] text-on-surface-subtle">
-            {timeOf(change.at)} · {change.step_id ? `bước ${change.step_id}` : "lệnh sửa"}
+            {timeOf(change.at)} · {change.step_id ? `bước “${workspaceStepLabel(change.step_id)}”` : "lệnh sửa"}
           </span>
         </li>
       ))}

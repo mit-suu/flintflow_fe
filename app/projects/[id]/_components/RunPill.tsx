@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import type { RunnerState } from "../hooks/useStepRunner";
 import { formatDuration } from "./StepProgress";
+import { PHASE_NAV_LABELS, workspaceStepLabel } from "./phase-labels";
+import type { PhaseId } from "@/lib/constants/step-registry";
+
+/** Tên giai đoạn đời thường — pill không hiện mã `S-5@S03` / `S-4.2` (FLF-247). */
+const phaseName = (phase: string): string => PHASE_NAV_LABELS[phase.split("@")[0] as PhaseId] ?? "Giai đoạn hiện tại";
 
 /**
  * Lớp 5 "Chạy nền" (`03-live-status-flow.md`): thu tiến trình thành một pill ở góc màn hình để user đi
@@ -29,8 +34,8 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
   const needsUser = state.status === "needs_input" || state.status === "gate_ready" || state.status === "error";
   const elapsed = state.startedAt ? now - state.startedAt : 0;
   const label = state.phase
-    ? `${state.phase}${state.phaseProgress ? ` · bước ${state.phaseProgress.index}/${state.phaseProgress.total}` : ""}`
-    : state.stepId;
+    ? `${phaseName(state.phase)}${state.phaseProgress ? ` · bước ${state.phaseProgress.index}/${state.phaseProgress.total}` : ""}`
+    : workspaceStepLabel(state.stepId);
 
   return (
     <button

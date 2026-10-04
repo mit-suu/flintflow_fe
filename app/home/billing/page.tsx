@@ -19,6 +19,7 @@ import {
   type PlanId,
 } from "../../../lib/api/billing";
 import { emitNotificationsChanged } from "../../../lib/api/notifications";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "purchase" || tx.type === "monthly_reset") return `+${tx.amount}`;
@@ -29,6 +30,11 @@ const signedAmount = (tx: CreditTransaction) => {
 export default function BillingPage() {
   const t = useTranslations("app.billing");
   const tc = useTranslations("app.common");
+  // `actionType` là enum của BE (`cr_clarify`…) — hiện nhãn, mã lạ ⇒ "Thao tác AI" (FLF-247)
+  const actionLabel = (actionType: string): string => {
+    const key = `actionType.${actionType}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : t("actionType.other");
+  };
   const format = useFormatter();
   const router = useRouter();
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
@@ -59,7 +65,7 @@ export default function BillingPage() {
         setPlans(catalog.plans);
       } catch (err) {
         // Chuỗi rỗng = lỗi tải trang, dịch lúc render ⇒ `t` không phải vào dependency của effect.
-        if (!cancelled) setError(err instanceof Error ? err.message : "");
+        if (!cancelled) setError(userErrorMessage(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -77,7 +83,7 @@ export default function BillingPage() {
       const checkout = await createCheckout(pkg.id);
       router.push(`/home/billing/checkout?intentId=${encodeURIComponent(checkout.intentId)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.createTx"));
+      setError(userErrorMessage(err, t("errors.createTx")));
       setBusy(null);
     }
   };
@@ -98,7 +104,7 @@ export default function BillingPage() {
       emitNotificationsChanged();
       setBusy(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.changePlan"));
+      setError(userErrorMessage(err, t("errors.changePlan")));
       setBusy(null);
     }
   };
@@ -111,7 +117,7 @@ export default function BillingPage() {
       setLedgerPage(next.meta.page);
       setLedgerTotalPages(next.meta.totalPages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadMore"));
+      setError(userErrorMessage(err, t("errors.loadMore")));
     } finally {
       setBusy(null);
     }
@@ -291,12 +297,12 @@ export default function BillingPage() {
                             })}
                           </td>
                           <td className="px-5 py-3 text-[#191817] font-semibold whitespace-nowrap">
-                            {t(`txType.${tx.type}`)}
+                            {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
                             {tx.state && (
                               <span className="ml-1.5 text-[11px] font-medium text-[#8A867E]">({t(`txState.${tx.state}`)})</span>
                             )}
                           </td>
-                          <td className="px-5 py-3 text-[#6B6862]">{tx.actionType}</td>
+                          <td className="px-5 py-3 text-[#6B6862]">{actionLabel(tx.actionType)}</td>
                           <td
                             className={`px-5 py-3 text-right font-bold ${
                               tx.type === "purchase" ? "text-[#2F7A4F]" : tx.type === "deduct" ? "text-[#B03030]" : "text-[#6B6862]"

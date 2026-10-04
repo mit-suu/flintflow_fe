@@ -223,7 +223,7 @@ export default function ChatPane({
 
         {isNonPipelineSession && onEditInstruction && (
           <div className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[14px] p-3 text-[12px] text-[#554DB0]">
-            Phiên này không phải phiên pipeline — gõ bên dưới là lệnh sửa tài liệu, xem trước rồi mới áp dụng.
+            Cuộc trò chuyện này không chạy quy trình soạn tài liệu — gõ bên dưới là lệnh sửa tài liệu, xem trước rồi mới áp dụng.
           </div>
         )}
 

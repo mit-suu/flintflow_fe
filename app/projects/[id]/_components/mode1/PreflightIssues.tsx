@@ -1,6 +1,7 @@
 "use client";
 
 import type { PreflightIssue, PreflightIssueCode } from "@/types/import";
+import { humanizeText } from "./spine-labels";
 
 const CODE_LABELS: Record<PreflightIssueCode, string> = {
   NOT_DOCX: "Không phải file Word .docx",
@@ -32,8 +33,8 @@ export default function PreflightIssues({ issues, fileName }: { issues: Prefligh
       <ul className="flex flex-col gap-2">
         {issues.map((issue, i) => (
           <li key={`${issue.code}-${i}`} className="bg-white border border-[#F2CACA] rounded-[10px] px-3 py-2 text-[12.5px]">
-            <div className="font-bold text-[#B03030]">{CODE_LABELS[issue.code] ?? issue.code}</div>
-            <div className="text-[#4B4842]">{issue.message}</div>
+            <div className="font-bold text-[#B03030]">{CODE_LABELS[issue.code] ?? "Vấn đề khác"}</div>
+            <div className="text-[#4B4842]">{humanizeText(issue.message)}</div>
             {issue.location && (
               <div className="text-[11.5px] text-[#8A867E] mt-0.5">
                 Vị trí: đoạn thứ {issue.location.block_ord} — “{issue.location.text}”

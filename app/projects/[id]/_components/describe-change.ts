@@ -2,6 +2,7 @@
  * Đổi một thay đổi thô của Spine (`set actors[id=A03].name`) thành câu người đọc được
  * ("Sửa Actor A03 · name: Admin → Administrator"). Dùng cho thẻ sửa trong chat và "Lịch sử sửa".
  */
+import { fieldLabel, readableValue } from "./mode1/spine-labels";
 
 interface ChangeLike {
   op: string;
@@ -32,7 +33,8 @@ const OP_LABEL: Record<string, string> = { set: "Sửa", add: "Thêm", remove: "
 /** Rút gọn giá trị để hiện trên một dòng. */
 export const shortValue = (value: unknown, max = 60): string => {
   if (value === null || value === undefined) return "—";
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+  // Không JSON: object/mảng thành "Tên: …; Mô tả: …" (FLF-247)
+  const text = readableValue(value);
   return text.length > max ? `${text.slice(0, max)}…` : text;
 };
 
@@ -42,8 +44,11 @@ export const describeTarget = (change: ChangeLike): string => {
   const collection = root.replace(/\[.*$/, "");
   const key = /\[(?:[a-z_]+=)?([^\],]+)/.exec(root)?.[1];
   const label = COLLECTION_LABEL[collection] ?? collection;
-  const field = rest.join(".").replace(/\[(?:[a-z_]+=)?([^\]]+)\]/g, " $1");
-  const verb = OP_LABEL[change.op] ?? change.op;
+  // Tên trường đời thường (`actor_ids` ⇒ "Tác nhân"); khoá trong ngoặc giữ lại (`flows[id=F1]` ⇒ "… F1")
+  const field = rest
+    .map((part) => part.replace(/^[a-z_]+/, (name) => fieldLabel(name)).replace(/\[(?:[a-z_]+=)?([^\]]+)\]/g, " $1"))
+    .join(" › ");
+  const verb = OP_LABEL[change.op] ?? "Sửa";
   return [`${verb} ${label}${key ? ` ${key}` : ""}`, field].filter(Boolean).join(" · ");
 };
 
