@@ -20,6 +20,7 @@ import {
   tableCellClass,
   tableHeadClass,
 } from "../../_components/AdminPage";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const TX_LABELS: Record<CreditTransaction["type"], string> = {
   reserve: "Giữ credit",
@@ -27,7 +28,14 @@ const TX_LABELS: Record<CreditTransaction["type"], string> = {
   release: "Hoàn credit",
   purchase: "Nạp credit",
   monthly_reset: "Reset hằng tháng",
+  refund: "Hoàn credit",
+  admin_adjust: "Điều chỉnh credit",
 };
+
+/** Nhãn thay cho enum thô (FLF-247) — admin chỉ tiếng Việt. */
+const USER_ROLE_LABELS: Record<string, string> = { admin: "Quản trị viên", user: "Người dùng" };
+const ORG_ROLE_LABELS: Record<string, string> = { lead: "Lead", analyst: "Analyst", viewer: "Viewer" };
+const TX_STATE_LABELS: Record<string, string> = { reserved: "đang giữ", deducted: "đã trừ", refunded: "đã hoàn", expired: "hết hạn" };
 
 const REASON_MIN_LENGTH = 3;
 
@@ -52,7 +60,7 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
       setConfirming(false);
       setReason("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể cập nhật trạng thái tài khoản");
+      setError(userErrorMessage(err, "Không thể cập nhật trạng thái tài khoản"));
     } finally {
       setSaving(false);
     }
@@ -150,7 +158,7 @@ export default function AdminUserDetailPage() {
         const next = await fetchAdminUser(id);
         if (!cancelled) setUser(next);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Không thể tải người dùng");
+        if (!cancelled) setError(userErrorMessage(err, "Không thể tải người dùng"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -188,7 +196,7 @@ export default function AdminUserDetailPage() {
                       user.role === "admin" ? "bg-[#EFEEF9] text-[#554DB0]" : "bg-[#F0EEEA] text-[#6B6862]"
                     }`}
                   >
-                    {user.role}
+                    {USER_ROLE_LABELS[user.role] ?? user.role}
                   </span>
                   <span
                     className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${
@@ -235,7 +243,7 @@ export default function AdminUserDetailPage() {
                         user.organizations.map((org) => (
                           <tr key={org.id}>
                             <td className={`${tableCellClass} font-semibold`}>{org.name}</td>
-                            <td className={tableCellClass}>{org.role}</td>
+                            <td className={tableCellClass}>{ORG_ROLE_LABELS[org.role] ?? org.role}</td>
                             <td className={tableCellClass}>{formatDateTime(org.joinedAt)}</td>
                             <td className={`${tableCellClass} text-right`}>
                               {org.wallet ? formatNumber(org.wallet.balance) : "Chưa có ví"}
@@ -278,8 +286,8 @@ export default function AdminUserDetailPage() {
                           <tr key={tx._id}>
                             <td className={tableCellClass}>{formatDateTime(tx.createdAt)}</td>
                             <td className={tableCellClass}>
-                              {TX_LABELS[tx.type] ?? tx.type}
-                              {tx.state && <span className="text-[11px] text-[#8A867E]"> · {tx.state}</span>}
+                              {TX_LABELS[tx.type] ?? "Giao dịch credit"}
+                              {tx.state && <span className="text-[11px] text-[#8A867E]"> · {TX_STATE_LABELS[tx.state] ?? tx.state}</span>}
                             </td>
                             <td className={`${tableCellClass} font-mono text-[11.5px]`}>{tx.actionType}</td>
                             <td className={`${tableCellClass} text-right`}>{formatNumber(tx.amount)}</td>

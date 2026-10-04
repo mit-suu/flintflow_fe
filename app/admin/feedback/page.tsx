@@ -5,6 +5,7 @@ import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import { fetchAdminFeedback, formatDateTime, type AdminFeedbackItem } from "@/lib/api/admin";
 import type { FeedbackCategory } from "@/lib/api/feedback";
 import { AdminTopBar, ErrorBanner, LoadingBlock } from "../_components/AdminPage";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const CATEGORY: Record<FeedbackCategory, { label: string; tone: BadgeTone }> = {
   bug: { label: "Báo lỗi", tone: "danger" },
@@ -23,7 +24,7 @@ export default function AdminFeedbackPage() {
         if (!cancelled) setItems(next);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Không thể tải phản hồi");
+        if (!cancelled) setError(userErrorMessage(err, "Không thể tải phản hồi"));
       });
     return () => {
       cancelled = true;

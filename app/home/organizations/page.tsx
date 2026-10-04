@@ -8,6 +8,7 @@ import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { Organization } from "@/types/organization";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 /**
  * UC-10 / BPMN Flow 9.3–9.4 (và 7.13 khi có nhiều org) — chọn tổ chức để làm việc. Dự án, ví và vai trò
@@ -39,7 +40,7 @@ export default function OrganizationsPage() {
       // Tải lại hẳn: danh sách dự án, số dư ví ở sidebar đang giữ dữ liệu của org cũ trong bộ nhớ.
       window.location.assign("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(userErrorMessage(err));
       setSwitching(null);
     }
   };

@@ -1,7 +1,7 @@
 import { apiCall } from "./client";
 
 export type PlanId = "free" | "pro";
-export type CreditTransactionType = "reserve" | "deduct" | "release" | "monthly_reset" | "purchase";
+export type CreditTransactionType = "reserve" | "deduct" | "release" | "refund" | "monthly_reset" | "purchase" | "admin_adjust";
 export type PaymentIntentStatus = "pending" | "succeeded" | "failed";
 
 export interface CreditTransaction {

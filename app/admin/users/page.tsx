@@ -19,6 +19,7 @@ import {
   tableCellClass,
   tableHeadClass,
 } from "../_components/AdminPage";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const PAGE_SIZE = 20;
 
@@ -40,7 +41,7 @@ export default function AdminUsersPage() {
         setMeta(res.meta);
         setError(null);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Không thể tải danh sách người dùng");
+        if (!cancelled) setError(userErrorMessage(err, "Không thể tải danh sách người dùng"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -156,7 +157,7 @@ export default function AdminUsersPage() {
                               u.role === "admin" ? "bg-[#EFEEF9] text-[#554DB0]" : "bg-[#F0EEEA] text-[#6B6862]"
                             }`}
                           >
-                            {u.role}
+                            {u.role === "admin" ? "Quản trị viên" : u.role === "user" ? "Người dùng" : u.role}
                           </span>
                         </td>
                         <td className={tableCellClass}>

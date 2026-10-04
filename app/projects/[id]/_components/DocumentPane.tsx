@@ -7,6 +7,7 @@ import { stepLabel } from "@/lib/constants/step-registry";
 import { useDocument } from "../hooks/useDocument";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
 import type { Flag } from "@/types/flags";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface DocumentPaneProps {
   projectId: string;
@@ -104,7 +105,7 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
         objectUrl = url;
         setResolvedSrc(url);
       })
-      .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : "Không tải được ảnh diagram"));
+      .catch((err: unknown) => !cancelled && setError(userErrorMessage(err, "Không tải được hình sơ đồ.")));
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -112,7 +113,7 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   }, [projectId, png, isDiagramRef]);
 
   const src = directSrc ?? resolvedSrc;
-  if (error) return <div className="text-[11px] text-[#B03030] italic">Không tải được ảnh: {error}</div>;
+  if (error) return <div className="text-[11px] text-[#B03030] italic">{error}</div>;
   if (!src) return <div className="text-[11px] text-[#A8A49C] italic">Đang tải ảnh…</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
   return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
@@ -444,7 +445,7 @@ export default function DocumentPane({
                   onClick={() => onSelectStep("S-8.2")}
                   className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer"
                 >
-                  Đi tới S-8.2 · Ghép tài liệu
+                  Đi tới bước Ghép tài liệu
                 </button>
               )
             )}

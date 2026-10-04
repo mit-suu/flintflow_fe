@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/orgs";
 import { fetchMe } from "@/lib/api/users";
 import type { InvitationPreview } from "@/types/organization";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 type Tab = "create" | "join";
 
@@ -57,7 +58,7 @@ export default function OnboardingPage() {
     try {
       await action();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(userErrorMessage(err));
     } finally {
       setBusy(false);
     }
