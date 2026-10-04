@@ -7,6 +7,7 @@ import UiBackLink from "../../../../components/ui/BackLink";
 import { useSearchParams } from "next/navigation";
 import { fetchCheckout, formatVnd, type PaymentIntentDTO } from "../../../../lib/api/billing";
 import { emitNotificationsChanged } from "../../../../lib/api/notifications";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 // Guide payment_service: poll 3-5s, dừng sau 10-15 phút
 const POLL_MS = 4_000;
@@ -61,7 +62,7 @@ function Checkout({ intentId }: { intentId: string }) {
       } catch (err) {
         if (cancelled) return;
         // Chuỗi rỗng = lỗi tải, dịch lúc render ⇒ `t` không vào dependency (effect này đang poll).
-        setError(err instanceof Error ? err.message : "");
+        setError(userErrorMessage(err));
         timer = window.setTimeout(tick, POLL_MS);
       } finally {
         if (!cancelled) setLoading(false);

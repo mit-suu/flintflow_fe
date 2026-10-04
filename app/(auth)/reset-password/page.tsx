@@ -20,6 +20,7 @@ import {
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import { checkPassword, PASSWORD_ISSUE_VALUES, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { localizeApiError } from "@/lib/api/error-messages";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -77,7 +78,7 @@ function ResetPasswordContent() {
       setResetToken(json.data.resetToken);
       setStep("password");
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("genericError"));
+      setError(userErrorMessage(err, tc("genericError")));
       setDigits(emptyOtp());
     } finally {
       setVerifying(false);
@@ -110,7 +111,7 @@ function ResetPasswordContent() {
       setDigits(emptyOtp());
       setInfo(to("resent"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("connectionError"));
+      setError(userErrorMessage(err, tc("connectionError")));
     } finally {
       setResending(false);
     }
@@ -152,7 +153,7 @@ function ResetPasswordContent() {
 
       setStep("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("genericError"));
+      setError(userErrorMessage(err, tc("genericError")));
     } finally {
       setSaving(false);
     }

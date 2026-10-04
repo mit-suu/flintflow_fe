@@ -40,9 +40,9 @@ const cardProps = {
 
 describe("describe-change", () => {
   it("đổi path thô thành câu đọc được", () => {
-    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null })).toBe("Sửa Actor A03 · name");
+    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null })).toBe("Sửa Actor A03 · Tên");
     expect(describeChange({ op: "set", path: "actors[id=A03].name", before: "Admin", value: "Administrator" })).toBe(
-      "Sửa Actor A03 · name: Admin → Administrator"
+      "Sửa Actor A03 · Tên: Admin → Administrator"
     );
     expect(describeChange({ op: "remove", path: "use_cases[id=UC04]", before: {}, value: null })).toBe("Xoá Use case UC04");
   });
@@ -61,7 +61,7 @@ describe("ChatEditCard", () => {
     render(<ChatEditCard {...cardProps} preview={preview()} onApply={onApply} onShowDetail={onShowDetail} />);
 
     expect(screen.getByText(/Sẽ thay đổi 2 chỗ · ảnh hưởng 1 mục/)).toBeInTheDocument();
-    expect(screen.getByText(/Sửa Actor A03 · name: Admin → Administrator/)).toBeInTheDocument();
+    expect(screen.getByText(/Sửa Actor A03 · Tên: Admin → Administrator/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Áp dụng" }));
     fireEvent.click(screen.getByRole("button", { name: "Xem chi tiết" }));
     expect(onApply).toHaveBeenCalledTimes(1);
@@ -124,7 +124,8 @@ describe("EditHistory", () => {
     const items = screen.getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("Sửa Actor A02");
     expect(items[0]).toHaveTextContent("lệnh sửa");
-    expect(items[1]).toHaveTextContent("bước S-3.1");
+    expect(items[1]).toHaveTextContent(/bước “[^”]+”/);
+    expect(items[1]).not.toHaveTextContent("S-3.1");
   });
 });
 
