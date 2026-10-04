@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Flag } from "@/types/flags";
-import { actionOf, flagGroupTitle, groupByAction, issueCounts, readableMessage } from "../flag-rules";
+import { actionOf, actionOfFlag, flagGroupTitle, groupByAction, issueCounts, readableMessage } from "../flag-rules";
 
 const flag = (over: Partial<Flag> & Pick<Flag, "id" | "rule_id">): Flag => ({
   level: "red",
@@ -46,6 +46,18 @@ describe("flag-rules", () => {
       2
     );
     expect(counts).toEqual({ blocking: 1 + 2, suggestions: 1, later: 1 });
+  });
+
+  it("FLF-248: cờ 'rỗng' của bước đã chốt chuyển sang 'fill' và tính là chặn", () => {
+    const empty = flag({ id: "E", rule_id: "array_empty", section_id: "fixed:5.2", remediation_step: "S-7.2" });
+    expect(actionOfFlag(empty)).toBe("run_step");
+    expect(actionOfFlag(empty, new Set(["S-6.1"]))).toBe("run_step");
+    expect(actionOfFlag(empty, new Set(["S-7.2"]))).toBe("fill");
+    // Luật không thuộc nhóm "rỗng" không bị đổi dù bước đã chốt
+    expect(actionOfFlag(flag({ id: "X", rule_id: "diagram_stale", remediation_step: "S-7.2" }), new Set(["S-7.2"]))).toBe("redraw");
+
+    expect(groupByAction([empty], new Set(["S-7.2"])).map((g) => g.action)).toEqual(["fill"]);
+    expect(issueCounts([empty], 0, new Set(["S-7.2"]))).toEqual({ blocking: 1, suggestions: 0, later: 0 });
   });
 
   it("thay mã mục nội bộ trong câu của BE bằng tên mục; không có tên thì giữ nguyên", () => {

@@ -53,7 +53,7 @@ export const readableMessage = (message: string, sectionId: string, sectionLabel
 
 // ─── gom theo việc người dùng phải làm (không theo luật) ─────────────
 
-export type IssueAction = "confirm" | "run_step" | "reaccept" | "redraw" | "fix";
+export type IssueAction = "confirm" | "run_step" | "fill" | "reaccept" | "redraw" | "fix";
 
 const ACTION_OF_RULE: Record<string, IssueAction> = {
   unconfirmed_assumption: "confirm",
@@ -73,15 +73,28 @@ const ACTION_OF_RULE: Record<string, IssueAction> = {
 /** Luật chưa xếp ⇒ "fix" (nội dung có chỗ chưa đúng, sửa ở bước gốc hoặc bằng lệnh sửa trong chat). */
 export const actionOf = (ruleId: string): IssueAction => ACTION_OF_RULE[ruleId] ?? "fix";
 
+/**
+ * FLF-248: "sẽ điền ở bước sau" chỉ đúng khi bước sở hữu CHƯA chốt. Bước đã chốt mà mục vẫn rỗng thì không
+ * còn bước nào điền nữa — BE vẫn coi cờ đỏ đó chặn ký baseline, nên panel phải đếm và cho đường xử lý.
+ */
+export const actionOfFlag = (flag: Pick<Flag, "rule_id" | "remediation_step">, acceptedSteps?: ReadonlySet<string>): IssueAction => {
+  const action = actionOf(flag.rule_id);
+  return action === "run_step" && acceptedSteps?.has(flag.remediation_step) ? "fill" : action;
+};
+
 /** Thứ tự hiện + tiêu đề + một câu nói rõ vì sao và phải làm gì. */
 export const ACTION_INFO: Record<IssueAction, { title: string; hint: string }> = {
   confirm: { title: "Cần bạn xác nhận", hint: "AI tự giả định — cho biết đúng hay sai." },
   fix: { title: "Cần bạn sửa nội dung", hint: "Nội dung còn thiếu hoặc chưa đúng." },
+  fill: {
+    title: "Mục bắt buộc còn trống",
+    hint: "Bước viết mục này đã chốt mà chưa điền gì — mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat.",
+  },
   reaccept: { title: "Cần bạn duyệt lại", hint: "Nội dung đã đổi sau khi bạn chốt." },
   redraw: { title: "Vẽ lại sơ đồ", hint: "Sơ đồ chưa khớp nội dung mới." },
   run_step: { title: "Sẽ điền ở bước sau", hint: "Chưa phải lỗi — AI điền khi chạy tới các bước này." },
 };
-export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "reaccept", "redraw", "run_step"];
+export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "reaccept", "redraw", "run_step"];
 
 export interface ActionGroup {
   action: IssueAction;
@@ -89,8 +102,10 @@ export interface ActionGroup {
 }
 
 /** Gom cờ theo việc phải làm, theo `ACTION_ORDER`; bỏ nhóm rỗng. */
-export const groupByAction = (flags: readonly Flag[]): ActionGroup[] =>
-  ACTION_ORDER.map((action) => ({ action, flags: flags.filter((f) => actionOf(f.rule_id) === action) })).filter((g) => g.flags.length > 0);
+export const groupByAction = (flags: readonly Flag[], acceptedSteps?: ReadonlySet<string>): ActionGroup[] =>
+  ACTION_ORDER.map((action) => ({ action, flags: flags.filter((f) => actionOfFlag(f, acceptedSteps) === action) })).filter(
+    (g) => g.flags.length > 0
+  );
 
 export interface IssueCounts {
   /** Vấn đề thật phải xử lý trước khi chốt bản: cờ đỏ (trừ "sẽ điền ở bước sau") + mục cần viết lại. */
@@ -103,14 +118,18 @@ export interface IssueCounts {
 
 const isOpenFlag = (f: Flag) => !f.resolved_at && !f.waived_by_user;
 
-/** Đếm cho chip trạng thái, câu tóm tắt và số trên tab — cùng một định nghĩa ở mọi chỗ. */
-export const issueCounts = (flags: readonly Flag[], outdated = 0): IssueCounts => {
+/**
+ * Đếm cho chip trạng thái, câu tóm tắt và số trên tab — cùng một định nghĩa ở mọi chỗ. `acceptedSteps`: các bước
+ * đã chốt (xem `actionOfFlag`); thiếu thì mọi cờ "rỗng" coi như còn chờ bước sau.
+ */
+export const issueCounts = (flags: readonly Flag[], outdated = 0, acceptedSteps?: ReadonlySet<string>): IssueCounts => {
   const open = flags.filter(isOpenFlag);
-  const now = open.filter((f) => actionOf(f.rule_id) !== "run_step");
+  const isLater = (f: Flag) => actionOfFlag(f, acceptedSteps) === "run_step";
+  const now = open.filter((f) => !isLater(f));
   return {
     blocking: now.filter((f) => f.level === "red").length + outdated,
     suggestions: now.filter((f) => f.level === "yellow").length,
-    later: new Set(open.filter((f) => actionOf(f.rule_id) === "run_step").map((f) => f.section_id)).size,
+    later: new Set(open.filter(isLater).map((f) => f.section_id)).size,
   };
 };
 

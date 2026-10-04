@@ -129,6 +129,34 @@ describe("FlagsPanel", () => {
     expect(screen.getByRole("tab", { name: /Cần xử lý/ })).toHaveTextContent("0");
   });
 
+  it("FLF-248: mục trống mà bước sở hữu đã chốt là vấn đề cần xử lý, mở được bước đó", () => {
+    const onSelectStep = vi.fn();
+    const empty: Flag = {
+      ...baseFlag,
+      id: "E9",
+      rule_id: "section_empty",
+      section_id: "fixed:5.2",
+      message: "Mục bắt buộc fixed:5.2 chưa có dữ liệu",
+      remediation_step: "S-7.2",
+    };
+    renderWithIntl(
+      <FlagsPanel
+        flags={[empty]}
+        onWaive={vi.fn()}
+        onRecompute={vi.fn()}
+        onSelectStep={onSelectStep}
+        acceptedSteps={new Set(["S-7.2"])}
+        sectionLabelOf={(id) => (id === "fixed:5.2" ? "§5.2 Common Requirements" : undefined)}
+      />
+    );
+
+    expect(screen.queryByText("Sẽ điền ở bước sau")).toBeNull();
+    expect(screen.getByText("Mục bắt buộc còn trống")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Cần xử lý/ })).toHaveTextContent("1");
+    fireEvent.click(screen.getByRole("button", { name: /Mở bước .*(S-7.2)/ }));
+    expect(onSelectStep).toHaveBeenCalledWith("S-7.2");
+  });
+
   it("tab Nên xem hiện cờ vàng, tab Đã bỏ qua hiện lý do", () => {
     const yellow: Flag = { ...baseFlag, id: "Y1", level: "yellow", rule_id: "non_english_content", message: "Có câu tiếng Việt trong §2" };
     const waived: Flag = { ...baseFlag, id: "W1", waived_by_user: true, waive_reason: "MVP chấp nhận để sau" };

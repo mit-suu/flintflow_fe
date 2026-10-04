@@ -34,7 +34,7 @@ interface VerificationPaneProps {
   /** Nhãn mục, cuộn tới mục, lọc theo mục, nhóm "Mục cần viết lại" — chuyển thẳng cho `FlagsPanel`. */
   issues?: Pick<
     ComponentProps<typeof FlagsPanel>,
-    "sectionLabelOf" | "onShowSection" | "focusSectionId" | "onClearFocus" | "outdatedCount" | "onRewriteOutdated" | "rewriting" | "onEditSection"
+    "sectionLabelOf" | "onShowSection" | "focusSectionId" | "onClearFocus" | "outdatedCount" | "onRewriteOutdated" | "rewriting" | "onEditSection" | "acceptedSteps"
   >;
 }
 
@@ -67,7 +67,7 @@ export default function VerificationPane({
       </div>
 
       <div className="flex-1 overflow-y-auto ff-scroll p-4 space-y-3">
-        <ReadinessSummary counts={readiness ? issueCounts(flags, issues?.outdatedCount ?? 0) : null} />
+        <ReadinessSummary counts={readiness ? issueCounts(flags, issues?.outdatedCount ?? 0, issues?.acceptedSteps) : null} />
 
         {flagsLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-muted">

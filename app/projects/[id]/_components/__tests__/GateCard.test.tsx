@@ -294,8 +294,9 @@ describe("GateCard — cờ và bảng", () => {
     expect(screen.getByText(/còn 1 cờ đỏ chưa xử lý/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Xem chỗ bị chặn/ }));
     expect(onGoToStep).toHaveBeenCalledWith("S-9.1");
-    // Chip Duyệt không bị chặn: BE vẫn là nơi quyết định
-    expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ })).not.toBeDisabled();
+    // Chip Duyệt không bị chặn: BE vẫn là nơi quyết định. Ở S-9.5 chip nói thẳng là ký (FLF-248)
+    expect(screen.getByRole("button", { name: "Ký baseline" })).not.toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Đúng rồi, đi tiếp/ })).toBeNull();
   });
 
   const flag: GateNewFlag = { id: "FL07", level: "red", message: "Use case UC03 chưa có chức năng", waivable: true };
