@@ -5,6 +5,7 @@
 import { ApiClientError } from "@/lib/api/client";
 import type { CrNoLocationsMeta, PathLockedMeta } from "@/types/change-request";
 import { pathLabel } from "./spine-labels";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const FRIENDLY: Record<string, string> = {
   INSUFFICIENT_CREDIT: "Không đủ credit cho bước AI này — nạp thêm rồi thử lại.",
@@ -46,11 +47,11 @@ export const errorText = (err: unknown, fallback = "Đã có lỗi xảy ra"): s
       }
       return "Không tìm được phần tử nào khớp với change request. Sửa mô tả (nêu mã hoặc tên phần tử, ví dụ UC-01, actor Learner) rồi bấm làm rõ lại.";
     }
-    // `||` chứ không phải `??`: BE trả `message: ""` là chuỗi RỖNG, không phải null — dùng `??` thì hộp lỗi
-    // hiện trắng, người dùng chỉ thấy một khung đỏ không chữ.
-    return FRIENDLY[err.code] || err.message || fallback;
+    // `||` chứ không phải `??`: BE trả `message: ""` là chuỗi RỖNG — hộp lỗi không được hiện trắng. Câu BE rỗng hoặc
+    // kỹ thuật ⇒ `fallback` (FLF-247).
+    return FRIENDLY[err.code] || userErrorMessage(err, fallback);
   }
-  return err instanceof Error && err.message ? err.message : fallback;
+  return userErrorMessage(err, fallback);
 };
 
 export const errorCode = (err: unknown): string | null => (err instanceof ApiClientError ? err.code : null);

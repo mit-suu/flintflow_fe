@@ -4,6 +4,7 @@ import { useState } from "react";
 import QuickReplyChips, { QuickReplyChip } from "./QuickReplyChips";
 import { WAIVE_REASON_MIN_LENGTH } from "./flag-rules";
 import type { BlockingFlag } from "./gate-helpers";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 /** Cờ mới nêu trong tin gate (đã đọc được: `message` thay mã mục bằng tên mục). */
 export interface GateNewFlag {
@@ -47,7 +48,7 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
       await onKeepFlag(flag, reason.trim());
       closeKeep();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Chưa giữ nguyên được vấn đề này, bạn thử lại nhé.");
+      setError(userErrorMessage(err, "Chưa giữ nguyên được vấn đề này, bạn thử lại nhé."));
     } finally {
       setSaving(false);
     }

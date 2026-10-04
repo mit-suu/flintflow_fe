@@ -8,8 +8,9 @@ import type { ChangeRequiresCrMeta } from "@/types/change-request";
 import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
-const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message || fallback : fallback);
+const errorMessage = (error: unknown, fallback: string) => userErrorMessage(error, fallback);
 
 /**
  * Dữ liệu chung của workspace: project, user, chat session, gửi tin nhắn/đính kèm.

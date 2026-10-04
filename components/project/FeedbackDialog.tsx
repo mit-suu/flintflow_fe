@@ -5,6 +5,7 @@ import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { FEEDBACK_MESSAGE_MAX, submitFeedback, type FeedbackCategory } from "@/lib/api/feedback";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 /** Thứ tự hiện thẻ; nhãn lấy từ `app.feedback.<category>`. */
 const CATEGORIES: readonly FeedbackCategory[] = ["bug", "suggestion", "other"];
@@ -44,7 +45,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
       await submitFeedback({ category, message: trimmed });
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failed"));
+      setError(userErrorMessage(err, t("failed")));
     } finally {
       setSubmitting(false);
     }

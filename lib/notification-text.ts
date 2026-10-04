@@ -1,5 +1,6 @@
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { AppNotification } from "@/lib/api/notifications";
+import { isLocale, tPhase } from "@/lib/i18n";
 
 export interface NotificationText {
   title: string;
@@ -19,6 +20,8 @@ const str = (value: unknown): string | undefined => (typeof value === "string" &
 export const useNotificationText = () => {
   const t = useTranslations("app.notificationTypes");
   const format = useFormatter();
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : "vi";
 
   return (notification: Pick<AppNotification, "type" | "title" | "body" | "meta">): NotificationText => {
     const meta = notification.meta ?? {};
@@ -59,8 +62,10 @@ export const useNotificationText = () => {
         };
       }
       case "phase_accepted": {
-        const phase = str(meta.phase);
-        if (!phase) return stored;
+        const code = str(meta.phase);
+        if (!code) return stored;
+        // Tên giai đoạn, không phải mã `S-3` (FLF-247)
+        const phase = tPhase(code, locale);
         return { title: t("phase_accepted.title", { phase }), body: t("phase_accepted.body", { phase }) };
       }
       case "baseline_created": {

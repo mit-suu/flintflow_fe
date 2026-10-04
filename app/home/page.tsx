@@ -22,6 +22,7 @@ import { CR_TERMINAL_STATUSES } from "@/types/change-request";
 import type { Folder } from "@/types/folder";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 type ModeFilter = ProjectMode | "all";
 type DashboardTab = "all" | "folders" | "projects";
@@ -192,7 +193,7 @@ export default function HomePage() {
       await moveProjectToFolder(projectId, folder._id);
       await reload();
     } catch (err) {
-      setDropError(err instanceof Error ? err.message : t("moveFailed"));
+      setDropError(userErrorMessage(err, t("moveFailed")));
     }
   };
 
@@ -211,7 +212,7 @@ export default function HomePage() {
       await reload();
       endSelecting();
     } catch (err) {
-      setDropError(err instanceof Error ? err.message : t("removeFailed"));
+      setDropError(userErrorMessage(err, t("removeFailed")));
     }
   };
 

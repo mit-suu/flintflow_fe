@@ -474,7 +474,12 @@ describe("lib/api wrappers", () => {
     await expect(failed).rejects.toMatchObject({ status: 404, code: "DOC_VERSION_NOT_FOUND", meta: { version: "0.9" } });
 
     vi.mocked(authFetch).mockResolvedValueOnce(new Response("<html>", { status: 502 }));
-    await expect(files.fetchFile("/x")).rejects.toMatchObject({ status: 502, code: "DOWNLOAD_FAILED", message: "HTTP 502" });
+    await expect(files.fetchFile("/x")).rejects.toMatchObject({
+      status: 502,
+      code: "DOWNLOAD_FAILED",
+      message: "Không tải được file. Vui lòng thử lại.",
+      rawMessage: "HTTP 502",
+    });
   });
 
   it("parseContentDispositionFilename: ưu tiên filename* UTF-8, rồi filename thường; thiếu ⇒ null", () => {

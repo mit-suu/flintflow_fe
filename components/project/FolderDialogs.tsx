@@ -9,6 +9,7 @@ import { createFolder, deleteFolder, moveProjectsToFolder, updateFolder } from "
 import type { Folder, FolderColor } from "@/types/folder";
 import type { Project } from "@/types/project";
 import { FOLDER_COLORS, FOLDER_COLOR_ORDER, pickableFolderColor } from "./FolderCard";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export type FolderDialogTarget =
   | { kind: "create" }
@@ -51,7 +52,7 @@ function useSubmit(onDone: FolderDialogsProps["onDone"], onClose: () => void) {
       await onDone();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : failed);
+      setError(userErrorMessage(err, failed));
     } finally {
       setSubmitting(false);
     }

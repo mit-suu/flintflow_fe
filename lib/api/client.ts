@@ -213,11 +213,18 @@ export const authFetch = async (
     headers["Authorization"] = `Bearer ${tokenBeforeRequest}`;
   }
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: "include",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+  } catch (err) {
+    // Huỷ (AbortError) giữ nguyên để nơi gọi im lặng; còn lại là lỗi mạng — "Failed to fetch" không phải câu cho user
+    if ((err as { name?: unknown } | null)?.name === "AbortError") throw err;
+    throw new ApiClientError(0, "NETWORK_ERROR", err instanceof Error ? err.message : String(err));
+  }
 
   // 3. Handle 401 Unauthorized with concurrency awareness
   if (res.status === 401 && retry) {

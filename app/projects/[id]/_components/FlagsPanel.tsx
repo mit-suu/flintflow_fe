@@ -6,7 +6,9 @@ import { workspaceStepLabel as stepLabel } from "./phase-labels";
 import { isFlagWaivable } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
+import { humanizeText, sectionName as fptSectionName } from "./mode1/spine-labels";
 import { ACTION_INFO, WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup } from "./flag-rules";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 /** Nhóm dài hơn mức này chỉ hiện chừng ấy dòng đầu + "Xem thêm". */
 const PREVIEW_ROWS = 5;
@@ -30,7 +32,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
         onClick={(e) => e.stopPropagation()}
       >
         <h4 className="font-extrabold text-[13.5px] text-on-surface">Bỏ qua vấn đề này?</h4>
-        <p className="text-[11.5px] text-on-surface-variant leading-relaxed">{flag.message}</p>
+        <p className="text-[11.5px] text-on-surface-variant leading-relaxed">{humanizeText(flag.message)}</p>
         <label htmlFor="waive-reason" className="text-[11.5px] font-semibold text-on-surface">
           Lý do (tối thiểu {WAIVE_REASON_MIN_LENGTH} ký tự) — sẽ in kèm trong tài liệu
         </label>
@@ -170,7 +172,8 @@ export default function FlagsPanel({
   const waivedFlags = flags.filter((f) => f.waived_by_user);
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
   const showOutdated = !focusSectionId && outdatedCount > 0 && Boolean(onRewriteOutdated);
-  const sectionName = (id: string) => sectionLabelOf?.(id) ?? id;
+  // Tài liệu chưa tải xong ⇒ tên mục theo mẫu FPT, không hiện mã `fixed:3.1.2` (FLF-247)
+  const sectionName = (id: string) => sectionLabelOf?.(id) ?? (fptSectionName(id) || id);
   const counts = issueCounts(openFlags, showOutdated ? outdatedCount : 0);
 
   const closeWaiveModal = () => {
@@ -187,7 +190,7 @@ export default function FlagsPanel({
       await onWaive?.(waivingFlag.id, reason);
       setWaivingId(null);
     } catch (err) {
-      setWaiveError(err instanceof Error ? err.message : "Không bỏ qua được vấn đề này");
+      setWaiveError(userErrorMessage(err, "Không bỏ qua được vấn đề này"));
     }
   };
 
@@ -358,7 +361,7 @@ export default function FlagsPanel({
       <li key={stepId} {...rowOpen(stepId)} className={`group/row py-1.5 flex items-center justify-between gap-2 ${rowOpen(stepId).className}`}>
         <div className="min-w-0 flex flex-col">
           <span className="text-[12.5px] text-on-surface">
-            {stepLabel(stepId)} <span className="text-on-surface-muted">· {stepId}</span>
+            {stepLabel(stepId)}
           </span>
           <span className="text-[11px] text-on-surface-muted truncate" title={[...sections].map(sectionName).join(", ")}>
             {[...sections].map(sectionName).join(", ")}
@@ -473,7 +476,7 @@ export default function FlagsPanel({
             <ul className="rounded-card bg-surface-container-lowest px-3.5 py-1.5">
               {waivedFlags.map((flag) => (
                 <li key={flag.id} className="py-1.5 flex flex-col gap-0.5">
-                  <span className="text-[12px] font-semibold text-on-surface">{flagGroupTitle(flag.rule_id) ?? flag.message}</span>
+                  <span className="text-[12px] font-semibold text-on-surface">{flagGroupTitle(flag.rule_id) ?? humanizeText(flag.message)}</span>
                   <span className="text-[11px] text-on-surface-muted">
                     {sectionName(flag.section_id)} · Lý do: {flag.waive_reason}
                   </span>

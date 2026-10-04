@@ -132,7 +132,7 @@ describe("DocumentPane", () => {
     expect(await screen.findByText("Chờ duyệt lại")).toBeInTheDocument();
   });
 
-  it("409 NO_WORKING_DRAFT hiện lý do và nút đi tới S-8.2", async () => {
+  it("409 NO_WORKING_DRAFT hiện lý do và nút đi tới bước Ghép tài liệu", async () => {
     getDocument.mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."));
     const onSelectStep = vi.fn();
 
@@ -140,8 +140,8 @@ describe("DocumentPane", () => {
 
     expect(await screen.findByText("Chưa có bản ghép tài liệu")).toBeInTheDocument();
     // `ApiClientError` dịch message theo mã, nên hiện câu của `messages/vi.json → errors.NO_WORKING_DRAFT`.
-    expect(screen.getByText("Chưa ghép tài liệu — chạy S-8.2 (Ghép tài liệu) trước.")).toBeInTheDocument();
-    screen.getByRole("button", { name: /Đi tới S-8.2/ }).click();
+    expect(screen.getByText("Tài liệu chưa được ghép. Hãy chạy bước Ghép tài liệu trước.")).toBeInTheDocument();
+    screen.getByRole("button", { name: /Đi tới bước Ghép tài liệu/ }).click();
     expect(onSelectStep).toHaveBeenCalledWith("S-8.2");
   });
 

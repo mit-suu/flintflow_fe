@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import { createProject } from "@/lib/api/projects";
 import type { Project, ProjectMode } from "@/types/project";
 import SourceModePicker from "./SourceModePicker";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const NAME_MAX = 100; // khớp CreateProjectSchema ở BE
 
@@ -44,7 +45,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
       if (!res.data) throw new Error(t("missingProject"));
       await onCreated(res.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failed"));
+      setError(userErrorMessage(err, t("failed")));
       setSubmitting(false);
     }
     // Thành công: giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần

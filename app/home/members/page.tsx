@@ -27,6 +27,7 @@ import type {
   OrganizationDetail,
 } from "@/types/organization";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const ROLES: OrgRole[] = ["lead", "analyst", "viewer"];
 const INVITABLE: InvitableRole[] = ["analyst", "viewer"];
@@ -108,7 +109,7 @@ export default function MembersPage() {
       await action();
     } catch (err) {
       // ApiClientError đã dịch sẵn theo mã lỗi (vd LAST_LEAD, PLAN_LIMIT_MEMBERS)
-      setError(err instanceof Error ? err.message : String(err));
+      setError(userErrorMessage(err));
     } finally {
       setBusy(false);
     }

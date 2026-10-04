@@ -10,6 +10,7 @@ import { addProjectsToFolder } from "@/lib/api/folders";
 import { getSourceModeOption } from "@/lib/project-source-mode";
 import type { Folder } from "@/types/folder";
 import type { Project } from "@/types/project";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 /** Khớp giới hạn `AddProjectsSchema` ở BE (1..100 dự án/lần). */
 const MAX_PER_REQUEST = 100;
@@ -66,7 +67,7 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDi
       await onAdded();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failed"));
+      setError(userErrorMessage(err, t("failed")));
     } finally {
       setSubmitting(false);
     }

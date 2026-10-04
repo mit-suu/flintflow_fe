@@ -16,6 +16,7 @@ import {
   type AppNotification,
   type NotificationListMeta,
 } from "../../../lib/api/notifications";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 type Filter = "all" | "unread";
 
@@ -48,7 +49,7 @@ export default function NotificationsPage() {
       } catch (err) {
         // Chuỗi rỗng = "lỗi tải danh sách, không có câu của BE"; dịch lúc render để `t` không phải vào dependency
         // của effect (đổi ngôn ngữ sẽ tải lại cả danh sách).
-        if (!cancelled) setError(err instanceof Error ? err.message : "");
+        if (!cancelled) setError(userErrorMessage(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -76,7 +77,7 @@ export default function NotificationsPage() {
       setItems((prev) => [...prev, ...res.items]);
       setMeta(res.meta);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("loadMoreFailed"));
+      setError(userErrorMessage(err, t("loadMoreFailed")));
     } finally {
       setLoadingMore(false);
     }
@@ -87,7 +88,7 @@ export default function NotificationsPage() {
       try {
         await markNotificationRead(notification._id);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("markFailed"));
+        setError(userErrorMessage(err, t("markFailed")));
         return;
       }
     }
@@ -98,7 +99,7 @@ export default function NotificationsPage() {
     try {
       await markAllNotificationsRead();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("markFailed"));
+      setError(userErrorMessage(err, t("markFailed")));
     }
   };
 

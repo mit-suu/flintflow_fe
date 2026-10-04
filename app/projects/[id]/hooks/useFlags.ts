@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
 import type { Flag } from "@/types/flags";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export interface UseFlagsResult {
   flags: Flag[];
@@ -34,7 +35,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
         setError(null);
       })
       .catch((err: unknown) => {
-        if (request === requestRef.current) setError(err instanceof Error ? err.message : "Không tải được danh sách cờ");
+        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được danh sách cờ"));
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);
@@ -59,7 +60,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
         }
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Waive cờ thất bại");
+        setError(userErrorMessage(err, "Chưa bỏ qua được vấn đề này. Vui lòng thử lại."));
         throw err;
       } finally {
         setBusy(false);
@@ -75,7 +76,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
       setFlags(res.data ?? []);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Tính lại cờ thất bại");
+      setError(userErrorMessage(err, "Chưa kiểm tra lại được. Vui lòng thử lại."));
     } finally {
       setBusy(false);
     }

@@ -60,7 +60,8 @@ describe("AdminUserDetailPage — khoá / mở khoá tài khoản", () => {
     await renderLoaded();
 
     expect(screen.getByText("Org Alpha")).toBeInTheDocument();
-    expect(screen.getByText("lead")).toBeInTheDocument();
+    // Vai trò hiện nhãn, không hiện enum `lead` (FLF-247)
+    expect(screen.getByText("Lead")).toBeInTheDocument();
     expect(screen.getByText("1.500")).toBeInTheDocument();
   });
 
@@ -103,7 +104,7 @@ describe("AdminUserDetailPage — khoá / mở khoá tài khoản", () => {
     fireEvent.change(screen.getByLabelText("Lý do khoá (bắt buộc)"), { target: { value: "Thử tự khoá" } });
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận khoá" }));
 
-    await waitFor(() => expect(screen.getByText("Không thể tự khoá tài khoản của chính mình")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Không thể tự khoá tài khoản của chính mình.")).toBeInTheDocument());
     expect(screen.getByText("Hoạt động")).toBeInTheDocument();
   });
 

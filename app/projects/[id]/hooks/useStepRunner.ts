@@ -330,7 +330,7 @@ const toFailure = (err: unknown): { code: string; message: string; meta?: Record
  */
 export type GateOutcome = "ok" | "failed";
 
-const isStepBusy = (err: unknown): boolean => err instanceof ApiClientError && err.code === "STEP_NOT_RUNNABLE" && /request khác/.test(err.message);
+const isStepBusy = (err: unknown): boolean => err instanceof ApiClientError && err.code === "STEP_NOT_RUNNABLE" && /request khác/.test(err.rawMessage || err.message);
 const BUSY_RETRIES = 3;
 const BUSY_DELAY_MS = 1500;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

@@ -17,6 +17,7 @@ import {
   StatusIcon,
   SubmitButton,
 } from "../_components/auth-ui";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -83,7 +84,7 @@ function VerifyEmailContent() {
         setStatus("success");
       } catch (err) {
         setStatus("idle");
-        setError(err instanceof Error ? err.message : tc("genericError"));
+        setError(userErrorMessage(err, tc("genericError")));
         resetDigits();
       }
     },
@@ -118,7 +119,7 @@ function VerifyEmailContent() {
       setInfo(to("resent"));
       resetDigits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("connectionError"));
+      setError(userErrorMessage(err, tc("connectionError")));
     } finally {
       setResending(false);
     }

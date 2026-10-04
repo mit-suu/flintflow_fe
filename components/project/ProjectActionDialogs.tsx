@@ -7,6 +7,7 @@ import Icon, { type IconName } from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
 import { deleteProject, renameProject } from "@/lib/api/projects";
 import type { Project } from "@/types/project";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export type ProjectAction = "rename" | "archive" | "delete";
 
@@ -52,7 +53,7 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
       await onDone();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : failed);
+      setError(userErrorMessage(err, failed));
     } finally {
       setSubmitting(false);
     }

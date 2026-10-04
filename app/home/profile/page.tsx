@@ -13,6 +13,7 @@ import { ApiClientError } from "../../../lib/api/client";
 import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../../../lib/api/users";
 import { logoutAndRedirect } from "../../../lib/auth";
 import type { User } from "../../../types/user";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const cardClass = "bg-white border border-[#ECEAE5] rounded-[16px] p-5 sm:p-6 flex flex-col gap-4";
 const inputClass =
@@ -61,7 +62,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
       setEditing(false);
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("nameFailed"));
+      setError(userErrorMessage(err, t("nameFailed")));
     } finally {
       setSaving(false);
     }
@@ -245,7 +246,7 @@ function ChangePasswordCard({ user }: { user: User }) {
       if (err instanceof ApiClientError && err.code === "INVALID_CURRENT_PASSWORD") {
         setCurrentPasswordError(err.message);
       } else {
-        setError(err instanceof Error ? err.message : t("changePasswordFailed"));
+        setError(userErrorMessage(err, t("changePasswordFailed")));
       }
     } finally {
       setSaving(false);
@@ -344,7 +345,7 @@ function LogoutAllCard() {
       await logoutAllDevices();
     } catch (err) {
       // BE chưa thu hồi được ⇒ vẫn còn đăng nhập, không được chuyển về /login như thể đã xong
-      setError(err instanceof Error ? err.message : t("logoutAllFailed"));
+      setError(userErrorMessage(err, t("logoutAllFailed")));
       setWorking(false);
       return;
     }
@@ -416,7 +417,7 @@ export default function ProfilePage() {
       })
       .catch((err) => {
         // Chuỗi rỗng = lỗi tải, dịch lúc render ⇒ `t` không phải vào dependency của effect.
-        if (!cancelled) setError(err instanceof Error ? err.message : "");
+        if (!cancelled) setError(userErrorMessage(err));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

@@ -7,6 +7,7 @@ import { useDocument } from "../hooks/useDocument";
 import type { DocumentSource } from "@/types/document";
 import type { Baseline } from "@/types/spine";
 import type { Flag } from "@/types/flags";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface ExportPanelProps {
   projectId: string;
@@ -62,7 +63,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
       .catch((err: unknown) => {
         if (cancelled) return;
         setBaselines([]);
-        setBaselineCheckError(err instanceof Error ? err.message : "Không kiểm tra được baseline");
+        setBaselineCheckError(userErrorMessage(err, "Không kiểm tra được baseline"));
       });
     return () => {
       cancelled = true;
@@ -85,10 +86,8 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
     } catch (err) {
       setDownloadError(
         err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
-          ? "Chưa ghép tài liệu — chạy S-8.2 trước."
-          : err instanceof Error
-            ? err.message
-            : "Tải file thất bại"
+          ? "Tài liệu chưa được ghép. Hãy chạy bước Ghép tài liệu trước."
+          : userErrorMessage(err, "Tải file thất bại")
       );
     } finally {
       setDownloading(false);
@@ -163,7 +162,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
                   }}
                   className="self-start px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white cursor-pointer"
                 >
-                  Đi tới S-8.2 · Ghép tài liệu
+                  Đi tới bước Ghép tài liệu
                 </button>
               )
             )}
@@ -183,7 +182,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
             </div>
             {source === "draft" && (
               <div className="flex items-center justify-between">
-                <span>Đã ghép tại Spine v{meta?.assembled_at_version ?? "—"}</span>
+                <span>Đã ghép tại phiên bản dữ liệu {meta?.assembled_at_version ?? "—"}</span>
                 {meta?.stale && <span className="text-[#B03030] font-bold">đã cũ so với v{meta.spine_version}</span>}
               </div>
             )}

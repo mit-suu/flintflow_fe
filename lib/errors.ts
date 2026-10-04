@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { localizeApiError } from "@/lib/api/error-messages";
+import { tStep } from "@/lib/i18n";
 
 /**
  * Lỗi nói cho NGƯỜI, không nói cho máy (FLF-206 / BUG-25).
@@ -56,7 +58,8 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
       }
       const step = stepIdOf(rawMessage);
       if (/chưa tới lượt/i.test(rawMessage) && step) {
-        return { message: `Cần xong bước ${step} trước.`, actions: [{ kind: "goto_step", label: `Đi tới ${step}`, stepId: step }] };
+        // Tên bước, không phải mã `S-4.2` (FLF-247)
+        return { message: `Cần xong bước “${tStep(step)}” trước.`, actions: [{ kind: "goto_step", label: `Đi tới “${tStep(step)}”`, stepId: step }] };
       }
       if (/đã accepted/i.test(rawMessage)) {
         return { message: "Bước này đã chốt. Muốn đổi nội dung thì gửi yêu cầu sửa ở cổng chốt của bước.", actions: [{ kind: "dismiss", label: "Đã hiểu" }] };
@@ -104,7 +107,7 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
       };
 
     case "NO_WORKING_DRAFT":
-      return { message: "Tài liệu chưa được ghép lần nào. Chạy bước S-8.2 để ghép bản nháp.", actions: [{ kind: "goto_step", label: "Đi tới S-8.2", stepId: "S-8.2" }] };
+      return { message: "Tài liệu chưa được ghép lần nào. Chạy bước Ghép tài liệu để ghép bản nháp.", actions: [{ kind: "goto_step", label: "Đi tới bước Ghép tài liệu", stepId: "S-8.2" }] };
 
     case "NOT_PIPELINE_SESSION":
       return { message: "Phiên chat này chỉ để hỏi đáp, không chạy được quy trình. Mở lại dự án để tiếp tục.", actions: [RETRY] };
@@ -124,7 +127,8 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
       return { message: "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.", actions: [RETRY] };
 
     default:
-      return { message: "Có lỗi xảy ra. Bạn thử lại giúp nhé.", actions: [RETRY, REPORT] };
+      // Mã có bản dịch, hoặc câu BE đã là câu cho người ⇒ dùng; text kỹ thuật ⇒ câu chung (FLF-247)
+      return { message: localizeApiError(code, rawMessage), actions: [RETRY, REPORT] };
   }
 };
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { assembleDocument, getDocument } from "@/lib/api/export";
 import type { DocumentSource, DraftMeta, RenderedDocument } from "@/types/document";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export interface UseDocumentResult {
   document: RenderedDocument | null;
@@ -63,7 +64,7 @@ export function useDocument(
           setError(err.message);
         } else {
           setNotAssembled(false);
-          setError(err instanceof Error ? err.message : "Không tải được tài liệu");
+          setError(userErrorMessage(err, "Không tải được tài liệu"));
         }
       })
       .finally(() => {
@@ -89,9 +90,7 @@ export function useDocument(
         setAssembleError(
           err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT"
             ? "Tài liệu vừa đổi ở phiên khác — tải lại trang rồi thử ghép lại."
-            : err instanceof Error
-              ? err.message
-              : "Không ghép được tài liệu"
+            : userErrorMessage(err, "Không ghép được tài liệu")
         );
       } finally {
         setAssembling(false);
