@@ -239,6 +239,21 @@ export const humanizeText = (text: string): string =>
     .replace(SECTION_IN_TEXT, (id) => sectionLabel(id))
     .replace(RULE_IN_TEXT, (id) => RULE_LABELS[id]);
 
+/**
+ * Lỗi của một lô sửa ⇒ câu cho người. Có luật mà câu BE chỉ là mã + tên field (`schema_invalid`: `Sai schema tại
+ * "screens.0": Unrecognized key: "authorized_role_ids"`) — nói bằng lời; luật còn lại câu BE đã là tiếng Việt, chỉ
+ * humanize path/mã mục. Câu gốc để ở `title` cho ai cần soi.
+ */
+const VIOLATION_TEXT: Readonly<Record<string, string>> = {
+  schema_invalid: "AI đề xuất sửa vào một chỗ không có trong tài liệu.",
+  op_schema: "AI trả lệnh sửa không đúng dạng.",
+  path_not_resolved: "Không tìm thấy mục cần sửa trong tài liệu.",
+  path_not_writable: "Phần này không sửa được qua lệnh sửa tài liệu.",
+  duplicate_id: "Mục định thêm đã có trong tài liệu.",
+};
+export const violationText = (violation: { rule: string; message: string }): string =>
+  VIOLATION_TEXT[violation.rule] ?? humanizeText(violation.message);
+
 /** Tham chiếu nguồn của CR (`fixed:5.5`, `chat:66f1…`, id diff) ⇒ chữ; mã nội bộ không đọc được thì ẩn. */
 export const sourceRefLabel = (ref: string | null | undefined): string => {
   if (!ref) return "";
