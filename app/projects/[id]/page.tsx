@@ -71,6 +71,8 @@ const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+/** Nút "Vẽ lại sơ đồ" dưới hình của mỗi mục trong DocumentPane — tạm ẩn; đổi thành `true` để hiện lại. */
+const REDRAW_SECTION_ENABLED = false;
 /** Tin AI của lượt hỏi trong lịch sử là `{reply, questions}` (BE ghi kèm câu hỏi) hoặc chữ thường — lấy phần lời đáp. */
 /** Cổng chốt nêu tối đa chừng này cờ mới — nhiều hơn thì user xem tiếp ở panel Kiểm tra. */
 const MAX_GATE_FLAGS = 3;
@@ -1289,8 +1291,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
           rewriteError={!editCardOpen ? changes.error : null}
           onSectionsLoaded={handleSectionsLoaded}
-          // Mode 1 v3: tài liệu chỉ đổi qua change request — không vẽ lại thẳng
-          onRedrawSection={mode1 ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
+          // Mode 1 v3: tài liệu chỉ đổi qua change request — không vẽ lại thẳng.
+          // Tạm ẩn nút "Vẽ lại sơ đồ" dưới hình: bật lại bằng REDRAW_SECTION_ENABLED.
+          onRedrawSection={mode1 || !REDRAW_SECTION_ENABLED ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
