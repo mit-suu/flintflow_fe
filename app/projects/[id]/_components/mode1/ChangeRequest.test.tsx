@@ -177,3 +177,16 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     expect(await screen.findByRole("button", { name: "Kiểm đề xuất" })).toBeInTheDocument();
   });
 });
+
+describe("CrWorkspace — Viewer (readOnly)", () => {
+  it("chỉ xem: không có nút bước tiếp theo, không Huỷ CR — chỉ lời nhắc vai trò", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact"]);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} readOnly />);
+
+    expect(await screen.findByText(/Bạn đang xem với vai trò Viewer/)).toBeInTheDocument();
+    expect(screen.getByText(change_request.title)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ CR" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AI đề xuất sửa" })).not.toBeInTheDocument();
+  });
+});

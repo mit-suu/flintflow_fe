@@ -118,3 +118,13 @@ describe("ChangeRequestList", () => {
     expect(statusTone("draft")).toContain("554DB0");
   });
 });
+
+describe("ChangeRequestList — Viewer (readOnly)", () => {
+  it("xem được danh sách; không có nút tạo, prefill cũng không mở form", async () => {
+    serveList(LIST);
+    render(<ChangeRequestList projectId={P} prefill={{ title: "Từ gap report", description: "x" }} readOnly />);
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    expect(screen.queryByRole("button", { name: "+ Tạo change request" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo change request" })).not.toBeInTheDocument();
+  });
+});

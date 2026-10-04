@@ -16,6 +16,8 @@ interface ChangeRequestListProps {
   projectId: string;
   /** Điền sẵn từ gap report / re-upload / chat (`?new=1&…`) ⇒ mở form ngay. */
   prefill: CrPrefill | null;
+  /** Viewer: chỉ xem danh sách, không có nút tạo CR. */
+  readOnly?: boolean;
 }
 
 type Filter = "open" | "closed" | "all";
@@ -30,11 +32,11 @@ export const statusTone = (status: Cr["status"]): string =>
         : "bg-[#F2F1FB] text-[#554DB0]";
 
 /** Danh sách change request + tạo mới (UC-48). */
-export default function ChangeRequestList({ projectId, prefill }: ChangeRequestListProps) {
+export default function ChangeRequestList({ projectId, prefill, readOnly = false }: ChangeRequestListProps) {
   const router = useRouter();
   const [crs, setCrs] = useState<Cr[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(prefill !== null);
+  const [formOpen, setFormOpen] = useState(prefill !== null && !readOnly);
   const [filter, setFilter] = useState<Filter>("open");
 
   const load = useCallback(
@@ -60,7 +62,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
           <h2 className="text-[20px] font-extrabold text-[#191817]">Change request</h2>
           <p className="text-[12px] text-[#8A867E]">Tài liệu đã có baseline — mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.</p>
         </div>
-        {!formOpen && (
+        {!formOpen && !readOnly && (
           <button type="button" onClick={() => setFormOpen(true)} className="px-4 py-2 rounded-full btn-gradient-primary text-white text-[12.5px] font-bold cursor-pointer">
             + Tạo change request
           </button>

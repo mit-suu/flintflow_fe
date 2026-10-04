@@ -228,7 +228,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const ws = useWorkspace(projectId);
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   const crChat = useCrChat(projectId, mode1);
-  const spineState = useSpine(projectId, ws.ready);
+  const spineState = useSpine(projectId, ws.ready, ws.canEdit);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
   // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
   // `DocumentPane` không nhận `flags` nên nút "xem tại step" chết; nâng lên đây, truyền xuống cả hai.
@@ -1303,7 +1303,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           refreshToken={documentRefreshToken}
           getBaseVersion={getBaseVersion}
           mode1={mode1}
-          onEditSection={(label) => startEditing(`Trong ${label}: `)}
+          onEditSection={canEdit ? (label) => startEditing(`Trong ${label}: `) : undefined}
           issues={documentIssues}
           onOpenIssues={() => (rightPanel === "verification" && !issueSectionId ? setRightPanel(null) : openIssues())}
           onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
@@ -1332,7 +1332,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             </div>
             <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-3">
             {mode1 && (
-              <Mode1WorkspaceTools projectId={projectId} projectName={ws.project?.name} flags={flags} onSpineChanged={() => onSpineChanged()} />
+              <Mode1WorkspaceTools
+                projectId={projectId}
+                projectName={ws.project?.name}
+                flags={flags}
+                onSpineChanged={() => onSpineChanged()}
+                readOnly={!canEdit}
+              />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
             {!mode1 && (
@@ -1341,6 +1347,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 onSubmitOps={async (ops) => void (await submitOps(ops))}
                 onMarkPlaceholder={(id) => void markPlaceholder(id)}
                 busy={savingChange}
+                readOnly={!canEdit}
                 inBriefPhase={inBriefPhase}
                 history={changes.history}
                 historyLoading={changes.historyLoading}
@@ -1361,12 +1368,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               onClearFocus: () => setIssueSectionId(null),
               // "Hoà giải" cũ: gom các mục đã cũ, AI viết lại cho khớp, xem trước rồi áp (mode 1 sửa qua CR nên không có)
               outdatedCount: outdatedSections,
-              onRewriteOutdated: () => {
-                editActionRef.current = "outdated";
-                void changes.reconcileOnce();
-              },
+              onRewriteOutdated: canEdit
+                ? () => {
+                    editActionRef.current = "outdated";
+                    void changes.reconcileOnce();
+                  }
+                : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
-              onEditSection: (label) => startEditing(`Trong ${label}: `),
+              onEditSection: canEdit ? (label) => startEditing(`Trong ${label}: `) : undefined,
             }}
             readiness={progress?.readiness ?? null}
             flags={flags}
@@ -1376,11 +1385,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             onClose={() => setRightPanel(null)}
             // Mode 1 v3: không có step, không sửa thẳng giả định — cờ chỉ đóng bằng change request
             onSelectStep={mode1 ? undefined : setSelectedStepId}
-            onWaive={mode1 ? undefined : handleFlagWaive}
-            onRedraw={handleRedrawDiagram}
-            onAssumptionDecision={mode1 ? undefined : (decision) => void applyAssumptionDecision(decision)}
-            onConfirmAllAssumptions={mode1 ? undefined : (ids) => void confirmAllAssumptions(ids)}
-            onRecompute={handleFlagRecompute}
+            onWaive={mode1 || !canEdit ? undefined : handleFlagWaive}
+            onRedraw={canEdit ? handleRedrawDiagram : undefined}
+            onAssumptionDecision={mode1 || !canEdit ? undefined : (decision) => void applyAssumptionDecision(decision)}
+            onConfirmAllAssumptions={mode1 || !canEdit ? undefined : (ids) => void confirmAllAssumptions(ids)}
+            onRecompute={canEdit ? handleFlagRecompute : undefined}
           />
         )}
         </div>
@@ -1455,7 +1464,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
       {mode1 && (
         <Suspense fallback={null}>
-          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} />
+          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} />
         </Suspense>
       )}
     </div>

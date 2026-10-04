@@ -17,6 +17,8 @@ interface GapReportViewProps {
   projectName?: string;
   /** Tải báo cáo lần đầu ⇒ BE chuyển import sang `delivered` — báo header đọc lại. */
   onChanged?: () => void;
+  /** Viewer: chỉ xem / tải báo cáo, không có lối tạo change request. */
+  readOnly?: boolean;
 }
 
 const Tile = ({ label, value, tone }: { label: string; value: number; tone: "red" | "yellow" | "neutral" }) => (
@@ -68,7 +70,7 @@ export const missingSectionsPrefill = (report: GapReport): { title: string; desc
   ].join("\n"),
 });
 
-export default function GapReportView({ projectId, projectName, onChanged }: GapReportViewProps) {
+export default function GapReportView({ projectId, projectName, onChanged, readOnly = false }: GapReportViewProps) {
   const [report, setReport] = useState<GapReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -151,12 +153,14 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
               </li>
             ))}
           </ul>
+          {!readOnly && (
           <Link
             href={crPrefillHref(projectId, { ...missingSectionsPrefill(report), source: "gap_report", ref: `Gap report bản ${report.doc_version}` })}
             className="self-start px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold"
           >
             Tạo CR bổ sung mục thiếu
           </Link>
+          )}
         </section>
       )}
 
@@ -176,12 +180,14 @@ export default function GapReportView({ projectId, projectName, onChanged }: Gap
         >
           {downloading ? "Đang tải…" : "Tải gap report (.docx)"}
         </button>
+        {!readOnly && (
         <Link
           href={crPrefillHref(projectId, { ...prefill, source: "gap_report", ref: `Gap report bản ${report.doc_version}` })}
           className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold"
         >
           Cần sửa → Tạo change request
         </Link>
+        )}
       </div>
 
       {report.sections.length > 0 && (

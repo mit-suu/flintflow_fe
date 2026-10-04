@@ -20,6 +20,9 @@ vi.mock("@/lib/api/projects", () => ({
 }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(), moveProjectsToFolder: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/pipeline", () => ({ getProgress: vi.fn(async () => ({ data: null, error: null })) }));
+// Vai trò trong tổ chức đang mở — mặc định chưa biết (null) ⇒ trang coi như được soạn
+const activeOrg = vi.hoisted(() => ({ current: null as { id: string; name: string; role: "lead" | "analyst" | "viewer" } | null }));
+vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.current }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 10, planLabel: "Free" })) }));
 
 const project = (id: string, over: Partial<Project> = {}): Project => ({
@@ -53,6 +56,7 @@ const pickFilter = (name: string, option: string) => {
 describe("Project Dashboard", () => {
   beforeEach(() => {
     push.mockReset();
+    activeOrg.current = null;
     vi.mocked(listProjects).mockReset();
     vi.mocked(createProject).mockReset();
     vi.mocked(listFolders).mockReset().mockResolvedValue(ok([]));
@@ -242,5 +246,55 @@ describe("Project Dashboard", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Huỷ" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(createProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("Project Dashboard — Viewer chỉ xem", () => {
+  const FOLDER = { _id: "f1", name: "Khách A", color: "blue", projectCount: 0, createdAt: "", updatedAt: "" };
+
+  beforeEach(() => {
+    vi.mocked(listProjects).mockReset();
+    vi.mocked(moveProjectToFolder).mockClear();
+    vi.mocked(listFolders).mockReset().mockResolvedValue(ok([]));
+    activeOrg.current = { id: "o1", name: "Org", role: "viewer" };
+  });
+
+  it("tổ chức chưa có dự án ⇒ câu giải thích thay cho form tạo dự án", async () => {
+    vi.mocked(listProjects).mockResolvedValue(ok([]));
+    renderPage();
+
+    expect(await screen.findByText("Tổ chức chưa có dự án nào")).toBeInTheDocument();
+    expect(screen.getByText(/Bạn đang xem với vai trò Viewer/)).toBeInTheDocument();
+    expect(screen.queryByText("Bắt đầu dự án SRS đầu tiên")).toBeNull();
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
+  });
+
+  it("có dự án ⇒ mở xem được nhưng không có Dự án mới, Chọn, Thư mục mới, menu ⋮ hay kéo thả", async () => {
+    vi.mocked(listProjects).mockResolvedValue(ok([project("a")]));
+    vi.mocked(listFolders).mockResolvedValue(ok([FOLDER]));
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /Dự án a/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Dự án mới/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Chọn" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Thư mục mới/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Dự án a" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tuỳ chọn cho thư mục Khách A" })).toBeNull();
+
+    const folder = screen.getByRole("button", { name: /^Khách A/ }).closest("article") as HTMLElement;
+    const dataTransfer = { types: ["application/x-flintflow-project"], getData: () => "a", dropEffect: "none" };
+    fireEvent.dragOver(folder, { dataTransfer });
+    fireEvent.drop(folder, { dataTransfer });
+    expect(moveProjectToFolder).not.toHaveBeenCalled();
+  });
+
+  it("Analyst vẫn có đủ thao tác", async () => {
+    activeOrg.current = { id: "o1", name: "Org", role: "analyst" };
+    vi.mocked(listProjects).mockResolvedValue(ok([project("a")]));
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /Dự án a/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Dự án mới/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tuỳ chọn cho Dự án a" })).toBeInTheDocument();
   });
 });

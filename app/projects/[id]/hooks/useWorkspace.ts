@@ -105,13 +105,15 @@ export function useWorkspace(projectId: string) {
         return;
       }
 
-      // Không chặn việc mở workspace: lỗi thì coi như được sửa (BE vẫn trả 403 nếu không có quyền)
+      // Vai trò tải song song với phần còn lại nhưng PHẢI xong trước khi bật `ready` (xem finally): trước đây
+      // `canEdit` mặc định true trong lúc chờ ⇒ Viewer thấy nút soạn thảo chớp lên, và `useSpine` gọi /resume
+      // trước khi biết vai trò ⇒ 403. Lỗi thì coi như được sửa (BE vẫn chặn Viewer — viewerReadOnly).
       const orgId = getActiveOrgId();
-      if (orgId) {
-        fetchOrganization(orgId)
-          .then((org) => setOrgRole(org.role))
-          .catch(() => undefined);
-      }
+      const rolePromise = orgId
+        ? fetchOrganization(orgId)
+            .then((org) => org.role)
+            .catch(() => null)
+        : Promise.resolve(null);
 
       try {
         const [projectRes, userRes, sessionsRes] = await Promise.all([
@@ -126,7 +128,8 @@ export function useWorkspace(projectId: string) {
         // FLF-244: vào workspace luôn mở phiên chính (quy trình chạy ở đó), không phải phiên mới nhất
         const preferred = list.find((s) => s.is_pipeline) ?? list[0];
         if (preferred) setActiveSession((await fetchSession(preferred._id).catch(() => null)) ?? preferred);
-        else await createSession({ quiet: true });
+        // Viewer không tạo được phiên (chỉ đọc) — đừng gửi một request chắc chắn 403
+        else if ((await rolePromise) !== "viewer") await createSession({ quiet: true });
       } catch (err) {
         console.error("Workspace init failed:", err);
         if ((err as { status?: number }).status === 401) {
@@ -141,6 +144,7 @@ export function useWorkspace(projectId: string) {
           }
         }
       } finally {
+        setOrgRole(await rolePromise);
         setReady(true);
       }
     };

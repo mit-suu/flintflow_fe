@@ -37,6 +37,8 @@ interface Props {
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (p: Project) => void;
+  /** Viewer: không có menu ⋮ (đổi tên, chuyển thư mục, lưu trữ, xoá) — chỉ mở dự án để xem. */
+  readOnly?: boolean;
 }
 
 /** Kiểu dữ liệu kéo thả: id dự án — thẻ thư mục chỉ nhận đúng kiểu này. */
@@ -207,7 +209,8 @@ export default function ProjectCard({
   draggable = false,
   selectable = false,
   selected = false,
-  onToggleSelect
+  onToggleSelect,
+  readOnly = false
 }: Props) {
   const t = useTranslations("app.projectCard");
   const tTime = useTranslations("app.time");
@@ -330,6 +333,7 @@ export default function ProjectCard({
       </Link>
 
       {/* Ngoài Link để bấm menu không điều hướng; top căn giữa dòng tên (p-5 + nửa line-height − nửa nút) */}
+      {(selectable || !readOnly) && (
       <div className="absolute right-3 top-[18px] z-20">
         {selectable ? (
           <label className="flex items-center justify-center size-8 rounded-full cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary">
@@ -365,6 +369,7 @@ export default function ProjectCard({
         />
         )}
       </div>
+      )}
     </article>
   );
 }

@@ -101,3 +101,16 @@ describe("Mode1WorkspaceTools", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Không tải được version");
   });
 });
+
+describe("Mode1WorkspaceTools — Viewer (readOnly)", () => {
+  it("không có Nhập SRS và Release; vẫn có Gap report, Change request và bảng version", async () => {
+    serveVersions([VERSION_00]);
+    renderTools({ readOnly: true });
+    const nav = screen.getByRole("navigation", { name: "Import & change request" });
+    expect(within(nav).getByRole("link", { name: "Gap report" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Change request" })).toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Nhập SRS" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
+  });
+});

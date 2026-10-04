@@ -20,6 +20,8 @@ interface ProjectRecordPanelProps {
   onSubmitOps: (ops: Op[]) => Promise<void> | void;
   onMarkPlaceholder: (screenId: string) => void;
   busy?: boolean;
+  /** Viewer: chỉ xem — khoá mọi nút chốt/sửa (BE cũng chặn ghi với 403). */
+  readOnly?: boolean;
   /** Đang ở pha Brief (B-*, S-1) — giả định & ghi chú Brief chỉ còn chờ quyết trong pha này. */
   inBriefPhase: boolean;
   history: Change[];
@@ -47,7 +49,8 @@ export default function ProjectRecordPanel({
   spine,
   onSubmitOps,
   onMarkPlaceholder,
-  busy = false,
+  busy: saving = false,
+  readOnly = false,
   inBriefPhase,
   history,
   historyLoading,
@@ -60,6 +63,7 @@ export default function ProjectRecordPanel({
   const pendingCount = unconfirmed + briefNotes + screensQueued + openItems.length;
   const decisions = (spine.decisions ?? []).filter((d) => d.superseded_by === null);
   const [tab, setTab] = useState<RecordTab>(pendingCount > 0 ? "pending" : "agreed");
+  const busy = saving || readOnly;
 
   return (
     <div className="flex flex-col gap-3">
@@ -75,6 +79,10 @@ export default function ProjectRecordPanel({
           { value: "history", label: "Lịch sử" },
         ]}
       />
+
+      {readOnly && (
+        <p className="px-1 text-[11.5px] text-on-surface-muted">Bạn đang xem với vai trò Viewer — chỉ xem hồ sơ, không chốt hay sửa được.</p>
+      )}
 
       <div role="tabpanel" id="project-record-panel" aria-labelledby={`project-record-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "agreed" && (

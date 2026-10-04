@@ -9,6 +9,8 @@ interface Mode1FlagsPanelProps {
   projectId: string;
   /** Cờ đang mở (BE tính). */
   flags: Flag[];
+  /** Viewer: ẩn nút "Tạo CR". */
+  readOnly?: boolean;
 }
 
 const shortText = (s: string, max = 70) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
@@ -18,7 +20,7 @@ const shortText = (s: string, max = 70) => (s.length > max ? `${s.slice(0, max -
  * waive — cờ đỏ chỉ đóng bằng change request, và chặn release (6.1). Mỗi cờ đỏ có nút mở **form 3.1** điền sẵn nguồn
  * gap report; CR đi đủ 3.2 → 3.14 (mục trống ⇒ C-3 dựng vị trí thêm mới).
  */
-export default function Mode1FlagsPanel({ projectId, flags }: Mode1FlagsPanelProps) {
+export default function Mode1FlagsPanel({ projectId, flags, readOnly = false }: Mode1FlagsPanelProps) {
   const open = flags.filter((f) => !f.resolved_at && !f.waived_by_user);
   const red = open.filter((f) => f.level === "red");
   const yellow = open.filter((f) => f.level === "yellow");
@@ -43,6 +45,7 @@ export default function Mode1FlagsPanel({ projectId, flags }: Mode1FlagsPanelPro
                   <span className="text-[10.5px] text-[#8A4141]" title={f.rule_id}>
                     {ruleLabel(f.rule_id)}
                   </span>
+                  {!readOnly && (
                   <Link
                     href={crPrefillHref(projectId, {
                       title: `Xử lý cờ: ${shortText(humanizeText(f.message))}`,
@@ -56,6 +59,7 @@ export default function Mode1FlagsPanel({ projectId, flags }: Mode1FlagsPanelPro
                   >
                     Tạo CR
                   </Link>
+                  )}
                 </span>
               </li>
             ))}

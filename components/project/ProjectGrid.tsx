@@ -25,6 +25,8 @@ interface ProjectGridProps {
   selectable?: boolean;
   selectedIds?: ReadonlySet<string>;
   onToggleSelect?: (p: Project) => void;
+  /** Viewer: card không có menu thao tác. */
+  readOnly?: boolean;
 }
 
 /** Lưới card dự án responsive 1/2/3/4 cột (4 cột từ màn desktop xl). */
@@ -41,6 +43,7 @@ export default function ProjectGrid({
   selectable,
   selectedIds,
   onToggleSelect,
+  readOnly,
 }: ProjectGridProps) {
   return (
     <div className={CARD_GRID}>
@@ -59,6 +62,7 @@ export default function ProjectGrid({
           selectable={selectable}
           selected={selectedIds?.has(p._id)}
           onToggleSelect={onToggleSelect}
+          readOnly={readOnly}
         />
       ))}
     </div>
