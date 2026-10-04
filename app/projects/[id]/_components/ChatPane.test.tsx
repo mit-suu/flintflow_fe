@@ -64,7 +64,7 @@ describe("ChatPane — forward lệnh sửa vào Change panel (session không pi
   it("session.is_pipeline === false: gửi lệnh gọi onEditInstruction, không gọi onSendMessage", () => {
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(false));
 
-    expect(screen.getByText(/không phải phiên pipeline/)).toBeInTheDocument();
+    expect(screen.getByText(/không chạy quy trình soạn tài liệu/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
 
     expect(onEditInstruction).toHaveBeenCalledWith("Đổi tên actor A03 thành Administrator");
@@ -74,7 +74,7 @@ describe("ChatPane — forward lệnh sửa vào Change panel (session không pi
   it("session.is_pipeline === true: gửi tin nhắn gọi onSendMessage như bình thường", () => {
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(true));
 
-    expect(screen.queryByText(/không phải phiên pipeline/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/không chạy quy trình soạn tài liệu/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
 
     expect(onSendMessage).toHaveBeenCalledTimes(1);

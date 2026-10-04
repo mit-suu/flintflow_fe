@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { getTraceability } from "@/lib/api/spine";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
+import { fieldLabel } from "./mode1/spine-labels";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface TraceabilityMapProps {
   projectId: string;
@@ -18,6 +20,9 @@ const ENTITIES: { id: TraceabilityEntity; label: string }[] = [
   { id: "feature", label: "Feature" },
   { id: "business_rule", label: "Business rule" },
 ];
+
+/** Nhãn loại phần tử — bảng kết quả không hiện mã `use_case` / `business_rule` (FLF-247). */
+const entityLabel = (kind: string): string => ENTITIES.find((e) => e.id === kind)?.label ?? kind;
 
 /** `GET /traceability?entity&id` — bảng actor/use case/function/screen/entity liên quan tới một id. */
 export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
@@ -36,7 +41,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
       setResult(res.data);
     } catch (err) {
       setResult(null);
-      setError(err instanceof Error ? err.message : "Không tra được traceability");
+      setError(userErrorMessage(err, "Không tra được liên kết. Vui lòng thử lại."));
     } finally {
       setLoading(false);
     }
@@ -91,7 +96,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
               <tbody>
                 {result.nodes.map((node) => (
                   <tr key={`${node.kind}:${node.id}`}>
-                    <td className="border border-[#ECEAE5] px-2 py-1 font-mono">{node.kind}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1">{entityLabel(node.kind)}</td>
                     <td className="border border-[#ECEAE5] px-2 py-1 font-mono">{node.id}</td>
                     <td className="border border-[#ECEAE5] px-2 py-1">{node.label}</td>
                   </tr>
@@ -104,7 +109,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
               {result.edges.map((edge, i) => (
                 <div key={i}>
                   <span className="font-mono">{edge.from}</span> → <span className="font-mono">{edge.to}</span>{" "}
-                  <span className="text-[#A8A49C]">({edge.field})</span>
+                  <span className="text-[#A8A49C]">({fieldLabel(edge.field)})</span>
                 </div>
               ))}
             </div>

@@ -137,7 +137,7 @@ export default function DiffPreviewModal({
                 {preview.impact.sections.map((s) => (
                   <span key={s.id} className="mr-1.5" title={s.id}>
                     {sectionName(s.id)}
-                    <span className="text-[#A8A49C]"> ({RELATION_LABELS[s.relation] ?? s.relation})</span>
+                    <span className="text-[#A8A49C]"> ({RELATION_LABELS[s.relation] ?? "liên quan"})</span>
                   </span>
                 ))}
               </div>
