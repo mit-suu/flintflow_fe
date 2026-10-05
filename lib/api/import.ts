@@ -14,6 +14,7 @@ import type {
   StepPlanPatchRequest,
   StepPlanResponse,
 } from "@/types/import";
+import type { RocRow } from "@/types/document";
 import { apiCall } from "./client";
 import { fetchFile } from "./files";
 
@@ -49,10 +50,11 @@ export const startExtraction = (projectId: string, importId: string) =>
 export const patchFields = (projectId: string, body: FieldsPatchRequest) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/fields`, { method: "PATCH", body: JSON.stringify(body) });
 
-export const finalizeImport = (projectId: string, importId: string, baseVersion: number) =>
+/** `recordOfChanges` (FLF-252): dòng Record of Changes đã xem/sửa ở wizard; bỏ trống ⇒ BE đọc lại từ file. */
+export const finalizeImport = (projectId: string, importId: string, baseVersion: number, recordOfChanges?: RocRow[]) =>
   apiCall<FinalizeResponse>(`${base(projectId)}/import/finalize`, {
     method: "POST",
-    body: JSON.stringify({ import_id: importId, base_version: baseVersion }),
+    body: JSON.stringify({ import_id: importId, base_version: baseVersion, ...(recordOfChanges ? { record_of_changes: recordOfChanges } : {}) }),
   });
 
 export const resumeImport = (projectId: string, importId: string) =>

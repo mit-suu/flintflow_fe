@@ -2,6 +2,7 @@
  * Kiểu dữ liệu import mode 1 (upload SRS có sẵn rồi sửa) — bám `flintflow_be/src/modules/import/import.dto.ts`
  * và `docs/api/import-change-contract.md` (FLF-171). Đổi ở BE thì đổi ở đây trong cùng PR.
  */
+import type { RocRow } from "./document";
 import type { Baseline, Flag, IsoDateTime } from "./spine";
 
 /** Máy trạng thái import (`import.state.ts` BE). */
@@ -141,6 +142,8 @@ export interface TemplateProfile {
   language: string;
   /** FLF-182 — rỗng với import trước mode 1 v2. */
   layout: LayoutEntry[];
+  /** FLF-252: dòng Record of Changes đọc được từ file; rỗng / thiếu = không tìm thấy bảng. */
+  record_of_changes?: RocRow[];
 }
 
 // ─── kế hoạch step theo template (#32–#33, FLF-182) ─────────────
@@ -216,6 +219,8 @@ export interface FieldsPatchRequest {
 export interface FinalizeRequest {
   import_id: string;
   base_version: number;
+  /** FLF-252: dòng Record of Changes người dùng đã xem/sửa ở wizard — không gửi ⇒ BE đọc lại từ file. */
+  record_of_changes?: RocRow[];
 }
 
 // ─── response ────────────────────────────────────────────────────

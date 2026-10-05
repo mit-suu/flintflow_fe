@@ -59,6 +59,22 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
     expect(mode1State.mode1State.reviewFields[0]).toMatchObject({ confirmed: true, edited_value: "system" });
     expect(mode1State.mode1State.project.import_state).toBe("gap_review");
+    // không sửa Record of Changes ⇒ không gửi, BE đọc lại từ file (FLF-252)
+    expect(mode1State.mode1State.finalizedRecordOfChanges).toBeNull();
+  });
+
+  it("FLF-252: bước baseline hiện Record of Changes đọc từ file; không sửa ⇒ không gửi, sửa ⇒ gửi kèm finalize", async () => {
+    fireEvent.click(await uploadAndMap());
+    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
+
+    expect(await screen.findByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Mô tả dòng 1"), { target: { value: "Tạo tài liệu (bản đầu)" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tạo baseline 0.0" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
+    expect(mode1State.mode1State.finalizedRecordOfChanges).toEqual([
+      { date: "01/05/2026", version: "0.1", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu (bản đầu)" },
+    ]);
   });
 
   it("hết credit giữa lúc trích ⇒ banner paused; nạp xong bấm Tiếp tục chạy nốt", async () => {
