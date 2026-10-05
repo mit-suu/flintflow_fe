@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { FPT_SECTIONS, sectionLabel } from "@/lib/constants/fpt-sections";
 import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateProfile } from "@/types/import";
 import { formatPercent } from "./labels";
-import { TABLE_FIELD_GROUPS, entityOfPath, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
+import { TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
 
 interface MappingReviewTableProps {
   profile: TemplateProfile;
@@ -169,7 +169,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                 const header = t.header.trim() || `Cột ${t.column_index + 1} (không có tiêu đề)`;
                 const entity = tableEntity[t.block_id];
                 const valueEntity = entityOfPath(value);
-                const known = !value || tableFieldLabel(value) !== value;
+                const known = !value || isKnownTableField(value);
                 // Nhóm cùng loại với bảng lên đầu
                 const groups = entity ? [...TABLE_FIELD_GROUPS].sort((a, b) => Number(b.entity === entity) - Number(a.entity === entity)) : TABLE_FIELD_GROUPS;
                 return (
@@ -210,7 +210,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                         ))}
                         {!known && value && (
                           <optgroup label="Khác">
-                            <option value={value}>{value}</option>
+                            <option value={value}>{tableFieldLabel(value)}</option>
                           </optgroup>
                         )}
                       </select>
