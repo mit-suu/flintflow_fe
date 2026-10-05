@@ -162,6 +162,57 @@ describe("MappingReviewTable — chọn dữ liệu cho cột theo nhãn, không
   });
 });
 
+describe("MappingReviewTable — mẫu IEEE (FLF-252)", () => {
+  it("hiện họ mẫu nhận được; mục chỉ có ở IEEE ghi rõ giữ nguyên văn, không lộ mã nội bộ", () => {
+    renderWithIntl(
+      <MappingReviewTable
+        profile={profile({
+          template_family: "ieee830",
+          heading_map: [
+            { ...heading("B0003", "1.4 References", "unmapped", 1), template_section: "ieee830:1.4" },
+            { ...heading("B0009", "3.5.2 Availability", "fixed:4.2.2", 1), template_section: "ieee830:3.5.2" },
+          ],
+        })}
+        onSubmit={vi.fn()}
+      />
+    );
+    expect(screen.getByText("mẫu IEEE 830")).toBeInTheDocument();
+    // không dòng nào độ tin thấp ⇒ bộ lọc tắt sẵn, hiện mọi dòng
+    expect(screen.getByRole("checkbox", { name: "Chỉ hiện dòng độ tin thấp" })).not.toBeChecked();
+    expect(screen.getByText(/mục riêng của mẫu, giữ nguyên văn/)).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Section cho 3.5.2 Availability" })).toHaveValue("fixed:4.2.2");
+    expect(screen.queryByText(/ieee830/)).not.toBeInTheDocument();
+  });
+
+  it("import cũ không có họ mẫu ⇒ coi như mẫu FPT", () => {
+    renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
+    expect(screen.getByText("mẫu FPT")).toBeInTheDocument();
+  });
+});
+
+describe("MappingReviewTable — dữ liệu dưới tiêu đề cột (FLF-252)", () => {
+  it("hiện giá trị mẫu + vai trò cột; ma trận phân quyền có nhãn tiếng Việt, không lộ path thô", () => {
+    renderWithIntl(
+      <MappingReviewTable
+        profile={profile({
+          table_map: [
+            { ...column("B0009", 0, "#", null), role: "row_no", samples: ["1", "2", "3"] },
+            { ...column("B0012", 0, "Screen", "permissions[].screen_id"), role: "name", samples: ["Landing Page", "Sign Up"] },
+            { ...column("B0012", 1, "Guest", "permissions[].role_id"), role: "mark", samples: ["X", "X"] },
+          ],
+        })}
+        onSubmit={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Dữ liệu: 1 · 2 · 3 — số thứ tự")).toBeInTheDocument();
+    expect(screen.getByText("Dữ liệu: X · X — ô đánh dấu")).toBeInTheDocument();
+    expect(screen.getAllByText("Bảng Phân quyền · cột 2").length).toBe(1);
+    const guest = screen.getByRole("combobox", { name: "Dữ liệu cho cột Guest" });
+    expect(within(guest).getByRole("option", { name: "Phân quyền — Vai trò (mỗi cột một vai trò)" })).toBeInTheDocument();
+    expect(screen.queryByText(/permissions\[\]/)).not.toBeInTheDocument();
+  });
+});
+
 describe("MappingReviewTable — cột bảng không có tiêu đề (FLF-179)", () => {
   it("header rỗng ⇒ hiện \"Cột N (không có tiêu đề)\" và vẫn gán field được", () => {
     const onSubmit = vi.fn();

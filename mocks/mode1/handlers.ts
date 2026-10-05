@@ -17,6 +17,7 @@ import type { Project, ProjectMode } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
 import type { DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
+import type { RocRow } from "@/types/document";
 import type { Cr, CrDetail, CrLocation, CrMaterial, CrStatus } from "@/types/change-request";
 import { CR_AMENDABLE_STATUSES, CR_MAX_MATERIALS, CR_REDRAFT_STATUSES, CR_TERMINAL_STATUSES, DECISION_REASON_MIN_LENGTH, MAX_CLARIFY_ROUNDS, MAX_REDO_PER_LOCATION, NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { compareDocVersions, isReleaseVersion } from "@/types/doc-version";
@@ -92,6 +93,7 @@ const parseDocument = () => {
     language: "en",
     required_sections: ["fixed:5.3"],
     layout: [],
+    record_of_changes: [{ date: "01/05/2026", version: "0.1", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu" }],
     heading_map: blocks
       .filter((b) => b.kind === "heading")
       .map((b) => ({
@@ -614,6 +616,7 @@ export const mode1Handlers = [
       const conflict = versionConflict(body.base_version);
       if (conflict) return conflict;
       if (!spend(COST.semantic)) return fail(402, "INSUFFICIENT_CREDIT", "Không đủ credit cho bước kiểm ngữ nghĩa", { required: COST.semantic, balance: S().credits });
+      S().finalizedRecordOfChanges = (body.record_of_changes as RocRow[] | undefined) ?? null;
       S().spineVersion += 1;
       const baseline = newBaseline("imported", "0.0");
       S().baselines.push(baseline);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { RocRow } from "@/types/document";
 import type { ImportStatus } from "@/types/import";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useImport } from "../../hooks/mode1/useImport";
@@ -13,6 +14,7 @@ import { IMPORT_DONE_STATUSES } from "./labels";
 import MappingReviewTable from "./MappingReviewTable";
 import PausedBanner from "./PausedBanner";
 import PreflightIssues from "./PreflightIssues";
+import RecordOfChangesCard from "./RecordOfChangesCard";
 import UploadStep from "./UploadStep";
 import { gapReportHref } from "./prefill";
 
@@ -39,6 +41,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
   const router = useRouter();
   const imp = useImport(projectId, pollMs ? { pollMs } : undefined);
   const [pickAnother, setPickAnother] = useState(false);
+  /** Record of Changes người dùng đã sửa (FLF-252); `null` = chưa đụng tới. */
+  const [recordOfChanges, setRecordOfChanges] = useState<RocRow[] | null>(null);
   const doc = imp.doc;
   const status: ImportStatus | null = doc?.status ?? null;
   const stepIndex = status ? STEPS.findIndex((s) => s.statuses.includes(status)) : 0;
@@ -148,6 +152,14 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             Ghi các field đã xác nhận làm chỉ mục, lưu tài liệu gốc thành version <strong>0.0</strong>, rồi chạy kiểm tra: AI soát ngữ
             nghĩa (cờ vàng, tốn credit) và luật tất định (cờ đỏ/vàng). Kết quả nằm ở gap report.
           </p>
+          {status === "baselining" && !doc.paused && (
+            <RecordOfChangesCard
+              rows={recordOfChanges ?? imp.data?.profile?.record_of_changes ?? []}
+              fromFile={imp.data?.profile?.record_of_changes?.length ?? 0}
+              onChange={setRecordOfChanges}
+              disabled={imp.busy === "finalize"}
+            />
+          )}
           {doc.paused ? (
             <PausedBanner paused={doc.paused} what="Kiểm tra" busy={imp.busy === "resume"} onResume={() => void after(imp.resume())} />
           ) : (
@@ -156,7 +168,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
                 type="button"
                 disabled={imp.busy === "finalize"}
                 onClick={() =>
-                  void after(imp.finalize()).then((res) => {
+                  // Chưa sửa Record of Changes ⇒ không gửi, BE đọc lại từ file
+                  void after(imp.finalize(recordOfChanges ?? undefined)).then((res) => {
                     // Xong baseline 0.0 ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
                     if (res) router.push(gapReportHref(projectId));
                   })
