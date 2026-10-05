@@ -46,14 +46,16 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
     ],
   },
   {
+    // Bảng 3.1.4 Non-Screen Functions; bảng yêu cầu "ID | Requirement | Priority" dưới một tính năng (mẫu IEEE — FLF-252)
     entity: "functions",
-    label: "Chức năng không có màn hình",
+    label: "Chức năng / yêu cầu chức năng",
     fields: [
       { field: "id", label: "Mã chức năng" },
       { field: "name", label: "Tên chức năng" },
       { field: "feature_id", label: "Thuộc tính năng" },
       { field: "trigger", label: "Điều kiện kích hoạt" },
-      { field: "description", label: "Mô tả" },
+      { field: "description", label: "Mô tả / nội dung yêu cầu" },
+      { field: "priority", label: "Mức ưu tiên" },
     ],
   },
   {

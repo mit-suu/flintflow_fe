@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { FPT_SECTIONS, sectionLabel } from "@/lib/constants/fpt-sections";
-import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateProfile } from "@/types/import";
+import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateFamily, type TemplateProfile } from "@/types/import";
 import { formatPercent } from "./labels";
 import { COLUMN_ROLE_LABELS, TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
 
@@ -20,6 +20,13 @@ const DETECTOR_LABELS = {
 } as const;
 
 const tableKey = (blockId: string, column: number) => `${blockId}:${column}`;
+
+/** Họ mẫu nhận được (FLF-252). */
+const TEMPLATE_FAMILY_LABELS: Readonly<Record<TemplateFamily, string>> = {
+  fpt: "mẫu FPT",
+  ieee830: "mẫu IEEE 830",
+  ieee_features: "mẫu IEEE (dạng System Features)",
+};
 
 const ConfidenceBadge = ({ value }: { value: number }) => (
   <span
@@ -92,6 +99,12 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
             {profile.heading_map.length} heading, {lowCount} dòng độ tin dưới {formatPercent(MAPPING_CONFIDENCE_THRESHOLD)}. Heading
             “không khớp” được giữ nguyên văn và không trích field.
           </p>
+          <p className="text-[12px] text-[#4B4842]">
+            Nhận dạng: <strong>{TEMPLATE_FAMILY_LABELS[profile.template_family ?? "fpt"]}</strong>
+            {profile.template_family && profile.template_family !== "fpt"
+              ? " — mỗi mục được trích vào mục FPT tương ứng; tài liệu vẫn giữ đúng bố cục của file."
+              : ""}
+          </p>
         </div>
         <label className="flex items-center gap-2 text-[12px] font-semibold text-[#4B4842] cursor-pointer">
           <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
@@ -124,6 +137,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                     <div className="font-semibold text-[#191817]">{h.heading_text}</div>
                     <div className="text-[11px] text-[#A8A49C]">
                       Nhận theo {DETECTOR_LABELS[h.detected_by]}
+                      {h.template_section && value === UNMAPPED_SECTION ? " · mục riêng của mẫu, giữ nguyên văn" : ""}
                     </div>
                   </td>
                   <td className="px-3 py-2">

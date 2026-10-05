@@ -108,7 +108,15 @@ export interface HeadingMapEntry {
   confidence: number;
   detected_by: HeadingDetector;
   confirmed: boolean;
+  /**
+   * FLF-252: heading khớp một mục của mẫu không phải FPT (IEEE). Mã nội bộ — FE không hiện, chỉ dùng để biết
+   * `unmapped` này là mục riêng của mẫu (giữ nguyên văn), không phải heading lạ.
+   */
+  template_section?: string | null;
 }
+
+/** Họ mẫu của tài liệu upload (FLF-252). */
+export type TemplateFamily = "fpt" | "ieee830" | "ieee_features";
 
 /** Vai trò cột theo dữ liệu dưới tiêu đề (FLF-252). */
 export type TableColumnRole = "row_no" | "code" | "date" | "version" | "change_type" | "mark" | "text" | "name";
@@ -144,6 +152,8 @@ export interface TemplateProfile {
   layout: LayoutEntry[];
   /** FLF-252: dòng Record of Changes đọc được từ file; rỗng / thiếu = không tìm thấy bảng. */
   record_of_changes?: RocRow[];
+  /** FLF-252: họ mẫu nhận được — thiếu (import cũ) coi như `fpt`. */
+  template_family?: TemplateFamily;
 }
 
 // ─── kế hoạch step theo template (#32–#33, FLF-182) ─────────────

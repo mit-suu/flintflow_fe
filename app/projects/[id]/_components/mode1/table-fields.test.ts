@@ -5,7 +5,8 @@ describe("table-fields", () => {
   it("cột FlintFlow xuất ra (FLF-251) có nhãn tiếng Việt", () => {
     expect(tableFieldLabel("actors[].kind")).toBe("Tác nhân — Loại tác nhân");
     expect(tableFieldLabel("use_cases[].includes")).toBe("Use case — Use case được include");
-    expect(tableFieldLabel("functions[].trigger")).toBe("Chức năng không có màn hình — Điều kiện kích hoạt");
+    expect(tableFieldLabel("functions[].trigger")).toBe("Chức năng / yêu cầu chức năng — Điều kiện kích hoạt");
+    expect(tableFieldLabel("functions[].priority")).toBe("Chức năng / yêu cầu chức năng — Mức ưu tiên");
     expect(tableFieldLabel("glossary[].term_native")).toBe("Thuật ngữ — Thuật ngữ tiếng Việt");
     expect(isKnownTableField("messages[].function_ids")).toBe(true);
   });
