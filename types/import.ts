@@ -109,6 +109,9 @@ export interface HeadingMapEntry {
   confirmed: boolean;
 }
 
+/** Vai trò cột theo dữ liệu dưới tiêu đề (FLF-252). */
+export type TableColumnRole = "row_no" | "code" | "date" | "version" | "change_type" | "mark" | "text" | "name";
+
 export interface TableMapEntry {
   block_id: string;
   column_index: number;
@@ -116,6 +119,10 @@ export interface TableMapEntry {
   field_path: string | null;
   confidence: number;
   confirmed: boolean;
+  /** FLF-252: vai trò cột theo dữ liệu; không có khi bảng chỉ có hàng tiêu đề. */
+  role?: TableColumnRole;
+  /** FLF-252: tối đa 3 giá trị đầu của cột. */
+  samples?: string[];
 }
 
 /** Mục của layout tài liệu người dùng (FLF-182): `section_id` = section FPT hoặc `custom:<id>`. */

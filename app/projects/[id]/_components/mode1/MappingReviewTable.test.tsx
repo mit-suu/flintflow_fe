@@ -162,6 +162,29 @@ describe("MappingReviewTable — chọn dữ liệu cho cột theo nhãn, không
   });
 });
 
+describe("MappingReviewTable — dữ liệu dưới tiêu đề cột (FLF-252)", () => {
+  it("hiện giá trị mẫu + vai trò cột; ma trận phân quyền có nhãn tiếng Việt, không lộ path thô", () => {
+    renderWithIntl(
+      <MappingReviewTable
+        profile={profile({
+          table_map: [
+            { ...column("B0009", 0, "#", null), role: "row_no", samples: ["1", "2", "3"] },
+            { ...column("B0012", 0, "Screen", "permissions[].screen_id"), role: "name", samples: ["Landing Page", "Sign Up"] },
+            { ...column("B0012", 1, "Guest", "permissions[].role_id"), role: "mark", samples: ["X", "X"] },
+          ],
+        })}
+        onSubmit={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Dữ liệu: 1 · 2 · 3 — số thứ tự")).toBeInTheDocument();
+    expect(screen.getByText("Dữ liệu: X · X — ô đánh dấu")).toBeInTheDocument();
+    expect(screen.getAllByText("Bảng Phân quyền · cột 2").length).toBe(1);
+    const guest = screen.getByRole("combobox", { name: "Dữ liệu cho cột Guest" });
+    expect(within(guest).getByRole("option", { name: "Phân quyền — Vai trò (mỗi cột một vai trò)" })).toBeInTheDocument();
+    expect(screen.queryByText(/permissions\[\]/)).not.toBeInTheDocument();
+  });
+});
+
 describe("MappingReviewTable — cột bảng không có tiêu đề (FLF-179)", () => {
   it("header rỗng ⇒ hiện \"Cột N (không có tiêu đề)\" và vẫn gán field được", () => {
     const onSubmit = vi.fn();

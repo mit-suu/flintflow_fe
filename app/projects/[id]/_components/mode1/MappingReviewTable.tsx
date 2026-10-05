@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { FPT_SECTIONS, sectionLabel } from "@/lib/constants/fpt-sections";
 import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateProfile } from "@/types/import";
 import { formatPercent } from "./labels";
-import { TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
+import { COLUMN_ROLE_LABELS, TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
 
 interface MappingReviewTableProps {
   profile: TemplateProfile;
@@ -179,6 +179,12 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                       <div className="text-[11px] text-[#A8A49C]">
                         {entity ? `Bảng ${tableGroupLabel(entity)}` : "Bảng chưa rõ loại"} · cột {t.column_index + 1}
                       </div>
+                      {t.samples?.length ? (
+                        <div className="text-[11px] text-[#8A867E] truncate max-w-[340px]" title={t.samples.join(" · ")}>
+                          Dữ liệu: {t.samples.join(" · ")}
+                          {t.role ? ` — ${COLUMN_ROLE_LABELS[t.role] ?? ""}` : ""}
+                        </div>
+                      ) : null}
                       {valueEntity && entity && valueEntity !== entity && (
                         <div className="text-[11px] text-[#8A6D1F]">Khác loại với các cột khác của bảng — cột này sẽ không được lấy.</div>
                       )}
