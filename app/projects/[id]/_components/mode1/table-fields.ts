@@ -3,6 +3,8 @@
  * Giữ đồng bộ với `TABLE_ENTITIES` của BE (`src/modules/import/table-header-dictionary.ts`): BE chỉ trích tất định
  * các field có trong từ điển đó, và chỉ theo **một** thực thể mỗi bảng (thực thể của cột được gán đầu tiên).
  */
+import { ENTITY_LABELS, fieldLabel } from "./spine-labels";
+
 export interface TableFieldGroup {
   entity: string;
   label: string;
@@ -16,6 +18,7 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
     fields: [
       { field: "id", label: "Mã tác nhân" },
       { field: "name", label: "Tên tác nhân" },
+      { field: "kind", label: "Loại tác nhân" },
       { field: "description", label: "Mô tả" },
     ],
   },
@@ -27,6 +30,8 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
       { field: "name", label: "Tên use case" },
       { field: "actor_ids", label: "Tác nhân tham gia" },
       { field: "description", label: "Mô tả" },
+      { field: "includes", label: "Use case được include" },
+      { field: "extends", label: "Use case được extend" },
     ],
   },
   {
@@ -35,6 +40,18 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
     fields: [
       { field: "id", label: "Mã màn hình" },
       { field: "name", label: "Tên màn hình" },
+      { field: "feature_id", label: "Thuộc tính năng" },
+      { field: "description", label: "Mô tả" },
+    ],
+  },
+  {
+    entity: "functions",
+    label: "Chức năng không có màn hình",
+    fields: [
+      { field: "id", label: "Mã chức năng" },
+      { field: "name", label: "Tên chức năng" },
+      { field: "feature_id", label: "Thuộc tính năng" },
+      { field: "trigger", label: "Điều kiện kích hoạt" },
       { field: "description", label: "Mô tả" },
     ],
   },
@@ -44,6 +61,7 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
     fields: [
       { field: "name", label: "Tên thực thể" },
       { field: "description", label: "Mô tả" },
+      { field: "relations", label: "Quan hệ với thực thể khác" },
     ],
   },
   {
@@ -60,6 +78,7 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
     fields: [
       { field: "code", label: "Mã thông báo" },
       { field: "text", label: "Nội dung thông báo" },
+      { field: "function_ids", label: "Dùng ở chức năng" },
     ],
   },
   {
@@ -67,6 +86,7 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
     label: "Thuật ngữ",
     fields: [
       { field: "term", label: "Thuật ngữ / từ viết tắt" },
+      { field: "term_native", label: "Thuật ngữ tiếng Việt" },
       { field: "definition", label: "Định nghĩa" },
     ],
   },
@@ -79,6 +99,7 @@ export const TABLE_FIELD_GROUPS: readonly TableFieldGroup[] = [
       { field: "statement", label: "Nội dung yêu cầu" },
       { field: "metric", label: "Chỉ số đo" },
       { field: "threshold", label: "Ngưỡng / mục tiêu" },
+      { field: "priority", label: "Mức ưu tiên" },
     ],
   },
   {
@@ -104,12 +125,22 @@ export const tableFieldPath = (entity: string, field: string) => `${entity}[].${
 /** `glossary[].term` ⇒ `glossary`; không đúng dạng ⇒ `null`. */
 export const entityOfPath = (path: string | null | undefined): string | null => path?.match(/^([a-z_]+)\[\]\./)?.[1] ?? null;
 
-export const tableGroupLabel = (entity: string): string => TABLE_FIELD_GROUPS.find((g) => g.entity === entity)?.label ?? entity;
+export const tableGroupLabel = (entity: string): string =>
+  TABLE_FIELD_GROUPS.find((g) => g.entity === entity)?.label ?? ENTITY_LABELS[entity] ?? "Dữ liệu khác";
 
-/** Nhãn đầy đủ "Thuật ngữ — Định nghĩa"; path lạ (BE mới thêm field) ⇒ trả nguyên path để không mất giá trị. */
+/** Path có trong danh sách chọn của 1.7 (path lạ do BE thêm sau ⇒ `false`). */
+export const isKnownTableField = (path: string): boolean =>
+  TABLE_FIELD_GROUPS.some((g) => g.fields.some((f) => tableFieldPath(g.entity, f.field) === path));
+
+/**
+ * Nhãn đầy đủ "Thuật ngữ — Định nghĩa". Path lạ (BE mới thêm field) ⇒ ghép nhãn chung của thực thể + field, không in
+ * path thô `glossary[].term` cho người dùng (FLF-251).
+ */
 export const tableFieldLabel = (path: string): string => {
   const entity = entityOfPath(path);
   const group = TABLE_FIELD_GROUPS.find((g) => g.entity === entity);
   const field = group?.fields.find((f) => tableFieldPath(group.entity, f.field) === path);
-  return group && field ? `${group.label} — ${field.label}` : path;
+  if (group && field) return `${group.label} — ${field.label}`;
+  const rawField = path.split("].")[1] ?? path;
+  return `${entity ? tableGroupLabel(entity) : "Dữ liệu khác"} — ${fieldLabel(rawField)}`;
 };
