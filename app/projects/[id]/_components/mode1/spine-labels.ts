@@ -87,9 +87,10 @@ const SEGMENT = /\.?([a-z_]+)(?:\[([^\]]*)\])?/gy;
 
 /**
  * `use_cases[id=UC-2.4].description` ⇒ "Use case UC-2.4 — Mô tả"; `actors[]` ⇒ "Tác nhân (thêm mới)";
- * `project.code` ⇒ "Thông tin dự án — Mã". Không đọc được ⇒ trả nguyên path.
+ * `project.code` ⇒ "Thông tin dự án — Mã". Không đọc được ⇒ trả nguyên path. Có `entityName` (BE `ReviewField.entity_name`)
+ * ⇒ ghép sau mã phần tử: "Tác nhân A01 (Learner) — Loại".
  */
-export const pathLabel = (path: string): string => {
+export const pathLabel = (path: string, entityName?: string): string => {
   const parts: { name: string; selector: string | undefined }[] = [];
   SEGMENT.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -113,6 +114,7 @@ export const pathLabel = (path: string): string => {
     }
     field = null;
   }
+  if (entityName && parts[0].selector) out[0] += ` (${entityName})`;
   return field ? `${out.join(" › ")} — ${fieldLabel(field)}` : out.join(" › ");
 };
 

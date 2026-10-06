@@ -12,6 +12,13 @@ describe("spine-labels — nhãn thay cho mã kỹ thuật (mode 1)", () => {
     expect(pathLabel("screens[0].name")).toBe("Màn hình #1 — Tên");
   });
 
+  it("có tên phần tử ⇒ ghép sau mã, không đụng path không có khoá", () => {
+    expect(pathLabel("actors[id=A01].kind", "Learner")).toBe("Tác nhân A01 (Learner) — Loại");
+    expect(pathLabel("use_cases[id=UC-01].actor_ids[=A09]", "Enroll Course")).toBe("Use case UC-01 (Enroll Course) › Tác nhân A09");
+    expect(pathLabel("project.code", "X")).toBe("Thông tin dự án — Mã");
+    expect(pathLabel("actors[id=A01].kind")).toBe("Tác nhân A01 — Loại");
+  });
+
   it("path lạ / không đọc được ⇒ giữ nguyên, không mất thông tin", () => {
     expect(pathLabel("unknown_array[id=X].name")).toBe("unknown_array[id=X].name");
     expect(pathLabel("actors[id=A01].new_field")).toBe("Tác nhân A01 — new_field");

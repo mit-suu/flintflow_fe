@@ -61,6 +61,12 @@ describe("FieldsReview — xác nhận field độ tin thấp (UC-22, 1.9)", () 
     expect(screen.getByText(/mọi thay đổi đi qua change request/)).toBeInTheDocument();
   });
 
+  it("field có tên phần tử (BE tra chéo section) ⇒ nhãn kèm tên, không chỉ trơ mã", () => {
+    renderWithIntl(<FieldsReview fields={[field("actors[id=A01].kind", "human", { origin: "vision", entity_name: "Learner" })]} onSubmit={vi.fn()} />);
+    expect(screen.getByText("Tác nhân A01 (Learner) — Loại")).toHaveAttribute("title", "actors[id=A01].kind");
+    expect(screen.getByRole("textbox", { name: "Giá trị Tác nhân A01 (Learner) — Loại" })).toHaveValue("human");
+  });
+
   it("hiện tên field (không phải path), mục, độ tin, số đoạn nguồn và cách trích của từng field", () => {
     renderWithIntl(<FieldsReview fields={FIELDS} onSubmit={vi.fn()} />);
     expect(screen.getByText(/4 field AI chưa chắc/)).toBeInTheDocument();

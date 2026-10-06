@@ -88,7 +88,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     expect(tile("Cờ đỏ")).toHaveTextContent("1");
     expect(tile("Cờ đỏ").className).toContain("text-[#B03030]");
     expect(tile("Cờ vàng")).toHaveTextContent("2");
-    expect(tile("Mục bắt buộc thiếu")).toHaveTextContent("1");
+    expect(tile("Mục mẫu FPT không có")).toHaveTextContent("1");
     expect(tile("Tiêu đề ngoài mẫu")).toHaveTextContent("1");
     expect(tile("Dữ liệu chưa chắc")).toHaveTextContent("1");
 

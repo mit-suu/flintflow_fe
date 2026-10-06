@@ -176,7 +176,7 @@ export default function ProposalCard({ location, editable, onPatch, onOwnerDraft
       </header>
 
       {summary && !isDiagramLocation(location) && <p className="text-[12.5px] text-[#33312D] whitespace-pre-wrap">{summary}</p>}
-      {location.entity_paths.length > 0 && <p className="text-[11px] text-[#8A867E]" title={location.entity_paths.join(", ")}>liên quan: {location.entity_paths.map(pathLabel).join(", ")}</p>}
+      {location.entity_paths.length > 0 && <p className="text-[11px] text-[#8A867E]" title={location.entity_paths.join(", ")}>liên quan: {location.entity_paths.map((p) => pathLabel(p)).join(", ")}</p>}
 
       {location.conclusion === "edit" && p && (isDiagramLocation(location) ? <OriginalDiagramChange loc={location} /> : <FieldChanges oldText={p.old_text} newText={p.new_text} />)}
       {location.conclusion === "comment" && p?.comment_text && (

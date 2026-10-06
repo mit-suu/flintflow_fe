@@ -131,17 +131,17 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Tile label="Cờ đỏ" value={report.totals.red} tone="red" />
         <Tile label="Cờ vàng" value={report.totals.yellow} tone="yellow" />
-        <Tile label="Mục bắt buộc thiếu" value={report.totals.missing_sections} tone="red" />
+        <Tile label="Mục mẫu FPT không có" value={report.totals.missing_sections} tone="neutral" />
         <Tile label="Tiêu đề ngoài mẫu" value={report.totals.unmapped_headings} tone="neutral" />
         <Tile label="Dữ liệu chưa chắc" value={report.totals.low_confidence_fields} tone="yellow" />
       </div>
 
       {report.missing_fpt_sections.length > 0 && (
-        <section className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-4 flex flex-col gap-2" aria-label="Đầu mục FPT còn thiếu">
-          <h3 className="font-extrabold text-[#8A4141] text-[14px]">Đầu mục mẫu FPT còn thiếu</h3>
-          <p className="text-[12px] text-[#8A4141]">
-            Mục thiếu chặn release (cờ đỏ). Tạo change request để AI soạn nội dung theo quy tắc của mục đó — duyệt xong cờ tự
-            đóng.
+        <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2" aria-label="Đầu mục FPT còn thiếu">
+          <h3 className="font-extrabold text-[#191817] text-[14px]">Đầu mục mẫu FPT còn thiếu</h3>
+          <p className="text-[12px] text-[#8A867E]">
+            Không bắt buộc — bản xuất theo template bạn upload. Cần thì tạo change request để AI soạn nội dung theo quy tắc của
+            mục đó.
           </p>
           <ul className="flex flex-col gap-1 text-[12.5px] text-[#33312D]">
             {report.missing_fpt_sections.map((m) => (
@@ -251,7 +251,7 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
           <ul className="text-[12.5px] text-[#33312D] flex flex-col gap-1">
             {report.low_confidence_fields.map((f) => (
               <li key={`${f.section_id}|${f.path}`}>
-                <span title={f.path}>{pathLabel(f.path)}</span> — {formatPercent(f.confidence)}
+                <span title={f.path}>{pathLabel(f.path, f.entity_name)}</span> — {formatPercent(f.confidence)}
               </li>
             ))}
           </ul>
