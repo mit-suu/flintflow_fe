@@ -5,6 +5,7 @@ import {
   fetchAdminOrgs,
   formatDateTime,
   formatNumber,
+  type AdjustOrgCreditsResult,
   type AdminOrg,
   type AdminOrgPlan,
   type FetchOrgsParams,
@@ -18,11 +19,12 @@ import {
   tableCellClass,
   tableHeadClass,
 } from "../_components/AdminPage";
+import AdjustCreditsDialog from "./_components/AdjustCreditsDialog";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 const PAGE_SIZE = 20;
 
-/** UC-90 — danh sách tổ chức kèm gói, ví, số thành viên, số dự án. */
+/** UC-90 — danh sách tổ chức; mở một org để điều chỉnh credit (UC-68). */
 export default function AdminOrgsPage() {
   const [search, setSearch] = useState("");
   const [params, setParams] = useState<FetchOrgsParams>({ page: 1, limit: PAGE_SIZE });
@@ -30,6 +32,8 @@ export default function AdminOrgsPage() {
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adjusting, setAdjusting] = useState<AdminOrg | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +64,21 @@ export default function AdminOrgsPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     update({ q: search.trim() || undefined });
+  };
+
+  const handleAdjusted = (result: AdjustOrgCreditsResult) => {
+    setItems((prev) =>
+      prev.map((o) =>
+        o.id === result.organizationId
+          ? {
+              ...o,
+              wallet: { balance: result.balance, reserved: result.reserved, available: result.balance - result.reserved },
+            }
+          : o
+      )
+    );
+    const sign = result.amount > 0 ? "+" : "";
+    setNotice(`${sign}${formatNumber(result.amount)} credit cho ${result.organizationName}. Số dư mới: ${formatNumber(result.balance)}.`);
   };
 
   const page = meta?.page ?? 1;
@@ -110,6 +129,18 @@ export default function AdminOrgsPage() {
         </div>
 
         {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
+        {notice && (
+          <div
+            role="status"
+            className="flex items-center gap-3 bg-[#EAF6EE] border border-[#C2E5CF] text-[#1F7A45] px-4 py-3 rounded-[12px] text-xs font-medium"
+          >
+            <span className="flex-1">{notice}</span>
+            <button type="button" onClick={() => setNotice(null)} className="font-bold hover:opacity-75">
+              ✕
+            </button>
+          </div>
+        )}
+
         <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
           {loading ? (
             <LoadingBlock label="Đang tải tổ chức…" bare />
@@ -124,12 +155,15 @@ export default function AdminOrgsPage() {
                     <th className={`${tableHeadClass} text-right`}>Thành viên</th>
                     <th className={`${tableHeadClass} text-right`}>Dự án</th>
                     <th className={tableHeadClass}>Ngày tạo</th>
+                    <th className={tableHeadClass}>
+                      <span className="sr-only">Thao tác</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F3F1EE]">
                   {items.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-[13px] text-[#A8A49C]">
+                      <td colSpan={7} className="py-12 text-center text-[13px] text-[#A8A49C]">
                         Không có tổ chức phù hợp
                       </td>
                     </tr>
@@ -164,6 +198,19 @@ export default function AdminOrgsPage() {
                         <td className={`${tableCellClass} text-right`}>{formatNumber(o.membersCount)}</td>
                         <td className={`${tableCellClass} text-right`}>{formatNumber(o.projectsCount)}</td>
                         <td className={tableCellClass}>{formatDateTime(o.createdAt)}</td>
+                        <td className={`${tableCellClass} text-right`}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNotice(null);
+                              setAdjusting(o);
+                            }}
+                            aria-label={`Điều chỉnh credit của ${o.name}`}
+                            className="h-8 px-3 rounded-[10px] border border-[#E4E1DC] bg-white text-[12px] font-bold text-[#554DB0] hover:bg-[#F2F1FB] whitespace-nowrap cursor-pointer"
+                          >
+                            Điều chỉnh credit
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -203,6 +250,8 @@ export default function AdminOrgsPage() {
           </div>
         )}
       </div>
+
+      <AdjustCreditsDialog org={adjusting} onClose={() => setAdjusting(null)} onAdjusted={handleAdjusted} />
     </>
   );
 }

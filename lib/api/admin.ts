@@ -205,6 +205,30 @@ export async function fetchAdminOrgs(params: FetchOrgsParams = {}) {
   };
 }
 
+export interface AdjustOrgCreditsResult {
+  organizationId: string;
+  organizationName: string;
+  amount: number;
+  balance: number;
+  reserved: number;
+  reason: string;
+}
+
+/**
+ * UC-68 — cộng (`amount` > 0) hoặc trừ (`amount` < 0) credit trong ví tổ chức, bắt buộc lý do. Trừ quá phần
+ * khả dụng (balance − reserved) ⇒ 409 `INSUFFICIENT_CREDIT`; org không tồn tại ⇒ 404 `ORG_NOT_FOUND`.
+ */
+export async function adjustAdminOrgCredits(
+  orgId: string,
+  body: { amount: number; reason: string }
+): Promise<AdjustOrgCreditsResult> {
+  const res = await apiCall<AdjustOrgCreditsResult>(`/admin/orgs/${orgId}/credits`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  return unwrap(res.data, "điều chỉnh credit");
+}
+
 export const formatNumber = (value: number) => value.toLocaleString("vi-VN");
 
 export const formatUsd = (value: number) =>
