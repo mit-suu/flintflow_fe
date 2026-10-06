@@ -39,7 +39,7 @@ const TX_STATE_LABELS: Record<string, string> = { reserved: "đang giữ", deduc
 
 const REASON_MIN_LENGTH = 3;
 
-/** UC-66 khoá (bắt buộc lý do) / UC-67 mở khoá tài khoản. */
+/** UC-60 khoá / UC-61 mở khoá tài khoản — cả hai bắt buộc lý do. */
 function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChanged: (status: AdminUserStatus) => void }) {
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState("");
@@ -52,10 +52,7 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
     setSaving(true);
     setError(null);
     try {
-      const status = await setAdminUserStatus(
-        user._id,
-        user.isActive ? { isActive: false, reason: reason.trim() } : { isActive: true }
-      );
+      const status = await setAdminUserStatus(user._id, { isActive: !user.isActive, reason: reason.trim() });
       onChanged(status);
       setConfirming(false);
       setReason("");
@@ -104,26 +101,23 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
         </button>
       ) : (
         <div className="flex flex-col gap-3 max-w-[520px]">
-          {user.isActive ? (
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-bold text-[#6B6862]">Lý do khoá (bắt buộc)</span>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                maxLength={500}
-                rows={3}
-                autoFocus
-                className="px-3 py-2 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#6A62C4]"
-              />
-            </label>
-          ) : (
-            <p className="text-[12.5px] text-[#33312D]">Mở khoá để người này đăng nhập lại được?</p>
-          )}
+          {!user.isActive && <p className="text-[12.5px] text-[#33312D]">Mở khoá để người này đăng nhập lại được?</p>}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] font-bold text-[#6B6862]">{user.isActive ? "Lý do khoá (bắt buộc)" : "Lý do mở khoá (bắt buộc)"}</span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+              autoFocus
+              className="px-3 py-2 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#6A62C4]"
+            />
+          </label>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => void submit()}
-              disabled={saving || (user.isActive && reasonTooShort)}
+              disabled={saving || reasonTooShort}
               className={`h-9 px-4 rounded-[10px] text-white text-[12.5px] font-bold disabled:opacity-60 ${
                 user.isActive ? "bg-[#B03030] hover:bg-[#962828]" : "bg-[#2F7A4F] hover:bg-[#276742]"
               }`}

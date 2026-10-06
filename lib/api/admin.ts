@@ -126,15 +126,18 @@ export interface AdminUserStatus {
   isActive: boolean;
   suspendedAt: string | null;
   suspendReason: string | null;
+  reactivatedAt: string | null;
+  reactivateReason: string | null;
 }
 
 /**
- * UC-66 khoá (bắt buộc lý do) / UC-67 mở khoá. Khoá thì BE thu hồi mọi phiên của tài khoản;
- * tự khoá chính mình ⇒ `ApiClientError` code `CANNOT_SUSPEND_SELF`.
+ * UC-60 khoá / UC-61 mở khoá — cả hai bắt buộc lý do. Khoá thì BE thu hồi mọi phiên của tài khoản;
+ * tự khoá chính mình ⇒ `ApiClientError` code `CANNOT_SUSPEND_SELF`; đã ở trạng thái đó ⇒ 409
+ * `USER_ALREADY_SUSPENDED` / `USER_ALREADY_ACTIVE`.
  */
 export async function setAdminUserStatus(
   id: string,
-  body: { isActive: false; reason: string } | { isActive: true }
+  body: { isActive: boolean; reason: string }
 ): Promise<AdminUserStatus> {
   const res = await apiCall<AdminUserStatus>(`/admin/users/${id}/status`, {
     method: "PATCH",
