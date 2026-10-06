@@ -69,7 +69,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
             <li key={key} className={`bg-white border rounded-[14px] p-3 flex flex-col gap-2 ${changed ? "border-[#6A62C4]" : "border-[#ECEAE5]"}`}>
               <div className="flex flex-wrap items-center gap-2 text-[12px]">
                 <span className="font-bold text-[#191817]" title={f.path}>
-                  {pathLabel(f.path)}
+                  {pathLabel(f.path, f.entity_name)}
                 </span>
                 <span className="text-[#8A867E]">· {sectionLabel(f.section_id)}</span>
                 {f.origin === "vision" && (
@@ -82,7 +82,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
                 </span>
               </div>
               <textarea
-                aria-label={`Giá trị ${pathLabel(f.path)}`}
+                aria-label={`Giá trị ${pathLabel(f.path, f.entity_name)}`}
                 value={text}
                 rows={Math.min(4, Math.max(1, Math.ceil(text.length / 80)))}
                 onChange={(e) => setEdits((prev) => ({ ...prev, [key]: e.target.value }))}

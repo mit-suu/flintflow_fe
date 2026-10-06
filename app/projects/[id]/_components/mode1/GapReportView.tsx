@@ -251,7 +251,7 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
           <ul className="text-[12.5px] text-[#33312D] flex flex-col gap-1">
             {report.low_confidence_fields.map((f) => (
               <li key={`${f.section_id}|${f.path}`}>
-                <span title={f.path}>{pathLabel(f.path)}</span> — {formatPercent(f.confidence)}
+                <span title={f.path}>{pathLabel(f.path, f.entity_name)}</span> — {formatPercent(f.confidence)}
               </li>
             ))}
           </ul>

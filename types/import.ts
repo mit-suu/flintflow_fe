@@ -188,6 +188,8 @@ export interface ReviewField {
   origin: "deterministic" | "ai" | "vision";
   confirmed: boolean;
   edited_value?: unknown;
+  /** Tên phần tử chứa field (`actors[id=A01].kind` ⇒ "Learner"); field tên / không tra được ⇒ không có. */
+  entity_name?: string;
 }
 
 export interface ExtractionSection {
