@@ -40,6 +40,8 @@ const ACTIVE_USER: AdminUserDetail = {
 const SUSPENDED = {
   _id: "u1",
   isActive: false,
+  reactivatedAt: null,
+  reactivateReason: null,
   suspendedAt: "2026-09-29T03:00:00.000Z",
   suspendReason: "Spam tạo project",
 };
@@ -83,15 +85,37 @@ describe("AdminUserDetailPage — khoá / mở khoá tài khoản", () => {
     expect(screen.getByRole("button", { name: "Mở khoá tài khoản" })).toBeInTheDocument();
   });
 
-  it("mở khoá: hỏi xác nhận rồi gọi isActive=true", async () => {
-    vi.mocked(setAdminUserStatus).mockResolvedValue({ _id: "u1", isActive: true, suspendedAt: null, suspendReason: null });
+  it("mở khoá: bắt buộc lý do (UC-61), gửi isActive=true kèm lý do đã trim", async () => {
+    vi.mocked(setAdminUserStatus).mockResolvedValue({
+      _id: "u1",
+      isActive: true,
+      suspendedAt: null,
+      suspendReason: null,
+      reactivatedAt: "2026-10-06T03:00:00.000Z",
+      reactivateReason: "Đã xác minh",
+    });
     await renderLoaded({ ...ACTIVE_USER, ...SUSPENDED });
 
     fireEvent.click(screen.getByRole("button", { name: "Mở khoá tài khoản" }));
-    fireEvent.click(screen.getByRole("button", { name: "Xác nhận mở khoá" }));
+    const confirm = screen.getByRole("button", { name: "Xác nhận mở khoá" });
+    expect(confirm).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Lý do mở khoá (bắt buộc)"), { target: { value: " Đã xác minh " } });
+    fireEvent.click(confirm);
 
     await waitFor(() => expect(screen.getByText("Hoạt động")).toBeInTheDocument());
-    expect(setAdminUserStatus).toHaveBeenCalledWith("u1", { isActive: true });
+    expect(setAdminUserStatus).toHaveBeenCalledWith("u1", { isActive: true, reason: "Đã xác minh" });
+  });
+
+  it("tài khoản đã ở trạng thái đó (409) ⇒ hiện câu của BE", async () => {
+    vi.mocked(setAdminUserStatus).mockRejectedValue(new ApiClientError(409, "USER_ALREADY_ACTIVE", "Tài khoản này đang hoạt động"));
+    await renderLoaded({ ...ACTIVE_USER, ...SUSPENDED });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mở khoá tài khoản" }));
+    fireEvent.change(screen.getByLabelText("Lý do mở khoá (bắt buộc)"), { target: { value: "Mở lại" } });
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận mở khoá" }));
+
+    await waitFor(() => expect(screen.getByText(/Tài khoản này đang hoạt động/)).toBeInTheDocument());
   });
 
   it("BE từ chối ⇒ hiện lỗi, trạng thái giữ nguyên", async () => {
