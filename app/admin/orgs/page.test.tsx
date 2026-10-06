@@ -1,12 +1,13 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchAdminOrgs, type AdminOrg } from "@/lib/api/admin";
+import { adjustAdminOrgCredits, fetchAdminOrgs, type AdminOrg } from "@/lib/api/admin";
 import AdminOrgsPage from "./page";
 
 vi.mock("@/lib/api/admin", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/admin")>()),
   fetchAdminOrgs: vi.fn(),
+  adjustAdminOrgCredits: vi.fn(),
 }));
 // TopBar của admin cần context layout — ngoài phạm vi test UC-90
 vi.mock("../_components/AdminPage", async (importOriginal) => ({
@@ -44,6 +45,7 @@ const META = { page: 1, limit: 20, total: 2, totalPages: 1 };
 describe("AdminOrgsPage — UC-90 danh sách tổ chức", () => {
   beforeEach(() => {
     vi.mocked(fetchAdminOrgs).mockReset().mockResolvedValue({ items: ORGS, meta: META });
+    vi.mocked(adjustAdminOrgCredits).mockReset();
   });
 
   it("hiện gói, số dư ví, số thành viên và số dự án của từng tổ chức", async () => {
@@ -73,5 +75,30 @@ describe("AdminOrgsPage — UC-90 danh sách tổ chức", () => {
     await waitFor(() =>
       expect(fetchAdminOrgs).toHaveBeenLastCalledWith({ page: 1, limit: 20, plan: "pro", q: "beta" })
     );
+  });
+
+  it("mở một tổ chức để điều chỉnh credit rồi cập nhật số dư trên dòng đó", async () => {
+    vi.mocked(adjustAdminOrgCredits).mockResolvedValue({
+      organizationId: "o1",
+      organizationName: "Alpha Studio",
+      amount: 100,
+      balance: 1600,
+      reserved: 20,
+      reason: "Bù sự cố",
+    });
+    renderWithIntl(<AdminOrgsPage />);
+    await screen.findByText("Alpha Studio");
+
+    fireEvent.click(screen.getByRole("button", { name: "Điều chỉnh credit của Alpha Studio" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Số credit"), { target: { value: "100" } });
+    fireEvent.change(within(dialog).getByLabelText("Lý do (bắt buộc)"), { target: { value: "Bù sự cố" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Xác nhận cộng" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(adjustAdminOrgCredits).toHaveBeenCalledWith("o1", { amount: 100, reason: "Bù sự cố" });
+    const alpha = screen.getByText("Alpha Studio").closest("tr")!;
+    expect(within(alpha).getByText("1.600")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Số dư mới: 1.600");
   });
 });
