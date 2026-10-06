@@ -170,6 +170,41 @@ export async function fetchAdminFeedback(): Promise<AdminFeedbackItem[]> {
   return res.data ?? [];
 }
 
+export type AdminOrgPlan = "free" | "pro";
+
+/** UC-90: một tổ chức trong danh sách admin (BE `admin.service.listOrgs`). */
+export interface AdminOrg {
+  id: string;
+  name: string;
+  /** Người tạo org; null nếu tài khoản đã xoá. */
+  owner: { id: string; email: string; name: string | null } | null;
+  /** Gói active; không có gói trả phí ⇒ `free`. */
+  plan: AdminOrgPlan;
+  planLabel: string;
+  /** null = org cũ chưa có ví — lần điều chỉnh đầu (UC-68) sẽ tạo ví. */
+  wallet: { balance: number; reserved: number; available: number } | null;
+  membersCount: number;
+  /** Dự án chưa xoá. */
+  projectsCount: number;
+  createdAt: string;
+}
+
+export interface FetchOrgsParams {
+  page?: number;
+  limit?: number;
+  plan?: AdminOrgPlan;
+  /** Tên tổ chức hoặc email người tạo */
+  q?: string;
+}
+
+export async function fetchAdminOrgs(params: FetchOrgsParams = {}) {
+  const res = await apiCall<AdminOrg[]>(`/admin/orgs${toQuery({ ...params })}`);
+  return {
+    items: res.data ?? [],
+    meta: res.meta as unknown as PageMeta,
+  };
+}
+
 export const formatNumber = (value: number) => value.toLocaleString("vi-VN");
 
 export const formatUsd = (value: number) =>
