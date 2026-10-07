@@ -393,6 +393,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       let versionRetried = false;
       /** Lượt đã tới gate ⇒ `gate_ready` đã đưa version cuối rồi, không tải lại rỗng đè lên (L11). */
       let sawGate = false;
+      // Bước im (server tự Accept): luồng đóng ngay sau `gate_ready` mang `auto` — lượt chạy lẻ kết thúc ở đó
+      let autoAccepted = false;
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -430,11 +432,18 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
                 // thì lượt `/run` kế tiếp không còn gửi base_version cũ rồi ăn 409 (L11).
                 if (event.type === "gate_ready") {
                   sawGate = true;
+                  // Lượt chạy cả giai đoạn có bước kế gỡ trạng thái "đang chạy"; lượt lẻ không có, phải tự về rảnh
+                  if (event.auto) {
+                    terminated = true;
+                    autoAccepted = true;
+                  }
                   onSpineChanged(event.spine_version);
                 }
               },
             });
-            if (!controller.signal.aborted && !terminated) {
+            if (!controller.signal.aborted && autoAccepted) {
+              dispatch({ type: "reset" });
+            } else if (!controller.signal.aborted && !terminated) {
               if (awaiting.awaiting()) dispatch({ type: "detached" });
               else dispatch({ type: "failed", code: STREAM_CLOSED, message: "Kết nối tới step bị đóng giữa chừng. Vui lòng chạy lại." });
             }

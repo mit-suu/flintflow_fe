@@ -819,11 +819,12 @@ export const handlers = [
     const url = new URL(request.url);
     const source = url.searchParams.get("source") ?? "draft";
     if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
-    if (mockAssembledAtVersion === null) return fail(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).", { hint: "S-8.2" });
+    // FLF-264: BE dựng bản còn thiếu ngay lúc đọc, nên lượt đọc luôn ra nội dung của spine_version hiện tại
+    mockAssembledAtVersion = mockState.spine.spine_version;
     return okWithMeta(buildMockDocument(mockState), {
       assembled_at_version: mockAssembledAtVersion,
       spine_version: mockState.spine.spine_version,
-      stale: mockAssembledAtVersion < mockState.spine.spine_version,
+      stale: false,
     });
   }),
 
@@ -831,9 +832,7 @@ export const handlers = [
     const url = new URL(request.url);
     const source = url.searchParams.get("source") ?? "draft";
     if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
-    if (mockAssembledAtVersion === null) {
-      return fail(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).", { hint: "S-8.2" });
-    }
+    mockAssembledAtVersion = mockState.spine.spine_version;
     return new HttpResponse("mock docx bytes — T16 chỉ giả lập, nội dung thật do T15", {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

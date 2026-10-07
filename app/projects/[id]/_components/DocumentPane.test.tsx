@@ -5,13 +5,11 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DocumentPane, { followsHeading } from "./DocumentPane";
 import * as exportApi from "@/lib/api/export";
-import { ApiClientError } from "@/lib/api/client";
 import type { RenderedDocument } from "@/types/document";
 import type { Flag } from "@/types/flags";
 
 vi.mock("@/lib/api/export", () => ({
   getDocument: vi.fn(),
-  assembleDocument: vi.fn(),
 }));
 
 const fixture: RenderedDocument = {
@@ -115,29 +113,43 @@ describe("DocumentPane", () => {
     expect(screen.getAllByText(/Chưa hoàn thiện/)).toHaveLength(1);
   });
 
-  it("tài liệu cũ hơn Spine (meta.stale): nút Làm mới ghép lại ở version hiện tại, không lộ chữ 'stale'", async () => {
-    const assembleDocument = vi.mocked(exportApi.assembleDocument);
-    assembleDocument.mockResolvedValueOnce({ data: { spine_version: 6, sections: 40, generated_at: "2026-09-23T00:00:00.000Z" }, error: null } as never);
-    getDocument
-      .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 4, spine_version: 6, stale: true } })
-      .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 6, spine_version: 6, stale: false } });
+  it("nút Làm mới chỉ tải lại — không còn trạng thái đã cũ nào để người dùng tự xử lý", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
 
-    renderWithIntl(<DocumentPane projectId="p1" getBaseVersion={() => 6} />);
+    renderWithIntl(<DocumentPane projectId="p1" />);
 
-    const refresh = await screen.findByRole("button", { name: "Làm mới" });
-    expect(refresh).toHaveAttribute("title", expect.stringMatching(/ghép lại/));
-    expect(screen.queryByText("stale")).toBeNull();
+    await waitFor(() => expect(screen.getByText(/1. Product Overview/)).toBeInTheDocument());
+    const refresh = screen.getByRole("button", { name: "Làm mới" });
+    expect(refresh).toHaveAttribute("title", "Tải lại tài liệu");
     fireEvent.click(refresh);
-    await waitFor(() => expect(assembleDocument).toHaveBeenCalledWith("p1", 6));
+    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2));
   });
 
-  it("tài liệu khớp Spine: nút Làm mới chỉ tải lại", async () => {
-    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+  /**
+   * Lượt tải lại trước đây gỡ cả danh sách mục xuống rồi dựng lại, nên người đang đọc giữa tài liệu bị
+   * ném về đầu trang sau mỗi lệnh sửa.
+   */
+  it("tải lại không gỡ các mục đang hiển thị xuống", async () => {
+    let releaseSecondRead = () => {};
+    getDocument
+      .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseSecondRead = () => resolve({ data: fixture, error: null, meta: { assembled_at_version: 6, spine_version: 6, stale: false } });
+        }) as never
+      );
 
-    renderWithIntl(<DocumentPane projectId="p1" getBaseVersion={() => 5} />);
+    const { rerender } = renderWithIntl(<DocumentPane projectId="p1" refreshToken={0} />);
+    await waitFor(() => expect(screen.getByText(/1. Product Overview/)).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByText(/1\. Product Overview/)).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Làm mới" })).toHaveAttribute("title", "Tải lại tài liệu");
+    rerender(<DocumentPane projectId="p1" refreshToken={1} />);
+    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2));
+    // Lượt đọc thứ hai còn treo: mục cũ vẫn trên màn, không có skeleton "Đang tải tài liệu…"
+    expect(screen.getByText(/1. Product Overview/)).toBeInTheDocument();
+    expect(screen.queryByText("Đang tải tài liệu…")).toBeNull();
+
+    releaseSecondRead();
+    await waitFor(() => expect(screen.getByText(/1. Product Overview/)).toBeInTheDocument());
   });
 
   it("section chờ duyệt lại (awaiting_reaccept) hiện chip riêng", async () => {
@@ -148,42 +160,13 @@ describe("DocumentPane", () => {
     expect(await screen.findByText("Chờ duyệt lại")).toBeInTheDocument();
   });
 
-  it("409 NO_WORKING_DRAFT hiện lý do và nút đi tới bước Ghép tài liệu", async () => {
-    getDocument.mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."));
-    const onSelectStep = vi.fn();
+  it("dự án chưa có nội dung: nói tài liệu sẽ tự hiện, không mời bấm gì", async () => {
+    getDocument.mockResolvedValueOnce({ data: null, error: null, meta: { state: "not_assembled" } } as never);
 
-    renderWithIntl(<DocumentPane projectId="p1" onSelectStep={onSelectStep} />);
+    renderWithIntl(<DocumentPane projectId="p1" onSelectStep={vi.fn()} />);
 
-    expect(await screen.findByText("Chưa có bản ghép tài liệu")).toBeInTheDocument();
-    // `ApiClientError` dịch message theo mã, nên hiện câu của `messages/vi.json → errors.NO_WORKING_DRAFT`.
-    expect(screen.getByText("Tài liệu chưa được ghép. Hãy chạy bước Ghép tài liệu trước.")).toBeInTheDocument();
-    screen.getByRole("button", { name: /Đi tới bước Ghép tài liệu/ }).click();
-    expect(onSelectStep).toHaveBeenCalledWith("S-8.2");
-  });
-
-  it("chưa ghép + có getBaseVersion: 'Ghép tài liệu ngay' gọi POST /assemble ở version hiện tại rồi tải lại tài liệu", async () => {
-    const assembleDocument = vi.mocked(exportApi.assembleDocument);
-    assembleDocument.mockResolvedValueOnce({ data: { spine_version: 363, sections: 40, generated_at: "2026-09-17T00:00:00.000Z" }, error: null } as never);
-    getDocument
-      .mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."))
-      .mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 363, spine_version: 363, stale: false } });
-
-    renderWithIntl(<DocumentPane projectId="p1" onSelectStep={vi.fn()} getBaseVersion={() => 363} />);
-
-    (await screen.findByRole("button", { name: "Ghép tài liệu ngay" })).click();
-    await waitFor(() => expect(assembleDocument).toHaveBeenCalledWith("p1", 363));
-    expect(await screen.findByText("Vision statement")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Đi tới S-8.2/ })).not.toBeInTheDocument();
-  });
-
-  it("ghép lỗi SPINE_VERSION_CONFLICT: hiện lý do tiếng Việt", async () => {
-    vi.mocked(exportApi.assembleDocument).mockRejectedValueOnce(new ApiClientError(409, "SPINE_VERSION_CONFLICT", "conflict"));
-    getDocument.mockRejectedValueOnce(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu."));
-
-    renderWithIntl(<DocumentPane projectId="p1" getBaseVersion={() => 1} />);
-
-    (await screen.findByRole("button", { name: "Ghép tài liệu ngay" })).click();
-    expect(await screen.findByText(/Tài liệu vừa đổi ở phiên khác/)).toBeInTheDocument();
+    expect(await screen.findByText(/Tài liệu sẽ hiện ở đây/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ghép/ })).not.toBeInTheDocument();
   });
 
   it("mục có vấn đề mở: chấm số theo section_id, bấm mở panel kiểm tra lọc theo mục", async () => {

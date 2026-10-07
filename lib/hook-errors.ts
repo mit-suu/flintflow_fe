@@ -7,8 +7,6 @@
 export const HOOK_ERROR = {
   docLoadFailed: "@docLoadFailed",
   spineNotReady: "@spineNotReady",
-  docConflict: "@docConflict",
-  assembleFailed: "@assembleFailed",
   flagsLoadFailed: "@flagsLoadFailed",
   waiveFailed: "@waiveFailed",
   recomputeFailed: "@recomputeFailed",
