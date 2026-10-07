@@ -69,7 +69,17 @@ admin nhận nhầm bản `en` (có test ở `i18n/request.test.ts`).
 
 **Chọn locale.** Không prefix URL. `i18n/request.ts` gọi `resolveLocale()` (`lib/i18n.ts`): cookie
 `NEXT_LOCALE` → header `Accept-Language` → `vi`. `components/LocaleSwitcher.tsx` ghi cookie, gọi
-`PATCH /users/me` khi đã đăng nhập, rồi `router.refresh()`. Vì layout đọc cookie nên mọi route render động.
+`PATCH /users/me` khi đã đăng nhập (lỗi chỉ ghi `console.error`, không chặn đổi), rồi `router.refresh()`. Vì layout
+đọc cookie nên mọi route render động; cookie đổi chỉ có hiệu lực sau một lần tải trang hoặc `router.refresh()`.
+
+**Ngôn ngữ của tài khoản (FLF-259).** BE lưu `user.locale` (`vi` | `en`, `null` = chưa chọn), trả ở `GET /users/me`
+và trong `user` của đăng nhập. Tài khoản thắng cookie:
+
+- Đăng nhập / Google: `applyAccountLocale()` ghi cookie trước `window.location` ⇒ trang đầu đã đúng ngôn ngữ.
+- `/home` (`HomeFrame` → `useAccountLocaleSync`, một lần mỗi lần tải trang): tài khoản khác ngôn ngữ đang hiển thị
+  ⇒ ghi cookie + `router.refresh()`; tài khoản chưa chọn ⇒ lưu ngôn ngữ đang hiển thị. User bấm `LocaleSwitcher`
+  trước khi hồ sơ về thì lựa chọn đó thắng.
+- Không đồng bộ ở admin (ghim `vi`) và workspace.
 
 Khi sửa:
 

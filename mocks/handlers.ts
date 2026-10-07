@@ -5,6 +5,7 @@
  */
 import { delay, http, HttpResponse } from "msw";
 import { API_BASE_URL } from "@/lib/api/client";
+import { isLocale } from "@/lib/i18n";
 import {
   CALLS_LIMIT,
   REGENERATE_LIMIT,
@@ -477,6 +478,41 @@ const buildMockTraceability = (state: MockState, entity: TraceabilityEntity, id:
   return { nodes: [], edges: [] };
 };
 
+// ─── PATCH /users/me ─────────────────────────────────────────────
+
+/**
+ * Khớp `updateMeSchema` của BE (strictObject): field lạ, sai kiểu hay body rỗng ⇒ 400 VALIDATION_ERROR. Mock từng
+ * nhận mọi body trong khi BE từ chối `locale` — chính chỗ đó che bug FLF-259.
+ */
+const USER_PATCH_KEYS = new Set(["name", "onboardedAt", "locale"]);
+
+const invalidUserPatch = (path: string, message: string, userMessage = "Dữ liệu gửi lên không hợp lệ. Vui lòng tải lại trang rồi thử lại.") =>
+  fail(400, "VALIDATION_ERROR", userMessage, { issues: [{ path, message }] });
+
+const patchMockUser = (body: unknown) => {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return invalidUserPatch("", "Invalid input: expected object");
+  const patch = body as Record<string, unknown>;
+  const unknownKeys = Object.keys(patch).filter((key) => !USER_PATCH_KEYS.has(key));
+  if (unknownKeys.length) return invalidUserPatch("", `Unrecognized keys: ${unknownKeys.join(", ")}`);
+
+  const { name, onboardedAt, locale } = patch;
+  if (name !== undefined && (typeof name !== "string" || !name.trim() || name.trim().length > 100)) {
+    return invalidUserPatch("name", "Invalid name");
+  }
+  if (onboardedAt !== undefined && onboardedAt !== null && (typeof onboardedAt !== "string" || Number.isNaN(Date.parse(onboardedAt)))) {
+    return invalidUserPatch("onboardedAt", "Invalid ISO datetime");
+  }
+  if (locale !== undefined && !isLocale(locale)) return invalidUserPatch("locale", 'Invalid option: expected one of "vi"|"en"');
+  if (name === undefined && onboardedAt === undefined && locale === undefined) {
+    return invalidUserPatch("", "Chưa có thông tin nào để cập nhật.", "Chưa có thông tin nào để cập nhật.");
+  }
+
+  if (typeof name === "string") mockState.user.name = name.trim();
+  if (onboardedAt !== undefined) mockState.user.onboardedAt = onboardedAt as string | null;
+  if (isLocale(locale)) mockState.user.locale = locale;
+  return ok(mockState.user);
+};
+
 // ─── handlers ────────────────────────────────────────────────────
 
 export const handlers = [
@@ -808,11 +844,7 @@ export const handlers = [
     });
   }),
 
-  http.patch(api("/users/me"), async ({ request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
-    Object.assign(mockState.user as unknown as Record<string, unknown>, body);
-    return ok(mockState.user);
-  }),
+  http.patch(api("/users/me"), async ({ request }) => patchMockUser(await request.json().catch(() => null))),
 ];
 
 /** Số step registry mock đang phục vụ — dùng trong test. */

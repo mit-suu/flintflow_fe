@@ -37,11 +37,13 @@ export const persistLocale = (locale: Locale) => {
 };
 
 /**
- * Sau khi đăng nhập: ngôn ngữ đã lưu trong tài khoản (`user.locale` từ BE) thắng cookie hiện tại. Giá trị lạ /
- * thiếu (BE cũ) ⇒ không làm gì.
+ * Sau khi đăng nhập: ngôn ngữ đã lưu trong tài khoản (`user.locale` từ BE, FLF-259) thắng cookie hiện tại — ghi cookie
+ * và trả về locale đó. Thiếu / `null` / giá trị lạ ⇒ tài khoản chưa chọn: không đụng cookie, trả `null`.
  */
-export const applyAccountLocale = (value: unknown) => {
-  if (isLocale(value)) persistLocale(value);
+export const applyAccountLocale = (value: unknown): Locale | null => {
+  if (!isLocale(value)) return null;
+  persistLocale(value);
+  return value;
 };
 
 /**
@@ -101,12 +103,7 @@ export const tPhaseOfStep = (stepId: string, locale: Locale = DEFAULT_LOCALE): s
   return def ? tPhase(def.phase, locale) : tPhase(parseStepId(stepId).base.split(".")[0], locale);
 };
 
-/**
- * Ngôn ngữ UI: `user.locale` khi có, mặc định tiếng Việt.
- *
- * BE **chưa có** field `locale` trên user (`GET /users/me`), nên hiện tại hàm này luôn trả `vi`. Giữ ở
- * đây để khi BE thêm field thì chỉ cần truyền user vào, không phải đi sửa từng component.
- */
+/** Ngôn ngữ UI của một tài khoản: `user.locale` khi đã chọn, chưa chọn (`null` / thiếu) thì tiếng Việt. */
 export const localeOf = (user?: { locale?: string | null } | null): Locale => {
   const locale = user?.locale;
   return isLocale(locale) ? locale : DEFAULT_LOCALE;
