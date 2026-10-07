@@ -11,6 +11,7 @@ import { friendlyError, type ErrorAction } from "@/lib/errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
+import { isGateApproval } from "@/lib/gate-approval";
 import type { Diagram, ReviewMode } from "@/types/spine";
 import type { Project } from "@/types/project";
 import type { Flag } from "@/types/flags";
@@ -35,7 +36,7 @@ import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
-import GateCard, { PICKABLE_FIELDS, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
+import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
@@ -850,6 +851,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   // "Đúng rồi, đi tiếp" chỉ xác nhận giả định mà tin của cổng này đã nói; phần còn lại dành cho danh sách rà (B-2.1 / S-9.1)
   const spokenAssumptions = runner.state.phaseGate ? runner.state.phaseGate.new_assumptions : gate?.payload?.new_assumptions;
   const settledAssumptionIds = new Set((spine?.assumptions ?? []).filter((a) => a.status !== "unconfirmed").map((a) => a.id));
+
+  /**
+   * Gửi một lệnh của cổng chốt. Dùng chung cho chip trên thẻ cổng và cho một tiếng "ừ" gõ ở ô chat — hai lối
+   * phải ghi cùng một dấu vết vào khung chat, nếu không đọc lại lịch sử sẽ thấy hai kiểu khác nhau cho cùng
+   * một hành động.
+   *
+   * Hiện ngay như một lượt của user (gate có thể chờ cả chuỗi bước sau chạy xong mới trả về); không thành thì gỡ.
+   * Thẻ cổng dựng từ lượt chạy đang sống nên chốt xong là biến mất: tin cổng phải ở lại khung chat ngay trước
+   * thao tác vừa bấm, đúng thứ tự BE ghi transcript — thiếu nó thì đọc lại chỉ thấy "Đúng rồi, đi tiếp" một mình.
+   */
+  const submitGateAction = (action: GateAction, note?: string): void => {
+    const spoken = runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate?.payload?.message_vi;
+    const said = GATE_ACTION_TEXT[action](note);
+    if (spoken) ws.appendLocalMessage(spoken, runnerStep, "ai");
+    ws.appendLocalMessage(said, runnerStep);
+    void runner.gate(action, note).then((outcome) => {
+      if (outcome === "ok") return;
+      ws.dropLocalMessage(said);
+      if (spoken) ws.dropLocalMessage(spoken, "ai");
+    });
+  };
+
   // 422 BASELINE_BLOCKED khi Accept ở S-9.5: danh sách cờ đang chặn đi kèm trong `meta.flags` (BUG-01)
   const blockingFlags: BlockingFlag[] | undefined =
     runner.state.error?.code === "BASELINE_BLOCKED" && Array.isArray(runner.state.error.meta?.flags)
@@ -977,6 +1000,20 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     }
     if (status === "gate_ready") {
       ws.setInputMessage("");
+      // Tin cổng mời duyệt bằng lời ("ổn thì mình đi tiếp nhé") nên trả lời bằng chữ là chuyện tự nhiên. Một
+      // tiếng "ừ" phải chốt bước, không phải bắt AI soạn lại: gửi nó đi là `revision` thì mỗi lần user xác
+      // nhận lại tốn một lượt gọi model và mở ra đúng cái cổng vừa rồi — vòng lặp không lối ra.
+      if (isGateApproval(text)) {
+        if (!gate?.actions.includes("accept")) {
+          setToast("Chưa chốt được bước này — xử lý nốt phần đang chặn ở thẻ duyệt rồi quay lại nhé");
+          return;
+        }
+        // Đúng đường của chip Duyệt: xác nhận giả định tin cổng đã nói trước, rồi mới chốt
+        const pending = unsettledAssumptions(spokenAssumptions, gate.payload?.new_assumptions, settledAssumptionIds);
+        if (pending.length > 0) await confirmAllAssumptions(pending.map((a) => a.id));
+        submitGateAction("accept");
+        return;
+      }
       ws.appendLocalMessage(text, runner.state.stepId);
       // Thẻ cổng đã cũ (bước đã về chờ chạy) thì runner tự chạy lại bước với đúng lời nhắn này
       await runner.gate("revision", text);
@@ -1195,20 +1232,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               onGoToStep={setSelectedStepId}
               wroteOps={gate.wroteOps}
               emptySections={gate.emptySections}
-              onAction={(action, note) => {
-                // Hiện ngay như một lượt của user (gate có thể chờ cả chuỗi bước sau chạy xong mới trả về); không thành thì gỡ.
-                // Thẻ cổng dựng từ lượt chạy đang sống nên chốt xong là biến mất: tin cổng phải ở lại khung chat ngay trước
-                // thao tác vừa bấm, đúng thứ tự BE ghi transcript — thiếu nó thì đọc lại chỉ thấy "Đúng rồi, đi tiếp" một mình.
-                const spoken = runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate.payload?.message_vi;
-                const said = GATE_ACTION_TEXT[action](note);
-                if (spoken) ws.appendLocalMessage(spoken, runnerStep, "ai");
-                ws.appendLocalMessage(said, runnerStep);
-                void runner.gate(action, note).then((outcome) => {
-                  if (outcome === "ok") return;
-                  ws.dropLocalMessage(said);
-                  if (spoken) ws.dropLocalMessage(spoken, "ai");
-                });
-              }}
+              onAction={(action, note) => submitGateAction(action, note)}
             />
           )}
           {saveError && (

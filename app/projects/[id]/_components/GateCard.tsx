@@ -68,6 +68,19 @@ const warningSentence = (warnNoOps: boolean, emptySections: readonly { title: st
 };
 
 /**
+ * Giả định tin cổng đã nói mà chưa được chốt trong Spine — `gate_ready` khôi phục sau reload vẫn mang những
+ * giả định đã xác nhận/bỏ, không xác nhận lại chúng.
+ *
+ * Xuất ra vì duyệt có **hai lối**: chip trên thẻ này, và một tiếng "ừ" gõ ở ô chat. Hai lối phải xác nhận
+ * đúng cùng một tập giả định, nên phép lọc chỉ được viết một lần.
+ */
+export const unsettledAssumptions = (
+  spoken: AssumptionBrief[] | undefined,
+  fromPayload: AssumptionBrief[] | undefined,
+  settledIds: ReadonlySet<string> | undefined
+): AssumptionBrief[] => (spoken ?? fromPayload ?? []).filter((a) => !settledIds?.has(a.id));
+
+/**
  * Cổng chốt như một tin nhắn AI: lời AI, chip "Đúng rồi, đi tiếp" / "Tôi muốn sửa", menu ⋯ (Làm lại · Duyệt như hiện tại).
  * Dùng chung cho cả hai chế độ duyệt. Sửa = nhắn tin ở ô chat (revision), không có form ở đây.
  */
@@ -99,7 +112,7 @@ export default function GateCard({
   const summary = phaseSummary ?? payload?.summary ?? [];
   const text = (phaseSummary ? message : (message ?? payload?.message_vi))?.trim() || fallbackGateMessage(summary, payload?.no_change_reason);
   // `gate_ready` khôi phục sau reload vẫn mang giả định đã xác nhận/bỏ trong Spine — không xác nhận lại chúng
-  const assumptions = (spokenAssumptions ?? payload?.new_assumptions ?? []).filter((a) => !settledAssumptionIds?.has(a.id));
+  const assumptions = unsettledAssumptions(spokenAssumptions, payload?.new_assumptions, settledAssumptionIds);
 
   // Khoá mọi hành động từ cú bấm đầu tới khi lệnh đã gửi: lúc chờ xác nhận giả định (~1 s) `busy` của runner chưa bật,
   // bấm Duyệt lần hai gửi thêm một lượt gate + chạy giai đoạn ⇒ 409 và thanh "Lượt chạy bị gián đoạn". Ref chặn cả hai
