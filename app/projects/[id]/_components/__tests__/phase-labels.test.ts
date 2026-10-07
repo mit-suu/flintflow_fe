@@ -8,7 +8,7 @@ describe("workspaceStepLabel", () => {
   it("đè nhãn registry có chữ nội bộ bằng lời thường", () => {
     expect(workspaceStepLabel("B-2.2")).toBe("Sắp xếp ghi chú");
     expect(workspaceStepLabel("B-1.6")).toBe("Rủi ro & câu hỏi còn mở");
-    expect(workspaceStepLabel("B-2.1")).toBe("Rà lại những điều tôi tạm hiểu");
+    expect(workspaceStepLabel("B-2.1")).toBe("Xem lại chỗ tôi đoán");
   });
   it("bước khác lấy nhãn registry; id lạ giữ nguyên", () => {
     expect(workspaceStepLabel("B-0.1")).toBe("Kể hết ý tưởng");

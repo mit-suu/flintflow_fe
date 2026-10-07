@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
-import { errorDetailLine, friendlyError, type ErrorAction } from "@/lib/errors";
+import { friendlyError, type ErrorAction } from "@/lib/errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
@@ -1143,12 +1143,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {showOpening && <ChatOpening disabled={aiWorking} onPick={(chip) => void sendFromChat(chip.message, chip.intent)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} />}
-          {/* Bước được tự duyệt (không cần chốt) không hiện gì trong khung chat — chỉ dấu ✓ trên rail tiến độ */}
-          {!mode1 && onPipelineSession && viewingAccepted && viewedStep && !aiWorking && !runner.state.autoAccepted.some((item) => item.step_id === viewedStep) && (
-            <div className="bg-success-soft rounded-control p-3 text-[12px] text-success">
-              Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.
-            </div>
-          )}
+          {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
+              một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
             <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-[12px] text-accent-gold-text">
               <p className="leading-relaxed">
@@ -1237,7 +1233,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             </div>
           )}
           {runner.state.error && (
-            // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được; mã kỹ thuật nằm trong "Chi tiết"
+            // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được. Đây là NƠI DUY NHẤT nói câu lỗi — nhật ký
+            // lượt chạy phía trên cố ý im, vì BE trả câu đã viết cho người nên nhắc lại chỉ thành tiếng vọng.
             <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-col gap-2">
               <span>{friendlyError(runner.state.error.code, runner.state.error.message).message}</span>
               <div className="flex flex-wrap items-center gap-2">
@@ -1255,10 +1252,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                   Đóng
                 </button>
               </div>
-              <details className="text-[11px] opacity-80">
-                <summary className="cursor-pointer">Chi tiết</summary>
-                {errorDetailLine(runner.state.error.code, runner.state.error.message)}
-              </details>
             </div>
           )}
           {editCardOpen && (

@@ -29,7 +29,7 @@ export const SINGLE_ITEM_PHASES: ReadonlySet<PhaseId> = new Set<PhaseId>(["B-0"]
 const STEP_DISPLAY_LABELS: Readonly<Record<string, string>> = {
   "B-1.4": "Phạm vi bản đầu & tính năng dự kiến",
   "B-1.6": "Rủi ro & câu hỏi còn mở",
-  "B-2.1": "Rà lại những điều tôi tạm hiểu",
+  "B-2.1": "Xem lại chỗ tôi đoán",
   "B-2.2": "Sắp xếp ghi chú",
   "S-1.1": "Đọc lại tóm tắt ý tưởng",
   "S-1.3": "Xung đột & điều tạm hiểu",

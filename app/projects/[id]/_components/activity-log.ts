@@ -9,7 +9,6 @@
 import { workspaceStepLabel as stepLabel } from "./phase-labels";
 import type { ChangeSummary, StepEvent } from "@/types/pipeline";
 import { projectFieldText } from "./GateCard";
-import { friendlyError } from "@/lib/errors";
 
 /** Sự kiện đã lưu kèm thời điểm: SSE sống ⇒ ms (reducer gắn), run-state sau reload ⇒ ISO (BE gắn). */
 export type LoggedEvent = StepEvent & { at?: number | string };
@@ -102,8 +101,8 @@ const taskOf = (event: StepEvent): { text: string; details?: string[]; failed?: 
     case "flags":
       return (event.red_delta ?? 0) > 0 ? { text: `Phát hiện ${event.red_delta} lỗi cần sửa`, failed: true } : null;
     case "error":
-      // `message` của BE có thể là text kỹ thuật (lỗi AI, Zod…) — nói bằng câu cho người; mã nằm ở "Chi tiết" của thẻ lỗi
-      return { text: friendlyError(event.code, event.message).message, failed: true };
+      // Thẻ lỗi ngay dưới nhật ký đã nói câu này, kèm việc user làm được. Nhắc lại ở đây chỉ thành tiếng vọng.
+      return null;
     default:
       return null;
   }
