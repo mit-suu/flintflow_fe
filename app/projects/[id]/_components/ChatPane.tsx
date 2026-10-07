@@ -191,7 +191,7 @@ export default function ChatPane({
       {/* Tin nhắn cuộn chui xuống dưới ô nhập rồi mờ dần ở mép đáy (không có dải nền chắn sau ô nhập) */}
       <div
         ref={scrollRef}
-        style={{ paddingBottom: footerHeight + 12 }}
+        style={{ paddingBottom: footerHeight + 32 }}
         className="h-full overflow-y-auto ff-scroll px-6 pt-4 [mask-image:linear-gradient(to_bottom,black_calc(100%-20px),transparent)]"
       >
         {/* Cột đọc giới hạn bề rộng, khoảng thở rộng giữa các lượt — kiểu ChatGPT */}

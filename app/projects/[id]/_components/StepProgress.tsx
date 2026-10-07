@@ -147,7 +147,8 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
 
         {state.retry && (
           <p className="text-[11.5px] text-[#8A6D1F] bg-[#FBF4E4] rounded-[8px] px-2 py-1">
-            AI trả {state.retry.reason}, đang thử lại (lần {state.retry.attempt}/{state.retry.max}).
+            {/* Lý do (parse hỏng, thiếu trường) và số lần là chuyện của hệ thống — user chỉ cần biết lượt này lâu hơn thường lệ */}
+            AI đang thử lại…
           </p>
         )}
 

@@ -8,13 +8,13 @@ import { tStep } from "@/lib/i18n";
  * Lượt test UI cho thấy user gặp nguyên văn `STEP_NOT_RUNNABLE: This step isn't ready to run or review yet`,
  * `NOT_IMPLEMENTED`, `duplicate_id` — tiếng Anh, không nói vì sao, và chỉ có một nút "Đóng". Bảng này đổi mã
  * lỗi thành một câu tiếng Việt **kèm hành động kế tiếp**. Nguyên tắc: mọi lỗi phải có ít nhất một việc user
- * làm được; mã kỹ thuật chỉ nằm trong phần "Chi tiết" thu gọn.
+ * làm được; mã kỹ thuật không hiện ra chữ user đọc — nó nằm ở log BE, nơi người sửa lỗi thật sự tìm nó.
  *
  * Khác với `lib/api/error-messages.ts` (dịch câu lỗi theo `code` cho mọi lời gọi API), file này còn quyết
  * định **hành động** và **cách hồi phục** của khu vực workspace.
  */
 
-export type ErrorActionKind = "cancel_and_rerun" | "goto_step" | "retry" | "reload_spine" | "edit_command" | "report" | "dismiss";
+export type ErrorActionKind = "cancel_and_rerun" | "goto_step" | "retry" | "reload_spine" | "edit_command" | "dismiss";
 
 export interface ErrorAction {
   kind: ErrorActionKind;
@@ -34,7 +34,6 @@ export interface FriendlyError {
 }
 
 const RETRY: ErrorAction = { kind: "retry", label: "Thử lại" };
-const REPORT: ErrorAction = { kind: "report", label: "Báo lỗi" };
 
 /** "Bước này đang chạy ở lượt trước (bắt đầu 14:02)" — BE đã kèm giờ trong message. */
 const startedAtOf = (rawMessage: string): string | null => /bắt đầu (\d{1,2}:\d{2})/.exec(rawMessage)?.[1] ?? null;
@@ -92,13 +91,13 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
     case "NEEDS_USER_INPUT":
       return {
         message: "AI trả kết quả không hợp lệ sau 3 lần thử. Bạn có thể chạy lại, hoặc nói rõ hơn yêu cầu ở ô chat.",
-        actions: [RETRY, REPORT]
+        actions: [RETRY]
       };
 
     case "NOT_IMPLEMENTED":
     case "STREAM_FAILED":
     case "UNKNOWN_ERROR":
-      return { message: "Hệ thống gặp lỗi khi xử lý bước này. Nội dung đã ghi trước đó vẫn được giữ.", actions: [RETRY, REPORT] };
+      return { message: "Hệ thống gặp lỗi khi xử lý bước này. Nội dung đã ghi trước đó vẫn được giữ.", actions: [RETRY] };
 
     case "BASELINE_BLOCKED":
       return {
@@ -131,9 +130,7 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
 
     default:
       // Mã có bản dịch, hoặc câu BE đã là câu cho người ⇒ dùng; text kỹ thuật ⇒ câu chung (FLF-247)
-      return { message: localizeApiError(code, rawMessage), actions: [RETRY, REPORT] };
+      return { message: localizeApiError(code, rawMessage), actions: [RETRY] };
   }
 };
 
-/** Dòng "Chi tiết" thu gọn — nơi DUY NHẤT được hiện mã kỹ thuật. */
-export const errorDetailLine = (code: string, rawMessage: string): string => (rawMessage ? `${code}: ${rawMessage}` : code);

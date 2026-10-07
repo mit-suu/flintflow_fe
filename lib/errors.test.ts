@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { errorDetailLine, friendlyError } from "./errors";
+import { friendlyError } from "./errors";
 
 describe("friendlyError (BUG-25)", () => {
   it("không bao giờ hiện mã kỹ thuật trong câu cho user", () => {
@@ -33,7 +33,8 @@ describe("friendlyError (BUG-25)", () => {
     expect(friendlyError("path_not_resolved", "").actions[0].kind).toBe("edit_command");
   });
 
-  it("mã kỹ thuật chỉ nằm trong dòng chi tiết", () => {
-    expect(errorDetailLine("NOT_IMPLEMENTED", "values is not iterable")).toBe("NOT_IMPLEMENTED: values is not iterable");
+  it("không lỗi nào mời user 'Báo lỗi' — nút đó từng không gửi đi đâu", () => {
+    const codes = ["NEEDS_USER_INPUT", "NOT_IMPLEMENTED", "STREAM_FAILED", "UNKNOWN_ERROR", "AI_PROVIDER_ERROR", "MỘT_MÃ_LẠ"];
+    for (const code of codes) expect(friendlyError(code, "").actions.map((a) => a.kind)).not.toContain("report");
   });
 });
