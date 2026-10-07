@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { logoutAndRedirect } from "@/lib/auth";
 import { fetchMe } from "@/lib/api/users";
+import { useAccountLocaleSync } from "@/lib/hooks/use-account-locale";
 import HomeFrame from "./HomeFrame";
 
 let pathname = "/home/onboarding";
@@ -17,6 +18,8 @@ vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }
 vi.mock("./AppShell", () => ({ default: ({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) => <div data-testid="app-shell">{sidebar}{children}</div> }));
 vi.mock("./AppSidebar", () => ({ default: ({ user }: { user: { name: string } }) => <nav data-testid="app-sidebar">{user.name}</nav> }));
 vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn() }));
+// Hook đồng bộ ngôn ngữ test riêng — ở đây chỉ cần biết HomeFrame đưa hồ sơ cho nó
+vi.mock("@/lib/hooks/use-account-locale", () => ({ useAccountLocaleSync: vi.fn() }));
 vi.mock("@/lib/hooks/use-projects", () => ({ ProjectsProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="projects-provider">{children}</div> }));
 vi.mock("@/components/OrgGuard", () => ({
   ONBOARDING_PATH: "/home/onboarding",
@@ -82,5 +85,35 @@ describe("HomeFrame — tên ở thanh bên", () => {
 
     await waitFor(() => expect(fetchMe).toHaveBeenCalled());
     expect(screen.getByTestId("app-sidebar")).toHaveTextContent("tien");
+  });
+});
+
+describe("HomeFrame — ngôn ngữ tài khoản (FLF-259)", () => {
+  it("có hồ sơ ⇒ đưa cho useAccountLocaleSync (trước đó là null)", async () => {
+    pathname = "/home";
+    vi.mocked(getActiveOrgId).mockReturnValue("org-1");
+    vi.mocked(fetchMe).mockResolvedValue({ email: "tien@flintflow.test", locale: "en" } as never);
+    renderWithIntl(<HomeFrame user={user}><p>trang chủ</p></HomeFrame>);
+
+    expect(useAccountLocaleSync).toHaveBeenCalledWith(null);
+    await waitFor(() => expect(useAccountLocaleSync).toHaveBeenLastCalledWith(expect.objectContaining({ locale: "en" })));
+  });
+
+  it("chưa có tổ chức (khung tối giản) vẫn đồng bộ", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    vi.mocked(fetchMe).mockResolvedValue({ email: "tien@flintflow.test", locale: null } as never);
+    renderWithIntl(<HomeFrame user={user}><p>màn onboarding</p></HomeFrame>);
+
+    await waitFor(() => expect(useAccountLocaleSync).toHaveBeenLastCalledWith(expect.objectContaining({ locale: null })));
+  });
+
+  it("không lấy được hồ sơ ⇒ không đồng bộ gì", async () => {
+    pathname = "/home";
+    vi.mocked(getActiveOrgId).mockReturnValue("org-1");
+    vi.mocked(fetchMe).mockRejectedValue(new Error("mất mạng"));
+    renderWithIntl(<HomeFrame user={user}><p>trang chủ</p></HomeFrame>);
+
+    await waitFor(() => expect(fetchMe).toHaveBeenCalled());
+    expect(vi.mocked(useAccountLocaleSync).mock.calls.every(([account]) => account === null)).toBe(true);
   });
 });

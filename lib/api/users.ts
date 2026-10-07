@@ -13,7 +13,10 @@ export const updateMyName = async (name: string): Promise<User> => {
   return res.data as User;
 };
 
-/** Ngôn ngữ giao diện + email của tài khoản — `LocaleSwitcher` gọi khi user đã đăng nhập. */
+/**
+ * Ngôn ngữ giao diện của tài khoản (FLF-259) — `LocaleSwitcher` gọi khi user tự chọn, `useAccountLocaleSync` gọi
+ * khi tài khoản chưa chọn. Nơi gọi tự ghi lỗi; lỗi không chặn việc đổi ngôn ngữ trên thiết bị này.
+ */
 export const updateMyLocale = async (locale: Locale): Promise<User> => {
   const res = await apiCall<User>("/users/me", { method: "PATCH", body: JSON.stringify({ locale }) });
   return res.data as User;

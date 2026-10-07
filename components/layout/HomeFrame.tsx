@@ -10,7 +10,9 @@ import Button from "@/components/ui/Button";
 import { logoutAndRedirect } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { fetchMe } from "@/lib/api/users";
+import { useAccountLocaleSync } from "@/lib/hooks/use-account-locale";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
+import type { User } from "@/types/user";
 import AppShell from "./AppShell";
 import AppSidebar, { type SidebarUser } from "./AppSidebar";
 
@@ -26,20 +28,23 @@ export default function HomeFrame({ user, children }: { user: SidebarUser; child
   const pathname = usePathname();
   const t = useTranslations("app.shell");
   // JWT không có tên ⇒ layout chỉ đoán từ email ("lead.tien"). Lấy tên thật từ hồ sơ; lỗi thì giữ tên đoán.
-  const [profileName, setProfileName] = useState<string | null>(null);
+  const [me, setMe] = useState<User | null>(null);
+  // Mọi lần đăng nhập đều vào /home ⇒ có hồ sơ là đồng bộ ngôn ngữ tài khoản với ngôn ngữ đang hiển thị (FLF-259).
+  useAccountLocaleSync(me);
 
   useEffect(() => {
     let mounted = true;
     fetchMe()
-      .then((me) => {
-        const name = me.name?.trim();
-        if (mounted && name) setProfileName(name);
+      .then((profile) => {
+        if (mounted) setMe(profile);
       })
       .catch(() => undefined);
     return () => {
       mounted = false;
     };
   }, []);
+
+  const profileName = me?.name?.trim() || null;
 
   if (!getActiveOrgId()) {
     return (

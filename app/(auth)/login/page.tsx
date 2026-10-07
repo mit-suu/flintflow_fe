@@ -7,6 +7,7 @@ import GoogleButton from "../../../components/GoogleButton";
 import { getRememberedEmail, saveAuthToken, setRememberedEmail } from "../../../lib/auth";
 import { buildVerifyEmailHref } from "../../../lib/otp";
 import { localizeApiError } from "@/lib/api/error-messages";
+import { applyAccountLocale } from "@/lib/i18n";
 import {
   AuthAlert,
   AuthCard,
@@ -46,12 +47,19 @@ export default function LoginPage() {
     });
   }, []);
 
-  /** Sau khi BE trả phiên: lưu token theo chế độ ghi nhớ, nhớ/quên email, rồi vào app. */
-  const completeLogin = (accessToken: string | undefined, userRole: string | undefined, loginEmail?: string) => {
+  /** Sau khi BE trả phiên: lưu token theo chế độ ghi nhớ, nhớ/quên email, áp ngôn ngữ tài khoản, rồi vào app. */
+  const completeLogin = (
+    accessToken: string | undefined,
+    userRole: string | undefined,
+    loginEmail?: string,
+    accountLocale?: unknown
+  ) => {
     if (accessToken) {
       saveAuthToken(accessToken, userRole, { persistent: rememberMe });
     }
     setRememberedEmail(rememberMe && loginEmail ? loginEmail.trim().toLowerCase() : null);
+    // FLF-259: ghi cookie trước khi tải trang ⇒ trang đầu đã đúng ngôn ngữ tài khoản. Chưa chọn ⇒ /home lưu sau.
+    applyAccountLocale(accountLocale);
     window.location.href = userRole === "admin" ? "/admin/metrics" : "/home";
   };
 
@@ -78,7 +86,7 @@ export default function LoginPage() {
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
-      completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, email);
+      completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, email, json.data?.user?.locale);
     } catch (err) {
       setError(userErrorMessage(err, tc("genericError")));
     } finally {
@@ -125,7 +133,12 @@ export default function LoginPage() {
       if (!res.ok || json.error) {
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("googleFailed")));
       }
-      completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, json.data?.user?.email);
+      completeLogin(
+        json.data?.accessToken,
+        json.data?.user?.role || json.data?.role,
+        json.data?.user?.email,
+        json.data?.user?.locale
+      );
     } catch (err) {
       setError(userErrorMessage(err, t("googleFailed")));
     } finally {

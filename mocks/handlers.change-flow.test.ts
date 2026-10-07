@@ -225,4 +225,19 @@ describe("mock T16: PATCH /users/me (onboarding)", () => {
     expect(me.data?.name).toBe("Hiệp");
     expect(me.data?.onboardedAt).toBe("2026-09-15T00:00:00.000Z");
   });
+
+  it("FLF-259: lưu locale rồi GET /users/me trả đúng", async () => {
+    await apiCall("/users/me", { method: "PATCH", body: JSON.stringify({ locale: "en" }) });
+    expect((await apiCall<{ locale?: string }>("/users/me")).data?.locale).toBe("en");
+  });
+
+  it("FLF-259: chặt như updateMeSchema của BE — field lạ, locale lạ, body rỗng ⇒ 400, không ghi", async () => {
+    const patch = (body: unknown) => apiCall("/users/me", { method: "PATCH", body: JSON.stringify(body) });
+    for (const body of [{ role: "admin" }, { locale: "fr" }, { locale: "en", role: "admin" }, {}]) {
+      await expect(patch(body)).rejects.toMatchObject({ status: 400, code: "VALIDATION_ERROR" });
+    }
+    const me = await apiCall<Record<string, unknown>>("/users/me");
+    expect(me.data).not.toHaveProperty("role");
+    expect(me.data?.locale).toBeUndefined();
+  });
 });

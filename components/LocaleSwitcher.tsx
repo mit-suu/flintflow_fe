@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useTransition } from "react";
 import { getStoredAuthToken } from "@/lib/api/token-store";
 import { updateMyLocale } from "@/lib/api/users";
+import { markAccountLocaleSettled } from "@/lib/hooks/use-account-locale";
 import { LOCALES, persistLocale, type Locale } from "@/lib/i18n";
 
 export { persistLocale };
@@ -50,8 +51,15 @@ export default function LocaleSwitcher({ className = "" }: { className?: string 
   const choose = (locale: Locale) => {
     if (locale === current) return;
     persistLocale(locale);
-    // Đã đăng nhập ⇒ lưu vào tài khoản (email + lần đăng nhập sau theo lựa chọn này). Lỗi mạng không chặn đổi.
-    if (getStoredAuthToken()) void updateMyLocale(locale).catch(() => undefined);
+    // Lựa chọn vừa bấm thắng ngôn ngữ tài khoản mà /home có thể còn đang đọc về.
+    markAccountLocaleSettled();
+    // Đã đăng nhập ⇒ lưu vào tài khoản (lần đăng nhập sau, thiết bị khác theo lựa chọn này). Lỗi không chặn đổi
+    // ngôn ngữ trên thiết bị này, nhưng phải để lại dấu vết.
+    if (getStoredAuthToken()) {
+      void updateMyLocale(locale).catch((err: unknown) => {
+        console.error("[LocaleSwitcher] Failed to save locale to account:", err);
+      });
+    }
 
     const refresh = () => startTransition(() => router.refresh());
     const startViewTransition = (document as WithViewTransition).startViewTransition;

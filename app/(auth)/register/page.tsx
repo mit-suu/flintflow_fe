@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import GoogleButton from "../../../components/GoogleButton";
 import { saveAuthToken } from "../../../lib/auth";
 import { buildVerifyEmailHref } from "../../../lib/otp";
+import { applyAccountLocale } from "@/lib/i18n";
 import {
   AuthAlert,
   AuthCard,
@@ -97,6 +98,8 @@ export default function RegisterPage() {
       if (json.data?.accessToken) {
         saveAuthToken(json.data.accessToken, undefined, { persistent: true });
       }
+      // Google có thể đăng nhập vào tài khoản cũ đã chọn ngôn ngữ (FLF-259).
+      applyAccountLocale(json.data?.user?.locale);
       window.location.href = "/home";
     } catch (err) {
       setError(userErrorMessage(err, t("googleFailed")));
