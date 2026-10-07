@@ -124,6 +124,9 @@ Nhãn UI và thông báo lỗi cho user: **tiếng Việt là bản chuẩn**, c
 `docs/fe-architecture.md` mục "Đa ngôn ngữ". Không viết chữ thẳng vào JSX; thêm chuỗi thì thêm key vào **cả
 hai** file. Nhãn step/phase qua `tStep`/`tPhase`. Admin chỉ tiếng Việt. Workspace (`app/projects/**`) chưa
 chuyển, vẫn viết thẳng tiếng Việt. Nội dung tài liệu SRS (do BE sinh): tiếng Anh — FE chỉ hiển thị, không dịch.
+Ngoại lệ (FLF-260): `ChatOpening` (`workspace.chatOpening`) và câu chạy lại bước đã cũ (`workspace.rerunStep`) theo
+giao diện; câu bọc "không đổi gì" của cổng chốt (`fallbackGateMessage`) theo ngôn ngữ `no_change_reason` của BE. Lời AI
+theo ngôn ngữ user viết (BE quyết), FE hiển thị nguyên văn.
 
 **Sửa giao diện là phải xét i18n.** Bất cứ thay đổi UI nào (thêm màn hình, sửa component, đổi nhãn,
 thêm trạng thái rỗng/lỗi/toast, placeholder, `aria-label`, `title`, text trong `alt`) đều phải kèm

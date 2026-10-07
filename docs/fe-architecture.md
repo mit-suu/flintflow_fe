@@ -60,7 +60,9 @@ registry, nên không có bảng dịch thứ hai để lệch.
 theo khu vực (`metadata`, `common`, `landing`, `auth`, `app`, `workspace`, `errors`). Đã chuyển: landing
 (`app/_landing/`), xác thực (`app/(auth)/`), khu vực đã đăng nhập (`app/home/**`, `components/`) và lỗi BE
 (theo mã). **Chưa chuyển**: workspace (`app/projects/**`) — vẫn viết thẳng tiếng Việt; namespace
-`workspace` đã có sẵn chuỗi cho vòng sau.
+`workspace` đã có sẵn chuỗi cho vòng sau. Ngoại lệ (FLF-260): màn mở đầu `ChatOpening` (`workspace.chatOpening`) và câu
+FE tự gửi khi chạy lại bước đã cũ (`workspace.rerunStep`) theo ngôn ngữ giao diện; câu bọc "không đổi gì" của cổng chốt
+(`fallbackGateMessage`) theo ngôn ngữ của `no_change_reason` BE gửi (xem "Ngôn ngữ AI trả lời trong chat" bên dưới).
 
 **Admin chỉ tiếng Việt** — trang admin không đưa vào messages. `app/admin/layout.tsx` bọc
 `NextIntlClientProvider` ghim `locale="vi"`, nên component dùng chung đã dịch (`AuthGuard`…) vẫn hiện tiếng
@@ -80,6 +82,22 @@ và trong `user` của đăng nhập. Tài khoản thắng cookie:
   ⇒ ghi cookie + `router.refresh()`; tài khoản chưa chọn ⇒ lưu ngôn ngữ đang hiển thị. User bấm `LocaleSwitcher`
   trước khi hồ sơ về thì lựa chọn đó thắng.
 - Không đồng bộ ở admin (ghim `vi`) và workspace.
+
+**Ngôn ngữ AI trả lời trong chat (FLF-260).** Theo ngôn ngữ user **viết**, không theo giao diện, và do **BE quyết**: BE
+đoán ngôn ngữ từng tin user gõ (luật cố định, không gọi model); tin rõ ràng thành ngôn ngữ của phiên chat, tin mơ hồ
+("ok", số, mã phần tử, code, link, `[Đính kèm tài liệu]`) giữ ngôn ngữ trước; phiên chưa có thì lấy `user.locale`, rồi
+`vi`. FE gửi chữ user gõ nguyên văn, không gửi thêm field ngôn ngữ nào, và hiển thị lời AI (lời đáp, câu hỏi, lựa
+chọn, ghi chú cổng chốt) nguyên văn — không dịch, không tự đoán lại.
+
+- Lời chào và chip của `ChatOpening` theo giao diện. Chip gửi `message` (câu trọn vẹn), không gửi nhãn — câu đó là
+  lượt đầu của user nên bản `en` phải là câu tiếng Anh rõ ràng để BE nhận ra.
+- Câu chạy lại bước đã cũ (`workspace.rerunStep`) gửi kèm `reopen: true` chỉ để hiển thị: BE không đoán ngôn ngữ trên
+  lượt `reopen`, nên nút đó không làm đổi ngôn ngữ AI đang trả lời.
+- Cổng chốt không đổi gì (`fallbackGateMessage`): BE viết `no_change_reason` bằng ngôn ngữ trả lời (câu cố định vi | en),
+  FE bọc bằng câu cùng ngôn ngữ (có chữ cái riêng của tiếng Việt ⇒ câu bọc tiếng Việt, không thì tiếng Anh).
+- Field `*_vi` của BE (`message_vi`, `text_vi`, `statement_vi`…) nghĩa là "ngôn ngữ của user", có thể chứa tiếng Anh.
+- Phương án khuyến nghị: model đánh đuôi `(Khuyến nghị)` hoặc `(Recommended)` theo ngôn ngữ trả lời —
+  `splitRecommended` (`lib/question-options.ts`) nhận cả hai thành badge, `answerValue` bỏ đuôi trước khi gửi.
 
 Khi sửa:
 

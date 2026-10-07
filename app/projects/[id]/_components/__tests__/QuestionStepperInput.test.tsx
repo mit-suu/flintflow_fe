@@ -90,6 +90,11 @@ describe("answerValue / formatAnswers", () => {
     expect(answerValue(undefined, false)).toBeNull();
   });
 
+  it("AI trả lời bằng tiếng Anh (FLF-260) đánh dấu '(Recommended)' — cũng bỏ đuôi khi gửi", () => {
+    expect(answerValue({ selected: ["Web app (Recommended)"], custom: "" }, false)).toBe("Web app");
+    expect(answerValue({ selected: ["Web app (Recommended)", "Mobile app"], custom: " Kiosk " }, true)).toEqual(["Web app", "Mobile app", "Kiosk"]);
+  });
+
   it("một câu ⇒ nguyên văn; nhiều câu ⇒ dòng `n. ...`, bỏ câu chưa trả lời", () => {
     expect(formatAnswers(["Bán xe mới"])).toBe("Bán xe mới");
     expect(formatAnswers(["Xe cũ", null, ["Online", "Cửa hàng"]])).toBe("1. Xe cũ\n3. Online; Cửa hàng");
