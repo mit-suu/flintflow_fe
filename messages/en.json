@@ -937,6 +937,33 @@
       "notPipeline": "This isn't a pipeline session — edit commands typed below go straight to the Change panel for preview and confirmation.",
       "editPlaceholder": "Type an edit command — sent to the Change panel…"
     },
+    "chatOpening": {
+      "aria": "Start your project",
+      "greeting": "Hi there! Tell me about the software you want to build — who will use it, what they'll use it for, and why you want to build it. Share as much as you like; I'll only ask about what's missing.",
+      "hint": "Or start from a suggestion:",
+      "suggestionsAria": "Suggestions to get started",
+      "chips": {
+        "teamTasks": {
+          "label": "Task management for a small team",
+          "message": "I want to build an app that helps a small team assign tasks, track progress and remind each other of deadlines."
+        },
+        "digitize": {
+          "label": "Digitize a paper/Excel process",
+          "message": "I want to digitize a process that's currently done on paper and in Excel, to cut down on manual data entry and make information easier to look up."
+        },
+        "marketplace": {
+          "label": "Connect people who need a service with providers",
+          "message": "I want to build a platform that connects people who need a service with the people who provide it, with booking and reviews."
+        },
+        "noIdea": {
+          "label": "I don't have an idea yet",
+          "message": "I don't have a specific idea yet."
+        }
+      }
+    },
+    "rerunStep": {
+      "message": "Update this step with the new data"
+    },
     "chatInput": {
       "placeholder": "Type your answer or an edit request…",
       "removeFile": "Remove this file",

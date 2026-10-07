@@ -175,6 +175,13 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
 
   it("chỉ có giả định hoặc không có gì ⇒ vẫn là một câu đọc được", () => {
     expect(fallbackGateMessage([])).toBe("Tôi đã xong bước này. Bạn xem giúp, ổn thì mình đi tiếp nhé.");
+    // FLF-260: lý do "không đổi gì" theo ngôn ngữ phiên ⇒ câu bọc cùng ngôn ngữ
+    expect(fallbackGateMessage([], "Nền tảng đã chốt — không cần hỏi lại.")).toBe(
+      "Bước này không thay đổi tài liệu: Nền tảng đã chốt — không cần hỏi lại. Bạn xem giúp, ổn thì mình đi tiếp nhé."
+    );
+    expect(fallbackGateMessage([], "The platform is already settled — no need to ask again.")).toBe(
+      "This step doesn't change the document: The platform is already settled — no need to ask again. Take a look — if it looks right, let's move on."
+    );
     expect(fallbackGateMessage([{ kind: "add", collection: "assumptions", id: "AS3", title_vi: "X" }])).toMatch(/^Tôi đã xong bước này/);
   });
 

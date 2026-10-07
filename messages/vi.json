@@ -937,6 +937,33 @@
       "notPipeline": "Phiên này không phải phiên pipeline — lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.",
       "editPlaceholder": "Nhập lệnh sửa — gửi vào Change panel…"
     },
+    "chatOpening": {
+      "aria": "Bắt đầu dự án",
+      "greeting": "Chào bạn! Kể cho mình nghe ý tưởng phần mềm bạn muốn làm — ai sẽ dùng, dùng để làm gì, vì sao bạn muốn làm nó. Kể được bao nhiêu cứ kể, mình chỉ hỏi thêm phần còn thiếu.",
+      "hint": "Hoặc bắt đầu từ một gợi ý:",
+      "suggestionsAria": "Gợi ý bắt đầu",
+      "chips": {
+        "teamTasks": {
+          "label": "Quản lý công việc cho một nhóm nhỏ",
+          "message": "Mình muốn làm một ứng dụng giúp một nhóm nhỏ giao việc, theo dõi tiến độ và nhắc hạn cho nhau."
+        },
+        "digitize": {
+          "label": "Số hoá một quy trình đang làm bằng giấy/Excel",
+          "message": "Mình muốn số hoá một quy trình hiện đang làm bằng giấy tờ và Excel để bớt nhập tay và dễ tra cứu."
+        },
+        "marketplace": {
+          "label": "Kết nối người cần dịch vụ với người cung cấp",
+          "message": "Mình muốn làm một nền tảng kết nối người cần một dịch vụ với người cung cấp dịch vụ đó, có đặt lịch và đánh giá."
+        },
+        "noIdea": {
+          "label": "Mình chưa có ý tưởng",
+          "message": "Mình chưa có ý tưởng cụ thể."
+        }
+      }
+    },
+    "rerunStep": {
+      "message": "Cập nhật lại bước này theo dữ liệu mới"
+    },
     "chatInput": {
       "placeholder": "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
       "removeFile": "Bỏ file này",

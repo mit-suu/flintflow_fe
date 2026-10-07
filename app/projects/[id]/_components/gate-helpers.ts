@@ -118,6 +118,8 @@ export const joinSummaryTexts = (texts: readonly string[]): string =>
     .join("; ");
 
 const FALLBACK_CLOSING = "Bạn xem giúp, ổn thì mình đi tiếp nhé.";
+/** Chữ cái riêng của tiếng Việt — lý do "không đổi gì" BE viết sẵn bằng đúng một trong hai ngôn ngữ (FLF-260). */
+const VIETNAMESE_LETTER = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
 /** Số nhóm / số mục mỗi nhóm nêu tên trong câu tạm — dài hơn thì user đọc tài liệu. */
 const FALLBACK_MAX_GROUPS = 4;
 const FALLBACK_MAX_ITEMS = 3;
@@ -130,7 +132,11 @@ export const fallbackGateMessage = (summary: readonly ChangeSummary[], noChangeR
   const shown = summary.filter((row) => row.collection !== "assumptions");
   if (shown.length === 0) {
     const reason = noChangeReason?.trim().replace(/[\s.]+$/u, "");
-    return reason ? `Bước này không thay đổi tài liệu: ${reason}. ${FALLBACK_CLOSING}` : `Tôi đã xong bước này. ${FALLBACK_CLOSING}`;
+    if (!reason) return `Tôi đã xong bước này. ${FALLBACK_CLOSING}`;
+    // Lý do đi theo ngôn ngữ AI trả lời trong phiên (FLF-260) — câu bọc theo cùng ngôn ngữ, không ra câu nửa Việt nửa Anh.
+    return VIETNAMESE_LETTER.test(reason)
+      ? `Bước này không thay đổi tài liệu: ${reason}. ${FALLBACK_CLOSING}`
+      : `This step doesn't change the document: ${reason}. Take a look — if it looks right, let's move on.`;
   }
   const groups = new Map<string, ChangeSummary[]>();
   for (const row of shown) {

@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
 import { getProject } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
@@ -224,6 +225,8 @@ const MODE1_ACTION =
 function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const params = useParams();
   const projectId = params?.id as string;
+  // Workspace chưa i18n hoá — chỉ câu FE gửi thay user theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
+  const t = useTranslations("workspace");
 
   const ws = useWorkspace(projectId);
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
@@ -999,7 +1002,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * từ chối chạy bước đã accepted; user đã bấm chủ động nên mở lại bước (B7) thay vì báo "Bước này đã chốt".
    */
   const rerunStaleStep = async (stepId: string) => {
-    const text = "Cập nhật lại bước này theo dữ liệu mới";
+    const text = t("rerunStep.message");
     await runner.run(stepId, { message: text, standalone: true, reopen: true, onStarted: () => ws.appendLocalMessage(text, stepId) });
   };
 
