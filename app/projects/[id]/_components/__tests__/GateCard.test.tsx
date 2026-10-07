@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
-import GateCard, { groupSummary, joinSummaryTexts, type GateNewFlag } from "../GateCard";
+import GateCard, { groupSummary, joinSummaryTexts, unsettledAssumptions, type GateNewFlag } from "../GateCard";
 import { fallbackGateMessage } from "../gate-helpers";
 import type { GateAction, GateReadyEvent } from "@/types/pipeline";
 
@@ -394,5 +394,19 @@ describe("GateCard — cờ và bảng", () => {
     // Giai đoạn cũ chưa có message_vi ⇒ câu tạm dựng từ tóm tắt cả giai đoạn
     renderWithIntl(<GateCard stepId="S-3.6" actions={ALL} regenerateUsed={0} payload={stepGate} phaseSummary={[{ kind: "add", collection: "actors", id: "A01", title_vi: "Bệnh nhân" }]} onAction={vi.fn()} />);
     expect(screen.getAllByLabelText("Cổng chốt")[1]).toHaveTextContent("thêm 1 actor (Bệnh nhân)");
+  });
+});
+
+describe("unsettledAssumptions", () => {
+  const A = (id: string) => ({ id, text: id });
+
+  it("giả định tin cổng đã nói thắng danh sách của payload", () => {
+    expect(unsettledAssumptions([A("AS3")], [A("AS-STEP")], undefined).map((a) => a.id)).toEqual(["AS3"]);
+    expect(unsettledAssumptions(undefined, [A("AS-STEP")], undefined).map((a) => a.id)).toEqual(["AS-STEP"]);
+  });
+
+  it("bỏ giả định đã chốt trong Spine — khôi phục sau reload không xác nhận lại", () => {
+    expect(unsettledAssumptions([A("AS1"), A("AS2")], undefined, new Set(["AS2"])).map((a) => a.id)).toEqual(["AS1"]);
+    expect(unsettledAssumptions(undefined, undefined, new Set(["AS1"]))).toEqual([]);
   });
 });
