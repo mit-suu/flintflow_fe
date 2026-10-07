@@ -101,4 +101,20 @@ describe("runWholePhase + gate", () => {
     await waitFor(() => expect(runPhase).toHaveBeenCalledTimes(2));
     expect(runPhase.mock.calls[1][1]).toBe("B-1");
   });
+  /**
+   * FLF-264: bước im giờ im ở cả lượt chạy lẻ. Luồng đóng ngay sau `gate_ready` mang `auto`, và lượt lẻ không có
+   * bước kế để gỡ trạng thái — thiếu xử lý này thì màn hình treo ở "đang chạy" rồi báo "kết nối bị đóng giữa chừng".
+   */
+  it("chạy lẻ gặp bước im (gate_ready auto) ⇒ về rảnh, không báo lỗi đứt kết nối", async () => {
+    runStep.mockImplementation(async (_p: string, stepId: string, _req: unknown, h: { onEvent: (e: unknown) => void }) => {
+      h.onEvent({ ...gateAt(stepId), auto: true });
+    });
+    const { result } = setup();
+
+    await act(async () => result.current.run("S-8.2", { standalone: true }));
+
+    await waitFor(() => expect(result.current.state.status).toBe("idle"));
+    expect(result.current.state.error).toBeNull();
+    expect(result.current.state.gate).toBeNull();
+  });
 });

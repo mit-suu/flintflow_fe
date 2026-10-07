@@ -1329,7 +1329,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           // Mode 1 v3: không có step ⇒ không có nút "xem tại step", mục trống mời tạo CR
           onSelectStep={mode1 ? undefined : setSelectedStepId}
           refreshToken={documentRefreshToken}
-          getBaseVersion={getBaseVersion}
           mode1={mode1}
           onEditSection={canEdit ? (label) => startEditing(`Trong ${label}: `) : undefined}
           issues={documentIssues}
@@ -1486,8 +1485,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectName={documentName}
           flags={flags}
           onClose={() => setExportOpen(false)}
-          onGoToStep={setSelectedStepId}
-          getBaseVersion={getBaseVersion}
         />
       )}
 

@@ -194,8 +194,11 @@ describe("mock T16: flags waive/recompute", () => {
 });
 
 describe("mock T16: assemble/document/export", () => {
-  it("GET /document trước khi assemble ⇒ 409 NO_WORKING_DRAFT kèm hint S-8.2", async () => {
-    await expect(getDocument(P)).rejects.toMatchObject({ code: "NO_WORKING_DRAFT", status: 409 });
+  it("GET /document dựng luôn bản còn thiếu — không phải gọi assemble trước (FLF-264)", async () => {
+    const doc = await getDocument(P);
+    expect(doc.data?.sections.length).toBeGreaterThan(0);
+    expect(doc.meta?.assembled_at_version).toBe(await version());
+    expect(doc.meta?.stale).toBe(false);
   });
 
   it("assemble rồi GET /document trả RenderedDocument + meta", async () => {
@@ -207,9 +210,7 @@ describe("mock T16: assemble/document/export", () => {
     expect(doc.meta?.stale).toBe(false);
   });
 
-  it("export word trả {blob, filename} sau khi assemble; 409 khi chưa assemble", async () => {
-    await expect(downloadWordExport(P)).rejects.toMatchObject({ code: "NO_WORKING_DRAFT", status: 409 });
-    await assembleDocument(P, await version());
+  it("export word trả {blob, filename} mà không cần assemble trước", async () => {
     const { blob, filename } = await downloadWordExport(P);
     expect(blob.size).toBeGreaterThan(0);
     expect(filename).toContain("-draft.docx");

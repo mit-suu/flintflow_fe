@@ -19,8 +19,6 @@ interface DocumentPaneProps {
   onSelectStep?: (stepId: string) => void;
   /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc lệnh sửa trong chat áp lô). */
   refreshToken?: number;
-  /** `spine_version` hiện tại — có thì nút ghép gọi `POST /assemble` thẳng thay vì chỉ chuyển sang S-8.2. */
-  getBaseVersion?: () => number | null;
   /**
    * Mode 1 v2 (FLF-185): step sở hữu section chưa có nội dung — hiện "Chưa có nội dung — chạy step X" thay câu chung,
    * `missing` = đầu mục mẫu FPT file upload không có (đỏ).
@@ -381,7 +379,6 @@ export default function DocumentPane({
   changedSectionIds,
   onSelectStep,
   refreshToken = 0,
-  getBaseVersion,
   emptyHintOf,
   mode1 = false,
   onEditSection,
@@ -394,13 +391,7 @@ export default function DocumentPane({
   onRedrawSection,
   hasDiagrams,
 }: DocumentPaneProps) {
-  const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
-    projectId,
-    "draft",
-    undefined,
-    refreshToken
-  );
-  const runAssemble = getBaseVersion ? () => void assemble(getBaseVersion()) : undefined;
+  const { document, loading, refreshing, empty, error, reload } = useDocument(projectId, "draft", undefined, refreshToken);
 
   useEffect(() => {
     if (document) onSectionsLoaded?.(document.sections);
@@ -449,17 +440,18 @@ export default function DocumentPane({
                   : "Không có vấn đề"}
             </button>
           )}
-          {/* Một nút "Làm mới": tài liệu đã đổi sau lần ghép gần nhất ⇒ ghép lại; không thì chỉ tải lại */}
+          {/*
+            Tài liệu tự cập nhật sau mỗi bước và mỗi lệnh sửa (BE dựng bản còn thiếu lúc đọc) — nút này chỉ còn để
+            kéo về thay đổi đến từ phiên khác, không còn trạng thái "đã cũ" nào để người dùng phải tự xử lý.
+          */}
           <button
             type="button"
-            onClick={meta?.stale && runAssemble ? runAssemble : () => void reload()}
-            disabled={assembling}
-            title={meta?.stale ? "Nội dung đã đổi — ghép lại tài liệu cho khớp" : "Tải lại tài liệu"}
-            className="relative h-8 px-3 whitespace-nowrap rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-[12px] font-bold cursor-pointer transition-colors disabled:opacity-60"
+            onClick={() => void reload()}
+            disabled={refreshing}
+            title="Tải lại tài liệu"
+            className="h-8 px-3 whitespace-nowrap rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-[12px] font-bold cursor-pointer transition-colors disabled:opacity-60"
           >
-            {assembling ? "Đang làm mới…" : "Làm mới"}
-            {/* Chấm tím: có nội dung mới chưa ghép vào tài liệu */}
-            {meta?.stale && !assembling && <span aria-hidden className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />}
+            {refreshing ? "Đang làm mới…" : "Làm mới"}
           </button>
           {headerEnd}
         </div>
@@ -474,47 +466,16 @@ export default function DocumentPane({
         )}
         {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
 
-        {!loading && notAssembled && (
-          <div className="bg-white border border-dashed border-[#E4E1DC] rounded-[14px] p-5 flex flex-col items-center gap-2 text-center">
-            <span className="text-[12.5px] font-bold text-[#4B4842]">Chưa có bản ghép tài liệu</span>
-            <span className="text-[11px] text-[#8A867E] leading-relaxed">{error}</span>
-            {runAssemble ? (
-              <button
-                type="button"
-                onClick={runAssemble}
-                disabled={assembling}
-                className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer disabled:opacity-60"
-              >
-                {assembling ? "Đang ghép tài liệu…" : "Ghép tài liệu ngay"}
-              </button>
-            ) : (
-              onSelectStep && (
-                <button
-                  type="button"
-                  onClick={() => onSelectStep("S-8.2")}
-                  className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer"
-                >
-                  Đi tới bước Ghép tài liệu
-                </button>
-              )
-            )}
-          </div>
-        )}
+        {/* Dự án chưa chạy bước nào: nói tài liệu sẽ tự hiện, không mời bấm gì — không có việc nào cho người dùng ở đây */}
+        {empty && <div className="text-[12px] text-[#A8A49C] italic">Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.</div>}
 
-        {assembleError && (
-          <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
-            Không ghép được tài liệu: {assembleError}
-          </div>
-        )}
-
-        {!loading && !notAssembled && error && (
+        {!empty && error && (
           <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
             Không tải được tài liệu: {error}
           </div>
         )}
 
-        {!loading &&
-          document &&
+        {document &&
           document.sections.map((section) => (
             <SectionView
               key={section.id}

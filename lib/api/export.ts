@@ -1,5 +1,5 @@
 /**
- * Ghép tài liệu, export Word và baseline — theo danh sách endpoint T08; chốt payload ở T16.
+ * Dựng tài liệu, export Word và baseline — theo danh sách endpoint T08; chốt payload ở T16.
  */
 import type { DocumentSource, RenderedDocument } from "@/types/document";
 import type { Baseline } from "@/types/spine";
@@ -19,7 +19,7 @@ const readErrorCode = async (res: Response, fallback: string): Promise<string> =
   }
 };
 
-/** `meta.hint` của envelope lỗi (vd `"S-8.2"` cho `NO_WORKING_DRAFT`) — không phải trường bắt buộc. */
+/** `meta.hint` của envelope lỗi — gợi ý thêm BE đính kèm tuỳ mã lỗi, không phải trường bắt buộc. */
 const readErrorHint = async (res: Response): Promise<string | undefined> => {
   try {
     const json: { meta?: { hint?: unknown } } = await res.json();
@@ -57,7 +57,11 @@ const parseFilename = (contentDisposition: string | null): string | null => {
   return plainMatch ? plainMatch[1].trim() : null;
 };
 
-/** `POST /projects/:id/assemble` — trả kết quả ghép (`assembleResponseSchema`), không phải tài liệu. */
+/**
+ * `POST /projects/:id/assemble` — trả kết quả dựng (`assembleResponseSchema`), không phải tài liệu.
+ * Từ FLF-264 không còn chỗ nào trong UI gọi: `GET /document` tự dựng bản còn thiếu. Giữ vì endpoint vẫn
+ * thuộc hợp đồng (pipeline gọi ở S-8.2).
+ */
 export interface AssembleResult {
   spine_version: number;
   sections: number;

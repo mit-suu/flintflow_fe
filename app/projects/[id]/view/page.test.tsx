@@ -1,6 +1,7 @@
 "use client";
 
 import { screen } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyChanges, getSpine } from "@/lib/api/spine";
@@ -72,7 +73,9 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
     expect(section!.textContent).not.toContain("chưa hoàn thiện");
   });
 
-  it("chưa ghép tài liệu thì hiện lỗi, không crash trang trắng", async () => {
+  it("đọc tài liệu hỏng thì hiện lỗi, không crash trang trắng", async () => {
+    mockServer.use(http.get("*/projects/:projectId/document", () => HttpResponse.json({ data: null, error: { code: "INTERNAL", message: "Lỗi máy chủ" } }, { status: 500 })));
+
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     expect(await screen.findByText(/Không tải được tài liệu/)).toBeInTheDocument();

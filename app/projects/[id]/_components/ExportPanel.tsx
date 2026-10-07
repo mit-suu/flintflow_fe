@@ -13,10 +13,7 @@ interface ExportPanelProps {
   projectId: string;
   projectName?: string;
   onClose: () => void;
-  onGoToStep?: (stepId: string) => void;
-  /** `spine_version` hiện tại — có thì nút ghép gọi `POST /assemble` thẳng thay vì chỉ chuyển sang S-8.2. */
-  getBaseVersion?: () => number | null;
-  /** Cờ đang mở, cùng nguồn với Verification panel (BUG-26: hai nơi từng đếm ra hai số khác nhau). */
+    /** Cờ đang mở, cùng nguồn với Verification panel (BUG-26: hai nơi từng đếm ra hai số khác nhau). */
   flags?: Flag[];
 }
 
@@ -33,17 +30,15 @@ const triggerDownload = (blob: Blob, fileName: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
-/** Export UI (Phases §6.5): Word draft (watermark DRAFT) / Word baseline; hiện lý do khi chưa ghép. */
-export default function ExportPanel({ projectId, projectName = "Dự án", onClose, onGoToStep, getBaseVersion, flags }: ExportPanelProps) {
+/** Export UI (Phases §6.5): Word draft (watermark DRAFT) / Word baseline. */
+export default function ExportPanel({ projectId, projectName = "Dự án", onClose, flags }: ExportPanelProps) {
   const [source, setSource] = useState<DocumentSource>("draft");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
   const hasBaseline = baselines.length > 0;
   // Baseline mới nhất — ExportPanel chưa có bộ chọn version cụ thể (ngoài phạm vi T16).
   const baselineId = source === "baseline" ? baselines[0]?.id : undefined;
-  const { document, meta, loading, notAssembled, error, assemble, assembling, assembleError } = useDocument(projectId, source, baselineId);
-  // Chỉ bản draft ghép được theo yêu cầu — baseline do S-9.5 ký, không ghép lại từ đây.
-  const runAssemble = getBaseVersion && source === "draft" ? () => void assemble(getBaseVersion()) : undefined;
+  const { document, loading, empty, error } = useDocument(projectId, source, baselineId);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -86,7 +81,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
     } catch (err) {
       setDownloadError(
         err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
-          ? "Tài liệu chưa được ghép. Hãy chạy bước Ghép tài liệu trước."
+          ? "Dự án chưa có nội dung nào để xuất ra tài liệu."
           : userErrorMessage(err, "Tải file thất bại")
       );
     } finally {
@@ -138,40 +133,17 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
           <div className="text-[10.5px] text-[#B03030]">Không kiểm tra được baseline: {baselineCheckError}</div>
         )}
 
-        {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải thông tin bản ghép…</div>}
+        {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải thông tin tài liệu…</div>}
 
-        {!loading && notAssembled && (
-          <div className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] p-3.5 flex flex-col gap-2 text-[11.5px] text-[#6B5A2A]">
-            <span>{error ?? "Chưa có bản ghép tài liệu cho nguồn này."}</span>
-            {runAssemble ? (
-              <button
-                type="button"
-                onClick={runAssemble}
-                disabled={assembling}
-                className="self-start px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white cursor-pointer disabled:opacity-60"
-              >
-                {assembling ? "Đang ghép tài liệu…" : "Ghép tài liệu ngay"}
-              </button>
-            ) : (
-              onGoToStep && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onGoToStep("S-8.2");
-                    onClose();
-                  }}
-                  className="self-start px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white cursor-pointer"
-                >
-                  Đi tới bước Ghép tài liệu
-                </button>
-              )
-            )}
+        {empty && (
+          <div className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] p-3.5 text-[11.5px] text-[#6B5A2A]">
+            Dự án chưa có nội dung nào để xuất ở nguồn này.
           </div>
         )}
 
-        {assembleError && <div className="text-[10.5px] text-[#B03030]">Không ghép được tài liệu: {assembleError}</div>}
+        {!empty && error && <div className="text-[10.5px] text-[#B03030]">{error}</div>}
 
-        {!loading && !notAssembled && document && (
+        {!empty && document && (
           <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3.5 flex flex-col gap-1.5 text-[11.5px] text-[#4B4842]">
             <div className="flex items-center justify-between">
               <span>Phiên bản</span>
@@ -180,12 +152,6 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
                 {source === "draft" ? "-draft" : ""}
               </span>
             </div>
-            {source === "draft" && (
-              <div className="flex items-center justify-between">
-                <span>Đã ghép tại phiên bản dữ liệu {meta?.assembled_at_version ?? "—"}</span>
-                {meta?.stale && <span className="text-[#B03030] font-bold">đã cũ so với v{meta.spine_version}</span>}
-              </div>
-            )}
             <div className="flex items-center justify-between">
               <span>Số cờ đỏ sẽ in vào §I</span>
               <span className={`font-bold ${redCount > 0 ? "text-[#B03030]" : "text-[#1F7A45]"}`}>{redCount}</span>
@@ -197,7 +163,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
 
         <button
           type="button"
-          disabled={downloading || notAssembled || loading}
+          disabled={downloading || empty || loading}
           onClick={() => void handleDownload()}
           className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-[13px] font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
         >

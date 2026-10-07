@@ -106,7 +106,8 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
       };
 
     case "NO_WORKING_DRAFT":
-      return { message: "Tài liệu chưa được ghép lần nào. Chạy bước Ghép tài liệu để ghép bản nháp.", actions: [{ kind: "goto_step", label: "Đi tới bước Ghép tài liệu", stepId: "S-8.2" }] };
+      // FLF-264: tài liệu tự dựng khi đọc ⇒ mã này chỉ còn nghĩa "dự án chưa chạy bước nào", không có việc gì để mời làm
+      return { message: "Dự án chưa có nội dung nào để dựng tài liệu.", actions: [] };
 
     case "NOT_PIPELINE_SESSION":
       return { message: "Phiên chat này chỉ để hỏi đáp — quy trình soạn tài liệu chạy ở phiên chính. Bấm \"Về phiên chính\" để tiếp tục.", actions: [RETRY] };
