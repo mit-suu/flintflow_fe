@@ -12,14 +12,20 @@ interface PausedBannerProps {
   busy?: boolean;
   /** Việc đang dừng, vd "Trích field" / "Đề xuất sửa". */
   what: string;
+  /**
+   * Câu thay cho "AI lỗi, đã thử lại 2 lần" khi việc dừng không phải do AI (`resume_later` của job nền bị lỗi / gián đoạn,
+   * vd tạo bản gốc 0.0). Không áp cho hết credit.
+   */
+  interrupted?: string;
 }
 
 /**
  * Flow 4/5 (UC-61, UC-75): bước AI dừng vì hết credit hoặc lỗi AI sau 2 lần thử. Credit đã giữ được hoàn;
  * phần đã xong không chạy lại. Dùng chung cho import (I-4) và change request (C-2/C-4/C-5).
  */
-export default function PausedBanner({ paused, onResume, busy = false, what }: PausedBannerProps) {
+export default function PausedBanner({ paused, onResume, busy = false, what, interrupted }: PausedBannerProps) {
   const credits = paused.reason === "credits";
+  const custom = !credits && interrupted;
   return (
     <div
       role="alert"
@@ -30,12 +36,12 @@ export default function PausedBanner({ paused, onResume, busy = false, what }: P
       <Icon name={credits ? "savings" : "cloud-off"} size={18} />
       <div className="flex-1 min-w-[220px]">
         <p className="font-bold">
-          {what} đang tạm dừng — {credits ? "hết credit" : "AI lỗi, đã thử lại 2 lần"}
+          {what} đang tạm dừng — {credits ? "hết credit" : custom ? "bị gián đoạn" : "AI lỗi, đã thử lại 2 lần"}
         </p>
         <p className="opacity-90">
           {credits
             ? "Nạp thêm credit rồi bấm Tiếp tục. Phần đã xong được giữ, không tính tiền lại."
-            : "Credit đã giữ được hoàn lại. Bấm Tiếp tục để chạy lại từ chỗ dừng, hoặc để sau."}{" "}
+            : custom || "Credit đã giữ được hoàn lại. Bấm Tiếp tục để chạy lại từ chỗ dừng, hoặc để sau."}{" "}
           <span className="opacity-70">({formatDateTime(paused.at)})</span>
         </p>
       </div>

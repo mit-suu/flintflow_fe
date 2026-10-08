@@ -3,7 +3,7 @@
 import { useRef, useState, type DragEvent } from "react";
 import Icon from "@/components/ui/Icon";
 
-/** Giới hạn contract #2 (40 MB, §4.15) — BE vẫn là nơi quyết định (nhận file theo magic bytes, không theo đuôi). */
+/** Giới hạn contract #2 (40 MB, §4.16) — BE vẫn là nơi quyết định (nhận file theo magic bytes, không theo đuôi). */
 export const MAX_IMPORT_MB = 40;
 export const MAX_IMPORT_BYTES = MAX_IMPORT_MB * 1024 * 1024;
 

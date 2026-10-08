@@ -8,6 +8,7 @@ import { resetMockState } from "@/mocks/state";
 import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
 import ImportWizard from "./ImportWizard";
+import { confirmLatest, getImport, patchFields, patchMapping, startExtraction, uploadImport } from "@/lib/api/import";
 
 const P = MODE1_PROJECT_ID;
 const push = vi.fn();
@@ -135,6 +136,53 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("baseline chạy nền (§4.16): bấm tạo ⇒ hiện 'Đang tạo bản gốc và kiểm tra tài liệu…', ẩn nút + Record of Changes", async () => {
+    // dựng sẵn tới baselining qua API mock, rồi poll chậm để thấy trạng thái đang chạy
+    const id = (await uploadImport(P, docx())).data!.import.id;
+    await confirmLatest(P, id);
+    await patchMapping(P, { import_id: id, confirm_all: true });
+    await startExtraction(P, id);
+    for (let i = 0; i < 50 && (await getImport(P)).data!.import!.status === "extracting"; i++);
+    await patchFields(P, { import_id: id, confirm_all: true });
+    renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={60_000} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.0" }));
+    expect(await screen.findByText("Đang tạo bản gốc và kiểm tra tài liệu…")).toBeInTheDocument();
+    expect(screen.getByText(/có thể rời trang, việc vẫn chạy tiếp/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo baseline 0.0" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/dòng lịch sử thay đổi từ file/)).not.toBeInTheDocument();
+    // lần đọc lại ngay sau #8 đã qua chặng tạo bản gốc (mock chạy một chặng mỗi lần đọc) ⇒ đang kiểm tra, vẫn poll
+    expect(screen.getByText(/Đã tạo bản gốc 0.0, đang kiểm tra/)).toBeInTheDocument();
+    expect(mode1State.mode1State.importDoc?.status).toBe("checking");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("1.11 hết credit trong job nền ⇒ dừng ở checking, banner kiểm tra; nạp rồi Tiếp tục ⇒ sang gap report", async () => {
+    fireEvent.click(await uploadAndMap());
+    fireEvent.click(await screen.findByRole("button", { name: "Xác nhận tất cả field" }));
+    const create = await screen.findByRole("button", { name: "Tạo baseline 0.0" });
+    mode1State.mode1State.credits = 0;
+    fireEvent.click(create);
+    expect(await screen.findByText(/Kiểm tra đang tạm dừng — hết credit/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo baseline 0.0" })).not.toBeInTheDocument();
+    expect(mode1State.mode1State.importDoc?.status).toBe("checking");
+    mode1State.mode1State.credits = 100;
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
+    expect(mode1State.mode1State.baselines.filter((b) => b.type === "imported")).toHaveLength(1);
+  });
+
+  it("tạo bản gốc lỗi giữa chừng ⇒ banner 'bị gián đoạn' ở baselining; Tiếp tục chạy lại tới gap report", async () => {
+    fireEvent.click(await uploadAndMap());
+    fireEvent.click(await screen.findByRole("button", { name: "Xác nhận tất cả field" }));
+    mode1State.mode1State.failNextFinalize = true;
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.0" }));
+    expect(await screen.findByText(/Tạo bản gốc đang tạm dừng — bị gián đoạn/)).toBeInTheDocument();
+    expect(screen.getByText(/dữ liệu đã được đưa về như trước bước này/)).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
+  });
+
   it("hết credit giữa lúc trích ⇒ banner paused; nạp xong bấm Tiếp tục chạy nốt", async () => {
     const start = await uploadAndMap();
     mode1State.mode1State.credits = 4; // đủ 2 section
@@ -189,12 +237,12 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     expect(screen.getByRole("button", { name: "Tải lên file đã sửa" })).toBeInTheDocument();
   });
 
-  it("file lớn hơn 10MB bị chặn ở FE, không gọi API", async () => {
+  it("file lớn hơn 40 MB bị chặn ở FE, không gọi API", async () => {
     renderWizard();
     const big = docx("big.docx");
-    Object.defineProperty(big, "size", { value: 11 * 1024 * 1024 });
+    Object.defineProperty(big, "size", { value: 41 * 1024 * 1024 });
     fireEvent.change(await screen.findByTestId("docx-input"), { target: { files: [big] } });
-    expect(await screen.findByText(/lớn hơn 10MB/)).toBeInTheDocument();
+    expect(await screen.findByText(/lớn hơn giới hạn 40 MB/)).toBeInTheDocument();
     expect(mode1State.mode1State.importDoc).toBeNull();
   });
 
