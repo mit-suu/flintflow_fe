@@ -59,7 +59,8 @@ export interface TraceGroups {
   lateral: TraceGroupNode[];
 }
 
-const EMPTY: TraceGroups = { root: null, upstream: [], downstream: [], lateral: [] };
+/** Hàm, không phải hằng dùng chung: trả hằng thì mọi lời gọi chia nhau cùng ba mảng mutable. */
+const empty = (): TraceGroups => ({ root: null, upstream: [], downstream: [], lateral: [] });
 
 /** Chiều của cả đường đi từ gốc tới một node. `lateral` nghĩa là "chỉ liên quan", không trên không dưới. */
 type Chain = "down" | "up" | "lateral";
@@ -83,7 +84,7 @@ const chain = (sofar: Chain | undefined, step: Chain): Chain => (sofar === undef
  */
 export const groupTrace = (response: TraceabilityResponse, rootId: string): TraceGroups => {
   const root = response.nodes.find((n) => n.id === rootId);
-  if (!root) return EMPTY;
+  if (!root) return empty();
 
   const byId = new Map(response.nodes.map((n) => [n.id, n]));
   const neighbours = new Map<string, TraceabilityEdge[]>();
@@ -131,8 +132,11 @@ export const groupTrace = (response: TraceabilityResponse, rootId: string): Trac
   return groups;
 };
 
-/** Loại node ↔ collection Spine. Chỉ 8 loại này có mặt trong `traceabilityEntitySchema`. */
-const COLLECTION: Readonly<Record<TraceabilityEntity, keyof Spine>> = {
+/**
+ * Loại node ↔ collection Spine. Chỉ 8 loại này có mặt trong `traceabilityEntitySchema`.
+ * Export để chỗ gọi lấy nhãn qua `ENTITY_LABELS[TRACE_COLLECTION[kind]]` thay vì khai bảng thứ hai.
+ */
+export const TRACE_COLLECTION: Readonly<Record<TraceabilityEntity, keyof Spine>> = {
   actor: "actors",
   use_case: "use_cases",
   function: "functions",
@@ -151,7 +155,7 @@ const SHORT = 56;
  * Nhãn theo cùng luật `labelOf` của BE: `name` trước, không có thì `statement`, cuối cùng là `id`.
  */
 export const traceEntityOptions = (spine: Spine, kind: TraceabilityEntity): { value: string; label: string }[] => {
-  const list = spine[COLLECTION[kind]];
+  const list = spine[TRACE_COLLECTION[kind]];
   if (!Array.isArray(list)) return [];
   return (list as { id: string; name?: string; statement?: string }[]).map((item) => {
     const text = item.name ?? item.statement ?? "";

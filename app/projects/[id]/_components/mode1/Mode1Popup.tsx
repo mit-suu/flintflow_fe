@@ -22,9 +22,14 @@ interface Mode1PopupProps {
 /**
  * Danh sách version chỉ cần khi popup so sánh đang mở, nên hook nằm ở component con — `Mode1Popup`
  * thoát sớm khi không có panel, gọi hook sau cái `return null` đó là sai thứ tự hook.
+ *
+ * Chờ `loading` xong mới dựng `VersionCompare`: nó chọn sẵn hai version trong `useState`, mà initializer
+ * chỉ đọc ở lần render đầu — mount lúc danh sách còn rỗng thì hai ô chọn mắc ở chuỗi rỗng vĩnh viễn.
+ * Popup không cần đếm cờ đỏ (chỉ panel Release cần) nên tắt để khỏi gọi thừa `GET /flags`.
  */
 function CompareBody({ projectId }: { projectId: string }) {
-  const docs = useDocVersions(projectId);
+  const docs = useDocVersions(projectId, { redFlags: false });
+  if (docs.loading) return <p className="text-body text-on-surface-muted">Đang tải danh sách version…</p>;
   return (
     <div className="flex flex-col gap-3">
       {docs.error && (

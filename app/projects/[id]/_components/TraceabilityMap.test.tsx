@@ -11,8 +11,8 @@ vi.mock("@/lib/api/spine", () => ({
   getTraceability: vi.fn(),
 }));
 
-/** Nhóm hiện trên UI theo tiêu đề của nó. */
-const group = (title: string) => screen.getByRole("heading", { name: title }).parentElement!.parentElement!;
+/** Nhóm hiện trên UI theo tiêu đề của nó — `<section>` bọc ngoài `<h4>`. */
+const group = (title: string) => screen.getByRole("heading", { name: title }).closest("section")!;
 
 const tra = (id: string) => {
   fireEvent.change(screen.getByLabelText("Mã thực thể"), { target: { value: id } });
@@ -176,6 +176,21 @@ describe("TraceabilityMap — chọn thực thể từ Spine đang mở", () => 
     fireEvent.click(screen.getByRole("button", { name: "Tra" }));
     await screen.findByText("Không tìm thấy thực thể này trong tài liệu.");
     expect(getTraceability).toHaveBeenCalledWith("p1", { entity: "use_case", id: "UC-03" });
+  });
+
+  it("đổi loại ⇒ xoá kết quả đang hiện, không để kết quả của loại cũ nằm lại", async () => {
+    getTraceability.mockResolvedValueOnce({
+      data: { nodes: [{ kind: "actor", id: "A01", label: "Receptionist" }], edges: [] },
+      error: null,
+    });
+    renderWithIntl(<TraceabilityMap projectId="p1" spine={SPINE} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tra" }));
+    expect(await screen.findByText("Receptionist")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Loại" }));
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Use case" }));
+    expect(screen.queryByText("Receptionist")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Dẫn tới" })).not.toBeInTheDocument();
   });
 
   it("loại chưa có phần tử nào ⇒ nói rõ và khoá nút Tra", () => {

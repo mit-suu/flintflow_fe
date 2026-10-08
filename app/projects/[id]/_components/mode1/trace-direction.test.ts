@@ -108,8 +108,24 @@ describe("groupTrace — chia node theo chiều quanh một gốc", () => {
     expect(g.lateral[0]).toMatchObject({ id: "F02", field: "feature_id" });
   });
 
+  it("field BE thêm sau ⇒ node vẫn hiện, rơi vào 'liên quan ngang', không mất khỏi bản đồ", () => {
+    const res: TraceabilityResponse = {
+      nodes: [node("use_case", "UC-03", "Book"), node("screen", "S-09", "Kiosk")],
+      edges: [{ from: "UC-03", to: "S-09", field: "field_moi_cua_be" }],
+    };
+    const g = groupTrace(res, "UC-03");
+    expect(g.lateral.map((n) => n.id)).toEqual(["S-09"]);
+    expect([g.upstream, g.downstream]).toEqual([[], []]);
+  });
+
   it("gốc không có trong đồ thị ⇒ ba khối rỗng, không ném lỗi", () => {
     expect(groupTrace({ nodes: [], edges: [] }, "A99")).toEqual({ root: null, upstream: [], downstream: [], lateral: [] });
+  });
+
+  it("mỗi lời gọi trả đối tượng riêng — không chia nhau mảng dùng chung", () => {
+    const a = groupTrace({ nodes: [], edges: [] }, "A99");
+    a.downstream.push({ kind: "actor", id: "X", label: "X", field: "f" });
+    expect(groupTrace({ nodes: [], edges: [] }, "A99").downstream).toEqual([]);
   });
 
   it("gốc không có cạnh nào ⇒ vẫn trả gốc, ba khối rỗng", () => {

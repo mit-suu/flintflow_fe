@@ -94,13 +94,45 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
     expect(within(items[0]).getByText("NFR-P03: 500 concurrent learners.").tagName).toBe("INS");
     expect(within(items[1]).getByText("Xoá")).toBeInTheDocument();
     expect(within(items[1]).getByText("[SmartArt]").tagName).toBe("DEL");
-    // Nhãn kỹ thuật duy nhất có trong payload là id bookmark neo — không có khoá mục để gom theo §
-    expect(within(items[1]).getByText("B0012")).toBeInTheDocument();
-    expect(within(items[0]).queryByText("B0012")).toBeNull();
+    // `block_id` là id bookmark neo trong file Word, không mang nghĩa cho user ⇒ không in ra UI
+    expect(screen.queryByText("B0012")).toBeNull();
     expect(within(items[2]).getByText("one session").tagName).toBe("DEL");
     expect(within(items[2]).getByText("all sessions").tagName).toBe("INS");
     expect(within(items[3]).getByText("Di chuyển")).toBeInTheDocument();
     expect(items[3].querySelector("ins, del")).toBeNull();
+  });
+
+  it("mount lúc danh sách còn rỗng rồi mới có dữ liệu ⇒ vẫn chọn sẵn đúng hai version", async () => {
+    // Đúng đường mount thật: popup gọi `useDocVersions`, hook khởi tạo [] rồi fetch. Nếu mặc định chốt
+    // trong `useState` thì hai ô chọn mắc ở chuỗi rỗng, nút So sánh khoá cứng và API bị gọi với `to=`.
+    const seen = serveCompare((from, to) => ({ from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }));
+    const { rerender } = renderWithIntl(<VersionCompare projectId={P} versions={[]} />);
+    expect(screen.getByText("Cần ít nhất 2 version để so sánh.")).toBeInTheDocument();
+
+    rerender(<VersionCompare projectId={P} versions={VERSIONS} />);
+    expect(combo("Từ")).toHaveTextContent("0.1");
+    expect(combo("Đến")).toHaveTextContent("1.0");
+
+    const button = screen.getByRole("button", { name: "So sánh" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await screen.findByText(/0.1 → 1.0: 0 thêm/);
+    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
+  });
+
+  it("version đang chọn bị xoá khỏi danh sách ⇒ rơi về mặc định, không query mã đã mất", async () => {
+    const seen = serveCompare((from, to) => ({ from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }));
+    const { rerender } = renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
+    pick("Từ", "0.0");
+    expect(combo("Từ")).toHaveTextContent("0.0");
+
+    // Danh sách tải lại không còn 0.0
+    rerender(<VersionCompare projectId={P} versions={[version("1.0", "release"), version("0.1")]} />);
+    expect(combo("Từ")).toHaveTextContent("0.1");
+
+    fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
+    await screen.findByText(/0.1 → 1.0: 0 thêm/);
+    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
   });
 
   it("chọn cùng một version ⇒ nút khoá kèm gợi ý; chọn lại thì so được", async () => {

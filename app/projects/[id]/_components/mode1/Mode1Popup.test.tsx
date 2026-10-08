@@ -19,8 +19,20 @@ vi.mock("./ChangeRequestList", () => ({
   default: ({ prefill }: { prefill: { title?: string } | null }) => <p>danh sách CR{prefill ? ` · điền sẵn: ${prefill.title}` : ""}</p>,
 }));
 vi.mock("./VersionCompare", () => ({ default: ({ versions }: { versions: { version: string }[] }) => <p>so sánh · {versions.length} version</p> }));
+/** Lượt tải đầu xong hay chưa — popup phải chờ xong mới dựng `VersionCompare` (nó chốt mặc định lúc mount). */
+let docsLoading = false;
+const docsOptions: { redFlags?: boolean }[] = [];
 vi.mock("../../hooks/mode1/useDocVersions", () => ({
-  useDocVersions: () => ({ versions: [{ version: "1.0" }, { version: "0.0" }], redOpen: 0, error: null, reload: vi.fn() }),
+  useDocVersions: (_projectId: string, options: { redFlags?: boolean } = {}) => {
+    docsOptions.push(options);
+    return {
+      versions: docsLoading ? [] : [{ version: "1.0" }, { version: "0.0" }],
+      redOpen: null,
+      loading: docsLoading,
+      error: null,
+      reload: vi.fn(),
+    };
+  },
 }));
 
 const open = (q: string) => {
@@ -50,10 +62,24 @@ describe("Mode1Popup — gap report / change request dạng popup trên màn Tà
     expect(screen.getByText("danh sách CR · điền sẵn: Bổ sung mục")).toBeInTheDocument();
   });
 
-  it("panel=compare ⇒ popup So sánh version, nhận danh sách version đã tải", () => {
+  it("panel=compare ⇒ popup So sánh version, nhận danh sách version đã tải, không đếm cờ đỏ", () => {
+    docsOptions.length = 0;
     open("panel=compare");
     expect(screen.getByRole("dialog", { name: "So sánh version" })).toBeInTheDocument();
     expect(screen.getByText("so sánh · 2 version")).toBeInTheDocument();
+    // So sánh không cần cờ đỏ (chỉ Release cần) ⇒ không gọi thừa GET /flags
+    expect(docsOptions).toEqual([{ redFlags: false }]);
+  });
+
+  it("panel=compare lúc còn đang tải ⇒ chờ xong mới dựng bảng so sánh", () => {
+    docsLoading = true;
+    try {
+      open("panel=compare");
+      expect(screen.getByText("Đang tải danh sách version…")).toBeInTheDocument();
+      expect(screen.queryByText(/so sánh ·/)).not.toBeInTheDocument();
+    } finally {
+      docsLoading = false;
+    }
   });
 
   it("panel=cr&cr=… ⇒ chi tiết CR ngay trong popup, có đường quay lại danh sách", () => {

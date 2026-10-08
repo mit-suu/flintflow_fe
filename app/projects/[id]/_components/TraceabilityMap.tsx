@@ -8,7 +8,7 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 import type { TraceabilityEntity } from "@/types/flags";
 import type { Spine } from "@/types/spine";
 import { ENTITY_LABELS, fieldLabel } from "./mode1/spine-labels";
-import { groupTrace, traceEntityOptions, type TraceGroupNode, type TraceGroups } from "./mode1/trace-direction";
+import { groupTrace, traceEntityOptions, TRACE_COLLECTION, type TraceGroupNode, type TraceGroups } from "./mode1/trace-direction";
 
 interface TraceabilityMapProps {
   projectId: string;
@@ -19,24 +19,16 @@ interface TraceabilityMapProps {
   spine?: Spine;
 }
 
-/** 8 loại node của `traceabilityEntitySchema`; nhãn lấy từ `ENTITY_LABELS` để không khai hai bảng tên. */
-const ENTITIES: { id: TraceabilityEntity; collection: string }[] = [
-  { id: "actor", collection: "actors" },
-  { id: "use_case", collection: "use_cases" },
-  { id: "function", collection: "functions" },
-  { id: "screen", collection: "screens" },
-  { id: "entity", collection: "entities" },
-  { id: "nfr", collection: "nfrs" },
-  { id: "feature", collection: "features" },
-  { id: "business_rule", collection: "business_rules" },
-];
+/**
+ * Loại node và nhãn của nó đều suy từ bảng có sẵn: `TRACE_COLLECTION` (loại → collection Spine) ghép với
+ * `ENTITY_LABELS` (collection → nhãn tiếng Việt). Không khai bảng loại thứ hai ở đây.
+ */
+const entityLabel = (kind: TraceabilityEntity): string => ENTITY_LABELS[TRACE_COLLECTION[kind]] ?? kind;
 
-const ENTITY_OPTIONS = ENTITIES.map((e) => ({ value: e.id, label: ENTITY_LABELS[e.collection] ?? e.id }));
-
-const entityLabel = (kind: TraceabilityEntity): string => {
-  const found = ENTITIES.find((e) => e.id === kind);
-  return found ? (ENTITY_LABELS[found.collection] ?? kind) : kind;
-};
+const ENTITY_OPTIONS = (Object.keys(TRACE_COLLECTION) as TraceabilityEntity[]).map((kind) => ({
+  value: kind,
+  label: entityLabel(kind),
+}));
 
 /** Lý do mỗi khối rỗng — nói ra bằng chữ thay vì để trống, vì rỗng ở đây là một thông tin. */
 const EMPTY_REASON: Record<"upstream" | "downstream" | "lateral", string> = {
@@ -61,10 +53,7 @@ function NodeRow({ node }: { node: TraceGroupNode }) {
 function Group({ title, nodes, reason }: { title: string; nodes: TraceGroupNode[]; reason: string }) {
   return (
     <section className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <h4 className="text-caption font-bold uppercase tracking-wide text-on-surface-subtle">{title}</h4>
-        <span aria-hidden className="flex-1 h-px bg-surface-container-highest" />
-      </div>
+      <h4 className="text-caption font-bold uppercase tracking-wide text-on-surface-subtle">{title}</h4>
       {nodes.length === 0 ? (
         <p className="text-caption text-on-surface-subtle italic">{reason}</p>
       ) : (
@@ -91,13 +80,19 @@ export default function TraceabilityMap({ projectId, spine }: TraceabilityMapPro
   const [error, setError] = useState<string | null>(null);
 
   const items = useMemo(() => (spine ? traceEntityOptions(spine, entity) : []), [spine, entity]);
-  /** Đổi loại ⇒ mã cũ không còn thuộc loại mới, nên chọn luôn phần tử đầu của loại vừa chọn. */
+  /** Đổi loại ⇒ mã cũ thuộc loại khác, và kết quả đang hiện là của thực thể khác loại nên phải dọn. */
   const changeEntity = (next: TraceabilityEntity) => {
     setEntity(next);
+    setGroups(null);
+    setError(null);
     if (spine) setId(traceEntityOptions(spine, next)[0]?.value ?? "");
   };
-  // Lần đầu có Spine: ô mã còn trống thì điền phần tử đầu để bấm Tra được ngay
-  const selected = id || items[0]?.value || "";
+  /**
+   * Mã đang chọn phải là mã **đang có trong danh sách**: Spine tải lại sau mỗi lần sửa, thực thể đã chọn
+   * có thể vừa bị xoá. Không kiểm thì dropdown hiện phần tử đầu (`FilterSelect` quy giá trị lạ về index 0)
+   * mà nút Tra lại query mã đã mất.
+   */
+  const selected = items.some((o) => o.value === id) ? id : (items[0]?.value ?? "");
 
   const search = async () => {
     const wanted = (spine ? selected : id).trim();
@@ -167,10 +162,7 @@ export default function TraceabilityMap({ projectId, spine }: TraceabilityMapPro
 
             {groups.downstream.length > 0 && (
               <section className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-caption font-bold uppercase tracking-wide text-on-surface-subtle">Sửa cái này thì kéo theo</h4>
-                  <span aria-hidden className="flex-1 h-px bg-surface-container-highest" />
-                </div>
+                <h4 className="text-caption font-bold uppercase tracking-wide text-on-surface-subtle">Sửa cái này thì kéo theo</h4>
                 <p className="text-body text-on-surface">
                   {groups.downstream.map((n) => `${entityLabel(n.kind)} ${n.id}`).join(" · ")}
                 </p>
