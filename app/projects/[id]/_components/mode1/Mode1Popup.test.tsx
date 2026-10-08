@@ -18,6 +18,10 @@ vi.mock("./CrWorkspace", () => ({ default: ({ crId }: { crId: string }) => <p>ch
 vi.mock("./ChangeRequestList", () => ({
   default: ({ prefill }: { prefill: { title?: string } | null }) => <p>danh sách CR{prefill ? ` · điền sẵn: ${prefill.title}` : ""}</p>,
 }));
+vi.mock("./VersionCompare", () => ({ default: ({ versions }: { versions: { version: string }[] }) => <p>so sánh · {versions.length} version</p> }));
+vi.mock("../../hooks/mode1/useDocVersions", () => ({
+  useDocVersions: () => ({ versions: [{ version: "1.0" }, { version: "0.0" }], redOpen: 0, error: null, reload: vi.fn() }),
+}));
 
 const open = (q: string) => {
   query = q;
@@ -44,6 +48,12 @@ describe("Mode1Popup — gap report / change request dạng popup trên màn Tà
     open("panel=cr&new=1&title=B%E1%BB%95%20sung%20m%E1%BB%A5c&source=gap_report");
     expect(screen.getByRole("dialog", { name: "Change request" })).toBeInTheDocument();
     expect(screen.getByText("danh sách CR · điền sẵn: Bổ sung mục")).toBeInTheDocument();
+  });
+
+  it("panel=compare ⇒ popup So sánh version, nhận danh sách version đã tải", () => {
+    open("panel=compare");
+    expect(screen.getByRole("dialog", { name: "So sánh version" })).toBeInTheDocument();
+    expect(screen.getByText("so sánh · 2 version")).toBeInTheDocument();
   });
 
   it("panel=cr&cr=… ⇒ chi tiết CR ngay trong popup, có đường quay lại danh sách", () => {

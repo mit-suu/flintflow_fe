@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/Button";
+import FilterSelect from "@/components/ui/FilterSelect";
 import { compareVersions } from "@/lib/api/versions";
 import type { CompareResponse, DocVersion } from "@/types/doc-version";
 import BlockDiffList, { summaryText } from "./BlockDiffList";
@@ -20,7 +22,7 @@ export default function VersionCompare({ projectId, versions }: VersionComparePr
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (versions.length < 2) return <p className="text-body text-[#8A867E]">Cần ít nhất 2 version để so sánh.</p>;
+  if (versions.length < 2) return <p className="text-body text-on-surface-muted">Cần ít nhất 2 version để so sánh.</p>;
 
   const run = async () => {
     setBusy(true);
@@ -34,38 +36,26 @@ export default function VersionCompare({ projectId, versions }: VersionComparePr
     }
   };
 
-  const select = (label: string, value: string, onChange: (v: string) => void) => (
-    <label className="flex items-center gap-1.5 text-body font-semibold text-[#4B4842]">
-      {label}
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="px-2 py-1 rounded-[8px] border border-[#E4E1DC] bg-white">
-        {versions.map((v) => (
-          <option key={v.version} value={v.version}>
-            {v.version}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+  const options = versions.map((v) => ({ value: v.version, label: v.version }));
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {select("Từ", from, setFrom)}
-        {select("Đến", to, setTo)}
-        <button
-          type="button"
-          onClick={() => void run()}
-          disabled={busy || from === to}
-          className="px-3 py-1.5 rounded-[8px] bg-[#191817] text-white text-body font-bold disabled:opacity-50"
-        >
-          {busy ? "Đang so sánh…" : "So sánh"}
-        </button>
-        {from === to && <span className="text-body text-[#8A867E]">Chọn hai version khác nhau.</span>}
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterSelect label="Từ" value={from} options={options} onChange={setFrom} />
+        <FilterSelect label="Đến" value={to} options={options} onChange={setTo} />
+        <Button size="sm" onClick={() => void run()} disabled={from === to} loading={busy}>
+          So sánh
+        </Button>
+        {from === to && <span className="text-body text-on-surface-muted">Chọn hai version khác nhau.</span>}
       </div>
-      {error && <p className="text-body text-[#B03030]">{error}</p>}
+      {error && (
+        <p role="alert" className="text-body text-error">
+          {error}
+        </p>
+      )}
       {result && (
         <>
-          <p className="text-body font-semibold text-[#4B4842]">
+          <p className="text-body font-semibold text-on-surface-medium tabular-nums">
             {result.from} → {result.to}: {summaryText(result.summary)}
           </p>
           <BlockDiffList entries={result.blocks} />
