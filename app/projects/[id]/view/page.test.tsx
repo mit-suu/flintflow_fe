@@ -1,6 +1,6 @@
 "use client";
 
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -130,8 +130,10 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
     fireEvent.click(within(card).getByRole("button", { name: "Trả lời" }));
     fireEvent.change(within(card).getByLabelText("Trả lời comment"), { target: { value: "Đã ghi nhận" } });
     fireEvent.click(within(card).getByRole("button", { name: "Trả lời" }));
-    expect(await screen.findByText("Đã ghi nhận", undefined, { timeout: 3000 })).toBeInTheDocument();
-    expect(within(screen.getByRole("listitem", { name: "Comment CM-001" })).getByText("Đã ghi nhận")).toBeInTheDocument();
+    // Chờ danh sách trả lời — đừng tìm theo chữ: ô nhập trả lời (textarea) cũng mang đúng chữ đó cho tới khi đóng
+    const replies = await within(screen.getByRole("listitem", { name: "Comment CM-001" })).findByRole("list", { name: "Trả lời" });
+    expect(within(replies).getByText("Đã ghi nhận")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByLabelText("Trả lời comment")).not.toBeInTheDocument());
   });
 
   it("Viewer, dự án chưa có baseline ⇒ không có nút 💬, panel nói chỉ comment trên bản đã phát hành", async () => {
