@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import BackLink from "@/components/ui/BackLink";
 import { getDocument, listBaselines } from "@/lib/api/export";
@@ -105,12 +105,19 @@ export default function ReadOnlyDocumentPage() {
     );
   }, [projectId, version]);
 
+  // Mọi lượt tải comment (sau khi ghi, poll, quay lại tab) đánh số; chỉ lượt mới nhất được ghi state — lượt cũ về
+  // muộn không được đè dữ liệu mới (vd poll bắt đầu trước khi trả lời, về sau lượt tải lại của chính trả lời đó).
+  const commentLoadSeq = useRef(0);
+
   const refreshComments = useCallback(async () => {
+    const seq = ++commentLoadSeq.current;
     try {
       const res = await listComments(projectId, "all");
+      if (seq !== commentLoadSeq.current) return;
       setComments(res.data ?? []);
       setCommentError(null);
     } catch (err) {
+      if (seq !== commentLoadSeq.current) return;
       setCommentError(userErrorMessage(err, "Không tải được comment"));
     }
   }, [projectId]);
@@ -118,28 +125,22 @@ export default function ReadOnlyDocumentPage() {
   // Người khác trả lời / xử lý / chuyển CR thì panel tự cập nhật: poll khi tab đang hiện + tải lại khi quay về tab.
   useEffect(() => {
     if (!projectId) return;
-    let cancelled = false;
     const load = () => {
-      if (document.visibilityState === "hidden") return;
-      listComments(projectId, "all")
-        .then((res) => {
-          if (cancelled) return;
-          setComments(res.data ?? []);
-          setCommentError(null);
-        })
-        .catch((err: unknown) => !cancelled && setCommentError(userErrorMessage(err, "Không tải được comment")));
+      if (document.visibilityState !== "hidden") void refreshComments();
     };
     load();
     const timer = window.setInterval(load, COMMENT_POLL_MS);
     document.addEventListener("visibilitychange", load);
     window.addEventListener("focus", load);
+    const seqRef = commentLoadSeq;
     return () => {
-      cancelled = true;
+      // Bỏ kết quả của lượt đang bay khi rời trang / đổi project
+      seqRef.current += 1;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", load);
       window.removeEventListener("focus", load);
     };
-  }, [projectId]);
+  }, [projectId, refreshComments]);
 
   useEffect(() => {
     if (!highlightId || comments.length === 0) return;

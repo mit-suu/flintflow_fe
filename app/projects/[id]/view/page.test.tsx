@@ -1,7 +1,7 @@
 "use client";
 
 import { fireEvent, screen, within } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyChanges, getSpine } from "@/lib/api/spine";
@@ -174,6 +174,30 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
 
     expect(await screen.findByRole("tab", { name: "Đã đóng (1)" })).toBeInTheDocument();
     expect(screen.queryByRole("listitem", { name: "Comment CM-001" })).not.toBeInTheDocument();
+  });
+
+  it("lượt tải comment cũ về muộn không đè dữ liệu của lượt mới hơn", async () => {
+    await assembleDocument(P, await version());
+    await createComment(P, { version: { source: "draft" }, anchor: { section_id: "fixed:1", block_index: null }, text: "Tầm nhìn còn chung chung" });
+    let calls = 0;
+    // Lượt đầu (lúc mở trang) chậm và trả dữ liệu cũ; lượt sau (quay lại tab) rơi xuống handler mock, có CM-001
+    mockServer.use(
+      http.get("*/projects/:projectId/comments", async () => {
+        calls += 1;
+        if (calls === 1) {
+          await delay(300);
+          return HttpResponse.json({ data: [], error: null });
+        }
+        return undefined;
+      })
+    );
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+    fireEvent(window, new Event("focus"));
+    expect(await screen.findByRole("listitem", { name: "Comment CM-001" })).toBeInTheDocument();
+
+    await new Promise((r) => setTimeout(r, 400));
+    expect(screen.getByRole("listitem", { name: "Comment CM-001" })).toBeInTheDocument();
   });
 
   it("link thông báo ?comment= tới comment đã đóng ⇒ tự mở tab Đã đóng", async () => {
