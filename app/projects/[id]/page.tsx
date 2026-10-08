@@ -51,7 +51,7 @@ import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
-import { crListHref, gapReportHref } from "./_components/mode1/prefill";
+import { compareHref, crListHref, gapReportHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
@@ -1091,7 +1091,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           currentStep={mode1 ? null : currentStep}
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
-          // Mode 1: gap report + change request mở dạng popup ngay trên màn tài liệu (`?panel=gap|cr`)
+          // Mode 1: gap report, change request, so sánh version mở dạng popup ngay trên màn tài liệu
+          // (`?panel=gap|cr|compare`)
           actions={
             mode1 ? (
               <>
@@ -1100,6 +1101,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 </Link>
                 <Link href={crListHref(projectId)} scroll={false} className={MODE1_ACTION}>
                   Change request
+                </Link>
+                <Link href={compareHref(projectId)} scroll={false} className={MODE1_ACTION}>
+                  So sánh version
                 </Link>
               </>
             ) : undefined
@@ -1406,6 +1410,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         {shownPanel === "verification" && (
           <VerificationPane
             projectId={projectId}
+            // Bản đồ truy vết chọn thực thể từ Spine đang mở — không gọi thêm request
+            spine={spine ?? undefined}
             issues={{
               sectionLabelOf: (id) => sectionLabels.get(id),
               onShowSection: showSection,
