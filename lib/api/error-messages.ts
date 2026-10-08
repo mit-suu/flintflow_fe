@@ -60,8 +60,17 @@ export const genericErrorMessage = (locale: Locale = currentLocale()): string =>
  */
 const FALLBACK_CODES: ReadonlySet<string> = new Set(["UNKNOWN_ERROR", "PARSE_ERROR", "STREAM_FAILED", "EXPORT_FAILED", "DOWNLOAD_FAILED", "DIAGRAM_FETCH_FAILED"]);
 
-export const localizeApiError = (code: string | null | undefined, message: string, locale: Locale = currentLocale()): string => {
-  const mapped = code ? ERRORS[locale][code] : undefined;
+/**
+ * Câu dịch kèm số liệu từ `meta` của BE. Hiện chỉ `FILE_TOO_LARGE` có `meta.max_mb` (upload SRS mode 1, 413) ⇒ câu nêu giới
+ * hạn theo MB; không có `meta` (upload khác) ⇒ câu chung của mã.
+ */
+const withMeta = (code: string | null | undefined, locale: Locale, meta?: Record<string, unknown>): string | undefined => {
+  if (code === "FILE_TOO_LARGE" && typeof meta?.max_mb === "number") return ERRORS[locale].FILE_TOO_LARGE_LIMIT.replace("{max_mb}", String(meta.max_mb));
+  return undefined;
+};
+
+export const localizeApiError = (code: string | null | undefined, message: string, locale: Locale = currentLocale(), meta?: Record<string, unknown>): string => {
+  const mapped = withMeta(code, locale, meta) ?? (code ? ERRORS[locale][code] : undefined);
   if (mapped && !(code && FALLBACK_CODES.has(code))) return mapped;
   return looksTechnical(message, locale) ? mapped || genericErrorMessage(locale) : message;
 };
