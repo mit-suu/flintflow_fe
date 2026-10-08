@@ -93,6 +93,18 @@ export default function WorkspaceHeader({
           </Button>
         )}
         {actions}
+        {/* UC-49: bản đọc + comment (Viewer góp ý trên baseline, Lead/Analyst xử lý) */}
+        {project && (
+          <Link
+            href={`/projects/${project._id}/view`}
+            title="Xem tài liệu chỉ đọc và comment"
+            aria-label="Xem & comment"
+            className="shrink-0 inline-flex items-center justify-center h-8 px-3.5 gap-1.5 rounded-control text-[12.5px] font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <Icon name="eye" size={14} />
+            <span className="hidden md:inline">Xem & comment</span>
+          </Link>
+        )}
         {onToolsClick && (
           <Button
             size="sm"
