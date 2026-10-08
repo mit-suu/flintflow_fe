@@ -4,13 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { resumeProject } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
 import type { Spine } from "@/types/spine";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export interface UseSpineResult {
   spine: Spine | null;
   version: number | null;
   loading: boolean;
   error: string | null;
-  reload: () => Promise<void>;
+  /** Trả `spine_version` vừa đọc (null ⇒ lỗi, hoặc đã có lần đọc mới hơn thay thế) để nơi gọi cập nhật `base_version` ngay. */
+  reload: () => Promise<number | null>;
   /** Nhận Spine mới từ response ghi (ApplyResult) mà không gọi lại API. */
   replace: (spine: Spine) => void;
 }
@@ -20,7 +22,11 @@ const newer = (current: Spine | null, next: Spine): Spine =>
   current && current.projectId === next.projectId && current.spine_version > next.spine_version ? current : next;
 
 /** `GET /projects/:id/spine`; `version` là `spine_version` dùng làm `base_version` khi ghi. */
-export function useSpine(projectId: string, enabled = true): UseSpineResult {
+/**
+ * `canEdit` = false (Viewer): không gọi `POST /resume` khi mở — đó là thao tác ghi (revert step bỏ dở), Viewer luôn
+ * nhận 403. Viewer chỉ đọc Spine.
+ */
+export function useSpine(projectId: string, enabled = true, canEdit = true): UseSpineResult {
   const [spine, setSpine] = useState<Spine | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,13 +37,15 @@ export function useSpine(projectId: string, enabled = true): UseSpineResult {
     const request = ++requestRef.current;
     return getSpine(projectId)
       .then((res) => {
-        if (request !== requestRef.current) return;
+        if (request !== requestRef.current) return null;
         const next = res.data;
         setSpine((current) => (next ? newer(current, next) : next));
         setError(null);
+        return next?.spine_version ?? null;
       })
-      .catch((err: unknown) => {
-        if (request === requestRef.current) setError(err instanceof Error ? err.message : "Không tải được Spine");
+      .catch((err: unknown): null => {
+        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được dữ liệu tài liệu"));
+        return null;
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);
@@ -52,11 +60,15 @@ export function useSpine(projectId: string, enabled = true): UseSpineResult {
 
   useEffect(() => {
     if (!enabled || !projectId) return;
+    if (!canEdit) {
+      void reload();
+      return;
+    }
     // Mở workspace: BE revert step bỏ dở giữa Draft (endpoint 24) rồi mới đọc Spine; resume lỗi không chặn tải.
     void resumeProject(projectId)
       .catch(() => undefined)
       .then(() => reload());
-  }, [enabled, projectId, reload]);
+  }, [enabled, canEdit, projectId, reload]);
 
   return { spine, version: spine?.spine_version ?? null, loading, error, reload, replace };
 }

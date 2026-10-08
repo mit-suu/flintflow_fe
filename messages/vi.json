@@ -186,7 +186,7 @@
       "headline": "Dự án tiếp theo của bạn",
       "headlineAccent": "bắt đầu từ yêu cầu rõ ràng.",
       "button": "Tạo dự án đầu tiên",
-      "note": "Miễn phí · Không cần thẻ · Tặng 100 credit",
+      "note": "Miễn phí · Không cần thẻ · Tặng {credits, number} credit",
       "copyright": "© {year} FlintFlow"
     }
   },
@@ -212,12 +212,7 @@
       "showField": "Hiện {field}",
       "hideField": "Ẩn {field}",
       "fieldPassword": "mật khẩu",
-      "fieldConfirmPassword": "mật khẩu xác nhận",
-      "strength": {
-        "weak": "Yếu",
-        "medium": "Trung bình",
-        "strong": "Mạnh"
-      }
+      "fieldConfirmPassword": "mật khẩu xác nhận"
     },
     "google": {
       "continue": "Tiếp tục với Google",
@@ -312,6 +307,22 @@
       "failed": "Đặt lại mật khẩu thất bại"
     }
   },
+  "password": {
+    "level": {
+      "weak": "Yếu",
+      "medium": "Trung bình",
+      "fair": "Khá",
+      "strong": "Mạnh"
+    },
+    "notUsable": "{level} — chưa dùng được",
+    "issue": {
+      "too_short": "Mật khẩu phải có ít nhất {min} ký tự.",
+      "too_long": "Mật khẩu tối đa {max} ký tự.",
+      "not_ascii": "Mật khẩu chỉ dùng chữ không dấu, chữ số và ký tự đặc biệt trên bàn phím — không dùng tiếng Việt có dấu hay khoảng trắng.",
+      "not_complex": "Mật khẩu phải có ít nhất {classes} trong 4 nhóm: chữ thường, chữ HOA, chữ số, ký tự đặc biệt.",
+      "not_strong_enough": "Mật khẩu chưa đủ mạnh — cần từ {long} ký tự, hoặc có đủ cả 4 nhóm ký tự."
+    }
+  },
   "app": {
     "time": {
       "justNow": "Vừa xong",
@@ -324,7 +335,8 @@
     "authGuard": {
       "offline": "Không kết nối được máy chủ. Phiên đăng nhập của bạn vẫn được giữ.",
       "retry": "Thử lại",
-      "checking": "Đang kiểm tra quyền truy cập..."
+      "checking": "Đang kiểm tra quyền truy cập...",
+      "offlineTitle": "Mất kết nối"
     },
     "notifications": {
       "title": "Thông báo",
@@ -379,7 +391,10 @@
         "deduct": "Trừ credit",
         "release": "Hoàn credit",
         "purchase": "Nạp credit",
-        "monthly_reset": "Reset hằng tháng"
+        "monthly_reset": "Reset hằng tháng",
+        "refund": "Hoàn credit",
+        "admin_adjust": "Điều chỉnh credit",
+        "other": "Giao dịch credit"
       },
       "txState": {
         "reserved": "đang giữ",
@@ -392,7 +407,36 @@
         "createTx": "Không thể tạo giao dịch",
         "changePlan": "Không thể đổi gói",
         "loadMore": "Không thể tải thêm giao dịch"
-      }
+      },
+      "loadingHistory": "Đang tải lịch sử giao dịch…",
+      "actionType": {
+        "elicit": "Hỏi làm rõ",
+        "draft": "Soạn nội dung",
+        "render_fix": "Sửa sơ đồ",
+        "review": "Rà soát",
+        "regenerate": "Soạn lại",
+        "revision": "Sửa theo yêu cầu",
+        "discovery_step": "Trò chuyện ý tưởng",
+        "consistency_pass": "Kiểm tra nhất quán",
+        "glossary_scan": "Rà thuật ngữ",
+        "reconcile": "Đồng bộ mục cũ",
+        "change_instruction": "Sửa tài liệu qua chat",
+        "chat": "Trò chuyện",
+        "summarize_document": "Tóm tắt tài liệu",
+        "translate": "Dịch nội dung",
+        "import_extract_fields": "Đọc tài liệu tải lên",
+        "import_extract_diagram": "Đọc sơ đồ tải lên",
+        "import_semantic_check": "Kiểm tra tài liệu tải lên",
+        "cr_clarify": "Làm rõ yêu cầu thay đổi",
+        "cr_propose": "Đề xuất thay đổi",
+        "cr_consistency": "Kiểm tra nhất quán thay đổi",
+        "cr_material_image": "Đọc ảnh đính kèm",
+        "admin_adjust": "Quản trị viên điều chỉnh",
+        "purchase": "Nạp credit",
+        "monthly_reset": "Reset hằng tháng",
+        "other": "Thao tác AI"
+      },
+      "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead."
     },
     "checkout": {
       "back": "Quay lại trang thanh toán",
@@ -436,8 +480,8 @@
         "bodyActive": "Gói {plan} đã được kích hoạt."
       },
       "phase_accepted": {
-        "title": "Đã hoàn tất phase {phase}",
-        "body": "Mọi step của phase {phase} đã được accept. Có thể tiếp tục sang phase kế tiếp."
+        "title": "Đã hoàn tất giai đoạn {phase}",
+        "body": "Mọi bước của giai đoạn {phase} đã được duyệt. Bạn có thể chuyển sang giai đoạn tiếp theo."
       },
       "baseline_created": {
         "title": "Đã chốt baseline {version}",
@@ -643,6 +687,8 @@
     "home": {
       "onboardingTitle": "Bắt đầu dự án SRS đầu tiên",
       "onboardingBody": "Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.",
+      "viewerEmptyTitle": "Tổ chức chưa có dự án nào",
+      "viewerEmptyBody": "Bạn đang xem với vai trò Viewer — dự án do Lead hoặc Analyst tạo sẽ hiện ở đây.",
       "searchLabel": "Tìm dự án theo tên",
       "searchPlaceholder": "Tìm dự án…",
       "newProject": "Dự án mới",
@@ -725,7 +771,112 @@
       "saving": "Đang cập nhật…",
       "submit": "Đổi mật khẩu",
       "forgotCurrent": "Quên mật khẩu hiện tại?",
-      "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại."
+      "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại.",
+      "logoutAllTitle": "Đăng xuất mọi thiết bị",
+      "logoutAllBody": "Kết thúc mọi phiên đăng nhập của tài khoản, kể cả thiết bị này. Dùng khi bạn quên đăng xuất ở máy khác hoặc nghi bị lộ mật khẩu. Các thiết bị khác sẽ bị đăng xuất trong vòng vài phút.",
+      "logoutAllCta": "Đăng xuất mọi thiết bị",
+      "logoutAllConfirm": "Bạn sẽ bị đăng xuất khỏi tất cả thiết bị, kể cả thiết bị này. Tiếp tục?",
+      "logoutAllConfirmCta": "Đăng xuất tất cả",
+      "logoutAllFailed": "Không đăng xuất được mọi thiết bị. Vui lòng thử lại."
+    },
+    "org": {
+      "roles": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "guard": {
+        "checking": "Đang mở tổ chức của bạn…"
+      },
+      "onboarding": {
+        "title": "Chọn nơi làm việc",
+        "subtitle": "Mọi dự án đều thuộc về một tổ chức. Tạo tổ chức của riêng bạn, hoặc nhập mã mời để tham gia tổ chức có sẵn.",
+        "createTab": "Tạo tổ chức",
+        "joinTab": "Nhập mã mời",
+        "nameLabel": "Tên tổ chức",
+        "namePlaceholder": "Ví dụ: Nhóm SRS của Hiệp",
+        "nameHint": "Bạn sẽ là Lead của tổ chức này. Tổ chức mới dùng gói miễn phí và có sẵn credit để bắt đầu.",
+        "createCta": "Tạo tổ chức",
+        "creating": "Đang tạo…",
+        "codeLabel": "Mã mời",
+        "codePlaceholder": "Nhập mã trong email mời",
+        "codeHint": "Mã do Lead của tổ chức gửi qua email, dùng được một lần.",
+        "checkCode": "Kiểm tra mã",
+        "checking": "Đang kiểm tra…",
+        "previewTitle": "Lời mời hợp lệ",
+        "previewBody": "Bạn sẽ tham gia {org} với vai trò {role}.",
+        "joinCta": "Tham gia tổ chức",
+        "joining": "Đang tham gia…",
+        "nameRequired": "Hãy đặt tên cho tổ chức.",
+        "codeRequired": "Hãy nhập mã mời.",
+        "defaultName": "{name}'s Organization"
+      },
+      "switcher": {
+        "title": "Tổ chức của bạn",
+        "subtitle": "Dự án, ví credit và vai trò đi theo tổ chức đang mở. Chọn tổ chức để làm việc.",
+        "current": "Đang mở",
+        "switch": "Mở tổ chức này",
+        "roleLine": "Vai trò: {role}",
+        "addTitle": "Thêm tổ chức",
+        "addBody": "Tạo một tổ chức mới, hoặc nhập mã mời để tham gia tổ chức khác.",
+        "addCta": "Tạo hoặc tham gia",
+        "loadError": "Không tải được danh sách tổ chức.",
+        "goToProjects": "Vào dự án"
+      },
+      "members": {
+        "title": "Thành viên",
+        "subtitle": "Thành viên của {org}",
+        "you": "Bạn",
+        "joined": "Tham gia {date}",
+        "roleLabel": "Vai trò của {name}",
+        "remove": "Xoá khỏi tổ chức",
+        "removeTitle": "Xoá thành viên?",
+        "removeBody": "{name} sẽ mất quyền vào mọi dự án của tổ chức ngay lập tức. Dự án vẫn ở lại với tổ chức.",
+        "leave": "Rời tổ chức",
+        "leaveTitle": "Rời tổ chức?",
+        "leaveBody": "Bạn sẽ mất quyền vào mọi dự án của {org}. Dự án vẫn ở lại với tổ chức.",
+        "confirm": "Xác nhận",
+        "cancel": "Huỷ",
+        "leadOnly": "Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.",
+        "loadError": "Không tải được danh sách thành viên.",
+        "invite": {
+          "title": "Mời thành viên",
+          "roleLabel": "Vai trò",
+          "emailLabel": "Email người được mời",
+          "emailPlaceholder": "nguoi-duoc-moi@congty.vn",
+          "cta": "Tạo mã mời",
+          "creating": "Đang tạo…",
+          "codeTitle": "Mã mời vừa tạo",
+          "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn.",
+          "emailRequired": "Hãy nhập email người được mời — mã mời sẽ được gửi tới email đó.",
+          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn — nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này."
+        },
+        "invitations": {
+          "title": "Lời mời",
+          "empty": "Chưa có lời mời nào.",
+          "noEmail": "Mã dùng chung",
+          "revoke": "Thu hồi",
+          "expires": "Hết hạn {date}",
+          "states": {
+            "pending": "Đang chờ",
+            "accepted": "Đã dùng",
+            "revoked": "Đã thu hồi",
+            "expired": "Hết hạn"
+          }
+        },
+        "danger": {
+          "title": "Xoá tổ chức",
+          "body": "Xoá vĩnh viễn tổ chức cùng mọi dự án, thư mục, ví credit và gói. Không thể khôi phục.",
+          "onlyWhenAlone": "Chỉ xoá được khi bạn là thành viên duy nhất. Hãy xoá các thành viên khác trước.",
+          "cta": "Xoá tổ chức",
+          "dialogTitle": "Xoá vĩnh viễn tổ chức?",
+          "dialogBody": "Toàn bộ dự án của {org} sẽ bị xoá vĩnh viễn, credit còn lại trong ví cũng mất theo.",
+          "confirmLabel": "Gõ lại tên tổ chức để xác nhận: {org}",
+          "confirmCta": "Xoá vĩnh viễn"
+        },
+        "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
+        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
+      }
     }
   },
   "workspace": {
@@ -785,6 +936,33 @@
       "emptyBody": "Bấm “Chạy bước này” để AI hỏi phần còn thiếu và soạn nháp, hoặc trò chuyện tự do và đính kèm tài liệu tham khảo.",
       "notPipeline": "Phiên này không phải phiên pipeline — lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.",
       "editPlaceholder": "Nhập lệnh sửa — gửi vào Change panel…"
+    },
+    "chatOpening": {
+      "aria": "Bắt đầu dự án",
+      "greeting": "Chào bạn! Kể cho mình nghe ý tưởng phần mềm bạn muốn làm — ai sẽ dùng, dùng để làm gì, vì sao bạn muốn làm nó. Kể được bao nhiêu cứ kể, mình chỉ hỏi thêm phần còn thiếu.",
+      "hint": "Hoặc bắt đầu từ một gợi ý:",
+      "suggestionsAria": "Gợi ý bắt đầu",
+      "chips": {
+        "teamTasks": {
+          "label": "Quản lý công việc cho một nhóm nhỏ",
+          "message": "Mình muốn làm một ứng dụng giúp một nhóm nhỏ giao việc, theo dõi tiến độ và nhắc hạn cho nhau."
+        },
+        "digitize": {
+          "label": "Số hoá một quy trình đang làm bằng giấy/Excel",
+          "message": "Mình muốn số hoá một quy trình hiện đang làm bằng giấy tờ và Excel để bớt nhập tay và dễ tra cứu."
+        },
+        "marketplace": {
+          "label": "Kết nối người cần dịch vụ với người cung cấp",
+          "message": "Mình muốn làm một nền tảng kết nối người cần một dịch vụ với người cung cấp dịch vụ đó, có đặt lịch và đánh giá."
+        },
+        "noIdea": {
+          "label": "Mình chưa có ý tưởng",
+          "message": "Mình chưa có ý tưởng cụ thể."
+        }
+      }
+    },
+    "rerunStep": {
+      "message": "Cập nhật lại bước này theo dữ liệu mới"
     },
     "chatInput": {
       "placeholder": "Nhập câu trả lời hoặc lệnh yêu cầu chỉnh sửa…",
@@ -877,8 +1055,6 @@
     "hookErrors": {
       "docLoadFailed": "Không tải được tài liệu",
       "spineNotReady": "Spine chưa tải xong — thử lại sau giây lát.",
-      "docConflict": "Tài liệu vừa đổi ở phiên khác — tải lại trang rồi thử ghép lại.",
-      "assembleFailed": "Không ghép được tài liệu",
       "flagsLoadFailed": "Không tải được danh sách cờ",
       "waiveFailed": "Waive cờ thất bại",
       "recomputeFailed": "Tính lại cờ thất bại",
@@ -900,16 +1076,8 @@
       "viewAt": "xem tại {step} · {label}",
       "incomplete": "Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.",
       "untitled": "Dự án",
-      "staleHint": "Spine đã đổi tiếp sau lần ghép gần nhất",
-      "assembling": "Đang ghép…",
-      "reassemble": "Ghép lại",
       "reload": "↻ Tải lại",
       "loading": "Đang tải tài liệu…",
-      "notAssembled": "Chưa có bản ghép tài liệu",
-      "assemblingDoc": "Đang ghép tài liệu…",
-      "assembleNow": "Ghép tài liệu ngay",
-      "goToAssemble": "Đi tới S-8.2 · Ghép tài liệu",
-      "assembleFailedWith": "Không ghép được tài liệu: {error}",
       "loadFailedWith": "Không tải được tài liệu: {error}"
     },
     "verification": {
@@ -953,13 +1121,9 @@
       "noBaseline": "Chưa có baseline nào",
       "baselineCheckFailed": "Không kiểm tra được baseline",
       "baselineCheckFailedWith": "Không kiểm tra được baseline: {error}",
-      "loading": "Đang tải thông tin bản ghép…",
-      "notAssembled": "Chưa có bản ghép tài liệu cho nguồn này.",
+      "loading": "Đang tải thông tin tài liệu…",
       "version": "Phiên bản",
-      "assembledAt": "Đã ghép tại Spine v{version}",
-      "staleVs": "đã cũ so với v{version}",
       "redCount": "Số cờ đỏ sẽ in vào §I",
-      "noDraft": "Chưa ghép tài liệu — chạy S-8.2 trước.",
       "downloadFailed": "Tải file thất bại",
       "downloading": "Đang tải…",
       "downloadDraft": "Tải bản nháp (.docx)",
@@ -1100,21 +1264,106 @@
     "PAYMENT_SERVICE_UNAVAILABLE": "Không kết nối được cổng thanh toán.",
     "WALLET_NOT_FOUND": "Không tìm thấy ví credit.",
     "NOTIFICATION_NOT_FOUND": "Không tìm thấy thông báo.",
-    "SPINE_NOT_FOUND": "Không tìm thấy dữ liệu tài liệu (Spine) của dự án.",
+    "SPINE_NOT_FOUND": "Không tìm thấy dữ liệu tài liệu của dự án.",
     "STEP_NOT_FOUND": "Không tìm thấy bước này.",
     "FLAG_NOT_FOUND": "Không tìm thấy cờ.",
-    "FLAG_NOT_WAIVABLE": "Luật này không cho waive.",
+    "FLAG_NOT_WAIVABLE": "Vấn đề này không bỏ qua được — cần sửa dữ liệu.",
     "BASELINE_NOT_FOUND": "Baseline không tồn tại.",
     "DIAGRAM_NOT_FOUND": "Không tìm thấy diagram.",
     "SPINE_VERSION_CONFLICT": "Tài liệu vừa được thay đổi ở phiên khác. Vui lòng tải lại rồi thử lại.",
     "REGENERATE_LIMIT": "Đã hết 3 lượt Regenerate cho bước này.",
     "CALL_LIMIT": "Bước này đã dùng hết 8 lượt gọi AI — chỉ còn Accept hoặc Accept as-is.",
     "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
-    "NO_WORKING_DRAFT": "Chưa ghép tài liệu — chạy S-8.2 (Ghép tài liệu) trước.",
+    "NO_WORKING_DRAFT": "Dự án chưa có nội dung nào để dựng tài liệu.",
     "NOTHING_TO_UNDO": "Không còn thay đổi nào để hoàn tác.",
     "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa thể ghi baseline.",
-    "NOT_PIPELINE_SESSION": "Phiên này không phải phiên pipeline.",
+    "NOT_PIPELINE_SESSION": "Phiên này chỉ để hỏi đáp — quy trình chạy ở phiên chính.",
+    "PIPELINE_SESSION_LOCKED": "Không xoá được phiên chính — phiên này giữ tiến trình soạn tài liệu.",
     "NOT_IMPLEMENTED": "Tính năng này chưa được hỗ trợ.",
-    "NO_DATA": "Không nhận được dữ liệu từ máy chủ."
+    "NO_DATA": "Không nhận được dữ liệu từ máy chủ.",
+    "NO_ACTIVE_ORG": "Bạn chưa chọn tổ chức để làm việc.",
+    "ORG_FORBIDDEN": "Bạn không thuộc tổ chức này.",
+    "ORG_NOT_FOUND": "Không tìm thấy tổ chức.",
+    "ORG_ROLE_FORBIDDEN": "Vai trò của bạn không được phép thực hiện thao tác này.",
+    "LAST_LEAD": "Tổ chức phải còn ít nhất một Lead — hãy chỉ định người khác làm Lead trước.",
+    "ALREADY_MEMBER": "Bạn đã là thành viên của tổ chức này.",
+    "INVITE_INVALID": "Mã mời không dùng được: đã hết hạn, đã dùng hoặc đã bị thu hồi.",
+    "INVITE_NOT_FOUND": "Không tìm thấy lời mời.",
+    "INVITE_ALREADY_USED": "Mã mời đã được dùng.",
+    "PLAN_LIMIT_MEMBERS": "Tổ chức đã đạt trần số thành viên của gói hiện tại.",
+    "PLAN_LIMIT_PROJECTS": "Tổ chức đã đạt trần số dự án của gói hiện tại. Xoá bớt dự án hoặc nâng gói để tạo thêm.",
+    "ACCOUNT_SUSPENDED": "Tài khoản đã bị khoá.",
+    "MEMBER_NOT_FOUND": "Không tìm thấy thành viên trong tổ chức.",
+    "ORG_NAME_MISMATCH": "Tên xác nhận không khớp với tên tổ chức.",
+    "ORG_HAS_OTHER_MEMBERS": "Chỉ xoá được tổ chức khi bạn là thành viên duy nhất.",
+    "ORG_BUSY": "Tổ chức đang có lượt gọi AI chạy dở — thử lại sau ít phút.",
+    "ORG_PAYMENT_PENDING": "Tổ chức đang có thanh toán chờ xử lý — thử lại khi thanh toán kết thúc.",
+    "SCHEMA_MISMATCH": "AI trả kết quả không đúng dạng. Thử lại, hoặc nói rõ hơn yêu cầu.",
+    "PARSE_FAILED": "AI trả kết quả không đọc được. Thử lại, hoặc nói rõ hơn yêu cầu.",
+    "UNKNOWN_ERROR": "Có lỗi xảy ra. Vui lòng thử lại sau.",
+    "NETWORK_ERROR": "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
+    "PARSE_ERROR": "Máy chủ trả về dữ liệu không đọc được. Vui lòng thử lại sau.",
+    "INTERNAL_SERVER_ERROR": "Hệ thống gặp lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.",
+    "STREAM_FAILED": "Không nhận được phản hồi từ máy chủ. Vui lòng thử lại.",
+    "BAD_REQUEST": "Yêu cầu không hợp lệ. Vui lòng tải lại trang rồi thử lại.",
+    "NOT_FOUND": "Không tìm thấy nội dung yêu cầu.",
+    "PAYLOAD_TOO_LARGE": "Dữ liệu gửi lên quá lớn.",
+    "FILE_TOO_LARGE": "File quá lớn so với giới hạn cho phép.",
+    "UPLOAD_FAILED": "Không tải file lên được. Vui lòng chọn lại file rồi thử lại.",
+    "INVALID_ID": "Đường dẫn hoặc mã định danh không hợp lệ.",
+    "DUPLICATE": "Dữ liệu này đã tồn tại.",
+    "CORS_FORBIDDEN": "Yêu cầu không được phép từ địa chỉ này.",
+    "EXPORT_FAILED": "Không xuất được tài liệu. Vui lòng thử lại.",
+    "DOWNLOAD_FAILED": "Không tải được file. Vui lòng thử lại.",
+    "DIAGRAM_FETCH_FAILED": "Không tải được hình sơ đồ.",
+    "FOLDER_NOT_FOUND": "Không tìm thấy thư mục.",
+    "PROJECT_ID_REQUIRED": "Thiếu thông tin dự án. Vui lòng tải lại trang.",
+    "CHAT_ID_REQUIRED": "Thiếu thông tin cuộc trò chuyện. Vui lòng tải lại trang.",
+    "STEP_REQUIRED": "Thiếu thông tin bước. Vui lòng tải lại trang.",
+    "OTP_EXPIRED": "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.",
+    "OTP_TOO_MANY_ATTEMPTS": "Bạn đã nhập sai quá nhiều lần. Vui lòng gửi lại mã mới.",
+    "OTP_ALREADY_USED": "Mã OTP đã được sử dụng.",
+    "EMAIL_ALREADY_VERIFIED": "Email đã được xác thực. Vui lòng đăng nhập.",
+    "RESET_SESSION_EXPIRED": "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng làm lại từ đầu.",
+    "CONCURRENT_REFRESH": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "ACCOUNT_NOT_FOUND": "Tài khoản không còn tồn tại.",
+    "INVALID_CURRENT_PASSWORD": "Mật khẩu hiện tại không đúng.",
+    "SAME_PASSWORD": "Mật khẩu mới phải khác mật khẩu hiện tại.",
+    "PASSWORD_NOT_SET": "Tài khoản chưa đặt mật khẩu (đăng nhập bằng Google).",
+    "CANNOT_SUSPEND_SELF": "Không thể tự khoá tài khoản của chính mình.",
+    "USER_ALREADY_SUSPENDED": "Tài khoản này đã bị khoá.",
+    "USER_ALREADY_ACTIVE": "Tài khoản này đang hoạt động.",
+    "INVALID_NOTIFICATION_ID": "Thông báo không hợp lệ.",
+    "INVALID_INTENT_ID": "Giao dịch không hợp lệ.",
+    "PAYMENT_REQUIRED": "Gói này cần thanh toán trước khi kích hoạt.",
+    "PAYMENT_ORDER_NOT_FOUND": "Không tìm thấy giao dịch trên cổng thanh toán.",
+    "ASSUMPTION_NOT_FOUND": "Không tìm thấy mục cần sửa — có thể nó vừa được thay đổi. Tải lại rồi thử lại.",
+    "NEEDS_USER_INPUT": "AI chưa tạo được nội dung hợp lệ sau nhiều lần thử. Bạn có thể chạy lại, hoặc nói rõ hơn yêu cầu ở ô chat.",
+    "SPINE_SCHEMA_INVALID": "Dữ liệu tài liệu sau khi sửa không hợp lệ nên chưa được lưu. Vui lòng thử lại.",
+    "CHANGE_INVALID": "Thay đổi không hợp lệ nên chưa được lưu. Vui lòng thử lại.",
+    "CHANGE_RANGE_INVALID": "Không tìm thấy nhóm thay đổi này nữa. Tải lại trang rồi thử lại.",
+    "CHANGE_SEQ_CONFLICT": "Tài liệu vừa được thay đổi ở phiên khác. Vui lòng tải lại rồi thử lại.",
+    "RENDERED_DOCUMENT_INVALID": "Tài liệu đang dựng lại. Thử lại sau giây lát.",
+    "BASELINE_SNAPSHOT_INVALID": "Bản chốt (baseline) bị lỗi, không đọc được.",
+    "RENDER_IMAGE_INVALID": "Có hình trong tài liệu bị lỗi nên chưa xuất được.",
+    "AI_PROVIDER_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.",
+    "AI_EXECUTION_FAILED": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.",
+    "AI_STREAM_EXECUTION_FAILED": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.",
+    "GEMINI_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.",
+    "OPENAI_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.",
+    "ANTHROPIC_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.",
+    "GLM_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.",
+    "GEMINI_TIMEOUT": "Dịch vụ AI phản hồi quá lâu. Vui lòng thử lại.",
+    "GEMINI_OVERLOADED": "Dịch vụ AI đang quá tải. Vui lòng thử lại sau ít phút.",
+    "GLM_EMPTY_OUTPUT": "AI không trả nội dung. Vui lòng thử lại.",
+    "RESPONSE_TRUNCATED": "Kết quả của AI bị cắt ngang. Thử lại, hoặc chia nhỏ yêu cầu.",
+    "AI_PROVIDER_NOT_CONFIGURED": "Dịch vụ AI chưa được cấu hình. Vui lòng liên hệ quản trị viên.",
+    "RUN_CANCELLED": "Lượt chạy đã bị huỷ.",
+    "AI_CALL_ABORTED": "Lượt gọi AI đã bị huỷ.",
+    "CREDIT_LEDGER_INCONSISTENT": "Hệ thống gặp lỗi khi trừ credit. Vui lòng thử lại sau hoặc liên hệ quản trị viên.",
+    "LOG_NOT_FOUND": "Không tìm thấy lượt chạy AI này.",
+    "ORG_CONTEXT_MISSING": "Hệ thống gặp lỗi khi xác định tổ chức. Vui lòng tải lại trang.",
+    "METHOD_NOT_ALLOWED": "Thao tác này không được hỗ trợ.",
+    "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ."
   }
 }

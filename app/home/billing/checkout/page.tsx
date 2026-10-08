@@ -2,10 +2,12 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
+import Skeleton from "@/components/ui/Skeleton";
 import UiBackLink from "../../../../components/ui/BackLink";
 import { useSearchParams } from "next/navigation";
 import { fetchCheckout, formatVnd, type PaymentIntentDTO } from "../../../../lib/api/billing";
 import { emitNotificationsChanged } from "../../../../lib/api/notifications";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 // Guide payment_service: poll 3-5s, dừng sau 10-15 phút
 const POLL_MS = 4_000;
@@ -60,7 +62,7 @@ function Checkout({ intentId }: { intentId: string }) {
       } catch (err) {
         if (cancelled) return;
         // Chuỗi rỗng = lỗi tải, dịch lúc render ⇒ `t` không vào dependency (effect này đang poll).
-        setError(err instanceof Error ? err.message : "");
+        setError(userErrorMessage(err));
         timer = window.setTimeout(tick, POLL_MS);
       } finally {
         if (!cancelled) setLoading(false);
@@ -93,7 +95,12 @@ function Checkout({ intentId }: { intentId: string }) {
   if (loading) {
     return (
       <CenteredCard>
-        <div className="text-center text-[13px] text-[#A8A49C]">{t("loading")}</div>
+        <div className="flex flex-col gap-3" role="status" aria-busy="true" aria-label={t("loading")}>
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+          <Skeleton className="h-9 w-full" />
+        </div>
       </CenteredCard>
     );
   }

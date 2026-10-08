@@ -5,6 +5,7 @@ import { listFolders } from "@/lib/api/folders";
 import { listProjects } from "@/lib/api/projects";
 import type { Folder } from "@/types/folder";
 import type { Project } from "@/types/project";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface ProjectsContextValue {
   /** Mọi dự án của user (cả đang làm và lưu trữ) — dashboard lọc trạng thái trên danh sách này. */
@@ -31,7 +32,7 @@ export const selectRecentProjects = (projects: readonly Project[], limit = RECEN
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, limit);
 
-const messageOf = (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback);
+const messageOf = (err: unknown, fallback: string) => userErrorMessage(err, fallback);
 
 /**
  * Tải `GET /projects` + `GET /folders` một lần cho cả khung `/home/*` để sidebar ("Gần đây") và dashboard

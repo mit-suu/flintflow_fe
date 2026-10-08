@@ -194,8 +194,11 @@ describe("mock T16: flags waive/recompute", () => {
 });
 
 describe("mock T16: assemble/document/export", () => {
-  it("GET /document trước khi assemble ⇒ 409 NO_WORKING_DRAFT kèm hint S-8.2", async () => {
-    await expect(getDocument(P)).rejects.toMatchObject({ code: "NO_WORKING_DRAFT", status: 409 });
+  it("GET /document dựng luôn bản còn thiếu — không phải gọi assemble trước (FLF-264)", async () => {
+    const doc = await getDocument(P);
+    expect(doc.data?.sections.length).toBeGreaterThan(0);
+    expect(doc.meta?.assembled_at_version).toBe(await version());
+    expect(doc.meta?.stale).toBe(false);
   });
 
   it("assemble rồi GET /document trả RenderedDocument + meta", async () => {
@@ -207,9 +210,7 @@ describe("mock T16: assemble/document/export", () => {
     expect(doc.meta?.stale).toBe(false);
   });
 
-  it("export word trả {blob, filename} sau khi assemble; 409 khi chưa assemble", async () => {
-    await expect(downloadWordExport(P)).rejects.toMatchObject({ code: "NO_WORKING_DRAFT", status: 409 });
-    await assembleDocument(P, await version());
+  it("export word trả {blob, filename} mà không cần assemble trước", async () => {
     const { blob, filename } = await downloadWordExport(P);
     expect(blob.size).toBeGreaterThan(0);
     expect(filename).toContain("-draft.docx");
@@ -224,5 +225,20 @@ describe("mock T16: PATCH /users/me (onboarding)", () => {
     const me = await apiCall<{ name?: string; onboardedAt?: string }>("/users/me");
     expect(me.data?.name).toBe("Hiệp");
     expect(me.data?.onboardedAt).toBe("2026-09-15T00:00:00.000Z");
+  });
+
+  it("FLF-259: lưu locale rồi GET /users/me trả đúng", async () => {
+    await apiCall("/users/me", { method: "PATCH", body: JSON.stringify({ locale: "en" }) });
+    expect((await apiCall<{ locale?: string }>("/users/me")).data?.locale).toBe("en");
+  });
+
+  it("FLF-259: chặt như updateMeSchema của BE — field lạ, locale lạ, body rỗng ⇒ 400, không ghi", async () => {
+    const patch = (body: unknown) => apiCall("/users/me", { method: "PATCH", body: JSON.stringify(body) });
+    for (const body of [{ role: "admin" }, { locale: "fr" }, { locale: "en", role: "admin" }, {}]) {
+      await expect(patch(body)).rejects.toMatchObject({ status: 400, code: "VALIDATION_ERROR" });
+    }
+    const me = await apiCall<Record<string, unknown>>("/users/me");
+    expect(me.data).not.toHaveProperty("role");
+    expect(me.data?.locale).toBeUndefined();
   });
 });

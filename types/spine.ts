@@ -9,6 +9,21 @@ export type IsoDateTime = string;
 
 export type WorkingMode = "fast" | "coaching";
 
+/** Mức độ dừng lại hỏi ý user (02-reduce-stops-plan R5): Chặt · Cân bằng · Nhanh. */
+export type ReviewMode = "strict" | "balanced" | "fast";
+
+/** Một quyết định đã chốt trong lúc hỏi đáp — khoá chống hỏi lặp là `topic_key`. */
+export interface Decision {
+  id: string;
+  topic_key: string;
+  question: string;
+  answer: string;
+  step_id: string;
+  at: IsoDateTime;
+  /** Quyết định mới thay thế nó (user đổi ý); null ⇒ còn hiệu lực. */
+  superseded_by: string | null;
+}
+
 export interface ReleaseScope {
   in: string[];
   out: string[];
@@ -16,14 +31,19 @@ export interface ReleaseScope {
 
 export interface SpineProject {
   name: string;
+  /** Tên hệ thống tiếng Anh in trên sơ đồ và bìa tài liệu (FLF-177); null ⇒ dùng `name`. */
+  system_name: string | null;
   vision: string | null;
   goals: string[];
   type: string | null;
   domain: string | null;
   complexity: string | null;
-  form_factor: string | null;
+  /** Các nền tảng, phần tử đầu là chính; `[]` = chưa chốt (FLF-237). API cũ / cache có thể còn trả chuỗi. */
+  form_factor: string[];
   stakes: string | null;
   working_mode: WorkingMode | null;
+  /** Mức độ dừng lại hỏi ý (FLF-208 R5). */
+  review_mode: ReviewMode;
   release_scope: ReleaseScope;
 }
 
@@ -174,6 +194,8 @@ export interface OtherRequirement {
   id: string;
   kind: OtherRequirementKind;
   statement: string;
+  /** Câu bằng ngôn ngữ user (FLF-237); dữ liệu cũ không có ⇒ hiện `statement`. */
+  statement_vi?: string | null;
 }
 
 export interface GlossaryTerm {
@@ -192,12 +214,17 @@ export interface Addendum {
   captured_at: IsoDateTime;
 }
 
+/** Loại sơ đồ gốc đọc được từ ảnh của file upload (§4.13). */
+export type OriginalDiagramKind = "context" | "usecase" | "screen_flow" | "erd";
+
 /** Khối nguyên văn của mục riêng (FLF-182). */
 export interface CustomBlock {
   kind: "paragraph" | "list_item" | "table" | "image";
   text: string;
   rows: string[][] | null;
   image_ref: string | null;
+  /** Ảnh là sơ đồ gốc của người dùng (§4.13): giữ y hình, PlantUML cùng loại không in. */
+  diagram?: { kind: OriginalDiagramKind; source_hash: string } | null;
 }
 
 /** Mục ngoài mẫu FPT của template người dùng (mode 1 v2) — render ở section `custom:<id>`. */
@@ -230,7 +257,11 @@ export interface Assumption {
   id: string;
   path: string;
   statement: string;
+  /** Bản ngôn ngữ của user (FLF-221) — hiện ở cổng duyệt/Brief; Spine cũ không có ⇒ hiện `statement`. */
+  statement_vi?: string | null;
   rationale: string;
+  /** Lý do bằng ngôn ngữ user (hiện "Vì sao" ở cổng duyệt); Spine cũ không có. */
+  rationale_vi?: string | null;
   origin_step_id: string;
   status: AssumptionStatus;
   confirmed_at: IsoDateTime | null;
@@ -363,6 +394,8 @@ export interface Spine {
   custom_sections: CustomSection[];
   diagrams: Diagram[];
   assumptions: Assumption[];
+  /** Sổ quyết định đã chốt (R4) — nguồn chống hỏi lặp. */
+  decisions: Decision[];
   flags: Flag[];
   sections: SectionState[];
   baselines: Baseline[];

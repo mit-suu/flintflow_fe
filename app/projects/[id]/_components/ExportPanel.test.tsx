@@ -61,30 +61,24 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("409 NO_WORKING_DRAFT (chưa ghép): hiện lý do tiếng Việt + nút 'Đi tới S-8.2', bấm gọi onGoToStep và đóng panel", async () => {
-    getDocument.mockRejectedValue(
-      new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).")
-    );
-    const onGoToStep = vi.fn();
-    const onClose = vi.fn();
+  it("dự án chưa có nội dung: báo lý do, không mời bấm sang bước nào", async () => {
+    getDocument.mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
 
-    renderWithIntl(<ExportPanel projectId="p1" onClose={onClose} onGoToStep={onGoToStep} />);
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
 
-    expect(await screen.findByText(/Chưa ghép tài liệu/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Đi tới S-8.2/ }));
-
-    expect(onGoToStep).toHaveBeenCalledWith("S-8.2");
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/chưa có nội dung nào để xuất/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ghép/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tải bản nháp/ })).toBeDisabled();
   });
 
-  it("bấm tải khi đã ghép nhưng export/word trả 409 NO_WORKING_DRAFT: hiện lý do tiếng Việt (không phải message thô)", async () => {
+  it("export/word trả 409 NO_WORKING_DRAFT: hiện lý do tiếng Việt (không phải message thô)", async () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
-    downloadWordExport.mockRejectedValue(new ApiClientError(409, "NO_WORKING_DRAFT", "Chưa ghép — chạy S-8.2 (thông điệp thô từ BE)"));
+    downloadWordExport.mockRejectedValue(new ApiClientError(409, "NO_WORKING_DRAFT", "thông điệp thô từ BE"));
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
 
-    expect(await screen.findByText("Chưa ghép tài liệu — chạy S-8.2 trước.")).toBeInTheDocument();
+    expect(await screen.findByText("Dự án chưa có nội dung nào để xuất ra tài liệu.")).toBeInTheDocument();
     expect(screen.queryByText(/thông điệp thô từ BE/)).not.toBeInTheDocument();
   });
 

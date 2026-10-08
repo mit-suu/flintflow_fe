@@ -8,6 +8,7 @@ import { logoutAndRedirect } from "@/lib/auth";
 const NAV_ITEMS = [
   { label: "Số liệu", href: "/admin/metrics", icon: "▦" },
   { label: "Người dùng", href: "/admin/users", icon: "◉" },
+  { label: "Tổ chức", href: "/admin/orgs", icon: "▣" },
   { label: "Chi phí AI", href: "/admin/ai-cost", icon: "◎" },
   { label: "Phản hồi", href: "/admin/feedback", icon: "✉" },
 ];

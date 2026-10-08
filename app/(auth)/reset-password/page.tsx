@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Skeleton from "@/components/ui/Skeleton";
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import OtpInput, { OtpSpamHint, emptyOtp } from "../../../components/OtpInput";
@@ -14,9 +15,12 @@ import {
   PasswordField,
   PrimaryLink,
   StatusIcon,
-  StrengthMeter,
   SubmitButton,
 } from "../_components/auth-ui";
+import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import { checkPassword, PASSWORD_ISSUE_VALUES, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
+import { localizeApiError } from "@/lib/api/error-messages";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -26,6 +30,7 @@ function ResetPasswordContent() {
   const t = useTranslations("auth.reset");
   const tc = useTranslations("auth.common");
   const to = useTranslations("auth.otp");
+  const tp = useTranslations("password");
   const searchParams = useSearchParams();
   const router = useRouter();
   const email = searchParams.get("email") || "";
@@ -48,6 +53,7 @@ function ResetPasswordContent() {
 
   // Chỉ báo khi user đã gõ vào ô xác nhận, tránh đỏ ngay từ lúc mới vào bước 2
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const passwordIssue = password.length > 0 ? checkPassword(password) : null;
   const otpComplete = digits.every((d) => d !== "");
 
   const verifyOtp = async (otp: string) => {
@@ -66,13 +72,13 @@ function ResetPasswordContent() {
       if (!res.ok || json.error) {
         const code: string | undefined = json.error?.code;
         if (code === "OTP_EXPIRED" || code === "OTP_TOO_MANY_ATTEMPTS") expireNow();
-        throw new Error(json.error?.message || t("otpFailed"));
+        throw new Error(localizeApiError(code, json.error?.message || t("otpFailed")));
       }
 
       setResetToken(json.data.resetToken);
       setStep("password");
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("genericError"));
+      setError(userErrorMessage(err, tc("genericError")));
       setDigits(emptyOtp());
     } finally {
       setVerifying(false);
@@ -97,7 +103,7 @@ function ResetPasswordContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || to("resendFailed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || to("resendFailed")));
       }
       const expiresIn = Number(json.data?.otpExpiresIn) || 120;
       restart(expiresIn);
@@ -105,7 +111,7 @@ function ResetPasswordContent() {
       setDigits(emptyOtp());
       setInfo(to("resent"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("connectionError"));
+      setError(userErrorMessage(err, tc("connectionError")));
     } finally {
       setResending(false);
     }
@@ -117,6 +123,11 @@ function ResetPasswordContent() {
 
     if (password !== confirmPassword) {
       setError(tc("passwordMismatch"));
+      return;
+    }
+
+    if (passwordIssue) {
+      setError(tp(`issue.${passwordIssue}`, PASSWORD_ISSUE_VALUES));
       return;
     }
 
@@ -137,12 +148,12 @@ function ResetPasswordContent() {
           expireNow();
           setStep("otp");
         }
-        throw new Error(json.error?.message || t("failed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
       setStep("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("genericError"));
+      setError(userErrorMessage(err, tc("genericError")));
     } finally {
       setSaving(false);
     }
@@ -245,11 +256,11 @@ function ResetPasswordContent() {
           toggleName={tc("fieldPassword")}
           value={password}
           onChange={setPassword}
-          minLength={8}
+          minLength={PASSWORD_MIN_LENGTH}
           autoFocus
           autoComplete="new-password"
         >
-          <StrengthMeter password={password} />
+          <PasswordStrengthMeter password={password} />
         </PasswordField>
         <PasswordField
           id="confirmPassword"
@@ -261,7 +272,11 @@ function ResetPasswordContent() {
           error={passwordMismatch ? t("confirmMismatch") : null}
         />
 
-        <SubmitButton loading={saving} loadingLabel={t("submitting")} disabled={!confirmPassword || passwordMismatch}>
+        <SubmitButton
+          loading={saving}
+          loadingLabel={t("submitting")}
+          disabled={!confirmPassword || passwordMismatch || Boolean(passwordIssue)}
+        >
           {t("submit")}
         </SubmitButton>
       </form>
@@ -290,12 +305,21 @@ export default function ResetPasswordPage() {
   );
 }
 
-/** Fallback của Suspense — component riêng để dùng được `useTranslations`. */
+/**
+ * Fallback của Suspense — component riêng để dùng được `useTranslations`. Vẽ khối giữ chỗ đúng dáng
+ * nội dung sắp hiện (`Skeleton`) thay vì một dòng "Đang tải…": chữ đổi thành khối thì mắt không phải
+ * đọc rồi bỏ, và khung trang không giật khi nội dung thật thay chỗ.
+ */
 function AuthCardFallback() {
   const tc = useTranslations("auth.common");
   return (
     <AuthCard>
-      <p className="text-center text-[13px] text-on-surface-variant">{tc("loading")}</p>
+      <div className="flex flex-col gap-3" role="status" aria-busy="true" aria-label={tc("loading")}>
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-4/5" />
+        <Skeleton className="h-9 w-full" />
+      </div>
     </AuthCard>
   );
 }

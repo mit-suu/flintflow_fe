@@ -140,7 +140,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     expect(readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams)).toEqual({
       ...reuploadPrefill(DIFF),
       source: "reupload",
-      ref: DIFF.id,
+      ref: "File tải lại SRS_sua.docx",
     });
   });
 });
@@ -152,9 +152,9 @@ describe("reuploadPrefill", () => {
     expect(description.split("\n")).toEqual([
       "Áp các thay đổi trong file tải lại SRS_sua.docx (so với bản 0.1):",
       "- Thêm: NFR-P03: 500 learners.",
-      "- Xoá B0012: [SmartArt]",
-      '- Sửa B0010: "quickly" → "within 2 seconds"',
-      "- Di chuyển B0003",
+      '- Xoá: "[SmartArt]"',
+      '- Sửa: "quickly" → "within 2 seconds"',
+      "- Di chuyển một đoạn",
     ]);
   });
 
@@ -168,6 +168,7 @@ describe("reuploadPrefill", () => {
       ],
     });
     expect(description).not.toContain("undefined");
-    expect(description).toContain('- Sửa B0002: "" → ""');
+    expect(description).toContain('- Sửa: "" → ""');
+    expect(description).not.toMatch(/B000\d/);
   });
 });

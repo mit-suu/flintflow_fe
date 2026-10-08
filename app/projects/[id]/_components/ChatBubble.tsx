@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types/chat";
+import { parseChatQuestion, replyContainsQuestion } from "@/lib/question-options";
+import { displayUserText } from "./user-text";
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -9,7 +11,38 @@ interface ChatBubbleProps {
   onRequestRollback?: (index: number) => void;
   disabled?: boolean;
   isStreaming?: boolean;
+  /** Bong bóng hỏi của step đang chạy: nhãn "Chỉ trao đổi" không có nghĩa gì ở đây. */
+  hideBadge?: boolean;
 }
+
+/**
+ * BUG-09: chat từng nói "đã thêm UC18, UC19" trong khi Spine không đổi gì. Mỗi tin nhắn của AI nay mang
+ * một nhãn nói rõ nó đã GHI hay chỉ TRAO ĐỔI: chỉ tin nhắn mang bản xem trước thay đổi (`change_preview`)
+ * mới được nói là có ghi, và con số là số thay đổi thật trong bản xem trước đó.
+ */
+export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boolean } | null => {
+  if (message.role !== "ai") return null;
+  const raw = (message.content ?? "").trim();
+  if (!raw.startsWith("{")) return { text: "Chỉ trao đổi", wrote: false };
+  try {
+    const data = JSON.parse(raw) as { kind?: unknown; changes?: unknown; change_count?: unknown };
+    if (data.kind === "change_preview") {
+      // FLF-244: BE chỉ lưu `change_count`; tin cũ còn mảng `changes`
+      const count = typeof data.change_count === "number" ? data.change_count : Array.isArray(data.changes) ? data.changes.length : 0;
+      return { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false };
+    }
+    if (data.kind === "change_applied") {
+      const count = typeof (data as { count?: unknown }).count === "number" ? (data as { count: number }).count : 0;
+      return count > 0 ? { text: `Đã ghi ${count} thay đổi`, wrote: true } : { text: "Không đổi gì", wrote: false };
+    }
+    if (data.kind === "change_clarification" || data.kind === "change_error") return { text: "Chưa ghi gì", wrote: false };
+    // Lượt hỏi của bước (lời đáp + câu hỏi): không phải hỏi đáp tự do, nhãn "Chỉ trao đổi" không có nghĩa gì
+    if (Array.isArray((data as { questions?: unknown }).questions)) return null;
+  } catch {
+    return { text: "Chỉ trao đổi", wrote: false };
+  }
+  return { text: "Chỉ trao đổi", wrote: false };
+};
 
 export default function ChatBubble({
   message,
@@ -17,6 +50,7 @@ export default function ChatBubble({
   onRequestRollback,
   disabled = false,
   isStreaming = false,
+  hideBadge = false,
 }: ChatBubbleProps) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
@@ -48,22 +82,29 @@ export default function ChatBubble({
    * trả một object lớn kèm khối tự chấm tiến độ, và FE đọc từng mẩu trong lúc stream. Discovery giờ là
    * step chạy qua step runner, tiến độ đọc từ Spine — không còn gì để vớt.
    */
-  const parseAiMessage = (content: string): { reply: string } => {
+  const parseAiMessage = (content: string): { reply: string; openQuestions: string[] } => {
     const raw = (content ?? "").trim();
-    if (!raw) return { reply: "" };
-    if (!raw.startsWith("{")) return { reply: raw };
+    if (!raw) return { reply: "", openQuestions: [] };
+    if (!raw.startsWith("{")) return { reply: raw, openQuestions: [] };
     try {
       const data: unknown = JSON.parse(raw);
       if (data && typeof data === "object" && typeof (data as { reply?: unknown }).reply === "string") {
-        return { reply: (data as { reply: string }).reply };
+        // FLF-220: câu mở (không có lựa chọn) nằm ngay trong tin nhắn AI; câu `inline` chỉ bỏ khi `reply` đã chứa nó; trả lời bằng ô chat; câu có lựa chọn ở thẻ hỏi
+        const questions = (data as { questions?: unknown }).questions;
+        const reply = (data as { reply: string }).reply;
+        const openQuestions = (Array.isArray(questions) ? questions : [])
+          .map(parseChatQuestion)
+          .flatMap((q) => (q && q.options.length === 0 && !(q.inline && replyContainsQuestion(reply, q.question)) ? [q.question] : []));
+        return { reply, openQuestions };
       }
     } catch (_) {
       // JSON chưa đủ (đang stream) — hiện nguyên văn, ticker bên dưới vẫn chạy
     }
-    return { reply: raw };
+    return { reply: raw, openQuestions: [] };
   };
 
   const parsed = parseAiMessage(message.content);
+  const writeBadge = hideBadge ? null : writeBadgeOf(message);
 
   // Smooth continuous typewriter ticker for streaming
   const [displayedReply, setDisplayedReply] = useState(parsed.reply);
@@ -135,7 +176,7 @@ export default function ChatBubble({
         return (
           <li
             key={i}
-            className="ml-4 list-disc text-[13px] text-[#33312D] leading-relaxed py-0.5"
+            className="ml-5 list-disc text-[14px] text-on-surface leading-7"
           >
             <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-*]\s+/, "") }} />
             {cursorElement}
@@ -155,7 +196,7 @@ export default function ChatBubble({
       return (
         <p
           key={i}
-          className="text-[13px] text-[#33312D] leading-relaxed mb-1"
+          className="text-[14px] text-on-surface leading-7"
         >
           <span dangerouslySetInnerHTML={{ __html: formatted }} />
           {cursorElement}
@@ -167,12 +208,12 @@ export default function ChatBubble({
   if (isUser) {
     const formattedTime = formatTimestamp(message.createdAt);
     return (
-      <div className="flex flex-col items-end space-y-1 group">
-        <div className="bg-[#F2F1FB] border border-[#DCD8F0] text-[#191817] px-4 py-2.5 rounded-[16px] rounded-tr-[3px] max-w-[85%] text-[13px] shadow-[0_2px_8px_rgba(106,98,196,0.06)] leading-relaxed flex flex-col gap-0.5">
-          <p className="whitespace-pre-wrap">{message.content}</p>
+      <div className="flex flex-col items-end group">
+        <div className="relative bg-primary-soft text-on-surface px-4 py-2.5 rounded-[20px] max-w-[80%] text-[14px] leading-6">
+          <p className="whitespace-pre-wrap">{displayUserText(message.content)}</p>
 
-          {/* Action bar: Timestamp, Copy, Rollback - phong cách Antigravity (chỉ hiện khi hover) */}
-          <div className="flex items-center justify-end gap-1.5 text-[11px] text-[#8A867E] select-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto mt-0.5">
+          {/* Action bar: Timestamp, Copy, Rollback — nổi bên trái bong bóng khi hover, không chiếm chiều cao bong bóng */}
+          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 flex items-center gap-1.5 text-[11px] text-[#8A867E] select-none whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
             {formattedTime && (
               <span className="text-[10.5px] text-[#8A867E] leading-none">{formattedTime}</span>
             )}
@@ -232,29 +273,31 @@ export default function ChatBubble({
   }
 
   return (
-    <div className="flex items-start gap-3">
-      <div
-        className="w-7 h-7 rounded-[9px] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-[0_4px_10px_rgba(106,98,196,0.3)] mt-1"
-        style={{
-          background: "linear-gradient(135deg,#8E87D6,#6A62C4)",
-        }}
-      >
-        F
-      </div>
+    <div className="flex">
 
-      <div className="flex flex-col gap-1.5 w-full max-w-[90%]">
+      {/* Lời AI nằm thẳng trên nền khung chat như trả lời của một trợ lý, không bong bóng; tin user mới có bong bóng */}
+      <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+        {(isStreaming || writeBadge) && (
         <div className="flex items-center gap-2">
-          <span className="text-[10.5px] font-bold text-[#A8A49C]">
-            FlintFlow AI Analyst
-          </span>
           {isStreaming && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#6A62C4] bg-[#F2F1FB] px-2 py-0.5 rounded-full border border-[#DCD8F0] animate-pulse">
               <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
               Đang phản hồi...
             </span>
           )}
+          {!isStreaming && writeBadge && (
+            <span
+              title="Trò chuyện không ghi vào tài liệu; mọi thay đổi đều đi qua bản xem trước rồi mới áp"
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                writeBadge.wrote ? "text-[#1F7A45] bg-[#EAF6EE] border-[#BEE3C8]" : "text-[#6B6862] bg-[#F5F3F0] border-[#ECEAE5]"
+              }`}
+            >
+              {writeBadge.text}
+            </span>
+          )}
         </div>
-        <div className="bg-white border border-[#ECEAE5] rounded-[18px] rounded-tl-[3px] p-5 shadow-[0_4px_16px_rgba(25,24,23,0.04)] space-y-3.5">
+        )}
+        <div className="space-y-3">
           <div className="text-[#191817] space-y-1.5 relative">
             {activeReply ? (
               renderMarkdown(activeReply, isStreaming)
@@ -265,6 +308,18 @@ export default function ChatBubble({
             ) : null}
           </div>
 
+          {!isStreaming && parsed.openQuestions.length > 0 && (
+            <ol className="flex flex-col gap-1.5" aria-label="Câu hỏi của AI">
+              {parsed.openQuestions.map((question, i) => (
+                <li key={i} className="flex items-baseline gap-2.5 text-[14px] text-on-surface leading-7">
+                  <span className="w-5 h-5 shrink-0 inline-grid place-items-center rounded-[6px] bg-primary-soft text-primary-hover text-[11px] leading-none font-bold tabular-nums">
+                    {i + 1}
+                  </span>
+                  <span className="flex-1 min-w-0 font-medium">{question}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       </div>
     </div>

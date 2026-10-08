@@ -3,9 +3,11 @@
 import { useTranslations } from "next-intl";
 import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Skeleton from "@/components/ui/Skeleton";
 import { saveAuthToken } from "../../../lib/auth";
 import OtpInput, { OtpSpamHint, emptyOtp } from "../../../components/OtpInput";
 import { buildVerifyEmailHref, formatOtpTime, useOtpCountdown } from "../../../lib/otp";
+import { localizeApiError } from "@/lib/api/error-messages";
 import {
   AuthAlert,
   AuthCard,
@@ -15,6 +17,7 @@ import {
   StatusIcon,
   SubmitButton,
 } from "../_components/auth-ui";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -71,7 +74,7 @@ function VerifyEmailContent() {
           if (json.error?.code === "OTP_EXPIRED" || json.error?.code === "OTP_TOO_MANY_ATTEMPTS") {
             expireNow();
           }
-          throw new Error(json.error?.message || t("failed"));
+          throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
         }
 
         const userRole = json.data?.user?.role || json.data?.role;
@@ -81,7 +84,7 @@ function VerifyEmailContent() {
         setStatus("success");
       } catch (err) {
         setStatus("idle");
-        setError(err instanceof Error ? err.message : tc("genericError"));
+        setError(userErrorMessage(err, tc("genericError")));
         resetDigits();
       }
     },
@@ -108,7 +111,7 @@ function VerifyEmailContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || to("resendFailed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || to("resendFailed")));
       }
       const expiresIn = Number(json.data?.otpExpiresIn) || 120;
       restart(expiresIn);
@@ -116,7 +119,7 @@ function VerifyEmailContent() {
       setInfo(to("resent"));
       resetDigits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("connectionError"));
+      setError(userErrorMessage(err, tc("connectionError")));
     } finally {
       setResending(false);
     }
@@ -209,12 +212,21 @@ export default function VerifyEmailPage() {
   );
 }
 
-/** Fallback của Suspense — component riêng để dùng được `useTranslations`. */
+/**
+ * Fallback của Suspense — component riêng để dùng được `useTranslations`. Vẽ khối giữ chỗ đúng dáng
+ * nội dung sắp hiện (`Skeleton`) thay vì một dòng "Đang tải…": chữ đổi thành khối thì mắt không phải
+ * đọc rồi bỏ, và khung trang không giật khi nội dung thật thay chỗ.
+ */
 function AuthCardFallback() {
   const tc = useTranslations("auth.common");
   return (
     <AuthCard>
-      <p className="text-center text-[13px] text-on-surface-variant">{tc("loading")}</p>
+      <div className="flex flex-col gap-3" role="status" aria-busy="true" aria-label={tc("loading")}>
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-4/5" />
+        <Skeleton className="h-9 w-full" />
+      </div>
     </AuthCard>
   );
 }

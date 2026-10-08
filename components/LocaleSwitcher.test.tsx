@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/intl";
 import LocaleSwitcher from "./LocaleSwitcher";
@@ -78,6 +78,21 @@ describe("LocaleSwitcher", () => {
     fireEvent.click(screen.getByRole("button", { name: "English" }));
     expect(account.updateMyLocale).toHaveBeenCalledWith("en");
     expect(document.cookie).toContain("NEXT_LOCALE=en");
+  });
+
+  it("lưu vào tài khoản thất bại ⇒ vẫn đổi ngôn ngữ, lỗi được ghi console (không nuốt im lặng)", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    account.token = "jwt";
+    account.updateMyLocale.mockRejectedValueOnce(new Error("400 VALIDATION_ERROR"));
+    renderWithIntl(<LocaleSwitcher />, "vi");
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+
+    expect(document.cookie).toContain("NEXT_LOCALE=en");
+    expect(refresh).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("[LocaleSwitcher]"), expect.any(Error))
+    );
+    consoleError.mockRestore();
   });
 
   it("bấm lại ngôn ngữ đang dùng thì không làm gì", () => {

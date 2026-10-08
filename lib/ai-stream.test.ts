@@ -86,7 +86,7 @@ describe("streamChatMessage", () => {
   });
 
   it("gọi endpoint stream của chat và phát text-delta, error, finish tới đúng handler", async () => {
-    const session = { _id: "c1", projectId: "p1", messages: [], isActive: true, createdAt: "2026-09-14" };
+    const session = { _id: "c1", projectId: "p1", messages: [], createdAt: "2026-09-14" };
     vi.mocked(authFetch).mockResolvedValueOnce(
       sseResponse([
         'data: {"type":"text-delta","delta":"Xin"}\n\n',

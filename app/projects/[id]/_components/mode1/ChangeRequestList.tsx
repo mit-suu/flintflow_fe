@@ -5,15 +5,19 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { listCrs } from "@/lib/api/change-requests";
 import { CR_TERMINAL_STATUSES, type Cr } from "@/types/change-request";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import ChangeRequestForm from "./ChangeRequestForm";
 import { errorText } from "./errors";
 import { CR_SOURCE_LABELS, CR_STATUS_LABELS, formatDateTime } from "./labels";
-import type { CrPrefill } from "./prefill";
+import { crHref, type CrPrefill } from "./prefill";
+import { sourceRefLabel } from "./spine-labels";
 
 interface ChangeRequestListProps {
   projectId: string;
   /** Điền sẵn từ gap report / re-upload / chat (`?new=1&…`) ⇒ mở form ngay. */
   prefill: CrPrefill | null;
+  /** Viewer: chỉ xem danh sách, không có nút tạo CR. */
+  readOnly?: boolean;
 }
 
 type Filter = "open" | "closed" | "all";
@@ -28,11 +32,11 @@ export const statusTone = (status: Cr["status"]): string =>
         : "bg-[#F2F1FB] text-[#554DB0]";
 
 /** Danh sách change request + tạo mới (UC-48). */
-export default function ChangeRequestList({ projectId, prefill }: ChangeRequestListProps) {
+export default function ChangeRequestList({ projectId, prefill, readOnly = false }: ChangeRequestListProps) {
   const router = useRouter();
   const [crs, setCrs] = useState<Cr[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(prefill !== null);
+  const [formOpen, setFormOpen] = useState(prefill !== null && !readOnly);
   const [filter, setFilter] = useState<Filter>("open");
 
   const load = useCallback(
@@ -58,7 +62,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
           <h2 className="text-[20px] font-extrabold text-[#191817]">Change request</h2>
           <p className="text-[12px] text-[#8A867E]">Tài liệu đã có baseline — mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.</p>
         </div>
-        {!formOpen && (
+        {!formOpen && !readOnly && (
           <button type="button" onClick={() => setFormOpen(true)} className="px-4 py-2 rounded-full btn-gradient-primary text-white text-[12.5px] font-bold cursor-pointer">
             + Tạo change request
           </button>
@@ -70,7 +74,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
           projectId={projectId}
           prefill={prefill}
           onCancel={() => setFormOpen(false)}
-          onCreated={(d) => router.push(`/projects/${projectId}/change-requests/${d.change_request.cr_id}`)}
+          onCreated={(d) => router.push(crHref(projectId, d.change_request.cr_id), { scroll: false })}
         />
       )}
 
@@ -95,7 +99,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
       </div>
 
       {crs === null ? (
-        <p className="text-[13px] text-[#8A867E]">Đang tải…</p>
+        <PageSkeleton variant="list" rows={3} label="Đang tải change request" />
       ) : shown.length === 0 ? (
         <p className="text-[13px] text-[#8A867E] bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-6 text-center">Chưa có change request nào ở mục này.</p>
       ) : (
@@ -103,7 +107,8 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
           {shown.map((c) => (
             <li key={c.cr_id}>
               <Link
-                href={`/projects/${projectId}/change-requests/${c.cr_id}`}
+                href={crHref(projectId, c.cr_id)}
+                scroll={false}
                 className="bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-3 flex flex-wrap items-center gap-3 hover:shadow-[0_8px_20px_rgba(25,24,23,0.06)] transition-shadow"
               >
                 <code className="text-[12px] font-bold text-[#6A62C4]">{c.cr_id}</code>
@@ -112,7 +117,7 @@ export default function ChangeRequestList({ projectId, prefill }: ChangeRequestL
                 {c.paused && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FDEDED] text-[#B03030]">Tạm dừng</span>}
                 <span className="w-full text-[11.5px] text-[#8A867E]">
                   {CR_SOURCE_LABELS[c.source.kind]}
-                  {c.source.ref ? ` · ${c.source.ref}` : ""} · {c.requester} · {formatDateTime(c.created_at)}
+                  {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · {c.requester} · {formatDateTime(c.created_at)}
                   {c.result_doc_version ? ` · ghi vào bản ${c.result_doc_version}` : ""}
                 </span>
               </Link>

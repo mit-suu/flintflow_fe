@@ -13,6 +13,7 @@ import {
   uploadImport,
 } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
+import type { RocRow } from "@/types/document";
 import type { FieldsPatchRequest, FinalizeResponse, GetImportResponse, MappingPatchRequest } from "@/types/import";
 import { errorText } from "../../_components/mode1/errors";
 
@@ -119,11 +120,14 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
       }),
     saveFields: (body: Omit<FieldsPatchRequest, "import_id">) =>
       run("fields", () => patchFields(projectId, { ...body, import_id: importId })),
-    /** 1.10–1.12: baseline 0.0 + kiểm. `base_version` = `spine_version` đọc ngay trước khi gửi. */
-    finalize: () =>
+    /**
+     * 1.10–1.12: baseline 0.0 + kiểm. `base_version` = `spine_version` đọc ngay trước khi gửi. `recordOfChanges` (FLF-252):
+     * dòng Record of Changes người dùng đã sửa ở wizard — bỏ trống ⇒ BE dùng dòng đọc từ file.
+     */
+    finalize: (recordOfChanges?: RocRow[]) =>
       run("finalize", async (): Promise<FinalizeResponse | null> => {
         const spine = await getSpine(projectId);
-        const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0);
+        const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0, recordOfChanges);
         return res.data;
       }),
   };

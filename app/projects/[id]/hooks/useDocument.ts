@@ -1,30 +1,33 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiClientError } from "@/lib/api/client";
-import { assembleDocument, getDocument } from "@/lib/api/export";
+import { getDocument } from "@/lib/api/export";
 import type { DocumentSource, DraftMeta, RenderedDocument } from "@/types/document";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 export interface UseDocumentResult {
   document: RenderedDocument | null;
   meta: DraftMeta | null;
+  /** Lượt tải đầu tiên — chưa có gì để hiện. Các lượt tải lại sau giữ bản đang đọc trên màn (`refreshing`). */
   loading: boolean;
-  /** 409 `NO_WORKING_DRAFT` — chưa từng `POST /assemble` (S-8.2). */
-  notAssembled: boolean;
+  /** Đang tải lại trong khi bản hiện tại vẫn hiển thị. */
+  refreshing: boolean;
+  /** Dự án chưa có nội dung nào để dựng tài liệu — BE trả 200 kèm `meta.state = "not_assembled"`, không phải lỗi. */
+  empty: boolean;
   error: string | null;
   reload: () => Promise<void>;
-  /** `POST /assemble` ở `baseVersion` rồi tải lại — gỡ kẹt project đã qua S-8.2 mà chưa từng ghép. */
-  assemble: (baseVersion: number | null) => Promise<void>;
-  assembling: boolean;
-  assembleError: string | null;
 }
 
 const isDraftMeta = (meta: Record<string, unknown> | undefined): meta is Record<string, unknown> & DraftMeta =>
   typeof meta?.assembled_at_version === "number" && typeof meta?.spine_version === "number";
 
 /**
- * `GET /document` — tải lại khi `source`/`baselineId` đổi hoặc `refreshToken` tăng (vd sau khi
- * step ghi op mới hoặc ChangePanel áp một lô).
+ * `GET /document` — tải lại khi `source`/`baselineId` đổi hoặc `refreshToken` tăng (vd sau khi step ghi op mới
+ * hoặc lệnh sửa trong chat áp một lô). BE tự dựng bản còn thiếu nên lượt tải lại luôn ra nội dung mới nhất;
+ * FE không còn phải xin ghép hay báo "tài liệu đã cũ" (FLF-264).
+ *
+ * Tải lại KHÔNG gỡ bản đang đọc xuống: `loading` chỉ bật ở lượt đầu. Trước đây mỗi lượt tải lại đều dựng lại
+ * toàn bộ danh sách mục, nên người đang đọc giữa tài liệu bị ném về đầu trang sau mỗi lệnh sửa.
  */
 export function useDocument(
   projectId: string,
@@ -34,76 +37,52 @@ export function useDocument(
 ): UseDocumentResult {
   const [document, setDocument] = useState<RenderedDocument | null>(null);
   const [meta, setMeta] = useState<DraftMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notAssembled, setNotAssembled] = useState(false);
+  const [pending, setPending] = useState(true);
+  const [empty, setEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Chỉ response của lần gọi mới nhất được áp (cùng pattern `useSpine.ts`) — tránh một `reload()`
   // gọi tay ghi đè bằng response của lần tải trước đó về muộn hơn.
   const requestRef = useRef(0);
+  /** Nguồn của bản đang hiển thị: đổi nguồn là đổi hẳn tài liệu, không phải tải lại cùng một tài liệu. */
+  const sourceRef = useRef("");
 
   const reload = useCallback(() => {
     const request = ++requestRef.current;
-    setLoading(true);
+    const key = `${source}:${baselineId ?? ""}`;
+    if (sourceRef.current !== key) {
+      sourceRef.current = key;
+      setDocument(null);
+      setMeta(null);
+    }
+    setPending(true);
     return getDocument(projectId, source, baselineId)
       .then((res) => {
         if (request !== requestRef.current) return;
+        // BUG-31: dự án chưa có nội dung là trạng thái bình thường của một dự án đang làm dở, BE trả 200 + meta.state
+        const nothingYet = res.data === null && res.meta?.state === "not_assembled";
         setDocument(res.data);
         setMeta(isDraftMeta(res.meta) ? res.meta : null);
-        setNotAssembled(false);
+        setEmpty(nothingYet);
         setError(null);
       })
       .catch((err: unknown) => {
         if (request !== requestRef.current) return;
         setDocument(null);
         setMeta(null);
-        if (err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT") {
-          setNotAssembled(true);
-          setError(err.message);
-        } else {
-          setNotAssembled(false);
-          setError(err instanceof Error ? err.message : "Không tải được tài liệu");
-        }
+        setEmpty(false);
+        setError(userErrorMessage(err, "Không tải được tài liệu"));
       })
       .finally(() => {
-        if (request === requestRef.current) setLoading(false);
+        if (request === requestRef.current) setPending(false);
       });
   }, [projectId, source, baselineId]);
 
-  const [assembling, setAssembling] = useState(false);
-  const [assembleError, setAssembleError] = useState<string | null>(null);
-
-  const assemble = useCallback(
-    async (baseVersion: number | null) => {
-      if (baseVersion === null) {
-        setAssembleError("Spine chưa tải xong — thử lại sau giây lát.");
-        return;
-      }
-      setAssembling(true);
-      setAssembleError(null);
-      try {
-        await assembleDocument(projectId, baseVersion);
-        await reload();
-      } catch (err) {
-        setAssembleError(
-          err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT"
-            ? "Tài liệu vừa đổi ở phiên khác — tải lại trang rồi thử ghép lại."
-            : err instanceof Error
-              ? err.message
-              : "Không ghép được tài liệu"
-        );
-      } finally {
-        setAssembling(false);
-      }
-    },
-    [projectId, reload]
-  );
-
   useEffect(() => {
     if (!projectId) return;
-    // Lùi một microtask: `reload()` tự `setLoading(true)` đồng bộ (T1) — gọi thẳng trong effect bị
-    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `ChangePanel.tsx`).
+    // Lùi một microtask: `reload()` tự `setPending(true)` đồng bộ (T1) — gọi thẳng trong effect bị
+    // lint `react-hooks/set-state-in-effect` chặn (cùng pattern `EditHistory.tsx`).
     queueMicrotask(() => void reload());
   }, [projectId, reload, refreshToken]);
 
-  return { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError };
+  return { document, meta, loading: pending && document === null, refreshing: pending && document !== null, empty, error, reload };
 }

@@ -10,6 +10,8 @@ import { isReleaseVersion, type DocVersion, type DownloadVariant } from "@/types
 import type { Flag } from "@/types/spine";
 import { errorText } from "./errors";
 import { VERSION_KIND_LABELS, formatDateTime } from "./labels";
+import { humanizeText } from "./spine-labels";
+import { crHref } from "./prefill";
 
 interface VersionsPanelProps {
   projectId: string;
@@ -23,13 +25,15 @@ interface VersionsPanelProps {
   onSelect?: (version: string) => void;
   /** Sau release: tải lại danh sách, header. */
   onReleased: () => void;
+  /** Viewer: ẩn mục Release — vẫn xem và tải các version. */
+  readOnly?: boolean;
 }
 
 /**
  * Version & release (Flow 6, UC-57): `0.0` import → `0.x` sau mỗi CR (Track Changes + DRAFT) → `x.0` release
  * (bản sạch). Release bị khoá khi còn cờ đỏ (BR-04, mode 1 không waive) — BE vẫn chặn lần nữa.
  */
-export default function VersionsPanel({ projectId, projectName, versions, redOpen, selected, onSelect, onReleased }: VersionsPanelProps) {
+export default function VersionsPanel({ projectId, projectName, versions, redOpen, selected, onSelect, onReleased, readOnly = false }: VersionsPanelProps) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +55,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
     setError(null);
     try {
       const { blob, filename } = await downloadVersion(projectId, version, variant);
-      const suffix = variant === "original" ? "_original" : isReleaseVersion(version) && variant === "auto" ? "" : "_DRAFT";
+      const suffix = variant === "original" ? "_original" : variant === "tracked" ? "_tracked_DRAFT" : isReleaseVersion(version) ? "" : "_DRAFT";
       saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.docx`);
     } catch (err) {
       setError(errorText(err, "Không tải được file"));
@@ -80,6 +84,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
 
   return (
     <div className="flex flex-col gap-4">
+      {!readOnly && (
       <section className="flex flex-col gap-2">
         <h3 className="font-extrabold text-[#191817] text-[13.5px]">Release</h3>
         <p className="text-[11.5px] text-[#8A867E] leading-relaxed">
@@ -122,13 +127,14 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
             {blockingFlags.length > 0 && (
               <ul className="list-disc pl-4 mt-1">
                 {blockingFlags.map((f) => (
-                  <li key={f.id}>{f.message}</li>
+                  <li key={f.id}>{humanizeText(f.message)}</li>
                 ))}
               </ul>
             )}
           </div>
         )}
       </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h3 className="font-extrabold text-[#191817] text-[13.5px]">Các version</h3>
@@ -160,7 +166,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                 {v.cr_ids.length > 0 && (
                   <div className="flex flex-wrap gap-1 text-[11px]">
                     {v.cr_ids.map((id) => (
-                      <Link key={id} href={`/projects/${projectId}/change-requests/${id}`} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold hover:bg-[#E4E1DC]">
+                      <Link key={id} href={crHref(projectId, id)} scroll={false} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold hover:bg-[#E4E1DC]">
                         {id}
                       </Link>
                     ))}
@@ -173,7 +179,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                     disabled={busy !== null}
                     className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50"
                   >
-                    {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản draft (Track Changes)"}
+                    {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản nháp (DRAFT)"}
                   </button>
                   {v.has_original_file && (
                     <button
@@ -186,14 +192,16 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       {busy === `download:${v.version}:original` ? "Đang tải…" : "Tải file gốc"}
                     </button>
                   )}
-                  {release && (
+                  {/* BPMN 3.14 (mode 1 v3): bản có đánh dấu của CR — Track Changes + comment, tác giả là mã CR */}
+                  {v.has_tracked_file && (
                     <button
                       type="button"
                       onClick={() => void download(v.version, "tracked")}
                       disabled={busy !== null}
-                      className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
+                      title={`Track Changes + comment so với bản ${v.based_on ?? "trước"}, tác giả ${v.cr_ids.join(", ")}`}
+                      className="px-2.5 py-1 rounded-[8px] border border-[#DCD8F0] bg-[#F2F1FB] text-[11.5px] font-bold text-[#554DB0] hover:bg-[#E8E6F7] disabled:opacity-50"
                     >
-                      {busy === `download:${v.version}:tracked` ? "Đang tải…" : "Bản có Track Changes"}
+                      {busy === `download:${v.version}:tracked` ? "Đang tải…" : "Tải bản có đánh dấu"}
                     </button>
                   )}
                 </div>

@@ -1,28 +1,25 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import PasswordInput from "../../../components/PasswordInput";
+import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { USER_AVATAR } from "@/components/layout/AppSidebar";
 import { ApiClientError } from "../../../lib/api/client";
-import { changeMyPassword, fetchMe, updateMyName } from "../../../lib/api/users";
+import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../../../lib/api/users";
+import { logoutAndRedirect } from "../../../lib/auth";
 import type { User } from "../../../types/user";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const cardClass = "bg-white border border-[#ECEAE5] rounded-[16px] p-5 sm:p-6 flex flex-col gap-4";
 const inputClass =
   "w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-[13.5px]";
 const primaryButtonClass =
   "px-4 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60";
-
-/** Mức độ mạnh + màu; chữ lấy từ `auth.common.strength.*` lúc render. */
-const getPasswordStrength = (pwd: string) => {
-  if (!pwd) return { level: 0, key: null, color: "#E4E1DC" } as const;
-  if (pwd.length < 6) return { level: 1, key: "weak", color: "#B03030" } as const;
-  if (pwd.length < 8 || !/\d/.test(pwd)) return { level: 2, key: "medium", color: "#E8A23D" } as const;
-  return { level: 3, key: "strong", color: "#1F7A45" } as const;
-};
 
 const displayNameOf = (user: User) => user.name || user.email.split("@")[0];
 
@@ -65,7 +62,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
       setEditing(false);
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("nameFailed"));
+      setError(userErrorMessage(err, t("nameFailed")));
     } finally {
       setSaving(false);
     }
@@ -186,7 +183,6 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
 
 function ChangePasswordCard({ user }: { user: User }) {
   const t = useTranslations("app.profile");
-  const tStrength = useTranslations("auth.common.strength");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -195,12 +191,17 @@ function ChangePasswordCard({ user }: { user: User }) {
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const strength = getPasswordStrength(newPassword);
   // Chỉ báo khi user đã gõ vào ô xác nhận
   const passwordMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
   const sameAsCurrent = newPassword.length > 0 && newPassword === currentPassword;
+  const passwordIssue = newPassword.length > 0 ? checkPassword(newPassword) : null;
   const canSubmit =
-    currentPassword.length > 0 && newPassword.length >= 6 && !passwordMismatch && !sameAsCurrent && confirmPassword.length > 0;
+    currentPassword.length > 0 &&
+    newPassword.length > 0 &&
+    !passwordIssue &&
+    !passwordMismatch &&
+    !sameAsCurrent &&
+    confirmPassword.length > 0;
 
   if (!user.hasPassword) {
     // Tài khoản Google chưa có mật khẩu ⇒ tạo qua OTP gửi email (dùng lại luồng quên mật khẩu)
@@ -245,7 +246,7 @@ function ChangePasswordCard({ user }: { user: User }) {
       if (err instanceof ApiClientError && err.code === "INVALID_CURRENT_PASSWORD") {
         setCurrentPasswordError(err.message);
       } else {
-        setError(err instanceof Error ? err.message : t("changePasswordFailed"));
+        setError(userErrorMessage(err, t("changePasswordFailed")));
       }
     } finally {
       setSaving(false);
@@ -287,27 +288,12 @@ function ChangePasswordCard({ user }: { user: User }) {
           id="newPassword"
           label={t("newPassword")}
           autoComplete="new-password"
-          minLength={6}
+          minLength={PASSWORD_MIN_LENGTH}
           value={newPassword}
           onChange={setNewPassword}
           error={sameAsCurrent ? t("sameAsCurrent") : null}
         >
-          {newPassword.length > 0 && (
-            <div className="flex items-center gap-2.5 pt-1">
-              <div className="flex-1 flex gap-1">
-                {[1, 2, 3].map((level) => (
-                  <div
-                    key={level}
-                    className="flex-1 h-1 rounded-full transition-colors"
-                    style={{ background: strength.level >= level ? strength.color : "#E4E1DC" }}
-                  />
-                ))}
-              </div>
-              <span className="text-[11px] font-bold" style={{ color: strength.color }}>
-                {strength.key ? tStrength(strength.key) : ""}
-              </span>
-            </div>
-          )}
+          <PasswordStrengthMeter password={newPassword} />
         </PasswordInput>
 
         <PasswordInput
@@ -345,6 +331,77 @@ function ChangePasswordCard({ user }: { user: User }) {
   );
 }
 
+function LogoutAllCard() {
+  const t = useTranslations("app.profile");
+  const tc = useTranslations("app.common");
+  const [confirming, setConfirming] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogoutAll = async () => {
+    setWorking(true);
+    setError(null);
+    try {
+      await logoutAllDevices();
+    } catch (err) {
+      // BE chưa thu hồi được ⇒ vẫn còn đăng nhập, không được chuyển về /login như thể đã xong
+      setError(userErrorMessage(err, t("logoutAllFailed")));
+      setWorking(false);
+      return;
+    }
+    await logoutAndRedirect("/login");
+  };
+
+  return (
+    <section className={cardClass}>
+      <div>
+        <h2 className="text-[15px] font-extrabold text-[#191817]">{t("logoutAllTitle")}</h2>
+        <p className="text-[12.5px] text-[#8A867E] mt-1 leading-[1.6]">{t("logoutAllBody")}</p>
+      </div>
+
+      {error && (
+        <div className="p-3 rounded-[10px] bg-[#FDEDED] border border-[#F2CACA] text-[12px] text-[#8A4141]">{error}</div>
+      )}
+
+      {confirming ? (
+        <div className="flex flex-col gap-3 p-3.5 rounded-[10px] bg-[#FDF6F6] border border-[#F2CACA]">
+          <p className="text-[12.5px] font-semibold text-[#8A4141]">{t("logoutAllConfirm")}</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleLogoutAll()}
+              disabled={working}
+              className="px-4 py-2.5 rounded-[10px] bg-[#B03030] hover:bg-[#962828] text-white text-[13px] font-bold flex items-center gap-2 disabled:opacity-60"
+            >
+              {working ? <Spinner /> : null}
+              {t("logoutAllConfirmCta")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              disabled={working}
+              className="px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] text-[13px] font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] transition-colors disabled:opacity-60"
+            >
+              {tc("cancel")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setConfirming(true);
+            setError(null);
+          }}
+          className="self-start px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#F2CACA] text-[13px] font-bold text-[#B03030] bg-white hover:bg-[#FDEDED] transition-colors"
+        >
+          {t("logoutAllCta")}
+        </button>
+      )}
+    </section>
+  );
+}
+
 export default function ProfilePage() {
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
@@ -360,7 +417,7 @@ export default function ProfilePage() {
       })
       .catch((err) => {
         // Chuỗi rỗng = lỗi tải, dịch lúc render ⇒ `t` không phải vào dependency của effect.
-        if (!cancelled) setError(err instanceof Error ? err.message : "");
+        if (!cancelled) setError(userErrorMessage(err));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -378,10 +435,7 @@ export default function ProfilePage() {
         <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">{t("title")}</h1>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
-            <span className="text-[13px] font-medium">{t("loading")}</span>
-          </div>
+          <PageSkeleton variant="form" label={t("loading")} />
         ) : error || !user ? (
           <div className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
             {error || t("loadFailed")}
@@ -390,6 +444,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-6 max-w-[760px]">
             <ProfileInfoCard user={user} onUpdated={setUser} />
             <ChangePasswordCard user={user} />
+            <LogoutAllCard />
           </div>
         )}
       </div>

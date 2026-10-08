@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { usePathname } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchBalance } from "@/lib/api/billing";
 import { listProjects } from "@/lib/api/projects";
 import { logoutAndRedirect } from "@/lib/auth";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
@@ -15,6 +16,8 @@ vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 120, planLabel: "Pro" })) }));
+const activeOrg = vi.hoisted(() => ({ value: null as null | { id: string; name: string; role: "lead" } }));
+vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
 vi.mock("@/lib/api/notifications", () => ({
   fetchUnreadCount: vi.fn(async () => 3),
   onNotificationsChanged: () => () => {},
@@ -60,17 +63,17 @@ describe("AppSidebar", () => {
     await waitFor(() => expect(within(screen.getByRole("link", { name: /Thông báo/ })).getByText("3")).toBeInTheDocument());
   });
 
-  it('Thành viên và đổi tổ chức: hiện, badge "Sắp có", aria-disabled, không phải link, bấm không điều hướng', () => {
-    renderSidebar([]);
-    for (const label of ["Thành viên", "Đổi tổ chức"]) {
-      const item = screen.getByText(label).closest("[aria-disabled]") as HTMLElement;
-      expect(item).toHaveAttribute("aria-disabled", "true");
-      expect(item.tagName).not.toBe("A");
-      expect(within(item).getByText("Sắp có")).toBeInTheDocument();
-      fireEvent.click(item);
-    }
-    expect(screen.queryByRole("link", { name: /Thành viên/ })).toBeNull();
-    expect(push).not.toHaveBeenCalled();
+  // task-26: BE đã có module tổ chức ⇒ hai mục này thôi là "Sắp có", thành link thật.
+  it("Thành viên và đổi tổ chức: là link tới trang của nó, không còn badge \"Sắp có\"", () => {
+    renderSidebar([], "/home/members");
+    const members = screen.getByRole("link", { name: /Thành viên/ });
+    const switcher = screen.getByRole("link", { name: /Đổi tổ chức/ });
+
+    expect(members).toHaveAttribute("href", "/home/members");
+    expect(switcher).toHaveAttribute("href", "/home/organizations");
+    expect(members).toHaveAttribute("aria-current", "page");
+    expect(switcher).not.toHaveAttribute("aria-current");
+    expect(screen.queryByText("Sắp có")).toBeNull();
   });
 
   it('"Gần đây": 3 dự án đang làm mới sửa nhất; ẩn khi chưa có dự án', async () => {
@@ -99,14 +102,15 @@ describe("AppSidebar", () => {
     expect(screen.queryByText("Tổ chức")).toBeNull();
   });
 
-  it("bấm vùng trống của sidebar ⇒ thu gọn/mở rộng; bấm vào một mục (kể cả mục \"Sắp có\") thì không", () => {
+  it("bấm vùng trống của sidebar ⇒ thu gọn/mở rộng; bấm vào một mục thì không", () => {
     renderSidebar([]);
     const card = screen.getByRole("complementary", { name: "Điều hướng chính" }).firstElementChild as HTMLElement;
     // Trạng thái thu gọn được nhớ ở mức module (test trước có thể để lại) ⇒ so với trạng thái ban đầu, không giả định
     const toggleLabel = () => screen.getByRole("button", { name: /thanh bên$/ }).getAttribute("aria-label");
     const initial = toggleLabel();
 
-    fireEvent.click(screen.getAllByText("Đổi tổ chức", { exact: false })[0].closest("[aria-disabled]") as HTMLElement);
+    // Bấm vào một mục (link) thì không thu gọn — mục cũ "Sắp có" nay đã là link thật
+    fireEvent.click(screen.getByRole("link", { name: /Đổi tổ chức/ }));
     expect(toggleLabel()).toBe(initial);
 
     fireEvent.click(card);
@@ -133,5 +137,45 @@ describe("AppSidebar", () => {
     renderSidebar([]);
     fireEvent.click(screen.getByRole("button", { name: "Gửi góp ý" }));
     expect(screen.getByRole("dialog", { name: "Gửi góp ý" })).toBeInTheDocument();
+  });
+});
+
+describe("tổ chức đang mở", () => {
+  it("hiện tên tổ chức đang mở dưới nhãn Tổ chức", () => {
+    activeOrg.value = { id: "org-1", name: "Tien's Organization", role: "lead" };
+    renderSidebar([]);
+    // Trạng thái thu gọn nhớ ở mức module (test trước có thể để lại) — thu gọn thì chỉ còn icon, không có chỗ hiện tên
+    const expand = screen.queryByRole("button", { name: "Mở rộng thanh bên" });
+    if (expand) fireEvent.click(expand);
+    expect(screen.getByTestId("active-org-name")).toHaveTextContent("Tien's Organization");
+    activeOrg.value = null;
+  });
+
+  it("chưa biết tổ chức (đang tải / chưa có) thì không hiện gì", () => {
+    activeOrg.value = null;
+    renderSidebar([]);
+    expect(screen.queryByTestId("active-org-name")).toBeNull();
+  });
+});
+
+describe("AppShell — số dư theo vai trò", () => {
+  beforeEach(() => {
+    vi.mocked(fetchBalance).mockClear();
+  });
+
+  it("Lead/Analyst ⇒ tải số dư, nhãn gói lấy từ BE", async () => {
+    activeOrg.value = { id: "o1", name: "Org", role: "lead" };
+    renderSidebar([]);
+    await waitFor(() => expect(fetchBalance).toHaveBeenCalled());
+    expect(await screen.findByText(/Pro/)).toBeInTheDocument();
+    activeOrg.value = null;
+  });
+
+  it("Viewer ⇒ không gọi /billing/balance (BE chỉ cho Lead/Analyst, gọi là 403)", async () => {
+    activeOrg.value = { id: "o1", name: "Org", role: "viewer" as never };
+    renderSidebar([]);
+    await waitFor(() => expect(listProjects).toHaveBeenCalled());
+    expect(fetchBalance).not.toHaveBeenCalled();
+    activeOrg.value = null;
   });
 });

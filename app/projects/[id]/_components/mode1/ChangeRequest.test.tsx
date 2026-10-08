@@ -53,8 +53,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Bắt đầu làm rõ (AI)");
-    const form = await screen.findByRole("form", { name: "Trả lời câu hỏi làm rõ" });
-    for (const box of within(form).getAllByRole("textbox")) fireEvent.change(box, { target: { value: "Có, áp cho mọi thiết bị" } });
+    // Câu hỏi như mode tạo SRS: từng câu, chọn gợi ý (câu chọn 1 tự sang câu kế), câu cuối gửi
+    const form = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
+    fireEvent.click(within(form).getByRole("radio", { name: "Có, áp cho mọi thiết bị" }));
+    fireEvent.click(within(form).getByRole("radio", { name: "Có, gửi email thông báo" }));
     fireEvent.click(within(form).getByRole("button", { name: "Gửi câu trả lời" }));
 
     await click("Tìm vị trí ảnh hưởng & khoá");
@@ -64,7 +66,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await click("AI đề xuất sửa");
     await click("Kiểm đề xuất");
     await click("Nộp để duyệt");
+    // BPMN 3.12 (mode 1 v3): duyệt cũng phải ghi lý do
     await click("Duyệt");
+    fireEvent.change(await screen.findByLabelText(/^Lý do duyệt /), { target: { value: "Đúng yêu cầu của khách" } });
+    await click("Xác nhận duyệt");
 
     expect(await screen.findByText(/vào bản 0.1/)).toBeInTheDocument();
     expect(S().crs.get("CR-001")!.change_request.status).toBe("written");
@@ -87,7 +92,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     fireEvent.click(within(first).getByRole("button", { name: "Lưu sửa tay" }));
     await click("Kiểm đề xuất");
     expect(await screen.findByText(/AI đã làm lại 2 lần mà vẫn trượt/)).toBeInTheDocument();
-    expect(screen.getByText("Kiểm code: trượt")).toBeInTheDocument();
+    expect(screen.getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
 
     const again = (await screen.findAllByRole("article"))[0];
     fireEvent.click(within(again).getByRole("button", { name: "Sửa tay" }));
@@ -116,6 +121,24 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await waitFor(() => expect(S().crs.get(change_request.cr_id)!.change_request.status).toBe("rejected"));
   });
 
+  it("in_review mà không có nhóm nào để duyệt ⇒ vẫn có lối ra: Đóng CR / Sửa lại CR", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
+    // CR nộp trước khi BE chặn (mọi vị trí "không liên quan"): in_review nhưng 0 nhóm
+    S().crs.get(change_request.cr_id)!.groups = [];
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+
+    expect(await screen.findByText(/Không có nhóm thay đổi nào để duyệt/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duyệt" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sửa lại CR" })).toBeInTheDocument();
+
+    await click("Đóng CR");
+    fireEvent.change(screen.getByLabelText("Lý do"), { target: { value: "Không có gì phải sửa" } });
+    const closeButtons = screen.getAllByRole("button", { name: "Đóng CR" });
+    fireEvent.click(closeButtons[closeButtons.length - 1]);
+    await waitFor(() => expect(S().crs.get(change_request.cr_id)!.change_request.status).toBe("rejected"));
+  });
+
   it("huỷ CR mở khoá phần tử", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact"]);
@@ -138,7 +161,8 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     renderWithIntl(<CrWorkspace projectId={P} crId={second.change_request.cr_id} />);
 
     await click("Tìm vị trí ảnh hưởng & khoá");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Phần tử đang bị change request khác giữ: \S+\[id=[^\]]+\] \(CR-001\)/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Phần tử đang bị change request khác giữ: .+ \(CR-001\)/);
+    expect(screen.getByRole("alert").textContent).not.toContain("[id=");
   });
 
   it("hết credit lúc đề xuất ⇒ banner paused, nạp xong tiếp tục", async () => {
@@ -151,5 +175,18 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     S().credits = 100;
     await click("Tiếp tục");
     expect(await screen.findByRole("button", { name: "Kiểm đề xuất" })).toBeInTheDocument();
+  });
+});
+
+describe("CrWorkspace — Viewer (readOnly)", () => {
+  it("chỉ xem: không có nút bước tiếp theo, không Huỷ CR — chỉ lời nhắc vai trò", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact"]);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} readOnly />);
+
+    expect(await screen.findByText(/Bạn đang xem với vai trò Viewer/)).toBeInTheDocument();
+    expect(screen.getByText(change_request.title)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ CR" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AI đề xuất sửa" })).not.toBeInTheDocument();
   });
 });

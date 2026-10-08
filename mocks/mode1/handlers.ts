@@ -17,8 +17,9 @@ import type { Project, ProjectMode } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
 import type { DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
-import type { Cr, CrDetail, CrLocation, CrStatus } from "@/types/change-request";
-import { CR_TERMINAL_STATUSES, DECISION_REASON_MIN_LENGTH, MAX_CLARIFY_ROUNDS, MAX_REDO_PER_LOCATION } from "@/types/change-request";
+import type { RocRow } from "@/types/document";
+import type { Cr, CrDetail, CrLocation, CrMaterial, CrStatus } from "@/types/change-request";
+import { CR_AMENDABLE_STATUSES, CR_MAX_MATERIALS, CR_REDRAFT_STATUSES, CR_TERMINAL_STATUSES, DECISION_REASON_MIN_LENGTH, MAX_CLARIFY_ROUNDS, MAX_REDO_PER_LOCATION, NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { compareDocVersions, isReleaseVersion } from "@/types/doc-version";
 import { MODE1_PROJECT_ID, MODE1_USER_ID, initialBlocks } from "./state";
 import * as stateModule from "./state";
@@ -92,6 +93,7 @@ const parseDocument = () => {
     language: "en",
     required_sections: ["fixed:5.3"],
     layout: [],
+    record_of_changes: [{ date: "01/05/2026", version: "0.1", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu" }],
     heading_map: blocks
       .filter((b) => b.kind === "heading")
       .map((b) => ({
@@ -266,7 +268,13 @@ const runClarify = (detail: CrDetail) => {
   const round = cr.clarifications.length;
   const vague = /mơ hồ|ambiguous/i.test(cr.description);
   if (vague && round < MAX_CLARIFY_ROUNDS - 1 && cr.clarifications.every((c) => c.answers.length === 0)) {
-    cr.clarifications.push({ round: round + 1, questions: ["Thay đổi áp cho cả ứng dụng mobile không?", "Có cần thông báo cho các phiên bị đăng xuất không?"], answers: [] });
+    cr.clarifications.push({
+      round: round + 1,
+      questions: ["Thay đổi áp cho cả ứng dụng mobile không?", "Có cần thông báo cho các phiên bị đăng xuất không?"],
+      answers: [],
+      // Phase 7: đáp án AI gợi ý song song câu hỏi
+      suggestions: [["Có, áp cho mọi thiết bị", "Chỉ áp cho web"], ["Có, gửi email thông báo", "Không cần thông báo"]],
+    });
     detail.pending_questions = cr.clarifications.at(-1)!.questions;
     setCrStatus(detail, "awaiting_answers");
     return;
@@ -300,11 +308,18 @@ const runPropose = (detail: CrDetail) => {
       const next = { ...value, [field]: `${String(value[field] ?? "")} (${cr.title})` };
       loc.conclusion = "edit";
       loc.reason = `Vị trí chính của ${cr.cr_id}`;
-      loc.proposal = { old_text: text, new_text: valueText(next), comment_text: null, spine_ops: [{ op: "set", path: `${loc.path}.${field}`, value: next[field] }] };
+      loc.proposal = {
+        old_text: text,
+        new_text: valueText(next),
+        comment_text: null,
+        spine_ops: [{ op: "set", path: `${loc.path}.${field}`, value: next[field] }],
+        // Phase 7: câu trả lời để trống / còn dữ kiện thiếu ⇒ giả định (như BE: model ghi `assumptions`)
+        assumptions: cr.missing_info.map((f) => `Giả định: ${f}`),
+      };
     } else {
       loc.conclusion = "not_related";
       loc.reason = "Chỉ trùng từ khoá, không nói về thay đổi này";
-      loc.proposal = { old_text: text, new_text: null, comment_text: null, spine_ops: [] };
+      loc.proposal = { old_text: text, new_text: null, comment_text: null, spine_ops: [], assumptions: [] };
     }
   });
   regroup(detail);
@@ -370,15 +385,30 @@ const writeCr = (detail: CrDetail) => {
   const render = (text: string) => replacements.reduce((t, [a, b]) => t.split(a).join(b), text);
   S().blocks.set(to, latestBlocks().map((b): DocBlock => ({ ...b, text: render(b.text), doc_version: to, locked_by_cr: null, revisions: undefined })));
   unlock(cr.cr_id);
-  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_original_file: false });
+  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_tracked_file: true, has_original_file: false });
   S().spineVersion += 1;
   cr.result_doc_version = to;
   cr.decided_by = MODE1_USER_ID;
   setCrStatus(detail, "written");
 };
 
+/** Phase 7: thêm tài liệu bổ sung vào CR (mock chỉ đọc chữ của .txt/.md; file khác ghi chỗ giữ). */
+const pushMaterial = (cr: Cr, kind: CrMaterial["kind"], name: string, raw: string) => {
+  const next = cr.materials.reduce((n, m) => Math.max(n, Number(m.material_id.slice(1))), 0) + 1;
+  const text = raw.trim();
+  cr.materials.push({
+    material_id: `M${String(next).padStart(2, "0")}`,
+    kind,
+    name,
+    text: text.slice(0, 20_000),
+    truncated: text.length > 20_000,
+    round: cr.status === "awaiting_answers" ? cr.clarifications.length : 0,
+    added_at: now(),
+  });
+};
+
 const CHANGE_VERB = /^\s*(đổi|sửa|thêm|xoá|xóa|bỏ|rename|change|add|remove|delete|update)\b/i;
-const newCr = (title: string, description: string, source: Cr["source"], requester: string): CrDetail => {
+const newCr = (title: string, description: string, source: Cr["source"], requester: string, seed: Cr["seed"] = null): CrDetail => {
   S().crSeq += 1;
   const cr: Cr = {
     cr_id: `CR-${String(S().crSeq).padStart(3, "0")}`,
@@ -396,6 +426,10 @@ const newCr = (title: string, description: string, source: Cr["source"], request
     submitted_at: null,
     decided_by: null,
     closed_reason: null,
+    seed,
+    materials: [],
+    missing_info: [],
+    amendments: [],
     created_at: now(),
     updated_at: now(),
   };
@@ -404,21 +438,15 @@ const newCr = (title: string, description: string, source: Cr["source"], request
   return detail;
 };
 
-const requiresCr = (instruction: string) =>
-  fail(409, "CHANGE_REQUIRES_CR", "Tài liệu đã có baseline — mọi sửa phải qua change request", {
-    prefill: { title: instruction.slice(0, 80) || "Change request", description: instruction },
+/** Mode 1 v3 (BPMN 3.1): lệnh sửa ⇒ 409 kèm nội dung điền sẵn cho form 3.1 — BE **không** tự tạo CR. */
+const requiresCr = (instruction: string, ref: string | null = null) =>
+  fail(409, "CHANGE_REQUIRES_CR", "Tài liệu đã import — mọi sửa phải qua change request", {
+    prefill: {
+      title: instruction.split(/\r?\n/)[0].slice(0, 80) || "Sửa tài liệu",
+      description: instruction || "Sửa tài liệu",
+      source: { kind: "verbal", ref },
+    },
   });
-
-/** FLF-186: lệnh sửa trong chat ⇒ tạo CR nguồn chat (đã import xong), trả 409 kèm `change_request`. */
-const crFromChat = (instruction: string, chatId: string) => {
-  if (!hasBaseline()) return requiresCr(instruction);
-  const title = instruction.split(/\r?\n/)[0].slice(0, 80) || "Change request";
-  const d = newCr(title, instruction, { kind: "chat", ref: `chat:${chatId}`, note: null }, "PM");
-  return fail(409, "CHANGE_REQUIRES_CR", `Tài liệu đã có baseline v1 — đã tạo ${d.change_request.cr_id} từ lệnh sửa`, {
-    prefill: { title, description: instruction },
-    change_request: { cr_id: d.change_request.cr_id, status: d.change_request.status },
-  });
-};
 
 // ─── handlers ────────────────────────────────────────────────────
 
@@ -588,10 +616,11 @@ export const mode1Handlers = [
       const conflict = versionConflict(body.base_version);
       if (conflict) return conflict;
       if (!spend(COST.semantic)) return fail(402, "INSUFFICIENT_CREDIT", "Không đủ credit cho bước kiểm ngữ nghĩa", { required: COST.semantic, balance: S().credits });
+      S().finalizedRecordOfChanges = (body.record_of_changes as RocRow[] | undefined) ?? null;
       S().spineVersion += 1;
       const baseline = newBaseline("imported", "0.0");
       S().baselines.push(baseline);
-      addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_original_file: true });
+      addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true });
       setImportStatus("checking");
       setImportStatus("gap_review");
       return ok({ import: doc, doc_version: "0.0", baseline, spine_version: S().spineVersion, flags: { red: S().redFlags, yellow: 1 } });
@@ -624,8 +653,9 @@ export const mode1Handlers = [
         project_id: MODE1_PROJECT_ID,
         doc_version: "0.0",
         generated_at: now(),
-        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1 },
+        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1, unrendered_diagrams: 1 },
         missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
+        unrendered_diagrams: [{ diagram_id: "", kind: "usecase", section_id: "", title: "Sơ đồ use case", reason: "not_rendered" }],
         layout: [
           { order: 0, section_id: "fixed:1", heading: "1 Giới thiệu", level: 1, kind: "fpt", red: 0, yellow: 0 },
           { order: 1, section_id: "custom:CS01", heading: "Phụ lục B — Biên bản họp", level: 1, kind: "custom", red: 0, yellow: 0 },
@@ -726,8 +756,15 @@ export const mode1Handlers = [
       const body = await readJson(request);
       const source = body.source as { kind?: string; ref?: string | null; note?: string | null } | undefined;
       if (!source?.kind || !String(body.requester ?? "").trim()) return fail(400, "CR_SOURCE_REQUIRED", "Change request cần nguồn và người yêu cầu");
+      // Mode 1 v3: chỉ 6 nguồn BPMN 3.1 — `chat` chỉ còn ở CR cũ
+      if (!(NEW_CR_SOURCE_KINDS as readonly string[]).includes(source.kind)) return fail(400, "VALIDATION_ERROR", `Nguồn "${source.kind}" không hợp lệ`);
       if (!String(body.title ?? "").trim() || !String(body.description ?? "").trim()) return fail(400, "VALIDATION_ERROR", "Cần title và description");
-      const detail = newCr(String(body.title), String(body.description), { kind: source.kind as Cr["source"]["kind"], ref: source.ref ?? null, note: source.note ?? null }, String(body.requester));
+      // Mock không giữ kho bản xem trước: có `preview_id` ⇒ seed gợi ý từ mô tả (BE: lệnh + op + phần tử bị chạm)
+      const seed = body.preview_id ? { instruction: String(body.description), ops: [], targets: [] } : null;
+      const detail = newCr(String(body.title), String(body.description), { kind: source.kind as Cr["source"]["kind"], ref: source.ref ?? null, note: source.note ?? null }, String(body.requester), seed);
+      const pasted = (body.materials as { name: string; text: string }[] | undefined) ?? [];
+      if (pasted.length > 5) return fail(400, "VALIDATION_ERROR", "Tối đa 5 đoạn văn bản khi tạo");
+      pasted.forEach((m) => pushMaterial(detail.change_request, "text", m.name, m.text));
       return okCr(detail, 201);
     }),
   ),
@@ -769,12 +806,74 @@ export const mode1Handlers = [
       if (d.change_request.status !== "awaiting_answers") return invalidTransition(d.change_request, "clarifying");
       const answers = ((await readJson(request)).answers as string[] | undefined) ?? [];
       const round = d.change_request.clarifications.at(-1)!;
-      if (answers.length !== round.questions.length || answers.some((a) => !String(a).trim())) {
+      if (answers.length !== round.questions.length) {
         return fail(400, "VALIDATION_ERROR", `Cần đúng ${round.questions.length} câu trả lời`);
       }
-      round.answers = answers;
+      round.answers = answers.map((a) => String(a).trim());
+      // Phase 7: câu để trống ⇒ dữ kiện còn thiếu, AI sẽ giả định (BE: C-2 trả `missing_info`)
+      d.change_request.missing_info = round.questions.filter((_, i) => !round.answers[i]);
       setCrStatus(d, "clarifying");
       runClarify(d);
+      return okCr(d);
+    }),
+  ),
+
+  // Phase 8: gộp thêm lệnh sửa (chat) — draft chỉ ghi; sau đó làm rõ lại ngay
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/amend"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      if (!(CR_AMENDABLE_STATUSES as readonly string[]).includes(cr.status)) return invalidTransition(cr, "clarifying");
+      const instruction = String((await readJson(request)).instruction ?? "").trim();
+      if (!instruction) return fail(400, "VALIDATION_ERROR", "Cần nội dung lệnh sửa");
+      cr.amendments.push({ text: instruction, at: now() });
+      cr.paused = null;
+      if (cr.status === "draft") return okCr(d);
+      setCrStatus(d, "clarifying");
+      runClarify(d);
+      return okCr(d);
+    }),
+  ),
+
+  // Phase 7: tài liệu bổ sung — JSON { name, text } hoặc multipart `file`; chỉ draft / awaiting_answers
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/materials"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      if (cr.status !== "draft" && cr.status !== "awaiting_answers") return invalidTransition(cr, cr.status);
+      if (cr.materials.length >= CR_MAX_MATERIALS) return fail(409, "CR_MATERIAL_LIMIT", `Mỗi change request đính kèm tối đa ${CR_MAX_MATERIALS} tài liệu`);
+      if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+        const entry = (await request.formData()).get("file");
+        const raw = asFile(entry);
+        if (!raw) return fail(400, "VALIDATION_ERROR", "Thiếu file");
+        // File của jsdom qua undici mất tên (thành `blob`) ⇒ coi như file chữ để test UI vẫn đi được
+        const file = raw.name === "blob" ? { ...raw, name: "tài-liệu.txt" } : raw;
+        const image = /\.(png|jpe?g)$/i.test(file.name);
+        if (!image && !/\.(docx|pdf|txt|md)$/i.test(file.name)) return fail(422, "CR_MATERIAL_UNSUPPORTED", "Chỉ nhận .docx, .pdf, .txt, .md hoặc ảnh PNG / JPEG");
+        if (image && !spend(1)) return fail(402, "INSUFFICIENT_CREDIT", "Không đủ credit để AI đọc ảnh");
+        // Mock không đọc nội dung file (Blob khác realm của jsdom treo khi `text()`) — ghi chỗ giữ như chữ BE đã tách
+        pushMaterial(cr, image ? "image" : "file", file.name, `(nội dung đọc từ ${file.name})`);
+      } else {
+        const body = await readJson(request);
+        if (!String(body.name ?? "").trim() || !String(body.text ?? "").trim()) return fail(400, "VALIDATION_ERROR", "Cần tên và nội dung");
+        pushMaterial(cr, "text", String(body.name), String(body.text));
+      }
+      return okCr(d, 201);
+    }),
+  ),
+  http.delete(
+    api("/projects/:projectId/change-requests/:crId/materials/:mid"),
+    mode1(({ params }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      if (cr.status !== "draft" && cr.status !== "awaiting_answers") return invalidTransition(cr, cr.status);
+      if (!cr.materials.some((m) => m.material_id === params.mid)) return fail(404, "CR_MATERIAL_NOT_FOUND", "Không tìm thấy tài liệu này");
+      cr.materials = cr.materials.filter((m) => m.material_id !== params.mid);
       return okCr(d);
     }),
   ),
@@ -786,7 +885,9 @@ export const mode1Handlers = [
       const d = crOr404(params.crId);
       if (d instanceof Response) return d;
       const cr = d.change_request;
-      if (cr.status !== "impact_review" || d.locations.length > 0) return invalidTransition(cr, "impact_review");
+      if (cr.status !== "impact_review") return invalidTransition(cr, "impact_review");
+      // Phase 8: CR được gộp thêm lệnh ⇒ vị trí đã có giữ nguyên (mock không tìm thêm phần tử mới)
+      if (d.locations.length > 0) return okCr(d);
       // FLF-186: vị trí = phần tử Spine chứa từ khoá của CR (không có ⇒ NFR đầu tiên)
       const words = keywordsOf(cr);
       const hits = S().elements.filter((e) => words.some((w) => valueText(e.value).toLowerCase().includes(w)));
@@ -853,8 +954,35 @@ export const mode1Handlers = [
         new_text: body.new_value !== undefined ? valueText(body.new_value) : (loc.proposal?.new_text ?? null),
         comment_text: body.comment_text ?? loc.proposal?.comment_text ?? null,
         spine_ops: body.new_value !== undefined ? [{ op: "set", path: loc.path, value: body.new_value }] : (body.spine_ops ?? loc.proposal?.spine_ops ?? []),
+        assumptions: body.new_value !== undefined || body.spine_ops || loc.conclusion === "not_related" ? [] : (loc.proposal?.assumptions ?? []),
       };
       loc.manual = true;
+      // như BE (location.service): sửa tay ⇒ kết quả kiểm cũ không còn giá trị
+      loc.verify = null;
+      regroup(d);
+      if (cr.status === "ready_to_submit") setCrStatus(d, "verifying");
+      return okCr(d);
+    }),
+  ),
+
+  // BPMN 3.9 (mode 1 v3): sửa đề xuất trong step sở hữu — mock: AI "viết lại" = giữ đề xuất, đánh dấu sửa tay
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/locations/:locId/owner-step-draft"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      // Phase 8: "Sửa lại" trong chat — mọi bước đã có đề xuất, trước khi nộp; mục riêng cũng được
+      if (!(CR_REDRAFT_STATUSES as readonly string[]).includes(cr.status)) return invalidTransition(cr, "verifying");
+      const loc = d.locations.find((l) => l.location_id === params.locId);
+      if (!loc) return fail(404, "CR_LOCATION_NOT_FOUND", `Không có vị trí ${String(params.locId)}`);
+      const instruction = String((await readJson(request)).instruction ?? "").trim();
+      if (!instruction) return fail(400, "VALIDATION_ERROR", "Cần hướng sửa");
+      loc.conclusion = "edit";
+      loc.reason = `Soạn lại theo hướng: ${instruction}`;
+      loc.proposal = { ...(loc.proposal ?? { old_text: loc.current_text, comment_text: null, spine_ops: [], assumptions: [] }), new_text: `${loc.current_text} (${instruction})`, assumptions: [] };
+      loc.manual = true;
+      loc.verify = null;
       regroup(d);
       if (cr.status === "ready_to_submit") setCrStatus(d, "verifying");
       return okCr(d);
@@ -905,8 +1033,9 @@ export const mode1Handlers = [
       const conflict = versionConflict(body.base_version);
       if (conflict) return conflict;
       if (body.decision !== "approved" && body.decision !== "rejected") return fail(400, "VALIDATION_ERROR", "decision phải là approved hoặc rejected");
-      if (body.decision === "rejected" && String(body.reason ?? "").trim().length < DECISION_REASON_MIN_LENGTH) {
-        return fail(400, "VALIDATION_ERROR", `Từ chối cần lý do ≥ ${DECISION_REASON_MIN_LENGTH} ký tự`);
+      // BPMN 3.12 (mode 1 v3): duyệt lẫn từ chối đều cần lý do
+      if (String(body.reason ?? "").trim().length < DECISION_REASON_MIN_LENGTH) {
+        return fail(400, "VALIDATION_ERROR", `Quyết định cần lý do ≥ ${DECISION_REASON_MIN_LENGTH} ký tự`);
       }
       Object.assign(group, { decision: body.decision, reason: (body.reason as string | undefined) ?? null, decided_by: MODE1_USER_ID, decided_at: now() });
       if (group.decision === "rejected") {
@@ -1002,7 +1131,7 @@ export const mode1Handlers = [
       const baseline = newBaseline("release", to);
       S().baselines.push(baseline);
       S().blocks.set(to, latestBlocks().map((b) => ({ ...b, doc_version: to, revisions: undefined })));
-      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_original_file: false });
+      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_tracked_file: false, has_original_file: false });
       return ok({ version, baseline, cr_ids: crIds, spine_version: S().spineVersion });
     }),
   ),
@@ -1024,8 +1153,9 @@ export const mode1Handlers = [
     ok({ balance: S().credits, reserved: 0, available: S().credits, plan: "free", planLabel: "Free", lowCreditThreshold: 10, subscription: null, ledger: [] }),
   ),
 
-  // G9 / BR-03: project mode 1 không sửa qua /changes, /undo, reconcile hay chat — trả 409 kèm prefill CR.
-  ...(["/changes", "/changes/preview", "/reconcile", "/undo"] as const).map((path) =>
+  // G9 / BR-03 (mode 1 v3): project mode 1 không sửa qua /changes, /undo, reconcile hay chat — trả 409 kèm prefill
+  // form 3.1. `/changes/preview` chỉ đọc ⇒ đi tiếp handler chung (panel "Sửa tài liệu có xem trước" ⇒ Tạo CR).
+  ...(["/changes", "/reconcile", "/undo"] as const).map((path) =>
     http.post(api(`/projects/:projectId${path}`), async ({ params, request }) => {
       if (!isMode1(params.projectId)) return undefined;
       const body = await readJson(request.clone());
@@ -1035,7 +1165,7 @@ export const mode1Handlers = [
   http.post(api("/projects/:projectId/chats/:chatId/messages/stream"), async ({ params, request }) => {
     if (!isMode1(params.projectId)) return undefined;
     const content = String((await readJson(request.clone())).content ?? "");
-    if (CHANGE_VERB.test(content)) return crFromChat(content, String(params.chatId));
+    if (CHANGE_VERB.test(content)) return requiresCr(content, `chat:${String(params.chatId)}`);
     return undefined;
   }),
 ];

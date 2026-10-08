@@ -5,6 +5,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildResetPasswordHref } from "../../../lib/otp";
 import { AuthAlert, AuthCard, AuthHeading, BackLink, SubmitButton, TextField } from "../_components/auth-ui";
+import { localizeApiError } from "@/lib/api/error-messages";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -36,12 +38,12 @@ function ForgotPasswordContent() {
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || t("failed"));
+        throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
       router.push(buildResetPasswordHref(normalizedEmail, json.data?.otpExpiresIn));
     } catch (err) {
-      setError(err instanceof Error ? err.message : tc("genericError"));
+      setError(userErrorMessage(err, tc("genericError")));
       setLoading(false);
     }
   };

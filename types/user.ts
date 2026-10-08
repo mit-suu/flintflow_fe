@@ -5,8 +5,11 @@ export interface User {
   name?: string;
   /** UC 1.12: ISO khi đã onboarding, `null` khi chưa. */
   onboardedAt?: string | null;
-  /** Ngôn ngữ giao diện + email; BE mặc định `vi`. */
-  locale?: "vi" | "en";
+  /**
+   * Ngôn ngữ giao diện đã lưu trong tài khoản (FLF-259). `null` = chưa chọn ⇒ lần vào `/home` đầu tiên lưu ngôn ngữ
+   * đang hiển thị (`useAccountLocaleSync`).
+   */
+  locale?: "vi" | "en" | null;
   balance?: number;
   createdAt?: string;
   updatedAt?: string;

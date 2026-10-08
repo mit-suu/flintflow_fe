@@ -16,12 +16,14 @@ import { listCrs } from "@/lib/api/change-requests";
 import { moveProjectsToFolder } from "@/lib/api/folders";
 import { getProgress } from "@/lib/api/pipeline";
 import { moveProjectToFolder } from "@/lib/api/projects";
+import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 import { useProjects } from "@/lib/hooks/use-projects";
 import { SOURCE_MODE_OPTIONS, getProjectStartRoute } from "@/lib/project-source-mode";
 import { CR_TERMINAL_STATUSES } from "@/types/change-request";
 import type { Folder } from "@/types/folder";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 type ModeFilter = ProjectMode | "all";
 type DashboardTab = "all" | "folders" | "projects";
@@ -71,6 +73,9 @@ export default function HomePage() {
   const tMode = useTranslations("app.sourceMode");
   const router = useRouter();
   const { projects, folders, loading, error, foldersError, reload } = useProjects();
+  // Viewer chỉ xem: không tạo/sửa/chuyển/xoá dự án hay thư mục (BE cũng chặn ghi với 403). Chưa biết vai trò ⇒ coi
+  // như được — cùng quy ước với trang thanh toán, lỡ bấm thì BE vẫn chặn.
+  const canAuthor = useActiveOrganization()?.role !== "viewer";
 
   const [tab, setTab] = useState<DashboardTab>("all");
   const [sortBy, setSortBy] = useState<ProjectSort>("updated");
@@ -192,7 +197,7 @@ export default function HomePage() {
       await moveProjectToFolder(projectId, folder._id);
       await reload();
     } catch (err) {
-      setDropError(err instanceof Error ? err.message : t("moveFailed"));
+      setDropError(userErrorMessage(err, t("moveFailed")));
     }
   };
 
@@ -211,7 +216,7 @@ export default function HomePage() {
       await reload();
       endSelecting();
     } catch (err) {
-      setDropError(err instanceof Error ? err.message : t("removeFailed"));
+      setDropError(userErrorMessage(err, t("removeFailed")));
     }
   };
 
@@ -231,6 +236,7 @@ export default function HomePage() {
         if (!next.delete(project._id)) next.add(project._id);
         return next;
       }),
+    readOnly: !canAuthor,
   };
 
   const projectsBody = initialLoading ? (
@@ -239,7 +245,7 @@ export default function HomePage() {
     tab === "projects" && !openFolder ? (
       <ProjectTimeline projects={visible} sortBy={sortBy} folderNameOf={folderNameOf} {...gridProps} />
     ) : (
-      <ProjectGrid projects={visible} draggable={!openFolder && folders.length > 0} folderNameOf={normalizedQuery ? folderNameOf : undefined} {...gridProps} />
+      <ProjectGrid projects={visible} draggable={canAuthor && !openFolder && folders.length > 0} folderNameOf={normalizedQuery ? folderNameOf : undefined} {...gridProps} />
     )
   ) : error ? null : filtersActive ? (
     <EmptyState
@@ -265,7 +271,7 @@ export default function HomePage() {
                 : t("emptyTitle")}
           </h3>
           <p className="text-[12.5px] text-on-surface-muted leading-[1.55]">
-            {openFolder ? t("emptyFolderBody") : t("emptyBody")}
+            {!canAuthor ? t("viewerEmptyBody") : openFolder ? t("emptyFolderBody") : t("emptyBody")}
           </p>
         </div>
         {!openFolder && (
@@ -274,7 +280,7 @@ export default function HomePage() {
           </Button>
         )}
       </div>
-      <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />
+      {canAuthor && <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />}
     </div>
   );
 
@@ -284,10 +290,12 @@ export default function HomePage() {
         trail={openFolder ? [t("projectsTitle"), openFolder.name] : [t("projectsTitle")]}
         search={<SearchInput value={query} onChange={setQuery} label={t("searchLabel")} placeholder={t("searchPlaceholder")} />}
         actions={
-          <Button size="sm" icon="plus" onClick={() => setCreateOpen(true)}>
-            <span className="hidden sm:inline">{t("newProject")}</span>
-            <span className="sm:hidden">{t("newProjectShort")}</span>
-          </Button>
+          canAuthor ? (
+            <Button size="sm" icon="plus" onClick={() => setCreateOpen(true)}>
+              <span className="hidden sm:inline">{t("newProject")}</span>
+              <span className="sm:hidden">{t("newProjectShort")}</span>
+            </Button>
+          ) : undefined
         }
       />
 
@@ -299,13 +307,13 @@ export default function HomePage() {
           <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 pt-6 pb-2 sm:pt-12 sm:pb-6">
             <div className="flex flex-col gap-2">
               <h1 id="onboarding-title" className="text-[22px] sm:text-[26px] font-extrabold text-on-surface tracking-tight">
-                {t("onboardingTitle")}
+                {canAuthor ? t("onboardingTitle") : t("viewerEmptyTitle")}
               </h1>
               <p className="text-[13.5px] text-on-surface-muted leading-[1.6] max-w-[560px]">
-                {t("onboardingBody")}
+                {canAuthor ? t("onboardingBody") : t("viewerEmptyBody")}
               </p>
             </div>
-            <CreateProjectForm variant="inline" onCreated={handleCreated} />
+            {canAuthor && <CreateProjectForm variant="inline" onCreated={handleCreated} />}
           </section>
         ) : (
           <>
@@ -343,9 +351,11 @@ export default function HomePage() {
                       <BackLink tone="white" onClick={() => { setOpenFolderId(null); endSelecting(); }}>
                         {t("allProjects")}
                       </BackLink>
-                      <Button size="sm" variant="secondary" icon="plus" onClick={() => setAddTarget(openFolder)}>
-                        {t("addExisting")}
-                      </Button>
+                      {canAuthor && (
+                        <Button size="sm" variant="secondary" icon="plus" onClick={() => setAddTarget(openFolder)}>
+                          {t("addExisting")}
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <Tabs
@@ -363,7 +373,7 @@ export default function HomePage() {
                   )}
                   {showProjects && (
                     <div className="flex flex-wrap items-center gap-2">
-                      {visible.length > 0 && (
+                      {canAuthor && visible.length > 0 && (
                         <Button size="sm" variant="secondary" icon="check" onClick={() => setSelectMode(true)}>
                           {t("select")}
                         </Button>
@@ -395,7 +405,8 @@ export default function HomePage() {
               aria-labelledby={openFolder ? undefined : `dashboard-tab-${tab}`}
               className="flex flex-col gap-8"
             >
-              {showFolders && !initialLoading && (
+              {/* Viewer không tạo được thư mục ⇒ chưa có thư mục nào thì bỏ hẳn mục (tiêu đề trơ trọi, không có gì bên dưới) */}
+              {showFolders && !initialLoading && (canAuthor || folders.length > 0) && (
                 <section aria-labelledby="folders-title" className="flex flex-col gap-3">
                   <SectionTitle
                     id="folders-title"
@@ -410,7 +421,7 @@ export default function HomePage() {
                   )}
                   <div className={CARD_GRID}>
                     {/* Ô tạo mới đứng đầu: luôn ở cùng một chỗ, không bị đẩy xuống khi thư mục nhiều lên */}
-                    <NewFolderTile onCreate={() => setFolderTarget({ kind: "create" })} />
+                    {canAuthor && <NewFolderTile onCreate={() => setFolderTarget({ kind: "create" })} />}
                     {visibleFolders.map((folder) => (
                       <FolderCard
                         key={folder._id}
@@ -418,7 +429,8 @@ export default function HomePage() {
                         onOpen={(f) => { setOpenFolderId(f._id); endSelecting(); }}
                         onRename={(f) => setFolderTarget({ kind: "rename", folder: f })}
                         onDelete={(f) => setFolderTarget({ kind: "delete", folder: f })}
-                        onDropProject={(f, id) => void handleDropProject(f, id)}
+                        onDropProject={canAuthor ? (f, id) => void handleDropProject(f, id) : undefined}
+                        readOnly={!canAuthor}
                       />
                     ))}
                   </div>

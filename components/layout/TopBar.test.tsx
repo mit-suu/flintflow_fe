@@ -6,6 +6,8 @@ import TopBar from "./TopBar";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/home", useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 1250, planLabel: "Pro" })) }));
+// Số dư chỉ tải cho Lead/Analyst (Viewer bị BE chặn) — xem AppSidebar.test
+vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => ({ id: "o1", name: "Org", role: "lead" }) }));
 
 const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) =>
   renderWithIntl(

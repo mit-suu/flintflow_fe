@@ -1,66 +1,29 @@
-import { screen, waitFor } from "@testing-library/react";
-import { renderWithIntl } from "@/test/intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import ChatInput from "./ChatInput";
 
-const estimateActionCost = vi.hoisted(() => vi.fn());
-
-vi.mock("../../../../lib/api/chat", () => ({ estimateActionCost }));
-
-// Cache giá nằm ở cấp module: nạp lại ChatInput mỗi test để các ca không dùng chung cache
-const renderInput = async () => {
-  const { default: ChatInput } = await import("./ChatInput");
-  const mount = () =>
-    renderWithIntl(
-      <ChatInput
-        inputMessage=""
-        setInputMessage={() => {}}
-        onSendMessage={() => {}}
-        sending={false}
-        pendingAttachments={[]}
-        onSelectAttachment={() => {}}
-        onRemoveAttachment={() => {}}
-        actionType="chat"
-      />
-    );
-  return mount;
+const props = {
+  inputMessage: "",
+  setInputMessage: () => {},
+  onSendMessage: () => {},
+  sending: false,
+  pendingAttachments: [],
+  onSelectAttachment: () => {},
+  onRemoveAttachment: () => {},
 };
 
-describe("ChatInput credit estimate", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    estimateActionCost.mockReset();
+// Credit chỉ còn ở header (WorkspaceHeader): ô nhập không hiện giá mỗi tin hay số dư, cũng không gọi BE ước giá.
+describe("ChatInput — không hiện credit", () => {
+  it("ô nhập thường và thu gọn đều không có chữ credit / msg / còn N", () => {
+    const { container, rerender } = render(<ChatInput {...props} />);
+    expect(container).not.toHaveTextContent(/credit|\/ msg|còn \d/);
+    rerender(<ChatInput {...props} compact />);
+    expect(container).not.toHaveTextContent(/credit|\/ msg|còn \d/);
+    expect(screen.getByRole("button", { name: "Gửi tin nhắn" })).toBeInTheDocument();
   });
 
-  it("ẩn giá khi BE lỗi, lần mount sau thử gọi lại", async () => {
-    estimateActionCost
-      .mockRejectedValueOnce(new Error("401"))
-      .mockResolvedValueOnce({ data: { actionType: "chat", cost: 3 }, error: null });
-
-    const mount = await renderInput();
-    const first = mount();
-    await waitFor(() => expect(estimateActionCost).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText(/credit \/ msg/)).not.toBeInTheDocument();
-    first.unmount();
-
-    mount();
-    expect(await screen.findByText("~3 credit / msg")).toBeInTheDocument();
-    expect(estimateActionCost).toHaveBeenCalledTimes(2);
-  });
-
-  it("hiện giá từ BE và không gọi lại khi mount lại cùng actionType", async () => {
-    estimateActionCost.mockResolvedValue({
-      data: { actionType: "chat", cost: 2 },
-      error: null,
-    });
-
-    const mount = await renderInput();
-    const first = mount();
-    expect(await screen.findByText("~2 credit / msg")).toBeInTheDocument();
-    first.unmount();
-
-    mount();
-    expect(await screen.findByText("~2 credit / msg")).toBeInTheDocument();
-    expect(estimateActionCost).toHaveBeenCalledTimes(1);
-    expect(estimateActionCost).toHaveBeenCalledWith("chat");
+  it("dùng placeholder được truyền vào (cổng chốt nhắc bạn nhắn để sửa)", () => {
+    render(<ChatInput {...props} placeholder="Muốn sửa gì thì bạn nhắn tôi nhé…" />);
+    expect(screen.getByPlaceholderText("Muốn sửa gì thì bạn nhắn tôi nhé…")).toBeInTheDocument();
   });
 });

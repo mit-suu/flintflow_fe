@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useDialogFocus } from "@/lib/hooks/use-dialog-focus";
 import { fetchBalance, type BalanceResponse } from "@/lib/api/billing";
+import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 
 interface AppShellContextValue {
   navOpen: boolean;
@@ -69,6 +70,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsedSnapshot, () => false);
+  const role = useActiveOrganization()?.role;
 
   const openNav = useCallback(() => setNavOpen(true), []);
   const closeNav = useCallback(() => setNavOpen(false), []);
@@ -77,8 +79,10 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
     writeCollapsed(sessionCollapsed);
   }, []);
 
-  // Số dư tải lại mỗi lần đổi trang (giống trước: chip nằm trong trang nên tải theo trang)
+  // Số dư tải lại mỗi lần đổi trang (giống trước: chip nằm trong trang nên tải theo trang). BE chỉ cho Lead/Analyst
+  // xem số dư (Flow 10) ⇒ chờ biết vai trò; Viewer không gọi (gọi là 403) — thanh bên hiện nhãn gói mặc định.
   useEffect(() => {
+    if (!role || role === "viewer") return;
     let cancelled = false;
     fetchBalance()
       .then((next) => {
@@ -88,7 +92,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [pathname, role]);
 
   // Drawer mobile là lớp phủ modal: focus vào trong + giữ Tab, đóng thì trả focus về nút Mở menu; Esc đóng
   useDialogFocus(drawerRef, navOpen);

@@ -34,7 +34,8 @@ describe("useNotificationText (T25)", () => {
       "Your balance is down to 8 credits. Top up to keep using AI."
     );
     expect(text(note("plan_changed", { plan: "free", label: "Free", periodEnd: null })).body).toBe("The Free plan has been activated.");
-    expect(text(note("phase_accepted", { phase: "S-3" })).title).toBe("Phase S-3 completed");
+    // Tên giai đoạn, không hiện mã `S-3` (FLF-247)
+    expect(text(note("phase_accepted", { phase: "S-3" })).title).toBe("Stage User Requirements completed");
     expect(text(note("baseline_created", { version: "v1.0", waived_count: 1 })).body).toBe(
       "The document was signed off at v1.0 with 1 flag waived with a reason."
     );

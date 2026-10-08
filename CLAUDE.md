@@ -1,7 +1,7 @@
 # FlintFlow — Frontend
 
 Next.js app cho nền tảng AI soạn thảo SRS. Người dùng trò chuyện theo một quy trình có hướng dẫn
-(12 phase, `51 + 5 × N` step), xem tài liệu sinh ra ở pane bên phải, và **sửa tài liệu qua chat** chứ
+(12 phase, `50 + 5 × N` step), xem tài liệu sinh ra ở pane bên phải, và **sửa tài liệu qua chat** chứ
 không gõ trực tiếp vào tài liệu.
 
 Repo này đang trong đợt refactor lớn cùng `flintflow_be`. Kế hoạch, quy tắc và báo cáo nằm ở repo riêng
@@ -24,7 +24,7 @@ Next 16 (App Router) · React 19 · TypeScript · Tailwind 4 · vitest + msw.
 
 ## Nguyên tắc quan trọng nhất
 
-**Document pane là read-only.** Mọi thay đổi nội dung SRS đi qua chat/Change panel → `POST /changes`
+**Document pane là read-only.** Mọi thay đổi nội dung SRS đi qua chat (chip "Sửa tài liệu" trên ô nhập) → `POST /changes`
 (hoặc `/changes/preview` rồi xác nhận). Đừng thêm form sửa trực tiếp vào `DocumentPane`, `VerificationPane`
 hay bất kỳ chỗ nào hiển thị tài liệu.
 
@@ -41,7 +41,7 @@ Mọi lời gọi BE đi qua `lib/api/` — **không `fetch` trực tiếp trong
 - `lib/api/client.ts`: `apiCall()`, envelope `{data, meta, error}`, `ApiClientError {status, code, message}`,
   tự refresh access token. `API_BASE_URL` từ `NEXT_PUBLIC_API_URL`.
 - `lib/api/token-store.ts`: nơi duy nhất giữ/đọc token.
-- Một file một nhóm endpoint: `projects.ts`, `chat.ts`, `spine.ts`, `pipeline.ts`, `flags.ts`,
+- Một file một nhóm endpoint: `projects.ts`, `chat.ts`, `spine.ts`, `pipeline.ts`, `flags.ts`, `orgs.ts`,
   `documents.ts`, `export.ts`, `notifications.ts`, `billing.ts`, `admin.ts`.
 - `types/` phản chiếu kiểu của BE (`spine.ts`, `pipeline.ts`, `flags.ts`, `document.ts`…). Giữ
   **snake_case** đúng như field Spine của BE, đừng đổi sang camelCase.
@@ -54,11 +54,14 @@ không gọi; cần thêm thì phải sửa contract trước (PR `contract-chan
 - `page.tsx` ghép mọi thứ; state lấy qua hook trong `hooks/`:
   `useWorkspace`, `useSpine`, `useProgress`, `useStepRunner`, `useDocument`, `useFlags`, `useChanges`.
 - `_components/` chia theo vai trò:
-  - Chat & pipeline: `ChatPane`, `ChatInput`, `ChatBubble`, `ChatSessionSidebar`, `ElicitPanel`,
-    `GateCard`, `StepProgressBar`, `PhaseHeader`, `PhaseNavBar`, `ScreenQueuePanel`, `StepEventLog`
+  - Chat & pipeline: `ChatPane`, `ChatInput`, `ChatBubble`, `ChatSessionHistory`, `ElicitPanel`,
+    `GateCard`, `StepProgressBar`, `PhaseNavBar`, `ScreenQueuePanel`, `StepEventLog`
+  - Khung: `WorkspaceHeader` (breadcrumb + hành động), `WorkspaceProgressRail` (rail tiến độ trái, mở hoặc ẩn hẳn
+    được), `WorkspaceToolRail` (rail icon mở một panel phải mỗi lúc)
   - Tài liệu & kiểm chứng: `DocumentPane`, `VerificationPane`, `FlagsPanel`, `ReadinessSummary`,
     `ExportPanel`
-  - Sửa qua chat: `ChangePanel`, `DiffPreviewModal`, `TraceabilityMap`
+  - Sửa qua chat: chip "Sửa tài liệu" ở `ChatInput` → `ChatEditCard` (thẻ xem trước trong chat), `DiffPreviewModal`,
+    `EditHistory` (panel Công cụ), `TraceabilityMap` (panel Verification); state ở `hooks/useChanges`
   - Brief (B-0…S-1): `BriefSummaryCard`, `AssumptionSweepPanel`, `AddendumTriagePanel`, `NamesGlossaryPanel`
   - Dùng chung: `QuestionStepperInput` (câu hỏi có gợi ý — kiểu `DiscoveryQuestion` ở `types/chat.ts`)
 - Chạy step là **SSE** (`lib/ai-stream.ts`): sự kiện `intake · elicit · answer_needed · draft ·
@@ -121,6 +124,9 @@ Nhãn UI và thông báo lỗi cho user: **tiếng Việt là bản chuẩn**, c
 `docs/fe-architecture.md` mục "Đa ngôn ngữ". Không viết chữ thẳng vào JSX; thêm chuỗi thì thêm key vào **cả
 hai** file. Nhãn step/phase qua `tStep`/`tPhase`. Admin chỉ tiếng Việt. Workspace (`app/projects/**`) chưa
 chuyển, vẫn viết thẳng tiếng Việt. Nội dung tài liệu SRS (do BE sinh): tiếng Anh — FE chỉ hiển thị, không dịch.
+Ngoại lệ (FLF-260): `ChatOpening` (`workspace.chatOpening`) và câu chạy lại bước đã cũ (`workspace.rerunStep`) theo
+giao diện; câu bọc "không đổi gì" của cổng chốt (`fallbackGateMessage`) theo ngôn ngữ `no_change_reason` của BE. Lời AI
+theo ngôn ngữ user viết (BE quyết), FE hiển thị nguyên văn.
 
 **Sửa giao diện là phải xét i18n.** Bất cứ thay đổi UI nào (thêm màn hình, sửa component, đổi nhãn,
 thêm trạng thái rỗng/lỗi/toast, placeholder, `aria-label`, `title`, text trong `alt`) đều phải kèm

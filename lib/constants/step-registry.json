@@ -7,7 +7,7 @@
     "label_en": "Brain Dump",
     "kind": "soft",
     "reads": [
-      "project",
+      "project:name,system_name,form_factor,stakes",
       "other_requirements",
       "assumptions[status=unconfirmed]",
       "documents"
@@ -35,10 +35,10 @@
     "label_en": "Form-Factor",
     "kind": "soft",
     "reads": [
-      "project"
+      "project:form_factor"
     ],
     "writes": [
-      "project",
+      "project.form_factor",
       "assumptions"
     ],
     "renders": [],
@@ -54,35 +54,18 @@
     "label_en": "Stakes",
     "kind": "soft",
     "reads": [
-      "project"
+      "project:form_factor,stakes"
     ],
     "writes": [
       "project",
+      "addendum",
+      "other_requirements",
       "assumptions"
     ],
     "renders": [],
     "uc": [],
     "deterministic": false,
     "description": "Đồ án, nội bộ, gọi vốn hay ra mắt thật; quyết định ngưỡng NFR."
-  },
-  {
-    "id": "B-0.4",
-    "phase": "B-0",
-    "phase_label_en": "Intake",
-    "label_vi": "Cách làm việc",
-    "label_en": "Working Mode",
-    "kind": "soft",
-    "reads": [
-      "project"
-    ],
-    "writes": [
-      "project",
-      "assumptions"
-    ],
-    "renders": [],
-    "uc": [],
-    "deterministic": false,
-    "description": "Fast path (gom câu hỏi, gate cuối phase) hay Coaching path (từng step)."
   },
   {
     "id": "B-1.1",
@@ -92,13 +75,12 @@
     "label_en": "Product Vision, Problem & Opportunity",
     "kind": "soft",
     "reads": [
-      "project",
+      "project:name,system_name,vision,goals,form_factor,stakes",
       "other_requirements",
       "assumptions[status=unconfirmed]",
       "documents"
     ],
     "writes": [
-      "project",
       "addendum",
       "other_requirements",
       "assumptions"
@@ -118,15 +100,12 @@
     "label_en": "Target Users & Jobs-to-be-Done",
     "kind": "soft",
     "reads": [
-      "project",
-      "other_requirements",
+      "project:system_name,vision,goals,form_factor",
       "assumptions[status=unconfirmed]",
       "documents"
     ],
     "writes": [
-      "project",
       "addendum",
-      "other_requirements",
       "assumptions"
     ],
     "renders": [],
@@ -145,15 +124,12 @@
     "label_en": "Value Proposition & Differentiation",
     "kind": "soft",
     "reads": [
-      "project",
-      "other_requirements",
+      "project:system_name,vision,goals,form_factor",
       "assumptions[status=unconfirmed]",
       "documents"
     ],
     "writes": [
-      "project",
       "addendum",
-      "other_requirements",
       "assumptions"
     ],
     "renders": [],
@@ -171,15 +147,12 @@
     "label_en": "MVP Scope & Feature Hypotheses",
     "kind": "soft",
     "reads": [
-      "project",
-      "other_requirements",
+      "project:system_name,vision,goals,form_factor",
       "assumptions[status=unconfirmed]",
       "documents"
     ],
     "writes": [
-      "project",
       "addendum",
-      "other_requirements",
       "assumptions"
     ],
     "renders": [],
@@ -198,15 +171,12 @@
     "label_en": "Success Metrics & Learning Goals",
     "kind": "soft",
     "reads": [
-      "project",
-      "other_requirements",
+      "project:system_name,vision,goals",
       "assumptions[status=unconfirmed]",
       "documents"
     ],
     "writes": [
-      "project",
       "addendum",
-      "other_requirements",
       "assumptions"
     ],
     "renders": [],
@@ -224,7 +194,7 @@
     "label_en": "Risks, Assumptions & Open Questions",
     "kind": "soft",
     "reads": [
-      "project",
+      "project:system_name,vision,goals,form_factor,stakes",
       "other_requirements",
       "assumptions[status=unconfirmed]",
       "documents"
@@ -270,7 +240,7 @@
     "label_en": "Addendum Triage",
     "kind": "soft",
     "reads": [
-      "project"
+      "project:system_name,vision,goals"
     ],
     "writes": [
       "addendum",
@@ -289,7 +259,7 @@
     "label_en": "Three-Lens Review",
     "kind": "soft",
     "reads": [
-      "project",
+      "project:system_name,vision,goals,form_factor,stakes",
       "other_requirements",
       "assumptions[status=unconfirmed]"
     ],
@@ -321,6 +291,7 @@
     ],
     "writes": [
       "project",
+      "addendum",
       "other_requirements",
       "assumptions"
     ],
@@ -329,7 +300,7 @@
       "2.3"
     ],
     "deterministic": false,
-    "description": "Chuyển B-1 và addendum thành dữ liệu có cấu trúc."
+    "description": "Dựng tầm nhìn và mục tiêu tiếng Anh cho SRS từ Brief; chuyển addendum thành dữ liệu có cấu trúc."
   },
   {
     "id": "S-1.2",
@@ -450,7 +421,7 @@
     "label_en": "External Systems",
     "kind": "fixed",
     "reads": [
-      "project:name,vision",
+      "project:name,vision,goals,release_scope",
       "actors",
       "documents"
     ],
@@ -496,7 +467,7 @@
     "label_en": "System Context Diagram",
     "kind": "fixed",
     "reads": [
-      "project:name",
+      "project:name,system_name",
       "actors[kind!=human]"
     ],
     "writes": [],
@@ -517,6 +488,7 @@
     "label_en": "Actors",
     "kind": "fixed",
     "reads": [
+      "project:name,vision,goals,release_scope",
       "actors",
       "roles",
       "use_cases",
@@ -544,6 +516,7 @@
     "label_en": "Actor-Goal List",
     "kind": "fixed",
     "reads": [
+      "project:name,vision,goals,release_scope",
       "actors",
       "roles",
       "use_cases",
@@ -571,6 +544,7 @@
     "label_en": "Missing Use Case Sweep",
     "kind": "fixed",
     "reads": [
+      "project:name,vision,goals,release_scope",
       "actors",
       "roles",
       "use_cases",
@@ -648,18 +622,20 @@
     "label_en": "Use Case Diagram",
     "kind": "fixed",
     "reads": [
+      "project:name,system_name",
       "actors",
       "use_cases"
     ],
     "writes": [],
     "renders": [
-      "usecase"
+      "usecase",
+      "context"
     ],
     "uc": [
       "3.2"
     ],
     "deterministic": false,
-    "description": "Render sơ đồ use case, tách hình nếu quá lớn."
+    "description": "Render sơ đồ use case, tách hình nếu quá lớn; render lại sơ đồ ngữ cảnh vì S-3.1 được thêm actor phi-human."
   },
   {
     "id": "S-4.1",
@@ -776,7 +752,14 @@
     "kind": "fixed",
     "reads": [
       "entities",
-      "features:id,name"
+      "features:id,name",
+      "project:name,system_name,release_scope",
+      "actors:id,name,kind",
+      "use_cases:id,name",
+      "screens:id,name",
+      "functions:id,name,screen_id,description",
+      "assumptions[origin_step_id=S-4.5]:id,path,statement,status",
+      "business_rules:id,statement"
     ],
     "writes": [
       "entities",

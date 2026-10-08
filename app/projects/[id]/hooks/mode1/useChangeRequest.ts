@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import {
+  addCrMaterialFile,
+  addCrMaterialText,
   answerClarifications,
   cancelCr,
+  deleteCrMaterial,
   closeCr,
   decideGroup,
+  draftInOwnerStep,
   getCr,
   patchLocation,
   runCrAction,
@@ -16,7 +20,7 @@ import { getSpine } from "@/lib/api/spine";
 import type { CrDetail, PatchLocationRequest } from "@/types/change-request";
 import { errorText } from "../../_components/mode1/errors";
 
-export type CrBusy = CrAction | "answers" | "patch" | "decide" | "close" | "cancel";
+export type CrBusy = CrAction | "answers" | "material" | "patch" | "owner_draft" | "decide" | "close" | "cancel";
 
 /**
  * Một change request (UC-48–UC-53, UC-81, UC-82). Mọi hành động trả `CrDetail` mới nhất từ BE — FE không tự
@@ -79,9 +83,17 @@ export function useChangeRequest(projectId: string, crId: string) {
     clearError: () => setError(null),
     action: (action: CrAction) => run(action, () => runCrAction(projectId, crId, action)),
     answer: (answers: string[]) => run("answers", () => answerClarifications(projectId, crId, answers)),
+    /** Phase 7: tài liệu bổ sung — dán chữ / upload file (ảnh tốn 1 credit); chỉ trước 3.4. */
+    addMaterialText: (name: string, text: string) => run("material", () => addCrMaterialText(projectId, crId, { name, text })),
+    addMaterialFile: (file: File) => run("material", () => addCrMaterialFile(projectId, crId, file)),
+    removeMaterial: (materialId: string) => run("material", () => deleteCrMaterial(projectId, crId, materialId)),
     patch: (locationId: string, body: PatchLocationRequest) => run("patch", () => patchLocation(projectId, crId, locationId, body)),
+    /** BPMN 3.9: sửa đề xuất trong step sở hữu (AI, tốn credit) — chỉ ghi đề xuất, kiểm lại bằng `verify`. */
+    ownerDraft: (locationId: string, instruction: string) =>
+      run("owner_draft", () => draftInOwnerStep(projectId, crId, locationId, { instruction })),
     /** Quyết định group ghi Spine khi là group cuối ⇒ mang `base_version` đọc ngay trước khi gửi. */
-    decide: (groupId: string, decision: "approved" | "rejected", reason?: string) =>
+    /** BPMN 3.12 (mode 1 v3): lý do bắt buộc cả khi duyệt. */
+    decide: (groupId: string, decision: "approved" | "rejected", reason: string) =>
       run("decide", async () => {
         const spine = await getSpine(projectId);
         return decideGroup(projectId, crId, groupId, { decision, reason, base_version: spine.data?.spine_version ?? 0 });

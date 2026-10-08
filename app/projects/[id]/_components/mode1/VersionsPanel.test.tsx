@@ -34,6 +34,7 @@ const version = (v: string, kind: DocVersion["kind"], cr_ids: string[] = []): Do
   cr_ids,
   baseline_id: null,
   has_clean_file: kind === "release",
+  has_tracked_file: kind === "cr_revision",
   has_original_file: kind === "imported",
   created_by: "u1",
   created_at: "2026-09-19T00:00:00.000Z",
@@ -170,19 +171,19 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     expect(items[1]).toHaveTextContent("Bản nháp sau CR");
     expect(items[3]).toHaveTextContent("Bản import");
     expect(items[2].className).toContain("border-[#6A62C4]");
-    expect(within(items[1]).getByRole("link", { name: "CR-003" })).toHaveAttribute("href", `/projects/${P}/change-requests/CR-003`);
+    expect(within(items[1]).getByRole("link", { name: "CR-003" })).toHaveAttribute("href", `/projects/${P}?panel=cr&cr=CR-003`);
 
     fireEvent.click(screen.getByRole("button", { name: "Xem bản 0.0" }));
     expect(props.onSelect).toHaveBeenCalledWith("0.0");
   });
 
-  it("nút tải theo loại: release ⇒ bản sạch + bản có Track Changes; draft ⇒ bản draft; import ⇒ bản gốc", () => {
+  it("nút tải theo loại: release ⇒ chỉ bản sạch; bản nháp sau CR ⇒ bản nháp + bản có đánh dấu (3.14); import ⇒ bản gốc", () => {
     renderPanel({ versions: RELEASED });
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]).getByRole("button", { name: "Tải bản sạch" })).toBeInTheDocument();
-    expect(within(items[0]).getByRole("button", { name: "Bản có Track Changes" })).toBeInTheDocument();
-    expect(within(items[1]).getByRole("button", { name: "Tải bản draft (Track Changes)" })).toBeInTheDocument();
-    expect(within(items[1]).queryByRole("button", { name: "Bản có Track Changes" })).not.toBeInTheDocument();
+    expect(within(items[0]).queryByRole("button", { name: "Tải bản có đánh dấu" })).not.toBeInTheDocument();
+    expect(within(items[1]).getByRole("button", { name: "Tải bản nháp (DRAFT)" })).toBeInTheDocument();
+    expect(within(items[1]).getByRole("button", { name: "Tải bản có đánh dấu" })).toBeInTheDocument();
     // FLF-185: bản 0.0 lưu bản render từ Spine; file người dùng upload tải riêng
     expect(within(items[3]).getByRole("button", { name: "Tải bản render (DRAFT)" })).toBeInTheDocument();
     expect(within(items[3]).getByRole("button", { name: "Tải file gốc" })).toBeInTheDocument();
@@ -198,26 +199,26 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_v0.0_original.docx");
   });
 
-  it("tải: gửi variant đúng; BE không gửi tên ⇒ tên mặc định (_DRAFT cho draft và bản tracked của release)", async () => {
+  it("tải: gửi variant đúng; BE không gửi tên ⇒ tên mặc định (_DRAFT cho nháp, _tracked_DRAFT cho bản có đánh dấu)", async () => {
     const seen = serveDownload();
     renderPanel({ versions: RELEASED });
     const items = screen.getAllByRole("listitem");
 
     fireEvent.click(within(items[0]).getByRole("button", { name: "Tải bản sạch" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
-    fireEvent.click(within(items[0]).getByRole("button", { name: "Bản có Track Changes" }));
+    fireEvent.click(within(items[1]).getByRole("button", { name: "Tải bản nháp (DRAFT)" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(2));
-    fireEvent.click(within(items[1]).getByRole("button", { name: "Tải bản draft (Track Changes)" }));
+    fireEvent.click(within(items[1]).getByRole("button", { name: "Tải bản có đánh dấu" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(3));
 
-    expect(seen).toEqual(["1.0?variant=auto", "1.0?variant=tracked", "0.2?variant=auto"]);
-    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v1.0_DRAFT.docx", "Lumen_v0.2_DRAFT.docx"]);
+    expect(seen).toEqual(["1.0?variant=auto", "0.2?variant=auto", "0.2?variant=tracked"]);
+    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v0.2_DRAFT.docx", "Lumen_v0.2_tracked_DRAFT.docx"]);
   });
 
   it("tải dùng tên BE trả nếu có; lỗi tải ⇒ hiện thông báo", async () => {
     serveDownload("SRS_v0.2_DRAFT.docx");
     renderPanel();
-    fireEvent.click(screen.getAllByRole("button", { name: "Tải bản draft (Track Changes)" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Tải bản nháp (DRAFT)" })[0]);
     await waitFor(() => expect(saveBlob).toHaveBeenCalled());
     expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("SRS_v0.2_DRAFT.docx");
 
@@ -228,5 +229,14 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Tải bản render (DRAFT)" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Không có version 0.0");
+  });
+});
+
+describe("VersionsPanel — Viewer (readOnly)", () => {
+  it("không có mục Release, vẫn xem được các version", () => {
+    renderPanel({ readOnly: true });
+    expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Các version" })).toBeInTheDocument();
   });
 });

@@ -15,7 +15,7 @@ const location = (id: string, over: Partial<CrLocation> = {}): CrLocation => ({
   owner_step: null,
   conclusion: null,
   reason: null,
-  proposal: { old_text: `text ${id}`, new_text: null, comment_text: null, spine_ops: [] },
+  proposal: { old_text: `text ${id}`, new_text: null, comment_text: null, spine_ops: [], assumptions: [] },
   manual: false,
   redo_count: 0,
   verify: null,
@@ -24,9 +24,9 @@ const location = (id: string, over: Partial<CrLocation> = {}): CrLocation => ({
 });
 
 const LOCATIONS = [
-  location("L001", { found_by: ["spine_link", "mention"], conclusion: "edit", proposal: { old_text: "a", new_text: "b", comment_text: null, spine_ops: [] } }),
-  location("L002", { found_by: ["mention"], conclusion: "edit", proposal: { old_text: "c", new_text: "d", comment_text: null, spine_ops: [] } }),
-  location("L003", { found_by: ["keyword"], conclusion: "comment", proposal: { old_text: "e", new_text: null, comment_text: "note", spine_ops: [] } }),
+  location("L001", { found_by: ["spine_link", "mention"], conclusion: "edit", proposal: { old_text: "a", new_text: "b", comment_text: null, spine_ops: [], assumptions: [] } }),
+  location("L002", { found_by: ["mention"], conclusion: "edit", proposal: { old_text: "c", new_text: "d", comment_text: null, spine_ops: [], assumptions: [] } }),
+  location("L003", { found_by: ["keyword"], conclusion: "comment", proposal: { old_text: "e", new_text: null, comment_text: "note", spine_ops: [], assumptions: [] } }),
   location("L004", { found_by: ["keyword"], conclusion: "not_related", reason: "chỉ nhắc tên" }),
   location("L005", { found_by: ["spine_link"] }),
 ];

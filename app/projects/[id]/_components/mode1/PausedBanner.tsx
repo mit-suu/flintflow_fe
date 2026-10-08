@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Paused } from "@/types/import";
 import { formatDateTime } from "./labels";
+import Icon from "@/components/ui/Icon";
 
 interface PausedBannerProps {
   paused: Paused;
@@ -26,7 +27,7 @@ export default function PausedBanner({ paused, onResume, busy = false, what }: P
         credits ? "bg-[#FBF4E4] border-[#EFD9A6] text-[#8A6D1F]" : "bg-[#FDEDED] border-[#F2CACA] text-[#8A4141]"
       }`}
     >
-      <span className="material-symbols-outlined text-[18px]">{credits ? "savings" : "cloud_off"}</span>
+      <Icon name={credits ? "savings" : "cloud-off"} size={18} />
       <div className="flex-1 min-w-[220px]">
         <p className="font-bold">
           {what} đang tạm dừng — {credits ? "hết credit" : "AI lỗi, đã thử lại 2 lần"}

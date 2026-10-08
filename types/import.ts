@@ -2,6 +2,7 @@
  * Kiểu dữ liệu import mode 1 (upload SRS có sẵn rồi sửa) — bám `flintflow_be/src/modules/import/import.dto.ts`
  * và `docs/api/import-change-contract.md` (FLF-171). Đổi ở BE thì đổi ở đây trong cùng PR.
  */
+import type { RocRow } from "./document";
 import type { Baseline, Flag, IsoDateTime } from "./spine";
 
 /** Máy trạng thái import (`import.state.ts` BE). */
@@ -107,7 +108,18 @@ export interface HeadingMapEntry {
   confidence: number;
   detected_by: HeadingDetector;
   confirmed: boolean;
+  /**
+   * FLF-252: heading khớp một mục của mẫu không phải FPT (IEEE). Mã nội bộ — FE không hiện, chỉ dùng để biết
+   * `unmapped` này là mục riêng của mẫu (giữ nguyên văn), không phải heading lạ.
+   */
+  template_section?: string | null;
 }
+
+/** Họ mẫu của tài liệu upload (FLF-252). */
+export type TemplateFamily = "fpt" | "ieee830" | "ieee_features";
+
+/** Vai trò cột theo dữ liệu dưới tiêu đề (FLF-252). */
+export type TableColumnRole = "row_no" | "code" | "date" | "version" | "change_type" | "mark" | "text" | "name";
 
 export interface TableMapEntry {
   block_id: string;
@@ -116,6 +128,10 @@ export interface TableMapEntry {
   field_path: string | null;
   confidence: number;
   confirmed: boolean;
+  /** FLF-252: vai trò cột theo dữ liệu; không có khi bảng chỉ có hàng tiêu đề. */
+  role?: TableColumnRole;
+  /** FLF-252: tối đa 3 giá trị đầu của cột. */
+  samples?: string[];
 }
 
 /** Mục của layout tài liệu người dùng (FLF-182): `section_id` = section FPT hoặc `custom:<id>`. */
@@ -134,6 +150,10 @@ export interface TemplateProfile {
   language: string;
   /** FLF-182 — rỗng với import trước mode 1 v2. */
   layout: LayoutEntry[];
+  /** FLF-252: dòng Record of Changes đọc được từ file; rỗng / thiếu = không tìm thấy bảng. */
+  record_of_changes?: RocRow[];
+  /** FLF-252: họ mẫu nhận được — thiếu (import cũ) coi như `fpt`. */
+  template_family?: TemplateFamily;
 }
 
 // ─── kế hoạch step theo template (#32–#33, FLF-182) ─────────────
@@ -164,9 +184,12 @@ export interface ReviewField {
   value: unknown;
   confidence: number;
   source_block_ids: string[];
-  origin: "deterministic" | "ai";
+  /** `vision` = đọc từ ảnh diagram (mode 1 v3 phase 5) — luôn cần xác nhận. */
+  origin: "deterministic" | "ai" | "vision";
   confirmed: boolean;
   edited_value?: unknown;
+  /** Tên phần tử chứa field (`actors[id=A01].kind` ⇒ "Learner"); field tên / không tra được ⇒ không có. */
+  entity_name?: string;
 }
 
 export interface ExtractionSection {
@@ -208,6 +231,8 @@ export interface FieldsPatchRequest {
 export interface FinalizeRequest {
   import_id: string;
   base_version: number;
+  /** FLF-252: dòng Record of Changes người dùng đã xem/sửa ở wizard — không gửi ⇒ BE đọc lại từ file. */
+  record_of_changes?: RocRow[];
 }
 
 // ─── response ────────────────────────────────────────────────────
@@ -250,9 +275,19 @@ export interface GapReport {
   project_id: string;
   doc_version: string;
   generated_at: IsoDateTime;
-  totals: { red: number; yellow: number; missing_sections: number; unmapped_headings: number; low_confidence_fields: number; missing_fpt_sections: number };
+  totals: {
+    red: number;
+    yellow: number;
+    missing_sections: number;
+    unmapped_headings: number;
+    low_confidence_fields: number;
+    missing_fpt_sections: number;
+    unrendered_diagrams: number;
+  };
   /** Mode 1 v2 (FLF-184, D6): đầu mục mẫu FPT file không có / chỉ có heading — cờ đỏ, chặn ký v1 tới khi chạy `step_id`. */
   missing_fpt_sections: { section_id: string; title: string; step_id: string; in_layout: boolean }[];
+  /** Mode 1 v2 (nợ T4): hình dựng được từ Spine nhưng chưa có bản vẽ (import lúc thiếu PlantUML) hoặc vẽ lỗi — không chặn ký v1. */
+  unrendered_diagrams: { diagram_id: string; kind: string; section_id: string; title: string; reason: "not_rendered" | "error" }[];
   /** Mục theo thứ tự file upload (FLF-184). */
   layout: GapLayoutRow[];
   /** Cờ theo section — theo thứ tự layout. */

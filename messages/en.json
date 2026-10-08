@@ -186,7 +186,7 @@
       "headline": "Your next project",
       "headlineAccent": "starts from clear requirements.",
       "button": "Create your first project",
-      "note": "Free · No card needed · 100 credits on us",
+      "note": "Free · No card needed · {credits, number} credits on us",
       "copyright": "© {year} FlintFlow"
     }
   },
@@ -212,12 +212,7 @@
       "showField": "Show {field}",
       "hideField": "Hide {field}",
       "fieldPassword": "password",
-      "fieldConfirmPassword": "confirmation password",
-      "strength": {
-        "weak": "Weak",
-        "medium": "Medium",
-        "strong": "Strong"
-      }
+      "fieldConfirmPassword": "confirmation password"
     },
     "google": {
       "continue": "Continue with Google",
@@ -312,6 +307,22 @@
       "failed": "Password reset failed"
     }
   },
+  "password": {
+    "level": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "fair": "Fair",
+      "strong": "Strong"
+    },
+    "notUsable": "{level} — not usable yet",
+    "issue": {
+      "too_short": "Password must be at least {min} characters.",
+      "too_long": "Password must be at most {max} characters.",
+      "not_ascii": "Use only unaccented letters, digits and keyboard symbols — no accented characters and no spaces.",
+      "not_complex": "Password must use at least {classes} of the 4 groups: lowercase, UPPERCASE, digits, symbols.",
+      "not_strong_enough": "Password is not strong enough — use {long} characters or more, or include all 4 groups."
+    }
+  },
   "app": {
     "time": {
       "justNow": "Just now",
@@ -324,7 +335,8 @@
     "authGuard": {
       "offline": "Can't reach the server. You're still signed in.",
       "retry": "Retry",
-      "checking": "Checking access..."
+      "checking": "Checking access...",
+      "offlineTitle": "Connection lost"
     },
     "notifications": {
       "title": "Notifications",
@@ -379,7 +391,10 @@
         "deduct": "Credit charge",
         "release": "Credit refund",
         "purchase": "Credit top-up",
-        "monthly_reset": "Monthly reset"
+        "monthly_reset": "Monthly reset",
+        "refund": "Credit refund",
+        "admin_adjust": "Credit adjustment",
+        "other": "Credit transaction"
       },
       "txState": {
         "reserved": "held",
@@ -392,7 +407,36 @@
         "createTx": "Could not create the transaction",
         "changePlan": "Could not change the plan",
         "loadMore": "Could not load more transactions"
-      }
+      },
+      "loadingHistory": "Loading transaction history…",
+      "actionType": {
+        "elicit": "Clarifying questions",
+        "draft": "Drafting",
+        "render_fix": "Diagram fix",
+        "review": "Review",
+        "regenerate": "Regenerate",
+        "revision": "Revision",
+        "discovery_step": "Idea discussion",
+        "consistency_pass": "Consistency check",
+        "glossary_scan": "Glossary scan",
+        "reconcile": "Reconcile sections",
+        "change_instruction": "Chat edit",
+        "chat": "Chat",
+        "summarize_document": "Document summary",
+        "translate": "Translation",
+        "import_extract_fields": "Read uploaded document",
+        "import_extract_diagram": "Read uploaded diagram",
+        "import_semantic_check": "Check uploaded document",
+        "cr_clarify": "Clarify change request",
+        "cr_propose": "Propose changes",
+        "cr_consistency": "Change consistency check",
+        "cr_material_image": "Read attached image",
+        "admin_adjust": "Admin adjustment",
+        "purchase": "Credit purchase",
+        "monthly_reset": "Monthly reset",
+        "other": "AI action"
+      },
+      "leadOnlyPurchase": "Only the organization Lead can buy credits or change the plan. When the organization needs more credits, let your Lead know."
     },
     "checkout": {
       "back": "Back to billing",
@@ -436,8 +480,8 @@
         "bodyActive": "The {plan} plan has been activated."
       },
       "phase_accepted": {
-        "title": "Phase {phase} completed",
-        "body": "Every step of phase {phase} has been accepted. You can move on to the next phase."
+        "title": "Stage {phase} completed",
+        "body": "Every step of {phase} has been approved. You can move on to the next stage."
       },
       "baseline_created": {
         "title": "Baseline {version} recorded",
@@ -643,6 +687,8 @@
     "home": {
       "onboardingTitle": "Start your first SRS project",
       "onboardingBody": "Pick where you are starting — FlintFlow walks you through the right process for that case.",
+      "viewerEmptyTitle": "This organization has no projects yet",
+      "viewerEmptyBody": "You are a Viewer — projects created by a Lead or Analyst will show up here.",
       "searchLabel": "Search projects by name",
       "searchPlaceholder": "Search projects…",
       "newProject": "New project",
@@ -725,7 +771,112 @@
       "saving": "Updating…",
       "submit": "Change password",
       "forgotCurrent": "Forgot your current password?",
-      "forgotNote": "After resetting it you will need to sign in again."
+      "forgotNote": "After resetting it you will need to sign in again.",
+      "logoutAllTitle": "Sign out of all devices",
+      "logoutAllBody": "End every session of this account, including this device. Use it if you forgot to sign out elsewhere or suspect your password has leaked. Other devices are signed out within a few minutes.",
+      "logoutAllCta": "Sign out of all devices",
+      "logoutAllConfirm": "You will be signed out of every device, including this one. Continue?",
+      "logoutAllConfirmCta": "Sign out everywhere",
+      "logoutAllFailed": "Could not sign out of all devices. Please try again."
+    },
+    "org": {
+      "roles": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "guard": {
+        "checking": "Opening your organization…"
+      },
+      "onboarding": {
+        "title": "Choose where you work",
+        "subtitle": "Every project belongs to an organization. Create your own, or enter an invitation code to join an existing one.",
+        "createTab": "Create an organization",
+        "joinTab": "Enter an invitation code",
+        "nameLabel": "Organization name",
+        "namePlaceholder": "For example: Hiep’s SRS team",
+        "nameHint": "You will be the Lead of this organization. A new organization starts on the free plan with credits to get going.",
+        "createCta": "Create organization",
+        "creating": "Creating…",
+        "codeLabel": "Invitation code",
+        "codePlaceholder": "Enter the code from your invitation email",
+        "codeHint": "The code comes from an organization Lead by email and works once.",
+        "checkCode": "Check code",
+        "checking": "Checking…",
+        "previewTitle": "Invitation is valid",
+        "previewBody": "You will join {org} as {role}.",
+        "joinCta": "Join organization",
+        "joining": "Joining…",
+        "nameRequired": "Give the organization a name.",
+        "codeRequired": "Enter the invitation code.",
+        "defaultName": "{name}'s Organization"
+      },
+      "switcher": {
+        "title": "Your organizations",
+        "subtitle": "Projects, the credit wallet and your role follow the organization you have open. Choose one to work in.",
+        "current": "Current",
+        "switch": "Open this organization",
+        "roleLine": "Role: {role}",
+        "addTitle": "Add an organization",
+        "addBody": "Create a new organization, or enter an invitation code to join another one.",
+        "addCta": "Create or join",
+        "loadError": "Could not load your organizations.",
+        "goToProjects": "Go to projects"
+      },
+      "members": {
+        "title": "Members",
+        "subtitle": "Members of {org}",
+        "you": "You",
+        "joined": "Joined {date}",
+        "roleLabel": "Role of {name}",
+        "remove": "Remove from organization",
+        "removeTitle": "Remove member?",
+        "removeBody": "{name} loses access to every project of the organization right away. The projects stay with the organization.",
+        "leave": "Leave organization",
+        "leaveTitle": "Leave organization?",
+        "leaveBody": "You will lose access to every project of {org}. The projects stay with the organization.",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "leadOnly": "Only a Lead can invite, change roles or remove members.",
+        "loadError": "Could not load the member list.",
+        "invite": {
+          "title": "Invite a member",
+          "roleLabel": "Role",
+          "emailLabel": "Invitee email",
+          "emailPlaceholder": "invitee@company.com",
+          "cta": "Create invitation code",
+          "creating": "Creating…",
+          "codeTitle": "New invitation code",
+          "codeBody": "This code is shown only once. Send it to the invitee; it works once and expires.",
+          "emailRequired": "Enter the invitee email — the invitation code is sent to that address.",
+          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires — if the invitee cannot find the email, you can send them this code directly."
+        },
+        "invitations": {
+          "title": "Invitations",
+          "empty": "No invitations yet.",
+          "noEmail": "Shared code",
+          "revoke": "Revoke",
+          "expires": "Expires {date}",
+          "states": {
+            "pending": "Pending",
+            "accepted": "Used",
+            "revoked": "Revoked",
+            "expired": "Expired"
+          }
+        },
+        "danger": {
+          "title": "Delete organization",
+          "body": "Permanently delete the organization with every project, folder, credit wallet and plan. This cannot be undone.",
+          "onlyWhenAlone": "You can delete it only when you are the only member. Remove the other members first.",
+          "cta": "Delete organization",
+          "dialogTitle": "Permanently delete the organization?",
+          "dialogBody": "Every project of {org} will be deleted permanently, and the remaining credits in its wallet are lost.",
+          "confirmLabel": "Type the organization name to confirm: {org}",
+          "confirmCta": "Delete permanently"
+        },
+        "soleLeadHint": "You are the only Lead — make another member a Lead before you leave.",
+        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
+      }
     }
   },
   "workspace": {
@@ -785,6 +936,33 @@
       "emptyBody": "Click “Run this step” so the AI asks for what's missing and drafts it, or chat freely and attach reference documents.",
       "notPipeline": "This isn't a pipeline session — edit commands typed below go straight to the Change panel for preview and confirmation.",
       "editPlaceholder": "Type an edit command — sent to the Change panel…"
+    },
+    "chatOpening": {
+      "aria": "Start your project",
+      "greeting": "Hi there! Tell me about the software you want to build — who will use it, what they'll use it for, and why you want to build it. Share as much as you like; I'll only ask about what's missing.",
+      "hint": "Or start from a suggestion:",
+      "suggestionsAria": "Suggestions to get started",
+      "chips": {
+        "teamTasks": {
+          "label": "Task management for a small team",
+          "message": "I want to build an app that helps a small team assign tasks, track progress and remind each other of deadlines."
+        },
+        "digitize": {
+          "label": "Digitize a paper/Excel process",
+          "message": "I want to digitize a process that's currently done on paper and in Excel, to cut down on manual data entry and make information easier to look up."
+        },
+        "marketplace": {
+          "label": "Connect people who need a service with providers",
+          "message": "I want to build a platform that connects people who need a service with the people who provide it, with booking and reviews."
+        },
+        "noIdea": {
+          "label": "I don't have an idea yet",
+          "message": "I don't have a specific idea yet."
+        }
+      }
+    },
+    "rerunStep": {
+      "message": "Update this step with the new data"
     },
     "chatInput": {
       "placeholder": "Type your answer or an edit request…",
@@ -877,8 +1055,6 @@
     "hookErrors": {
       "docLoadFailed": "Could not load the document",
       "spineNotReady": "The Spine hasn't finished loading — try again in a moment.",
-      "docConflict": "The document just changed in another session — reload the page and try assembling again.",
-      "assembleFailed": "Could not assemble the document",
       "flagsLoadFailed": "Could not load the flag list",
       "waiveFailed": "Waiving the flag failed",
       "recomputeFailed": "Recomputing flags failed",
@@ -900,16 +1076,8 @@
       "viewAt": "see {step} · {label}",
       "incomplete": "Not complete yet — content appears once the step owning this section runs.",
       "untitled": "Project",
-      "staleHint": "The Spine changed after the last assembly",
-      "assembling": "Assembling…",
-      "reassemble": "Reassemble",
       "reload": "↻ Reload",
       "loading": "Loading document…",
-      "notAssembled": "No assembled document yet",
-      "assemblingDoc": "Assembling document…",
-      "assembleNow": "Assemble document now",
-      "goToAssemble": "Go to S-8.2 · Assemble document",
-      "assembleFailedWith": "Could not assemble the document: {error}",
       "loadFailedWith": "Could not load the document: {error}"
     },
     "verification": {
@@ -953,13 +1121,9 @@
       "noBaseline": "No baseline yet",
       "baselineCheckFailed": "Could not check baselines",
       "baselineCheckFailedWith": "Could not check baselines: {error}",
-      "loading": "Loading assembly info…",
-      "notAssembled": "No assembled document for this source yet.",
+      "loading": "Loading document info…",
       "version": "Version",
-      "assembledAt": "Assembled at Spine v{version}",
-      "staleVs": "outdated vs. v{version}",
       "redCount": "Red flags to be printed in §I",
-      "noDraft": "The document isn't assembled yet — run S-8.2 first.",
       "downloadFailed": "Download failed",
       "downloading": "Downloading…",
       "downloadDraft": "Download draft (.docx)",
@@ -1100,21 +1264,106 @@
     "PAYMENT_SERVICE_UNAVAILABLE": "Can't reach the payment gateway.",
     "WALLET_NOT_FOUND": "Credit wallet not found.",
     "NOTIFICATION_NOT_FOUND": "Notification not found.",
-    "SPINE_NOT_FOUND": "The project's document data (Spine) wasn't found.",
+    "SPINE_NOT_FOUND": "The project's document data wasn't found.",
     "STEP_NOT_FOUND": "Step not found.",
     "FLAG_NOT_FOUND": "Flag not found.",
-    "FLAG_NOT_WAIVABLE": "This rule can't be waived.",
+    "FLAG_NOT_WAIVABLE": "This issue can't be skipped — the data needs fixing.",
     "BASELINE_NOT_FOUND": "Baseline not found.",
     "DIAGRAM_NOT_FOUND": "Diagram not found.",
     "SPINE_VERSION_CONFLICT": "The document just changed in another session. Please reload and try again.",
     "REGENERATE_LIMIT": "All 3 Regenerate attempts for this step are used up.",
     "CALL_LIMIT": "This step has used all 8 AI calls — only Accept or Accept as-is remain.",
     "STEP_NOT_RUNNABLE": "This step isn't ready to run or review yet.",
-    "NO_WORKING_DRAFT": "The document isn't assembled yet — run S-8.2 (Assemble document) first.",
+    "NO_WORKING_DRAFT": "This project has no content to build a document from yet.",
     "NOTHING_TO_UNDO": "Nothing left to undo.",
     "BASELINE_BLOCKED": "There are unresolved red flags — the baseline can't be recorded yet.",
-    "NOT_PIPELINE_SESSION": "This isn't a pipeline session.",
+    "NOT_PIPELINE_SESSION": "This chat is for Q&A only — the workflow runs in the main session.",
+    "PIPELINE_SESSION_LOCKED": "The main session can't be deleted — it holds the document workflow.",
     "NOT_IMPLEMENTED": "This feature isn't supported yet.",
-    "NO_DATA": "No data received from the server."
+    "NO_DATA": "No data received from the server.",
+    "NO_ACTIVE_ORG": "You have not chosen an organization to work in.",
+    "ORG_FORBIDDEN": "You are not a member of this organization.",
+    "ORG_NOT_FOUND": "Organization not found.",
+    "ORG_ROLE_FORBIDDEN": "Your role is not allowed to do this.",
+    "LAST_LEAD": "An organization must keep at least one Lead — make someone else a Lead first.",
+    "ALREADY_MEMBER": "You are already a member of this organization.",
+    "INVITE_INVALID": "This invitation code cannot be used: it has expired, been used, or been revoked.",
+    "INVITE_NOT_FOUND": "Invitation not found.",
+    "INVITE_ALREADY_USED": "This invitation code has already been used.",
+    "PLAN_LIMIT_MEMBERS": "The organization has reached the member limit of its current plan.",
+    "PLAN_LIMIT_PROJECTS": "The organization has reached the project limit of its current plan. Delete a project or upgrade to create more.",
+    "ACCOUNT_SUSPENDED": "This account has been suspended.",
+    "MEMBER_NOT_FOUND": "Member not found in this organization.",
+    "ORG_NAME_MISMATCH": "The confirmation does not match the organization name.",
+    "ORG_HAS_OTHER_MEMBERS": "You can delete the organization only when you are its only member.",
+    "ORG_BUSY": "An AI call is still running in this organization — try again in a few minutes.",
+    "ORG_PAYMENT_PENDING": "A payment for this organization is still pending — try again when it finishes.",
+    "SCHEMA_MISMATCH": "The AI returned a result in the wrong shape. Try again, or describe the request more clearly.",
+    "PARSE_FAILED": "The AI returned a result that could not be read. Try again, or describe the request more clearly.",
+    "UNKNOWN_ERROR": "Something went wrong. Please try again later.",
+    "NETWORK_ERROR": "Couldn't reach the server. Check your connection and try again.",
+    "PARSE_ERROR": "The server returned an unreadable response. Please try again later.",
+    "INTERNAL_SERVER_ERROR": "The system ran into an error. Please try again later.",
+    "STREAM_FAILED": "No response from the server. Please try again.",
+    "BAD_REQUEST": "The request was invalid. Please reload the page and try again.",
+    "NOT_FOUND": "The requested content wasn't found.",
+    "PAYLOAD_TOO_LARGE": "The data you sent is too large.",
+    "FILE_TOO_LARGE": "The file is larger than the allowed limit.",
+    "UPLOAD_FAILED": "Couldn't upload the file. Please pick it again and retry.",
+    "INVALID_ID": "The link or identifier is invalid.",
+    "DUPLICATE": "This item already exists.",
+    "CORS_FORBIDDEN": "Requests from this address aren't allowed.",
+    "EXPORT_FAILED": "Couldn't export the document. Please try again.",
+    "DOWNLOAD_FAILED": "Couldn't download the file. Please try again.",
+    "DIAGRAM_FETCH_FAILED": "Couldn't load the diagram image.",
+    "FOLDER_NOT_FOUND": "Folder not found.",
+    "PROJECT_ID_REQUIRED": "Project information is missing. Please reload the page.",
+    "CHAT_ID_REQUIRED": "Chat information is missing. Please reload the page.",
+    "STEP_REQUIRED": "Step information is missing. Please reload the page.",
+    "OTP_EXPIRED": "The code has expired. Please request a new one.",
+    "OTP_TOO_MANY_ATTEMPTS": "Too many wrong attempts. Please request a new code.",
+    "OTP_ALREADY_USED": "This code has already been used.",
+    "EMAIL_ALREADY_VERIFIED": "Your email is already verified. Please log in.",
+    "RESET_SESSION_EXPIRED": "The password reset session has expired. Please start over.",
+    "CONCURRENT_REFRESH": "Your session has expired. Please log in again.",
+    "ACCOUNT_NOT_FOUND": "This account no longer exists.",
+    "INVALID_CURRENT_PASSWORD": "Your current password is incorrect.",
+    "SAME_PASSWORD": "The new password must differ from the current one.",
+    "PASSWORD_NOT_SET": "This account has no password yet (signed in with Google).",
+    "CANNOT_SUSPEND_SELF": "You can't suspend your own account.",
+    "USER_ALREADY_SUSPENDED": "This account is already suspended.",
+    "USER_ALREADY_ACTIVE": "This account is already active.",
+    "INVALID_NOTIFICATION_ID": "Invalid notification.",
+    "INVALID_INTENT_ID": "Invalid transaction.",
+    "PAYMENT_REQUIRED": "This plan requires payment before it can be activated.",
+    "PAYMENT_ORDER_NOT_FOUND": "The payment wasn't found at the payment gateway.",
+    "ASSUMPTION_NOT_FOUND": "That item wasn't found — it may have just changed. Reload and try again.",
+    "NEEDS_USER_INPUT": "The AI couldn't produce valid content after several tries. Run it again, or describe the request more clearly in the chat.",
+    "SPINE_SCHEMA_INVALID": "The edited document data was invalid, so nothing was saved. Please try again.",
+    "CHANGE_INVALID": "The change was invalid, so nothing was saved. Please try again.",
+    "CHANGE_RANGE_INVALID": "That set of changes no longer exists. Reload the page and try again.",
+    "CHANGE_SEQ_CONFLICT": "The document just changed in another session. Please reload and try again.",
+    "RENDERED_DOCUMENT_INVALID": "The document is being rebuilt. Try again in a moment.",
+    "BASELINE_SNAPSHOT_INVALID": "The baseline snapshot is broken and can't be read.",
+    "RENDER_IMAGE_INVALID": "An image in the document is broken, so it couldn't be exported.",
+    "AI_PROVIDER_ERROR": "The AI service is having trouble. Please try again in a few minutes.",
+    "AI_EXECUTION_FAILED": "The AI service is having trouble. Please try again in a few minutes.",
+    "AI_STREAM_EXECUTION_FAILED": "The AI service is having trouble. Please try again in a few minutes.",
+    "GEMINI_ERROR": "The AI service is having trouble. Please try again in a few minutes.",
+    "OPENAI_ERROR": "The AI service is having trouble. Please try again in a few minutes.",
+    "ANTHROPIC_ERROR": "The AI service is having trouble. Please try again in a few minutes.",
+    "GLM_ERROR": "The AI service is having trouble. Please try again in a few minutes.",
+    "GEMINI_TIMEOUT": "The AI service took too long to respond. Please try again.",
+    "GEMINI_OVERLOADED": "The AI service is overloaded. Please try again in a few minutes.",
+    "GLM_EMPTY_OUTPUT": "The AI returned nothing. Please try again.",
+    "RESPONSE_TRUNCATED": "The AI's answer was cut off. Try again, or split the request.",
+    "AI_PROVIDER_NOT_CONFIGURED": "The AI service isn't configured. Please contact an administrator.",
+    "RUN_CANCELLED": "The run was cancelled.",
+    "AI_CALL_ABORTED": "The AI call was cancelled.",
+    "CREDIT_LEDGER_INCONSISTENT": "Something went wrong while charging credits. Please try again later or contact an administrator.",
+    "LOG_NOT_FOUND": "That AI run wasn't found.",
+    "ORG_CONTEXT_MISSING": "Couldn't determine your organization. Please reload the page.",
+    "METHOD_NOT_ALLOWED": "This action isn't supported.",
+    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported."
   }
 }

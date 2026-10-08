@@ -4,6 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import {
   createCheckout,
   fetchBalance,
@@ -18,6 +19,8 @@ import {
   type PlanId,
 } from "../../../lib/api/billing";
 import { emitNotificationsChanged } from "../../../lib/api/notifications";
+import { userErrorMessage } from "@/lib/api/error-messages";
+import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 
 const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "purchase" || tx.type === "monthly_reset") return `+${tx.amount}`;
@@ -28,6 +31,11 @@ const signedAmount = (tx: CreditTransaction) => {
 export default function BillingPage() {
   const t = useTranslations("app.billing");
   const tc = useTranslations("app.common");
+  // `actionType` là enum của BE (`cr_clarify`…) — hiện nhãn, mã lạ ⇒ "Thao tác AI" (FLF-247)
+  const actionLabel = (actionType: string): string => {
+    const key = `actionType.${actionType}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : t("actionType.other");
+  };
   const format = useFormatter();
   const router = useRouter();
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
@@ -38,6 +46,11 @@ export default function BillingPage() {
   const [ledgerTotalPages, setLedgerTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  // Ví là của tổ chức và chỉ Lead được nạp / đổi gói (UC-59, UC-62). Biết chắc không phải Lead thì ẩn nút mua —
+  // trước đây Analyst bấm "Mua ngay" chỉ nhận câu chung chung "Vai trò của bạn không được phép...". Chưa biết vai
+  // trò (đang tải / lỗi) thì vẫn hiện: BE vẫn chặn, và Lead không bao giờ bị mất nút.
+  const activeOrg = useActiveOrganization();
+  const canPurchase = activeOrg === null || activeOrg.role === "lead";
   const [error, setError] = useState<string | null>(null);
 
   const loadBalance = useCallback(async () => {
@@ -58,7 +71,7 @@ export default function BillingPage() {
         setPlans(catalog.plans);
       } catch (err) {
         // Chuỗi rỗng = lỗi tải trang, dịch lúc render ⇒ `t` không phải vào dependency của effect.
-        if (!cancelled) setError(err instanceof Error ? err.message : "");
+        if (!cancelled) setError(userErrorMessage(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -76,7 +89,7 @@ export default function BillingPage() {
       const checkout = await createCheckout(pkg.id);
       router.push(`/home/billing/checkout?intentId=${encodeURIComponent(checkout.intentId)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.createTx"));
+      setError(userErrorMessage(err, t("errors.createTx")));
       setBusy(null);
     }
   };
@@ -97,7 +110,7 @@ export default function BillingPage() {
       emitNotificationsChanged();
       setBusy(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.changePlan"));
+      setError(userErrorMessage(err, t("errors.changePlan")));
       setBusy(null);
     }
   };
@@ -110,7 +123,7 @@ export default function BillingPage() {
       setLedgerPage(next.meta.page);
       setLedgerTotalPages(next.meta.totalPages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.loadMore"));
+      setError(userErrorMessage(err, t("errors.loadMore")));
     } finally {
       setBusy(null);
     }
@@ -135,9 +148,9 @@ export default function BillingPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-[#A8A49C] gap-3">
-            <span className="w-6 h-6 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
-            <span className="text-[13px] font-medium">{t("loading")}</span>
+          <div className="flex flex-col gap-6">
+            <PageSkeleton variant="cards" label={t("loading")} />
+            <PageSkeleton variant="table" rows={5} label={t("loadingHistory")} />
           </div>
         ) : (
           <>
@@ -186,6 +199,11 @@ export default function BillingPage() {
             {/* Packages */}
             <section className="flex flex-col gap-3">
               <h2 className="text-[15px] font-extrabold text-[#191817]">{t("buyCredits")}</h2>
+              {canPurchase ? null : (
+                <p role="note" className="rounded-lg bg-[#F4F3FE] px-3 py-2 text-[12.5px] text-[#4B4842]">
+                  {t("leadOnlyPurchase")}
+                </p>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {packages.map((pkg) => (
                   <div key={pkg.id} className="bg-white border border-[#ECEAE5] rounded-card p-5 flex flex-col gap-3">
@@ -197,6 +215,7 @@ export default function BillingPage() {
                       </div>
                       <div className="text-[13px] text-[#6B6862]">{formatVnd(pkg.amount)}</div>
                     </div>
+                    {canPurchase ? (
                     <button
                       type="button"
                       onClick={() => handleBuy(pkg)}
@@ -205,6 +224,7 @@ export default function BillingPage() {
                     >
                       {busy === pkg.id ? t("creatingTx") : t("buyNow")}
                     </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -237,7 +257,7 @@ export default function BillingPage() {
                         <span className="px-3 py-1 rounded-full bg-[#EFEEF9] text-[11.5px] font-bold text-[#554DB0]">
                           {t("current")}
                         </span>
-                      ) : (
+                      ) : canPurchase ? (
                         <button
                           type="button"
                           onClick={() => handleUpgrade(plan)}
@@ -252,7 +272,7 @@ export default function BillingPage() {
                               ? t("buyPlan", { plan: plan.label })
                               : t("switchTo", { plan: plan.label })}
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
@@ -290,12 +310,12 @@ export default function BillingPage() {
                             })}
                           </td>
                           <td className="px-5 py-3 text-[#191817] font-semibold whitespace-nowrap">
-                            {t(`txType.${tx.type}`)}
+                            {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
                             {tx.state && (
                               <span className="ml-1.5 text-[11px] font-medium text-[#8A867E]">({t(`txState.${tx.state}`)})</span>
                             )}
                           </td>
-                          <td className="px-5 py-3 text-[#6B6862]">{tx.actionType}</td>
+                          <td className="px-5 py-3 text-[#6B6862]">{actionLabel(tx.actionType)}</td>
                           <td
                             className={`px-5 py-3 text-right font-bold ${
                               tx.type === "purchase" ? "text-[#2F7A4F]" : tx.type === "deduct" ? "text-[#B03030]" : "text-[#6B6862]"

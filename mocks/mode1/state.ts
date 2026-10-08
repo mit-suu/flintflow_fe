@@ -7,6 +7,7 @@ import type { Project } from "@/types/project";
 import type { Baseline } from "@/types/spine";
 import type { DocBlock, ExtractionSection, ImportedDocument, ReuploadDiff, ReviewField, TemplateProfile, StepPlanEntry } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
+import type { RocRow } from "@/types/document";
 import type { CrDetail } from "@/types/change-request";
 
 export const MODE1_PROJECT_ID = "650000000000000000000002";
@@ -23,6 +24,8 @@ export interface Mode1MockState {
   redFlags: number;
   importDoc: ImportedDocument | null;
   profile: TemplateProfile | null;
+  /** FLF-252: `record_of_changes` gửi kèm finalize (`null` = không gửi ⇒ BE đọc lại từ file). */
+  finalizedRecordOfChanges: RocRow[] | null;
   /** #32–#33 (FLF-182): kế hoạch step theo template. */
   stepPlan: StepPlanEntry[];
   sections: ExtractionSection[];
@@ -106,6 +109,7 @@ export const createMode1MockState = (): Mode1MockState => ({
   redFlags: 1,
   importDoc: null,
   profile: null,
+  finalizedRecordOfChanges: null,
   stepPlan: [
     { step_id: "S-2.1", state: "applied", missing: false, section_ids: ["fixed:1"], reason: "Có trong template, đã có nội dung" },
     { step_id: "S-7.1", state: "applied", missing: true, section_ids: ["fixed:5.1"], reason: "Đầu mục mẫu FPT — file không có" },

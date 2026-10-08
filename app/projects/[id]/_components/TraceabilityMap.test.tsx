@@ -36,7 +36,9 @@ describe("TraceabilityMap", () => {
     expect(await screen.findByText("Founder")).toBeInTheDocument();
     expect(screen.getByText("Create Project")).toBeInTheDocument();
     expect(getTraceability).toHaveBeenCalledWith("p1", { entity: "actor", id: "A01" });
-    expect(screen.getByText(/actor_ids/)).toBeInTheDocument();
+    // Tên trường đời thường, không hiện mã `actor_ids` (FLF-247)
+    expect(screen.getByText(/(Tác nhân)/)).toBeInTheDocument();
+    expect(screen.queryByText(/actor_ids/)).not.toBeInTheDocument();
   });
 
   it("đổi loại entity trước khi tra gửi đúng `entity` trong query", async () => {

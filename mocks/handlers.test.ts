@@ -1,10 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import type { StepEvent } from "@/types/pipeline";
 import { mockTiming } from "./handlers";
 import { mockServer } from "./server";
-import { MOCK_PROJECT_ID, MOCK_SESSION_ID, resetMockState } from "./state";
+import { MOCK_PROJECT_ID, MOCK_SESSION_ID, mockState, resetMockState } from "./state";
+import { apiCall } from "@/lib/api";
+import type { ChatSession } from "@/types/chat";
 
 const P = MOCK_PROJECT_ID;
 
@@ -28,7 +31,7 @@ const runToGate = async (stepId: string): Promise<StepEvent[]> => {
       if (event.type === "answer_needed") {
         void answerStep(P, stepId, {
           session_id: MOCK_SESSION_ID,
-          answers: event.questions.map((q) => ({ question_id: q.id, answer: q.options?.[0] ?? "Có" })),
+          answers: event.questions.map((q) => ({ question_id: q.id, answer: q.options?.[0] ? normalizeOption(q.options[0]).label : "Có" })),
         });
       }
     },
@@ -99,6 +102,27 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     });
   });
 
+  it("FLF-244: /run từ session phụ ⇒ 403 NOT_PIPELINE_SESSION", async () => {
+    const base_version = await version();
+    await expect(runStep(P, "S-3.1", { session_id: "other-session", base_version }, { onEvent: () => {} })).rejects.toMatchObject({
+      code: "NOT_PIPELINE_SESSION",
+      status: 403,
+    });
+  });
+
+  it("FLF-244: GET /chats chỉ kèm tin cuối; xoá phiên chính ⇒ 409 PIPELINE_SESSION_LOCKED", async () => {
+    mockState.sessions[0].messages = [
+      { role: "user", content: "một", createdAt: "2026-10-01T00:00:00Z" },
+      { role: "ai", content: "hai", createdAt: "2026-10-01T00:00:01Z" },
+    ];
+    const list = await apiCall<ChatSession[]>(`/projects/${P}/chats`);
+    expect(list.data?.[0].messages.map((m) => m.content)).toEqual(["hai"]);
+    await expect(apiCall(`/projects/${P}/chats/${MOCK_SESSION_ID}`, { method: "DELETE" })).rejects.toMatchObject({
+      code: "PIPELINE_SESSION_LOCKED",
+      status: 409,
+    });
+  });
+
   it("POST /resume trả reverted_step + spine_version hiện tại", async () => {
     const res = await resumeProject(P);
     expect(res.data).toMatchObject({ reverted_step: null, spine_version: await version() });
@@ -109,9 +133,9 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     await expect(runStep(P, "S-3.1", { session_id: MOCK_SESSION_ID, base_version: 1 }, { onEvent: () => {} })).rejects.toThrow();
 
     const before = await version();
-    const res = await applyChanges(P, { base_version: before, ops: [{ op: "set", path: "project.working_mode", value: "fast" }] });
+    const res = await applyChanges(P, { base_version: before, ops: [{ op: "set", path: "project.review_mode", value: "strict" }] });
     expect(res.data).toMatchObject({ spine_version: before + 1 });
-    expect(res.data?.spine.project.working_mode).toBe("fast");
+    expect(res.data?.spine.project.review_mode).toBe("strict");
     await expect(applyChanges(P, { base_version: before, ops: [{ op: "set", path: "project.name", value: "X" }] })).rejects.toMatchObject({
       code: "SPINE_VERSION_CONFLICT",
     });

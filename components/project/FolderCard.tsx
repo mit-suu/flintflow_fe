@@ -39,6 +39,8 @@ interface FolderCardProps {
   onDelete: (folder: Folder) => void;
   /** Có ⇒ nhận card dự án kéo thả vào (desktop; menu ⋮ của card là cách thay thế). */
   onDropProject?: (folder: Folder, projectId: string) => void;
+  /** Viewer: không có menu đổi tên / xoá thư mục. */
+  readOnly?: boolean;
 }
 
 /**
@@ -46,7 +48,7 @@ interface FolderCardProps {
  * nhạt hơn đặt thấp xuống để lộ một dải lưng; tên, vạch ngăn, số dự án. Chỗ avatar thành viên để trống tới khi
  * có tổ chức.
  */
-export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropProject }: FolderCardProps) {
+export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropProject, readOnly = false }: FolderCardProps) {
   const t = useTranslations("app.folderCard");
   const color = FOLDER_COLORS[folder.color] ?? FOLDER_COLORS.blue;
   const [dragOver, setDragOver] = useState(false);
@@ -100,6 +102,7 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
         </span>
       </button>
 
+      {!readOnly && (
       <div className="absolute right-4 top-[40px] z-20">
         <DropdownMenu
           items={[
@@ -117,6 +120,7 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
           )}
         />
       </div>
+      )}
     </article>
   );
 }

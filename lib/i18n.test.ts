@@ -55,7 +55,7 @@ describe("tPhase", () => {
 });
 
 describe("localeOf", () => {
-  it("chưa có field locale ⇒ luôn tiếng Việt", () => {
+  it("tài khoản chưa chọn ngôn ngữ ⇒ tiếng Việt", () => {
     expect(localeOf(null)).toBe("vi");
     expect(localeOf(undefined)).toBe("vi");
     expect(localeOf({})).toBe("vi");
@@ -96,12 +96,13 @@ describe("resolveLocale — cookie → Accept-Language → vi", () => {
 });
 
 describe("applyAccountLocale — ngôn ngữ tài khoản sau khi đăng nhập (T25 · P6)", () => {
-  it("locale hợp lệ ⇒ ghi cookie; thiếu / lạ ⇒ không đụng cookie", () => {
+  it("locale hợp lệ ⇒ ghi cookie, trả locale đó; thiếu / null / lạ ⇒ không đụng cookie, trả null", () => {
     document.cookie = "NEXT_LOCALE=vi; path=/";
-    applyAccountLocale(undefined);
-    applyAccountLocale("fr");
+    expect(applyAccountLocale(undefined)).toBeNull();
+    expect(applyAccountLocale(null)).toBeNull();
+    expect(applyAccountLocale("fr")).toBeNull();
     expect(document.cookie).toContain("NEXT_LOCALE=vi");
-    applyAccountLocale("en");
+    expect(applyAccountLocale("en")).toBe("en");
     expect(document.cookie).toContain("NEXT_LOCALE=en");
     document.cookie = "NEXT_LOCALE=; path=/; max-age=0";
   });

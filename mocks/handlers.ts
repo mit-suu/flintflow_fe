@@ -5,6 +5,7 @@
  */
 import { delay, http, HttpResponse } from "msw";
 import { API_BASE_URL } from "@/lib/api/client";
+import { isLocale } from "@/lib/i18n";
 import {
   CALLS_LIMIT,
   REGENERATE_LIMIT,
@@ -174,6 +175,7 @@ const summaryOf = (state: MockState, stepId: string): StepSummary => {
     regenerate_used: counters.regenerate_used,
     regenerate_limit: REGENERATE_LIMIT,
     accepted_at: state.spine.steps.find((s) => s.id === stepId)?.accepted_at ?? null,
+    running: false,
   };
 };
 
@@ -266,6 +268,7 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
     counters.answered = true;
   }
 
+  let wroteOps = false;
   if (def && !def.deterministic && def.renders.length === 0) {
     counters.calls_used += 1;
     const attempt = counters.regenerate_used + 1;
@@ -275,6 +278,7 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
     if (ops.length > 0) {
       const diffs = ops.map((op) => applyMockOp(state.spine, op));
       commit(state, diffs, stepId);
+      wroteOps = true;
       send({ type: "ops_applied", step_id: stepId, txn: `mock-${state.spine.spine_version}`, spine_version: state.spine.spine_version, changes: diffs });
     }
   }
@@ -285,7 +289,18 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
   }
 
   send({ type: "flags", step_id: stepId, red_open: 0, yellow_open: 0 });
-  send({ type: "gate_ready", step_id: stepId, actions: gateActions(counters.regenerate_used), regenerate_used: counters.regenerate_used, calls_used: counters.calls_used });
+  // L11/L11b: gate_ready mang version CUỐI (BE thật còn render + recompute cờ sau `ops_applied`) và nói rõ
+  // lượt chạy có ghi được op nào không — mock phải gửi đủ, nếu không FE test không đi qua đường thật.
+  send({
+    type: "gate_ready",
+    step_id: stepId,
+    actions: gateActions(counters.regenerate_used),
+    regenerate_used: counters.regenerate_used,
+    calls_used: counters.calls_used,
+    spine_version: state.spine.spine_version,
+    wrote_ops: wroteOps,
+    empty_sections: [],
+  });
 };
 
 // ─── T16: changes/preview, reconcile, undo, traceability, document, export ────────
@@ -463,6 +478,41 @@ const buildMockTraceability = (state: MockState, entity: TraceabilityEntity, id:
   return { nodes: [], edges: [] };
 };
 
+// ─── PATCH /users/me ─────────────────────────────────────────────
+
+/**
+ * Khớp `updateMeSchema` của BE (strictObject): field lạ, sai kiểu hay body rỗng ⇒ 400 VALIDATION_ERROR. Mock từng
+ * nhận mọi body trong khi BE từ chối `locale` — chính chỗ đó che bug FLF-259.
+ */
+const USER_PATCH_KEYS = new Set(["name", "onboardedAt", "locale"]);
+
+const invalidUserPatch = (path: string, message: string, userMessage = "Dữ liệu gửi lên không hợp lệ. Vui lòng tải lại trang rồi thử lại.") =>
+  fail(400, "VALIDATION_ERROR", userMessage, { issues: [{ path, message }] });
+
+const patchMockUser = (body: unknown) => {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return invalidUserPatch("", "Invalid input: expected object");
+  const patch = body as Record<string, unknown>;
+  const unknownKeys = Object.keys(patch).filter((key) => !USER_PATCH_KEYS.has(key));
+  if (unknownKeys.length) return invalidUserPatch("", `Unrecognized keys: ${unknownKeys.join(", ")}`);
+
+  const { name, onboardedAt, locale } = patch;
+  if (name !== undefined && (typeof name !== "string" || !name.trim() || name.trim().length > 100)) {
+    return invalidUserPatch("name", "Invalid name");
+  }
+  if (onboardedAt !== undefined && onboardedAt !== null && (typeof onboardedAt !== "string" || Number.isNaN(Date.parse(onboardedAt)))) {
+    return invalidUserPatch("onboardedAt", "Invalid ISO datetime");
+  }
+  if (locale !== undefined && !isLocale(locale)) return invalidUserPatch("locale", 'Invalid option: expected one of "vi"|"en"');
+  if (name === undefined && onboardedAt === undefined && locale === undefined) {
+    return invalidUserPatch("", "Chưa có thông tin nào để cập nhật.", "Chưa có thông tin nào để cập nhật.");
+  }
+
+  if (typeof name === "string") mockState.user.name = name.trim();
+  if (onboardedAt !== undefined) mockState.user.onboardedAt = onboardedAt as string | null;
+  if (isLocale(locale)) mockState.user.locale = locale;
+  return ok(mockState.user);
+};
+
 // ─── handlers ────────────────────────────────────────────────────
 
 export const handlers = [
@@ -492,10 +542,13 @@ export const handlers = [
   http.get(api("/projects/:projectId/documents"), () => ok([])),
   http.get(api("/verification/projects/:projectId"), () => ok({})),
 
-  http.get(api("/projects/:projectId/chats"), () => ok(mockState.sessions.map(withPipelineFlag))),
+  // FLF-244: danh sách chỉ kèm tin cuối mỗi phiên — lịch sử đủ ở GET /chats/:chatId
+  http.get(api("/projects/:projectId/chats"), () =>
+    ok(mockState.sessions.map((s) => withPipelineFlag({ ...s, messages: s.messages.slice(-1) })))
+  ),
   http.post(api("/projects/:projectId/chats"), () => {
-    const session = { _id: `${Date.now()}`, projectId: mockState.project._id, messages: [], isActive: true, createdAt: new Date().toISOString() };
-    mockState.sessions = [session, ...mockState.sessions.map((s) => ({ ...s, isActive: false }))];
+    const session = { _id: `${Date.now()}`, projectId: mockState.project._id, messages: [], createdAt: new Date().toISOString() };
+    mockState.sessions = [session, ...mockState.sessions];
     return ok(withPipelineFlag(session));
   }),
   http.get(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
@@ -503,6 +556,7 @@ export const handlers = [
     return session ? ok(withPipelineFlag(session)) : fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
   }),
   http.delete(api("/projects/:projectId/chats/:chatId"), ({ params }) => {
+    if (params.chatId === MOCK_SESSION_ID) return fail(409, "PIPELINE_SESSION_LOCKED", "Không xoá được phiên chính của dự án");
     mockState.sessions = mockState.sessions.filter((s) => s._id !== params.chatId);
     return ok(null);
   }),
@@ -521,7 +575,7 @@ export const handlers = [
           await delay(mockTiming.stepDelayMs / 10);
         }
         session.messages = [...session.messages, user, ai];
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish", session, cost: 1 })}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish", session: withPipelineFlag(session), cost: 1 })}\n\n`));
         controller.close();
       },
     });
@@ -544,6 +598,9 @@ export const handlers = [
   http.post(api("/projects/:projectId/steps/:stepId/run"), async ({ params, request }) => {
     const stepId = String(params.stepId);
     const body = (await request.json()) as RunStepRequest;
+    if (body.session_id && body.session_id !== MOCK_SESSION_ID) {
+      return fail(403, "NOT_PIPELINE_SESSION", "Session này không phải session pipeline của dự án");
+    }
     if (!getStepDef(stepId)) return fail(404, "STEP_NOT_FOUND", `Không có step ${stepId}`);
     if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
     if (stepStatusOf(mockState, stepId) === "accepted") return fail(409, "STEP_NOT_RUNNABLE", `Step ${stepId} đã accepted`);
@@ -762,11 +819,12 @@ export const handlers = [
     const url = new URL(request.url);
     const source = url.searchParams.get("source") ?? "draft";
     if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
-    if (mockAssembledAtVersion === null) return fail(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).", { hint: "S-8.2" });
+    // FLF-264: BE dựng bản còn thiếu ngay lúc đọc, nên lượt đọc luôn ra nội dung của spine_version hiện tại
+    mockAssembledAtVersion = mockState.spine.spine_version;
     return okWithMeta(buildMockDocument(mockState), {
       assembled_at_version: mockAssembledAtVersion,
       spine_version: mockState.spine.spine_version,
-      stale: mockAssembledAtVersion < mockState.spine.spine_version,
+      stale: false,
     });
   }),
 
@@ -774,9 +832,7 @@ export const handlers = [
     const url = new URL(request.url);
     const source = url.searchParams.get("source") ?? "draft";
     if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
-    if (mockAssembledAtVersion === null) {
-      return fail(409, "NO_WORKING_DRAFT", "Chưa ghép tài liệu — chạy POST /assemble trước (S-8.2).", { hint: "S-8.2" });
-    }
+    mockAssembledAtVersion = mockState.spine.spine_version;
     return new HttpResponse("mock docx bytes — T16 chỉ giả lập, nội dung thật do T15", {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -787,11 +843,7 @@ export const handlers = [
     });
   }),
 
-  http.patch(api("/users/me"), async ({ request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
-    Object.assign(mockState.user as unknown as Record<string, unknown>, body);
-    return ok(mockState.user);
-  }),
+  http.patch(api("/users/me"), async ({ request }) => patchMockUser(await request.json().catch(() => null))),
 ];
 
 /** Số step registry mock đang phục vụ — dùng trong test. */

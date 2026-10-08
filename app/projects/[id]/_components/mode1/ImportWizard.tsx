@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { RocRow } from "@/types/document";
 import type { ImportStatus } from "@/types/import";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useImport } from "../../hooks/mode1/useImport";
 import ConfirmLatestModal from "./ConfirmLatestModal";
 import ExtractProgress from "./ExtractProgress";
@@ -12,7 +14,9 @@ import { IMPORT_DONE_STATUSES } from "./labels";
 import MappingReviewTable from "./MappingReviewTable";
 import PausedBanner from "./PausedBanner";
 import PreflightIssues from "./PreflightIssues";
+import RecordOfChangesCard from "./RecordOfChangesCard";
 import UploadStep from "./UploadStep";
+import { gapReportHref } from "./prefill";
 
 interface ImportWizardProps {
   projectId: string;
@@ -37,6 +41,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
   const router = useRouter();
   const imp = useImport(projectId, pollMs ? { pollMs } : undefined);
   const [pickAnother, setPickAnother] = useState(false);
+  /** Record of Changes người dùng đã sửa (FLF-252); `null` = chưa đụng tới. */
+  const [recordOfChanges, setRecordOfChanges] = useState<RocRow[] | null>(null);
   const doc = imp.doc;
   const status: ImportStatus | null = doc?.status ?? null;
   const stepIndex = status ? STEPS.findIndex((s) => s.statuses.includes(status)) : 0;
@@ -48,9 +54,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
 
   if (imp.loading) {
     return (
-      <div className="flex items-center gap-3 text-[13px] text-[#8A867E] p-8">
-        <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
-        Đang tải trạng thái import…
+      <div className="p-8">
+        <PageSkeleton rows={2} label="Đang tải trạng thái import" />
       </div>
     );
   }
@@ -92,6 +97,11 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             }
             title={status === "preflight_rejected" ? "Tải lên file đã sửa" : undefined}
           />
+          <p className="text-[12px] text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">
+            FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng{" "}
+            <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu FPT còn
+            thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.
+          </p>
         </>
       )}
 
@@ -142,6 +152,14 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             Ghi các field đã xác nhận làm chỉ mục, lưu tài liệu gốc thành version <strong>0.0</strong>, rồi chạy kiểm tra: AI soát ngữ
             nghĩa (cờ vàng, tốn credit) và luật tất định (cờ đỏ/vàng). Kết quả nằm ở gap report.
           </p>
+          {status === "baselining" && !doc.paused && (
+            <RecordOfChangesCard
+              rows={recordOfChanges ?? imp.data?.profile?.record_of_changes ?? []}
+              fromFile={imp.data?.profile?.record_of_changes?.length ?? 0}
+              onChange={setRecordOfChanges}
+              disabled={imp.busy === "finalize"}
+            />
+          )}
           {doc.paused ? (
             <PausedBanner paused={doc.paused} what="Kiểm tra" busy={imp.busy === "resume"} onResume={() => void after(imp.resume())} />
           ) : (
@@ -150,8 +168,10 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
                 type="button"
                 disabled={imp.busy === "finalize"}
                 onClick={() =>
-                  void after(imp.finalize()).then((res) => {
-                    if (res) router.push(`/projects/${projectId}/gap-report`);
+                  // Chưa sửa Record of Changes ⇒ không gửi, BE đọc lại từ file
+                  void after(imp.finalize(recordOfChanges ?? undefined)).then((res) => {
+                    // Xong baseline 0.0 ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
+                    if (res) router.push(gapReportHref(projectId));
                   })
                 }
                 className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
@@ -169,8 +189,11 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             Import xong — tài liệu đã thành version 0.0. Bản sửa ngoài FlintFlow tải lên ở tab <strong>Tài liệu &amp; version</strong> để
             xem khác biệt.
           </span>
-          <Link href={`/projects/${projectId}/gap-report`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
+          <Link href={gapReportHref(projectId)} className="px-4 py-2 rounded-[8px] border border-[#1F7A45] text-[#1F7A45] font-bold">
             Xem gap report
+          </Link>
+          <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
+            Mở tài liệu &amp; version
           </Link>
         </div>
       )}

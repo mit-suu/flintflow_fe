@@ -1,30 +1,95 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import Icon from "@/components/ui/Icon";
 import { fetchDiagramPng } from "@/lib/api/spine";
 import { stepLabel } from "@/lib/constants/step-registry";
 import { useDocument } from "../hooks/useDocument";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
 import type { Flag } from "@/types/flags";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface DocumentPaneProps {
   projectId: string;
   projectName?: string;
   /** Cờ mở, dùng để gắn nút "xem tại step" theo `section_id` (nguồn duy nhất đáng tin cho map này). */
   flags?: Flag[];
-  /** Section vừa đổi sau khi step ghi op hoặc ChangePanel áp một lô — viền nổi bật một nhịp. */
+  /** Section vừa đổi sau khi step ghi op hoặc lệnh sửa trong chat áp một lô — nền nổi bật một nhịp. */
   changedSectionIds?: ReadonlySet<string>;
   onSelectStep?: (stepId: string) => void;
-  /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc ChangePanel áp lô). */
+  /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc lệnh sửa trong chat áp lô). */
   refreshToken?: number;
-  /** `spine_version` hiện tại — có thì nút ghép gọi `POST /assemble` thẳng thay vì chỉ chuyển sang S-8.2. */
-  getBaseVersion?: () => number | null;
   /**
    * Mode 1 v2 (FLF-185): step sở hữu section chưa có nội dung — hiện "Chưa có nội dung — chạy step X" thay câu chung,
    * `missing` = đầu mục mẫu FPT file upload không có (đỏ).
    */
   emptyHintOf?: (sectionId: string) => EmptyHint | undefined;
+  /**
+   * Mode 1 v3 (bám BPMN): không có step ⇒ ẩn nhãn trạng thái theo step (Accepted/Draft…), mục trống mời tạo change
+   * request thay vì "chờ step chạy".
+   */
+  mode1?: boolean;
+  /** "Sửa mục này" trên từng mục — nhận nhãn mục (`§3.2 Actors`) để điền sẵn lệnh sửa vào ô chat. */
+  onEditSection?: (sectionLabel: string) => void;
+  /**
+   * Chip trạng thái duy nhất trên header: số vấn đề phải xử lý (cờ đỏ + mục cần viết lại) và số gợi ý (cờ vàng).
+   * Bấm mở panel "Kiểm tra tài liệu".
+   */
+  issues?: { blocking: number; suggestions: number };
+  onOpenIssues?: () => void;
+  /** Bấm chấm số trên một mục ⇒ mở panel kiểm tra, lọc theo mục đó. */
+  onOpenSectionIssues?: (sectionId: string) => void;
+  /** Lỗi của lượt viết lại các mục cũ. */
+  rewriteError?: string | null;
+  /** Báo danh sách mục đang hiển thị — panel kiểm tra dùng để gọi tên mục (`§2.2.2 Actors`). */
+  onSectionsLoaded?: (sections: readonly RenderedSection[]) => void;
+  /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
+  headerEnd?: ReactNode;
+  /**
+   * Nút "Vẽ lại sơ đồ" dưới các hình của một mục. Ảnh tới FE đã là PNG thật (BE thay `diagram-ref:<id>` lúc trả tài liệu),
+   * không còn id sơ đồ ⇒ nút theo MỤC, trang workspace biết mục nào có sơ đồ nào qua `diagrams[].section`.
+   * Không truyền ⇒ không có nút (mode 1, trang xem read-only).
+   */
+  onRedrawSection?: (sectionId: string) => Promise<void>;
+  /** Mục có sơ đồ vẽ lại được (có trong `diagrams[]` của Spine). */
+  hasDiagrams?: (sectionId: string) => boolean;
 }
+
+/** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
+function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const redraw = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onRedraw();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center justify-center gap-2 mb-2">
+      <button
+        type="button"
+        onClick={() => void redraw()}
+        disabled={busy}
+        title="Vẽ lại sơ đồ của mục này từ dữ liệu hiện tại"
+        className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Icon name="refresh" size={11} />
+        {busy ? "Đang vẽ…" : "Vẽ lại sơ đồ"}
+      </button>
+      {error && <span className="text-[10.5px] text-error">{error}</span>}
+    </div>
+  );
+}
+
+/** Nhãn đọc được của một mục: `§2.2.2 Actors`. */
+export const sectionLabel = (section: Pick<RenderedSection, "number" | "heading">): string =>
+  `§${section.number ? `${section.number} ` : ""}${section.heading}`;
 
 export interface EmptyHint {
   stepId: string;
@@ -78,7 +143,7 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
         objectUrl = url;
         setResolvedSrc(url);
       })
-      .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : "Không tải được ảnh diagram"));
+      .catch((err: unknown) => !cancelled && setError(userErrorMessage(err, "Không tải được hình sơ đồ.")));
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -86,7 +151,7 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   }, [projectId, png, isDiagramRef]);
 
   const src = directSrc ?? resolvedSrc;
-  if (error) return <div className="text-[11px] text-[#B03030] italic">Không tải được ảnh: {error}</div>;
+  if (error) return <div className="text-[11px] text-[#B03030] italic">{error}</div>;
   if (!src) return <div className="text-[11px] text-[#A8A49C] italic">Đang tải ảnh…</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
   return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
@@ -94,8 +159,11 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
 
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 
+/** Bảng đứng ngay dưới tiêu đề (tiêu đề section hoặc heading con) — cần khoảng trống để không dính sát tiêu đề. */
+export const followsHeading = (blocks: Block[], index: number): boolean => index === 0 || blocks[index - 1]?.type === "heading";
+
 /** Dùng lại ở `view/page.tsx` (read-only) để không lặp logic render Block. */
-export function BlockView({ block, projectId }: { block: Block; projectId: string }) {
+export function BlockView({ block, projectId, afterHeading = false }: { block: Block; projectId: string; afterHeading?: boolean }) {
   switch (block.type) {
     case "heading": {
       const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
@@ -129,7 +197,7 @@ export function BlockView({ block, projectId }: { block: Block; projectId: strin
       );
     case "table":
       return (
-        <div className="overflow-x-auto mb-2">
+        <div className={`overflow-x-auto mb-2 ${afterHeading ? "mt-2" : ""}`}>
           <table className="w-full border-collapse text-[11.5px]">
             <thead>
               <tr>
@@ -166,19 +234,32 @@ export function BlockView({ block, projectId }: { block: Block; projectId: strin
   }
 }
 
+/** Mỗi cấp mục con thụt vào thêm bấy nhiêu px (1 → 1.1 → 1.1.1). */
+const INDENT_PER_LEVEL = 20;
+
+/** Cấp của section, 0 = mục gốc: theo `level` của BE (1-based), thiếu thì đếm dấu chấm trong số mục. */
+const depthOf = (section: RenderedSection): number =>
+  Math.max(0, (section.level || (section.number ? section.number.split(".").length : 1)) - 1);
+
+/** Cỡ chữ tiêu đề theo cấp: mục gốc to nhất, mục con nhỏ dần. */
+const HEADING_SIZE = ["text-[15px]", "text-[13.5px]", "text-[12.5px]"] as const;
+const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
+
 /** Heading nhóm (`group:*`) — chỉ tiêu đề chương/mục cha, không phải section có nội dung (contract-change 2026-09-15). */
 function GroupHeading({ section }: { section: RenderedSection }) {
+  const depth = depthOf(section);
   return (
-    <div data-section-id={section.id} className="pt-2 px-1">
-      <h4 className="font-extrabold text-[13px] text-[#4B4842]">
-        {section.number ? `§${section.number} ` : ""}
+    <div data-section-id={section.id} className="pt-4 first:pt-0" style={{ marginLeft: depth * INDENT_PER_LEVEL }}>
+      <h4 className={`font-extrabold text-on-surface ${headingSize(depth)}`}>
+        {section.number ? `${section.number}. ` : ""}
         {section.heading}
       </h4>
     </div>
   );
 }
 
-function EmptySection({ hint, onSelectStep }: { hint?: EmptyHint; onSelectStep?: (stepId: string) => void }) {
+function EmptySection({ hint, onSelectStep, mode1 = false }: { hint?: EmptyHint; onSelectStep?: (stepId: string) => void; mode1?: boolean }) {
+  if (mode1) return <div className="text-[11.5px] text-[#A8A49C] italic">Mục còn trống — tạo change request (nguồn gap report) để bổ sung.</div>;
   if (!hint) return <div className="text-[11.5px] text-[#A8A49C] italic">Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.</div>;
   return (
     <div className={`text-[11.5px] italic flex items-center gap-2 flex-wrap ${hint.missing ? "text-[#B03030]" : "text-[#8A867E]"}`}>
@@ -198,31 +279,44 @@ function EmptySection({ hint, onSelectStep }: { hint?: EmptyHint; onSelectStep?:
 function SectionView({
   section,
   projectId,
-  remediationStep,
+  issues,
+  onOpenIssues,
   changed,
   onSelectStep,
   emptyHint,
+  mode1 = false,
+  onEdit,
+  onRedraw,
 }: {
+  onEdit?: (sectionLabel: string) => void;
+  onRedraw?: () => Promise<void>;
   section: RenderedSection;
   projectId: string;
-  remediationStep?: string;
+  /** Vấn đề đang mở của mục: số lượng và có cái nào chặn chốt bản không. */
+  issues?: { count: number; blocking: boolean };
+  onOpenIssues?: () => void;
   changed: boolean;
   onSelectStep?: (stepId: string) => void;
   emptyHint?: EmptyHint;
+  mode1?: boolean;
 }) {
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
-  const badge = section.status ? STATUS_BADGE[section.status] : null;
+  const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
   const custom = section.id.startsWith("custom:");
+  const depth = depthOf(section);
   return (
     <article
       data-section-id={section.id}
-      className={`p-4 rounded-[12px] border bg-white flex flex-col gap-2 transition-colors ${
-        changed ? "border-[#6A62C4] ring-1 ring-[#DCD8F0]" : "border-[#ECEAE5]"
-      }`}
+      // Mục con thụt vào so với mục cha (inline style: độ sâu là dữ liệu, không phải class tĩnh); −12px bù phần đệm
+      // ngang dành cho nền nổi bật, để chữ của mục gốc thẳng hàng với heading nhóm
+      style={{ marginLeft: depth * INDENT_PER_LEVEL - 12 }}
+      // Không khung/viền: tài liệu đọc liền mạch như bản xuất. Section vừa đổi qua chat nổi lên bằng nền tím nhạt một
+      // nhịp (thay cho viền nổi bật trước đây) — chỉ là hiển thị, không liên quan dữ liệu hay file xuất.
+      className={`group/section -mr-3 px-3 py-1.5 rounded-control flex flex-col gap-1.5 transition-colors duration-500 ${changed ? "bg-primary-soft" : ""}`}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h5 className="font-bold text-[12.5px] text-[#191817]">
-          {section.number ? `§${section.number} ` : ""}
+        <h5 className={`font-bold text-on-surface ${headingSize(depth)}`}>
+          {section.number ? `${section.number}. ` : ""}
           {section.heading}
         </h5>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -235,21 +329,43 @@ function SectionView({
             <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">Chờ duyệt lại</span>
           )}
           {badge && <span className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{badge.text}</span>}
-          {remediationStep && onSelectStep && (
+          {issues && issues.count > 0 && (
+            // Chỉ một chấm + số: nội dung vấn đề nằm trong panel, tài liệu giữ để đọc
             <button
               type="button"
-              onClick={() => onSelectStep(remediationStep)}
-              className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#F2F1FB] text-[#6A62C4] hover:bg-[#EDEAFB] cursor-pointer"
+              onClick={onOpenIssues}
+              title="Xem vấn đề của mục này"
+              className={`flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full cursor-pointer ${
+                issues.blocking ? "bg-error-container text-error" : "bg-accent-gold-soft text-accent-gold-text"
+              }`}
             >
-              xem tại {remediationStep} · {stepLabel(remediationStep)}
+              <span aria-hidden className={`w-1.5 h-1.5 rounded-full ${issues.blocking ? "bg-error" : "bg-accent-gold"}`} />
+              {issues.count}
+            </button>
+          )}
+          {onEdit && (
+            // Hiện khi rê chuột / focus vào mục: sửa ngay chỗ đang đọc, lệnh gõ tiếp ở ô chat
+            <button
+              type="button"
+              onClick={() => onEdit(sectionLabel(section))}
+              className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-[10.5px] font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
+            >
+              Sửa mục này
             </button>
           )}
         </div>
       </div>
       {section.blocks.length > 0 ? (
-        section.blocks.map((block, i) => <BlockView key={i} block={block} projectId={projectId} />)
-      ) : (
-        <EmptySection hint={emptyHint} onSelectStep={onSelectStep} />
+        <>
+          {section.blocks.map((block, i) => (
+            <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+          ))}
+          {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
+        </>
+      ) : section.id.startsWith("feature:") ? null : (
+        // FLF-248: `feature:*` (§3.2…) chỉ là tiêu đề nhóm — Spine feature không có thân (`id·name·order`), nội dung
+        // nằm ở các function con. Câu "Chưa hoàn thiện" cạnh nhãn Accepted làm người dùng tưởng mục bị bỏ trống.
+        <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />
       )}
     </article>
   );
@@ -263,112 +379,116 @@ export default function DocumentPane({
   changedSectionIds,
   onSelectStep,
   refreshToken = 0,
-  getBaseVersion,
   emptyHintOf,
+  mode1 = false,
+  onEditSection,
+  issues,
+  onOpenIssues,
+  onOpenSectionIssues,
+  rewriteError = null,
+  onSectionsLoaded,
+  headerEnd,
+  onRedrawSection,
+  hasDiagrams,
 }: DocumentPaneProps) {
-  const { document, meta, loading, notAssembled, error, reload, assemble, assembling, assembleError } = useDocument(
-    projectId,
-    "draft",
-    undefined,
-    refreshToken
-  );
-  const runAssemble = getBaseVersion ? () => void assemble(getBaseVersion()) : undefined;
+  const { document, loading, refreshing, empty, error, reload } = useDocument(projectId, "draft", undefined, refreshToken);
 
-  const remediationStepOf = (sectionId: string): string | undefined =>
-    flags.find((f) => (!f.resolved_at && !f.waived_by_user) && f.section_id === sectionId)?.remediation_step;
+  useEffect(() => {
+    if (document) onSectionsLoaded?.(document.sections);
+  }, [document, onSectionsLoaded]);
+
+  const openFlags = flags.filter((f) => !f.resolved_at && !f.waived_by_user);
+  const issuesOf = (sectionId: string) => {
+    const own = openFlags.filter((f) => f.section_id === sectionId);
+    return { count: own.length, blocking: own.some((f) => f.level === "red") };
+  };
 
   return (
-    <section className="flex-1 bg-white flex flex-col min-w-[320px] overflow-hidden">
-      <div className="px-6 py-3 border-b border-[#ECEAE5] flex items-center justify-between shrink-0 h-[52px] bg-white">
-        <div className="flex items-center gap-2.5">
-          <h3 className="font-extrabold text-[13.5px] text-[#191817]">SRS — {projectName}</h3>
-          {document && <span className="text-[10.5px] text-[#8A867E] bg-[#F5F3F0] px-2 py-0.5 rounded-full font-mono">{document.version}</span>}
-          {document?.watermark && (
-            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">{document.watermark}</span>
+    <section className="flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
+      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between gap-3 shrink-0 h-12 bg-surface-container-lowest">
+        {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng */}
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="font-bold text-[13.5px] text-on-surface truncate" title={`SRS — ${projectName}`}>
+            SRS — {projectName}
+          </h3>
+          {document && (
+            <span className="shrink-0 whitespace-nowrap text-[10.5px] text-[#8A867E] bg-[#F5F3F0] px-2 py-0.5 rounded-full font-mono">{document.version}</span>
           )}
-          {meta?.stale && (
-            <span
-              className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FDEDED] text-[#B03030]"
-              title="Spine đã đổi tiếp sau lần ghép gần nhất"
-            >
-              stale
-            </span>
+          {document?.watermark && (
+            <span className="shrink-0 whitespace-nowrap text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">{document.watermark}</span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          {meta?.stale && runAssemble && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          {issues && onOpenIssues && (
             <button
               type="button"
-              onClick={runAssemble}
-              disabled={assembling}
-              className="px-3 py-1 rounded-full bg-[#191817] text-white text-[11.5px] font-bold cursor-pointer disabled:opacity-60"
+              onClick={onOpenIssues}
+              title="Mở danh sách vấn đề của tài liệu"
+              className={`h-8 px-3 flex items-center gap-1.5 whitespace-nowrap rounded-control text-[12px] font-bold cursor-pointer transition-colors ${
+                issues.blocking > 0
+                  ? "bg-error-container text-error hover:opacity-90"
+                  : issues.suggestions > 0
+                    ? "bg-accent-gold-soft text-accent-gold-text hover:opacity-90"
+                    : "text-success hover:bg-surface-container-high"
+              }`}
             >
-              {assembling ? "Đang ghép…" : "Ghép lại"}
+              <Icon name={issues.blocking > 0 || issues.suggestions > 0 ? "warning" : "check-circle"} size={14} />
+              {issues.blocking > 0
+                ? `${issues.blocking} vấn đề cần xử lý`
+                : issues.suggestions > 0
+                  ? `${issues.suggestions} gợi ý nên xem`
+                  : "Không có vấn đề"}
             </button>
           )}
+          {/*
+            Tài liệu tự cập nhật sau mỗi bước và mỗi lệnh sửa (BE dựng bản còn thiếu lúc đọc) — nút này chỉ còn để
+            kéo về thay đổi đến từ phiên khác, không còn trạng thái "đã cũ" nào để người dùng phải tự xử lý.
+          */}
           <button
             type="button"
             onClick={() => void reload()}
-            className="px-3 py-1 rounded-full bg-[#FAF9F7] hover:bg-[#F2F1FB] border border-[#ECEAE5] text-[#6A62C4] text-[11.5px] font-bold cursor-pointer"
+            disabled={refreshing}
+            title="Tải lại tài liệu"
+            className="h-8 px-3 whitespace-nowrap rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-[12px] font-bold cursor-pointer transition-colors disabled:opacity-60"
           >
-            ↻ Tải lại
+            {refreshing ? "Đang làm mới…" : "Làm mới"}
           </button>
+          {headerEnd}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#FAF9F7]">
+      <div className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
+        {/* Lỗi nằm trong vùng cuộn: đặt ngay dưới header thì bị lớp mờ của header che */}
+        {rewriteError && (
+          <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-[11.5px] text-error">
+            Không viết lại được các mục cũ: {rewriteError}
+          </p>
+        )}
         {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
 
-        {!loading && notAssembled && (
-          <div className="bg-white border border-dashed border-[#E4E1DC] rounded-[14px] p-5 flex flex-col items-center gap-2 text-center">
-            <span className="text-[12.5px] font-bold text-[#4B4842]">Chưa có bản ghép tài liệu</span>
-            <span className="text-[11px] text-[#8A867E] leading-relaxed">{error}</span>
-            {runAssemble ? (
-              <button
-                type="button"
-                onClick={runAssemble}
-                disabled={assembling}
-                className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer disabled:opacity-60"
-              >
-                {assembling ? "Đang ghép tài liệu…" : "Ghép tài liệu ngay"}
-              </button>
-            ) : (
-              onSelectStep && (
-                <button
-                  type="button"
-                  onClick={() => onSelectStep("S-8.2")}
-                  className="mt-1 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold bg-[#191817] text-white cursor-pointer"
-                >
-                  Đi tới S-8.2 · Ghép tài liệu
-                </button>
-              )
-            )}
-          </div>
-        )}
+        {/* Dự án chưa chạy bước nào: nói tài liệu sẽ tự hiện, không mời bấm gì — không có việc nào cho người dùng ở đây */}
+        {empty && <div className="text-[12px] text-[#A8A49C] italic">Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.</div>}
 
-        {assembleError && (
-          <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
-            Không ghép được tài liệu: {assembleError}
-          </div>
-        )}
-
-        {!loading && !notAssembled && error && (
+        {!empty && error && (
           <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
             Không tải được tài liệu: {error}
           </div>
         )}
 
-        {!loading &&
-          document &&
+        {document &&
           document.sections.map((section) => (
             <SectionView
               key={section.id}
               section={section}
               projectId={projectId}
-              remediationStep={remediationStepOf(section.id)}
+              issues={issuesOf(section.id)}
+              onOpenIssues={onOpenSectionIssues ? () => onOpenSectionIssues(section.id) : undefined}
               changed={changedSectionIds?.has(section.id) ?? false}
               onSelectStep={onSelectStep}
               emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
+              mode1={mode1}
+              onEdit={onEditSection}
+              onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
             />
           ))}
       </div>

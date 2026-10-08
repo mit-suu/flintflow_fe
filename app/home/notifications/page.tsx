@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import type { Locale } from "@/lib/i18n";
 import { useNotificationText } from "@/lib/notification-text";
 import { formatNotificationTime, type TimeTranslator } from "@/lib/time-ago";
@@ -15,6 +16,7 @@ import {
   type AppNotification,
   type NotificationListMeta,
 } from "../../../lib/api/notifications";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 type Filter = "all" | "unread";
 
@@ -47,7 +49,7 @@ export default function NotificationsPage() {
       } catch (err) {
         // Chuỗi rỗng = "lỗi tải danh sách, không có câu của BE"; dịch lúc render để `t` không phải vào dependency
         // của effect (đổi ngôn ngữ sẽ tải lại cả danh sách).
-        if (!cancelled) setError(err instanceof Error ? err.message : "");
+        if (!cancelled) setError(userErrorMessage(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -75,7 +77,7 @@ export default function NotificationsPage() {
       setItems((prev) => [...prev, ...res.items]);
       setMeta(res.meta);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("loadMoreFailed"));
+      setError(userErrorMessage(err, t("loadMoreFailed")));
     } finally {
       setLoadingMore(false);
     }
@@ -86,7 +88,7 @@ export default function NotificationsPage() {
       try {
         await markNotificationRead(notification._id);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("markFailed"));
+        setError(userErrorMessage(err, t("markFailed")));
         return;
       }
     }
@@ -97,7 +99,7 @@ export default function NotificationsPage() {
     try {
       await markAllNotificationsRead();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("markFailed"));
+      setError(userErrorMessage(err, t("markFailed")));
     }
   };
 
@@ -156,10 +158,7 @@ export default function NotificationsPage() {
 
         <div className="bg-white border border-[#ECEAE5] rounded-card overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-[#A8A49C] gap-3">
-              <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
-              <span className="text-[13px] font-medium">{t("loadingList")}</span>
-            </div>
+            <PageSkeleton variant="list" label={t("loadingList")} bare />
           ) : items.length === 0 ? (
             <div className="py-16 text-center text-[13px] text-[#A8A49C]">
               {filter === "unread" ? t("allRead") : t("empty")}

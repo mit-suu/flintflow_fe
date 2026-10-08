@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Op } from "@/types/pipeline";
+import { assumptionText } from "./brief-labels";
 import type { Assumption, AssumptionStatus, Spine } from "@/types/spine";
 
 interface AssumptionSweepPanelProps {
@@ -55,19 +56,16 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
   };
 
   if (unconfirmed.length === 0) {
-    return <p className="text-[11.5px] text-[#6B6862]">Không còn giả định nào chờ xác nhận.</p>;
+    return <p className="text-[11.5px] text-[#6B6862]">Không còn điều nào chờ bạn xác nhận.</p>;
   }
 
   const row = (assumption: Assumption, solo: boolean) => (
     <li key={assumption.id} className="rounded-[10px] border border-[#ECEAE5] bg-white p-2.5 flex flex-col gap-1.5">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[11px] font-extrabold text-[#191817]">{assumption.id}</span>
-        <code className="text-[10px] text-[#8A867E] truncate max-w-[60%]" title={assumption.path}>
-          {assumption.path}
-        </code>
-      </div>
-      <p className="text-[11.5px] text-[#191817]">{assumption.statement}</p>
-      {assumption.rationale && <p className="text-[10.5px] text-[#6B6862] italic">{assumption.rationale}</p>}
+      {/* Không hiện path Spine thô (`project.form_factor`) — user đọc câu tạm hiểu và lý do bằng ngôn ngữ của mình */}
+      <p className="text-[11.5px] text-[#191817]">{assumptionText(assumption)}</p>
+      {(assumption.rationale_vi || assumption.rationale) && (
+        <p className="text-[10.5px] text-[#6B6862] italic">{assumption.rationale_vi || assumption.rationale}</p>
+      )}
       {solo && (
         <span className="self-start text-[10px] font-bold text-[#B45309] bg-[#FEF3C7] px-1.5 py-0.5 rounded-full">
           Cần duyệt riêng

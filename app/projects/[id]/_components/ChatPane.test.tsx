@@ -32,14 +32,18 @@ const baseSession: ChatSession = {
   _id: "s1",
   projectId: "p1",
   messages: [],
-  isActive: true,
   createdAt: "2026-09-15T00:00:00.000Z",
 };
 
 /** `is_pipeline` không có trong `types/chat.ts` (T07, R với T16) — mở rộng cục bộ như `ChatPane.tsx`. */
 const withPipelineFlag = (isPipeline: boolean): ChatSession => ({ ...baseSession, is_pipeline: isPipeline }) as ChatSession;
 
-const renderPane = (session: ChatSession, onEditInstruction = vi.fn(), onSendMessage = vi.fn()) => {
+const renderPane = (
+  session: ChatSession,
+  onEditInstruction = vi.fn(),
+  onSendMessage = vi.fn(),
+  extra: { editMode?: boolean; onGoToPipeline?: () => void; onToggleEditMode?: () => void; readOnlyNotice?: string } = {}
+) => {
   renderWithIntl(
     <ChatPane
       session={session}
@@ -51,31 +55,59 @@ const renderPane = (session: ChatSession, onEditInstruction = vi.fn(), onSendMes
       onSelectAttachment={() => {}}
       onRemoveAttachment={() => {}}
       onEditInstruction={onEditInstruction}
+      {...extra}
     />
   );
   return { onEditInstruction, onSendMessage };
 };
 
-describe("ChatPane — forward lệnh sửa vào Change panel (session không pipeline)", () => {
+describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip (FLF-244)", () => {
   beforeEach(() => {
     vi.mocked(estimateActionCost).mockClear();
   });
 
-  it("session.is_pipeline === false: gửi lệnh gọi onEditInstruction, không gọi onSendMessage", () => {
+  it("session.is_pipeline === false: gửi thường là hỏi đáp (onSendMessage), không bị ép thành lệnh sửa", () => {
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(false));
 
-    expect(screen.getByText(/không phải phiên pipeline/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    expect(screen.getByText(/Phiên hỏi đáp/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
+
+    expect(onSendMessage).toHaveBeenCalledTimes(1);
+    expect(onEditInstruction).not.toHaveBeenCalled();
+  });
+
+  it("phiên phụ + chip Sửa tài liệu bật: gửi là lệnh sửa (onEditInstruction)", () => {
+    const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(false), vi.fn(), vi.fn(), { editMode: true, onToggleEditMode: vi.fn() });
+
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
 
     expect(onEditInstruction).toHaveBeenCalledWith("Đổi tên actor A03 thành Administrator");
     expect(onSendMessage).not.toHaveBeenCalled();
   });
 
-  it("session.is_pipeline === true: gửi tin nhắn gọi onSendMessage như bình thường", () => {
+  it("phiên phụ: nút Về phiên chính gọi onGoToPipeline", () => {
+    const onGoToPipeline = vi.fn();
+    renderPane(withPipelineFlag(false), vi.fn(), vi.fn(), { onGoToPipeline });
+
+    fireEvent.click(screen.getByRole("button", { name: "Về phiên chính" }));
+
+    expect(onGoToPipeline).toHaveBeenCalledTimes(1);
+  });
+
+  it("readOnlyNotice (Viewer): không có ô nhập, nút gửi hay chip sửa — chỉ dòng thông báo", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { readOnlyNotice: "Bạn đang xem với vai trò Viewer" });
+
+    expect(screen.getByRole("note")).toHaveTextContent("Bạn đang xem với vai trò Viewer");
+    expect(screen.queryByRole("button", { name: "Gửi tin nhắn" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sửa tài liệu" })).not.toBeInTheDocument();
+  });
+
+  it("session.is_pipeline === true: không có dải phiên hỏi đáp, gửi tin gọi onSendMessage", () => {
     const { onEditInstruction, onSendMessage } = renderPane(withPipelineFlag(true));
 
-    expect(screen.queryByText(/không phải phiên pipeline/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    expect(screen.queryByText(/Phiên hỏi đáp/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
 
     expect(onSendMessage).toHaveBeenCalledTimes(1);
     expect(onEditInstruction).not.toHaveBeenCalled();
@@ -84,7 +116,7 @@ describe("ChatPane — forward lệnh sửa vào Change panel (session không pi
   it("session không có is_pipeline (mặc định pipeline, không phá luồng chat cũ): gửi tin nhắn gọi onSendMessage", () => {
     const { onEditInstruction, onSendMessage } = renderPane(baseSession);
 
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
 
     expect(onSendMessage).toHaveBeenCalledTimes(1);
     expect(onEditInstruction).not.toHaveBeenCalled();
@@ -127,10 +159,10 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   const send = async (text: string) => {
     const box = await screen.findByPlaceholderText("Hỏi về nội dung tài liệu…");
     fireEvent.change(box, { target: { value: text } });
-    fireEvent.click(screen.getByRole("button", { name: "arrow_upward" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
   };
 
-  it("FLF-186: lệnh sửa sau baseline ⇒ BE tạo CR nguồn chat, thẻ “Đã tạo CR-001” mở thẳng CR; không alert, tin nhắn tạm được gỡ", async () => {
+  it("mode 1 v3 (BPMN 3.1): lệnh sửa ⇒ thẻ mời tạo CR, form 3.1 điền sẵn (yêu cầu miệng, ref chat) — BE không tự tạo CR; không alert, tin nhắn tạm được gỡ", async () => {
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     const error = vi.spyOn(console, "error");
     renderWithIntl(<Mode1Chat />);
@@ -138,13 +170,16 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
 
     await send("Đổi tên actor Student thành Learner");
     const card = await screen.findByRole("status");
-    expect(within(card).getByText("Đã tạo CR-001 từ lệnh sửa")).toBeInTheDocument();
+    expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     expect(within(card).getByText("Đổi tên actor Student thành Learner").tagName).toBe("BLOCKQUOTE");
-    expect(within(card).getByRole("link", { name: "Mở CR-001" })).toHaveAttribute("href", `/projects/${MODE1_PROJECT_ID}/change-requests/CR-001`);
-    expect(mode1State.crs.get("CR-001")?.change_request).toMatchObject({ source: { kind: "chat" }, description: "Đổi tên actor Student thành Learner" });
+    const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
+    const prefill = readCrPrefill(new URL(href, "http://x").searchParams);
+    expect(prefill).toMatchObject({ title: "Đổi tên actor Student thành Learner", description: "Đổi tên actor Student thành Learner", source: "verbal" });
+    expect(prefill?.ref).toMatch(/^chat:/);
+    expect(mode1State.crs.size, "3.1 là việc của BA — không tự tạo CR").toBe(0);
 
     // tin nhắn tạm (optimistic) bị gỡ, ô nhập đã xoá, không alert / console.error cho luồng bình thường này
-    await waitFor(() => expect(screen.getByRole("button", { name: "arrow_upward" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Gửi tin nhắn" })).toBeInTheDocument());
     expect(screen.queryByText("Đổi tên actor Student thành Learner", { selector: ":not(blockquote)" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText("Hỏi về nội dung tài liệu…")).toHaveValue("");
     expect(alert).not.toHaveBeenCalled();
@@ -153,16 +188,15 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     error.mockRestore();
   });
 
-  it("Đóng ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới (CR mới)", async () => {
+  it("Bỏ qua ⇒ ẩn thẻ; gửi lệnh sửa khác ⇒ thẻ mới theo lệnh mới", async () => {
     renderWithIntl(<Mode1Chat />);
     await send("Thêm NFR thời gian phản hồi 2 giây");
     const card = await screen.findByRole("status");
-    fireEvent.click(within(card).getByRole("button", { name: "Đóng" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Bỏ qua" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await send("Sửa mô tả actor Guest");
     expect(await screen.findByText("Sửa mô tả actor Guest", { selector: "blockquote" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Mở CR-002" })).toBeInTheDocument();
     expect(screen.queryByText("Thêm NFR thời gian phản hồi 2 giây")).not.toBeInTheDocument();
   });
 
@@ -171,7 +205,37 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     const card = screen.getByRole("status");
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}/change-requests?`)).toBe(true);
+    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}?panel=cr&`)).toBe(true);
     expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({ title: "Đổi tên actor", description: "Đổi tên actor Student", source: "verbal", ref: undefined });
+  });
+});
+
+describe("ChatPane — nhãn đời thường, credit chỉ ở header", () => {
+  it("nhãn bước ở đầu khung và dòng chia bước không lộ mã B-x.y / S-x.y (mã nằm trong tooltip)", () => {
+    const session: ChatSession = {
+      ...baseSession,
+      messages: [
+        { role: "user", content: "Kể ý tưởng", createdAt: "2026-09-30T00:00:00.000Z", step: "B-0.1" },
+        { role: "ai", content: "Mình hiểu rồi.", createdAt: "2026-09-30T00:00:01.000Z", step: "B-0.1" },
+      ],
+    };
+    const { container } = renderWithIntl(
+      <ChatPane
+        session={session}
+        stepLabel="Kể hết ý tưởng"
+        stepCode="B-0.1"
+        inputMessage=""
+        setInputMessage={() => {}}
+        onSendMessage={() => {}}
+        sending={false}
+        pendingAttachments={[]}
+        onSelectAttachment={() => {}}
+        onRemoveAttachment={() => {}}
+      />
+    );
+    expect(screen.getAllByText("Kể hết ý tưởng")[0]).toBeInTheDocument();
+    expect(screen.getAllByTitle("B-0.1")).toHaveLength(2); // nhãn đầu khung + dòng chia bước
+    expect(container.textContent).not.toMatch(/[BS]-\d+\.\d+/);
+    expect(container.textContent).not.toMatch(/credit/i);
   });
 });

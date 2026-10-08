@@ -50,14 +50,31 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
 
     // I-4 chạy nền: #6 trả ngay, tiến độ tăng qua poll GET /import tới khi sang fields_review
     expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
-    const value = screen.getByLabelText("Giá trị actors[id=A02].kind");
+    const value = screen.getByLabelText("Giá trị Tác nhân A02 — Loại");
     fireEvent.change(value, { target: { value: "system" } });
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.0" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}/gap-report`));
+    // Xong baseline 0.0 ⇒ sang màn Tài liệu & version, popup gap report mở sẵn
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
     expect(mode1State.mode1State.reviewFields[0]).toMatchObject({ confirmed: true, edited_value: "system" });
     expect(mode1State.mode1State.project.import_state).toBe("gap_review");
+    // không sửa Record of Changes ⇒ không gửi, BE đọc lại từ file (FLF-252)
+    expect(mode1State.mode1State.finalizedRecordOfChanges).toBeNull();
+  });
+
+  it("FLF-252: bước baseline hiện Record of Changes đọc từ file; không sửa ⇒ không gửi, sửa ⇒ gửi kèm finalize", async () => {
+    fireEvent.click(await uploadAndMap());
+    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
+
+    expect(await screen.findByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Mô tả dòng 1"), { target: { value: "Tạo tài liệu (bản đầu)" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tạo baseline 0.0" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
+    expect(mode1State.mode1State.finalizedRecordOfChanges).toEqual([
+      { date: "01/05/2026", version: "0.1", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu (bản đầu)" },
+    ]);
   });
 
   it("hết credit giữa lúc trích ⇒ banner paused; nạp xong bấm Tiếp tục chạy nốt", async () => {
@@ -121,5 +138,12 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     fireEvent.change(await screen.findByTestId("docx-input"), { target: { files: [big] } });
     expect(await screen.findByText(/lớn hơn 10MB/)).toBeInTheDocument();
     expect(mode1State.mode1State.importDoc).toBeNull();
+  });
+
+  it("bước upload báo trước: in lại theo cấu trúc file gốc, không giữ định dạng Word, file gốc tải lại được", async () => {
+    renderWizard();
+    await screen.findByTestId("docx-input");
+    expect(screen.getByText("không giữ định dạng Word")).toBeInTheDocument();
+    expect(screen.getByText(/File gốc luôn tải lại được/)).toBeInTheDocument();
   });
 });

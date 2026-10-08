@@ -48,8 +48,9 @@ const REPORT: GapReport = {
   project_id: P,
   doc_version: "0.0",
   generated_at: "2026-09-19T00:00:00.000Z",
-  totals: { red: 1, yellow: 2, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 1, missing_fpt_sections: 1 },
+  totals: { red: 1, yellow: 2, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 1, missing_fpt_sections: 1, unrendered_diagrams: 1 },
   missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
+  unrendered_diagrams: [{ diagram_id: "", kind: "usecase", section_id: "", title: "Sơ đồ use case", reason: "not_rendered" }],
   layout: [],
   sections: [
     { section_id: "fixed:4.2.3", title: "fixed:4.2.3", flags: [flag("F1", "red", "fixed:4.2.3", "NFR-P02 thiếu ngưỡng đo được", "NFR-MEASURABLE")] },
@@ -87,37 +88,42 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     expect(tile("Cờ đỏ")).toHaveTextContent("1");
     expect(tile("Cờ đỏ").className).toContain("text-[#B03030]");
     expect(tile("Cờ vàng")).toHaveTextContent("2");
-    expect(tile("Section bắt buộc thiếu")).toHaveTextContent("1");
-    expect(tile("Heading không khớp")).toHaveTextContent("1");
-    expect(tile("Field độ tin thấp")).toHaveTextContent("1");
+    expect(tile("Mục mẫu FPT không có")).toHaveTextContent("1");
+    expect(tile("Tiêu đề ngoài mẫu")).toHaveTextContent("1");
+    expect(tile("Dữ liệu chưa chắc")).toHaveTextContent("1");
 
     // title trùng id ⇒ nhãn section chuẩn; title riêng ⇒ giữ title BE
     const perf = screen.getByRole("heading", { name: "4.2.3 Performance" }).closest("article")!;
     expect(within(perf).getByLabelText("Cờ đỏ")).toBeInTheDocument();
     expect(within(perf).getByText("NFR-P02 thiếu ngưỡng đo được")).toBeInTheDocument();
-    expect(within(perf).getByText("NFR-MEASURABLE")).toBeInTheDocument();
+    // mã luật lạ ⇒ không in mã, chỉ để tra ở tooltip
+    expect(within(perf).queryByText("NFR-MEASURABLE")).not.toBeInTheDocument();
+    expect(within(perf).getByTitle("NFR-MEASURABLE")).toBeInTheDocument();
     const actors = screen.getByRole("heading", { name: "Actors (tên riêng BE)" }).closest("article")!;
     expect(within(actors).getByLabelText("Cờ vàng")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "1 Product Overview" })).toBeInTheDocument();
   });
 
-  it("section thiếu (nhãn chuẩn, id lạ dùng title BE), heading không khớp kèm block, field độ tin thấp kèm %", async () => {
+  it("section thiếu (nhãn chuẩn, id lạ dùng title BE), heading không khớp không in mã block, field độ tin thấp theo tên kèm %", async () => {
     serveReport();
     renderWithIntl(<GapReportView projectId={P} />);
     await screen.findByText("Gap report — bản 0.0");
 
     expect(screen.getByText("5.3 Application Messages List")).toBeInTheDocument();
     expect(screen.getByText("Mục riêng khách hàng")).toBeInTheDocument();
-    expect(screen.getByText("Phụ lục B — Biên bản họp").closest("li")).toHaveTextContent("B0011");
-    expect(screen.getByText("actors[id=A02].kind").closest("li")).toHaveTextContent("— 55%");
+    expect(screen.getByText("Phụ lục B — Biên bản họp").closest("li")).not.toHaveTextContent("B0011");
+    expect(screen.getByText("Tác nhân A02 — Loại").closest("li")).toHaveTextContent("— 55%");
+    // nợ T4: hình chưa vẽ (import lúc thiếu PlantUML) chỉ là thông tin, không phải cờ
+    expect(screen.getByText(/Sơ đồ use case/).closest("li")).toHaveTextContent("chưa vẽ");
   });
 
   it("gap report sạch ⇒ không hiện các mục rỗng; nút tạo CR vẫn điền sẵn nguồn gap_report + tham chiếu version", async () => {
     serveReport({
       ...REPORT,
       doc_version: "0.2",
-      totals: { red: 0, yellow: 0, missing_sections: 0, unmapped_headings: 0, low_confidence_fields: 0, missing_fpt_sections: 0 },
+      totals: { red: 0, yellow: 0, missing_sections: 0, unmapped_headings: 0, low_confidence_fields: 0, missing_fpt_sections: 0, unrendered_diagrams: 0 },
       missing_fpt_sections: [],
+      unrendered_diagrams: [],
       sections: [],
       missing_sections: [],
       unmapped_headings: [],
@@ -130,15 +136,16 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     expect(screen.queryByText("Section bắt buộc không có trong tài liệu")).not.toBeInTheDocument();
     expect(screen.queryByText(/Heading không khớp template/)).not.toBeInTheDocument();
     expect(screen.queryByText("Field còn độ tin thấp")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hình chưa vẽ được")).not.toBeInTheDocument();
     expect(screen.getByText("Cờ đỏ", { selector: "span" }).parentElement!.className).toContain("bg-white");
 
     const href = screen.getByRole("link", { name: "Cần sửa → Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${P}/change-requests?`)).toBe(true);
+    expect(href.startsWith(`/projects/${P}?panel=cr&`)).toBe(true);
     expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({
       title: "Sửa theo gap report",
       description: "Xử lý các vấn đề trong gap report của bản 0.2:",
       source: "gap_report",
-      ref: "gap-report 0.2",
+      ref: "Gap report bản 0.2",
     });
   });
 
@@ -176,21 +183,20 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
 
   it("chưa tới gap_review ⇒ lỗi tải báo cáo, không màn trắng", async () => {
     renderWithIntl(<GapReportView projectId={P} />);
-    expect(screen.getByText("Đang tải gap report…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Đang tải gap report" })).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByText(/Gap report — bản/)).not.toBeInTheDocument();
   });
 });
 
 describe("gapReportPrefill", () => {
-  it("chỉ lấy cờ đỏ (bỏ vàng), kèm section thiếu, theo thứ tự", () => {
-    const { title, description } = gapReportPrefill(REPORT);
+  it("chỉ lấy cờ đỏ trên nội dung đã có (bỏ vàng, bỏ section_empty), không đưa mục thiếu vào CR", () => {
+    const { title, description } = gapReportPrefill({
+      ...REPORT,
+      sections: [...REPORT.sections, { section_id: "fixed:3.1.1", title: "Screens Flow", flags: [flag("F9", "red", "fixed:3.1.1", "Mục trống", "section_empty")] }],
+    });
     expect(title).toBe("Sửa theo gap report");
-    expect(description.split("\n")).toEqual([
-      "Xử lý các vấn đề trong gap report của bản 0.0:",
-      "- 4.2.3 Performance: NFR-P02 thiếu ngưỡng đo được",
-      "- Thiếu mục 5.3 Application Messages List",
-      "- Thiếu mục custom:x",
-    ]);
+    // mục thiếu / mục trống đi đường step (D6) — CR chỉ sửa phần tử đang có, kẻo C-3 ra 0 vị trí
+    expect(description.split("\n")).toEqual(["Xử lý các vấn đề trong gap report của bản 0.0:", "- 4.2.3 Performance: NFR-P02 thiếu ngưỡng đo được"]);
   });
 });

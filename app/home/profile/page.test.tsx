@@ -2,11 +2,18 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
-import { changeMyPassword, fetchMe, updateMyName } from "@/lib/api/users";
+import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "@/lib/api/users";
+import { logoutAndRedirect } from "@/lib/auth";
 import type { User } from "@/types/user";
 import ProfilePage from "./page";
 
-vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn(), updateMyName: vi.fn(), changeMyPassword: vi.fn() }));
+vi.mock("@/lib/api/users", () => ({
+  fetchMe: vi.fn(),
+  updateMyName: vi.fn(),
+  changeMyPassword: vi.fn(),
+  logoutAllDevices: vi.fn(),
+}));
+vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn() }));
 // TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang hồ sơ
 vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
 
@@ -38,6 +45,8 @@ describe("ProfilePage", () => {
     vi.mocked(fetchMe).mockReset();
     vi.mocked(updateMyName).mockReset();
     vi.mocked(changeMyPassword).mockReset();
+    vi.mocked(logoutAllDevices).mockReset();
+    vi.mocked(logoutAndRedirect).mockReset();
   });
 
   it("hiện thông tin cá nhân từ /users/me", async () => {
@@ -127,5 +136,41 @@ describe("ProfilePage", () => {
       "href",
       "/forgot-password?email=hiep%40flintflow.vn&mode=create"
     );
+  });
+
+  it("đăng xuất mọi thiết bị ⇒ hỏi xác nhận, gọi logout-all rồi về /login", async () => {
+    vi.mocked(logoutAllDevices).mockResolvedValue(undefined);
+    await renderLoaded();
+
+    fireEvent.click(screen.getByRole("button", { name: "Đăng xuất mọi thiết bị" }));
+    expect(logoutAllDevices).not.toHaveBeenCalled();
+    expect(screen.getByText(/kể cả thiết bị này. Tiếp tục\?/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Đăng xuất tất cả" }));
+
+    await waitFor(() => expect(logoutAndRedirect).toHaveBeenCalledWith("/login"));
+    expect(logoutAllDevices).toHaveBeenCalledTimes(1);
+  });
+
+  it("huỷ xác nhận ⇒ không đăng xuất", async () => {
+    await renderLoaded();
+
+    fireEvent.click(screen.getByRole("button", { name: "Đăng xuất mọi thiết bị" }));
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+
+    expect(screen.queryByRole("button", { name: "Đăng xuất tất cả" })).not.toBeInTheDocument();
+    expect(logoutAllDevices).not.toHaveBeenCalled();
+  });
+
+  it("logout-all lỗi ⇒ báo lỗi, ở lại trang, không chuyển về /login", async () => {
+    vi.mocked(logoutAllDevices).mockRejectedValue(new ApiClientError(500, "INTERNAL", "Máy chủ đang gặp sự cố."));
+    await renderLoaded();
+
+    fireEvent.click(screen.getByRole("button", { name: "Đăng xuất mọi thiết bị" }));
+    fireEvent.click(screen.getByRole("button", { name: "Đăng xuất tất cả" }));
+
+    await waitFor(() => expect(screen.getByText("Máy chủ đang gặp sự cố.")).toBeInTheDocument());
+    expect(logoutAndRedirect).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Đăng xuất tất cả" })).toBeEnabled();
   });
 });

@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { FPT_SECTIONS, sectionLabel } from "@/lib/constants/fpt-sections";
-import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateProfile } from "@/types/import";
+import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateFamily, type TemplateProfile } from "@/types/import";
 import { formatPercent } from "./labels";
+import { COLUMN_ROLE_LABELS, TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
 
 interface MappingReviewTableProps {
   profile: TemplateProfile;
@@ -12,13 +13,20 @@ interface MappingReviewTableProps {
 }
 
 const DETECTOR_LABELS = {
-  style: "style heading",
-  outline_level: "outline level",
+  style: "kiểu chữ tiêu đề",
+  outline_level: "cấp đề mục",
   numbering_pattern: "số mục",
   user: "bạn chọn",
 } as const;
 
 const tableKey = (blockId: string, column: number) => `${blockId}:${column}`;
+
+/** Họ mẫu nhận được (FLF-252). */
+const TEMPLATE_FAMILY_LABELS: Readonly<Record<TemplateFamily, string>> = {
+  fpt: "mẫu FPT",
+  ieee830: "mẫu IEEE 830",
+  ieee_features: "mẫu IEEE (dạng System Features)",
+};
 
 const ConfidenceBadge = ({ value }: { value: number }) => (
   <span
@@ -31,7 +39,7 @@ const ConfidenceBadge = ({ value }: { value: number }) => (
 );
 
 /**
- * 1.7 Xác nhận mapping (UC-21): heading → section template FPT, cột bảng → field Spine. Mặc định chỉ hiện
+ * 1.7 Xác nhận mapping (UC-21): heading → section template FPT, cột bảng → field Spine (chọn theo nhãn). Mặc định chỉ hiện
  * dòng độ tin < 80%; gửi các dòng đã đổi kèm `confirm_all` để chốt cả phần còn lại như BE đề xuất.
  */
 export default function MappingReviewTable({ profile, onSubmit, busy = false }: MappingReviewTableProps) {
@@ -47,6 +55,25 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
       .filter((id, i, all) => id !== UNMAPPED_SECTION && !FPT_SECTIONS.some((s) => s.id === id) && all.indexOf(id) === i);
     return [...FPT_SECTIONS.map((s) => s.id), ...extra, UNMAPPED_SECTION];
   }, [profile.heading_map]);
+
+  const columnValue = (blockId: string, column: number, suggested: string | null) => {
+    const key = tableKey(blockId, column);
+    return key in tables ? tables[key] : suggested;
+  };
+
+  // BE trích mỗi bảng theo thực thể của cột đầu tiên được gán (extract.service `deterministicTableItems`)
+  const tableEntity: Record<string, string> = {};
+  for (const t of profile.table_map) {
+    const entity = entityOfPath(columnValue(t.block_id, t.column_index, t.field_path));
+    if (entity && !(t.block_id in tableEntity)) tableEntity[t.block_id] = entity;
+  }
+
+  // Section tạm (`feature:@B0007`) cùng nhãn "Tính năng (tạm)" ⇒ ghép tiêu đề heading sinh ra nó để phân biệt
+  const optionLabel = (id: string) => {
+    const block = /@(B[0-9]+)$/.exec(id)?.[1];
+    const heading = block && profile.heading_map.find((h) => h.block_id === block)?.heading_text;
+    return heading ? `${sectionLabel(id)} — ${heading}` : sectionLabel(id);
+  };
 
   const rows = lowOnly ? profile.heading_map.filter((h) => h.confidence < MAPPING_CONFIDENCE_THRESHOLD) : profile.heading_map;
   const missingRequired = profile.required_sections.filter(
@@ -71,6 +98,12 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
           <p className="text-[12px] text-[#8A867E]">
             {profile.heading_map.length} heading, {lowCount} dòng độ tin dưới {formatPercent(MAPPING_CONFIDENCE_THRESHOLD)}. Heading
             “không khớp” được giữ nguyên văn và không trích field.
+          </p>
+          <p className="text-[12px] text-[#4B4842]">
+            Nhận dạng: <strong>{TEMPLATE_FAMILY_LABELS[profile.template_family ?? "fpt"]}</strong>
+            {profile.template_family && profile.template_family !== "fpt"
+              ? " — mỗi mục được trích vào mục FPT tương ứng; tài liệu vẫn giữ đúng bố cục của file."
+              : ""}
           </p>
         </div>
         <label className="flex items-center gap-2 text-[12px] font-semibold text-[#4B4842] cursor-pointer">
@@ -103,7 +136,8 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                   <td className="px-3 py-2">
                     <div className="font-semibold text-[#191817]">{h.heading_text}</div>
                     <div className="text-[11px] text-[#A8A49C]">
-                      {h.block_id} · nhận theo {DETECTOR_LABELS[h.detected_by]}
+                      Nhận theo {DETECTOR_LABELS[h.detected_by]}
+                      {h.template_section && value === UNMAPPED_SECTION ? " · mục riêng của mẫu, giữ nguyên văn" : ""}
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -120,7 +154,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                     >
                       {options.map((id) => (
                         <option key={id} value={id}>
-                          {sectionLabel(id)}
+                          {optionLabel(id)}
                         </option>
                       ))}
                     </select>
@@ -134,32 +168,72 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
 
       {profile.table_map.length > 0 && (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] overflow-hidden">
-          <div className="px-3 py-2 bg-[#FAF9F7] text-[12.5px] font-bold text-[#4B4842]">Cột bảng → field (bảng khớp đủ cột được trích không tốn credit)</div>
+          <div className="px-3 py-2 bg-[#FAF9F7]">
+            <div className="text-[12.5px] font-bold text-[#4B4842]">Cột trong bảng → dữ liệu SRS</div>
+            <p className="text-[11.5px] text-[#8A867E]">
+              Bảng có đủ cột cần thiết được lấy tự động, không tốn credit. Mỗi bảng chỉ lấy một loại dữ liệu — chọn “Không lấy cột
+              này” nếu cột không chứa dữ liệu cần trích.
+            </p>
+          </div>
           <table className="w-full text-[12.5px]">
             <tbody>
               {profile.table_map.map((t) => {
                 const key = tableKey(t.block_id, t.column_index);
-                const value = key in tables ? tables[key] : t.field_path;
+                const value = columnValue(t.block_id, t.column_index, t.field_path);
                 const header = t.header.trim() || `Cột ${t.column_index + 1} (không có tiêu đề)`;
+                const entity = tableEntity[t.block_id];
+                const valueEntity = entityOfPath(value);
+                const known = !value || isKnownTableField(value);
+                // Nhóm cùng loại với bảng lên đầu
+                const groups = entity ? [...TABLE_FIELD_GROUPS].sort((a, b) => Number(b.entity === entity) - Number(a.entity === entity)) : TABLE_FIELD_GROUPS;
                 return (
                   <tr key={key} className="border-t border-[#F0EEEA]">
                     <td className="px-3 py-2">
                       <div className="font-semibold text-[#191817]">{header}</div>
                       <div className="text-[11px] text-[#A8A49C]">
-                        {t.block_id} · cột {t.column_index + 1}
+                        {entity ? `Bảng ${tableGroupLabel(entity)}` : "Bảng chưa rõ loại"} · cột {t.column_index + 1}
                       </div>
+                      {t.samples?.length ? (
+                        <div className="text-[11px] text-[#8A867E] truncate max-w-[340px]" title={t.samples.join(" · ")}>
+                          Dữ liệu: {t.samples.join(" · ")}
+                          {t.role ? ` — ${COLUMN_ROLE_LABELS[t.role] ?? ""}` : ""}
+                        </div>
+                      ) : null}
+                      {valueEntity && entity && valueEntity !== entity && (
+                        <div className="text-[11px] text-[#8A6D1F]">Khác loại với các cột khác của bảng — cột này sẽ không được lấy.</div>
+                      )}
                     </td>
                     <td className="px-3 py-2 w-[90px]">
                       <ConfidenceBadge value={t.confidence} />
                     </td>
                     <td className="px-3 py-2 w-[300px]">
-                      <input
-                        aria-label={`Field cho cột ${header}`}
+                      <select
+                        aria-label={`Dữ liệu cho cột ${header}`}
                         value={value ?? ""}
-                        placeholder="Bỏ trống = không trích cột này"
-                        onChange={(e) => setTables((prev) => ({ ...prev, [key]: e.target.value.trim() || null }))}
-                        className="w-full px-2 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] font-mono text-[12px]"
-                      />
+                        onChange={(e) => setTables((prev) => ({ ...prev, [key]: e.target.value || null }))}
+                        className={`w-full px-2 py-1.5 rounded-[8px] border bg-[#FAF9F7] text-[12.5px] ${
+                          key in tables ? "border-[#6A62C4]" : "border-[#E4E1DC]"
+                        }`}
+                      >
+                        <option value="">Không lấy cột này</option>
+                        {groups.map((g) => (
+                          <optgroup key={g.entity} label={g.label}>
+                            {g.fields.map((f) => {
+                              const path = tableFieldPath(g.entity, f.field);
+                              return (
+                                <option key={path} value={path}>
+                                  {tableFieldLabel(path)}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        ))}
+                        {!known && value && (
+                          <optgroup label="Khác">
+                            <option value={value}>{tableFieldLabel(value)}</option>
+                          </optgroup>
+                        )}
+                      </select>
                     </td>
                   </tr>
                 );

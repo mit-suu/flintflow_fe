@@ -81,3 +81,83 @@ describe("LoginPage — Ghi nhớ đăng nhập", () => {
     expect(screen.getByRole("checkbox", { name: "Ghi nhớ đăng nhập" })).toBeChecked();
   });
 });
+
+describe("LoginPage — ngôn ngữ của tài khoản (FLF-259)", () => {
+  beforeEach(() => {
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
+    vi.mocked(saveAuthToken).mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "" });
+    document.cookie = "NEXT_LOCALE=vi; path=/";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "NEXT_LOCALE=; path=/; max-age=0";
+  });
+
+  it("tài khoản đã chọn en ⇒ ghi cookie trước khi vào app (trang đầu đã đúng ngôn ngữ)", async () => {
+    fetchMock.mockReset().mockResolvedValue(jsonResponse(200, { data: { accessToken: "at", user: { role: "user", locale: "en" } } }));
+    await renderPage();
+    submit("hiep@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/home"));
+    expect(document.cookie).toContain("NEXT_LOCALE=en");
+  });
+
+  it("tài khoản chưa chọn (locale null) ⇒ giữ ngôn ngữ đang dùng", async () => {
+    fetchMock.mockReset().mockResolvedValue(jsonResponse(200, { data: { accessToken: "at", user: { role: "user", locale: null } } }));
+    await renderPage();
+    submit("hiep@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/home"));
+    expect(document.cookie).toContain("NEXT_LOCALE=vi");
+  });
+});
+
+describe("LoginPage — câu lỗi của BE theo ngôn ngữ đang hiển thị", () => {
+  beforeEach(() => {
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
+    // BE trả message tiếng Anh kèm mã lỗi; trang phải hiện câu theo ngôn ngữ, không phải message thô.
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(401, { error: { code: "INVALID_CREDENTIALS", message: "Invalid credentials" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "", pathname: "/login" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.documentElement.lang = "";
+  });
+
+  it("locale vi ⇒ hiện câu tiếng Việt thay vì message thô của BE", async () => {
+    document.documentElement.lang = "vi";
+    await renderPage();
+    submit("hiep@flintflow.vn", "sai-mat-khau");
+
+    expect(await screen.findByText("Email hoặc mật khẩu không đúng.")).toBeInTheDocument();
+    expect(screen.queryByText("Invalid credentials")).toBeNull();
+  });
+
+  it("locale en ⇒ hiện câu tiếng Anh của FE", async () => {
+    document.documentElement.lang = "en";
+    await renderPage();
+    submit("hiep@flintflow.vn", "sai-mat-khau");
+
+    expect(await screen.findByText("Incorrect email or password.")).toBeInTheDocument();
+  });
+
+  it("mã lỗi không có trong bảng dịch ⇒ giữ nguyên message của BE", async () => {
+    document.documentElement.lang = "vi";
+    fetchMock.mockResolvedValue(
+      jsonResponse(400, { error: { code: "VALIDATION_ERROR", message: "email không hợp lệ" } }),
+    );
+    await renderPage();
+    submit("hiep@flintflow.vn", "sai-mat-khau");
+
+    expect(await screen.findByText("email không hợp lệ")).toBeInTheDocument();
+  });
+});

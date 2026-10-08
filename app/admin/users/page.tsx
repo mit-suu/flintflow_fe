@@ -19,6 +19,7 @@ import {
   tableCellClass,
   tableHeadClass,
 } from "../_components/AdminPage";
+import { userErrorMessage } from "@/lib/api/error-messages";
 
 const PAGE_SIZE = 20;
 
@@ -40,7 +41,7 @@ export default function AdminUsersPage() {
         setMeta(res.meta);
         setError(null);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Không thể tải danh sách người dùng");
+        if (!cancelled) setError(userErrorMessage(err, "Không thể tải danh sách người dùng"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -119,7 +120,7 @@ export default function AdminUsersPage() {
 
         <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
           {loading ? (
-            <LoadingBlock label="Đang tải người dùng…" />
+            <LoadingBlock label="Đang tải người dùng…" bare />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -128,7 +129,7 @@ export default function AdminUsersPage() {
                     <th className={tableHeadClass}>Email</th>
                     <th className={tableHeadClass}>Vai trò</th>
                     <th className={tableHeadClass}>Trạng thái</th>
-                    <th className={`${tableHeadClass} text-right`}>Credit</th>
+                    <th className={`${tableHeadClass} text-right`}>Tổ chức</th>
                     <th className={`${tableHeadClass} text-right`}>Dự án</th>
                     <th className={tableHeadClass}>Đăng nhập gần nhất</th>
                     <th className={tableHeadClass}>Ngày tạo</th>
@@ -156,7 +157,7 @@ export default function AdminUsersPage() {
                               u.role === "admin" ? "bg-[#EFEEF9] text-[#554DB0]" : "bg-[#F0EEEA] text-[#6B6862]"
                             }`}
                           >
-                            {u.role}
+                            {u.role === "admin" ? "Quản trị viên" : u.role === "user" ? "Người dùng" : u.role}
                           </span>
                         </td>
                         <td className={tableCellClass}>
@@ -166,7 +167,7 @@ export default function AdminUsersPage() {
                             <span className="text-[#B03030] font-semibold">Đã khoá</span>
                           )}
                         </td>
-                        <td className={`${tableCellClass} text-right`}>{formatNumber(u.walletBalance)}</td>
+                        <td className={`${tableCellClass} text-right`}>{formatNumber(u.organizationsCount)}</td>
                         <td className={`${tableCellClass} text-right`}>{formatNumber(u.projectsCount)}</td>
                         <td className={tableCellClass}>{formatDateTime(u.lastLoginAt)}</td>
                         <td className={tableCellClass}>{formatDateTime(u.createdAt)}</td>
