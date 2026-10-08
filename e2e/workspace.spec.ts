@@ -150,6 +150,42 @@ test.describe("workspace end-to-end trên BE thật", () => {
     if (doc.status === 409) expect(doc.json.error?.code).toBe("NO_WORKING_DRAFT");
   });
 
+  /**
+   * Bản đồ truy vết ở FE (`_components/mode1/trace-direction.ts`) dựng chiều "nguồn / dẫn tới" bằng cách
+   * **đảo** hướng của một số khoá, vì hướng cạnh BE trả về là hướng khoá ("ai nhắc tới ai") chứ không phải
+   * hướng sinh ra. Cả bảng `TRACE_DIR` đứng trên giả định đó. BE đổi hướng cạnh mà không ai biết thì bản đồ
+   * nói ngược mà vẫn xanh — nên khoá giả định ngay tại đây, trên BE thật.
+   */
+  test("traceability trả cạnh theo hướng khoá: use case trỏ VÀO actor", async ({ request }) => {
+    const spine = await api<{ spine_version: number }>(request, "get", `/projects/${projectId}/spine`, token);
+    expect(spine.status).toBe(200);
+
+    const seeded = await api<{ spine_version: number }>(request, "post", `/projects/${projectId}/changes`, token, {
+      base_version: spine.json.data!.spine_version,
+      ops: [
+        { op: "add", path: "actors[]", value: { id: "A90", name: "E2E Receptionist", kind: "human", description: "Front desk" }, reason: "e2e trace" },
+        {
+          op: "add",
+          path: "use_cases[]",
+          value: { id: "UC-90", name: "E2E Book appointment", actor_ids: ["A90"], function_ids: [], description: "Book", includes: [], extends: [] },
+          reason: "e2e trace",
+        },
+      ],
+    });
+    expect(seeded.status, "gieo actor + use case qua change flow").toBe(200);
+
+    const trace = await api<{ nodes: { id: string }[]; edges: { from: string; to: string; field: string }[] }>(
+      request,
+      "get",
+      `/projects/${projectId}/traceability?entity=actor&id=A90`,
+      token
+    );
+    expect(trace.status).toBe(200);
+    expect(trace.json.data!.nodes.map((n) => n.id).sort()).toEqual(["A90", "UC-90"]);
+    // Chính giả định: khoá nằm ở use case, nên cạnh là UC → actor. Đảo chiều ⇒ FE phải sửa `TRACE_DIR`.
+    expect(trace.json.data!.edges).toEqual([{ from: "UC-90", to: "A90", field: "actor_ids" }]);
+  });
+
   test("không còn đường bật msw ở runtime", async ({ page }) => {
     await loginThroughUi(page);
     // Service worker của msw đã bị gỡ khỏi `public/` — trang không được đăng ký worker nào

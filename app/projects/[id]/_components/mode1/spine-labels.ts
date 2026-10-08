@@ -43,6 +43,8 @@ export const FIELD_LABELS: Readonly<Record<string, string>> = {
   feature_id: "Tính năng",
   screen_id: "Màn hình",
   role_id: "Vai trò",
+  // Cầu actor → màn hình của bản đồ truy vết mang field `permissions`; không có dòng này thì hiện mã thô
+  permissions: "Phân quyền",
   action: "Thao tác",
   flow_to: "Chuyển tới màn",
   is_popup: "Là popup",
