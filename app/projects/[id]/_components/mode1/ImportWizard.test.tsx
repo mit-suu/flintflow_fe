@@ -77,6 +77,64 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     ]);
   });
 
+  it("FLF-265: sau khi trích hiện ngôn ngữ tài liệu nhận diện từ file (chỉ đọc); bước mapping chưa hiện", async () => {
+    const start = await uploadAndMap();
+    expect(screen.queryByText(/Ngôn ngữ tài liệu/)).toBeNull();
+    mode1State.mode1State.profile!.language = "vi";
+    fireEvent.click(start);
+
+    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Việt (nhận diện từ file)");
+    expect(screen.queryByRole("radio")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
+    expect(await screen.findByRole("button", { name: "Tạo baseline 0.0" })).toBeInTheDocument();
+    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Tiếng Việt");
+  });
+
+  it("FLF-265: file tiếng Anh ⇒ hiện Tiếng Anh", async () => {
+    fireEvent.click(await uploadAndMap());
+    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Anh (nhận diện từ file)");
+  });
+
+  it("FLF-265: ngôn ngữ lạ / thiếu ⇒ coi là Tiếng Anh như BE (D1)", async () => {
+    const start = await uploadAndMap();
+    mode1State.mode1State.profile!.language = "fr";
+    fireEvent.click(start);
+    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Anh (nhận diện từ file)");
+  });
+
+  it("FLF-265: bước checking vẫn hiện ngôn ngữ nhận diện", async () => {
+    const start = await uploadAndMap();
+    mode1State.mode1State.profile!.language = "vi";
+    fireEvent.click(start);
+    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
+    const baseline = await screen.findByRole("button", { name: "Tạo baseline 0.0" });
+    expect(screen.getByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeInTheDocument();
+
+    // Giữ import ở `checking`: finalize đẩy trạng thái rồi trả lỗi conflict ⇒ wizard đọc lại, không chuyển trang
+    mockServer.use(
+      http.post(`${API_BASE_URL}/projects/:projectId/import/finalize`, () => {
+        mode1State.mode1State.importDoc!.status = "checking";
+        mode1State.mode1State.project.import_state = "checking";
+        return HttpResponse.json(
+          { data: null, error: { code: "SPINE_VERSION_CONFLICT", message: "Spine đã đổi" } },
+          { status: 409 }
+        );
+      })
+    );
+    fireEvent.click(baseline);
+
+    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Baseline & kiểm");
+    // Record of Changes chỉ hiện ở `baselining` ⇒ biến mất nghĩa là đã sang `checking`
+    await waitFor(() => expect(screen.queryByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeNull());
+    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Việt (nhận diện từ file)");
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("hết credit giữa lúc trích ⇒ banner paused; nạp xong bấm Tiếp tục chạy nốt", async () => {
     const start = await uploadAndMap();
     mode1State.mode1State.credits = 4; // đủ 2 section

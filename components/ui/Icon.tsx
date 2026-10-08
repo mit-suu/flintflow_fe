@@ -43,6 +43,7 @@ import { SignOut } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { Sparkle } from "@phosphor-icons/react/dist/ssr/Sparkle";
 import { Stack } from "@phosphor-icons/react/dist/ssr/Stack";
 import { Toolbox } from "@phosphor-icons/react/dist/ssr/Toolbox";
+import { Translate } from "@phosphor-icons/react/dist/ssr/Translate";
 import { Trash } from "@phosphor-icons/react/dist/ssr/Trash";
 import { UploadSimple } from "@phosphor-icons/react/dist/ssr/UploadSimple";
 import { User } from "@phosphor-icons/react/dist/ssr/User";
@@ -108,6 +109,7 @@ const ICONS = {
   search: MagnifyingGlass,
   spinner: CircleNotch,
   sparkle: Sparkle,
+  translate: Translate,
   trash: Trash,
   upload: UploadSimple,
   user: User,

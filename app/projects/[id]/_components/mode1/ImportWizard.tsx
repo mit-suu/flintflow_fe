@@ -36,6 +36,15 @@ const STEPS: { label: string; statuses: ImportStatus[] }[] = [
   { label: "Gap report", statuses: IMPORT_DONE_STATUSES as ImportStatus[] },
 ];
 
+/**
+ * Bước đã đọc xong file ⇒ hiện ngôn ngữ nhận diện (FLF-265, D3). Không gắn vào bước mapping vì BE có thể bỏ qua nó
+ * (mapping đủ tin cậy ⇒ đi thẳng sang trích).
+ */
+const LANGUAGE_STATUSES: ImportStatus[] = ["fields_review", "baselining", "checking"];
+
+/** Mode 1 bản đầu không dịch: ngôn ngữ tài liệu = ngôn ngữ file; lạ / thiếu ⇒ tiếng Anh như BE (D1). */
+const detectedLanguageLabel = (language: string | undefined) => (language === "vi" ? "Tiếng Việt" : "Tiếng Anh");
+
 /** Luồng 1.1–1.12 (UC-19–UC-22): mỗi bước hiện theo `import.status` do BE trả. */
 export default function ImportWizard({ projectId, credits, onChanged, pollMs }: ImportWizardProps) {
   const router = useRouter();
@@ -85,6 +94,12 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             ✕
           </button>
         </div>
+      )}
+
+      {status && LANGUAGE_STATUSES.includes(status) && imp.data?.profile && (
+        <p className="text-[12.5px] text-on-surface-medium">
+          Ngôn ngữ tài liệu: <strong>{detectedLanguageLabel(imp.data.profile.language)}</strong> (nhận diện từ file)
+        </p>
       )}
 
       {showUpload && (

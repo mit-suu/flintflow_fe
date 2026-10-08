@@ -98,6 +98,27 @@ describe("mock mode 1 — project theo mode (#1)", () => {
     expect((await call<Project>("GET", `/projects/${MOCK_PROJECT_ID}`)).body.data?.mode).toBe("fpt");
   });
 
+  it("FLF-265: POST trả lại documentLanguage; thiếu ⇒ en; mode import không có field; giá trị lạ ⇒ 400", async () => {
+    expect((await call<Project>("POST", "/projects", { name: "A", mode: "fpt", documentLanguage: "vi" })).body.data?.documentLanguage).toBe("vi");
+    expect((await call<Project>("POST", "/projects", { name: "B", mode: "fpt" })).body.data?.documentLanguage).toBe("en");
+    const imported = (await call<Project>("POST", "/projects", { name: "C", mode: "import", documentLanguage: "vi" })).body.data!;
+    expect(imported).not.toHaveProperty("documentLanguage");
+    expect((await call("POST", "/projects", { name: "D", documentLanguage: "fr" })).status).toBe(400);
+  });
+
+  it("FLF-265: PATCH document-language — project import ⇒ 409 DOCUMENT_LANGUAGE_LOCKED; project mode 2 vừa tạo ⇒ đổi", async () => {
+    const locked = await call("PATCH", `/projects/${P}/document-language`, { documentLanguage: "vi" });
+    expect(locked.status).toBe(409);
+    expect(locked.body.error?.code).toBe("DOCUMENT_LANGUAGE_LOCKED");
+
+    const fpt = (await call<Project>("POST", "/projects", { name: "E", mode: "fpt", documentLanguage: "en" })).body.data!;
+    const changed = await call<Project>("PATCH", `/projects/${fpt._id}/document-language`, { documentLanguage: "vi" });
+    expect(changed.body.data?.documentLanguage).toBe("vi");
+    expect((await call<Project>("GET", `/projects/${fpt._id}`)).body.data?.documentLanguage).toBe("vi");
+    // body strict: key lạ ⇒ 400
+    expect((await call("PATCH", `/projects/${fpt._id}/document-language`, { documentLanguage: "vi", mode: "fpt" })).status).toBe(400);
+  });
+
   it("API mode 1 trên project mode 2 ⇒ 409 PROJECT_MODE_MISMATCH", async () => {
     const res = await call("GET", `/projects/${MOCK_PROJECT_ID}/import`);
     expect(res.status).toBe(409);

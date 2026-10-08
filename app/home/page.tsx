@@ -228,6 +228,7 @@ export default function HomePage() {
     onDelete: openAction("archive"),
     onHardDelete: openAction("delete"),
     onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", projects: [project] }),
+    onChangeDocumentLanguage: openAction("documentLanguage"),
     selectable: selectMode,
     selectedIds,
     onToggleSelect: (project: Project) =>

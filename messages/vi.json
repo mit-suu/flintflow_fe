@@ -587,6 +587,7 @@
       "menu": {
         "rename": "Đổi tên",
         "moveToFolder": "Chuyển vào thư mục",
+        "documentLanguage": "Ngôn ngữ tài liệu",
         "archive": "Lưu trữ",
         "hardDelete": "Xoá vĩnh viễn"
       },
@@ -609,6 +610,12 @@
     "createProject": {
       "defaultName": "Dự án chưa đặt tên",
       "nameLabel": "Tên dự án",
+      "language": {
+        "label": "Ngôn ngữ tài liệu",
+        "vi": "Tiếng Việt",
+        "en": "Tiếng Anh",
+        "importHint": "Ngôn ngữ tài liệu lấy theo file tải lên."
+      },
       "pickMode": "Chọn một cách bắt đầu ở trên để tiếp tục.",
       "submitting": "Đang tạo…",
       "submit": "Bắt đầu",
@@ -631,6 +638,13 @@
         "cta": "Xoá vĩnh viễn",
         "busy": "Đang xoá…",
         "failed": "Không thể xoá vĩnh viễn dự án"
+      },
+      "documentLanguage": {
+        "title": "Ngôn ngữ tài liệu",
+        "detail": "Nội dung mới sẽ viết theo ngôn ngữ này; nội dung đã có cần dịch một lần (ước tính credit ở bước sau); sơ đồ giữ tiếng Anh.",
+        "cta": "Đổi ngôn ngữ",
+        "busy": "Đang đổi…",
+        "failed": "Không thể đổi ngôn ngữ tài liệu"
       },
       "renameTitle": "Đổi tên dự án",
       "renameFailed": "Không thể đổi tên dự án",
@@ -1250,6 +1264,7 @@
     "USER_NOT_FOUND": "Không tìm thấy người dùng.",
     "RATE_LIMIT_EXCEEDED": "Dịch vụ AI đang quá tải. Vui lòng thử lại sau ít phút.",
     "PROJECT_NOT_FOUND": "Không tìm thấy dự án hoặc bạn không có quyền truy cập.",
+    "DOCUMENT_LANGUAGE_LOCKED": "Dự án import SRS có sẵn dùng ngôn ngữ của file tải lên — không đổi được ngôn ngữ tài liệu.",
     "NAME_REQUIRED": "Vui lòng nhập tên dự án.",
     "CHAT_SESSION_NOT_FOUND": "Không tìm thấy phiên chat.",
     "CONTENT_REQUIRED": "Tin nhắn không được để trống.",

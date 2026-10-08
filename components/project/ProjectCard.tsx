@@ -29,6 +29,8 @@ interface Props {
   onHardDelete: (p: Project) => void;
   /** Có ⇒ menu thêm "Chuyển vào thư mục". */
   onMoveToFolder?: (p: Project) => void;
+  /** Có ⇒ menu thêm "Ngôn ngữ tài liệu" (FLF-265) — trừ dự án mode `import` (ngôn ngữ theo file). */
+  onChangeDocumentLanguage?: (p: Project) => void;
   /** Tên thư mục chứa dự án — hiện chip ở tab "Dự án" (nơi hiện cả dự án trong thư mục). */
   folderName?: string | null;
   /** Cho kéo card thả vào thẻ thư mục. */
@@ -205,6 +207,7 @@ export default function ProjectCard({
   onDelete,
   onHardDelete,
   onMoveToFolder,
+  onChangeDocumentLanguage,
   folderName,
   draggable = false,
   selectable = false,
@@ -229,6 +232,16 @@ export default function ProjectCard({
             label: t("menu.moveToFolder"),
             icon: "folder",
             onSelect: () => onMoveToFolder(project)
+          } as const
+        ]
+      : []),
+    // Mode 1: ngôn ngữ tài liệu theo file tải lên, không đổi được (D3)
+    ...(onChangeDocumentLanguage && project.mode !== "import"
+      ? [
+          {
+            label: t("menu.documentLanguage"),
+            icon: "translate",
+            onSelect: () => onChangeDocumentLanguage(project)
           } as const
         ]
       : []),
