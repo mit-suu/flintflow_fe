@@ -8,6 +8,7 @@ import type { ImportStatus } from "@/types/import";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useImport } from "../../hooks/mode1/useImport";
 import ConfirmLatestModal from "./ConfirmLatestModal";
+import CreditEstimateNote from "./CreditEstimateNote";
 import ExtractProgress from "./ExtractProgress";
 import FieldsReview from "./FieldsReview";
 import { IMPORT_DONE_STATUSES } from "./labels";
@@ -141,7 +142,10 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
       )}
 
       {status === "mapping_review" && imp.data?.profile && (
-        <MappingReviewTable profile={imp.data.profile} busy={imp.busy === "mapping"} onSubmit={(body) => void after(imp.saveMapping(body))} />
+        <>
+          {imp.data.credit_estimate && <CreditEstimateNote estimate={imp.data.credit_estimate} fallbackBalance={credits} />}
+          <MappingReviewTable profile={imp.data.profile} busy={imp.busy === "mapping"} onSubmit={(body) => void after(imp.saveMapping(body))} />
+        </>
       )}
 
       {status === "extracting" && doc && (
@@ -150,6 +154,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
           sections={imp.data?.extraction.sections ?? []}
           running={imp.jobRunning}
           credits={credits}
+          estimate={imp.data?.credit_estimate ?? null}
           busy={imp.busy === "extract" || imp.busy === "resume"}
           onStart={() => void after(imp.extract())}
           onResume={() => void after(imp.resume())}
