@@ -59,11 +59,11 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
     <div className="flex flex-col gap-4 max-w-[920px] w-full mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[20px] font-extrabold text-[#191817]">Change request</h2>
-          <p className="text-[12px] text-[#8A867E]">Tài liệu đã có baseline — mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.</p>
+          <h2 className="text-title font-extrabold text-[#191817]">Change request</h2>
+          <p className="text-body text-[#8A867E]">Tài liệu đã có baseline — mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.</p>
         </div>
         {!formOpen && !readOnly && (
-          <button type="button" onClick={() => setFormOpen(true)} className="px-4 py-2 rounded-full btn-gradient-primary text-white text-[12.5px] font-bold cursor-pointer">
+          <button type="button" onClick={() => setFormOpen(true)} className="px-4 py-2 rounded-full btn-gradient-primary text-white text-body font-bold cursor-pointer">
             + Tạo change request
           </button>
         )}
@@ -79,7 +79,7 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
       )}
 
       {error && (
-        <p role="alert" className="text-[12.5px] text-[#B03030]">
+        <p role="alert" className="text-body text-[#B03030]">
           {error}
         </p>
       )}
@@ -91,7 +91,7 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
             type="button"
             aria-pressed={filter === f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1 rounded-full text-[12px] font-bold ${filter === f ? "bg-[#191817] text-white" : "bg-white border border-[#ECEAE5] text-[#6B6862]"}`}
+            className={`px-3 py-1 rounded-full text-body font-bold ${filter === f ? "bg-[#191817] text-white" : "bg-white border border-[#ECEAE5] text-[#6B6862]"}`}
           >
             {f === "open" ? "Đang mở" : f === "closed" ? "Đã xong / đóng" : "Tất cả"}
           </button>
@@ -101,7 +101,7 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
       {crs === null ? (
         <PageSkeleton variant="list" rows={3} label="Đang tải change request" />
       ) : shown.length === 0 ? (
-        <p className="text-[13px] text-[#8A867E] bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-6 text-center">Chưa có change request nào ở mục này.</p>
+        <p className="text-body text-[#8A867E] bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-6 text-center">Chưa có change request nào ở mục này.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {shown.map((c) => (
@@ -111,11 +111,11 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
                 scroll={false}
                 className="bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-3 flex flex-wrap items-center gap-3 hover:shadow-[0_8px_20px_rgba(25,24,23,0.06)] transition-shadow"
               >
-                <code className="text-[12px] font-bold text-[#6A62C4]">{c.cr_id}</code>
-                <span className="flex-1 min-w-[200px] font-bold text-[#191817] text-[13.5px] truncate">{c.title}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusTone(c.status)}`}>{CR_STATUS_LABELS[c.status]}</span>
-                {c.paused && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FDEDED] text-[#B03030]">Tạm dừng</span>}
-                <span className="w-full text-[11.5px] text-[#8A867E]">
+                <code className="text-body font-bold text-[#6A62C4]">{c.cr_id}</code>
+                <span className="flex-1 min-w-[200px] font-bold text-[#191817] text-body truncate">{c.title}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-caption font-bold ${statusTone(c.status)}`}>{CR_STATUS_LABELS[c.status]}</span>
+                {c.paused && <span className="px-2 py-0.5 rounded-full text-caption font-bold bg-[#FDEDED] text-[#B03030]">Tạm dừng</span>}
+                <span className="w-full text-body text-[#8A867E]">
                   {CR_SOURCE_LABELS[c.source.kind]}
                   {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · {c.requester} · {formatDateTime(c.created_at)}
                   {c.result_doc_version ? ` · ghi vào bản ${c.result_doc_version}` : ""}

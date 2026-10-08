@@ -94,7 +94,7 @@ export default function FilterSelect<T extends string>({ label, value, options, 
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKeyDown}
         // Phẳng không viền: nền xám ấm, hover/đang mở đậm một nấc
-        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-control text-[12.5px] cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-control text-body cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
           open ? "bg-surface-container-high" : "bg-surface-container hover:bg-surface-container-high"
         }`}
       >
@@ -129,7 +129,7 @@ export default function FilterSelect<T extends string>({ label, value, options, 
                   e.preventDefault();
                   choose(index);
                 }}
-                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-inner text-[12.5px] cursor-pointer transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-inner text-body cursor-pointer transition-colors ${
                   index === active ? "bg-surface-container" : ""
                 } ${selected ? "text-primary font-semibold" : "text-on-surface-dark font-medium"}`}
               >

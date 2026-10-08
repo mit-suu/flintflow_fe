@@ -119,7 +119,7 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
 
         {/* Thu gọn: không cuộn để tooltip bên phải icon không bị cắt (ít mục, không cần cuộn) */}
         <div
-          className={`flex-1 min-h-0 flex flex-col gap-6 ${collapsed ? "overflow-visible" : "overflow-y-auto"}`}>
+          className={`flex-1 min-h-0 flex flex-col gap-6 ${collapsed ? "overflow-visible" : "ff-scroll overflow-y-auto"}`}>
           {SIDEBAR_SECTIONS.map((section) => (
             <nav
               key={section.id}
@@ -133,13 +133,13 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                   />
                 ) : (
                   <div className="px-3 pb-1">
-                    <div className="text-[11.5px] font-medium text-on-surface-muted">{t(section.labelKey)}</div>
+                    <div className="text-body font-medium text-on-surface-muted">{t(section.labelKey)}</div>
                     {/* Tổ chức đang mở — người ở nhiều tổ chức trước đây chỉ biết mình đang ở đâu khi mở trang "Đổi tổ chức" */}
                     {section.id === "org" && activeOrg ? (
                       <div
                         data-testid="active-org-name"
                         title={activeOrg.name}
-                        className="mt-0.5 text-[13px] font-semibold text-on-surface truncate">
+                        className="mt-0.5 text-body font-semibold text-on-surface truncate">
                         {activeOrg.name}
                       </div>
                     ) : null}
@@ -196,14 +196,14 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
             header={
               <div className="flex items-center gap-2.5">
                 <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${USER_AVATAR}`}>
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-body font-semibold shrink-0 ${USER_AVATAR}`}>
                   {initial}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[12.5px] font-semibold text-on-surface truncate">
+                  <span className="block text-body font-semibold text-on-surface truncate">
                     {user.name}
                   </span>
-                  <span className="block text-[11px] text-on-surface-muted truncate">
+                  <span className="block text-caption text-on-surface-muted truncate">
                     {user.email}
                   </span>
                 </span>
@@ -241,16 +241,16 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                 aria-label={t("account", { name: user.name })}
                 className={`${SIDEBAR_ROW} ${SIDEBAR_ROW_IDLE} w-full cursor-pointer text-left ${collapsed ? "justify-center h-10 w-10 mx-auto" : "h-12 px-2"}`}>
                 <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${USER_AVATAR}`}>
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-body font-semibold shrink-0 ${USER_AVATAR}`}>
                   {initial}
                 </span>
                 {!collapsed && (
                   <>
-                    <span className="min-w-0 flex-1 leading-tight">
-                      <span className="block text-[13px] font-medium text-on-surface truncate">
+                    <span className="min-w-0 flex-1 leading-[1.4]">
+                      <span className="block text-body font-medium text-on-surface truncate">
                         {user.name}
                       </span>
-                      <span className="block text-[11.5px] font-normal text-on-surface-muted truncate">
+                      <span className="block text-body font-normal text-on-surface-muted truncate">
                         {planLabel}
                       </span>
                     </span>

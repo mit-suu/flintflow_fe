@@ -53,34 +53,34 @@ export default function ReadOnlyDocumentPage() {
     <div className="min-h-screen bg-[#F5F3F0] flex flex-col">
       <header className="bg-white border-b border-[#ECEAE5] px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
-          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
+          <span className="text-body font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
+          <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
         </div>
         <BackLink href={`/projects/${projectId}`}>Về không gian làm việc</BackLink>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 ff-scroll overflow-y-auto p-6">
         <div className="max-w-3xl mx-auto flex flex-col gap-3">
-          {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
+          {loading && <div className="text-body text-[#A8A49C] italic">Đang tải tài liệu…</div>}
           {!loading && error && (
-            <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
+            <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-body text-[#8A4141]">
               Không tải được tài liệu: {error}
             </div>
           )}
           {!loading &&
             doc?.sections.map((section) => (
               <article key={section.id} className="p-4 rounded-[12px] border border-[#ECEAE5] bg-white flex flex-col gap-2">
-                <h5 className="font-bold text-[12.5px] text-[#191817]">
+                <h5 className="font-bold text-body text-[#191817]">
                   {section.number ? `${section.number}. ` : ""}{section.heading}
                 </h5>
                 {isIncomplete(section) ? (
-                  <div className="text-[11.5px] text-[#A8A49C] italic">chưa hoàn thiện</div>
+                  <div className="text-body text-[#A8A49C] italic">chưa hoàn thiện</div>
                 ) : section.blocks.length > 0 ? (
                   section.blocks.map((block, i) => (
                     <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
                   ))
                 ) : (
-                  <div className="text-[11.5px] text-[#A8A49C] italic">chưa hoàn thiện</div>
+                  <div className="text-body text-[#A8A49C] italic">chưa hoàn thiện</div>
                 )}
               </article>
             ))}

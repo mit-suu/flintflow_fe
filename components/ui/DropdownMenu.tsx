@@ -109,7 +109,7 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
                 setOpen(false);
                 item.onSelect();
               }}
-              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-inner text-[12.5px] font-semibold text-left w-full cursor-pointer transition-colors focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-inner text-body font-semibold text-left w-full cursor-pointer transition-colors focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
                 item.tone === "danger"
                   ? "text-error hover:bg-error-container focus-visible:bg-error-container"
                   : "text-on-surface-dark hover:bg-surface-container focus-visible:bg-surface-container"

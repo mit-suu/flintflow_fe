@@ -20,7 +20,7 @@ interface SidebarNavItemProps {
  * `group/row` để tooltip của chế độ thu gọn bám theo dòng.
  */
 export const SIDEBAR_ROW =
-  "group/row relative flex items-center gap-3 rounded-control text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+  "group/row relative flex items-center gap-3 rounded-control text-body transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 export const SIDEBAR_ROW_IDLE = "text-on-surface-variant font-medium hover:bg-surface-sidebar hover:text-on-surface";
 // Mục đang chọn: tím hệ thống — nền `primary-fixed` + chữ/icon `primary` (icon tô đặc)
 const SIDEBAR_ROW_ACTIVE = "bg-primary-fixed text-primary font-semibold";
@@ -33,7 +33,7 @@ export function SidebarTooltip({ label }: { label: string }) {
   return (
     <span
       aria-hidden
-      className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-inner bg-inverse-surface px-2.5 py-1 text-[12px] font-medium text-inverse-on-surface opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100"
+      className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 whitespace-nowrap rounded-inner bg-inverse-surface px-2.5 py-1 text-body font-medium text-inverse-on-surface opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100"
     >
       {label}
     </span>
@@ -65,7 +65,7 @@ export default function SidebarNavItem({ item, active = false, collapsed = false
           <>
             <span className="flex-1 truncate">{label}</span>
             {/* Chữ nhạt thay cho viên badge: tính năng chưa có không nên nổi hơn tính năng đang dùng được */}
-            <span className="text-[11px] font-normal">{soonLabel}</span>
+            <span className="text-caption font-normal">{soonLabel}</span>
           </>
         )}
       </span>
@@ -79,7 +79,7 @@ export default function SidebarNavItem({ item, active = false, collapsed = false
       aria-current={active ? "page" : undefined}
       className={`${SIDEBAR_ROW} ${layout} ${active ? SIDEBAR_ROW_ACTIVE : SIDEBAR_ROW_IDLE}`}
     >
-      <Icon name={item.icon} size={19} weight={active ? "fill" : "regular"} />
+      <Icon name={item.icon} size={19} weight={active ? "bold" : "regular"} />
       {collapsed ? (
         <>
           <span className="sr-only">{label}</span>

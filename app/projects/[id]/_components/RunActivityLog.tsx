@@ -22,12 +22,12 @@ export default function RunActivityLog({ events, running }: RunActivityLogProps)
     <ol className="flex flex-col gap-1" aria-label="Nhật ký hoạt động của AI">
       {lines.map((line) =>
         line.kind === "step" ? (
-          <li key={line.key} title={line.title} className="pt-1 first:pt-0 text-[11.5px] font-semibold text-on-surface-variant">
+          <li key={line.key} title={line.title} className="pt-1 first:pt-0 text-body font-semibold text-on-surface-variant">
             {line.text}
           </li>
         ) : (
           <li key={line.key} className="flex flex-col gap-0.5 min-w-0">
-            <div className="flex items-center gap-2 text-[12.5px] min-w-0">
+            <div className="flex items-center gap-2 text-body leading-5 min-w-0">
             <span aria-hidden className="size-4 shrink-0 flex items-center justify-center">
               {line.status === "running" ? (
                 <Icon name="spinner" size={12} className="text-primary animate-spin motion-reduce:animate-none" />
@@ -37,17 +37,18 @@ export default function RunActivityLog({ events, running }: RunActivityLogProps)
                 <Icon name="check" size={13} className="text-success" />
               )}
             </span>
-            <span className={`flex-1 min-w-0 truncate ${line.status === "running" ? "text-on-surface" : line.status === "failed" ? "text-error" : "text-on-surface-variant"}`}>
+            <span title={line.text} className={`flex-1 min-w-0 truncate ${line.status === "running" ? "text-on-surface" : line.status === "failed" ? "text-error" : "text-on-surface-variant"}`}>
               {line.text}
               <span className="sr-only">{line.status === "running" ? " (đang làm)" : line.status === "failed" ? " (lỗi)" : " (xong)"}</span>
             </span>
             </div>
             {line.details.length > 0 && (
-              <ul className="ml-6 flex flex-col gap-0.5 text-[12px] text-on-surface-muted">
+              // Vạch nối dọc buông từ dấu ✓ xuống (nền 1px, không phải ký tự `└` — glyph đó lệch baseline và
+              // đổi hình theo font máy); chữ chi tiết thẳng hàng với chữ của việc cha.
+              <ul className="relative ml-2 mt-0.5 pl-4 flex flex-col gap-1 text-body leading-5 text-on-surface-muted before:absolute before:left-0 before:top-1 before:bottom-2 before:w-px before:bg-outline before:content-['']">
                 {line.details.map((detail, index) => (
-                  <li key={index} className="flex gap-1.5 min-w-0">
-                    <span aria-hidden className="shrink-0">└</span>
-                    <span className="min-w-0 truncate">{detail}</span>
+                  <li key={index} title={detail} className="min-w-0 truncate">
+                    {detail}
                   </li>
                 ))}
               </ul>

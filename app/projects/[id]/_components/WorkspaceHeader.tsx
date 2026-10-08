@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import Logo from "@/components/Logo";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import CountBadge from "@/components/ui/CountBadge";
 import DropdownMenu from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
@@ -32,6 +33,8 @@ interface WorkspaceHeaderProps {
   onToolsClick?: () => void;
   toolsActive?: boolean;
   toolsLabel?: string;
+  /** Số mục trong panel đang chờ user quyết — hiện thành badge trên nút, 0 thì không hiện. */
+  toolsCount?: number;
   onLogout: () => void;
 }
 
@@ -53,6 +56,7 @@ export default function WorkspaceHeader({
   onToolsClick,
   toolsActive = false,
   toolsLabel = "Công cụ",
+  toolsCount = 0,
   onLogout,
 }: WorkspaceHeaderProps) {
   return (
@@ -63,7 +67,7 @@ export default function WorkspaceHeader({
           <Logo variant="icon" sizeClassName="w-5 h-5" theme="light" href="/home" />
         </div>
       )}
-      <nav aria-label="Breadcrumb" className="flex-1 min-w-0 flex items-center gap-1 text-[13px]">
+      <nav aria-label="Breadcrumb" className="flex-1 min-w-0 flex items-center gap-1 text-body">
         <Link href="/home" className="hidden sm:inline text-on-surface-muted hover:text-on-surface font-medium transition-colors">
           Dự án
         </Link>
@@ -100,10 +104,12 @@ export default function WorkspaceHeader({
             icon="folder"
             onClick={onToolsClick}
             aria-pressed={toolsActive}
-            title={toolsLabel}
+            title={toolsCount > 0 ? `${toolsLabel} — ${toolsCount} mục chờ bạn quyết` : toolsLabel}
             className={`shrink-0 ${toolsActive ? "bg-primary-soft text-primary-hover" : ""}`}
           >
             <span className="hidden md:inline">{toolsLabel === "Hồ sơ dự án" ? "Hồ sơ" : "Công cụ"}</span>
+            {/* Có mục chờ quyết mà nút im lặng thì user không biết để mở — badge nói số, không chỉ một chấm màu */}
+            {toolsCount > 0 && <CountBadge count={toolsCount} tone="alert" />}
           </Button>
         )}
         <Button size="sm" variant="ghost" icon="export" onClick={onExportClick} title="Hoàn tất và xuất tài liệu SRS" className="shrink-0">
@@ -119,7 +125,7 @@ export default function WorkspaceHeader({
               title="Tài khoản"
               className="w-9 h-9 grid place-items-center rounded-control hover:bg-surface-container-high transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <span className="w-7 h-7 rounded-full grid place-items-center text-[12px] font-semibold bg-primary-fixed text-primary">
+              <span className="w-7 h-7 rounded-full grid place-items-center text-body font-semibold bg-primary-fixed text-primary">
                 {user?.name ? user.name.charAt(0).toUpperCase() : <Icon name="user" size={14} />}
               </span>
             </button>
@@ -128,10 +134,10 @@ export default function WorkspaceHeader({
             user ? (
               <div className="flex flex-col gap-1.5 min-w-[200px]">
                 <span className="min-w-0">
-                  <span className="block text-[12.5px] font-semibold text-on-surface truncate">{user.name ?? user.email}</span>
-                  {user.name && <span className="block text-[11px] text-on-surface-muted truncate">{user.email}</span>}
+                  <span className="block text-body font-semibold text-on-surface truncate">{user.name ?? user.email}</span>
+                  {user.name && <span className="block text-caption text-on-surface-muted truncate">{user.email}</span>}
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-on-surface">
+                <span className="inline-flex items-center gap-1.5 text-body font-semibold text-on-surface">
                   <Icon name="wallet" size={14} className="text-primary" />
                   <span className="tabular-nums">{user.balance ?? 0}</span>
                   <span className="text-on-surface-muted font-medium">credits</span>

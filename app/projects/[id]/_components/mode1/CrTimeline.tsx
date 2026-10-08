@@ -19,7 +19,7 @@ export default function CrTimeline({ status }: { status: CrStatus }) {
   const ended = status === "rejected" || status === "cancelled";
   const current = STAGES.findIndex((s) => s.statuses.includes(status));
   return (
-    <ol className="flex flex-wrap items-center gap-1.5 text-[11.5px]" aria-label="Tiến trình change request">
+    <ol className="flex flex-wrap items-center gap-1.5 text-body" aria-label="Tiến trình change request">
       {STAGES.map((s, i) => (
         <li
           key={s.label}

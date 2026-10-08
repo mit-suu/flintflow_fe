@@ -100,7 +100,7 @@ export default function LocaleSwitcher({ className = "" }: { className?: string 
             title={t(locale)}
             onClick={() => choose(locale)}
             disabled={pending}
-            className={`cursor-pointer rounded-full px-2.5 py-1 text-[11.5px] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`cursor-pointer rounded-full px-2.5 py-1 text-body uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               active
                 ? "bg-primary-fixed font-bold text-primary"
                 : "font-semibold text-on-surface-variant hover:bg-surface-container-lowest hover:text-on-surface"

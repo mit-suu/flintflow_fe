@@ -86,13 +86,13 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
     <div className="flex flex-col gap-4">
       {!readOnly && (
       <section className="flex flex-col gap-2">
-        <h3 className="font-extrabold text-[#191817] text-[13.5px]">Release</h3>
-        <p className="text-[11.5px] text-[#8A867E] leading-relaxed">
+        <h3 className="font-extrabold text-[#191817] text-body">Release</h3>
+        <p className="text-body text-[#8A867E] leading-relaxed">
           Đóng dấu bản major tiếp theo, khoá baseline và tạo bản sạch (đã Accept mọi Track Changes). Gom mọi change request đã ghi từ
           lần release trước.
         </p>
         {confirming ? (
-          <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3 text-[12px] text-[#554DB0]">
+          <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3 text-body text-[#554DB0]">
             <p>Release từ bản {latest?.version}? Sau khi release, sửa tiếp phải qua change request mới.</p>
             {alreadyReleased && <p className="text-[#8A6D1F]">Bản mới nhất đã là bản release và chưa có change request nào ghi sau đó — release lại chỉ đóng số mới.</p>}
             <div className="flex gap-2 justify-end">
@@ -115,14 +115,14 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
             onClick={() => setConfirming(true)}
             disabled={releaseBlockedReason !== null}
             title={releaseBlockedReason ?? undefined}
-            className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-[12.5px] font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             Release
           </button>
         )}
-        {releaseBlockedReason && !confirming && <p className="text-[11.5px] text-[#8A6D1F]">{releaseBlockedReason}</p>}
+        {releaseBlockedReason && !confirming && <p className="text-body text-[#8A6D1F]">{releaseBlockedReason}</p>}
         {error && (
-          <div role="alert" className="text-[12px] text-[#B03030] bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-3 py-2">
+          <div role="alert" className="text-body text-[#B03030] bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-3 py-2">
             {error}
             {blockingFlags.length > 0 && (
               <ul className="list-disc pl-4 mt-1">
@@ -137,7 +137,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
       )}
 
       <section className="flex flex-col gap-2">
-        <h3 className="font-extrabold text-[#191817] text-[13.5px]">Các version</h3>
+        <h3 className="font-extrabold text-[#191817] text-body">Các version</h3>
         <ul className="flex flex-col gap-2">
           {versions.map((v) => {
             const release = isReleaseVersion(v.version);
@@ -148,23 +148,23 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
               >
                 <div className="flex items-center gap-2">
                   {onSelect ? (
-                    <button type="button" onClick={() => onSelect(v.version)} className="font-extrabold text-[#191817] text-[14px] hover:underline" aria-label={`Xem bản ${v.version}`}>
+                    <button type="button" onClick={() => onSelect(v.version)} className="font-extrabold text-[#191817] text-heading hover:underline" aria-label={`Xem bản ${v.version}`}>
                       {v.version}
                     </button>
                   ) : (
-                    <span className="font-extrabold text-[#191817] text-[14px]">{v.version}</span>
+                    <span className="font-extrabold text-[#191817] text-heading">{v.version}</span>
                   )}
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
+                    className={`px-2 py-0.5 rounded-full text-caption font-bold ${
                       release ? "bg-[#E9F7EE] text-[#1F7A45]" : v.kind === "imported" ? "bg-[#F0EEEA] text-[#4B4842]" : "bg-[#FBF4E4] text-[#8A6D1F]"
                     }`}
                   >
                     {VERSION_KIND_LABELS[v.kind]}
                   </span>
-                  <span className="ml-auto text-[10.5px] text-[#A8A49C]">{formatDateTime(v.created_at)}</span>
+                  <span className="ml-auto text-caption text-[#A8A49C]">{formatDateTime(v.created_at)}</span>
                 </div>
                 {v.cr_ids.length > 0 && (
-                  <div className="flex flex-wrap gap-1 text-[11px]">
+                  <div className="flex flex-wrap gap-1 text-caption">
                     {v.cr_ids.map((id) => (
                       <Link key={id} href={crHref(projectId, id)} scroll={false} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold hover:bg-[#E4E1DC]">
                         {id}
@@ -177,7 +177,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                     type="button"
                     onClick={() => void download(v.version, "auto")}
                     disabled={busy !== null}
-                    className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50"
+                    className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50"
                   >
                     {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản nháp (DRAFT)"}
                   </button>
@@ -187,7 +187,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       onClick={() => void download(v.version, "original")}
                       disabled={busy !== null}
                       title="File .docx người dùng upload lúc import"
-                      className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[11.5px] font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
+                      className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
                     >
                       {busy === `download:${v.version}:original` ? "Đang tải…" : "Tải file gốc"}
                     </button>
@@ -199,7 +199,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       onClick={() => void download(v.version, "tracked")}
                       disabled={busy !== null}
                       title={`Track Changes + comment so với bản ${v.based_on ?? "trước"}, tác giả ${v.cr_ids.join(", ")}`}
-                      className="px-2.5 py-1 rounded-[8px] border border-[#DCD8F0] bg-[#F2F1FB] text-[11.5px] font-bold text-[#554DB0] hover:bg-[#E8E6F7] disabled:opacity-50"
+                      className="px-2.5 py-1 rounded-[8px] border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] disabled:opacity-50"
                     >
                       {busy === `download:${v.version}:tracked` ? "Đang tải…" : "Tải bản có đánh dấu"}
                     </button>

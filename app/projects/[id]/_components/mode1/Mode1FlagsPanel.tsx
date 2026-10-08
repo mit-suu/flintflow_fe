@@ -27,22 +27,22 @@ export default function Mode1FlagsPanel({ projectId, flags, readOnly = false }: 
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[11px] text-[#8A867E] leading-relaxed">
+      <p className="text-caption text-[#8A867E] leading-relaxed">
         Tài liệu đã import — mọi thay đổi đi qua change request (tạo từ gap report, panel “Sửa tài liệu có xem trước” hoặc lệnh
         sửa trong chat). Release được khi hết cờ đỏ.
       </p>
 
       <section className="flex flex-col gap-2" aria-label="Cờ đỏ đang chặn release">
-        <h4 className="text-[12px] font-extrabold text-[#191817]">Cờ đỏ đang chặn release ({red.length})</h4>
+        <h4 className="text-body font-extrabold text-[#191817]">Cờ đỏ đang chặn release ({red.length})</h4>
         {red.length === 0 ? (
-          <p className="text-[11.5px] text-[#1F7A45]">Không còn cờ đỏ nào.</p>
+          <p className="text-body text-[#1F7A45]">Không còn cờ đỏ nào.</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {red.map((f) => (
               <li key={f.id} className="flex flex-col gap-1 bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-2.5 py-1.5">
-                <span className="text-[11.5px] text-[#33312D]">{humanizeText(f.message)}</span>
+                <span className="text-body text-[#33312D]">{humanizeText(f.message)}</span>
                 <span className="flex items-center gap-2">
-                  <span className="text-[10.5px] text-[#8A4141]" title={f.rule_id}>
+                  <span className="text-caption text-[#8A4141]" title={f.rule_id}>
                     {ruleLabel(f.rule_id)}
                   </span>
                   {!readOnly && (
@@ -55,7 +55,7 @@ export default function Mode1FlagsPanel({ projectId, flags, readOnly = false }: 
                       source: "gap_report",
                       ref: f.section_id ? sectionName(f.section_id) : undefined,
                     })}
-                    className="ml-auto text-[11px] font-bold text-[#6A62C4] hover:underline shrink-0"
+                    className="ml-auto text-caption font-bold text-[#6A62C4] hover:underline shrink-0"
                   >
                     Tạo CR
                   </Link>
@@ -68,7 +68,7 @@ export default function Mode1FlagsPanel({ projectId, flags, readOnly = false }: 
       </section>
 
       {yellow.length > 0 && (
-        <p className="text-[11px] text-[#8A6D1F]">{yellow.length} cờ vàng — không chặn release, xem ở gap report hoặc panel Verification.</p>
+        <p className="text-caption text-[#8A6D1F]">{yellow.length} cờ vàng — không chặn release, xem ở gap report hoặc panel Verification.</p>
       )}
     </div>
   );

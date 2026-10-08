@@ -60,8 +60,8 @@ export default function UploadStep({
         } ${busy ? "opacity-60 cursor-wait" : ""}`}
       >
         <Icon name="upload" size={34} className="text-[#6A62C4]" />
-        <p className="font-extrabold text-[#191817] text-[14px]">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
-        <p className="text-[12px] text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
+        <p className="font-extrabold text-[#191817] text-heading">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
+        <p className="text-body text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
         <input
           ref={inputRef}
           type="file"
@@ -74,7 +74,7 @@ export default function UploadStep({
           }}
         />
       </div>
-      {localError && <p className="text-[12px] text-[#B03030]">{localError}</p>}
+      {localError && <p className="text-body text-[#B03030]">{localError}</p>}
     </div>
   );
 }

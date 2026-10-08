@@ -97,8 +97,8 @@ export default function SourceModePicker({ value, onChange, disabled = false }: 
                 )
               )}
             </div>
-            <span className={`text-[13.5px] font-bold ${soon ? "text-on-surface-muted" : "text-on-surface"}`}>{t(`${option.key}.label`)}</span>
-            <span className={`text-[12px] leading-[1.5] ${soon ? "text-on-surface-subtle" : "text-on-surface-variant"}`}>
+            <span className={`text-body font-bold ${soon ? "text-on-surface-muted" : "text-on-surface"}`}>{t(`${option.key}.label`)}</span>
+            <span className={`text-body leading-[1.5] ${soon ? "text-on-surface-subtle" : "text-on-surface-variant"}`}>
               {t(`${option.key}.description`)}
             </span>
           </div>

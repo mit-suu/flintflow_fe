@@ -27,8 +27,8 @@ export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = fa
   return (
     <div className="flex flex-col gap-3">
       {answered.map((round) => (
-        <div key={round.round} className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 text-[12.5px] flex flex-col gap-1.5">
-          <p className="text-[11px] font-bold text-[#8A867E]">Vòng {round.round}</p>
+        <div key={round.round} className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 text-body flex flex-col gap-1.5">
+          <p className="text-caption font-bold text-[#8A867E]">Vòng {round.round}</p>
           {round.questions.map((q, i) => (
             <div key={i}>
               <p className="font-semibold text-[#191817]">❓ {q}</p>
@@ -40,10 +40,10 @@ export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = fa
 
       {pendingQuestions.length > 0 && (
         <section className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] pt-3 pb-2 flex flex-col gap-1" aria-label="Trả lời câu hỏi làm rõ">
-          <p className="px-3 text-[12.5px] font-bold text-[#8A6D1F]">
+          <p className="px-3 text-body font-bold text-[#8A6D1F]">
             AI cần thêm thông tin trước khi tìm vị trí và viết nội dung (vòng {cr.clarifications.length}/{MAX_CLARIFY_ROUNDS}):
           </p>
-          <p className="px-3 text-[11.5px] text-[#8A6D1F]">
+          <p className="px-3 text-body text-[#8A6D1F]">
             Chọn một gợi ý hoặc tự nhập câu trả lời. Câu chưa biết thì “Bỏ qua” — AI sẽ tự giả định và đánh dấu để người duyệt xác nhận.
           </p>
           <QuestionStepperInput

@@ -39,23 +39,23 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
         <header className="bg-white border-b border-[#ECEAE5] px-6 py-2 flex items-center justify-between shrink-0 h-[58px] z-20">
           <div className="flex items-center gap-3 min-w-0">
             <Logo variant="icon" sizeClassName="w-7 h-7" theme="light" href="/home" />
-            <div className="flex items-center text-[13px] text-[#8A867E] gap-1.5 min-w-0">
+            <div className="flex items-center text-body text-[#8A867E] gap-1.5 min-w-0">
               <Link href="/home" className="hover:text-[#191817] font-semibold transition-colors">
                 Dự án
               </Link>
               <span className="text-[#D6D2CB]">/</span>
               <span className="font-bold text-[#191817] truncate max-w-[260px]">{project?.name ?? "Đang tải…"}</span>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-[#F2F1FB] text-[#554DB0] text-[11px] font-bold shrink-0">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#F2F1FB] text-[#554DB0] text-caption font-bold shrink-0">
               Upload SRS có sẵn
             </span>
             {importState && (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#F0EEEA] text-[#4B4842] text-[11px] font-semibold shrink-0">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#F0EEEA] text-[#4B4842] text-caption font-semibold shrink-0">
                 {IMPORT_STATUS_LABELS[importState]}
               </span>
             )}
           </div>
-          <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-[12px] font-semibold gap-1.5 shrink-0">
+          <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-body font-semibold gap-1.5 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
             {credits ?? "…"} credits
           </div>
@@ -64,7 +64,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
         <nav className="bg-white border-b border-[#ECEAE5] px-6 flex items-center gap-1 shrink-0" aria-label="Mode 1">
           {TABS.map((tab) => {
             const disabled = tab.needsBaseline && !hasBaseline;
-            const className = `px-3.5 py-2.5 text-[12.5px] font-bold border-b-2 transition-colors ${
+            const className = `px-3.5 py-2.5 text-body font-bold border-b-2 transition-colors ${
               active === tab.id
                 ? "border-[#6A62C4] text-[#191817]"
                 : disabled
@@ -85,7 +85,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
 
         <main className="flex-1 overflow-hidden flex">
           {error ? (
-            <div className="m-6 flex-1 self-start bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] rounded-[12px] px-4 py-3 text-[12.5px]">
+            <div className="m-6 flex-1 self-start bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] rounded-[12px] px-4 py-3 text-body">
               {error}
             </div>
           ) : (

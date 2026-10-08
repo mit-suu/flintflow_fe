@@ -26,11 +26,11 @@ export default function QuestionReview({ questions, values, onEdit }: QuestionRe
               className="w-full flex items-start gap-2.5 px-2 py-1.5 rounded-control text-left hover:bg-surface-container transition-colors cursor-pointer"
             >
               <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <span className="text-[11.5px] text-on-surface-muted leading-snug">{q.question}</span>
+                <span className="text-body text-on-surface-muted leading-snug">{q.question}</span>
                 {text ? (
-                  <span className="text-[12.5px] font-semibold text-on-surface leading-snug">{text}</span>
+                  <span className="text-body font-semibold text-on-surface leading-snug">{text}</span>
                 ) : (
-                  <span className="text-[12px] italic text-on-surface-subtle leading-snug">Chưa trả lời — AI sẽ tự giả định</span>
+                  <span className="text-body italic text-on-surface-subtle leading-snug">Chưa trả lời — AI sẽ tự giả định</span>
                 )}
               </span>
               <Icon name="pencil" size={12} className="shrink-0 mt-1 text-on-surface-muted" />

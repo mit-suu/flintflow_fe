@@ -63,7 +63,7 @@ export default function DocumentLanguagePicker({ value, onChange, disabled = fal
             tabIndex={!disabled && checked ? 0 : -1}
             onClick={() => select(language)}
             onKeyDown={(e) => onKeyDown(e, language)}
-            className={`px-3.5 h-8 flex items-center rounded-[8px] text-[12.5px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`px-3.5 h-8 flex items-center rounded-[8px] text-body font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${
               disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
             } ${checked ? "bg-surface-container-lowest text-on-surface" : "text-on-surface-variant hover:text-on-surface"}`}
           >

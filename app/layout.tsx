@@ -1,21 +1,14 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { GOOGLE_CLIENT_ID, isGoogleAuthEnabled } from "@/lib/google-auth";
 import "./globals.css";
 
-// Font tự host qua next/font: file nằm cùng domain và được preload ngay trong HTML đầu tiên ⇒ reload
-// không phải chờ round-trip sang fonts.googleapis.com rồi đổi font giữa chừng (nhảy chữ). `display: swap`
-// + `adjustFontFallback` (mặc định) giữ fallback có cùng metric nên khung chữ gần như không xê dịch.
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin", "latin-ext", "vietnamese"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
-
+// Chữ thường dùng font hệ thống (`--font-sans` ở globals.css) nên không tải webfont nào. Chỉ mono tự
+// host qua next/font: nó dùng cho số phiên bản, path Spine, khối mã — những chỗ cần bề rộng ký tự đều
+// nhau mà font hệ thống không đảm bảo giống nhau giữa các máy.
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
@@ -41,7 +34,7 @@ export default async function RootLayout({
   const app = <NextIntlClientProvider>{children}</NextIntlClientProvider>;
 
   return (
-    <html lang={locale} className={`${jakarta.variable} ${jetbrainsMono.variable} light`}>
+    <html lang={locale} className={`${jetbrainsMono.variable} light`}>
       <body className="min-h-screen flex flex-col">
         {isGoogleAuthEnabled ? (
           <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{app}</GoogleOAuthProvider>

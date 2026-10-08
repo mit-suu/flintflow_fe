@@ -37,7 +37,7 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
       {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} readOnly={readOnly} />}
       {panel === "cr" && crId && (
         <div className="flex flex-col gap-3">
-          <Link href={crListHref(projectId)} scroll={false} className="self-start text-[12px] font-bold text-[#6A62C4] hover:underline">
+          <Link href={crListHref(projectId)} scroll={false} className="self-start text-body font-bold text-[#6A62C4] hover:underline">
             ← Danh sách change request
           </Link>
           <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} readOnly={readOnly} />

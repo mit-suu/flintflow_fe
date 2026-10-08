@@ -73,7 +73,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
 
   return (
     <div className="flex flex-col gap-5 max-w-[920px] w-full mx-auto">
-      <ol className="flex flex-wrap items-center gap-2 text-[12px]" aria-label="Các bước import">
+      <ol className="flex flex-wrap items-center gap-2 text-body" aria-label="Các bước import">
         {STEPS.map((s, i) => (
           <li
             key={s.label}
@@ -88,7 +88,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
       </ol>
 
       {imp.error && (
-        <div role="alert" className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-[12.5px]">
+        <div role="alert" className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-body">
           <span className="flex-1">{imp.error}</span>
           <button type="button" onClick={imp.clearError} className="font-bold hover:opacity-75" aria-label="Đóng thông báo lỗi">
             ✕
@@ -97,7 +97,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
       )}
 
       {status && LANGUAGE_STATUSES.includes(status) && imp.data?.profile && (
-        <p className="text-[12.5px] text-on-surface-medium">
+        <p className="text-body text-on-surface-medium">
           Ngôn ngữ tài liệu: <strong>{detectedLanguageLabel(imp.data.profile.language)}</strong> (nhận diện từ file)
         </p>
       )}
@@ -112,7 +112,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             }
             title={status === "preflight_rejected" ? "Tải lên file đã sửa" : undefined}
           />
-          <p className="text-[12px] text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">
+          <p className="text-body text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">
             FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng{" "}
             <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu FPT còn
             thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.
@@ -131,10 +131,10 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
       )}
 
       {(status === "uploaded" || status === "parsing") && (
-        <div className="flex items-center gap-3 text-[13px] text-[#4B4842] bg-white border border-[#ECEAE5] rounded-[14px] p-5">
+        <div className="flex items-center gap-3 text-body text-[#4B4842] bg-white border border-[#ECEAE5] rounded-[14px] p-5">
           <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
           Đang tách tài liệu thành block…
-          <button type="button" onClick={() => void imp.reload()} className="ml-auto text-[12px] font-bold text-[#6A62C4] underline">
+          <button type="button" onClick={() => void imp.reload()} className="ml-auto text-body font-bold text-[#6A62C4] underline">
             Tải lại
           </button>
         </div>
@@ -162,8 +162,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
 
       {(status === "baselining" || status === "checking") && doc && (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] p-5 flex flex-col gap-3">
-          <h3 className="font-extrabold text-[#191817] text-[15px]">Tạo baseline 0.0 và kiểm tra</h3>
-          <p className="text-[12.5px] text-[#4B4842] leading-relaxed">
+          <h3 className="font-extrabold text-[#191817] text-heading">Tạo baseline 0.0 và kiểm tra</h3>
+          <p className="text-body text-[#4B4842] leading-relaxed">
             Ghi các field đã xác nhận làm chỉ mục, lưu tài liệu gốc thành version <strong>0.0</strong>, rồi chạy kiểm tra: AI soát ngữ
             nghĩa (cờ vàng, tốn credit) và luật tất định (cờ đỏ/vàng). Kết quả nằm ở gap report.
           </p>
@@ -189,7 +189,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
                     if (res) router.push(gapReportHref(projectId));
                   })
                 }
-                className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
               >
                 {imp.busy === "finalize" ? "Đang tạo baseline và kiểm tra…" : "Tạo baseline 0.0"}
               </button>
@@ -199,7 +199,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
       )}
 
       {status && IMPORT_DONE_STATUSES.includes(status) && (
-        <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-5 flex flex-wrap items-center gap-3 text-[13px] text-[#1F7A45]">
+        <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-5 flex flex-wrap items-center gap-3 text-body text-[#1F7A45]">
           <span className="flex-1">
             Import xong — tài liệu đã thành version 0.0. Bản sửa ngoài FlintFlow tải lên ở tab <strong>Tài liệu &amp; version</strong> để
             xem khác biệt.

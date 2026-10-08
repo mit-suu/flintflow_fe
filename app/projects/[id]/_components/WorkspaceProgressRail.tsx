@@ -25,9 +25,12 @@ interface WorkspaceProgressRailProps {
 }
 
 /**
- * Rail tiến độ bên trái kiểu sidebar shadcn: chỉ có MỞ hoặc ẨN HẲN (không có dạng cột thu nhỏ — bước đang làm đã hiện
- * ở đầu khung chat). Giai đoạn gom theo nhóm B / S, mỗi giai đoạn gập/mở độc lập; giai đoạn đang làm mở sẵn. Đáy rail
- * là % tài liệu đã chốt (cách AI làm việc đã chuyển về ô chat).
+ * Rail tiến độ bên trái: chỉ có MỞ hoặc ẨN HẲN (không có dạng cột thu nhỏ — bước đang làm đã hiện ở đầu khung chat).
+ * Giai đoạn gom theo nhóm B / S, mỗi giai đoạn gập/mở độc lập; giai đoạn đang làm mở sẵn. Đáy rail là % tài liệu đã
+ * chốt kèm thanh tiến độ (cách AI làm việc đã chuyển về ô chat).
+ *
+ * Nền rail giữ trắng như pane chat: cột đã tách bằng khoảng trắng, không cần đổi nền. Lề trái của mọi bậc chữ đều
+ * về 20px (logo, nhãn cột, tiêu đề nhóm, tên giai đoạn, nhãn ở đáy) để cột có một đường gióng duy nhất.
  */
 export default function WorkspaceProgressRail({
   onHide,
@@ -71,8 +74,9 @@ export default function WorkspaceProgressRail({
         <IconButton icon="sidebar" size="sm" label="Ẩn tiến độ" onClick={onHide} />
       </div>
 
+      {/* Nhãn cột: chữ hoa nhỏ, giãn chữ — cố ý khác hẳn tiêu đề nhóm (15px bold) để không thành thêm một bậc nữa */}
       <div className="pl-5 pr-3 pb-1 flex items-center justify-between">
-        <span className="text-[11px] font-bold text-on-surface-muted">Tiến độ</span>
+        <span className="text-caption font-bold uppercase tracking-[0.06em] text-on-surface-muted">Tiến độ</span>
         {/* Một nút bật/tắt như "Collapse All" của VS Code: đang mở giai đoạn nào ⇒ gập hết; gập hết rồi ⇒ mở hết */}
         <IconButton
           icon="caret-up-down"
@@ -82,12 +86,13 @@ export default function WorkspaceProgressRail({
         />
       </div>
 
-      <div className="ff-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3 pt-1">
+      <div className="ff-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2.5 pb-3 pt-1">
         <PhaseNavBar
           currentPhase={currentPhase}
           steps={steps}
           openPhases={openPhases}
           onSelectPhase={togglePhase}
+          currentStepId={progress?.current_step ?? null}
           missingStepIds={missingStepIds}
           renderPhaseBody={(phase) => (
             <StepProgressBar
@@ -103,11 +108,23 @@ export default function WorkspaceProgressRail({
         />
       </div>
 
-      <div className="ff-fade-above [--ff-fade:var(--color-surface-container-lowest)] shrink-0 bg-surface-container-lowest px-4 py-3 flex flex-col gap-2.5">
+      {/* Đáy rail: số phần trăm cộng một thanh mảnh màu thương hiệu — rãnh lavender, phần đã chốt tím đặc */}
+      <div className="ff-fade-above [--ff-fade:var(--color-surface-container-lowest)] shrink-0 bg-surface-container-lowest px-5 pt-3 pb-4">
         {readinessPercent !== undefined && (
-          <div className="flex items-center justify-between text-[12px]" title="Phần mục bắt buộc của SRS đã được bạn duyệt xong">
-            <span className="text-on-surface-muted font-medium">Tài liệu đã chốt</span>
-            <span className="font-bold text-on-surface tabular-nums">{readinessPercent}%</span>
+          <div className="flex flex-col gap-2" title="Phần mục bắt buộc của SRS đã được bạn duyệt xong">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-body font-medium text-on-surface-variant">Tài liệu đã chốt</span>
+              <span className="text-body font-bold text-on-surface-dark tabular-nums">{readinessPercent}%</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={readinessPercent}
+              className="h-1.5 rounded-full bg-primary-fixed overflow-hidden"
+            >
+              <span aria-hidden className="block h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${readinessPercent}%` }} />
+            </div>
           </div>
         )}
       </div>

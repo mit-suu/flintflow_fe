@@ -48,7 +48,7 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
         aria-expanded={open}
         aria-controls={panelId}
         title="Cách AI làm việc với bạn"
-        className={`h-8 pl-2 pr-1.5 rounded-control flex items-center gap-1 whitespace-nowrap text-[12px] font-bold transition-colors cursor-pointer ${
+        className={`h-8 pl-2 pr-1.5 rounded-control flex items-center gap-1 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
           open ? "bg-surface-container-high text-on-surface" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
         }`}
       >
@@ -65,9 +65,9 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
           className="absolute bottom-full left-0 mb-2 z-40 w-[300px] bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-3 flex flex-col gap-3"
         >
           <div className="flex flex-col gap-1.5">
-            <span className="text-[11.5px] font-bold text-on-surface">AI dừng chờ duyệt</span>
+            <span className="text-body font-bold text-on-surface">AI dừng chờ duyệt</span>
             <ReviewModeSelect value={reviewMode} onChange={onChangeReviewMode} disabled={disabled} />
-            <p className="text-[11px] text-on-surface-muted">{review.hint}</p>
+            <p className="text-caption text-on-surface-muted">{review.hint}</p>
           </div>
         </div>
       )}

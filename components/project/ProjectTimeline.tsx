@@ -34,7 +34,7 @@ export default function ProjectTimeline({
           <div className="flex items-center gap-2">
             <h3
               id={`recency-${group.bucket}`}
-              className="text-[13px] font-bold tracking-[0.06em] text-on-surface-muted">
+              className="text-body font-bold tracking-[0.06em] text-on-surface-muted">
               {t(group.bucket)}
             </h3>
             <CountBadge

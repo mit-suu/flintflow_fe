@@ -14,11 +14,11 @@ interface ReadinessSummaryProps {
  */
 export default function ReadinessSummary({ counts }: ReadinessSummaryProps) {
   if (!counts) {
-    return <div className="text-[11.5px] text-on-surface-subtle italic">Đang kiểm tra tài liệu…</div>;
+    return <div className="text-body text-on-surface-subtle italic">Đang kiểm tra tài liệu…</div>;
   }
   const { blocking, later } = counts;
   return (
-    <p className="flex items-center gap-2 px-1 text-[12.5px] text-on-surface" aria-label="Tóm tắt kiểm tra tài liệu">
+    <p className="flex items-center gap-2 px-1 text-body text-on-surface" aria-label="Tóm tắt kiểm tra tài liệu">
       <Icon name={blocking > 0 ? "warning" : "check-circle"} size={16} className={blocking > 0 ? "text-error" : "text-success"} />
       <span>
         {blocking > 0 ? (
