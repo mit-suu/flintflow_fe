@@ -21,7 +21,7 @@ export default function BackLink({ href, onClick, children, tone = "surface", cl
     tone === "white"
       ? "bg-surface-container-lowest hover:bg-surface-container-low"
       : "bg-surface-container hover:bg-surface-container-high";
-  const shell = `group inline-flex items-center gap-2 self-start rounded-full py-1 pl-1 pr-3.5 text-[13px] font-semibold text-on-surface-medium transition-colors hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${fill} ${className}`;
+  const shell = `group inline-flex items-center gap-2 self-start rounded-full py-1 pl-1 pr-3.5 text-body font-semibold text-on-surface-medium transition-colors hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${fill} ${className}`;
   const inner = (
     <>
       <span

@@ -23,7 +23,7 @@ export default function PausedBanner({ paused, onResume, busy = false, what }: P
   return (
     <div
       role="alert"
-      className={`flex flex-wrap items-center gap-3 rounded-[12px] border px-4 py-3 text-[12.5px] ${
+      className={`flex flex-wrap items-center gap-3 rounded-[12px] border px-4 py-3 text-body ${
         credits ? "bg-[#FBF4E4] border-[#EFD9A6] text-[#8A6D1F]" : "bg-[#FDEDED] border-[#F2CACA] text-[#8A4141]"
       }`}
     >

@@ -48,7 +48,7 @@ export default function OriginalDiagramChange({ loc }: { loc: Pick<CrLocation, "
   const replaced = replacedDiagrams(loc);
   if (!replaced.length) return null;
   return (
-    <div className="rounded-[8px] bg-[#F2F1FB] px-2.5 py-1.5 text-[12px] text-[#3F3894]" aria-label="Thay hình gốc">
+    <div className="rounded-[8px] bg-[#F2F1FB] px-2.5 py-1.5 text-body text-[#3F3894]" aria-label="Thay hình gốc">
       <p className="font-bold">🖼 Thay hình gốc bằng sơ đồ FlintFlow vẽ lại từ dữ liệu mới</p>
       <ul className="list-disc pl-5">
         {replaced.map((r, i) => (
@@ -58,7 +58,7 @@ export default function OriginalDiagramChange({ loc }: { loc: Pick<CrLocation, "
           </li>
         ))}
       </ul>
-      <p className="text-[11.5px] text-[#6B6862]">Không đồng ý ⇒ giữ hình gốc của bạn; tài liệu có cờ vàng “Hình gốc lệch dữ liệu”.</p>
+      <p className="text-body text-[#6B6862]">Không đồng ý ⇒ giữ hình gốc của bạn; tài liệu có cờ vàng “Hình gốc lệch dữ liệu”.</p>
     </div>
   );
 }

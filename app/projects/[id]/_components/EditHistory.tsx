@@ -23,15 +23,15 @@ export default function EditHistory({ history, loading, onLoad }: EditHistoryPro
     onLoad();
   }, [onLoad]);
 
-  if (loading) return <p className="text-[11.5px] text-on-surface-subtle italic">Đang tải…</p>;
-  if (history.length === 0) return <p className="text-[11.5px] text-on-surface-subtle italic">Chưa có lần sửa nào.</p>;
+  if (loading) return <p className="text-body text-on-surface-subtle italic">Đang tải…</p>;
+  if (history.length === 0) return <p className="text-body text-on-surface-subtle italic">Chưa có lần sửa nào.</p>;
 
   return (
     <ul className="flex flex-col gap-1">
       {[...history].reverse().map((change) => (
         <li key={`${change.txn}:${change.seq}`} className="rounded-inner bg-surface-container-lowest px-2.5 py-1.5 flex flex-col gap-0.5">
-          <span className="text-[11.5px] text-on-surface leading-relaxed break-words">{describeChange(change)}</span>
-          <span className="text-[10.5px] text-on-surface-subtle">
+          <span className="text-body text-on-surface leading-relaxed break-words">{describeChange(change)}</span>
+          <span className="text-caption text-on-surface-subtle">
             {timeOf(change.at)} · {change.step_id ? `bước “${workspaceStepLabel(change.step_id)}”` : "lệnh sửa"}
           </span>
         </li>

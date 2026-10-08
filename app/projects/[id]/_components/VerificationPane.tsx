@@ -57,11 +57,11 @@ export default function VerificationPane({
 }: VerificationPaneProps) {
   const [showTrace, setShowTrace] = useState(false);
   return (
-    <aside className="w-full h-full bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label="Kiểm tra tài liệu">
-      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
+    <aside className="w-full h-full bg-surface-container rounded-l-dialog flex flex-col overflow-hidden" aria-label="Kiểm tra tài liệu">
+      <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Icon name="shield-check" size={16} className="text-success" />
-          <h3 className="font-bold text-[13px] text-on-surface truncate">Kiểm tra tài liệu</h3>
+          <h3 className="font-bold text-body text-on-surface truncate">Kiểm tra tài liệu</h3>
         </div>
         <IconButton icon="close" size="sm" label="Đóng kiểm tra tài liệu" onClick={onClose} />
       </div>
@@ -94,7 +94,7 @@ export default function VerificationPane({
               type="button"
               onClick={() => setShowTrace((v) => !v)}
               aria-expanded={showTrace}
-              className="self-start text-[12px] font-bold text-primary hover:underline cursor-pointer"
+              className="self-start text-body font-bold text-primary hover:underline cursor-pointer"
             >
               {showTrace ? "Ẩn bản đồ truy vết" : "Xem bản đồ truy vết"}
             </button>

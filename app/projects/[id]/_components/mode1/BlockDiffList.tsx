@@ -14,15 +14,15 @@ export const summaryText = (s: BlockDiffSummary) =>
 
 /** Khác biệt theo block — dùng cho so sánh 2 version (UC-55) và kết quả re-upload (UC-24). */
 export default function BlockDiffList({ entries }: { entries: BlockDiffEntry[] }) {
-  if (entries.length === 0) return <p className="text-[12.5px] text-[#8A867E]">Không có khác biệt.</p>;
+  if (entries.length === 0) return <p className="text-body text-[#8A867E]">Không có khác biệt.</p>;
   return (
     <ul className="flex flex-col gap-2">
       {entries.map((e, i) => {
         const style = CHANGE_STYLE[e.change];
         return (
-          <li key={`${e.block_id ?? "new"}-${i}`} className="bg-white border border-[#ECEAE5] rounded-[10px] px-3 py-2 text-[12.5px] flex flex-col gap-1">
+          <li key={`${e.block_id ?? "new"}-${i}`} className="bg-white border border-[#ECEAE5] rounded-[10px] px-3 py-2 text-body flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${style.className}`}>{style.label}</span>
+              <span className={`px-2 py-0.5 rounded-full text-caption font-bold ${style.className}`}>{style.label}</span>
             </div>
             {e.before !== undefined && e.change !== "added" && (
               <del className="text-[#B03030] whitespace-pre-wrap">{e.before}</del>

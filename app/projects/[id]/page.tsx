@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -34,6 +34,7 @@ import ChatEditCard, { type AppliedEdit } from "./_components/ChatEditCard";
 import DiffPreviewModal from "./_components/DiffPreviewModal";
 import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
+import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
@@ -101,18 +102,20 @@ const replyOfAsk = (content: string): string => {
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
 const RAIL_WIDTH_KEY = "flintflow_progress_rail_width";
 const PANEL_WIDTH_KEY = "flintflow_right_panel_width";
+const BRIEF_WIDTH_KEY = "flintflow_brief_panel_width";
 const CHAT_MIN = 320;
 const DOC_MIN = 320;
 /** Panel phải — mỗi lúc chỉ mở một; mở từ chip trạng thái của tài liệu hoặc nút "Công cụ" trên header. */
 type WorkspacePanel = "verification" | "tools";
 const PROGRESS_OPEN_KEY = "flintflow_workspace_progress_open";
 
+/** Mặc định mở: lần đầu vào workspace phải thấy ngay mình đang ở bước nào, rail ẩn chỉ khi user tự đóng. */
 const readSavedProgressOpen = (): boolean => {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return true;
   try {
-    return localStorage.getItem(PROGRESS_OPEN_KEY) === "1";
+    return localStorage.getItem(PROGRESS_OPEN_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 };
 
@@ -149,15 +152,14 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
       <div className="pl-5 pr-3 pb-2">
         <Skeleton className="h-2.5 w-14" />
       </div>
-      <div className="flex-1 min-h-0 px-3 flex flex-col gap-1">
+      <div className="flex-1 min-h-0 px-2.5 flex flex-col gap-1">
         {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="flex items-center gap-2.5 px-2 py-2">
-            <Skeleton className="size-5 rounded-full shrink-0" />
+          <div key={i} className="px-2.5 py-2">
             <Skeleton className={`h-3 ${i % 3 === 2 ? "w-2/3" : "w-4/5"}`} />
           </div>
         ))}
       </div>
-      <div className="shrink-0 px-4 py-3 flex flex-col gap-2.5">
+      <div className="shrink-0 px-5 pt-3 pb-4 flex flex-col gap-2">
         <Skeleton className="h-3 w-full" />
         <Skeleton className="h-1.5 w-full rounded-full" />
       </div>
@@ -216,7 +218,7 @@ export default function WorkspacePage() {
 }
 
 const MODE1_ACTION =
-  "shrink-0 px-3 py-1.5 rounded-full border border-[#DCD8F0] bg-[#F2F1FB] text-[12px] font-bold text-[#554DB0] hover:bg-[#E8E6F7] transition-colors";
+  "shrink-0 px-3 py-1.5 rounded-full border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] transition-colors";
 
 /**
  * Workspace pipeline — mode 2 (template FPT) và mode 1 sau import (`mode1`). Mode 1 v3 (bám BPMN Flow 1 ⇒ 3.1): không
@@ -290,6 +292,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     max: () => Math.min(640, mainWidth() - CHAT_MIN - DOC_MIN),
     measure: (x) => {
       const el = document.getElementById("workspace-right-panel");
+      return el ? el.getBoundingClientRect().right - x : null;
+    },
+  });
+  // Pha Brief: chat co giãn, cột tóm tắt cố định ⇒ tay kéo đổi cỡ CỘT TÓM TẮT, đo từ mép phải của nó
+  const brief = useResizableWidth({
+    storageKey: BRIEF_WIDTH_KEY,
+    defaultWidth: 400,
+    min: 320,
+    max: () => Math.min(620, mainWidth() - CHAT_MIN),
+    measure: (x) => {
+      const el = document.getElementById("workspace-brief-panel");
       return el ? el.getBoundingClientRect().right - x : null;
     },
   });
@@ -639,6 +652,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
   const inBriefPhase = (spine?.progress.current_phase ?? "").startsWith("B-") || spine?.progress.current_phase === "S-1";
+  // Badge trên nút "Hồ sơ" — cùng con số với tab "Chờ bạn quyết" của panel
+  const pendingCount = useMemo(() => (!mode1 && spine ? pendingRecordCount(spine, inBriefPhase) : 0), [mode1, spine, inBriefPhase]);
   /**
    * Khung phải ở B-0…B-2 là Brief panel, không phải SRS pane (FLF-221): SRS chưa có nội dung trước S-1, và một trang
    * tài liệu trống làm user tưởng phải viết SRS ngay. Theo giai đoạn của bước đang làm; S-1 trở đi là SRS pane như cũ.
@@ -1093,6 +1108,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onToolsClick={() => togglePanel("tools")}
           toolsActive={rightPanel === "tools"}
           toolsLabel={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}
+          toolsCount={pendingCount}
           onLogout={ws.logout}
         />
       </Collapse>
@@ -1107,7 +1123,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           hideTrailingAiMessage={trailingAskReply !== null}
           title={mode1 ? "Hỏi đáp & lệnh sửa" : undefined}
           width={chat.width}
-          fill={briefHidden}
+          fill={briefHidden || briefPane}
           session={ws.activeSession}
           stepLabel={!mode1 && viewedStep ? stepLabel(viewedStep) : null}
           stepCode={!mode1 ? viewedStep : null}
@@ -1183,7 +1199,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
-            <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-[12px] text-accent-gold-text">
+            <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-body text-accent-gold-text">
               <p className="leading-relaxed">
                 Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt, nhưng{" "}
                 <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu
@@ -1192,7 +1208,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               <button
                 type="button"
                 onClick={() => void rerunStaleStep(viewedStep)}
-                className="self-start h-8 px-3.5 rounded-control text-[12px] font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+                className="self-start h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
               >
                 Cập nhật lại bước này
               </button>
@@ -1236,21 +1252,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             />
           )}
           {saveError && (
-            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex items-center justify-between gap-2">
+            <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex items-center justify-between gap-2">
               <span>{saveError}</span>
-              <button type="button" onClick={() => setSaveError(null)} className="text-[11.5px] font-bold underline cursor-pointer">
+              <button type="button" onClick={() => setSaveError(null)} className="text-body font-bold underline cursor-pointer">
                 Đóng
               </button>
             </div>
           )}
           {!mode1 && canEdit && onPipelineSession && runner.state.status === "interrupted" && !runner.state.error && runner.state.stepId && (
             // Lượt chết giữa chừng (reload, mất mạng): nút "Chạy lại" là lối duy nhất còn lại để chạy bước này (FLF-221)
-            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-wrap items-center gap-2">
+            <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-wrap items-center gap-2">
               <span className="flex-1 min-w-0">Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.</span>
               <button
                 type="button"
                 onClick={() => void handleErrorAction({ kind: "retry", label: "Chạy lại" })}
-                className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-error text-on-error cursor-pointer"
+                className="px-2.5 py-1 rounded-full text-body font-bold bg-error text-on-error cursor-pointer"
               >
                 Chạy lại
               </button>
@@ -1259,7 +1275,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {runner.state.error && (
             // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được. Đây là NƠI DUY NHẤT nói câu lỗi — nhật ký
             // lượt chạy phía trên cố ý im, vì BE trả câu đã viết cho người nên nhắc lại chỉ thành tiếng vọng.
-            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-col gap-2">
+            <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-col gap-2">
               <span>{friendlyError(runner.state.error.code, runner.state.error.message).message}</span>
               <div className="flex flex-wrap items-center gap-2">
                 {friendlyError(runner.state.error.code, runner.state.error.message).actions.map((action) => (
@@ -1267,12 +1283,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                     key={action.kind}
                     type="button"
                     onClick={() => void handleErrorAction(action)}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-error text-on-error cursor-pointer"
+                    className="px-2.5 py-1 rounded-full text-body font-bold bg-error text-on-error cursor-pointer"
                   >
                     {action.label}
                   </button>
                 ))}
-                <button type="button" onClick={runner.reset} className="text-[11.5px] font-bold underline cursor-pointer">
+                <button type="button" onClick={runner.reset} className="text-body font-bold underline cursor-pointer">
                   Đóng
                 </button>
               </div>
@@ -1314,12 +1330,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           )}
         </ChatPane>
 
-        {briefHidden ? null : (
+        {briefHidden ? null : briefPane ? (
+          <ResizeHandle active={brief.resizing} onStart={brief.startResize} onReset={brief.reset} label="Đổi cỡ cột tóm tắt" />
+        ) : (
           <ResizeHandle active={chat.resizing} onStart={chat.startResize} onReset={chat.reset} label="Đổi cỡ khung chat" />
         )}
 
         {briefHidden ? null : briefPane ? (
-          <BriefPanel spine={spine} updating={runner.state.busy} />
+          <BriefPanel spine={spine} updating={runner.state.busy} width={brief.width} />
         ) : (
         <DocumentPane
           projectId={projectId}
@@ -1349,11 +1367,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label="Đổi cỡ panel bên phải" />
         <div id="workspace-right-panel" style={{ width: panel.width }} className="h-full shrink-0">
         {shownPanel === "tools" && spine && (
-          <aside className="w-full h-full bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
-            <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
+          <aside className="w-full h-full bg-surface-container rounded-l-dialog flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
+            <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Icon name="folder" size={16} className="text-primary" />
-                <h3 className="font-bold text-[13px] text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}</h3>
+                <h3 className="font-bold text-body text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}</h3>
               </div>
               <IconButton icon="close" size="sm" label="Đóng hồ sơ dự án" onClick={() => setRightPanel(null)} />
             </div>
@@ -1441,7 +1459,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       {(toast ?? ws.notice) && (
         <div
           role="status"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-[12px] font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-body font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
         >
           <span>{toast ?? ws.notice}</span>
           <button
@@ -1450,7 +1468,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               setToast(null);
               ws.clearNotice();
             }}
-            className="text-[11px] underline cursor-pointer"
+            className="text-caption underline cursor-pointer"
           >
             Đóng
           </button>

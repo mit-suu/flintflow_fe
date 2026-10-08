@@ -37,7 +37,7 @@
   --color-accent-gold: #e8a23d;
   --color-accent-gold-light: #f2c572;
   --color-accent-gold-soft: #fbf4e4;
-  --color-accent-gold-text: #8a6d1f;
+  --color-accent-gold-text: #7a5f14; /* chữ vàng trên `accent-gold-soft`: 5.5:1 — sắc cũ #8a6d1f chỉ 4.4:1, chữ chìm vào nền */
   --color-accent-gold-border: #f0dfb4;
 
   /* ── Success / Green ── */
@@ -123,7 +123,32 @@
   --radius-dialog: 18px;
 
   /* ── Typography ── */
-  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  /* ── Thang cỡ chữ ──
+     Sáu bậc, mỗi bậc cách bậc dưới ≥15% để mắt phân biệt được. Trước đây app dùng 20 cỡ tuỳ ý, riêng
+     khoảng 11→13.5px đã nhồi 6 bậc — chênh nửa pixel thì không ai thấy, chỉ làm mỗi màn một kiểu.
+     Leading và tracking đi kèm từng bậc: cỡ càng lớn thì dòng càng chặt và chữ càng siết.
+     Cần lệch khỏi thang thì vẫn đè được bằng `leading-*` / `tracking-*`. */
+  --text-caption: 11px;      /* nhãn cột, badge, chú thích phụ */
+  --text-caption--line-height: 1.45;
+  --text-body: 13px;         /* thân chữ, nhãn nút, giá trị trong bảng */
+  --text-body--line-height: 1.55;
+  --text-heading: 15px;      /* tiêu đề card, tên dự án */
+  --text-heading--line-height: 1.35;
+  --text-heading--letter-spacing: -0.01em;
+  --text-subtitle: 18px;     /* tiêu đề khu vực, tên người dùng */
+  --text-subtitle--line-height: 1.25;
+  --text-subtitle--letter-spacing: -0.015em;
+  --text-title: 22px;        /* tiêu đề trang */
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.02em;
+  --text-metric: 26px;       /* số lớn: số dư, credit */
+  --text-metric--line-height: 1.15;
+  --text-metric--letter-spacing: -0.025em;
+
+  /* Font hệ thống của từng nền tảng (Segoe UI Variable trên Windows, SF Pro trên macOS, Roboto trên
+     Android): không tải webfont nên chữ hiện ngay từ frame đầu, và ở cỡ nhỏ nó sắc hơn webfont vì được
+     hinting riêng cho hệ điều hành. Đánh đổi: mỗi máy một dáng chữ. */
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
@@ -134,6 +159,23 @@ body {
   color: var(--color-on-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Nhịp chữ của tiêu đề ──
+   Cỡ chữ viết bằng giá trị tuỳ ý (`text-[22px]`) không mang theo leading, nên mọi tiêu đề đang thừa
+   hưởng 1.5 của thân chữ — tiêu đề hai dòng rời ra và tốn chỗ. Cỡ lớn cũng cần tracking âm vì chữ nở
+   ngang ra. Đặt một chỗ ở `@layer base` để utility `leading-*`/`tracking-*` vẫn đè được khi cần. */
+@layer base {
+  h1,
+  h2 {
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  h3,
+  h4 {
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
 }
 
 /* ── Custom Utilities ── */
@@ -315,7 +357,12 @@ body {
 .ff-scroll::-webkit-scrollbar-thumb {
   background-color: transparent;
   border-radius: 999px;
-  border: 3px solid transparent;
+  /* Viền trong suốt + `background-clip: content-box` ⇒ phần được tô hẹp lại 3px mỗi bên VÀ lùi vào 10px ở hai
+     đầu. Chiều dài thumb do trình duyệt tính theo tỉ lệ nội dung, không đặt được; lùi hai đầu là cách duy nhất
+     làm nó ngắn lại mà không phải tự vẽ thanh cuộn bằng JS. */
+  border: 10px solid transparent;
+  border-left-width: 3px;
+  border-right-width: 3px;
   background-clip: content-box;
 }
 .ff-scroll:hover::-webkit-scrollbar-thumb {

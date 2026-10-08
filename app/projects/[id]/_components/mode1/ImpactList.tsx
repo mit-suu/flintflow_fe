@@ -27,8 +27,8 @@ export default function ImpactList({ locations, editable, onPatch, onOwnerDraft,
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="font-extrabold text-[#191817] text-[14px]">Vị trí ảnh hưởng ({locations.length})</h3>
-        <span className="text-[11.5px] text-[#8A867E]">
+        <h3 className="font-extrabold text-[#191817] text-heading">Vị trí ảnh hưởng ({locations.length})</h3>
+        <span className="text-body text-[#8A867E]">
           {(Object.keys(CONCLUSION_LABELS) as (keyof typeof CONCLUSION_LABELS)[])
             .filter((k) => counts[k])
             .map((k) => `${counts[k]} ${CONCLUSION_LABELS[k].toLowerCase()}`)

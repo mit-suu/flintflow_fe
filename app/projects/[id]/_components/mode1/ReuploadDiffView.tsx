@@ -58,20 +58,20 @@ export default function ReuploadDiffView({ projectId }: { projectId: string }) {
         hint="So theo block với version mới nhất, không tạo version mới. Muốn áp thay đổi thì tạo change request từ khác biệt."
       />
       {error && (
-        <p role="alert" className="text-[12.5px] text-[#B03030] bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-3 py-2">
+        <p role="alert" className="text-body text-[#B03030] bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
       {diff && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <p className="flex-1 text-[12.5px] text-[#4B4842]">
+            <p className="flex-1 text-body text-[#4B4842]">
               <strong>{diff.original_name}</strong> so với bản {diff.against_version} ({formatDateTime(diff.created_at)}): {summaryText(diff.summary)}
             </p>
             {diff.blocks.length > 0 && (
               <Link
                 href={crPrefillHref(projectId, { ...reuploadPrefill(diff), source: "reupload", ref: `File tải lại ${diff.original_name}` })}
-                className="px-3 py-1.5 rounded-[8px] btn-gradient-primary text-white text-[12px] font-bold"
+                className="px-3 py-1.5 rounded-[8px] btn-gradient-primary text-white text-body font-bold"
               >
                 Tạo CR từ khác biệt
               </Link>

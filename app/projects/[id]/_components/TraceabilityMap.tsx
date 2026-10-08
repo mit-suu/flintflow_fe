@@ -53,7 +53,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
         <select
           value={entity}
           onChange={(e) => setEntity(e.target.value as TraceabilityEntity)}
-          className="px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[11.5px] outline-none"
+          className="px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-body outline-none"
         >
           {ENTITIES.map((e) => (
             <option key={e.id} value={e.id}>
@@ -66,26 +66,26 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
           onChange={(e) => setId(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void search()}
           placeholder="ID (vd A01)"
-          className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-[11.5px] outline-none focus:border-[#6A62C4]"
+          className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-body outline-none focus:border-[#6A62C4]"
         />
         <button
           type="button"
           onClick={() => void search()}
           disabled={loading || !id.trim()}
-          className="px-3 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
+          className="px-3 py-1 rounded-full text-caption font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
         >
           {loading ? "…" : "Tra"}
         </button>
       </div>
 
-      {error && <div className="text-[11px] text-[#B03030]">{error}</div>}
+      {error && <div className="text-caption text-[#B03030]">{error}</div>}
 
       {result && (
         <div className="flex flex-col gap-2">
           {result.nodes.length === 0 ? (
-            <div className="text-[11px] text-[#A8A49C] italic">Không có liên kết nào.</div>
+            <div className="text-caption text-[#A8A49C] italic">Không có liên kết nào.</div>
           ) : (
-            <table className="w-full border-collapse text-[11px]">
+            <table className="w-full border-collapse text-caption">
               <thead>
                 <tr>
                   <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Loại</th>
@@ -105,7 +105,7 @@ export default function TraceabilityMap({ projectId }: TraceabilityMapProps) {
             </table>
           )}
           {result.edges.length > 0 && (
-            <div className="flex flex-col gap-1 text-[10.5px] text-[#6B6862]">
+            <div className="flex flex-col gap-1 text-caption text-[#6B6862]">
               {result.edges.map((edge, i) => (
                 <div key={i}>
                   <span className="font-mono">{edge.from}</span> → <span className="font-mono">{edge.to}</span>{" "}

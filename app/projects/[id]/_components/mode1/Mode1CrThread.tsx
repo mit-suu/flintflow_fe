@@ -31,19 +31,19 @@ const BUSY_TEXT: Record<CrChatBusy, string> = {
 };
 
 function UserBubble({ children }: { children: ReactNode }) {
-  return <div className="self-end max-w-[85%] bg-primary-soft text-on-surface rounded-[14px] rounded-br-[4px] px-3 py-2 text-[13px] whitespace-pre-wrap">{children}</div>;
+  return <div className="self-end max-w-[85%] bg-primary-soft text-on-surface rounded-[14px] rounded-br-[4px] px-3 py-2 text-body whitespace-pre-wrap">{children}</div>;
 }
 
 function AiBubble({ step, children, label }: { step?: string; children: ReactNode; label?: string }) {
   return (
-    <div className="self-start w-full bg-surface-container-lowest border border-outline-variant rounded-[14px] rounded-bl-[4px] px-3 py-2.5 text-[12.5px] text-on-surface flex flex-col gap-2" aria-label={label}>
-      {step && <p className="text-[10.5px] font-bold uppercase tracking-wider text-primary-hover">{step}</p>}
+    <div className="self-start w-full bg-surface-container-lowest border border-outline-variant rounded-[14px] rounded-bl-[4px] px-3 py-2.5 text-body text-on-surface flex flex-col gap-2" aria-label={label}>
+      {step && <p className="text-caption font-bold uppercase tracking-wider text-primary-hover">{step}</p>}
       {children}
     </div>
   );
 }
 
-const btn = "px-3 py-1 rounded-[8px] text-[12px] font-bold disabled:opacity-50 cursor-pointer";
+const btn = "px-3 py-1 rounded-[8px] text-body font-bold disabled:opacity-50 cursor-pointer";
 
 /** 3.1 trong chat: chọn nguồn + người yêu cầu cho lệnh sửa đầu tiên. */
 function RequesterCard({ me, busy, onStart, onCancel }: { me: string; busy: boolean; onStart: (s: CrChatSource) => void; onCancel: () => void }) {
@@ -74,15 +74,15 @@ function RequesterCard({ me, busy, onStart, onCancel }: { me: string; busy: bool
             if (requester.trim()) onStart({ kind, requester, ref });
           }}
         >
-          <select aria-label="Nguồn" value={kind} onChange={(e) => setKind(e.target.value as CrChatSource["kind"])} className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-[12.5px]">
+          <select aria-label="Nguồn" value={kind} onChange={(e) => setKind(e.target.value as CrChatSource["kind"])} className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body">
             {NEW_CR_SOURCE_KINDS.map((k) => (
               <option key={k} value={k}>
                 {CR_SOURCE_LABELS[k]}
               </option>
             ))}
           </select>
-          <input aria-label="Người yêu cầu" value={requester} onChange={(e) => setRequester(e.target.value)} placeholder="Người yêu cầu, vd: PM Lan" className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-[12.5px]" />
-          <input aria-label="Tham chiếu nguồn" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Tham chiếu (không bắt buộc), vd: Email 23/09" className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-[12.5px]" />
+          <input aria-label="Người yêu cầu" value={requester} onChange={(e) => setRequester(e.target.value)} placeholder="Người yêu cầu, vd: PM Lan" className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body" />
+          <input aria-label="Tham chiếu nguồn" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Tham chiếu (không bắt buộc), vd: Email 23/09" className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body" />
           <div className="flex gap-1.5 justify-end">
             <button type="button" onClick={() => setOther(false)} className={`${btn} text-on-surface-muted`}>
               Quay lại
@@ -113,11 +113,11 @@ const stepIndex = (status: CrStatus): number =>
 function StepTracker({ status }: { status: CrStatus }) {
   const current = stepIndex(status);
   return (
-    <ol className="flex items-center gap-1 text-[10.5px] font-bold" aria-label="Tiến độ change request">
+    <ol className="flex items-center gap-1 text-caption font-bold" aria-label="Tiến độ change request">
       {STEPS.map((label, i) => (
         <li key={label} className="flex items-center gap-1 min-w-0" aria-current={i === current ? "step" : undefined}>
           <span
-            className={`shrink-0 w-4 h-4 grid place-items-center rounded-full text-[9.5px] ${
+            className={`shrink-0 w-4 h-4 grid place-items-center rounded-full text-caption ${
               i < current ? "bg-[#1F7A45] text-white" : i === current ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-muted"
             }`}
           >
@@ -152,7 +152,7 @@ function RedraftBox({ loc, chat, onClose, autoFocus = true }: { loc: CrLocation;
         onChange={(e) => setText(e.target.value)}
         aria-label={`Hướng sửa cho ${pathLabel(loc.path)}`}
         placeholder="Muốn sửa thế nào? vd: Giữ nguyên tên, chỉ đổi ngưỡng thành 1 giây"
-        className="w-full px-2.5 py-1.5 rounded-[8px] border border-outline-variant bg-white text-[12.5px]"
+        className="w-full px-2.5 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body"
       />
       <div className="flex gap-1.5 justify-end">
         {onClose && (
@@ -181,7 +181,7 @@ function EditPanel({ loc, chat, editing }: { loc: CrLocation; chat: CrChat; edit
       role="tab"
       aria-selected={mode === value}
       onClick={() => setMode(value)}
-      className={`px-2.5 py-1 rounded-[8px] text-[12px] font-bold ${mode === value ? "bg-on-surface text-surface" : "text-on-surface-muted hover:bg-surface-container"}`}
+      className={`px-2.5 py-1 rounded-[8px] text-body font-bold ${mode === value ? "bg-on-surface text-surface" : "text-on-surface-muted hover:bg-surface-container"}`}
     >
       {label}
     </button>
@@ -226,18 +226,18 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   return (
     <article id={`cr-loc-${loc.location_id}`} className={`scroll-mt-4 rounded-[12px] border ${tone} p-2.5 flex flex-col gap-1.5`} aria-label={`Đề xuất ${loc.location_id}`}>
       <header className="flex items-start gap-2">
-        <p className="flex-1 min-w-0 text-[12px] font-bold text-on-surface" title={loc.path}>
+        <p className="flex-1 min-w-0 text-body font-bold text-on-surface" title={loc.path}>
           {diagram ? diagramLocationTitle(loc) : pathLabel(loc.path)}
-          <span className="block text-[11px] font-medium text-on-surface-muted">{sectionTitle(loc.section_id, loc.section_title)}</span>
+          <span className="block text-caption font-medium text-on-surface-muted">{sectionTitle(loc.section_id, loc.section_title)}</span>
         </p>
         {failed ? (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#B03030] text-white text-[10.5px] font-bold">Chưa đạt</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#B03030] text-white text-caption font-bold">Chưa đạt</span>
         ) : missing ? (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#8A6D1F] text-white text-[10.5px] font-bold">Chưa có đề xuất</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#8A6D1F] text-white text-caption font-bold">Chưa có đề xuất</span>
         ) : accepted ? (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#1F7A45] text-white text-[10.5px] font-bold">✓ Đã đồng ý</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#1F7A45] text-white text-caption font-bold">✓ Đã đồng ý</span>
         ) : (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-primary-soft text-primary-hover text-[10.5px] font-bold">Chờ bạn quyết</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-primary-soft text-primary-hover text-caption font-bold">Chờ bạn quyết</span>
         )}
       </header>
 
@@ -301,7 +301,7 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
 function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrChat }) {
   if (!locations.length) return null;
   return (
-    <details className="text-[12px] text-on-surface-muted">
+    <details className="text-body text-on-surface-muted">
       <summary className="cursor-pointer font-semibold">Không sửa {locations.length} phần (không liên quan hoặc bạn đã bỏ)</summary>
       <ul className="mt-1.5 flex flex-col gap-1.5">
         {locations.map((l) => (
@@ -343,7 +343,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
   const busy = chat.busy !== null;
 
   const errorBox = chat.error && (
-    <div role="alert" className="bg-error-container text-error rounded-control px-3 py-2 text-[12px] flex items-start gap-2">
+    <div role="alert" className="bg-error-container text-error rounded-control px-3 py-2 text-body flex items-start gap-2">
       <span className="flex-1">{chat.error}</span>
       <button type="button" onClick={chat.clearError} aria-label="Đóng thông báo lỗi" className="font-bold">
         ✕
@@ -351,7 +351,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
     </div>
   );
   const busyLine = chat.busy && (
-    <p className="self-start text-[12px] text-on-surface-muted italic" role="status">
+    <p className="self-start text-body text-on-surface-muted italic" role="status">
       {BUSY_TEXT[chat.busy]}
     </p>
   );
@@ -403,7 +403,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
 
   return (
     <div className="flex flex-col gap-3" aria-label={`Change request ${c.cr_id} trong chat`}>
-      <div className="flex items-center gap-2 text-[11.5px] text-on-surface-muted">
+      <div className="flex items-center gap-2 text-body text-on-surface-muted">
         <span className="font-bold text-primary-hover">{c.cr_id}</span>
         <span>· {CR_STATUS_LABELS[c.status]}</span>
         <span className="truncate">· {c.requester}</span>
@@ -532,7 +532,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
               Gửi cho Lead
             </button>
           </div>
-          <p className="text-on-surface-muted text-[11.5px]">Còn muốn sửa thêm? Gõ tiếp ở ô chat — lệnh mới được gộp vào {c.cr_id}.</p>
+          <p className="text-on-surface-muted text-body">Còn muốn sửa thêm? Gõ tiếp ở ô chat — lệnh mới được gộp vào {c.cr_id}.</p>
         </AiBubble>
       )}
 

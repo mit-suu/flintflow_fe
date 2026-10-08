@@ -55,7 +55,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
     <Modal open={open} onClose={close} title={t("title")}>
       {sent ? (
         <div className="flex flex-col gap-4">
-          <p role="status" className="text-[13.5px] text-on-surface-medium leading-[1.6]">
+          <p role="status" className="text-body text-on-surface-medium leading-[1.6]">
             {t("sent")}
           </p>
           <div className="flex justify-end">
@@ -65,12 +65,12 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-[12.5px] font-bold text-on-surface-medium mb-2">{t("kindLegend")}</legend>
+            <legend className="text-body font-bold text-on-surface-medium mb-2">{t("kindLegend")}</legend>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((c) => (
                 <label
                   key={c}
-                  className={`px-3.5 h-8 inline-flex items-center rounded-control border text-[12.5px] font-semibold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
+                  className={`px-3.5 h-8 inline-flex items-center rounded-control border text-body font-semibold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
                     category === c
                       ? "bg-primary-soft border-outline-purple text-primary-hover"
                       : "bg-surface-container-lowest border-outline text-on-surface-variant hover:bg-surface-container-low"
@@ -91,7 +91,7 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
           </fieldset>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="feedback-message" className="text-[12.5px] font-bold text-on-surface-medium">
+            <label htmlFor="feedback-message" className="text-body font-bold text-on-surface-medium">
               {t("messageLabel")}
             </label>
             <textarea
@@ -101,15 +101,15 @@ export default function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
               maxLength={FEEDBACK_MESSAGE_MAX}
               rows={5}
               placeholder={t("placeholder")}
-              className="w-full px-3.5 py-2.5 rounded-control border border-outline bg-surface-container-low text-[13px] text-on-surface outline-none resize-y focus:border-primary focus:ring-2 focus:ring-primary/15"
+              className="w-full px-3.5 py-2.5 rounded-control border border-outline bg-surface-container-low text-body text-on-surface outline-none resize-y focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
-            <span className="self-end text-[11px] text-on-surface-subtle tabular-nums">
+            <span className="self-end text-caption text-on-surface-subtle tabular-nums">
               {message.length}/{FEEDBACK_MESSAGE_MAX}
             </span>
           </div>
 
           {error && (
-            <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
+            <p role="alert" className="text-body text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
               {error}
             </p>
           )}

@@ -42,7 +42,7 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
       type="button"
       onClick={onOpen}
       aria-live="polite"
-      className={`fixed bottom-5 right-5 z-50 flex items-center gap-2 px-3.5 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] text-[12px] font-semibold cursor-pointer ${
+      className={`fixed bottom-5 right-5 z-50 flex items-center gap-2 px-3.5 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] text-body font-semibold cursor-pointer ${
         needsUser ? "bg-[#6A62C4] text-white" : "bg-[#191817] text-white"
       }`}
     >
@@ -65,7 +65,7 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
             e.stopPropagation();
             onCancel();
           }}
-          className="ml-1 text-[11px] underline opacity-80 hover:opacity-100"
+          className="ml-1 text-caption underline opacity-80 hover:opacity-100"
         >
           Huỷ
         </span>

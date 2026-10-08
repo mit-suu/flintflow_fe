@@ -34,7 +34,7 @@ export default function Badge({ tone = "neutral", dot = false, size = "sm", clas
   const styles = TONE[tone];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full font-bold whitespace-nowrap ${size === "sm" ? "px-2 py-0.5 text-[10.5px]" : "px-2.5 py-1 text-[11.5px]"} ${styles.box} ${className ?? ""}`}
+      className={`inline-flex items-center gap-1 rounded-full font-bold whitespace-nowrap ${size === "sm" ? "px-2 py-0.5 text-caption" : "px-2.5 py-1 text-body"} ${styles.box} ${className ?? ""}`}
     >
       {dot && tone !== "soon" && <span aria-hidden className={`w-1.5 h-1.5 rounded-full ${styles.dot}`} />}
       {children ?? (tone === "soon" ? t("soon") : null)}

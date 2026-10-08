@@ -1,124 +1,137 @@
 import type { CSSProperties } from "react";
-import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { Archive } from "@phosphor-icons/react/dist/ssr/Archive";
-import { ArrowClockwise } from "@phosphor-icons/react/dist/ssr/ArrowClockwise";
-import { ArrowRight } from "@phosphor-icons/react/dist/ssr/ArrowRight";
-import { ArrowUp } from "@phosphor-icons/react/dist/ssr/ArrowUp";
-import { ArrowsIn } from "@phosphor-icons/react/dist/ssr/ArrowsIn";
-import { ArrowsOut } from "@phosphor-icons/react/dist/ssr/ArrowsOut";
-import { Bell } from "@phosphor-icons/react/dist/ssr/Bell";
-import { Buildings } from "@phosphor-icons/react/dist/ssr/Buildings";
-import { CaretDown } from "@phosphor-icons/react/dist/ssr/CaretDown";
-import { CaretLeft } from "@phosphor-icons/react/dist/ssr/CaretLeft";
-import { CaretRight } from "@phosphor-icons/react/dist/ssr/CaretRight";
-import { CaretUp } from "@phosphor-icons/react/dist/ssr/CaretUp";
-import { CaretUpDown } from "@phosphor-icons/react/dist/ssr/CaretUpDown";
-import { ChatText } from "@phosphor-icons/react/dist/ssr/ChatText";
-import { Check } from "@phosphor-icons/react/dist/ssr/Check";
-import { CheckCircle } from "@phosphor-icons/react/dist/ssr/CheckCircle";
-import { CircleNotch } from "@phosphor-icons/react/dist/ssr/CircleNotch";
-import { Clock } from "@phosphor-icons/react/dist/ssr/Clock";
-import { ClockCounterClockwise } from "@phosphor-icons/react/dist/ssr/ClockCounterClockwise";
-import { CloudSlash } from "@phosphor-icons/react/dist/ssr/CloudSlash";
-import { CreditCard } from "@phosphor-icons/react/dist/ssr/CreditCard";
-import { DotsThree } from "@phosphor-icons/react/dist/ssr/DotsThree";
-import { DotsThreeVertical } from "@phosphor-icons/react/dist/ssr/DotsThreeVertical";
-import { EnvelopeSimple } from "@phosphor-icons/react/dist/ssr/EnvelopeSimple";
-import { Export } from "@phosphor-icons/react/dist/ssr/Export";
-import { Eye } from "@phosphor-icons/react/dist/ssr/Eye";
-import { EyeSlash } from "@phosphor-icons/react/dist/ssr/EyeSlash";
-import { FilePlus } from "@phosphor-icons/react/dist/ssr/FilePlus";
-import { FileText } from "@phosphor-icons/react/dist/ssr/FileText";
-import { Folder } from "@phosphor-icons/react/dist/ssr/Folder";
-import { List } from "@phosphor-icons/react/dist/ssr/List";
-import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr/MagnifyingGlass";
-import { Paperclip } from "@phosphor-icons/react/dist/ssr/Paperclip";
-import { PencilSimple } from "@phosphor-icons/react/dist/ssr/PencilSimple";
-import { PiggyBank } from "@phosphor-icons/react/dist/ssr/PiggyBank";
-import { Play } from "@phosphor-icons/react/dist/ssr/Play";
-import { Plus } from "@phosphor-icons/react/dist/ssr/Plus";
-import { ShieldCheck } from "@phosphor-icons/react/dist/ssr/ShieldCheck";
-import { SidebarSimple } from "@phosphor-icons/react/dist/ssr/SidebarSimple";
-import { SignOut } from "@phosphor-icons/react/dist/ssr/SignOut";
-import { Sparkle } from "@phosphor-icons/react/dist/ssr/Sparkle";
-import { Stack } from "@phosphor-icons/react/dist/ssr/Stack";
-import { Toolbox } from "@phosphor-icons/react/dist/ssr/Toolbox";
-import { Translate } from "@phosphor-icons/react/dist/ssr/Translate";
-import { Trash } from "@phosphor-icons/react/dist/ssr/Trash";
-import { UploadSimple } from "@phosphor-icons/react/dist/ssr/UploadSimple";
-import { User } from "@phosphor-icons/react/dist/ssr/User";
-import { Users } from "@phosphor-icons/react/dist/ssr/Users";
-import { Wallet } from "@phosphor-icons/react/dist/ssr/Wallet";
-import { WarningCircle } from "@phosphor-icons/react/dist/ssr/WarningCircle";
-import { X } from "@phosphor-icons/react/dist/ssr/X";
-import { XCircle } from "@phosphor-icons/react/dist/ssr/XCircle";
+import {
+  Archive,
+  ArrowRight,
+  ArrowUp,
+  Bell,
+  Building2,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronsUpDown,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Clock,
+  CloudOff,
+  CreditCard,
+  Ellipsis,
+  EllipsisVertical,
+  Eye,
+  EyeOff,
+  FilePlus,
+  FileText,
+  Folder,
+  History,
+  Languages,
+  Layers,
+  LoaderCircle,
+  LogOut,
+  Mail,
+  Maximize2,
+  Menu,
+  MessageSquareText,
+  Minimize2,
+  PanelLeft,
+  Paperclip,
+  Pencil,
+  PiggyBank,
+  Play,
+  Plus,
+  RefreshCw,
+  Search,
+  Share,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Upload,
+  User,
+  Users,
+  Wallet,
+  Wrench,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 
 /**
- * Nơi duy nhất app chạm vào thư viện icon (Phosphor Icons, MIT). Đổi thư viện chỉ sửa file này.
- * Tên icon là tên MIỀN của app (ánh xạ sang tên Phosphor) ⇒ đổi bộ icon không phải sửa nơi gọi;
+ * Nơi duy nhất app chạm vào thư viện icon (Lucide, ISC). Đổi thư viện chỉ sửa file này.
+ * Tên icon là tên MIỀN của app (ánh xạ sang tên Lucide) ⇒ đổi bộ icon không phải sửa nơi gọi;
  * tên là union ⇒ gõ sai bị typecheck bắt.
  *
- * Import từ `dist/ssr`: bản không dùng React context, chạy được cả Server lẫn Client Component.
- * Import SÂU từng icon (`dist/ssr/<Tên>`) chứ không qua barrel `dist/ssr`: barrel kéo theo ~1300 module
- * icon ⇒ chunk đầu trang phình ra (reload chậm) và test nạp lại module bị treo.
+ * Trước đây dùng Phosphor. Đổi sang Lucide vì Phosphor chỉ có 5 nấc nét cố định (thin…bold) và nấc đậm
+ * nhất của nó vẫn mảnh hơn chữ bên cạnh ở cỡ 15–19px, trong khi Lucide nhận `strokeWidth` là số nên độ nét
+ * chỉnh được đúng mức mình muốn. Đổi lại: Lucide không có bản tô đặc, nên "mục đang chọn" thể hiện bằng
+ * nét dày hơn + màu, không bằng icon đặc ruột.
+ *
+ * Import từ barrel `lucide-react`: `next.config.ts` bật `optimizePackageImports` cho gói này nên Next tự
+ * viết lại thành import sâu từng icon lúc build — không kéo cả bộ vào chunk đầu trang.
  */
 const ICONS = {
   "arrow-right": ArrowRight,
   "arrow-up": ArrowUp,
   attach: Paperclip,
-  "caret-left": CaretLeft,
-  "caret-right": CaretRight,
-  "caret-up-down": CaretUpDown,
+  "caret-left": ChevronLeft,
+  "caret-right": ChevronRight,
+  "caret-up-down": ChevronsUpDown,
   archive: Archive,
   bell: Bell,
-  building: Buildings,
+  building: Building2,
   check: Check,
-  "check-circle": CheckCircle,
-  "chevron-down": CaretDown,
-  "chevron-up": CaretUp,
+  "check-circle": CircleCheck,
+  "chevron-down": ChevronDown,
+  "chevron-up": ChevronUp,
   clock: Clock,
-  collapse: ArrowsIn,
-  expand: ArrowsOut,
-  export: Export,
-  history: ClockCounterClockwise,
+  collapse: Minimize2,
+  expand: Maximize2,
+  export: Share,
+  history: History,
   play: Play,
-  refresh: ArrowClockwise,
+  refresh: RefreshCw,
   "shield-check": ShieldCheck,
-  sidebar: SidebarSimple,
-  toolbox: Toolbox,
-  "cloud-off": CloudSlash,
+  sidebar: PanelLeft,
+  toolbox: Wrench,
+  "cloud-off": CloudOff,
   close: X,
   "credit-card": CreditCard,
-  "error-circle": XCircle,
+  "error-circle": CircleX,
   eye: Eye,
-  "eye-off": EyeSlash,
-  feedback: ChatText,
+  "eye-off": EyeOff,
+  feedback: MessageSquareText,
   file: FileText,
   "file-template": FilePlus,
   folder: Folder,
-  layers: Stack,
-  mail: EnvelopeSimple,
-  logout: SignOut,
-  menu: List,
-  "menu-open": SidebarSimple,
-  more: DotsThreeVertical,
-  "more-horizontal": DotsThree,
-  pencil: PencilSimple,
+  layers: Layers,
+  mail: Mail,
+  logout: LogOut,
+  menu: Menu,
+  "menu-open": PanelLeft,
+  more: EllipsisVertical,
+  "more-horizontal": Ellipsis,
+  pencil: Pencil,
   savings: PiggyBank,
   plus: Plus,
-  search: MagnifyingGlass,
-  spinner: CircleNotch,
-  sparkle: Sparkle,
-  translate: Translate,
-  trash: Trash,
-  upload: UploadSimple,
+  search: Search,
+  spinner: LoaderCircle,
+  sparkle: Sparkles,
+  translate: Languages,
+  trash: Trash2,
+  upload: Upload,
   user: User,
   users: Users,
   wallet: Wallet,
-  warning: WarningCircle,
-} as const satisfies Record<string, PhosphorIcon>;
+  warning: CircleAlert,
+} as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
+
+/**
+ * Hai nấc nét, tính theo lưới 24 của Lucide (nét co theo `size`, nên icon nhỏ vẫn mảnh tương ứng).
+ * Nấc thường để đúng 2 — mặc định của Lucide, cũng là độ nét của shadcn/ui; đẩy lên 2.5–3 thì icon
+ * nặng hơn chữ bên cạnh và trông thô. Đổi độ nét toàn app chỉ sửa hai số ở đây.
+ */
+const STROKE = { regular: 2, bold: 2.5 } as const;
 
 interface IconProps {
   name: IconName;
@@ -127,8 +140,8 @@ interface IconProps {
   style?: CSSProperties;
   /** Có nhãn ⇒ icon mang nghĩa (role="img"); không có ⇒ trang trí, ẩn khỏi trình đọc màn hình. */
   label?: string;
-  /** Độ nét của Phosphor. `fill` dùng cho mục đang chọn (vd. nav active); mặc định "regular". */
-  weight?: "regular" | "bold" | "fill";
+  /** Độ nét. `bold` cho mục đang chọn (vd. nav active) và nút cần nhấn mạnh; mặc định "regular". */
+  weight?: keyof typeof STROKE;
 }
 
 export default function Icon({ name, size = 18, className, style, label, weight = "regular" }: IconProps) {
@@ -136,8 +149,8 @@ export default function Icon({ name, size = 18, className, style, label, weight 
   return (
     <Glyph
       size={size}
-      weight={weight}
-      // Màu theo `currentColor` (mặc định của Phosphor) ⇒ tô bằng class `text-*`
+      strokeWidth={STROKE[weight]}
+      // Màu theo `currentColor` (mặc định của Lucide) ⇒ tô bằng class `text-*`
       className={`shrink-0 ${className ?? ""}`}
       style={style}
       data-icon={name}

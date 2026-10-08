@@ -63,7 +63,7 @@ function ManualEditForm({ location, onPatch, onClose, busy }: { location: CrLoca
 
   return (
     <div className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[10px] p-3" aria-label={`Sửa tay ${location.location_id}`}>
-      <div className="flex flex-wrap gap-3 text-[12px] font-semibold text-[#4B4842]" role="radiogroup" aria-label="Kết luận">
+      <div className="flex flex-wrap gap-3 text-body font-semibold text-[#4B4842]" role="radiogroup" aria-label="Kết luận">
         {(Object.keys(CONCLUSION_LABELS) as LocationConclusion[]).map((c) => (
           <label key={c} className="flex items-center gap-1.5 cursor-pointer">
             <input type="radio" name={`conclusion-${location.location_id}`} checked={conclusion === c} onChange={() => setConclusion(c)} />
@@ -79,27 +79,27 @@ function ManualEditForm({ location, onPatch, onClose, busy }: { location: CrLoca
             onChange={(e) => setNewValue(e.target.value)}
             rows={8}
             spellCheck={false}
-            className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-[12px] font-mono"
+            className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-mono"
           />
-          {jsonError && <p className="text-[11.5px] text-[#B03030]">JSON chưa hợp lệ.</p>}
+          {jsonError && <p className="text-body text-[#B03030]">JSON chưa hợp lệ.</p>}
           {!jsonError && <FieldChanges oldText={current} newText={newValue} />}
         </>
       )}
       {conclusion === "comment" && (
-        <textarea aria-label="Nội dung comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-[12.5px]" />
+        <textarea aria-label="Nội dung comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-body" />
       )}
       <input
         aria-label="Lý do"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder={conclusion === "not_related" ? "Lý do không liên quan (bắt buộc)" : "Lý do (tuỳ chọn)"}
-        className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-[12.5px]"
+        className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-white text-body"
       />
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onClose} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[12px] font-semibold">
+        <button type="button" onClick={onClose} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold">
           Huỷ
         </button>
-        <button type="button" onClick={submit} disabled={invalid || busy} className="px-3 py-1 rounded-[8px] bg-[#191817] text-white text-[12px] font-bold disabled:opacity-50">
+        <button type="button" onClick={submit} disabled={invalid || busy} className="px-3 py-1 rounded-[8px] bg-[#191817] text-white text-body font-bold disabled:opacity-50">
           {busy ? "Đang lưu…" : "Lưu sửa tay"}
         </button>
       </div>
@@ -116,7 +116,7 @@ function OwnerStepDraftForm({ step, busy, onSubmit, onClose }: { step: string; b
   const [instruction, setInstruction] = useState("");
   return (
     <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3" aria-label={`Nhờ AI sửa theo quy tắc ${stepLabel(step)}`}>
-      <label className="text-[12px] font-semibold text-[#4B4842]" htmlFor={`owner-draft-${step}`}>
+      <label className="text-body font-semibold text-[#4B4842]" htmlFor={`owner-draft-${step}`}>
         Muốn sửa đề xuất thế nào? AI viết lại theo quy tắc soạn phần “{stepLabel(step)}”.
       </label>
       <textarea
@@ -125,17 +125,17 @@ function OwnerStepDraftForm({ step, busy, onSubmit, onClose }: { step: string; b
         onChange={(e) => setInstruction(e.target.value)}
         rows={3}
         placeholder="Ví dụ: giữ ngưỡng 1 giây nhưng thêm điều kiện 95% request"
-        className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#DCD8F0] bg-white text-[12.5px]"
+        className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#DCD8F0] bg-white text-body"
       />
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onClose} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[12px] font-semibold">
+        <button type="button" onClick={onClose} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold">
           Huỷ
         </button>
         <button
           type="button"
           onClick={() => onSubmit(instruction.trim())}
           disabled={!instruction.trim() || busy}
-          className="px-3 py-1 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold disabled:opacity-50"
+          className="px-3 py-1 rounded-[8px] bg-[#6A62C4] text-white text-body font-bold disabled:opacity-50"
         >
           {busy ? "AI đang viết lại…" : "Viết lại đề xuất (AI)"}
         </button>
@@ -156,7 +156,7 @@ export default function ProposalCard({ location, editable, onPatch, onOwnerDraft
       className={`bg-white border rounded-[14px] p-3.5 flex flex-col gap-2 ${failed ? "border-[#F2CACA]" : "border-[#ECEAE5]"}`}
       aria-label={`Vị trí ${location.location_id}`}
     >
-      <header className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
+      <header className="flex flex-wrap items-center gap-1.5 text-body">
         {/* F6: vị trí hiện theo mục của tài liệu; path Spine chỉ để tra (tooltip) */}
         <span className="font-bold text-[#191817]" title={location.path}>
           {isDiagramLocation(location) ? diagramLocationTitle(location) : sectionTitle(location.section_id, location.section_title) || pathLabel(location.path)}
@@ -175,14 +175,14 @@ export default function ProposalCard({ location, editable, onPatch, onOwnerDraft
         )}
       </header>
 
-      {summary && !isDiagramLocation(location) && <p className="text-[12.5px] text-[#33312D] whitespace-pre-wrap">{summary}</p>}
-      {location.entity_paths.length > 0 && <p className="text-[11px] text-[#8A867E]" title={location.entity_paths.join(", ")}>liên quan: {location.entity_paths.map((p) => pathLabel(p)).join(", ")}</p>}
+      {summary && !isDiagramLocation(location) && <p className="text-body text-[#33312D] whitespace-pre-wrap">{summary}</p>}
+      {location.entity_paths.length > 0 && <p className="text-caption text-[#8A867E]" title={location.entity_paths.join(", ")}>liên quan: {location.entity_paths.map((p) => pathLabel(p)).join(", ")}</p>}
 
       {location.conclusion === "edit" && p && (isDiagramLocation(location) ? <OriginalDiagramChange loc={location} /> : <FieldChanges oldText={p.old_text} newText={p.new_text} />)}
       {location.conclusion === "comment" && p?.comment_text && (
-        <p className="text-[12px] text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {p.comment_text}</p>
+        <p className="text-body text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {p.comment_text}</p>
       )}
-      {location.reason && <p className="text-[12px] text-[#6B6862]">Lý do: {humanizeText(location.reason)}</p>}
+      {location.reason && <p className="text-body text-[#6B6862]">Lý do: {humanizeText(location.reason)}</p>}
       {location.conclusion !== "not_related" && <AssumptionsNote assumptions={p?.assumptions} />}
 
       <VerifyResult location={location} />
@@ -216,12 +216,12 @@ export default function ProposalCard({ location, editable, onPatch, onOwnerDraft
               <button
                 type="button"
                 onClick={() => setDrafting(true)}
-                className="px-3 py-1 rounded-[8px] bg-[#6A62C4] text-white text-[12px] font-bold"
+                className="px-3 py-1 rounded-[8px] bg-[#6A62C4] text-white text-body font-bold"
               >
                 Nhờ AI sửa theo quy tắc
               </button>
             )}
-            <button type="button" onClick={() => setEditing(true)} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[12px] font-bold text-[#191817] hover:bg-[#FAF9F7]">
+            <button type="button" onClick={() => setEditing(true)} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-bold text-[#191817] hover:bg-[#FAF9F7]">
               {onOwnerDraft && location.owner_step ? "Sửa trực tiếp" : "Sửa tay"}
             </button>
           </div>

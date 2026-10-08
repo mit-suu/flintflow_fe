@@ -77,13 +77,13 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDi
     <Modal open onClose={close} title={t("title", { folder: folder.name })} size="lg">
       <div className="flex flex-col gap-3">
       {candidates.length === 0 ? (
-          <p className="py-8 text-center text-[13px] text-on-surface-muted">
+          <p className="py-8 text-center text-body text-on-surface-muted">
             {t("allInFolder")}
           </p>
         ) : (
           <>
             <SearchInput value={query} onChange={setQuery} label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
-            <fieldset className="flex flex-col gap-1 max-h-[320px] overflow-y-auto -mx-1 px-1">
+            <fieldset className="flex flex-col gap-1 max-h-[320px] ff-scroll overflow-y-auto -mx-1 px-1">
               <legend className="sr-only">{t("legend")}</legend>
               {visible.map((p) => {
                 const checked = selected.has(p._id);
@@ -105,8 +105,8 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDi
                       {checked && <Icon name="check" size={11} />}
                     </span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-[13.5px] font-medium text-on-surface truncate">{p.name}</span>
-                      <span className="block text-[11px] text-on-surface-muted">
+                      <span className="block text-body font-medium text-on-surface truncate">{p.name}</span>
+                      <span className="block text-caption text-on-surface-muted">
                         {tMode(`${mode.key}.shortLabel`)}
                         {p.folderId && folderIds.has(p.folderId) ? t("inOtherFolder") : ""}
                       </span>
@@ -114,17 +114,17 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDi
                   </label>
                 );
               })}
-              {visible.length === 0 && <p className="py-6 text-center text-[12.5px] text-on-surface-muted">{t("noMatch", { query: query.trim() })}</p>}
+              {visible.length === 0 && <p className="py-6 text-center text-body text-on-surface-muted">{t("noMatch", { query: query.trim() })}</p>}
             </fieldset>
 
             {error && (
-              <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
+              <p role="alert" className="text-body text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
                 {error}
               </p>
             )}
 
             <div className="flex items-center justify-end gap-2">
-              <span className="mr-auto text-[12px] text-on-surface-muted" aria-live="polite">
+              <span className="mr-auto text-body text-on-surface-muted" aria-live="polite">
                 {selected.size >= MAX_PER_REQUEST
                   ? t("selectedMax", { count: selected.size, max: MAX_PER_REQUEST })
                   : t("selected", { count: selected.size })}

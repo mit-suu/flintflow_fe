@@ -48,7 +48,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
   if (cr.loading) return <PageSkeleton rows={2} label="Đang tải change request" />;
   if (!cr.detail) {
     return (
-      <div role="alert" className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] rounded-[12px] px-4 py-3 text-[12.5px]">
+      <div role="alert" className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] rounded-[12px] px-4 py-3 text-body">
         {cr.error ?? "Không tìm thấy change request"}
       </div>
     );
@@ -75,7 +75,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
+      className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
     >
       {busy ? busyLabel : label}
     </button>
@@ -146,7 +146,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
           }
         >
           <div className="flex gap-2">
-            <button type="button" disabled={busy} onClick={() => setDialog("close")} className="px-4 py-2 rounded-[10px] border border-[#F2CACA] bg-white text-[13px] font-bold text-[#B03030] disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => setDialog("close")} className="px-4 py-2 rounded-[10px] border border-[#F2CACA] bg-white text-body font-bold text-[#B03030] disabled:opacity-50">
               Đóng CR
             </button>
             {primary("Sửa lại CR", () => after(cr.action("revise")), "Đang khoá lại…")}
@@ -161,7 +161,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
         tone="ok"
         text={`Đã ghi vào bản ${c.result_doc_version ?? "mới"} — tải bản có đánh dấu (Track Changes + comment, tác giả ${c.cr_id}) ở mục Version.`}
       >
-        <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] bg-[#1F7A45] text-white text-[13px] font-bold">
+        <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] bg-[#1F7A45] text-white text-body font-bold">
           Xem tài liệu
         </Link>
       </Step>
@@ -179,21 +179,21 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
     <div className="flex flex-col gap-4 max-w-[980px] w-full mx-auto">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex-1 min-w-[260px]">
-          <p className="text-[12px]">
+          <p className="text-body">
             <Link href={crListHref(projectId)} scroll={false} className="text-[#8A867E] hover:text-[#191817] font-semibold">
               Change request
             </Link>
             <span className="text-[#D6D2CB]"> / </span>
             <code className="font-bold text-[#6A62C4]">{c.cr_id}</code>
           </p>
-          <h2 className="text-[20px] font-extrabold text-[#191817]">{c.title}</h2>
-          <p className="text-[11.5px] text-[#8A867E]">
+          <h2 className="text-title font-extrabold text-[#191817]">{c.title}</h2>
+          <p className="text-body text-[#8A867E]">
             {CR_SOURCE_LABELS[c.source.kind]}
             {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · yêu cầu bởi {c.requester} · tạo {formatDateTime(c.created_at)} · trên bản {c.base_doc_version}
           </p>
         </div>
         {!terminal && !readOnly && (
-          <button type="button" onClick={() => setDialog("cancel")} disabled={busy} className="px-3 py-1.5 rounded-[8px] border border-[#F2CACA] bg-white text-[12px] font-bold text-[#B03030] disabled:opacity-50">
+          <button type="button" onClick={() => setDialog("cancel")} disabled={busy} className="px-3 py-1.5 rounded-[8px] border border-[#F2CACA] bg-white text-body font-bold text-[#B03030] disabled:opacity-50">
             Huỷ CR
           </button>
         )}
@@ -201,10 +201,10 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
 
       <CrTimeline status={c.status} />
 
-      <p className="text-[13px] text-[#33312D] whitespace-pre-wrap bg-white border border-[#ECEAE5] rounded-[14px] p-3.5">{c.description}</p>
+      <p className="text-body text-[#33312D] whitespace-pre-wrap bg-white border border-[#ECEAE5] rounded-[14px] p-3.5">{c.description}</p>
 
       {c.seed && (
-        <p className="text-[12px] text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] px-3.5 py-2.5" aria-label="Bản xem trước đính kèm">
+        <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] px-3.5 py-2.5" aria-label="Bản xem trước đính kèm">
           Đính kèm bản xem trước ({c.seed.ops.length} thay đổi{c.seed.targets.length ? ` trên ${c.seed.targets.length} phần tử` : ""}) — AI dùng làm gợi ý khi làm rõ,
           tìm vị trí và đề xuất.
         </p>
@@ -212,9 +212,9 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
 
       {(c.materials.length > 0 || (materialsEditable && c.status === "draft")) && (
         <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[14px] p-3.5" aria-label="Tài liệu bổ sung của CR">
-          <h3 className="font-bold text-[#191817] text-[13px]">Tài liệu bổ sung ({c.materials.length})</h3>
+          <h3 className="font-bold text-[#191817] text-body">Tài liệu bổ sung ({c.materials.length})</h3>
           {c.status === "draft" && (
-            <p className="text-[11.5px] text-[#6B6862]">
+            <p className="text-body text-[#6B6862]">
               Đính kèm email, biên bản, đặc tả… có dữ kiện cho thay đổi (con số, luật, luồng, trường dữ liệu) — AI viết theo đúng tài
               liệu thay vì tự đoán.
             </p>
@@ -229,7 +229,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
       )}
 
       {cr.error && (
-        <div role="alert" className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-[12.5px]">
+        <div role="alert" className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-body">
           <span className="flex-1">{cr.error}</span>
           <button type="button" onClick={cr.clearError} className="font-bold hover:opacity-75" aria-label="Đóng thông báo lỗi">
             ✕
@@ -251,7 +251,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
       )}
 
       {c.missing_info.length > 0 && !terminal && (
-        <div className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] px-3.5 py-2.5 text-[12.5px] text-[#8A6D1F]" aria-label="Dữ kiện còn thiếu">
+        <div className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] px-3.5 py-2.5 text-body text-[#8A6D1F]" aria-label="Dữ kiện còn thiếu">
           <p className="font-bold">Còn thiếu dữ kiện — AI sẽ tự giả định và đánh dấu ở từng đề xuất để người duyệt xác nhận:</p>
           <ul className="list-disc pl-5">
             {c.missing_info.map((f, i) => (
@@ -313,7 +313,7 @@ function Step({ text, tone = "info", children }: { text: string; tone?: "info" |
     muted: "bg-[#F0EEEA] border-[#E4E1DC] text-[#6B6862]",
   }[tone];
   return (
-    <div className={`flex flex-wrap items-center gap-3 rounded-[12px] border px-4 py-3 text-[12.5px] ${cls}`} aria-label="Bước tiếp theo">
+    <div className={`flex flex-wrap items-center gap-3 rounded-[12px] border px-4 py-3 text-body ${cls}`} aria-label="Bước tiếp theo">
       <p className="flex-1 min-w-[220px]">{text}</p>
       {children}
     </div>

@@ -136,7 +136,7 @@ export default function BillingPage() {
       <TopBar trail={[tc("account"), t("title")]} />
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-surface-container-lowest">
-        <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">{t("title")}</h1>
+        <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
         {error !== null && (
           <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-control text-xs font-medium">
@@ -163,19 +163,19 @@ export default function BillingPage() {
                   { key: "reserved" as const, value: balance.reserved, accent: "#8A867E" },
                 ].map((card) => (
                   <div key={card.key} className="bg-white border border-[#ECEAE5] rounded-card p-5">
-                    <div className="text-[11.5px] font-bold text-[#8A867E] uppercase tracking-[0.04em]">
+                    <div className="text-body font-bold text-[#8A867E] uppercase tracking-[0.04em]">
                       {t(card.key)}
                     </div>
-                    <div className="text-[28px] font-extrabold mt-1" style={{ color: card.accent }}>
+                    <div className="text-metric font-bold leading-tight tracking-tight mt-1" style={{ color: card.accent }}>
                       {format.number(card.value)}
                     </div>
-                    <div className="text-[11.5px] text-[#A8A49C]">credit</div>
+                    <div className="text-body text-[#A8A49C]">credit</div>
                   </div>
                 ))}
                 <div className="bg-white border border-[#ECEAE5] rounded-card p-5">
-                  <div className="text-[11.5px] font-bold text-[#8A867E] uppercase tracking-[0.04em]">{t("currentPlan")}</div>
-                  <div className="text-[28px] font-extrabold mt-1 text-[#191817]">{balance.planLabel}</div>
-                  <div className="text-[11.5px] text-[#A8A49C]">
+                  <div className="text-body font-bold text-[#8A867E] uppercase tracking-[0.04em]">{t("currentPlan")}</div>
+                  <div className="text-metric font-bold leading-tight tracking-tight mt-1 text-[#191817]">{balance.planLabel}</div>
+                  <div className="text-body text-[#A8A49C]">
                     {balance.subscription
                       ? t("validUntil", {
                           date: format.dateTime(new Date(balance.subscription.currentPeriodEnd), {
@@ -191,16 +191,16 @@ export default function BillingPage() {
             )}
 
             {lowCredit && (
-              <div className="bg-[#FFF6E5] border border-[#F2DDB0] text-[#7A5A12] px-4 py-3 rounded-control text-[12.5px] font-medium">
+              <div className="bg-[#FFF6E5] border border-[#F2DDB0] text-[#7A5A12] px-4 py-3 rounded-control text-body font-medium">
                 {t("lowCredit")}
               </div>
             )}
 
             {/* Packages */}
             <section className="flex flex-col gap-3">
-              <h2 className="text-[15px] font-extrabold text-[#191817]">{t("buyCredits")}</h2>
+              <h2 className="text-heading font-bold text-on-surface">{t("buyCredits")}</h2>
               {canPurchase ? null : (
-                <p role="note" className="rounded-lg bg-[#F4F3FE] px-3 py-2 text-[12.5px] text-[#4B4842]">
+                <p role="note" className="rounded-lg bg-[#F4F3FE] px-3 py-2 text-body text-[#4B4842]">
                   {t("leadOnlyPurchase")}
                 </p>
               )}
@@ -208,19 +208,19 @@ export default function BillingPage() {
                 {packages.map((pkg) => (
                   <div key={pkg.id} className="bg-white border border-[#ECEAE5] rounded-card p-5 flex flex-col gap-3">
                     <div>
-                      <div className="text-[13px] font-bold text-[#4B4842]">{pkg.label}</div>
-                      <div className="text-[26px] font-extrabold text-[#191817]">
+                      <div className="text-body font-bold text-[#4B4842]">{pkg.label}</div>
+                      <div className="text-metric font-bold leading-tight tracking-tight text-on-surface">
                         {format.number(pkg.credits)}{" "}
-                        <span className="text-[13px] font-semibold text-[#8A867E]">credit</span>
+                        <span className="text-body font-semibold text-[#8A867E]">credit</span>
                       </div>
-                      <div className="text-[13px] text-[#6B6862]">{formatVnd(pkg.amount)}</div>
+                      <div className="text-body text-[#6B6862]">{formatVnd(pkg.amount)}</div>
                     </div>
                     {canPurchase ? (
                     <button
                       type="button"
                       onClick={() => handleBuy(pkg)}
                       disabled={busy !== null}
-                      className="mt-auto py-2.5 rounded-control btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
+                      className="mt-auto py-2.5 rounded-control btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
                     >
                       {busy === pkg.id ? t("creatingTx") : t("buyNow")}
                     </button>
@@ -228,14 +228,14 @@ export default function BillingPage() {
                   </div>
                 ))}
               </div>
-              <p className="text-[11.5px] text-[#A8A49C]">
+              <p className="text-body text-[#A8A49C]">
                 {t("vietqrNote")}
               </p>
             </section>
 
             {/* Plans */}
             <section className="flex flex-col gap-3">
-              <h2 className="text-[15px] font-extrabold text-[#191817]">{t("plans")}</h2>
+              <h2 className="text-heading font-bold text-on-surface">{t("plans")}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {plans.map((plan) => {
                   const isCurrent = balance?.plan === plan.id;
@@ -247,14 +247,14 @@ export default function BillingPage() {
                       }`}
                     >
                       <div className="flex-1">
-                        <div className="text-[15px] font-extrabold text-[#191817]">{plan.label}</div>
-                        <div className="text-[12.5px] text-[#6B6862]">
+                        <div className="text-heading font-bold text-on-surface">{plan.label}</div>
+                        <div className="text-body text-[#6B6862]">
                           {t("creditsPerMonth", { credits: format.number(plan.monthlyCredits) })} ·{" "}
                           {plan.priceVnd === 0 ? t("free") : t("pricePerMonth", { price: formatVnd(plan.priceVnd) })}
                         </div>
                       </div>
                       {isCurrent ? (
-                        <span className="px-3 py-1 rounded-full bg-[#EFEEF9] text-[11.5px] font-bold text-[#554DB0]">
+                        <span className="px-3 py-1 rounded-full bg-[#EFEEF9] text-body font-bold text-[#554DB0]">
                           {t("current")}
                         </span>
                       ) : canPurchase ? (
@@ -262,7 +262,7 @@ export default function BillingPage() {
                           type="button"
                           onClick={() => handleUpgrade(plan)}
                           disabled={busy !== null}
-                          className="px-4 py-2 rounded-control border-[1.5px] border-[#E4E1DC] bg-white text-[12.5px] font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+                          className="px-4 py-2 rounded-control border-[1.5px] border-[#E4E1DC] bg-white text-body font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
                         >
                           {busy === `plan:${plan.id}`
                             ? plan.priceVnd > 0
@@ -281,14 +281,14 @@ export default function BillingPage() {
 
             {/* Ledger */}
             <section className="flex flex-col gap-3">
-              <h2 className="text-[15px] font-extrabold text-[#191817]">{t("history")}</h2>
+              <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
               <div className="bg-white border border-[#ECEAE5] rounded-card overflow-x-auto">
                 {ledger.length === 0 ? (
-                  <div className="py-10 text-center text-[13px] text-[#A8A49C]">{t("noTx")}</div>
+                  <div className="py-10 text-center text-body text-[#A8A49C]">{t("noTx")}</div>
                 ) : (
-                  <table className="w-full text-[12.5px]">
+                  <table className="w-full text-body">
                     <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-[0.04em] text-[#8A867E] border-b border-[#F0EEEA]">
+                      <tr className="text-left text-caption uppercase tracking-[0.04em] text-[#8A867E] border-b border-[#F0EEEA]">
                         <th className="px-5 py-3 font-bold">{t("col.time")}</th>
                         <th className="px-5 py-3 font-bold">{t("col.type")}</th>
                         <th className="px-5 py-3 font-bold">{t("col.action")}</th>
@@ -312,7 +312,7 @@ export default function BillingPage() {
                           <td className="px-5 py-3 text-[#191817] font-semibold whitespace-nowrap">
                             {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
                             {tx.state && (
-                              <span className="ml-1.5 text-[11px] font-medium text-[#8A867E]">({t(`txState.${tx.state}`)})</span>
+                              <span className="ml-1.5 text-caption font-medium text-[#8A867E]">({t(`txState.${tx.state}`)})</span>
                             )}
                           </td>
                           <td className="px-5 py-3 text-[#6B6862]">{actionLabel(tx.actionType)}</td>
@@ -335,7 +335,7 @@ export default function BillingPage() {
                   type="button"
                   onClick={handleLoadMore}
                   disabled={busy !== null}
-                  className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-[12.5px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+                  className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
                 >
                   {busy === "ledger" ? tc("loading") : tc("loadMore")}
                 </button>

@@ -77,12 +77,12 @@ function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
         onClick={() => void redraw()}
         disabled={busy}
         title="Vẽ lại sơ đồ của mục này từ dữ liệu hiện tại"
-        className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Icon name="refresh" size={11} />
         {busy ? "Đang vẽ…" : "Vẽ lại sơ đồ"}
       </button>
-      {error && <span className="text-[10.5px] text-error">{error}</span>}
+      {error && <span className="text-caption text-error">{error}</span>}
     </div>
   );
 }
@@ -96,15 +96,16 @@ export interface EmptyHint {
   missing: boolean;
 }
 
-const STATUS_BADGE: Record<SectionStatus, { text: string; style: string }> = {
-  accepted: { text: "Accepted", style: "bg-[#E9F7EE] text-[#1F7A45]" },
-  draft: { text: "Draft", style: "bg-[#F2F1FB] text-[#554DB0]" },
-  stale: { text: "Cũ", style: "bg-[#FBF4E4] text-[#8A6D1F]" },
-  derived: { text: "Dẫn xuất", style: "bg-[#F0EEEA] text-[#6B6862]" },
+const STATUS_BADGE: Record<SectionStatus, { text: string; style: string } | null> = {
+  accepted: { text: "Accepted", style: "bg-success-soft text-success" },
+  // `draft` là trạng thái mặc định của mọi mục chưa chốt: gắn nhãn cho tất cả thì nhãn thành nhiễu, không thành tin
+  draft: null,
+  stale: { text: "Cũ", style: "bg-accent-gold-soft text-accent-gold-text" },
+  derived: { text: "Dẫn xuất", style: "bg-surface-container-high text-on-surface-variant" },
 };
 
 const runClass = (run: InlineRun): string =>
-  [run.bold ? "font-bold" : "", run.italic ? "italic" : "", run.code ? "font-mono bg-[#F0EEEA] px-1 rounded-[4px]" : ""]
+  [run.bold ? "font-bold" : "", run.italic ? "italic" : "", run.code ? "font-mono bg-surface-container-high px-1 rounded-[4px]" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -151,10 +152,10 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   }, [projectId, png, isDiagramRef]);
 
   const src = directSrc ?? resolvedSrc;
-  if (error) return <div className="text-[11px] text-[#B03030] italic">{error}</div>;
-  if (!src) return <div className="text-[11px] text-[#A8A49C] italic">Đang tải ảnh…</div>;
+  if (error) return <div className="text-caption text-error italic">{error}</div>;
+  if (!src) return <div className="text-caption text-on-surface-subtle italic">Đang tải ảnh…</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
-  return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-[8px] border border-[#ECEAE5]" />;
+  return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-inner" />;
 }
 
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
@@ -167,17 +168,17 @@ export function BlockView({ block, projectId, afterHeading = false }: { block: B
   switch (block.type) {
     case "heading": {
       const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
-      return <Tag className="font-extrabold text-[#191817] mt-2 mb-1 text-[13px]">{block.text}</Tag>;
+      return <Tag className="font-extrabold text-on-surface mt-3 mb-1 text-body">{block.text}</Tag>;
     }
     case "paragraph":
       return (
-        <p className="mb-2 last:mb-0 text-[12px] text-[#33312D] leading-relaxed">
+        <p className="mb-2 last:mb-0 text-body text-on-surface-dark leading-[1.65]">
           <Runs runs={block.runs} />
         </p>
       );
     case "bullet_list":
       return (
-        <ul className="list-disc pl-5 mb-2 space-y-0.5 text-[12px] text-[#33312D]">
+        <ul className="list-disc pl-5 mb-2 space-y-1 text-body leading-[1.65] text-on-surface-dark">
           {block.items.map((item, i) => (
             <li key={i}>
               <Runs runs={item} />
@@ -187,7 +188,7 @@ export function BlockView({ block, projectId, afterHeading = false }: { block: B
       );
     case "numbered_list":
       return (
-        <ol className="list-decimal pl-5 mb-2 space-y-0.5 text-[12px] text-[#33312D]">
+        <ol className="list-decimal pl-5 mb-2 space-y-1 text-body leading-[1.65] text-on-surface-dark">
           {block.items.map((item, i) => (
             <li key={i}>
               <Runs runs={item} />
@@ -197,12 +198,12 @@ export function BlockView({ block, projectId, afterHeading = false }: { block: B
       );
     case "table":
       return (
-        <div className={`overflow-x-auto mb-2 ${afterHeading ? "mt-2" : ""}`}>
-          <table className="w-full border-collapse text-[11.5px]">
+        <div className={`ff-scroll overflow-x-auto mb-2 ${afterHeading ? "mt-2" : ""}`}>
+          <table className="w-full border-collapse text-body">
             <thead>
               <tr>
                 {block.header.map((cell, i) => (
-                  <th key={i} className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">
+                  <th key={i} className="border border-outline bg-surface-container-low px-2 py-1 text-left font-bold">
                     <Cell cell={cell} />
                   </th>
                 ))}
@@ -212,7 +213,7 @@ export function BlockView({ block, projectId, afterHeading = false }: { block: B
               {block.rows.map((row, ri) => (
                 <tr key={ri}>
                   {row.map((cell, ci) => (
-                    <td key={ci} className="border border-[#ECEAE5] px-2 py-1 align-top">
+                    <td key={ci} className="border border-outline px-2 py-1 align-top">
                       <Cell cell={cell} />
                     </td>
                   ))}
@@ -226,11 +227,11 @@ export function BlockView({ block, projectId, afterHeading = false }: { block: B
       return (
         <div className="mb-2 flex flex-col items-center gap-1">
           <DocumentImage projectId={projectId} png={block.png} caption={block.caption} />
-          {block.caption && <span className="text-[10.5px] text-[#8A867E] italic">{block.caption}</span>}
+          {block.caption && <span className="text-caption text-on-surface-muted italic">{block.caption}</span>}
         </div>
       );
     case "page_break":
-      return <hr className="my-3 border-dashed border-[#E4E1DC]" />;
+      return <hr className="my-4 border-dashed border-outline" />;
   }
 }
 
@@ -242,7 +243,7 @@ const depthOf = (section: RenderedSection): number =>
   Math.max(0, (section.level || (section.number ? section.number.split(".").length : 1)) - 1);
 
 /** Cỡ chữ tiêu đề theo cấp: mục gốc to nhất, mục con nhỏ dần. */
-const HEADING_SIZE = ["text-[15px]", "text-[13.5px]", "text-[12.5px]"] as const;
+const HEADING_SIZE = ["text-subtitle", "text-heading", "text-body"] as const;
 const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
 
 /** Heading nhóm (`group:*`) — chỉ tiêu đề chương/mục cha, không phải section có nội dung (contract-change 2026-09-15). */
@@ -258,21 +259,25 @@ function GroupHeading({ section }: { section: RenderedSection }) {
   );
 }
 
+/**
+ * Mục chưa có nội dung: một dòng chữ nhạt đứng ngay sau tiêu đề, không phải một khối riêng bên dưới. Tài liệu
+ * lúc đầu gần như toàn mục rỗng — để mỗi mục chiếm hai dòng thì cả trang thành bức tường chữ nghiêng lặp lại.
+ */
 function EmptySection({ hint, onSelectStep, mode1 = false }: { hint?: EmptyHint; onSelectStep?: (stepId: string) => void; mode1?: boolean }) {
-  if (mode1) return <div className="text-[11.5px] text-[#A8A49C] italic">Mục còn trống — tạo change request (nguồn gap report) để bổ sung.</div>;
-  if (!hint) return <div className="text-[11.5px] text-[#A8A49C] italic">Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.</div>;
+  if (mode1) return <span className="text-body text-on-surface-muted italic">Mục còn trống — tạo change request (nguồn gap report) để bổ sung.</span>;
+  if (!hint) return <span className="text-body text-on-surface-muted italic">Chưa hoàn thiện</span>;
   return (
-    <div className={`text-[11.5px] italic flex items-center gap-2 flex-wrap ${hint.missing ? "text-[#B03030]" : "text-[#8A867E]"}`}>
-      {hint.missing && <span className="not-italic text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#B03030] text-white">Thiếu</span>}
+    <span className={`text-body italic inline-flex items-baseline gap-1.5 flex-wrap ${hint.missing ? "text-error" : "text-on-surface-muted"}`}>
+      {hint.missing && <span className="not-italic text-caption font-extrabold px-1.5 py-0.5 rounded-full bg-error text-on-error">Thiếu</span>}
       <span>
         Chưa có nội dung — chạy step {hint.stepId} · {stepLabel(hint.stepId)}
       </span>
       {onSelectStep && (
-        <button type="button" onClick={() => onSelectStep(hint.stepId)} className="not-italic text-[10.5px] font-bold text-[#6A62C4] hover:underline cursor-pointer">
+        <button type="button" onClick={() => onSelectStep(hint.stepId)} className="not-italic text-caption font-bold text-primary hover:underline cursor-pointer">
           Mở step
         </button>
       )}
-    </div>
+    </span>
   );
 }
 
@@ -302,6 +307,8 @@ function SectionView({
 }) {
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
   const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
+  // `feature:*` (§3.2…) chỉ là tiêu đề nhóm, Spine feature không có thân — nội dung nằm ở các function con (FLF-248)
+  const showEmpty = section.blocks.length === 0 && !section.id.startsWith("feature:");
   const custom = section.id.startsWith("custom:");
   const depth = depthOf(section);
   return (
@@ -315,27 +322,30 @@ function SectionView({
       className={`group/section -mr-3 px-3 py-1.5 rounded-control flex flex-col gap-1.5 transition-colors duration-500 ${changed ? "bg-primary-soft" : ""}`}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h5 className={`font-bold text-on-surface ${headingSize(depth)}`}>
-          {section.number ? `${section.number}. ` : ""}
-          {section.heading}
-        </h5>
+        <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
+          <h5 className={`font-bold text-on-surface ${headingSize(depth)}`}>
+            {section.number ? `${section.number}. ` : ""}
+            {section.heading}
+          </h5>
+          {showEmpty && <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />}
+        </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {custom && (
-            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]" title="Mục ngoài mẫu FPT — giữ nguyên văn từ file upload, sửa qua chat">
+            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant" title="Mục ngoài mẫu FPT — giữ nguyên văn từ file upload, sửa qua chat">
               Mục riêng
             </span>
           )}
           {section.awaiting_reaccept && (
-            <span className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">Chờ duyệt lại</span>
+            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">Chờ duyệt lại</span>
           )}
-          {badge && <span className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{badge.text}</span>}
+          {badge && <span className={`text-caption font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{badge.text}</span>}
           {issues && issues.count > 0 && (
             // Chỉ một chấm + số: nội dung vấn đề nằm trong panel, tài liệu giữ để đọc
             <button
               type="button"
               onClick={onOpenIssues}
               title="Xem vấn đề của mục này"
-              className={`flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full cursor-pointer ${
+              className={`flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full cursor-pointer ${
                 issues.blocking ? "bg-error-container text-error" : "bg-accent-gold-soft text-accent-gold-text"
               }`}
             >
@@ -348,24 +358,20 @@ function SectionView({
             <button
               type="button"
               onClick={() => onEdit(sectionLabel(section))}
-              className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-[10.5px] font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
+              className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
             >
               Sửa mục này
             </button>
           )}
         </div>
       </div>
-      {section.blocks.length > 0 ? (
+      {section.blocks.length > 0 && (
         <>
           {section.blocks.map((block, i) => (
             <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
           ))}
           {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
         </>
-      ) : section.id.startsWith("feature:") ? null : (
-        // FLF-248: `feature:*` (§3.2…) chỉ là tiêu đề nhóm — Spine feature không có thân (`id·name·order`), nội dung
-        // nằm ở các function con. Câu "Chưa hoàn thiện" cạnh nhãn Accepted làm người dùng tưởng mục bị bỏ trống.
-        <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />
       )}
     </article>
   );
@@ -408,14 +414,14 @@ export default function DocumentPane({
       <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between gap-3 shrink-0 h-12 bg-surface-container-lowest">
         {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng */}
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="font-bold text-[13.5px] text-on-surface truncate" title={`SRS — ${projectName}`}>
+          <h3 className="font-bold text-body text-on-surface truncate" title={`SRS — ${projectName}`}>
             SRS — {projectName}
           </h3>
           {document && (
-            <span className="shrink-0 whitespace-nowrap text-[10.5px] text-[#8A867E] bg-[#F5F3F0] px-2 py-0.5 rounded-full font-mono">{document.version}</span>
+            <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
           )}
           {document?.watermark && (
-            <span className="shrink-0 whitespace-nowrap text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F]">{document.watermark}</span>
+            <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -424,7 +430,7 @@ export default function DocumentPane({
               type="button"
               onClick={onOpenIssues}
               title="Mở danh sách vấn đề của tài liệu"
-              className={`h-8 px-3 flex items-center gap-1.5 whitespace-nowrap rounded-control text-[12px] font-bold cursor-pointer transition-colors ${
+              className={`h-8 px-3 flex items-center gap-1.5 whitespace-nowrap rounded-control text-body font-bold cursor-pointer transition-colors ${
                 issues.blocking > 0
                   ? "bg-error-container text-error hover:opacity-90"
                   : issues.suggestions > 0
@@ -449,7 +455,7 @@ export default function DocumentPane({
             onClick={() => void reload()}
             disabled={refreshing}
             title="Tải lại tài liệu"
-            className="h-8 px-3 whitespace-nowrap rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-[12px] font-bold cursor-pointer transition-colors disabled:opacity-60"
+            className="h-8 px-3 whitespace-nowrap rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-body font-bold cursor-pointer transition-colors disabled:opacity-60"
           >
             {refreshing ? "Đang làm mới…" : "Làm mới"}
           </button>
@@ -460,17 +466,17 @@ export default function DocumentPane({
       <div className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
         {/* Lỗi nằm trong vùng cuộn: đặt ngay dưới header thì bị lớp mờ của header che */}
         {rewriteError && (
-          <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-[11.5px] text-error">
+          <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-error">
             Không viết lại được các mục cũ: {rewriteError}
           </p>
         )}
-        {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
+        {loading && <div className="text-body text-on-surface-muted italic">Đang tải tài liệu…</div>}
 
         {/* Dự án chưa chạy bước nào: nói tài liệu sẽ tự hiện, không mời bấm gì — không có việc nào cho người dùng ở đây */}
-        {empty && <div className="text-[12px] text-[#A8A49C] italic">Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.</div>}
+        {empty && <div className="text-body text-on-surface-muted italic">Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.</div>}
 
         {!empty && error && (
-          <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
+          <div className="bg-error-container rounded-card p-3.5 text-body text-on-error-container">
             Không tải được tài liệu: {error}
           </div>
         )}

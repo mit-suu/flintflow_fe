@@ -67,14 +67,14 @@ export default function DiffPreviewModal({
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
       <div
-        className="bg-white rounded-[20px] p-6 w-[640px] max-w-full max-h-[85vh] overflow-y-auto shadow-[0_30px_80px_rgba(0,0,0,0.3)] flex flex-col gap-4"
+        className="bg-white rounded-[20px] p-6 w-[640px] max-w-full max-h-[85vh] ff-scroll overflow-y-auto shadow-[0_30px_80px_rgba(0,0,0,0.3)] flex flex-col gap-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-extrabold text-[15px] text-[#191817]">Xem trước thay đổi</h3>
+          <h3 className="font-extrabold text-heading text-[#191817]">Xem trước thay đổi</h3>
           <div className="flex items-center gap-2">
             {preview.branch && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F2F1FB] text-[#6A62C4]">{BRANCH_LABEL[preview.branch]}</span>
+              <span className="px-2 py-0.5 rounded-full text-caption font-bold bg-[#F2F1FB] text-[#6A62C4]">{BRANCH_LABEL[preview.branch]}</span>
             )}
             <button type="button" onClick={onCancel} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
               ✕
@@ -85,17 +85,17 @@ export default function DiffPreviewModal({
         {hasViolations && (
           <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-3 flex flex-col gap-1.5">
             {preview.violations.map((v, i) => (
-              <div key={i} className="text-[11.5px] text-[#8A4141]">
+              <div key={i} className="text-body text-[#8A4141]">
                 {ruleLabel(v.rule) && <span className="font-bold">{ruleLabel(v.rule)}: </span>}
                 <span title={[v.rule, v.path, v.message].filter(Boolean).join(" · ")}>{violationText(v)}</span>
-                {v.path && <span className="text-[10.5px]"> ({pathLabel(v.path)})</span>}
+                {v.path && <span className="text-caption"> ({pathLabel(v.path)})</span>}
               </div>
             ))}
           </div>
         )}
 
         {preview.changes.length === 0 ? (
-          <div className="text-[11.5px] py-4 text-center flex flex-col gap-1">
+          <div className="text-body py-4 text-center flex flex-col gap-1">
             <span className="text-[#A8A49C] italic">Không có thay đổi nào.</span>
             {preview.no_change && (
               <span className="text-[#4B4842]">
@@ -104,8 +104,8 @@ export default function DiffPreviewModal({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[11px]">
+          <div className="ff-scroll overflow-x-auto">
+            <table className="w-full border-collapse text-caption">
               <thead>
                 <tr>
                   <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Phần thay đổi</th>
@@ -129,8 +129,8 @@ export default function DiffPreviewModal({
         )}
 
         {preview.impact && (
-          <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 flex flex-col gap-2 text-[11px] text-[#4B4842]">
-            <div className="font-extrabold text-[10px] text-[#8A867E] tracking-wider uppercase">Phạm vi ảnh hưởng</div>
+          <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 flex flex-col gap-2 text-caption text-[#4B4842]">
+            <div className="font-extrabold text-caption text-[#8A867E] tracking-wider uppercase">Phạm vi ảnh hưởng</div>
             {preview.impact.sections.length > 0 && (
               <div>
                 Mục:{" "}
@@ -155,7 +155,7 @@ export default function DiffPreviewModal({
 
         {needsReason && !empty && (
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="change-reason" className="text-[11px] font-extrabold text-[#8A867E] tracking-wider uppercase">
+            <label htmlFor="change-reason" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
               Lý do thay đổi (bắt buộc sau baseline)
             </label>
             <textarea
@@ -164,20 +164,20 @@ export default function DiffPreviewModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Ví dụ: Stakeholder đổi yêu cầu ở họp 20/09"
-              className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-[12px] outline-none resize-none focus:border-[#6A62C4]"
+              className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none resize-none focus:border-[#6A62C4]"
             />
-            <span className="text-[10.5px] text-[#8A867E]">Câu này đi vào §I Record of Changes của tài liệu.</span>
+            <span className="text-caption text-[#8A867E]">Câu này đi vào §I Record of Changes của tài liệu.</span>
           </div>
         )}
 
-        {note && <p className="text-[11.5px] text-[#554DB0] bg-[#F2F1FB] rounded-[10px] px-3 py-2">{note}</p>}
+        {note && <p className="text-body text-[#554DB0] bg-[#F2F1FB] rounded-[10px] px-3 py-2">{note}</p>}
 
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="px-3.5 py-1.5 rounded-full text-[12px] font-bold border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7] cursor-pointer disabled:opacity-50"
+            className="px-3.5 py-1.5 rounded-full text-body font-bold border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7] cursor-pointer disabled:opacity-50"
           >
             Huỷ
           </button>
@@ -186,7 +186,7 @@ export default function DiffPreviewModal({
               type="button"
               disabled={!canConfirm}
               onClick={() => onConfirm(needsReason ? reason.trim() : undefined)}
-              className="px-3.5 py-1.5 rounded-full text-[12px] font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full text-body font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {busy ? busyLabel : preview.no_change && !confirmWhenInvalid ? "Xác nhận không đổi" : confirmLabel}
             </button>

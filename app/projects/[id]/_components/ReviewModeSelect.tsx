@@ -31,7 +31,7 @@ export default function ReviewModeSelect({ value: raw, onChange, disabled = fals
           disabled={disabled}
           title={option.hint}
           onClick={() => value !== option.value && onChange(option.value)}
-          className={`flex-1 h-7 px-1.5 rounded-inner text-[12px] font-bold text-center whitespace-nowrap transition-colors ${
+          className={`flex-1 h-7 px-1.5 rounded-inner text-body font-bold text-center whitespace-nowrap transition-colors ${
             value === option.value ? "bg-surface-container-lowest text-on-surface" : "text-on-surface-variant hover:text-on-surface"
           } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
         >
