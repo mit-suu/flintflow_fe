@@ -76,6 +76,8 @@ test.describe("workspace end-to-end trên BE thật", () => {
     const created = await api<{ _id: string }>(request, "post", "/projects", token, {
       name: PROJECT_NAME,
       mode: "fpt",
+      // FLF-265: cố định ngôn ngữ tài liệu, không phụ thuộc ngôn ngữ tài khoản test
+      documentLanguage: "en",
     });
     expect(created.status, "tạo dự án qua API").toBeLessThan(300);
     projectId = created.json.data!._id;

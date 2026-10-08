@@ -1,4 +1,4 @@
-import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
 import { apiCall } from "./client";
 
 export const listProjects = (status?: ProjectStatus) =>
@@ -6,11 +6,19 @@ export const listProjects = (status?: ProjectStatus) =>
 
 export const getProject = (projectId: string) => apiCall<Project>(`/projects/${projectId}`);
 
-/** `mode` bỏ trống ⇒ BE mặc định `fpt` (mode 2); `folderId` ⇒ tạo thẳng trong thư mục (BE kiểm thư mục thuộc user). */
-export const createProject = (name: string, mode?: ProjectMode, folderId?: string) =>
+/**
+ * `mode` bỏ trống ⇒ BE mặc định `fpt` (mode 2); `folderId` ⇒ tạo thẳng trong thư mục (BE kiểm thư mục thuộc user);
+ * `documentLanguage` bỏ trống ⇒ BE lấy ngôn ngữ tài khoản (FLF-265).
+ */
+export const createProject = (name: string, mode?: ProjectMode, folderId?: string, documentLanguage?: DocumentLanguage) =>
   apiCall<Project>("/projects", {
     method: "POST",
-    body: JSON.stringify({ name, ...(mode ? { mode } : {}), ...(folderId ? { folderId } : {}) }),
+    body: JSON.stringify({
+      name,
+      ...(mode ? { mode } : {}),
+      ...(folderId ? { folderId } : {}),
+      ...(documentLanguage ? { documentLanguage } : {}),
+    }),
   });
 
 export const renameProject = (projectId: string, name: string) =>
@@ -28,4 +36,11 @@ export const moveProjectToFolder = (projectId: string, folderId: string | null) 
   apiCall<Project>(`/projects/${projectId}/folder`, {
     method: "PATCH",
     body: JSON.stringify({ folderId }),
+  });
+
+/** Đổi ngôn ngữ tài liệu (FLF-265) — chỉ Lead/Analyst; dự án mode `import` ⇒ `409 DOCUMENT_LANGUAGE_LOCKED`. */
+export const setDocumentLanguage = (projectId: string, documentLanguage: DocumentLanguage) =>
+  apiCall<Project>(`/projects/${projectId}/document-language`, {
+    method: "PATCH",
+    body: JSON.stringify({ documentLanguage }),
   });

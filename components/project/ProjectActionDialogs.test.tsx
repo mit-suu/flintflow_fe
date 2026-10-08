@@ -1,11 +1,12 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { renderWithIntl } from "@/test/intl";
+import { MESSAGES, renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteProject, renameProject } from "@/lib/api/projects";
+import { ApiClientError } from "@/lib/api/client";
+import { deleteProject, renameProject, setDocumentLanguage } from "@/lib/api/projects";
 import type { Project } from "@/types/project";
 import ProjectActionDialogs from "./ProjectActionDialogs";
 
-vi.mock("@/lib/api/projects", () => ({ renameProject: vi.fn(), deleteProject: vi.fn() }));
+vi.mock("@/lib/api/projects", () => ({ renameProject: vi.fn(), deleteProject: vi.fn(), setDocumentLanguage: vi.fn() }));
 
 const project: Project = {
   _id: "p1",
@@ -64,6 +65,51 @@ describe("ProjectActionDialogs", () => {
     fireEvent.click(screen.getByRole("button", { name: "Xoá vĩnh viễn" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Không có quyền");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProjectActionDialogs — ngôn ngữ tài liệu (FLF-265)", () => {
+  const fpt: Project = { ...project, mode: "fpt", documentLanguage: "en" };
+
+  beforeEach(() => {
+    vi.mocked(setDocumentLanguage).mockReset().mockResolvedValue({ data: { ...fpt, documentLanguage: "vi" }, error: null } as never);
+  });
+
+  it("chọn sẵn ngôn ngữ hiện tại, có câu giải thích; chưa đổi ⇒ khoá nút", () => {
+    renderWithIntl(<ProjectActionDialogs target={{ action: "documentLanguage", project: fpt }} onClose={() => {}} onDone={() => {}} />);
+    expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText(/sơ đồ giữ tiếng Anh/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Đổi ngôn ngữ" })).toBeDisabled();
+  });
+
+  it("dự án cũ chưa có field ⇒ coi là tiếng Anh", () => {
+    renderWithIntl(
+      <ProjectActionDialogs target={{ action: "documentLanguage", project: { ...fpt, documentLanguage: undefined } }} onClose={() => {}} onDone={() => {}} />
+    );
+    expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("đổi ⇒ gọi setDocumentLanguage, tải lại rồi đóng", async () => {
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    renderWithIntl(<ProjectActionDialogs target={{ action: "documentLanguage", project: fpt }} onClose={onClose} onDone={onDone} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Tiếng Việt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Đổi ngôn ngữ" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(setDocumentLanguage).toHaveBeenCalledWith("p1", "vi");
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it("409 DOCUMENT_LANGUAGE_LOCKED ⇒ câu đã dịch theo mã lỗi, không đóng", async () => {
+    vi.mocked(setDocumentLanguage).mockRejectedValue(new ApiClientError(409, "DOCUMENT_LANGUAGE_LOCKED", "Document language follows the imported file"));
+    const onClose = vi.fn();
+    renderWithIntl(<ProjectActionDialogs target={{ action: "documentLanguage", project: fpt }} onClose={onClose} onDone={() => {}} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Tiếng Việt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Đổi ngôn ngữ" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(MESSAGES.vi.errors.DOCUMENT_LANGUAGE_LOCKED);
     expect(onClose).not.toHaveBeenCalled();
   });
 });

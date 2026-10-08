@@ -5,11 +5,12 @@ import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
-import { deleteProject, renameProject } from "@/lib/api/projects";
-import type { Project } from "@/types/project";
+import { deleteProject, renameProject, setDocumentLanguage } from "@/lib/api/projects";
+import type { DocumentLanguage, Project } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import DocumentLanguagePicker from "./DocumentLanguagePicker";
 
-export type ProjectAction = "rename" | "archive" | "delete";
+export type ProjectAction = "rename" | "archive" | "delete" | "documentLanguage";
 
 export interface ProjectActionTarget {
   action: ProjectAction;
@@ -24,9 +25,9 @@ interface ProjectActionDialogsProps {
 }
 
 /** Icon của mỗi thao tác xác nhận; chữ lấy từ `app.projectDialogs.<action>.*`. */
-const CONFIRM_ICON: Record<Exclude<ProjectAction, "rename">, IconName> = { archive: "archive", delete: "trash" };
+const CONFIRM_ICON: Record<Exclude<ProjectAction, "rename" | "documentLanguage">, IconName> = { archive: "archive", delete: "trash" };
 
-/** 3 dialog thao tác trên card: đổi tên, lưu trữ, xoá vĩnh viễn. */
+/** Dialog thao tác trên card: đổi tên, đổi ngôn ngữ tài liệu (FLF-265), lưu trữ, xoá vĩnh viễn. */
 export default function ProjectActionDialogs({ target, onClose, onDone }: ProjectActionDialogsProps) {
   // `key` theo dự án + thao tác ⇒ mỗi lần mở là form mới (tên điền sẵn, không còn lỗi cũ)
   if (!target) return null;
@@ -38,6 +39,9 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
   const tc = useTranslations("app.common");
   const { action, project } = target;
   const [name, setName] = useState(project.name);
+  // Dự án cũ chưa có field ⇒ BE đọc `en` (D1)
+  const currentLanguage: DocumentLanguage = project.documentLanguage ?? "en";
+  const [language, setLanguage] = useState<DocumentLanguage>(currentLanguage);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +100,32 @@ function ActionDialog({ target, onClose, onDone }: ProjectActionDialogsProps & {
             </Button>
             <Button type="submit" loading={submitting} disabled={!name.trim() || name.trim() === project.name}>
               {t("saveChanges")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  if (action === "documentLanguage") {
+    return (
+      <Modal open onClose={close} title={t("documentLanguage.title")}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (language !== currentLanguage) void run(() => setDocumentLanguage(project._id, language), t("documentLanguage.failed"));
+          }}
+          className="flex flex-col gap-4"
+        >
+          <DocumentLanguagePicker value={language} onChange={setLanguage} disabled={submitting} />
+          <p className="text-[12.5px] text-on-surface-variant leading-[1.55]">{t("documentLanguage.detail")}</p>
+          {errorBox}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={close} disabled={submitting}>
+              {tc("cancel")}
+            </Button>
+            <Button type="submit" loading={submitting} disabled={language === currentLanguage}>
+              {submitting ? t("documentLanguage.busy") : t("documentLanguage.cta")}
             </Button>
           </div>
         </form>

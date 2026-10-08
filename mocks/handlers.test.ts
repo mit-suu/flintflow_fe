@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
+import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import type { StepEvent } from "@/types/pipeline";
 import { mockTiming } from "./handlers";
@@ -139,5 +140,19 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     await expect(applyChanges(P, { base_version: before, ops: [{ op: "set", path: "project.name", value: "X" }] })).rejects.toMatchObject({
       code: "SPINE_VERSION_CONFLICT",
     });
+  });
+});
+
+describe("mock PATCH /projects/:id/document-language (FLF-265 #1a)", () => {
+  it("project mode 2 ⇒ đổi và GET trả field mới; giá trị lạ ⇒ 400", async () => {
+    expect((await setDocumentLanguage(P, "vi")).data?.documentLanguage).toBe("vi");
+    expect((await getProject(P)).data?.documentLanguage).toBe("vi");
+    await expect(setDocumentLanguage(P, "fr" as never)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  });
+
+  it("project mode import ⇒ 409 DOCUMENT_LANGUAGE_LOCKED, không đổi gì", async () => {
+    mockState.project = { ...mockState.project, mode: "import" };
+    await expect(setDocumentLanguage(P, "vi")).rejects.toMatchObject({ code: "DOCUMENT_LANGUAGE_LOCKED", status: 409 });
+    expect(mockState.project.documentLanguage).toBeUndefined();
   });
 });

@@ -35,7 +35,7 @@ import type {
   StepsResponse,
 } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
-import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
@@ -528,10 +528,30 @@ export const handlers = [
     return ok([mockState.project].filter((p) => !status || p.status === status));
   }),
   http.post(api("/projects"), async ({ request }) => {
-    const body = (await request.json()) as { name: string; mode?: ProjectMode };
+    const body = (await request.json()) as { name: string; mode?: ProjectMode; documentLanguage?: DocumentLanguage };
+    if (body.documentLanguage !== undefined && !isLocale(body.documentLanguage)) {
+      return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
+    }
     const now = new Date().toISOString();
-    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode: body.mode ?? "fpt", import_state: null, createdAt: now, updatedAt: now };
+    const mode = body.mode ?? "fpt";
+    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode, import_state: null, createdAt: now, updatedAt: now };
+    // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en` (tài khoản mock không có ngôn ngữ riêng)
+    if (mode !== "import") project.documentLanguage = body.documentLanguage ?? "en";
     return ok(project, { status: 201 });
+  }),
+  // FLF-265 #1a: body strict `{ documentLanguage }`; dự án mode import ⇒ 409 DOCUMENT_LANGUAGE_LOCKED
+  http.patch(api("/projects/:projectId/document-language"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const { documentLanguage } = body;
+    if (!isLocale(documentLanguage) || Object.keys(body).length !== 1) {
+      return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
+    }
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    if (mockState.project.mode === "import") {
+      return fail(409, "DOCUMENT_LANGUAGE_LOCKED", "Dự án import dùng ngôn ngữ của file — không đổi được ngôn ngữ tài liệu");
+    }
+    mockState.project = { ...mockState.project, documentLanguage, updatedAt: new Date().toISOString() };
+    return ok(mockState.project);
   }),
   http.get(api("/folders"), () => ok([])),
   http.post(api("/feedback"), async ({ request }) => {

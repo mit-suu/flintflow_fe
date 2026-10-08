@@ -46,6 +46,12 @@ const cases: EndpointCase[] = [
     post({ name: "App", mode: "fpt", folderId: "f1" }),
   ],
   [
+    "createProject (ngôn ngữ tài liệu)",
+    () => projects.createProject("App", "fpt", undefined, "vi"),
+    "/projects",
+    post({ name: "App", mode: "fpt", documentLanguage: "vi" }),
+  ],
+  [
     "renameProject",
     () => projects.renameProject("p1", "Mới"),
     "/projects/p1/name",
@@ -63,6 +69,12 @@ const cases: EndpointCase[] = [
     () => projects.moveProjectToFolder("p1", "f1"),
     "/projects/p1/folder",
     { method: "PATCH", body: JSON.stringify({ folderId: "f1" }) },
+  ],
+  [
+    "setDocumentLanguage",
+    () => projects.setDocumentLanguage("p1", "en"),
+    "/projects/p1/document-language",
+    { method: "PATCH", body: JSON.stringify({ documentLanguage: "en" }) },
   ],
   ["listFolders", () => folders.listFolders(), "/folders"],
   ["createFolder", () => folders.createFolder({ name: "A", color: "blue" }), "/folders", post({ name: "A", color: "blue" })],

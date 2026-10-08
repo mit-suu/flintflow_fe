@@ -13,7 +13,7 @@
  */
 import { http, HttpResponse, type DefaultBodyType, type PathParams, type StrictRequest } from "msw";
 import { API_BASE_URL } from "@/lib/api/client";
-import type { Project, ProjectMode } from "@/types/project";
+import type { DocumentLanguage, Project, ProjectMode } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
 import type { DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
@@ -43,6 +43,7 @@ const spend = (cost: number): boolean => {
 };
 
 const isMode1 = (projectId: unknown) => projectId === MODE1_PROJECT_ID;
+const isDocumentLanguage = (value: unknown): value is DocumentLanguage => value === "vi" || value === "en";
 const modeMismatch = () => fail(409, "PROJECT_MODE_MISMATCH", "API này chỉ dùng cho project mode import", { mode: "fpt", expected: "import" });
 
 type Handler = (args: { params: PathParams; request: StrictRequest<DefaultBodyType> }) => Response | Promise<Response>;
@@ -458,6 +459,9 @@ export const mode1Handlers = [
     if (!["import", "fpt", "customer_template"].includes(mode)) return fail(400, "VALIDATION_ERROR", "mode phải là import, fpt hoặc customer_template");
     if (!body.name) return fail(400, "NAME_REQUIRED", "Project name is required");
     if (mode === "customer_template") return fail(501, "NOT_IMPLEMENTED", "Mode template khách hàng chưa hỗ trợ");
+    if (body.documentLanguage !== undefined && !isDocumentLanguage(body.documentLanguage)) {
+      return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
+    }
     const project: Project = {
       _id: `6500000000000000000001${String(S().created.length).padStart(2, "0")}`,
       name: String(body.name),
@@ -465,11 +469,28 @@ export const mode1Handlers = [
       status: "active",
       mode,
       import_state: null,
+      // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en`
+      ...(mode === "import" ? {} : { documentLanguage: isDocumentLanguage(body.documentLanguage) ? body.documentLanguage : "en" }),
       createdAt: now(),
       updatedAt: now(),
     };
     S().created.push(project);
     return ok(project, 201);
+  }),
+  // FLF-265 #1a: project mode import (mode 1 mock + project vừa tạo mode import) ⇒ 409; project mode 2 vừa tạo ⇒ đổi;
+  // còn lại rơi xuống handler pipeline
+  http.patch(api("/projects/:projectId/document-language"), async ({ params, request }) => {
+    const created = S().created.find((p) => p._id === params.projectId);
+    if (!isMode1(params.projectId) && !created) return undefined;
+    const body = await readJson(request);
+    if (!isDocumentLanguage(body.documentLanguage) || Object.keys(body).length !== 1) {
+      return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
+    }
+    if (isMode1(params.projectId) || created?.mode === "import") {
+      return fail(409, "DOCUMENT_LANGUAGE_LOCKED", "Dự án import dùng ngôn ngữ của file — không đổi được ngôn ngữ tài liệu");
+    }
+    Object.assign(created!, { documentLanguage: body.documentLanguage, updatedAt: now() });
+    return ok(created);
   }),
   http.get(api("/projects/:projectId"), ({ params }) => {
     if (isMode1(params.projectId)) return ok(S().project);
