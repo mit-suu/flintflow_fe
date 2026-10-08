@@ -189,4 +189,22 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(mode1State.mode1State.crs.get("CR-001")?.change_request.seed).toMatchObject({ instruction: "Đổi tên actor A03" });
   });
+
+  it("UC-49 tạo từ comment ⇒ người yêu cầu điền sẵn = tác giả comment, báo comment nguồn, gửi comment_id", async () => {
+    const bodies = captureCreate();
+    const onCreated = vi.fn();
+    renderWithIntl(
+      <ChangeRequestForm
+        projectId={P}
+        prefill={{ title: "CM-002: 3.2.4 Cancel booking", description: "Cần nói rõ ai được huỷ.", source: "viewer_comment", ref: "CM-002", requester: "Viewer Lan", comment_id: "CM-002" }}
+        onCreated={onCreated}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText("Comment nguồn")).toHaveTextContent("CM-002");
+    expect(field("Người yêu cầu *")).toHaveValue("Viewer Lan");
+    submit();
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(bodies[0]).toMatchObject({ source: { kind: "viewer_comment", ref: "CM-002" }, requester: "Viewer Lan", comment_id: "CM-002" });
+  });
 });

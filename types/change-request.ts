@@ -174,6 +174,8 @@ export interface CreateCrRequest {
   requester: string;
   /** Mode 1 v3: bản xem trước (`POST /changes/preview`) đính kèm làm gợi ý. Hết hạn ⇒ CR vẫn tạo, `meta.seed_dropped`. */
   preview_id?: string;
+  /** UC-49: comment `CM-nnn` còn mở được chuyển thành CR này — cần `source.kind = viewer_comment`. */
+  comment_id?: string;
   /** Phase 7: đoạn văn bản nguồn dán ở 3.1 (≤ 5). File upload sau khi tạo qua `addCrMaterialFile`. */
   materials?: { name: string; text: string }[];
 }

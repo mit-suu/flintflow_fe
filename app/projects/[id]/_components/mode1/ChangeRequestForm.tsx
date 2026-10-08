@@ -37,7 +37,7 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
   const [source, setSource] = useState<SourceKind | "">(prefill?.source ?? "");
   const [ref, setRef] = useState(prefill?.ref ?? "");
   const [note, setNote] = useState("");
-  const [requester, setRequester] = useState("");
+  const [requester, setRequester] = useState(prefill?.requester ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pasted, setPasted] = useState<{ name: string; text: string }[]>([]);
@@ -60,6 +60,7 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
         source: { kind: source, ref: ref.trim() || null, note: note.trim() || null },
         requester: requester.trim(),
         ...(prefill?.preview_id ? { preview_id: prefill.preview_id } : {}),
+        ...(prefill?.comment_id ? { comment_id: prefill.comment_id } : {}),
         ...(pasted.length ? { materials: pasted } : {}),
       });
       if (!res.data) return;
@@ -101,6 +102,11 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
         <p className="text-[12px] text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] px-3 py-2" aria-label="Bản xem trước đính kèm">
           Đính kèm bản xem trước từ panel “Sửa tài liệu có xem trước” — AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất. Tài
           liệu chỉ đổi sau khi CR được duyệt.
+        </p>
+      )}
+      {prefill?.comment_id && (
+        <p className="text-[12px] text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] px-3 py-2" aria-label="Comment nguồn">
+          Tạo từ comment {prefill.comment_id} — tạo xong, comment chuyển sang “Đã thành CR” và người viết comment được báo.
         </p>
       )}
       <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3" aria-label="Tài liệu bổ sung">
