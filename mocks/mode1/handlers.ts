@@ -15,7 +15,7 @@ import { http, HttpResponse, type DefaultBodyType, type PathParams, type StrictR
 import { API_BASE_URL } from "@/lib/api/client";
 import type { DocumentLanguage, Project, ProjectMode } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
-import type { DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
+import type { CreditEstimate, DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
 import type { RocRow } from "@/types/document";
 import type { Cr, CrDetail, CrLocation, CrMaterial, CrStatus } from "@/types/change-request";
@@ -121,6 +121,17 @@ const startExtraction = () => {
   doc.paused = null;
   doc.extract_cursor = S().sections.find((s) => s.status !== "done")?.section_id ?? null;
   S().extractRunning = true;
+};
+
+/**
+ * `credit_estimate` của #4 (BE §4.15): chỉ ở `mapping_review` hoặc `extracting` khi job chưa chạy / đang dừng. Mock trích
+ * một lượt / section chưa xong (`COST.extract`), không có ảnh; `available_credits` = credit mock.
+ */
+const creditEstimate = (): CreditEstimate | null => {
+  const status = S().importDoc?.status;
+  if (status !== "mapping_review" && (status !== "extracting" || S().extractRunning)) return null;
+  const calls = status === "mapping_review" ? sectionIds().length : S().sections.filter((s) => s.status !== "done").length;
+  return { text_batches: calls, diagram_images: 0, ai_calls: calls, credits: calls * COST.extract, available_credits: S().credits };
 };
 
 const extractNextSection = () => {
@@ -564,6 +575,7 @@ export const mode1Handlers = [
         profile: S().profile,
         extraction: { sections: S().sections, review_fields: S().reviewFields.filter((f) => !f.confirmed) },
         blocks_count: S().blocks.get("0.0")?.length ?? 0,
+        credit_estimate: creditEstimate(),
       });
     }),
   ),

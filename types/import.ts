@@ -241,11 +241,24 @@ export interface ImportStateResponse {
   import: ImportedDocument;
 }
 
+/**
+ * Ước tính I-4 còn phải chạy (`GET /import` → `credit_estimate`, BE import-change-contract §4.15): chỉ có ở `mapping_review`
+ * hoặc `extracting` khi job chưa chạy / đang dừng. `available_credits` = credit khả dụng của ví org; `null` với Viewer.
+ */
+export interface CreditEstimate {
+  text_batches: number;
+  diagram_images: number;
+  ai_calls: number;
+  credits: number;
+  available_credits: number | null;
+}
+
 export interface GetImportResponse {
   import: ImportedDocument | null;
   profile: TemplateProfile | null;
   extraction: { sections: ExtractionSection[]; review_fields: ReviewField[] };
   blocks_count: number;
+  credit_estimate?: CreditEstimate | null;
 }
 
 export interface ExtractResponse {
