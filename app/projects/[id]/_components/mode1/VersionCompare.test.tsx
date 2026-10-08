@@ -55,9 +55,11 @@ const serveCompare = (res: (from: string, to: string) => CompareResponse | Respo
   return seen;
 };
 
-const selects = () => {
-  const [from, to] = screen.getAllByRole("combobox");
-  return { from, to };
+/** `FilterSelect` là combobox tự dựng (không phải `<select>` gốc): tên lấy từ `label`, chọn bằng mousedown trên option. */
+const combo = (label: string) => screen.getByRole("combobox", { name: label });
+const pick = (label: string, version: string) => {
+  fireEvent.click(combo(label));
+  fireEvent.mouseDown(screen.getByRole("option", { name: version }));
 };
 
 describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
@@ -80,8 +82,8 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
       ],
     }));
     renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
-    expect(selects().from).toHaveValue("0.1");
-    expect(selects().to).toHaveValue("1.0");
+    expect(combo("Từ")).toHaveTextContent("0.1");
+    expect(combo("Đến")).toHaveTextContent("1.0");
 
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
     expect(await screen.findByText("0.1 → 1.0: 1 thêm · 1 xoá · 1 sửa · 1 di chuyển")).toBeInTheDocument();
@@ -92,21 +94,56 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
     expect(within(items[0]).getByText("NFR-P03: 500 concurrent learners.").tagName).toBe("INS");
     expect(within(items[1]).getByText("Xoá")).toBeInTheDocument();
     expect(within(items[1]).getByText("[SmartArt]").tagName).toBe("DEL");
+    // `block_id` là id bookmark neo trong file Word, không mang nghĩa cho user ⇒ không in ra UI
+    expect(screen.queryByText("B0012")).toBeNull();
     expect(within(items[2]).getByText("one session").tagName).toBe("DEL");
     expect(within(items[2]).getByText("all sessions").tagName).toBe("INS");
     expect(within(items[3]).getByText("Di chuyển")).toBeInTheDocument();
     expect(items[3].querySelector("ins, del")).toBeNull();
   });
 
+  it("mount lúc danh sách còn rỗng rồi mới có dữ liệu ⇒ vẫn chọn sẵn đúng hai version", async () => {
+    // Đúng đường mount thật: popup gọi `useDocVersions`, hook khởi tạo [] rồi fetch. Nếu mặc định chốt
+    // trong `useState` thì hai ô chọn mắc ở chuỗi rỗng, nút So sánh khoá cứng và API bị gọi với `to=`.
+    const seen = serveCompare((from, to) => ({ from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }));
+    const { rerender } = renderWithIntl(<VersionCompare projectId={P} versions={[]} />);
+    expect(screen.getByText("Cần ít nhất 2 version để so sánh.")).toBeInTheDocument();
+
+    rerender(<VersionCompare projectId={P} versions={VERSIONS} />);
+    expect(combo("Từ")).toHaveTextContent("0.1");
+    expect(combo("Đến")).toHaveTextContent("1.0");
+
+    const button = screen.getByRole("button", { name: "So sánh" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await screen.findByText(/0.1 → 1.0: 0 thêm/);
+    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
+  });
+
+  it("version đang chọn bị xoá khỏi danh sách ⇒ rơi về mặc định, không query mã đã mất", async () => {
+    const seen = serveCompare((from, to) => ({ from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }));
+    const { rerender } = renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
+    pick("Từ", "0.0");
+    expect(combo("Từ")).toHaveTextContent("0.0");
+
+    // Danh sách tải lại không còn 0.0
+    rerender(<VersionCompare projectId={P} versions={[version("1.0", "release"), version("0.1")]} />);
+    expect(combo("Từ")).toHaveTextContent("0.1");
+
+    fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
+    await screen.findByText(/0.1 → 1.0: 0 thêm/);
+    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
+  });
+
   it("chọn cùng một version ⇒ nút khoá kèm gợi ý; chọn lại thì so được", async () => {
     const seen = serveCompare((from, to) => ({ from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }));
     renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
 
-    fireEvent.change(selects().from, { target: { value: "1.0" } });
+    pick("Từ", "1.0");
     expect(screen.getByRole("button", { name: "So sánh" })).toBeDisabled();
     expect(screen.getByText("Chọn hai version khác nhau.")).toBeInTheDocument();
 
-    fireEvent.change(selects().from, { target: { value: "0.0" } });
+    pick("Từ", "0.0");
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
     expect(await screen.findByText("Không có khác biệt.")).toBeInTheDocument();
     expect(seen).toEqual([{ from: "0.0", to: "1.0" }]);

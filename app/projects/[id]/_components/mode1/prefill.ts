@@ -28,6 +28,8 @@ export const titleFromInstruction = (instruction: string): string => {
  */
 export const gapReportHref = (projectId: string): string => `/projects/${projectId}?panel=gap`;
 export const crListHref = (projectId: string): string => `/projects/${projectId}?panel=cr`;
+/** So sánh 2 version (UC-55) — cùng khuôn popup với gap report và CR, nên cũng là một query trên màn tài liệu. */
+export const compareHref = (projectId: string): string => `/projects/${projectId}?panel=compare`;
 export const crHref = (projectId: string, crId: string): string => `/projects/${projectId}?panel=cr&cr=${encodeURIComponent(crId)}`;
 
 export const crPrefillHref = (projectId: string, prefill: CrPrefill): string => {

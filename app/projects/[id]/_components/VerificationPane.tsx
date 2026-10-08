@@ -7,12 +7,15 @@ import FlagsPanel from "./FlagsPanel";
 import ReadinessSummary from "./ReadinessSummary";
 import type { Readiness } from "@/types/pipeline";
 import type { Flag } from "@/types/flags";
+import type { Spine } from "@/types/spine";
 import TraceabilityMap from "./TraceabilityMap";
 import { issueCounts } from "./flag-rules";
 
 interface VerificationPaneProps {
   /** Có ⇒ hiện "Bản đồ truy vết" (actor → use case → feature → màn → function) ở cuối panel. */
   projectId?: string;
+  /** Spine đang mở — cho bản đồ truy vết chọn thực thể theo tên thay vì gõ mã. */
+  spine?: Spine;
   readiness: Readiness | null;
   /** Nguồn cờ duy nhất — sống ở `page.tsx` (T8) để `DocumentPane` cũng dùng chung, thay vì mỗi
    * panel tự gọi `useFlags` (hai bản state cờ lệch nhau). */
@@ -41,6 +44,7 @@ interface VerificationPaneProps {
 /** Panel "Kiểm tra tài liệu" (T16) — vấn đề đỏ/vàng gom theo loại, bỏ qua có lý do, tình trạng chốt bản từ BE. */
 export default function VerificationPane({
   projectId,
+  spine,
   readiness,
   flags,
   flagsLoading,
@@ -98,7 +102,7 @@ export default function VerificationPane({
             >
               {showTrace ? "Ẩn bản đồ truy vết" : "Xem bản đồ truy vết"}
             </button>
-            {showTrace && <TraceabilityMap projectId={projectId} />}
+            {showTrace && <TraceabilityMap projectId={projectId} spine={spine} />}
           </section>
         )}
       </div>
