@@ -1,6 +1,6 @@
 "use client";
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DocumentPane, { followsHeading } from "./DocumentPane";
@@ -277,6 +277,89 @@ describe("DocumentPane — nút Vẽ lại sơ đồ theo mục", () => {
     renderWithIntl(<DocumentPane projectId="p1" onRedrawSection={vi.fn()} hasDiagrams={() => false} />);
     await screen.findByAltText("ERD");
     expect(screen.queryByRole("button", { name: "Vẽ lại sơ đồ" })).toBeNull();
+  });
+});
+
+describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const draftMeta = { assembled_at_version: 5, spine_version: 5, stale: false };
+  const chip = () => screen.getByTitle("Ngôn ngữ tài liệu");
+
+  beforeEach(() => {
+    getDocument.mockReset();
+  });
+
+  it("tài liệu ở ngôn ngữ gốc (không có meta.translation) ⇒ chip theo ngôn ngữ dự án, đứng trước nút Làm mới; không cảnh báo", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: draftMeta });
+
+    renderWithIntl(<DocumentPane projectId="p1" documentLanguage="en" onTranslate={vi.fn()} />);
+
+    await screen.findByText(/1\. Product Overview/);
+    expect(chip()).toHaveTextContent("English");
+    expect(chip().querySelector("[lang]")).toHaveAttribute("lang", "en");
+    expect(chip().compareDocumentPosition(screen.getByRole("button", { name: "Làm mới" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
+  });
+
+  it("còn mục chưa dịch ⇒ chip theo meta.translation + “N mục chưa dịch · Dịch tài liệu”; bấm mở hộp dịch", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 12 } } });
+    const onTranslate = vi.fn();
+
+    renderWithIntl(<DocumentPane projectId="p1" documentLanguage="vi" onTranslate={onTranslate} />);
+
+    const warning = await screen.findByRole("status");
+    expect(warning).toHaveTextContent("12 mục chưa dịch");
+    expect(chip()).toHaveTextContent("Tiếng Việt");
+    fireEvent.click(within(warning).getByRole("button", { name: "Dịch tài liệu" }));
+    expect(onTranslate).toHaveBeenCalledTimes(1);
+  });
+
+  it("Viewer (không truyền onTranslate) ⇒ vẫn thấy số mục chưa dịch nhưng không có nút dịch", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 3 } } });
+
+    renderWithIntl(<DocumentPane projectId="p1" documentLanguage="vi" />);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("3 mục chưa dịch");
+    expect(screen.queryByRole("button", { name: "Dịch tài liệu" })).toBeNull();
+  });
+
+  it("đã dịch đủ (missing 0) ⇒ chỉ còn chip, không cảnh báo", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 0 } } });
+
+    renderWithIntl(<DocumentPane projectId="p1" documentLanguage="vi" onTranslate={vi.fn()} />);
+
+    await screen.findByText(/1\. Product Overview/);
+    expect(chip()).toHaveTextContent("Tiếng Việt");
+    expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
+  });
+
+  it("mode 1: chưa biết ngôn ngữ file ⇒ không chip; có truyền nhầm onTranslate cũng không có nút dịch (D3)", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: draftMeta });
+
+    const { unmount } = renderWithIntl(<DocumentPane projectId="p1" mode1 documentLanguage={null} onTranslate={vi.fn()} />);
+    await screen.findByText(/1\. Product Overview/);
+    expect(screen.queryByTitle("Ngôn ngữ tài liệu")).toBeNull();
+    unmount();
+
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 2 } } });
+    renderWithIntl(<DocumentPane projectId="p1" mode1 documentLanguage={null} onTranslate={vi.fn()} />);
+    expect(await screen.findByRole("status")).toHaveTextContent("2 mục chưa dịch");
+    expect(screen.queryByRole("button", { name: "Dịch tài liệu" })).toBeNull();
+  });
+
+  it("ngôn ngữ dự án đổi ⇒ tải lại tài liệu theo ngôn ngữ mới", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: draftMeta });
+
+    const { rerender } = renderWithIntl(<DocumentPane projectId="p1" documentLanguage="en" />);
+    await screen.findByText(/1\. Product Overview/);
+    expect(getDocument).toHaveBeenCalledTimes(1);
+
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 4 } } });
+    rerender(<DocumentPane projectId="p1" documentLanguage="vi" />);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("4 mục chưa dịch");
+    expect(getDocument).toHaveBeenCalledTimes(2);
+    expect(chip()).toHaveTextContent("Tiếng Việt");
   });
 });
 

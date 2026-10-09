@@ -37,6 +37,8 @@ import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
+import TranslateDialog from "@/components/project/TranslateDialog";
+import { knownDocumentLanguage } from "@/lib/document-language";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
@@ -332,6 +334,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [focusMode]);
   const [exportOpen, setExportOpen] = useState(false);
+  /**
+   * Hộp "Dịch tài liệu" (FLF-265): mở từ cảnh báo "N mục chưa dịch" trên tài liệu; lệnh chat "dịch sang tiếng …" (§3.7)
+   * cũng mở bằng chính state này. Mode 1 không dịch (D3).
+   */
+  const [translateOpen, setTranslateOpen] = useState(false);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   /** Chip "Sửa tài liệu" trên ô chat: bật ⇒ nội dung gửi đi là lệnh sửa (`/changes/preview`), không phải tin chat. */
   // Mode 1 (phase 8): chat bên trái mặc định là sửa tài liệu qua change request; tắt chip ⇒ hỏi đáp
@@ -436,6 +443,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     },
     [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
+
+  /**
+   * Vòng dịch xong / dừng giữa chừng (FLF-265): chữ dịch nằm ở lớp bản dịch, Spine và `spine_version` không đổi ⇒ chỉ
+   * tải lại tài liệu và số dư credit.
+   */
+  const handleTranslated = useCallback(() => {
+    setDocumentRefreshToken((v) => v + 1);
+    refreshUser();
+  }, [refreshUser]);
 
   const rememberStat = useCallback((stepId: string | null, payload: { duration_ms?: number; credits_used?: number } | null | undefined) => {
     if (!stepId || payload?.duration_ms === undefined) return;
@@ -832,6 +848,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * tên dự án tiếng Việt user gõ lúc tạo. Chưa chốt tên thì mới rơi về tên dự án.
    */
   const documentName = spine?.project.system_name?.trim() || ws.project?.name;
+  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
+  const documentLanguage = knownDocumentLanguage(ws.project);
   /**
    * BUG-03: vòng S-5 của màn đang để trống — panel Tiến độ mở lại được, thay vì khoá cứng 5 bước.
    * Chỉ S-5.1 là chỗ vào: chạy nó đưa màn về `in_progress` và các bước còn lại tự tới lượt.
@@ -1364,6 +1382,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
+          documentLanguage={documentLanguage}
+          // Dịch tốn credit ⇒ chỉ Lead/Analyst; mode 1 giữ ngôn ngữ file, không dịch (D3)
+          onTranslate={!mode1 && canEdit ? () => setTranslateOpen(true) : undefined}
         />
         )}
 
@@ -1509,7 +1530,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectName={documentName}
           flags={flags}
           onClose={() => setExportOpen(false)}
+          documentLanguage={documentLanguage}
+          // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
+          onTranslate={
+            !mode1 && canEdit
+              ? () => {
+                  setExportOpen(false);
+                  setTranslateOpen(true);
+                }
+              : undefined
+          }
         />
+      )}
+
+      {!mode1 && canEdit && (
+        <TranslateDialog projectId={projectId} open={translateOpen} onClose={() => setTranslateOpen(false)} onDone={handleTranslated} />
       )}
 
       {mode1 && (
