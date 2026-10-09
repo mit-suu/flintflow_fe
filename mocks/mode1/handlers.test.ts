@@ -48,6 +48,15 @@ const pollExtraction = async (): Promise<GetImportResponse> => {
   throw new Error("I-4 không kết thúc sau 50 lần poll");
 };
 
+/** #8 chạy nền: poll #4 tới khi rời baselining/checking hoặc bị dừng. */
+const pollFinalize = async (): Promise<GetImportResponse> => {
+  for (let i = 0; i < 10; i++) {
+    const got = (await call<GetImportResponse>("GET", `/projects/${P}/import`)).body.data!;
+    if (!["baselining", "checking"].includes(got.import!.status) || got.import!.paused) return got;
+  }
+  throw new Error("finalize không kết thúc sau 10 lần poll");
+};
+
 /** Đi từ upload tới gap_review, trả về import_id. */
 const importToGapReview = async (): Promise<string> => {
   const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS_Lumen.docx"));
@@ -58,6 +67,7 @@ const importToGapReview = async (): Promise<string> => {
   await pollExtraction();
   await call("PATCH", `/projects/${P}/import/fields`, { import_id: id, confirm_all: true });
   await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
+  await pollFinalize();
   return id;
 };
 
@@ -167,7 +177,11 @@ describe("mock mode 1 — import (#2–#10)", () => {
     expect((await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: 99 })).body.error?.code).toBe("SPINE_VERSION_CONFLICT");
 
     const fin = await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
-    expect(fin.body.data).toMatchObject({ doc_version: "0.0", baseline: { type: "imported", doc_version: "0.0" }, import: { status: "gap_review" } });
+    // chạy nền (§4.16): trả ngay baselining, baseline/flags null; gọi lại khi đang chạy = không làm gì
+    expect(fin.body.data).toMatchObject({ doc_version: "0.0", baseline: null, flags: null, import: { status: "baselining", paused: null } });
+    expect((await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion })).body.data?.import.status).toBe("baselining");
+    expect((await pollFinalize()).import).toMatchObject({ status: "gap_review", paused: null });
+    expect(state().baselines.filter((b) => b.type === "imported")).toHaveLength(1);
     expect((await call<Project>("GET", `/projects/${P}`)).body.data?.import_state).toBe("gap_review");
 
     const report = (await call<GapReport>("GET", `/projects/${P}/gap-report`)).body.data!;

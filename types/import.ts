@@ -266,12 +266,16 @@ export interface ExtractResponse {
   sections: ExtractionSection[];
 }
 
+/**
+ * #8 chạy nền (contract §4.16): trả ngay import `baselining`; `baseline` / `flags` luôn `null` — kết quả đọc qua poll #4
+ * (`gap_review`) và gap report.
+ */
 export interface FinalizeResponse {
   import: ImportedDocument;
   doc_version: "0.0";
-  baseline: Baseline;
+  baseline: Baseline | null;
   spine_version: number;
-  flags: { red: number; yellow: number };
+  flags: { red: number; yellow: number } | null;
 }
 
 export interface GapLayoutRow {

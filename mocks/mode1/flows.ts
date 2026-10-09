@@ -21,6 +21,8 @@ export const importToGapReview = async (): Promise<string> => {
   for (let i = 0; i < 50 && (await getImport(P)).data!.import!.status === "extracting"; i++);
   await patchFields(P, { import_id: id, confirm_all: true });
   await finalizeImport(P, id, stateModule.mode1State.spineVersion);
+  // #8 chạy nền: poll #4 tới gap_review
+  for (let i = 0; i < 10 && (await getImport(P)).data!.import!.status !== "gap_review"; i++);
   return id;
 };
 

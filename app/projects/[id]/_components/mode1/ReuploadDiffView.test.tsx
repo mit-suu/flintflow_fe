@@ -92,7 +92,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     expect(await screen.findByRole("alert")).toHaveTextContent(/Chưa có baseline/);
   });
 
-  it("file quá 10MB ⇒ chặn ở FE, không gọi API", async () => {
+  it("file quá 40 MB ⇒ chặn ở FE, không gọi API", async () => {
     let called = false;
     mockServer.use(
       http.post(`${API_BASE_URL}/projects/:projectId/reupload`, () => {
@@ -102,8 +102,8 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     );
     renderWithIntl(<ReuploadDiffView projectId={P} />);
     expect(screen.getByRole("button", { name: "Tải lên bản đã sửa ngoài FlintFlow" })).toBeInTheDocument();
-    pick("to.docx", 11 * 1024 * 1024);
-    expect(screen.getByText(/lớn hơn 10MB/)).toBeInTheDocument();
+    pick("to.docx", 41 * 1024 * 1024);
+    expect(screen.getByText(/lớn hơn giới hạn 40 MB/)).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 20));
     expect(called).toBe(false);
   });

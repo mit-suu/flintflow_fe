@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RocRow } from "@/types/document";
 import type { ImportStatus } from "@/types/import";
@@ -61,6 +61,16 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
     onChanged?.();
     return res;
   };
+
+  // Baseline 0.0 + kiểm chạy nền xong (poll thấy `gap_review`) ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
+  const finalizeDone = imp.finalizeDone;
+  const navigated = useRef(false);
+  useEffect(() => {
+    if (!finalizeDone || navigated.current) return;
+    navigated.current = true;
+    onChanged?.();
+    router.push(gapReportHref(projectId));
+  }, [finalizeDone, onChanged, router, projectId]);
 
   if (imp.loading) {
     return (
@@ -172,7 +182,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             Ghi các field đã xác nhận làm chỉ mục, lưu tài liệu gốc thành version <strong>0.0</strong>, rồi chạy kiểm tra: AI soát ngữ
             nghĩa (cờ vàng, tốn credit) và luật tất định (cờ đỏ/vàng). Kết quả nằm ở gap report.
           </p>
-          {status === "baselining" && !doc.paused && (
+          {status === "baselining" && !doc.paused && !imp.finalizing && (
             <RecordOfChangesCard
               rows={recordOfChanges ?? imp.data?.profile?.record_of_changes ?? []}
               fromFile={imp.data?.profile?.record_of_changes?.length ?? 0}
@@ -181,22 +191,41 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             />
           )}
           {doc.paused ? (
-            <PausedBanner paused={doc.paused} what="Kiểm tra" busy={imp.busy === "resume"} onResume={() => void after(imp.resume())} />
+            status === "baselining" ? (
+              // Job tạo bản gốc lỗi / bị gián đoạn: BE đã hoàn về trước bước này, Tiếp tục = chạy lại
+              <PausedBanner
+                paused={doc.paused}
+                what="Tạo bản gốc"
+                interrupted="Tạo bản gốc bị gián đoạn — dữ liệu đã được đưa về như trước bước này. Bấm Tiếp tục để chạy lại."
+                busy={imp.busy === "resume"}
+                onResume={() => void after(imp.resume())}
+              />
+            ) : (
+              <PausedBanner paused={doc.paused} what="Kiểm tra" busy={imp.busy === "resume"} onResume={() => void after(imp.resume())} />
+            )
+          ) : imp.finalizing ? (
+            <div role="status" className="flex items-center gap-3 text-[13px] text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[12px] px-4 py-3">
+              <span className="w-5 h-5 shrink-0 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
+              <div className="flex flex-col gap-0.5">
+                <span className="font-bold text-[#191817]">Đang tạo bản gốc và kiểm tra tài liệu…</span>
+                <span className="text-[12px]">
+                  {status === "checking" ? "Đã tạo bản gốc 0.0, đang kiểm tra (AI + luật)." : "Đang ghi dữ liệu, vẽ sơ đồ và tạo version 0.0."} Tài liệu
+                  lớn có thể mất vài phút — có thể rời trang, việc vẫn chạy tiếp.
+                </span>
+              </div>
+            </div>
           ) : (
             <div className="flex justify-end">
               <button
                 type="button"
                 disabled={imp.busy === "finalize"}
                 onClick={() =>
-                  // Chưa sửa Record of Changes ⇒ không gửi, BE đọc lại từ file
-                  void after(imp.finalize(recordOfChanges ?? undefined)).then((res) => {
-                    // Xong baseline 0.0 ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
-                    if (res) router.push(gapReportHref(projectId));
-                  })
+                  // Chưa sửa Record of Changes ⇒ không gửi, BE đọc lại từ file. BE trả ngay, việc chạy nền (poll tới gap_review)
+                  void after(imp.finalize(recordOfChanges ?? undefined))
                 }
                 className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
               >
-                {imp.busy === "finalize" ? "Đang tạo baseline và kiểm tra…" : "Tạo baseline 0.0"}
+                {imp.busy === "finalize" ? "Đang bắt đầu…" : "Tạo baseline 0.0"}
               </button>
             </div>
           )}
