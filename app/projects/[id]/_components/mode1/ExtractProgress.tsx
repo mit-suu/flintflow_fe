@@ -1,7 +1,8 @@
 "use client";
 
 import { sectionLabel } from "@/lib/constants/fpt-sections";
-import type { ExtractionSection, ImportedDocument } from "@/types/import";
+import type { CreditEstimate, ExtractionSection, ImportedDocument } from "@/types/import";
+import CreditEstimateNote from "./CreditEstimateNote";
 import PausedBanner from "./PausedBanner";
 import { humanizeText } from "./spine-labels";
 import Icon, { type IconName } from "@/components/ui/Icon";
@@ -12,6 +13,8 @@ interface ExtractProgressProps {
   /** Job nền đang chạy (FE đang poll). */
   running: boolean;
   credits: number | null;
+  /** Ước tính lượt AI / credit còn phải chạy (BE chỉ trả khi job chưa chạy / đang dừng). */
+  estimate?: CreditEstimate | null;
   onStart: () => void;
   onResume: () => void;
   busy?: boolean;
@@ -27,7 +30,7 @@ const STATUS_ICON: Record<ExtractionSection["status"], { icon: IconName; color: 
  * 1.8 Trích field (I-4) theo section — chạy nền, FE poll `GET /import`. Hiện tiến độ, credit còn lại và banner
  * paused (UC-61, UC-75). Số liệu do BE trả; FE chỉ đếm section theo trạng thái để vẽ thanh tiến độ.
  */
-export default function ExtractProgress({ doc, sections, running, credits, onStart, onResume, busy = false }: ExtractProgressProps) {
+export default function ExtractProgress({ doc, sections, running, credits, estimate = null, onStart, onResume, busy = false }: ExtractProgressProps) {
   const done = sections.filter((s) => s.status === "done").length;
   const total = sections.length;
   const notStarted = !running && !doc.paused && doc.extract_cursor === null && done === 0;
@@ -48,6 +51,8 @@ export default function ExtractProgress({ doc, sections, running, credits, onSta
       </div>
 
       {doc.paused && <PausedBanner paused={doc.paused} onResume={onResume} busy={busy} what="Trích field" />}
+
+      {estimate && !running && (notStarted || doc.paused) && <CreditEstimateNote estimate={estimate} fallbackBalance={credits} remaining={!notStarted} />}
 
       {notStarted ? (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] p-5 flex flex-wrap items-center justify-between gap-3">

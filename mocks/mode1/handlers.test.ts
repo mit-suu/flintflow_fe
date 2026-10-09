@@ -150,6 +150,9 @@ describe("mock mode 1 — import (#2–#10)", () => {
     expect(got.blocks_count).toBe(12);
     expect(got.profile!.heading_map.some((h) => h.confidence < 0.8)).toBe(true);
     expect(got.profile!.heading_map.some((h) => h.section_id === "unmapped")).toBe(true);
+    // ước tính credit trước khi trích (BE §4.15): mỗi section một lượt, số dư của ví
+    expect(got.credit_estimate).toMatchObject({ diagram_images: 0, available_credits: state().credits });
+    expect(got.credit_estimate!.credits).toBe(got.credit_estimate!.ai_calls * 2);
 
     expect((await call<ImportStateResponse>("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true })).body.data!.import.status).toBe("extracting");
     const extracted = await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id });
@@ -186,6 +189,8 @@ describe("mock mode 1 — import (#2–#10)", () => {
     const sections = paused.extraction.sections;
     expect(paused.import!.extract_cursor).toBe(sections[2].section_id);
     expect(sections.filter((s) => s.status === "done")).toHaveLength(2);
+    // dừng ⇒ ước tính phần còn lại, số dư không đủ
+    expect(paused.credit_estimate).toMatchObject({ ai_calls: sections.length - 2, credits: 2 * (sections.length - 2), available_credits: 0 });
 
     state().credits = 100;
     const resumed = (await call<ExtractResponse>("POST", `/projects/${P}/import/resume`, { import_id: id })).body.data!;
@@ -193,7 +198,8 @@ describe("mock mode 1 — import (#2–#10)", () => {
     const done = await pollExtraction();
     expect(done.import!.paused).toBeNull();
     expect(done.extraction.sections.every((s) => s.status === "done")).toBe(true);
-    expect(state().credits).toBe(100 - 2 * (sections.length - 2));
+    expect(state().credits).toBe(100 - paused.credit_estimate!.credits);
+    expect(done.credit_estimate).toBeNull();
   });
 
   it("gọi #6 hai lần khi job đang chạy không bật job thứ hai, không trích lại", async () => {
