@@ -47,3 +47,9 @@ export const shownDocumentLanguage = (
   translation: DocumentTranslationMeta | null | undefined,
   known: DocumentLanguage | null | undefined
 ): DocumentLanguage | null => translation?.locale ?? known ?? null;
+
+/**
+ * Ngôn ngữ gốc của Spine mode 2 (Spine giữ tiếng Anh, bản dịch nằm ở lớp overlay). Đổi tài liệu về đúng ngôn ngữ này thì
+ * không có gì cần dịch, không tốn credit; BE vẫn là nơi quyết (`source_locale` của `meta.translation` / `translations/status`).
+ */
+export const MODE2_SOURCE_LANGUAGE: DocumentLanguage = "en";

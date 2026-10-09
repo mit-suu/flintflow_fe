@@ -304,6 +304,12 @@ export function useWorkspace(projectId: string) {
     []
   );
 
+  /**
+   * Thay project bằng bản BE vừa trả sau một lượt ghi (`PATCH document-language` từ lệnh chat — FLF-265 §3.7) ⇒ chip ngôn
+   * ngữ và khoá tải lại tài liệu theo ngôn ngữ mới, khỏi tải lại cả workspace.
+   */
+  const replaceProject = useCallback((next: Project) => setProject(next), []);
+
   const logout = useCallback(() => {
     void logoutAndRedirect();
   }, []);
@@ -334,6 +340,7 @@ export function useWorkspace(projectId: string) {
       selectAttachment,
       removeAttachment,
       refreshUser,
+      replaceProject,
       logout,
       crPrefill,
       dismissCrPrefill: () => setCrPrefill(null),
@@ -364,6 +371,7 @@ export function useWorkspace(projectId: string) {
       selectAttachment,
       removeAttachment,
       refreshUser,
+      replaceProject,
       logout,
       crPrefill,
       notice,
