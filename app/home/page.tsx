@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppShell } from "@/components/layout/AppShell";
 import TopBar from "@/components/layout/TopBar";
 import AddToFolderDialog from "@/components/project/AddToFolderDialog";
 import CreateProjectForm from "@/components/project/CreateProjectForm";
@@ -73,6 +74,8 @@ export default function HomePage() {
   const tMode = useTranslations("app.sourceMode");
   const router = useRouter();
   const { projects, folders, loading, error, foldersError, reload } = useProjects();
+  // "Dịch tài liệu" sau khi đổi ngôn ngữ dự án (FLF-265) trừ credit ngay trên trang ⇒ chip số dư phải tải lại
+  const { reloadBalance } = useAppShell();
   // Viewer chỉ xem: không tạo/sửa/chuyển/xoá dự án hay thư mục (BE cũng chặn ghi với 403). Chưa biết vai trò ⇒ coi
   // như được — cùng quy ước với trang thanh toán, lỡ bấm thì BE vẫn chặn.
   const canAuthor = useActiveOrganization()?.role !== "viewer";
@@ -463,7 +466,7 @@ export default function HomePage() {
       </Modal>
 
       <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} />
-      <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} />
+      <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} onCreditsSpent={reloadBalance} />
       <FolderDialogs
         target={folderTarget}
         folders={folders}

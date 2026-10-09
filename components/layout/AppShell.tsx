@@ -16,6 +16,8 @@ interface AppShellContextValue {
   toggleCollapsed: () => void;
   /** `GET /billing/balance` — chip credits ở top bar và nhãn gói ở menu user; `null` khi chưa tải/lỗi. */
   balance: BalanceResponse | null;
+  /** Tải lại số dư ngay — sau một thao tác trừ credit ngay trên trang (vd "Dịch tài liệu" ở dashboard, FLF-265). */
+  reloadBalance: () => void;
 }
 
 const AppShellContext = createContext<AppShellContextValue | null>(null);
@@ -68,6 +70,8 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
+  /** Tăng để tải lại số dư mà không đổi trang (`reloadBalance`). */
+  const [balanceRequest, setBalanceRequest] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
   const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsedSnapshot, () => false);
   const role = useActiveOrganization()?.role;
@@ -78,9 +82,11 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
     sessionCollapsed = !getCollapsedSnapshot();
     writeCollapsed(sessionCollapsed);
   }, []);
+  const reloadBalance = useCallback(() => setBalanceRequest((n) => n + 1), []);
 
   // Số dư tải lại mỗi lần đổi trang (giống trước: chip nằm trong trang nên tải theo trang). BE chỉ cho Lead/Analyst
   // xem số dư (Flow 10) ⇒ chờ biết vai trò; Viewer không gọi (gọi là 403) — thanh bên hiện nhãn gói mặc định.
+  // `balanceRequest`: trang vừa trừ credit (`reloadBalance`) ⇒ tải lại ngay, không chờ đổi trang.
   useEffect(() => {
     if (!role || role === "viewer") return;
     let cancelled = false;
@@ -92,7 +98,7 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [pathname, role]);
+  }, [pathname, role, balanceRequest]);
 
   // Drawer mobile là lớp phủ modal: focus vào trong + giữ Tab, đóng thì trả focus về nút Mở menu; Esc đóng
   useDialogFocus(drawerRef, navOpen);
@@ -106,8 +112,8 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
   }, [navOpen]);
 
   const value = useMemo(
-    () => ({ navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance }),
-    [navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance]
+    () => ({ navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance }),
+    [navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance]
   );
 
   return (
