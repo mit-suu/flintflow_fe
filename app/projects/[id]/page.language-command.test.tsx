@@ -89,7 +89,7 @@ const aiWrites = () => writes.filter((w) => /\/steps\/|\/phases\/|\/messages\/st
 describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FLF-265 §3.7)", () => {
   it("dự án en: lệnh dịch sang tiếng Việt ⇒ thẻ xác nhận, không gửi cho AI; Đồng ý ⇒ PATCH ngôn ngữ, chip đổi, mở hộp dịch", async () => {
     renderWithIntl(<WorkspacePage />);
-    expect(await screen.findByTitle("Ngôn ngữ tài liệu")).toHaveTextContent("English");
+    expect(await screen.findByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("EN");
 
     await type("Dịch tài liệu sang tiếng Việt nhé");
     const card = await screen.findByRole("status", { name: "Ngôn ngữ tài liệu" });
@@ -105,7 +105,7 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
       expect.objectContaining({ method: "PATCH", body: JSON.stringify({ documentLanguage: "vi" }) }),
     ]);
     expect(mockState.project.documentLanguage).toBe("vi");
-    await waitFor(() => expect(screen.getByTitle("Ngôn ngữ tài liệu")).toHaveTextContent("Tiếng Việt"));
+    await waitFor(() => expect(screen.getByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("VI"));
     expect(screen.queryByRole("status", { name: "Ngôn ngữ tài liệu" })).toBeNull();
     expect(aiWrites()).toEqual([]);
   }, 30_000); // dựng cả workspace trên msw — chậm khi cả suite cùng chạy
@@ -113,14 +113,14 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
   it("dự án vi: lệnh về tiếng Anh (ngôn ngữ gốc) ⇒ Đồng ý chỉ đổi, không mở hộp dịch", async () => {
     mockState.project.documentLanguage = "vi";
     renderWithIntl(<WorkspacePage />);
-    expect(await screen.findByTitle("Ngôn ngữ tài liệu")).toHaveTextContent("Tiếng Việt");
+    expect(await screen.findByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("VI");
 
     await type("translate the document to English");
     const card = await screen.findByRole("status", { name: "Ngôn ngữ tài liệu" });
     expect(within(card).getByText(/không cần dịch, không tốn credit/)).toBeInTheDocument();
     fireEvent.click(within(card).getByRole("button", { name: "Đồng ý" }));
 
-    await waitFor(() => expect(screen.getByTitle("Ngôn ngữ tài liệu")).toHaveTextContent("English"));
+    await waitFor(() => expect(screen.getByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("EN"));
     expect(mockState.project.documentLanguage).toBe("en");
     expect(screen.queryByRole("dialog", { name: "Dịch tài liệu" })).toBeNull();
     expect(aiWrites()).toEqual([]);
@@ -128,7 +128,7 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
 
   it("Không, gửi như tin nhắn ⇒ gửi đúng câu đó qua đường cũ (chạy bước), không đổi ngôn ngữ", async () => {
     renderWithIntl(<WorkspacePage />);
-    await screen.findByTitle("Ngôn ngữ tài liệu");
+    await screen.findByTitle(/^Ngôn ngữ tài liệu/);
 
     await type("dịch sang tiếng Việt");
     const card = await screen.findByRole("status", { name: "Ngôn ngữ tài liệu" });
@@ -142,7 +142,7 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
 
   it("chip Sửa tài liệu bật: lệnh dịch không thành lệnh sửa (/changes/preview); đóng thẻ ⇒ câu về lại ô chat", async () => {
     renderWithIntl(<WorkspacePage />);
-    await screen.findByTitle("Ngôn ngữ tài liệu");
+    await screen.findByTitle(/^Ngôn ngữ tài liệu/);
     fireEvent.click(screen.getByRole("button", { name: "Sửa tài liệu" }));
 
     await type("đổi ngôn ngữ tài liệu sang tiếng Việt");
@@ -159,7 +159,7 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
   it("đã đúng ngôn ngữ, còn mục chưa dịch ⇒ thẻ mời dịch nốt, không gửi cho AI", async () => {
     mockState.project.documentLanguage = "vi";
     renderWithIntl(<WorkspacePage />);
-    await screen.findByTitle("Ngôn ngữ tài liệu");
+    await screen.findByTitle(/^Ngôn ngữ tài liệu/);
 
     await type("dịch sang tiếng Việt");
     const card = await screen.findByRole("status", { name: "Ngôn ngữ tài liệu" });
@@ -173,7 +173,7 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
 
   it("câu chỉ nhắc tới ngôn ngữ ⇒ gửi bình thường, không có thẻ", async () => {
     renderWithIntl(<WorkspacePage />);
-    await screen.findByTitle("Ngôn ngữ tài liệu");
+    await screen.findByTitle(/^Ngôn ngữ tài liệu/);
 
     await type("tên màn hình bằng tiếng Anh nhé");
     await waitFor(() => expect(aiWrites().length).toBeGreaterThan(0));

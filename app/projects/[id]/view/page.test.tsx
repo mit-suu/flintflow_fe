@@ -87,7 +87,7 @@ describe("view/page.tsx — chip ngôn ngữ chỉ đọc (FLF-265)", () => {
 
   const chip = async () => {
     await screen.findByText(/1\. Product Overview/);
-    return screen.queryByTitle("Ngôn ngữ tài liệu");
+    return screen.queryByTitle(/^Ngôn ngữ tài liệu/);
   };
 
   it("dự án vi ⇒ chip “Tiếng Việt” (theo meta.translation của tài liệu); không có nút dịch nào", async () => {

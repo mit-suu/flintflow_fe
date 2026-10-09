@@ -283,7 +283,7 @@ describe("DocumentPane — nút Vẽ lại sơ đồ theo mục", () => {
 describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const draftMeta = { assembled_at_version: 5, spine_version: 5, stale: false };
-  const chip = () => screen.getByTitle("Ngôn ngữ tài liệu");
+  const chip = () => screen.getByTitle(/^Ngôn ngữ tài liệu/);
 
   beforeEach(() => {
     getDocument.mockReset();
@@ -295,7 +295,8 @@ describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
     renderWithIntl(<DocumentPane projectId="p1" documentLanguage="en" onTranslate={vi.fn()} />);
 
     await screen.findByText(/1\. Product Overview/);
-    expect(chip()).toHaveTextContent("English");
+    expect(chip()).toHaveTextContent("EN");
+    expect(chip()).toHaveAttribute("title", "Ngôn ngữ tài liệu: English");
     expect(chip().querySelector("[lang]")).toHaveAttribute("lang", "en");
     expect(chip().compareDocumentPosition(screen.getByRole("button", { name: "Làm mới" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
@@ -309,7 +310,7 @@ describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
 
     const warning = await screen.findByRole("status");
     expect(warning).toHaveTextContent("12 mục chưa dịch");
-    expect(chip()).toHaveTextContent("Tiếng Việt");
+    expect(chip()).toHaveTextContent("VI");
     fireEvent.click(within(warning).getByRole("button", { name: "Dịch tài liệu" }));
     expect(onTranslate).toHaveBeenCalledTimes(1);
   });
@@ -329,7 +330,7 @@ describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
     renderWithIntl(<DocumentPane projectId="p1" documentLanguage="vi" onTranslate={vi.fn()} />);
 
     await screen.findByText(/1\. Product Overview/);
-    expect(chip()).toHaveTextContent("Tiếng Việt");
+    expect(chip()).toHaveTextContent("VI");
     expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
   });
 
@@ -359,7 +360,7 @@ describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("4 mục chưa dịch");
     expect(getDocument).toHaveBeenCalledTimes(2);
-    expect(chip()).toHaveTextContent("Tiếng Việt");
+    expect(chip()).toHaveTextContent("VI");
   });
 });
 

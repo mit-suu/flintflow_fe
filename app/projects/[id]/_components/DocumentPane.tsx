@@ -430,8 +430,9 @@ export default function DocumentPane({
   return (
     <section className="flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
       <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between gap-3 shrink-0 h-12 bg-surface-container-lowest">
-        {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng */}
-        <div className="flex items-center gap-2 min-w-0">
+        {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng. Pane hẹp ⇒ cắt cả nhãn phiên bản, không tràn đè lên nhóm nút
+            bên phải (FLF-265: chip ngôn ngữ làm nhóm phải rộng thêm) */}
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           <h3 className="font-bold text-body text-on-surface truncate" title={`SRS — ${projectName}`}>
             SRS — {projectName}
           </h3>
@@ -464,7 +465,7 @@ export default function DocumentPane({
                   : "Không có vấn đề"}
             </button>
           )}
-          {language && <DocumentLanguageChip language={language} />}
+          {language && <DocumentLanguageChip language={language} compact />}
           {/*
             Tài liệu tự cập nhật sau mỗi bước và mỗi lệnh sửa (BE dựng bản còn thiếu lúc đọc) — nút này chỉ còn để
             kéo về thay đổi đến từ phiên khác, không còn trạng thái "đã cũ" nào để người dùng phải tự xử lý.

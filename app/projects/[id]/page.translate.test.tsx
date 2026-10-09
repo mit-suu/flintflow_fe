@@ -41,7 +41,7 @@ describe("WorkspacePage — dịch tài liệu (FLF-265)", () => {
     renderWithIntl(<WorkspacePage />);
 
     const warning = await screen.findByText("100 mục chưa dịch");
-    expect(screen.getByTitle("Ngôn ngữ tài liệu")).toHaveTextContent("Tiếng Việt");
+    expect(screen.getByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("VI");
     fireEvent.click(within(warning.parentElement as HTMLElement).getByRole("button", { name: "Dịch tài liệu" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Dịch tài liệu" });
@@ -51,13 +51,13 @@ describe("WorkspacePage — dịch tài liệu (FLF-265)", () => {
 
     // Bản dịch không đổi `spine_version` ⇒ trang tự tải lại tài liệu qua `onDone`: cảnh báo biến mất, chip giữ nguyên
     await waitFor(() => expect(screen.queryByText(/mục chưa dịch/)).toBeNull());
-    expect(screen.getByTitle("Ngôn ngữ tài liệu")).toHaveTextContent("Tiếng Việt");
+    expect(screen.getByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("VI");
   }, 30_000); // dựng cả workspace trên msw — chậm khi cả suite cùng chạy
 
   it("dự án en (ngôn ngữ gốc): chip English, không cảnh báo, không có lối dịch", async () => {
     renderWithIntl(<WorkspacePage />);
 
-    expect(await screen.findByTitle("Ngôn ngữ tài liệu")).toHaveTextContent("English");
+    expect(await screen.findByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("EN");
     await screen.findByText(/1\. Product Overview/);
     expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Dịch tài liệu" })).toBeNull();
