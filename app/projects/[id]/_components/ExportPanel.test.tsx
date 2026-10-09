@@ -1,6 +1,6 @@
 "use client";
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ExportPanel from "./ExportPanel";
@@ -99,5 +99,74 @@ describe("ExportPanel", () => {
 
     expect(await screen.findByText("Số cờ đỏ sẽ in vào §I")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
+  });
+});
+
+describe("ExportPanel — ngôn ngữ tài liệu (FLF-265)", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const downloadWordExport = vi.mocked(exportApi.downloadWordExport);
+  const listBaselines = vi.mocked(exportApi.listBaselines);
+  const draftMeta = { assembled_at_version: 3, spine_version: 3, stale: false };
+  /** Giá trị của dòng "Ngôn ngữ" trong khung thông tin bản xuất. */
+  const languageRow = () => screen.getByText("Ngôn ngữ").nextElementSibling;
+
+  beforeEach(() => {
+    getDocument.mockReset();
+    downloadWordExport.mockReset();
+    listBaselines.mockReset();
+    listBaselines.mockResolvedValue({ data: [], error: null });
+  });
+
+  it("còn mục chưa dịch ⇒ dòng Ngôn ngữ + cảnh báo vàng, nhưng KHÔNG chặn tải", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 5 } } });
+    downloadWordExport.mockResolvedValue({ blob: new Blob(["x"]), filename: "FlintFlow-v0.3-draft.docx" });
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" />);
+
+    const warning = await screen.findByRole("status");
+    expect(warning).toHaveTextContent("Còn 5 mục chưa dịch");
+    // Không truyền onTranslate (Viewer) ⇒ chỉ báo, không có lối dịch
+    expect(within(warning).queryByRole("button")).toBeNull();
+    expect(languageRow()).toHaveTextContent("Tiếng Việt");
+    const download = screen.getByRole("button", { name: /Tải bản nháp/ });
+    expect(download).toBeEnabled();
+    fireEvent.click(download);
+    await waitFor(() => expect(downloadWordExport).toHaveBeenCalledWith("p1", "draft", undefined));
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("Lead/Analyst (có onTranslate) ⇒ cảnh báo kèm “Dịch tài liệu trước”", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 5 } } });
+    const onTranslate = vi.fn();
+
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" onTranslate={onTranslate} />);
+
+    fireEvent.click(within(await screen.findByRole("status")).getByRole("button", { name: "Dịch tài liệu trước" }));
+    expect(onTranslate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /Tải bản nháp/ })).toBeEnabled();
+  });
+
+  it("tài liệu ở ngôn ngữ gốc ⇒ dòng Ngôn ngữ theo dự án, không cảnh báo", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: draftMeta });
+
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="en" />);
+
+    await screen.findByText("Ngôn ngữ");
+    expect(languageRow()).toHaveTextContent("English");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("mode 1 chưa biết ngôn ngữ file (null, không meta.translation) ⇒ không có dòng Ngôn ngữ", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: draftMeta });
+
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage={null} />);
+
+    await screen.findByText("Số cờ đỏ sẽ in vào §I");
+    expect(screen.queryByText("Ngôn ngữ")).toBeNull();
   });
 });

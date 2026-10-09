@@ -6,9 +6,9 @@ import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyChanges, getSpine } from "@/lib/api/spine";
 import { assembleDocument } from "@/lib/api/export";
-import { mockTiming, resetMockChangeFlowState } from "@/mocks/handlers";
+import { mockTiming, resetMockChangeFlowState, resetMockTranslationState } from "@/mocks/handlers";
 import { mockServer } from "@/mocks/server";
-import { MOCK_PROJECT_ID, resetMockState } from "@/mocks/state";
+import { MOCK_PROJECT_ID, mockState, resetMockState } from "@/mocks/state";
 import ReadOnlyDocumentPage from "./page";
 
 const P = MOCK_PROJECT_ID;
@@ -79,5 +79,37 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     expect(await screen.findByText(/Không tải được tài liệu/)).toBeInTheDocument();
+  });
+});
+
+describe("view/page.tsx — chip ngôn ngữ chỉ đọc (FLF-265)", () => {
+  beforeEach(() => resetMockTranslationState());
+
+  const chip = async () => {
+    await screen.findByText(/1\. Product Overview/);
+    return screen.queryByTitle(/^Ngôn ngữ tài liệu/);
+  };
+
+  it("dự án vi ⇒ chip “Tiếng Việt” (theo meta.translation của tài liệu); không có nút dịch nào", async () => {
+    mockState.project.documentLanguage = "vi";
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    expect(await chip()).toHaveTextContent("Tiếng Việt");
+    expect(screen.queryByRole("button", { name: /Dịch/ })).toBeNull();
+  });
+
+  it("dự án mode 2 cũ chưa có field ⇒ “English”", async () => {
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    expect(await chip()).toHaveTextContent("English");
+  });
+
+  it("mode 1 (ngôn ngữ theo file, client chưa biết) ⇒ không có chip", async () => {
+    mockState.project = { ...mockState.project, mode: "import" };
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    expect(await chip()).toBeNull();
   });
 });

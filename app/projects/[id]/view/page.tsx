@@ -5,9 +5,13 @@ import { useParams } from "next/navigation";
 import BackLink from "@/components/ui/BackLink";
 import { getDocument } from "@/lib/api/export";
 import { getProgress } from "@/lib/api/pipeline";
+import { getProject } from "@/lib/api/projects";
+import { knownDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "@/lib/document-language";
 import { BlockView, followsHeading } from "../_components/DocumentPane";
+import DocumentLanguageChip from "../_components/DocumentLanguageChip";
 import type { RenderedDocument, RenderedSection } from "@/types/document";
 import type { ProgressResponse } from "@/types/pipeline";
+import type { DocumentLanguage } from "@/types/project";
 
 /**
  * Read-only projection (UC 1.14): section bắt buộc chưa `accepted` chỉ hiện tiêu đề +
@@ -25,6 +29,8 @@ export default function ReadOnlyDocumentPage() {
 
   const [doc, setDoc] = useState<RenderedDocument | null>(null);
   const [progress, setProgress] = useState<ProgressResponse | null>(null);
+  /** FLF-265: ngôn ngữ tài liệu cho chip chỉ đọc; `null` (mode 1 chưa biết ngôn ngữ file, hoặc đọc lỗi) ⇒ không hiện chip. */
+  const [language, setLanguage] = useState<DocumentLanguage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +38,9 @@ export default function ReadOnlyDocumentPage() {
     if (!projectId) return;
     // `allSettled`: `/progress` lỗi (vd chưa có quyền) không được kéo cả tài liệu xuống trang trắng
     // — tài liệu vẫn hiện, chỉ mất khả năng ẩn section theo `required`/`status` (coi như đã đủ).
-    Promise.allSettled([getDocument(projectId, "draft"), getProgress(projectId)]).then(([docResult, progressResult]) => {
+    // `GET /projects/:id` chỉ để biết ngôn ngữ tài liệu (FLF-265) — lỗi thì thôi hiện chip.
+    const requests = [getDocument(projectId, "draft"), getProgress(projectId), getProject(projectId)] as const;
+    Promise.allSettled(requests).then(([docResult, progressResult, projectResult]) => {
       if (docResult.status === "fulfilled") {
         setDoc(docResult.value.data);
         setError(null);
@@ -40,6 +48,13 @@ export default function ReadOnlyDocumentPage() {
         setError(docResult.reason instanceof Error ? docResult.reason.message : "Không tải được tài liệu");
       }
       setProgress(progressResult.status === "fulfilled" ? progressResult.value.data : null);
+      // `meta.translation` của chính tài liệu này thắng ngôn ngữ suy từ dự án
+      setLanguage(
+        shownDocumentLanguage(
+          docResult.status === "fulfilled" ? translationMetaOf(docResult.value.meta) : null,
+          projectResult.status === "fulfilled" ? knownDocumentLanguage(projectResult.value.data) : null
+        )
+      );
       setLoading(false);
     });
   }, [projectId]);
@@ -55,6 +70,7 @@ export default function ReadOnlyDocumentPage() {
         <div className="flex items-center gap-2">
           <span className="text-body font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
           <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
+          {language && <DocumentLanguageChip language={language} />}
         </div>
         <BackLink href={`/projects/${projectId}`}>Về không gian làm việc</BackLink>
       </header>

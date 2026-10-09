@@ -3,8 +3,10 @@ import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
 import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
+import { getDocument } from "@/lib/api/export";
+import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
 import type { StepEvent } from "@/types/pipeline";
-import { mockTiming } from "./handlers";
+import { MOCK_TRANSLATION_UNITS, mockTiming, mockTranslation, resetMockTranslationState } from "./handlers";
 import { mockServer } from "./server";
 import { MOCK_PROJECT_ID, MOCK_SESSION_ID, mockState, resetMockState } from "./state";
 import { apiCall } from "@/lib/api";
@@ -154,5 +156,41 @@ describe("mock PATCH /projects/:id/document-language (FLF-265 #1a)", () => {
     mockState.project = { ...mockState.project, mode: "import" };
     await expect(setDocumentLanguage(P, "vi")).rejects.toMatchObject({ code: "DOCUMENT_LANGUAGE_LOCKED", status: 409 });
     expect(mockState.project.documentLanguage).toBeUndefined();
+  });
+});
+
+describe("mock dịch tài liệu theo lô (FLF-265 #16, #26, #27)", () => {
+  beforeEach(() => resetMockTranslationState());
+
+  it("dự án en (ngôn ngữ gốc) ⇒ GET /document không có meta.translation, status total 0, run không làm gì", async () => {
+    expect((await getDocument(P)).meta?.translation).toBeUndefined();
+    expect((await getTranslationStatus(P)).data).toEqual({ locale: "en", source_locale: "en", total: 0, missing: 0, batches: 0, estimated_credits: 0 });
+    expect((await runTranslation(P)).data).toEqual({ translated: 0, remaining: 0, credits_used: 0 });
+  });
+
+  it("đổi sang vi ⇒ meta.translation + ước tính; run dịch dần theo max_batches tới remaining 0", async () => {
+    await setDocumentLanguage(P, "vi");
+    expect((await getDocument(P)).meta?.translation).toEqual({ locale: "vi", source_locale: "en", missing: MOCK_TRANSLATION_UNITS });
+    expect((await getTranslationStatus(P)).data).toMatchObject({ locale: "vi", source_locale: "en", missing: 100, batches: 3, estimated_credits: 6 });
+
+    expect((await runTranslation(P, 1)).data).toEqual({ translated: 40, remaining: 60, credits_used: 2 });
+    expect((await runTranslation(P)).data).toEqual({ translated: 60, remaining: 0, credits_used: 4 });
+    expect((await getDocument(P)).meta?.translation).toEqual({ locale: "vi", source_locale: "en", missing: 0 });
+    await expect(runTranslation(P, 11)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  });
+
+  it("lỗi bật được theo lượt: 402 / 409 / 422 / 403, và lượt không tiến (translated 0)", async () => {
+    await setDocumentLanguage(P, "vi");
+    mockTranslation.failure = "INSUFFICIENT_CREDIT";
+    mockTranslation.failFromCall = 2;
+    expect((await runTranslation(P, 1)).data?.translated).toBe(40);
+    await expect(runTranslation(P)).rejects.toMatchObject({ code: "INSUFFICIENT_CREDIT", status: 402 });
+
+    for (const [failure, status] of [["TRANSLATION_RUNNING", 409], ["PARSE_FAILED", 422], ["SCHEMA_MISMATCH", 422], ["ORG_ROLE_FORBIDDEN", 403]] as const) {
+      mockTranslation.failure = failure;
+      await expect(runTranslation(P)).rejects.toMatchObject({ code: failure, status });
+    }
+    mockTranslation.failure = "stalled";
+    expect((await runTranslation(P)).data).toEqual({ translated: 0, remaining: 60, credits_used: 2 });
   });
 });

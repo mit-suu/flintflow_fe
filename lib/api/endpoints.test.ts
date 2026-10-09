@@ -15,6 +15,7 @@ import * as notifications from "./notifications";
 import * as pipeline from "./pipeline";
 import * as projects from "./projects";
 import * as spine from "./spine";
+import * as translations from "./translations";
 import * as versions from "./versions";
 
 vi.mock("./client", async (importOriginal) => ({
@@ -187,6 +188,10 @@ const cases: EndpointCase[] = [
     post({ base_version: 4 }),
   ],
   ["getDocument", () => exportApi.getDocument("p1", "baseline"), "/projects/p1/document?source=baseline"],
+  // ─── FLF-265: dịch tài liệu theo lô (#26, #27) — body strict, bỏ trống ⇒ BE dùng số lô mặc định ───
+  ["getTranslationStatus", () => translations.getTranslationStatus("p1"), "/projects/p1/translations/status"],
+  ["runTranslation (số lô mặc định của BE)", () => translations.runTranslation("p1"), "/projects/p1/translations/run", post({})],
+  ["runTranslation (max_batches)", () => translations.runTranslation("p1", 2), "/projects/p1/translations/run", post({ max_batches: 2 })],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],

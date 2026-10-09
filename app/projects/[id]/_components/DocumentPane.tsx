@@ -4,9 +4,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import Icon from "@/components/ui/Icon";
 import { fetchDiagramPng } from "@/lib/api/spine";
 import { stepLabel } from "@/lib/constants/step-registry";
+import { shownDocumentLanguage } from "@/lib/document-language";
 import { useDocument } from "../hooks/useDocument";
+import DocumentLanguageChip from "./DocumentLanguageChip";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
 import type { Flag } from "@/types/flags";
+import type { DocumentLanguage } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface DocumentPaneProps {
@@ -53,6 +56,16 @@ interface DocumentPaneProps {
   onRedrawSection?: (sectionId: string) => Promise<void>;
   /** Mục có sơ đồ vẽ lại được (có trong `diagrams[]` của Spine). */
   hasDiagrams?: (sectionId: string) => boolean;
+  /**
+   * Ngôn ngữ tài liệu client đã biết (FLF-265, `knownDocumentLanguage`): chip trên header và khoá tải lại — đổi ngôn ngữ
+   * là gỡ tài liệu cũ xuống. `null` (mode 1 chưa biết ngôn ngữ file) ⇒ chỉ hiện chip khi BE trả `meta.translation`.
+   */
+  documentLanguage?: DocumentLanguage | null;
+  /**
+   * Mở hộp "Dịch tài liệu" khi còn mục chưa dịch. Chỉ truyền cho Lead/Analyst ở mode 2 — không truyền thì cảnh báo
+   * "N mục chưa dịch" vẫn hiện nhưng không có nút (Viewer chỉ đọc, mode 1 không dịch — D3).
+   */
+  onTranslate?: () => void;
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
@@ -396,8 +409,13 @@ export default function DocumentPane({
   headerEnd,
   onRedrawSection,
   hasDiagrams,
+  documentLanguage = null,
+  onTranslate,
 }: DocumentPaneProps) {
-  const { document, loading, refreshing, empty, error, reload } = useDocument(projectId, "draft", undefined, refreshToken);
+  const { document, translation, loading, refreshing, empty, error, reload } = useDocument(projectId, "draft", undefined, refreshToken, documentLanguage);
+  const language = shownDocumentLanguage(translation, documentLanguage);
+  // Mode 1 không dịch (D3) — dù có truyền nhầm thì cũng không hiện nút
+  const translate = mode1 ? undefined : onTranslate;
 
   useEffect(() => {
     if (document) onSectionsLoaded?.(document.sections);
@@ -412,8 +430,9 @@ export default function DocumentPane({
   return (
     <section className="flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
       <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between gap-3 shrink-0 h-12 bg-surface-container-lowest">
-        {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng */}
-        <div className="flex items-center gap-2 min-w-0">
+        {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng. Pane hẹp ⇒ cắt cả nhãn phiên bản, không tràn đè lên nhóm nút
+            bên phải (FLF-265: chip ngôn ngữ làm nhóm phải rộng thêm) */}
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           <h3 className="font-bold text-body text-on-surface truncate" title={`SRS — ${projectName}`}>
             SRS — {projectName}
           </h3>
@@ -446,6 +465,7 @@ export default function DocumentPane({
                   : "Không có vấn đề"}
             </button>
           )}
+          {language && <DocumentLanguageChip language={language} compact />}
           {/*
             Tài liệu tự cập nhật sau mỗi bước và mỗi lệnh sửa (BE dựng bản còn thiếu lúc đọc) — nút này chỉ còn để
             kéo về thay đổi đến từ phiên khác, không còn trạng thái "đã cũ" nào để người dùng phải tự xử lý.
@@ -469,6 +489,24 @@ export default function DocumentPane({
           <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-error">
             Không viết lại được các mục cũ: {rewriteError}
           </p>
+        )}
+        {/*
+          FLF-265: tài liệu khác ngôn ngữ gốc mà còn mục chưa có bản dịch — các mục đó đang in chữ gốc. Nội dung mới đã
+          dịch ngay trong lượt AI ghi (D16), nên phần này thường là nội dung có từ trước khi đổi ngôn ngữ dự án.
+        */}
+        {translation && translation.missing > 0 && (
+          <div role="status" className="rounded-control bg-accent-gold-soft border border-accent-gold-border px-3 py-2 text-body text-accent-gold-text flex items-center gap-1.5 flex-wrap">
+            <Icon name="translate" size={14} />
+            <span title="Các mục này đang hiện chữ gốc cho tới khi được dịch">{translation.missing} mục chưa dịch</span>
+            {translate && (
+              <>
+                <span aria-hidden>·</span>
+                <button type="button" onClick={translate} className="font-bold hover:underline cursor-pointer">
+                  Dịch tài liệu
+                </button>
+              </>
+            )}
+          </div>
         )}
         {loading && <div className="text-body text-on-surface-muted italic">Đang tải tài liệu…</div>}
 
