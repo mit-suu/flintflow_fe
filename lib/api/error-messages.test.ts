@@ -17,6 +17,18 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(localizeApiError("EMAIL_NOT_VERIFIED", "Email chưa được xác thực.")).toBe("Your email isn't verified yet. Please check your inbox.");
   });
 
+  it("FILE_TOO_LARGE có meta.max_mb (upload SRS) ⇒ câu nêu giới hạn MB + cách nén ảnh; không meta ⇒ câu chung", () => {
+    setPage("vi");
+    expect(new ApiClientError(413, "FILE_TOO_LARGE", "File vượt giới hạn 40 MB.", { max_mb: 40 }).message).toBe(
+      "File vượt giới hạn 40 MB. Hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi tải lại."
+    );
+    expect(localizeApiError("FILE_TOO_LARGE", "File quá lớn")).toContain("File → Compress Pictures");
+    setPage("en");
+    expect(localizeApiError("FILE_TOO_LARGE", "x", undefined, { max_mb: 40 })).toBe(
+      "The file exceeds the 40 MB limit. Compress the pictures in Word (File → Compress Pictures) or move appendices out, then upload again."
+    );
+  });
+
   it("mã mơ hồ / mang chi tiết động hoặc không có mã ⇒ giữ nguyên message BE", () => {
     setPage("en");
     expect(localizeApiError("FORBIDDEN", "Chỉ Admin mới có quyền thực hiện thao tác này")).toBe("Chỉ Admin mới có quyền thực hiện thao tác này");

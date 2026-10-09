@@ -48,6 +48,15 @@ const pollExtraction = async (): Promise<GetImportResponse> => {
   throw new Error("I-4 không kết thúc sau 50 lần poll");
 };
 
+/** #8 chạy nền: poll #4 tới khi rời baselining/checking hoặc bị dừng. */
+const pollFinalize = async (): Promise<GetImportResponse> => {
+  for (let i = 0; i < 10; i++) {
+    const got = (await call<GetImportResponse>("GET", `/projects/${P}/import`)).body.data!;
+    if (!["baselining", "checking"].includes(got.import!.status) || got.import!.paused) return got;
+  }
+  throw new Error("finalize không kết thúc sau 10 lần poll");
+};
+
 /** Đi từ upload tới gap_review, trả về import_id. */
 const importToGapReview = async (): Promise<string> => {
   const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS_Lumen.docx"));
@@ -58,6 +67,7 @@ const importToGapReview = async (): Promise<string> => {
   await pollExtraction();
   await call("PATCH", `/projects/${P}/import/fields`, { import_id: id, confirm_all: true });
   await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
+  await pollFinalize();
   return id;
 };
 
@@ -150,6 +160,9 @@ describe("mock mode 1 — import (#2–#10)", () => {
     expect(got.blocks_count).toBe(12);
     expect(got.profile!.heading_map.some((h) => h.confidence < 0.8)).toBe(true);
     expect(got.profile!.heading_map.some((h) => h.section_id === "unmapped")).toBe(true);
+    // ước tính credit trước khi trích (BE §4.15): mỗi section một lượt, số dư của ví
+    expect(got.credit_estimate).toMatchObject({ diagram_images: 0, available_credits: state().credits });
+    expect(got.credit_estimate!.credits).toBe(got.credit_estimate!.ai_calls * 2);
 
     expect((await call<ImportStateResponse>("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true })).body.data!.import.status).toBe("extracting");
     const extracted = await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id });
@@ -164,7 +177,11 @@ describe("mock mode 1 — import (#2–#10)", () => {
     expect((await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: 99 })).body.error?.code).toBe("SPINE_VERSION_CONFLICT");
 
     const fin = await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
-    expect(fin.body.data).toMatchObject({ doc_version: "0.0", baseline: { type: "imported", doc_version: "0.0" }, import: { status: "gap_review" } });
+    // chạy nền (§4.16): trả ngay baselining, baseline/flags null; gọi lại khi đang chạy = không làm gì
+    expect(fin.body.data).toMatchObject({ doc_version: "0.0", baseline: null, flags: null, import: { status: "baselining", paused: null } });
+    expect((await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion })).body.data?.import.status).toBe("baselining");
+    expect((await pollFinalize()).import).toMatchObject({ status: "gap_review", paused: null });
+    expect(state().baselines.filter((b) => b.type === "imported")).toHaveLength(1);
     expect((await call<Project>("GET", `/projects/${P}`)).body.data?.import_state).toBe("gap_review");
 
     const report = (await call<GapReport>("GET", `/projects/${P}/gap-report`)).body.data!;
@@ -186,6 +203,8 @@ describe("mock mode 1 — import (#2–#10)", () => {
     const sections = paused.extraction.sections;
     expect(paused.import!.extract_cursor).toBe(sections[2].section_id);
     expect(sections.filter((s) => s.status === "done")).toHaveLength(2);
+    // dừng ⇒ ước tính phần còn lại, số dư không đủ
+    expect(paused.credit_estimate).toMatchObject({ ai_calls: sections.length - 2, credits: 2 * (sections.length - 2), available_credits: 0 });
 
     state().credits = 100;
     const resumed = (await call<ExtractResponse>("POST", `/projects/${P}/import/resume`, { import_id: id })).body.data!;
@@ -193,7 +212,8 @@ describe("mock mode 1 — import (#2–#10)", () => {
     const done = await pollExtraction();
     expect(done.import!.paused).toBeNull();
     expect(done.extraction.sections.every((s) => s.status === "done")).toBe(true);
-    expect(state().credits).toBe(100 - 2 * (sections.length - 2));
+    expect(state().credits).toBe(100 - paused.credit_estimate!.credits);
+    expect(done.credit_estimate).toBeNull();
   });
 
   it("gọi #6 hai lần khi job đang chạy không bật job thứ hai, không trích lại", async () => {

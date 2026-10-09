@@ -15,7 +15,7 @@ import { http, HttpResponse, type DefaultBodyType, type PathParams, type StrictR
 import { API_BASE_URL } from "@/lib/api/client";
 import type { DocumentLanguage, Project, ProjectMode } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
-import type { DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
+import type { CreditEstimate, DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
 import type { RocRow } from "@/types/document";
 import type { Cr, CrDetail, CrLocation, CrMaterial, CrStatus } from "@/types/change-request";
@@ -121,6 +121,47 @@ const startExtraction = () => {
   doc.paused = null;
   doc.extract_cursor = S().sections.find((s) => s.status !== "done")?.section_id ?? null;
   S().extractRunning = true;
+};
+
+/**
+ * `credit_estimate` của #4 (BE §4.15): chỉ ở `mapping_review` hoặc `extracting` khi job chưa chạy / đang dừng. Mock trích
+ * một lượt / section chưa xong (`COST.extract`), không có ảnh; `available_credits` = credit mock.
+ */
+const creditEstimate = (): CreditEstimate | null => {
+  const status = S().importDoc?.status;
+  if (status !== "mapping_review" && (status !== "extracting" || S().extractRunning)) return null;
+  const calls = status === "mapping_review" ? sectionIds().length : S().sections.filter((s) => s.status !== "done").length;
+  return { text_batches: calls, diagram_images: 0, ai_calls: calls, credits: calls * COST.extract, available_credits: S().credits };
+};
+
+/**
+ * Finalize chạy nền như BE (§4.16): #8 bật job rồi trả ngay `baselining`; mỗi lần poll #4 chạy **một** chặng — tạo
+ * baseline + version 0.0 (sang `checking`), rồi 1.11 (tốn credit; hết ⇒ `paused: credits`) ⇒ `gap_review`.
+ */
+const runFinalizeStep = () => {
+  const doc = S().importDoc!;
+  if (S().finalizeJob === "finalize") {
+    if (S().failNextFinalize) {
+      // Job lỗi giữa chừng ⇒ BE hoàn về trước finalize, dừng ở baselining
+      S().failNextFinalize = false;
+      S().finalizeJob = null;
+      doc.paused = { reason: "resume_later", at: now() };
+      return;
+    }
+    S().spineVersion += 1;
+    const baseline = newBaseline("imported", "0.0");
+    S().baselines.push(baseline);
+    addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true });
+    setImportStatus("checking");
+    S().finalizeJob = "check";
+    return;
+  }
+  S().finalizeJob = null;
+  if (!spend(COST.semantic)) {
+    doc.paused = { reason: "credits", at: now() };
+    return;
+  }
+  setImportStatus("gap_review");
 };
 
 const extractNextSection = () => {
@@ -515,8 +556,8 @@ export const mode1Handlers = [
           ? [{ code: "LEGACY_DOC" as const, message: "File .doc (Word 97-2003), hãy lưu lại dạng .docx" }]
           : /tracked/i.test(name)
             ? [{ code: "FOREIGN_TRACK_CHANGE" as const, message: "Track Changes (ins) của \"Nguyen Van A\" chưa được Accept/Reject", location: { block_ord: 5, text: "3.2.5 Create SRS project" } }]
-            : file.size > 10 * 1024 * 1024
-              ? [{ code: "FILE_TOO_LARGE" as const, message: "File lớn hơn 10MB" }]
+            : file.size > 40 * 1024 * 1024
+              ? [{ code: "FILE_TOO_LARGE" as const, message: "File vượt giới hạn 40 MB. Hãy nén ảnh trong Word (File → Compress Pictures)." }]
               : [];
       const doc: ImportedDocument = {
         id: `66f0000000000000000000${String(S().versions.length + 10)}`,
@@ -559,11 +600,13 @@ export const mode1Handlers = [
     api("/projects/:projectId/import"),
     mode1(() => {
       if (S().extractRunning) extractNextSection();
+      else if (S().finalizeJob) runFinalizeStep();
       return ok({
         import: S().importDoc,
         profile: S().profile,
         extraction: { sections: S().sections, review_fields: S().reviewFields.filter((f) => !f.confirmed) },
         blocks_count: S().blocks.get("0.0")?.length ?? 0,
+        credit_estimate: creditEstimate(),
       });
     }),
   ),
@@ -626,25 +669,22 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #8 Finalize ⇒ baseline v0 + check ⇒ gap_review
+  // #8 Finalize — trả ngay `baselining`, baseline v0 + check chạy nền (poll #4 tới gap_review, §4.16)
   http.post(
     api("/projects/:projectId/import/finalize"),
     mode1(async ({ request }) => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
+      // Đang chạy ⇒ không làm gì, trả trạng thái hiện tại
+      if (S().finalizeJob) return ok({ import: doc, doc_version: "0.0", baseline: null, spine_version: S().spineVersion, flags: null });
       if (doc.status !== "baselining") return invalidImportState("checking");
       const body = await readJson(request);
       const conflict = versionConflict(body.base_version);
       if (conflict) return conflict;
-      if (!spend(COST.semantic)) return fail(402, "INSUFFICIENT_CREDIT", "Không đủ credit cho bước kiểm ngữ nghĩa", { required: COST.semantic, balance: S().credits });
       S().finalizedRecordOfChanges = (body.record_of_changes as RocRow[] | undefined) ?? null;
-      S().spineVersion += 1;
-      const baseline = newBaseline("imported", "0.0");
-      S().baselines.push(baseline);
-      addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true });
-      setImportStatus("checking");
-      setImportStatus("gap_review");
-      return ok({ import: doc, doc_version: "0.0", baseline, spine_version: S().spineVersion, flags: { red: S().redFlags, yellow: 1 } });
+      doc.paused = null;
+      S().finalizeJob = "finalize";
+      return ok({ import: doc, doc_version: "0.0", baseline: null, spine_version: S().spineVersion, flags: null });
     }),
   ),
 
@@ -689,14 +729,18 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #10 Resume import sau pause — ở extracting: trả ngay, chạy nền như #6
+  // #10 Resume import sau pause — trả ngay, chạy nền: extracting như #6; baselining chạy lại finalize; checking chạy 1.11
   http.post(
     api("/projects/:projectId/import/resume"),
     mode1(() => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
-      if (!doc.paused || doc.status !== "extracting") return invalidImportState("extracting");
-      startExtraction();
+      if (!doc.paused || !["extracting", "baselining", "checking"].includes(doc.status)) return invalidImportState("extracting");
+      if (doc.status === "extracting") startExtraction();
+      else {
+        doc.paused = null;
+        S().finalizeJob = doc.status === "baselining" ? "finalize" : "check";
+      }
       return ok({ import: doc, sections: S().sections });
     }),
   ),
