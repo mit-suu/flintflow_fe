@@ -184,6 +184,28 @@ describe("MappingReviewTable — mẫu IEEE (FLF-252)", () => {
     expect(screen.queryByText(/ieee830/)).not.toBeInTheDocument();
   });
 
+  it("nhiều heading cùng trích vào một mục FPT ⇒ báo theo tiêu đề heading, đổi section thì hết báo", () => {
+    renderWithIntl(
+      <MappingReviewTable
+        profile={profile({
+          template_family: "ieee830",
+          heading_map: [
+            { ...heading("B0008", "3.5.1 Reliability", "fixed:4.2.2", 1), template_section: "ieee830:3.5.1" },
+            { ...heading("B0009", "3.5.2 Availability", "fixed:4.2.2", 1), template_section: "ieee830:3.5.2" },
+            { ...heading("B0010", "1.4 References", "unmapped", 1), template_section: "ieee830:1.4" },
+          ],
+        })}
+        onSubmit={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/với: 3\.5\.2 Availability — nội dung của heading này vẫn in dưới chính nó/)).toBeInTheDocument();
+    expect(screen.getByText(/với: 3\.5\.1 Reliability/)).toBeInTheDocument();
+    // mục giữ nguyên văn không tính là dùng chung; không lộ mã nội bộ
+    expect(screen.queryByText(/fixed:|unmapped/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Section cho 3.5.2 Availability" }), { target: { value: "fixed:4.2.3" } });
+    expect(screen.queryByText(/Cùng trích vào/)).not.toBeInTheDocument();
+  });
+
   it("import cũ không có họ mẫu ⇒ coi như mẫu FPT", () => {
     renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
     expect(screen.getByText("mẫu FPT")).toBeInTheDocument();
