@@ -6,6 +6,7 @@ export * from "./documents";
 export * from "./spine";
 export * from "./pipeline";
 export * from "./flags";
+export * from "./comments";
 export * from "./export";
 export * from "./notifications";
 export * from "./billing";
