@@ -83,12 +83,13 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
   const showLog = state.status !== "reconnecting" && state.status !== "interrupted" && activityLines(state.events, working).length > 0;
   // Đang chờ user trả lời: thẻ hỏi đã nói rõ tới lượt ai — chỉ còn nhật ký những việc đã làm, không có dòng nào khác.
   if (state.status === "needs_input" && !showLog) return null;
+  // Lỗi / gián đoạn: page đã có khối báo lỗi hoặc dải "Chạy lại" — dòng giai đoạn cũ ("Đang xem còn thiếu gì…") trông như AI
+  // vẫn chạy, còn câu "bị gián đoạn" thì lặp đúng câu của dải (E2E FAP #6, #8).
+  if ((state.status === "error" || state.status === "interrupted") && !showLog) return null;
   const headline =
     state.status === "reconnecting"
       ? "Mất kết nối với lượt chạy, đang kết nối lại…"
-      : state.status === "interrupted"
-        ? "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ."
-        : [WORKING_TEXT[state.stage ?? "intake"], state.batch ? `lô ${state.batch.i}/${state.batch.n}` : null].filter(Boolean).join(" · ");
+      : [WORKING_TEXT[state.stage ?? "intake"], state.batch ? `lô ${state.batch.i}/${state.batch.n}` : null].filter(Boolean).join(" · ");
   // Nút chỉ cần khi user muốn làm gì đó với lượt chạy: rê chuột/focus vào bong bóng, hoặc tự hiện khi chạy chậm
   const actionsClass = slow ? "flex" : "hidden group-hover:flex group-focus-within:flex";
 
@@ -111,7 +112,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
           )}
           <p
             role="status"
-            className={`flex-1 min-w-0 truncate text-body ${state.status === "interrupted" ? "text-[#B03030]" : "text-[#33312D]"}`}
+            className="flex-1 min-w-0 truncate text-body text-[#33312D]"
           >
             {headline}
           </p>

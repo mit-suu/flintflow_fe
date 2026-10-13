@@ -358,6 +358,7 @@ function SectionView({
               type="button"
               onClick={onOpenIssues}
               title="Xem vấn đề của mục này"
+              aria-label={`Xem ${issues.count} vấn đề của mục này`}
               className={`flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full cursor-pointer ${
                 issues.blocking ? "bg-error-container text-error" : "bg-accent-gold-soft text-accent-gold-text"
               }`}
