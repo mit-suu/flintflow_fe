@@ -52,8 +52,8 @@ export default function VersionCompare({ projectId, versions }: VersionComparePr
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect label="Từ" value={effectiveFrom} options={options} onChange={setFrom} />
-        <FilterSelect label="Đến" value={effectiveTo} options={options} onChange={setTo} />
+        <FilterSelect label="Từ" value={effectiveFrom} options={options} onChange={setFrom} align="start" />
+        <FilterSelect label="Đến" value={effectiveTo} options={options} onChange={setTo} align="start" />
         <Button size="sm" onClick={() => void run()} disabled={same} loading={busy}>
           So sánh
         </Button>

@@ -90,7 +90,7 @@ export const ACTION_INFO: Record<IssueAction, { title: string; hint: string }> =
     title: "Mục bắt buộc còn trống",
     hint: "Bước viết mục này đã chốt mà chưa điền gì — mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat.",
   },
-  reaccept: { title: "Cần bạn duyệt lại", hint: "Nội dung đã đổi sau khi bạn chốt." },
+  reaccept: { title: "Cần bạn duyệt lại", hint: "Bước soạn mục này đã mở lại — chạy lại bước rồi duyệt để gỡ." },
   redraw: { title: "Vẽ lại sơ đồ", hint: "Sơ đồ chưa khớp nội dung mới." },
   run_step: { title: "Sẽ điền ở bước sau", hint: "Chưa phải lỗi — AI điền khi chạy tới các bước này." },
 };

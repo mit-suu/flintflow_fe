@@ -18,6 +18,18 @@ describe("FilterSelect", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("mặc định canh phải", () => {
+    renderWithIntl(<FilterSelect label="Trạng thái" value="active" options={OPTIONS} onChange={() => {}} />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Trạng thái" }));
+    expect(screen.getByRole("listbox")).toHaveClass("right-0");
+  });
+
+  it("align=start canh trái — nút sát mép trái khung hẹp thì menu không tràn ra ngoài rồi bị cắt", () => {
+    renderWithIntl(<FilterSelect label="Loại" value="active" options={OPTIONS} onChange={() => {}} align="start" />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Loại" }));
+    expect(screen.getByRole("listbox")).toHaveClass("left-0");
+  });
+
   it("bấm mở danh sách; mục đang chọn được đánh dấu; chọn mục khác ⇒ onChange + đóng", () => {
     const onChange = vi.fn();
     renderWithIntl(<FilterSelect label="Trạng thái" value="active" options={OPTIONS} onChange={onChange} />);
