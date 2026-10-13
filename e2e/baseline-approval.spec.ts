@@ -46,6 +46,14 @@ test.describe("FLF-275 · vòng duyệt baseline trên giao diện", () => {
     const health = await request.get(`${API.replace("/api/v1", "")}/health`);
     expect(health.ok(), "BE phải đang chạy").toBeTruthy();
 
+    /**
+     * Kịch bản cần một dự án đã accepted hết step (nộp duyệt được ngay) cùng cặp Lead/Analyst của cùng org —
+     * dựng bằng script seed sân test, không dựng được qua API vì nội dung phải do pipeline soạn. CI chưa có
+     * sân đó nên bỏ qua thay vì đỏ; chạy máy dev sau khi seed thì kịch bản chạy đủ.
+     */
+    const probe = await request.post(`${API}/auth/login`, { data: { email: ANALYST, password: PASSWORD } });
+    test.skip(!probe.ok(), `chưa có sân test FLF-275 (${ANALYST}) — seed rồi chạy lại`);
+
     // ── Analyst gửi Lead duyệt ────────────────────────────────────────────
     const analystCtx = await browser.newContext();
     const analyst = await analystCtx.newPage();
