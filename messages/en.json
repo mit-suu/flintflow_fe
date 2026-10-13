@@ -641,7 +641,7 @@
       },
       "documentLanguage": {
         "title": "Document language",
-        "detail": "New content will be written in this language; existing content needs a one-time translation (credit estimate in the next step); diagrams stay in English.",
+        "detail": "New content will be written in this language; existing content, including the text on diagrams, needs a one-time translation (credit estimate in the next step).",
         "cta": "Change language",
         "busy": "Changing…",
         "failed": "Could not change the document language"
@@ -662,7 +662,7 @@
       },
       "estimate": "{count, plural, one {# item} other {# items}} · ~{credits, plural, one {# credit} other {# credits}}",
       "direction": "From the original {source} to {target}",
-      "detail": "Only items still showing the original text are translated; translated items stay as they are and diagrams stay in English. Credits are charged per batch actually run — if it stops midway, what was translated is kept.",
+      "detail": "Only items still showing the original text are translated, including the text on diagrams; translated items stay as they are. Credits are charged per batch actually run — if it stops midway, what was translated is kept.",
       "nothingToTranslate": "The document is in its original language — nothing to translate.",
       "allTranslated": "The document is fully translated into {language} — nothing left to translate.",
       "start": "Translate now",

@@ -641,7 +641,7 @@
       },
       "documentLanguage": {
         "title": "Ngôn ngữ tài liệu",
-        "detail": "Nội dung mới sẽ viết theo ngôn ngữ này; nội dung đã có cần dịch một lần (ước tính credit ở bước sau); sơ đồ giữ tiếng Anh.",
+        "detail": "Nội dung mới sẽ viết theo ngôn ngữ này; nội dung đã có, kể cả chữ trên sơ đồ, cần dịch một lần (ước tính credit ở bước sau).",
         "cta": "Đổi ngôn ngữ",
         "busy": "Đang đổi…",
         "failed": "Không thể đổi ngôn ngữ tài liệu"
@@ -662,7 +662,7 @@
       },
       "estimate": "{count, plural, other {# mục}} · ~{credits} credit",
       "direction": "Từ chữ gốc {source} sang {target}",
-      "detail": "Chỉ dịch các mục đang hiện chữ gốc; mục đã dịch giữ nguyên, sơ đồ giữ tiếng Anh. Credit trừ theo từng lô thật sự chạy — dừng giữa chừng thì phần đã dịch vẫn được giữ.",
+      "detail": "Chỉ dịch các mục đang hiện chữ gốc, kể cả chữ trên sơ đồ; mục đã dịch giữ nguyên. Credit trừ theo từng lô thật sự chạy — dừng giữa chừng thì phần đã dịch vẫn được giữ.",
       "nothingToTranslate": "Tài liệu đang ở ngôn ngữ gốc — không có gì cần dịch.",
       "allTranslated": "Tài liệu đã dịch đủ sang {language} — không còn mục nào cần dịch.",
       "start": "Dịch ngay",

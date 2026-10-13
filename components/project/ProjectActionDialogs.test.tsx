@@ -89,7 +89,7 @@ describe("ProjectActionDialogs — ngôn ngữ tài liệu (FLF-265)", () => {
   it("chọn sẵn ngôn ngữ hiện tại, có câu giải thích; chưa đổi ⇒ khoá nút", () => {
     renderWithIntl(<ProjectActionDialogs target={{ action: "documentLanguage", project: fpt }} onClose={() => {}} onDone={() => {}} />);
     expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText(/sơ đồ giữ tiếng Anh/)).toBeInTheDocument();
+    expect(screen.getByText(/kể cả chữ trên sơ đồ/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Đổi ngôn ngữ" })).toBeDisabled();
   });
 
