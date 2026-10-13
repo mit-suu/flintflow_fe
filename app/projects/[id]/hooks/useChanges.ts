@@ -31,6 +31,8 @@ export interface UseChangesResult {
    */
   confirmPreview: (reason?: string) => Promise<void>;
   cancelPreview: () => void;
+  /** Nhận bản xem trước BE đã dựng từ tin chat thường (tin bị nhận là lệnh sửa) — để thẻ sửa có nút Áp dụng. */
+  adoptPreview: (preview: PreviewResult, instruction: string) => void;
   reconcileOnce: () => Promise<void>;
   undo: () => Promise<void>;
   loadHistory: () => Promise<void>;
@@ -104,6 +106,14 @@ export function useChanges(
     setPreview(null);
     setPreviewSource(null);
     setClarification(null);
+  }, []);
+
+  const adoptPreview = useCallback((next: PreviewResult, instruction: string) => {
+    setError(null);
+    setClarification(null);
+    setPendingInstruction(instruction.trim());
+    setPreview(next);
+    setPreviewSource("instruction");
   }, []);
 
   const reconcileOnce = useCallback(async () => {
@@ -202,6 +212,7 @@ export function useChanges(
     requestPreview,
     confirmPreview,
     cancelPreview,
+    adoptPreview,
     reconcileOnce,
     undo,
     loadHistory,

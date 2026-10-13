@@ -13,6 +13,7 @@ import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text"
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
 import { isGateApproval } from "@/lib/gate-approval";
 import type { Diagram, ReviewMode } from "@/types/spine";
+import { chatChangePreview } from "@/lib/chat-change-preview";
 import type { Project } from "@/types/project";
 import type { Flag } from "@/types/flags";
 import PageSkeleton, { type WorkspacePane } from "@/components/ui/PageSkeleton";
@@ -41,6 +42,7 @@ import TranslateDialog from "@/components/project/TranslateDialog";
 import { DOCUMENT_LANGUAGE_NAME, knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
+import { submitGate } from "@/lib/api/pipeline";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import type { TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
@@ -69,7 +71,7 @@ import { isFlagWaivable } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
-import { unitOfStep, useStepRunner } from "./hooks/useStepRunner";
+import { isPhaseUnit, unitOfStep, useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
 import { useTurnNotice } from "./hooks/useTurnNotice";
 
@@ -82,6 +84,8 @@ const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+/** Toast tự tắt sau khoảng này — trước đây nó ở mãi và che nút Gửi của ô chat. */
+const TOAST_MS = 5000;
 /** Nút "Vẽ lại sơ đồ" dưới hình của mỗi mục trong DocumentPane — tạm ẩn; đổi thành `true` để hiện lại. */
 const REDRAW_SECTION_ENABLED = false;
 /** Tin AI của lượt hỏi trong lịch sử là `{reply, questions}` (BE ghi kèm câu hỏi) hoặc chữ thường — lấy phần lời đáp. */
@@ -376,6 +380,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   /** Thông báo ngắn sau một việc đã xong ("Đã áp dụng 3 thay đổi") — BUG-27. */
   const [toast, setToast] = useState<string | null>(null);
+  /** "Giữ nguyên, duyệt lại" đang gửi (E2E FAP #20). */
+  const [keepingStep, setKeepingStep] = useState(false);
+  useEffect(() => {
+    if (toast === null) return;
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
   /** Lớp 5: thu tiến trình thành một pill ở góc để đi làm việc khác trong lúc AI soạn. */
   const [background, setBackground] = useState(false);
 
@@ -511,17 +522,20 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     rememberStat(runner.state.stepId, runner.state.gate?.payload);
   }, [runner.state.status, runner.state.stepId, runner.state.gate, rememberStat]);
 
+
+  const spine = spineState.spine;
+  const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
+
   // Reload / mất mạng giữa chừng: dựng lại đúng chỗ đang dở (BUG-07) — không chạy lại, không tốn credit.
   const { restore: restoreRunner } = runner;
   const restoredRef = useRef(false);
   useEffect(() => {
-    if (!ws.ready || restoredRef.current) return;
+    if (!ws.ready || restoredRef.current || currentStep === null) return;
     restoredRef.current = true;
-    void restoreRunner();
-  }, [ws.ready, restoreRunner]);
-
-  const spine = spineState.spine;
-  const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
+    // `/run-state/active` bỏ qua lượt đã gián đoạn (BE restart, mất kết nối) ⇒ hỏi thêm run-state của bước hiện tại để
+    // còn dải "Chạy lại" sau reload (E2E FAP #2). Lượt đã xong thì reducer trả về rảnh như cũ.
+    void restoreRunner().then((run) => (run === null ? restoreRunner(currentStep) : run));
+  }, [ws.ready, restoreRunner, currentStep]);
   const currentPhase = progress?.progress.current_phase ?? steps?.current_phase ?? spine?.progress.current_phase ?? null;
   // Giai đoạn hiển thị theo bước đang làm: `current_phase` còn là phase vừa xong khi `current_step` đã sang phase kế
   const shownPhase = steps?.steps.find((s) => s.id === currentStep)?.phase ?? currentPhase;
@@ -665,14 +679,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const handleErrorAction = useCallback(
     async (action: ErrorAction) => {
       const stepId = runner.state.stepId;
+      // Lượt chạy cả giai đoạn lỗi trước khi tới bước nào thì `stepId` rỗng — "Thử lại" từng không làm gì (E2E FAP #3);
+      // lượt phỏng vấn đầu giai đoạn (`S-5@S05`) chạy lại bằng đường giai đoạn, không phải `/steps/:id/run`.
+      const unit = stepId !== null && isPhaseUnit(stepId) ? stepId : stepId === null ? runner.state.phase : null;
+      const rerun = async () => {
+        if (unit) await runner.runWholePhase(unit);
+        else if (stepId) await runner.run(stepId);
+      };
       switch (action.kind) {
         case "cancel_and_rerun":
           await runner.cancel();
-          if (stepId) await runner.run(stepId);
+          await rerun();
           return;
         case "retry":
           runner.reset();
-          if (stepId) await runner.run(stepId);
+          await rerun();
           return;
         case "goto_step":
           runner.reset();
@@ -771,6 +792,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         setEditCardOpen(false);
       } else if (action === "instruction") {
         setEditDetailOpen(false);
+        // Lệnh sửa đã ghi ⇒ ô chat về trả lời bước; muốn sửa tiếp thì bật lại chip (E2E FAP: kẹt "Mô tả chỗ cần sửa…")
+        if (!mode1) setEditMode(false);
         setAppliedEdit({ instruction: pendingInstructionRef.current, count: result.changes.length, version: result.spine_version });
         // BE đã ghi tin "Đã áp dụng …" vào phiên
         if (activeSessionId) void reloadActiveSession(activeSessionId);
@@ -779,7 +802,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         setAppliedEdit(null);
       }
     },
-    [handleChangeApplied, activeSessionId, reloadActiveSession]
+    [handleChangeApplied, activeSessionId, reloadActiveSession, mode1]
   );
   const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
@@ -822,6 +845,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     setEditCardOpen(false);
     setEditDetailOpen(false);
     setAppliedEdit(null);
+    if (!mode1) setEditMode(false);
   };
   /** Bật chip sửa và đưa con trỏ vào ô chat — `prefill` điền sẵn chỗ cần sửa (nút "Sửa mục này" trên tài liệu). */
   const startEditing = (prefill?: string) => {
@@ -1118,12 +1142,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     if (status && status.missing > 0) openTranslate(status);
   };
 
+  /**
+   * Tin chat thường mà BE nhận là lệnh sửa ("Bổ sung: …") trả kèm bản xem trước ⇒ mở thẻ sửa với nút Áp dụng. Trước đây
+   * chat chỉ hiện "…bấm Áp dụng để ghi" mà không có nút nào (E2E FAP #4).
+   */
+  const sendChat = async (custom?: string) => {
+    const instruction = (custom ?? ws.inputMessage).trim();
+    const data = await ws.sendMessage(currentStep, custom);
+    const preview = chatChangePreview(data);
+    if (!preview) return;
+    pendingInstructionRef.current = instruction;
+    changes.adoptPreview(preview, instruction);
+    setAppliedEdit(null);
+    setEditDetailOpen(false);
+    setEditCardOpen(true);
+  };
+
   const sendFromChat = async (custom?: string, intent?: RunIntent, asMessage = false) => {
     // FLF-265 §3.7: chặn lệnh đổi ngôn ngữ tài liệu trước MỌI nhánh gửi (mode 1, phiên phụ, trả lời, cổng, chạy bước)
     if (!asMessage && interceptLanguageCommand(custom ?? ws.inputMessage, "chat", intent)) return;
-    if (mode1) return ws.sendMessage(currentStep, custom);
+    if (mode1) return void (await ws.sendMessage(currentStep, custom));
     // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
-    if (!onPipelineSession) return ws.sendMessage(currentStep, custom);
+    if (!onPipelineSession) return sendChat(custom);
     if (aiWorking) {
       setToast("AI đang làm — đợi xong lượt này rồi nhắn tiếp nhé");
       return;
@@ -1131,7 +1171,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     const raw = (custom ?? ws.inputMessage).trim();
     const status = runner.state.status;
     const toRun = stepNotStarted || (reopenable && status === "idle");
-    if (status !== "needs_input" && status !== "gate_ready" && !toRun) return ws.sendMessage(currentStep, custom);
+    if (status !== "needs_input" && status !== "gate_ready" && !toRun) return sendChat(custom);
     if (!(await ws.uploadPendingAttachments())) return;
     const text = raw || "[Đính kèm tài liệu]";
 
@@ -1184,6 +1224,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * `reopen`: cờ có thể trễ hơn Spine (mục đã được chốt lại ở nơi khác) — khi đó BE không coi bước là cũ nữa và
    * từ chối chạy bước đã accepted; user đã bấm chủ động nên mở lại bước (B7) thay vì báo "Bước này đã chốt".
    */
+  /**
+   * Bước bị hoà giải đưa về chờ duyệt (`revision_requested`) mà nội dung vẫn đúng: duyệt nguyên trạng, không bắt AI soạn lại.
+   * Chỉ có "Cập nhật lại bước này" thì mỗi lần duyệt lại AI viết khác đi đôi chút ⇒ mục khác thành "cũ" ⇒ hoà giải ⇒ lại chờ
+   * duyệt — vòng không hội tụ (E2E FAP #20). BE vốn cho `accept` ở trạng thái này.
+   */
+  const keepStepAsIs = async (stepId: string) => {
+    const sessionId = ws.pipelineSession?._id;
+    const baseVersion = getBaseVersion();
+    if (!sessionId || baseVersion === null) return;
+    setKeepingStep(true);
+    try {
+      const res = await submitGate(projectId, stepId, { session_id: sessionId, action: "accept", base_version: baseVersion });
+      onSpineChanged(res.data?.spine_version);
+      setToast(`Đã duyệt lại ${stepLabel(stepId)} giữ nguyên nội dung`);
+    } catch (err) {
+      onSpineChanged();
+      setToast(userErrorMessage(err, "Chưa duyệt lại được bước này. Vui lòng thử lại."));
+    } finally {
+      setKeepingStep(false);
+    }
+  };
+
   const rerunStaleStep = async (stepId: string) => {
     const text = t("rerunStep.message");
     await runner.run(stepId, { message: text, standalone: true, reopen: true, onStarted: () => ws.appendLocalMessage(text, stepId) });
@@ -1340,13 +1402,25 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu
                 bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.
               </p>
-              <button
-                type="button"
-                onClick={() => void rerunStaleStep(viewedStep)}
-                className="self-start h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
-              >
-                Cập nhật lại bước này
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void rerunStaleStep(viewedStep)}
+                  className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+                >
+                  Cập nhật lại bước này
+                </button>
+                {viewedSummary?.status === "revision_requested" && (
+                  <button
+                    type="button"
+                    disabled={keepingStep}
+                    onClick={() => void keepStepAsIs(viewedStep)}
+                    className="h-8 px-3.5 rounded-control text-body font-bold bg-surface text-on-surface hover:bg-surface-container-low cursor-pointer disabled:opacity-50"
+                  >
+                    {keepingStep ? "Đang duyệt…" : "Giữ nguyên, duyệt lại"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {runnerStep && !background && onPipelineSession && (
@@ -1618,7 +1692,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       {(toast ?? ws.notice) && (
         <div
           role="status"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-body font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-body font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
         >
           <span>{toast ?? ws.notice}</span>
           <button
