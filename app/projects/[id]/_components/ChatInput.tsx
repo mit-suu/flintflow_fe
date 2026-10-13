@@ -138,7 +138,7 @@ export default function ChatInput({
 
         {/* compact: bỏ khung thanh công cụ, nút đính kèm sang trái ô gõ, nút gửi sang phải */}
         <div className={compact ? "contents" : "@container flex items-center justify-between gap-2 pt-1"}>
-          <div className={`flex items-center gap-1.5 ${compact ? "order-1" : ""}`}>
+          <div className={`flex items-center gap-1.5 min-w-0 ${compact ? "order-1" : ""}`}>
             {!compact && toolbarExtra}
             {onToggleEditMode && !compact && (
               <button
@@ -146,13 +146,15 @@ export default function ChatInput({
                 onClick={onToggleEditMode}
                 disabled={Boolean(editDisabledReason) && !editMode}
                 aria-pressed={editMode}
+                aria-label="Sửa tài liệu"
                 title={editDisabledReason && !editMode ? editDisabledReason : editMode ? "Tắt để quay lại trò chuyện" : "Gõ lệnh sửa tài liệu, xem trước rồi mới áp dụng"}
-                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                // Thanh công cụ hẹp ⇒ nút rút về ô vuông chỉ còn icon, nhường chỗ cho nút gửi ở lề phải
+                className={`h-8 pl-2 pr-2.5 shrink-0 @max-[352px]:w-8 @max-[352px]:justify-center @max-[352px]:px-0 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
                   editMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
                 }`}
               >
                 <Icon name="pencil" size={15} weight={editMode ? "bold" : "regular"} />
-                Sửa tài liệu
+                <span className="@max-[352px]:hidden">Sửa tài liệu</span>
               </button>
             )}
             {/* Attachment Button */}
@@ -168,7 +170,7 @@ export default function ChatInput({
               type="button"
               hidden={editMode}
               onClick={() => fileInputRef.current?.click()}
-              className="w-8 h-8 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
+              className="w-8 h-8 shrink-0 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
               aria-label="Đính kèm tài liệu tham khảo"
               title="Đính kèm tài liệu tham khảo (.pdf, .docx, .txt)"
             >
@@ -176,7 +178,8 @@ export default function ChatInput({
             </button>
           </div>
 
-          <div className={`flex items-center gap-3 ${compact ? "order-3" : ""}`}>
+          {/* Nút gửi không bao giờ bị thu hay bị đẩy: nó là đường đi chính của màn này */}
+          <div className={`flex items-center gap-3 shrink-0 ${compact ? "order-3" : ""}`}>
             <button
               type="button"
               onClick={send}

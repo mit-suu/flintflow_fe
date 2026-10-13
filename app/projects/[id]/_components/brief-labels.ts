@@ -4,14 +4,35 @@
  */
 import type { Addendum, Assumption, AssumptionStatus, OtherRequirement, Spine } from "@/types/spine";
 
-/** Nhãn tiếng Việt cho section đích của addendum — khớp mục của tài liệu, không phải khoá thô. */
+/**
+ * Nhãn tiếng Việt cho section đích của addendum — khớp mục của tài liệu, không phải khoá thô.
+ *
+ * Phủ hết các section cố định mà BE ghi addendum vào (xem bảng step của srs-orchestrator): thiếu nhãn
+ * nào thì ghi chú của section đó rơi vào nhóm gộp "Mục khác" và user mất luôn thông tin nó thuộc mục nào.
+ *
+ * **Thứ tự khai báo chính là thứ tự nhóm hiển thị** (`groupByTarget`), nên giữ đúng thứ tự mục trong
+ * tài liệu.
+ */
 export const SECTION_LABEL: Record<string, string> = {
   "fixed:1": "Tổng quan sản phẩm",
   "fixed:2.1": "Actor",
+  "fixed:2.2.1": "Sơ đồ use case",
+  "fixed:2.2.2": "Use case",
+  "fixed:3.1.1": "Luồng màn hình",
   "fixed:3.1.2": "Mô tả màn",
+  "fixed:3.1.3": "Phân quyền màn hình",
+  "fixed:3.1.4": "Chức năng không có màn",
+  "fixed:3.1.5": "Sơ đồ thực thể",
+  "fixed:4.1": "Giao tiếp ngoài",
+  "fixed:4.2.1": "Tính dễ dùng",
   "fixed:4.2.2": "Độ tin cậy",
   "fixed:4.2.3": "Hiệu năng",
+  "fixed:4.2.4": "Thuộc tính theo lĩnh vực",
+  "fixed:5.1": "Quy tắc nghiệp vụ",
+  "fixed:5.2": "Yêu cầu dùng chung",
+  "fixed:5.3": "Thông báo ứng dụng",
   "fixed:5.4": "Yêu cầu khác (để dành)",
+  "fixed:5.5": "Thuật ngữ",
 };
 
 export const FORM_FACTOR_LABEL: Record<string, string> = {
@@ -62,15 +83,30 @@ export const assumptionText = (assumption: Pick<Assumption, "statement" | "state
 export const otherRequirementText = (item: Pick<OtherRequirement, "statement" | "statement_vi">): string =>
   item.statement_vi?.trim() || item.statement;
 
-/** Nhóm addendum theo `target_section` — đúng cách chúng sẽ đi vào tài liệu. */
+/** Khoá gộp của mọi section chưa có nhãn — một nhóm "Mục khác" duy nhất, luôn đứng cuối. */
+export const OTHER_SECTION_KEY = "__other__";
+
+/**
+ * Nhóm addendum theo `target_section` — đúng cách chúng sẽ đi vào tài liệu.
+ *
+ * Hai điều phải giữ:
+ * - Section chưa có nhãn đều hiển thị cùng một chữ "Mục khác". Để mỗi khoá là một nhóm riêng thì panel
+ *   hiện cùng cái tiêu đề đó mấy lần, xen kẽ giữa các nhóm có tên — đọc ra như dữ liệu bị lặp. Gộp hết
+ *   vào một nhóm.
+ * - Thứ tự nhóm theo thứ tự mục trong tài liệu, không so sánh chuỗi khoá: `localeCompare` xếp
+ *   `fixed:10` trước `fixed:2`.
+ */
 export const groupByTarget = (addendum: Addendum[]): [string, Addendum[]][] => {
+  const order = Object.keys(SECTION_LABEL);
   const groups = new Map<string, Addendum[]>();
   for (const entry of addendum) {
-    const list = groups.get(entry.target_section);
+    const key = SECTION_LABEL[entry.target_section] ? entry.target_section : OTHER_SECTION_KEY;
+    const list = groups.get(key);
     if (list) list.push(entry);
-    else groups.set(entry.target_section, [entry]);
+    else groups.set(key, [entry]);
   }
-  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const rank = (key: string) => (key === OTHER_SECTION_KEY ? order.length : order.indexOf(key));
+  return [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b));
 };
 
 /** Khoá máy của addendum lõi mà pha Brief ghi thay cho `project.vision` / `project.goals` (mỗi mục tiêu một entry). */

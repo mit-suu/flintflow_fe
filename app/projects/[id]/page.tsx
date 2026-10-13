@@ -115,6 +115,9 @@ const DOC_MIN = 320;
  * Bề rộng pane tài liệu còn **đọc được**, khác `DOC_MIN` là mức tối thiểu kỹ thuật. Dưới mức này header
  * của nó (tên · version · DRAFT · chip vấn đề · Làm mới) hết chỗ và các nhãn chồng lên nhau, nên khi cần
  * nhường chỗ cho panel phải thì ẩn rail tiến độ trước chứ không ép pane xuống `DOC_MIN`.
+ *
+ * Trần khi **kéo tay** cũng tính theo mức này: user không kéo được tới vùng mà chính bố cục tự động đã
+ * tránh. `DOC_MIN` chỉ còn là van an toàn lúc mở panel mà màn hình thật sự không đủ chỗ.
  */
 const DOC_COMFORT = 460;
 /** Panel phải — mỗi lúc chỉ mở một; mở từ chip trạng thái của tài liệu hoặc nút "Công cụ" trên header. */
@@ -302,8 +305,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     storageKey: PANEL_WIDTH_KEY,
     defaultWidth: 360,
     min: 300,
-    // Chừa chỗ tối thiểu cho chat + tài liệu
-    max: () => Math.min(640, mainWidth() - CHAT_MIN - DOC_MIN),
+    // Chừa chỗ cho chat + pane tài liệu ở bề rộng còn ĐỌC ĐƯỢC, không phải mức tối thiểu kỹ thuật:
+    // kéo tay cũng phải tôn trọng đúng ngưỡng mà bố cục tự động đã dùng để quyết định ẩn rail.
+    max: () => Math.min(640, mainWidth() - CHAT_MIN - DOC_COMFORT),
     measure: (x) => {
       const el = document.getElementById("workspace-right-panel");
       return el ? el.getBoundingClientRect().right - x : null;
@@ -354,7 +358,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [focusMode]);
   const [exportOpen, setExportOpen] = useState(false);
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  /**
+   * Bước đang xem, kèm số lần chọn. Chọn lại đúng bước đang xem là thao tác có nghĩa ("cho tôi xem lại
+   * kết quả"), nhưng nếu chỉ giữ id thì state không đổi và React bỏ qua — user bấm mà màn hình đứng im.
+   * `nonce` tăng mỗi lần chọn để phần cuộn-và-nháy bên dưới chạy lại kể cả khi id không đổi.
+   */
+  const [selection, setSelection] = useState<{ id: string | null; nonce: number }>({ id: null, nonce: 0 });
+  const selectedStepId = selection.id;
+  const setSelectedStepId = useCallback((id: string | null) => setSelection((s) => ({ id, nonce: s.nonce + 1 })), []);
+  /**
+   * Kết quả của mục vừa chọn nằm trong khung chat, mà khung chat có thể đang cuộn ở chỗ khác — và chọn lại
+   * mục cũ thì chẳng có gì đổi để user nhận ra. Mỗi lần chọn: cuộn tới thẻ rồi nháy viền một lượt. Gắn/gỡ
+   * class thẳng trên DOM thay vì qua state để khỏi set state trong effect.
+   */
+  const staleCardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = staleCardRef.current;
+    if (!el || selection.nonce === 0) return;
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    el.classList.remove("ff-flash");
+    void el.offsetWidth; // ép trình duyệt tính lại, nếu không animation cũ không chạy lại
+    el.classList.add("ff-flash");
+  }, [selection.nonce]);
   /** Chip "Sửa tài liệu" trên ô chat: bật ⇒ nội dung gửi đi là lệnh sửa (`/changes/preview`), không phải tin chat. */
   // Mode 1 (phase 8): chat bên trái mặc định là sửa tài liệu qua change request; tắt chip ⇒ hỏi đáp
   const [editMode, setEditMode] = useState(mode1);
@@ -669,7 +694,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           runner.reset();
       }
     },
-    [runner, onSpineChanged]
+    [runner, onSpineChanged, setSelectedStepId]
   );
 
   /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
@@ -918,8 +943,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     storageKey: CHAT_WIDTH_KEY,
     defaultWidth: 480,
     min: CHAT_MIN,
-    // Chừa chỗ tối thiểu cho tài liệu + panel phải đang mở
-    max: () => Math.min(1000, mainWidth() - (rightPanel ? panel.width : 0) - DOC_MIN),
+    // Chừa chỗ cho tài liệu ở bề rộng còn đọc được + panel phải đang mở
+    max: () => Math.min(1000, mainWidth() - (rightPanel ? panel.width : 0) - DOC_COMFORT),
     measure: (x) => {
       const el = document.getElementById("flintflow-chat-pane");
       return el ? x - el.getBoundingClientRect().left : null;
@@ -1348,7 +1373,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
-            <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-body text-accent-gold-text">
+            <div
+              ref={staleCardRef}
+              onAnimationEnd={(e) => e.currentTarget.classList.remove("ff-flash")}
+              className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-body text-accent-gold-text">
               <p className="leading-relaxed">
                 Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt, nhưng{" "}
                 <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu

@@ -47,13 +47,15 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={panelId}
+        aria-label={`Cách AI làm việc với bạn — ${review.label}`}
         title="Cách AI làm việc với bạn"
-        className={`h-8 pl-2 pr-1.5 rounded-control flex items-center gap-1 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
+        // Thanh công cụ rất hẹp ⇒ bỏ nhãn chế độ, giữ icon + mũi tên để vẫn thấy đây là menu
+        className={`h-8 pl-2 pr-1.5 shrink-0 rounded-control flex items-center gap-1 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
           open ? "bg-surface-container-high text-on-surface" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
         }`}
       >
         <Icon name="sparkle" size={14} />
-        {review.label}
+        <span className="@max-[256px]:hidden">{review.label}</span>
         <Icon name="chevron-down" size={12} />
       </button>
 

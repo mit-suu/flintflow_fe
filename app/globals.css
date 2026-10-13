@@ -291,6 +291,27 @@ body {
   }
 }
 
+/* ── Nháy một lần ──
+   Gắn tạm vào khối vừa được chọn lại để user thấy "kết quả nằm ở đây", rồi tự gỡ ở `animationend`.
+   Chỉ đổi viền sáng, không đổi nền: nền của khối mang nghĩa (vàng = cần xử lý) nên không được mượn. */
+@keyframes ff-flash {
+  from {
+    box-shadow: 0 0 0 3px var(--color-primary);
+  }
+  to {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+.ff-flash {
+  animation: ff-flash 1.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Vẫn phải thấy được là khối nào — bỏ phần nhạt dần, giữ viền bật rồi tắt gọn */
+  .ff-flash {
+    animation-timing-function: steps(1, end);
+  }
+}
+
 /* ── Skeleton: vệt gradient quét ngang ──
    Dùng qua `components/ui/Skeleton.tsx`, đừng gắn class này thẳng vào JSX.
    Nền = `surface-container-high`, vệt sáng = `surface-container-lowest` (trắng) ⇒ cùng tông với nền trang.

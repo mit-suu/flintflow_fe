@@ -509,9 +509,15 @@ export default function FlagsPanel({
           ))}
       </div>
 
-      {/* BE tự kiểm lại sau mỗi lần ghi — nút này chỉ để dùng khi nghi số liệu lệch */}
+      {/* BE tự kiểm lại sau mỗi lần ghi — nút này chỉ để dùng khi nghi số liệu lệch.
+          Chạy việc thật (tính lại cờ) ⇒ trông phải ra một nút, không phải dòng chú thích. */}
       {onRecompute && (
-        <button type="button" onClick={onRecompute} disabled={busy} className="self-start px-1 text-caption font-semibold text-on-surface-muted hover:text-on-surface hover:underline cursor-pointer disabled:opacity-50">
+        <button
+          type="button"
+          onClick={onRecompute}
+          disabled={busy}
+          className="self-start h-8 px-2.5 rounded-control text-body font-semibold text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           Kiểm tra lại toàn bộ tài liệu
         </button>
       )}

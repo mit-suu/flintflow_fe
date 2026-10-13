@@ -106,7 +106,8 @@ export default function VerificationPane({
               type="button"
               onClick={() => setShowTrace((v) => !v)}
               aria-expanded={showTrace}
-              className="self-start text-body font-bold text-primary hover:underline cursor-pointer"
+              // Chỉ bật/tắt hiển thị ⇒ text link, không được nổi hơn nút thật sự chạy việc ở ngay trên
+              className="self-start text-body text-primary hover:underline cursor-pointer"
             >
               {showTrace ? "Ẩn bản đồ truy vết" : "Xem bản đồ truy vết"}
             </button>
