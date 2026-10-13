@@ -28,7 +28,7 @@ export class ApiClientError extends Error {
   meta?: Record<string, unknown>;
 
   constructor(status: number, code: string, message: string, meta?: Record<string, unknown>) {
-    super(localizeApiError(code, message));
+    super(localizeApiError(code, message, undefined, meta));
     this.status = status;
     this.code = code;
     this.rawMessage = message;

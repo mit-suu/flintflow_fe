@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
-import { getProject } from "@/lib/api/projects";
+import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import { friendlyError, type ErrorAction } from "@/lib/errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
@@ -34,8 +34,17 @@ import ChatEditCard, { type AppliedEdit } from "./_components/ChatEditCard";
 import DiffPreviewModal from "./_components/DiffPreviewModal";
 import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
+import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
+import TranslateDialog from "@/components/project/TranslateDialog";
+import { DOCUMENT_LANGUAGE_NAME, knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
+import { getTranslationStatus } from "@/lib/api/translations";
+import { userErrorMessage } from "@/lib/api/error-messages";
+import type { TranslationStatus } from "@/types/document";
+import type { DocumentLanguage } from "@/types/project";
+import LanguageCommandCard from "./_components/LanguageCommandCard";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
@@ -50,7 +59,7 @@ import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
-import { crListHref, gapReportHref } from "./_components/mode1/prefill";
+import { compareHref, crListHref, gapReportHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
@@ -76,6 +85,23 @@ const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
 /** Nút "Vẽ lại sơ đồ" dưới hình của mỗi mục trong DocumentPane — tạm ẩn; đổi thành `true` để hiện lại. */
 const REDRAW_SECTION_ENABLED = false;
 /** Tin AI của lượt hỏi trong lịch sử là `{reply, questions}` (BE ghi kèm câu hỏi) hoặc chữ thường — lấy phần lời đáp. */
+/**
+ * Lệnh đổi ngôn ngữ tài liệu vừa bị chặn trước khi gửi (FLF-265 §3.7) — thẻ trong chat giữ câu gốc và đường gửi ban đầu
+ * (ô chat thường hay chip "Sửa tài liệu") để "Gửi như tin nhắn" đi đúng đường cũ, không đổi gì.
+ */
+interface LanguageCommandState {
+  id: number;
+  kind: Exclude<LanguageCommandOutcome, "send">;
+  text: string;
+  target: DocumentLanguage;
+  via: "chat" | "edit";
+  intent?: RunIntent;
+  /** `same`: ước tính dịch của ngôn ngữ hiện tại (đọc sau khi thẻ hiện) — còn mục thiếu thì mời dịch nốt. */
+  status: TranslationStatus | null;
+  busy: boolean;
+  error: string | null;
+}
+
 /** Cổng chốt nêu tối đa chừng này cờ mới — nhiều hơn thì user xem tiếp ở panel Kiểm tra. */
 const MAX_GATE_FLAGS = 3;
 /** Thao tác ở cổng duyệt như một lượt của user trong lịch sử — cùng câu chữ BE ghi transcript. */
@@ -101,18 +127,20 @@ const replyOfAsk = (content: string): string => {
 const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
 const RAIL_WIDTH_KEY = "flintflow_progress_rail_width";
 const PANEL_WIDTH_KEY = "flintflow_right_panel_width";
+const BRIEF_WIDTH_KEY = "flintflow_brief_panel_width";
 const CHAT_MIN = 320;
 const DOC_MIN = 320;
 /** Panel phải — mỗi lúc chỉ mở một; mở từ chip trạng thái của tài liệu hoặc nút "Công cụ" trên header. */
 type WorkspacePanel = "verification" | "tools";
 const PROGRESS_OPEN_KEY = "flintflow_workspace_progress_open";
 
+/** Mặc định mở: lần đầu vào workspace phải thấy ngay mình đang ở bước nào, rail ẩn chỉ khi user tự đóng. */
 const readSavedProgressOpen = (): boolean => {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return true;
   try {
-    return localStorage.getItem(PROGRESS_OPEN_KEY) === "1";
+    return localStorage.getItem(PROGRESS_OPEN_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 };
 
@@ -149,15 +177,14 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
       <div className="pl-5 pr-3 pb-2">
         <Skeleton className="h-2.5 w-14" />
       </div>
-      <div className="flex-1 min-h-0 px-3 flex flex-col gap-1">
+      <div className="flex-1 min-h-0 px-2.5 flex flex-col gap-1">
         {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="flex items-center gap-2.5 px-2 py-2">
-            <Skeleton className="size-5 rounded-full shrink-0" />
+          <div key={i} className="px-2.5 py-2">
             <Skeleton className={`h-3 ${i % 3 === 2 ? "w-2/3" : "w-4/5"}`} />
           </div>
         ))}
       </div>
-      <div className="shrink-0 px-4 py-3 flex flex-col gap-2.5">
+      <div className="shrink-0 px-5 pt-3 pb-4 flex flex-col gap-2">
         <Skeleton className="h-3 w-full" />
         <Skeleton className="h-1.5 w-full rounded-full" />
       </div>
@@ -216,7 +243,7 @@ export default function WorkspacePage() {
 }
 
 const MODE1_ACTION =
-  "shrink-0 px-3 py-1.5 rounded-full border border-[#DCD8F0] bg-[#F2F1FB] text-[12px] font-bold text-[#554DB0] hover:bg-[#E8E6F7] transition-colors";
+  "shrink-0 px-3 py-1.5 rounded-full border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] transition-colors";
 
 /**
  * Workspace pipeline — mode 2 (template FPT) và mode 1 sau import (`mode1`). Mode 1 v3 (bám BPMN Flow 1 ⇒ 3.1): không
@@ -293,6 +320,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       return el ? el.getBoundingClientRect().right - x : null;
     },
   });
+  // Pha Brief: chat co giãn, cột tóm tắt cố định ⇒ tay kéo đổi cỡ CỘT TÓM TẮT, đo từ mép phải của nó
+  const brief = useResizableWidth({
+    storageKey: BRIEF_WIDTH_KEY,
+    defaultWidth: 400,
+    min: 320,
+    max: () => Math.min(620, mainWidth() - CHAT_MIN),
+    measure: (x) => {
+      const el = document.getElementById("workspace-brief-panel");
+      return el ? el.getBoundingClientRect().right - x : null;
+    },
+  });
   const viewport = useSyncExternalStore(subscribeViewport, viewportWidth, () => Number.POSITIVE_INFINITY);
   const narrow = viewport < rail.width + CHAT_MIN + DOC_MIN + panel.width;
   const railShown = progressOpen && !(narrow && rightPanel !== null);
@@ -319,6 +357,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [focusMode]);
   const [exportOpen, setExportOpen] = useState(false);
+  /**
+   * Hộp "Dịch tài liệu" (FLF-265): mở từ cảnh báo "N mục chưa dịch" trên tài liệu; lệnh chat "dịch sang tiếng …" (§3.7)
+   * cũng mở bằng chính state này. Mode 1 không dịch (D3).
+   */
+  const [translateOpen, setTranslateOpen] = useState(false);
+  /** Ước tính đã đọc sẵn (lệnh chat vừa đổi ngôn ngữ / thẻ "Dịch N mục còn thiếu") ⇒ hộp dịch khỏi đọc lại lần đầu. */
+  const [translateStatus, setTranslateStatus] = useState<TranslationStatus | undefined>(undefined);
+  /** Thẻ lệnh đổi ngôn ngữ tài liệu trong chat (§3.7); `languageCommandSeq` bỏ kết quả về trễ của thẻ đã thay. */
+  const [languageCommand, setLanguageCommand] = useState<LanguageCommandState | null>(null);
+  const languageCommandSeq = useRef(0);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   /** Chip "Sửa tài liệu" trên ô chat: bật ⇒ nội dung gửi đi là lệnh sửa (`/changes/preview`), không phải tin chat. */
   // Mode 1 (phase 8): chat bên trái mặc định là sửa tài liệu qua change request; tắt chip ⇒ hỏi đáp
@@ -423,6 +471,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     },
     [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
+
+  /**
+   * Vòng dịch xong / dừng giữa chừng (FLF-265): chữ dịch nằm ở lớp bản dịch, Spine và `spine_version` không đổi ⇒ chỉ
+   * tải lại tài liệu và số dư credit.
+   */
+  const handleTranslated = useCallback(() => {
+    setDocumentRefreshToken((v) => v + 1);
+    refreshUser();
+  }, [refreshUser]);
 
   const rememberStat = useCallback((stepId: string | null, payload: { duration_ms?: number; credits_used?: number } | null | undefined) => {
     if (!stepId || payload?.duration_ms === undefined) return;
@@ -639,6 +696,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
 
   /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
   const inBriefPhase = (spine?.progress.current_phase ?? "").startsWith("B-") || spine?.progress.current_phase === "S-1";
+  // Badge trên nút "Hồ sơ" — cùng con số với tab "Chờ bạn quyết" của panel
+  const pendingCount = useMemo(() => (!mode1 && spine ? pendingRecordCount(spine, inBriefPhase) : 0), [mode1, spine, inBriefPhase]);
   /**
    * Khung phải ở B-0…B-2 là Brief panel, không phải SRS pane (FLF-221): SRS chưa có nội dung trước S-1, và một trang
    * tài liệu trống làm user tưởng phải viết SRS ngay. Theo giai đoạn của bước đang làm; S-1 trở đi là SRS pane như cũ.
@@ -817,6 +876,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * tên dự án tiếng Việt user gõ lúc tạo. Chưa chốt tên thì mới rơi về tên dự án.
    */
   const documentName = spine?.project.system_name?.trim() || ws.project?.name;
+  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
+  const documentLanguage = knownDocumentLanguage(ws.project);
   /**
    * BUG-03: vòng S-5 của màn đang để trống — panel Tiến độ mở lại được, thay vì khoá cứng 5 bước.
    * Chỉ S-5.1 là chỗ vào: chạy nó đưa màn về `in_progress` và các bước còn lại tự tới lượt.
@@ -974,7 +1035,92 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     });
   };
 
-  const sendFromChat = async (custom?: string, intent?: RunIntent) => {
+  /** Mở hộp "Dịch tài liệu"; `status` đã đọc sẵn thì hộp khỏi đọc lại lần đầu. */
+  const openTranslate = (status?: TranslationStatus) => {
+    setTranslateStatus(status);
+    setTranslateOpen(true);
+  };
+
+  /**
+   * FLF-265 §3.7 (D15): câu gõ là lệnh đổi ngôn ngữ tài liệu ⇒ KHÔNG gửi cho AI (dù là tin chat, lượt chạy bước hay lệnh
+   * sửa) — AI sẽ viết lại chữ Spine sang ngôn ngữ khác, trong khi Spine phải giữ tiếng Anh và bản dịch nằm ở lớp overlay.
+   * Hiện thẻ xác nhận trong chat thay vào. Viewer / câu không phải lệnh ⇒ `false`, nơi gọi gửi như cũ.
+   * Đính kèm đang chờ được giữ nguyên trong ô chat (chưa tải lên): "Gửi như tin nhắn" mang chúng đi cùng câu, còn đổi
+   * ngôn ngữ thì chúng ở lại cho tin nhắn kế tiếp.
+   */
+  const interceptLanguageCommand = (text: string, via: LanguageCommandState["via"], intent?: RunIntent): boolean => {
+    const target = parseLanguageCommand(text);
+    const kind = languageCommandOutcome({ target, canEdit, mode1, current: documentLanguage });
+    if (target === null || kind === "send") return false;
+    const id = ++languageCommandSeq.current;
+    ws.setInputMessage("");
+    setLanguageCommand({ id, kind, text: text.trim(), target, via, ...(intent ? { intent } : {}), status: null, busy: false, error: null });
+    // Đã ở đúng ngôn ngữ mà khác ngôn ngữ gốc: đọc ước tính để mời dịch nốt phần còn thiếu (lỗi ⇒ thẻ không có nút đó)
+    if (kind === "same" && target !== MODE2_SOURCE_LANGUAGE) {
+      void getTranslationStatus(projectId).then(
+        (res) => setLanguageCommand((prev) => (prev?.id === id && res.data ? { ...prev, status: res.data } : prev)),
+        () => undefined
+      );
+    }
+    return true;
+  };
+
+  /** Lệnh sửa (chip "Sửa tài liệu") cũng đi qua bước chặn — lệnh dịch không được thành một lệnh sửa gửi cho AI. */
+  const sendEditInstruction = (text: string) => {
+    if (interceptLanguageCommand(text, "edit")) return;
+    if (mode1) void crChat.send(text);
+    else submitEditInstruction(text);
+  };
+
+  /** "Gửi như tin nhắn": đúng câu đã gõ, đúng đường ban đầu, bỏ qua bước chặn. */
+  const sendLanguageCommandAsMessage = () => {
+    if (!languageCommand) return;
+    const { text, via, intent } = languageCommand;
+    setLanguageCommand(null);
+    if (via === "chat") void sendFromChat(text, intent, true);
+    else if (mode1) void crChat.send(text);
+    else submitEditInstruction(text);
+  };
+
+  /** Đóng thẻ không làm gì: trả câu về ô chat (nếu ô đang trống) để user sửa lại. */
+  const dismissLanguageCommand = () => {
+    if (!languageCommand) return;
+    if (!ws.inputMessage.trim()) ws.setInputMessage(languageCommand.text);
+    setLanguageCommand(null);
+  };
+
+  /**
+   * "Đồng ý": `PATCH document-language` ⇒ project mới vào workspace (chip + khoá tải lại tài liệu đổi theo) ⇒ đích khác
+   * ngôn ngữ gốc và còn mục chưa dịch thì mở hộp "Dịch tài liệu" với ước tính vừa đọc (user xác nhận credit ở đó).
+   */
+  const confirmLanguageSwitch = async () => {
+    const command = languageCommand;
+    if (!command || command.kind !== "switch") return;
+    setLanguageCommand({ ...command, busy: true, error: null });
+    try {
+      const res = await setDocumentLanguage(projectId, command.target);
+      const next = res.data ?? (ws.project ? { ...ws.project, documentLanguage: command.target } : null);
+      if (next) ws.replaceProject(next);
+    } catch (err) {
+      setLanguageCommand((prev) =>
+        prev?.id === command.id ? { ...prev, busy: false, error: userErrorMessage(err, "Không đổi được ngôn ngữ tài liệu") } : prev
+      );
+      return;
+    }
+    setLanguageCommand((prev) => (prev?.id === command.id ? null : prev));
+    setDocumentRefreshToken((v) => v + 1);
+    setToast(`Đã đổi tài liệu sang ${DOCUMENT_LANGUAGE_NAME[command.target]}`);
+    if (command.target === MODE2_SOURCE_LANGUAGE) return;
+    const status = await getTranslationStatus(projectId).then(
+      (res) => res.data,
+      () => null
+    );
+    if (status && status.missing > 0) openTranslate(status);
+  };
+
+  const sendFromChat = async (custom?: string, intent?: RunIntent, asMessage = false) => {
+    // FLF-265 §3.7: chặn lệnh đổi ngôn ngữ tài liệu trước MỌI nhánh gửi (mode 1, phiên phụ, trả lời, cổng, chạy bước)
+    if (!asMessage && interceptLanguageCommand(custom ?? ws.inputMessage, "chat", intent)) return;
     if (mode1) return ws.sendMessage(currentStep, custom);
     // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
     if (!onPipelineSession) return ws.sendMessage(currentStep, custom);
@@ -1076,7 +1222,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           currentStep={mode1 ? null : currentStep}
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
-          // Mode 1: gap report + change request mở dạng popup ngay trên màn tài liệu (`?panel=gap|cr`)
+          // Mode 1: gap report, change request, so sánh version mở dạng popup ngay trên màn tài liệu
+          // (`?panel=gap|cr|compare`)
           actions={
             mode1 ? (
               <>
@@ -1086,6 +1233,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 <Link href={crListHref(projectId)} scroll={false} className={MODE1_ACTION}>
                   Change request
                 </Link>
+                <Link href={compareHref(projectId)} scroll={false} className={MODE1_ACTION}>
+                  So sánh version
+                </Link>
               </>
             ) : undefined
           }
@@ -1093,6 +1243,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onToolsClick={() => togglePanel("tools")}
           toolsActive={rightPanel === "tools"}
           toolsLabel={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}
+          toolsCount={pendingCount}
           onLogout={ws.logout}
         />
       </Collapse>
@@ -1107,7 +1258,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           hideTrailingAiMessage={trailingAskReply !== null}
           title={mode1 ? "Hỏi đáp & lệnh sửa" : undefined}
           width={chat.width}
-          fill={briefHidden}
+          fill={briefHidden || briefPane}
           session={ws.activeSession}
           stepLabel={!mode1 && viewedStep ? stepLabel(viewedStep) : null}
           stepCode={!mode1 ? viewedStep : null}
@@ -1143,7 +1294,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           }
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
-          onEditInstruction={mode1 ? (text) => void crChat.send(text) : submitEditInstruction}
+          onEditInstruction={sendEditInstruction}
           onGoToPipeline={ws.pipelineSession ? () => void ws.selectSession(ws.pipelineSession!) : undefined}
           readOnlyNotice={canEdit ? undefined : "Bạn đang xem với vai trò Viewer — chỉ đọc được tài liệu, không gửi tin hay chạy bước AI."}
           editPlaceholder={mode1 ? crChat.inputHint : undefined}
@@ -1183,7 +1334,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
-            <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-[12px] text-accent-gold-text">
+            <div className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-body text-accent-gold-text">
               <p className="leading-relaxed">
                 Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt, nhưng{" "}
                 <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu
@@ -1192,7 +1343,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               <button
                 type="button"
                 onClick={() => void rerunStaleStep(viewedStep)}
-                className="self-start h-8 px-3.5 rounded-control text-[12px] font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+                className="self-start h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
               >
                 Cập nhật lại bước này
               </button>
@@ -1236,21 +1387,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             />
           )}
           {saveError && (
-            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex items-center justify-between gap-2">
+            <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex items-center justify-between gap-2">
               <span>{saveError}</span>
-              <button type="button" onClick={() => setSaveError(null)} className="text-[11.5px] font-bold underline cursor-pointer">
+              <button type="button" onClick={() => setSaveError(null)} className="text-body font-bold underline cursor-pointer">
                 Đóng
               </button>
             </div>
           )}
           {!mode1 && canEdit && onPipelineSession && runner.state.status === "interrupted" && !runner.state.error && runner.state.stepId && (
             // Lượt chết giữa chừng (reload, mất mạng): nút "Chạy lại" là lối duy nhất còn lại để chạy bước này (FLF-221)
-            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-wrap items-center gap-2">
+            <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-wrap items-center gap-2">
               <span className="flex-1 min-w-0">Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.</span>
               <button
                 type="button"
                 onClick={() => void handleErrorAction({ kind: "retry", label: "Chạy lại" })}
-                className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-error text-on-error cursor-pointer"
+                className="px-2.5 py-1 rounded-full text-body font-bold bg-error text-on-error cursor-pointer"
               >
                 Chạy lại
               </button>
@@ -1259,7 +1410,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           {runner.state.error && (
             // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được. Đây là NƠI DUY NHẤT nói câu lỗi — nhật ký
             // lượt chạy phía trên cố ý im, vì BE trả câu đã viết cho người nên nhắc lại chỉ thành tiếng vọng.
-            <div role="alert" className="bg-error-container rounded-control p-3 text-[12px] text-error flex flex-col gap-2">
+            <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-col gap-2">
               <span>{friendlyError(runner.state.error.code, runner.state.error.message).message}</span>
               <div className="flex flex-wrap items-center gap-2">
                 {friendlyError(runner.state.error.code, runner.state.error.message).actions.map((action) => (
@@ -1267,12 +1418,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                     key={action.kind}
                     type="button"
                     onClick={() => void handleErrorAction(action)}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-error text-on-error cursor-pointer"
+                    className="px-2.5 py-1 rounded-full text-body font-bold bg-error text-on-error cursor-pointer"
                   >
                     {action.label}
                   </button>
                 ))}
-                <button type="button" onClick={runner.reset} className="text-[11.5px] font-bold underline cursor-pointer">
+                <button type="button" onClick={runner.reset} className="text-body font-bold underline cursor-pointer">
                   Đóng
                 </button>
               </div>
@@ -1312,14 +1463,35 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               onDismiss={closeEditCard}
             />
           )}
+          {languageCommand && (
+            <LanguageCommandCard
+              kind={languageCommand.kind}
+              text={languageCommand.text}
+              target={languageCommand.target}
+              sourceLanguage={MODE2_SOURCE_LANGUAGE}
+              missing={languageCommand.status?.missing ?? null}
+              busy={languageCommand.busy}
+              error={languageCommand.error}
+              onConfirm={() => void confirmLanguageSwitch()}
+              onTranslate={() => {
+                const status = languageCommand.status ?? undefined;
+                setLanguageCommand(null);
+                openTranslate(status);
+              }}
+              onSendAsMessage={sendLanguageCommandAsMessage}
+              onCancel={dismissLanguageCommand}
+            />
+          )}
         </ChatPane>
 
-        {briefHidden ? null : (
+        {briefHidden ? null : briefPane ? (
+          <ResizeHandle active={brief.resizing} onStart={brief.startResize} onReset={brief.reset} label="Đổi cỡ cột tóm tắt" />
+        ) : (
           <ResizeHandle active={chat.resizing} onStart={chat.startResize} onReset={chat.reset} label="Đổi cỡ khung chat" />
         )}
 
         {briefHidden ? null : briefPane ? (
-          <BriefPanel spine={spine} updating={runner.state.busy} />
+          <BriefPanel spine={spine} updating={runner.state.busy} width={brief.width} />
         ) : (
         <DocumentPane
           projectId={projectId}
@@ -1342,6 +1514,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
+          documentLanguage={documentLanguage}
+          // Dịch tốn credit ⇒ chỉ Lead/Analyst; mode 1 giữ ngôn ngữ file, không dịch (D3)
+          onTranslate={!mode1 && canEdit ? () => setTranslateOpen(true) : undefined}
         />
         )}
 
@@ -1349,11 +1524,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label="Đổi cỡ panel bên phải" />
         <div id="workspace-right-panel" style={{ width: panel.width }} className="h-full shrink-0">
         {shownPanel === "tools" && spine && (
-          <aside className="w-full h-full bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
-            <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
+          <aside className="w-full h-full bg-surface-container rounded-l-dialog flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
+            <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Icon name="folder" size={16} className="text-primary" />
-                <h3 className="font-bold text-[13px] text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}</h3>
+                <h3 className="font-bold text-body text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}</h3>
               </div>
               <IconButton icon="close" size="sm" label="Đóng hồ sơ dự án" onClick={() => setRightPanel(null)} />
             </div>
@@ -1388,6 +1563,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         {shownPanel === "verification" && (
           <VerificationPane
             projectId={projectId}
+            // Bản đồ truy vết chọn thực thể từ Spine đang mở — không gọi thêm request
+            spine={spine ?? undefined}
             issues={{
               sectionLabelOf: (id) => sectionLabels.get(id),
               onShowSection: showSection,
@@ -1441,7 +1618,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       {(toast ?? ws.notice) && (
         <div
           role="status"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-[12px] font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-body font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
         >
           <span>{toast ?? ws.notice}</span>
           <button
@@ -1450,7 +1627,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               setToast(null);
               ws.clearNotice();
             }}
-            className="text-[11px] underline cursor-pointer"
+            className="text-caption underline cursor-pointer"
           >
             Đóng
           </button>
@@ -1485,6 +1662,29 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectName={documentName}
           flags={flags}
           onClose={() => setExportOpen(false)}
+          documentLanguage={documentLanguage}
+          // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
+          onTranslate={
+            !mode1 && canEdit
+              ? () => {
+                  setExportOpen(false);
+                  setTranslateOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {!mode1 && canEdit && (
+        <TranslateDialog
+          projectId={projectId}
+          open={translateOpen}
+          initialStatus={translateStatus}
+          onClose={() => {
+            setTranslateOpen(false);
+            setTranslateStatus(undefined);
+          }}
+          onDone={handleTranslated}
         />
       )}
 

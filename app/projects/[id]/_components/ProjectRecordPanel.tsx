@@ -12,6 +12,7 @@ import AssumptionSweepPanel from "./AssumptionSweepPanel";
 import AddendumTriagePanel from "./AddendumTriagePanel";
 import ScreenQueuePanel from "./ScreenQueuePanel";
 import EditHistory from "./EditHistory";
+import { pendingRecordCount } from "./project-record-pending";
 
 type RecordTab = "agreed" | "pending" | "history";
 
@@ -33,8 +34,8 @@ function Block({ title, hint, children }: { title: string; hint?: string; childr
   return (
     <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex flex-col gap-2">
       <div>
-        <h5 className="text-[13px] font-bold text-on-surface">{title}</h5>
-        {hint && <p className="text-[11.5px] text-on-surface-muted leading-relaxed">{hint}</p>}
+        <h5 className="text-body font-bold text-on-surface">{title}</h5>
+        {hint && <p className="text-body text-on-surface-variant leading-relaxed">{hint}</p>}
       </div>
       {children}
     </section>
@@ -56,11 +57,8 @@ export default function ProjectRecordPanel({
   historyLoading,
   onLoadHistory,
 }: ProjectRecordPanelProps) {
-  const unconfirmed = inBriefPhase ? spine.assumptions.filter((a) => a.status === "unconfirmed").length : 0;
-  const briefNotes = inBriefPhase ? spine.addendum.length : 0;
-  const screensQueued = spine.progress.current_phase === "S-5" ? spine.screens.filter((s) => s.detail_status === "pending").length : 0;
   const openItems = spine.other_requirements;
-  const pendingCount = unconfirmed + briefNotes + screensQueued + openItems.length;
+  const pendingCount = pendingRecordCount(spine, inBriefPhase);
   const decisions = (spine.decisions ?? []).filter((d) => d.superseded_by === null);
   const [tab, setTab] = useState<RecordTab>(pendingCount > 0 ? "pending" : "agreed");
   const busy = saving || readOnly;
@@ -72,7 +70,7 @@ export default function ProjectRecordPanel({
         idBase="project-record"
         value={tab}
         onChange={setTab}
-        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-[12px]"
+        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
         options={[
           { value: "agreed", label: "Đã thống nhất" },
           { value: "pending", label: "Chờ bạn quyết", ...(pendingCount > 0 ? { count: pendingCount } : {}) },
@@ -81,7 +79,7 @@ export default function ProjectRecordPanel({
       />
 
       {readOnly && (
-        <p className="px-1 text-[11.5px] text-on-surface-muted">Bạn đang xem với vai trò Viewer — chỉ xem hồ sơ, không chốt hay sửa được.</p>
+        <p className="px-1 text-body text-on-surface-variant">Bạn đang xem với vai trò Viewer — chỉ xem hồ sơ, không chốt hay sửa được.</p>
       )}
 
       <div role="tabpanel" id="project-record-panel" aria-labelledby={`project-record-tab-${tab}`} className="flex flex-col gap-2.5">
@@ -95,7 +93,7 @@ export default function ProjectRecordPanel({
                 <DecisionsPanel spine={spine} onSubmitOps={onSubmitOps} busy={busy} />
               </Block>
             ) : (
-              <p className="px-1 text-[12px] text-on-surface-muted">
+              <p className="px-1 text-body text-on-surface-variant">
                 <span className="font-semibold text-on-surface">Quyết định đã chốt</span> · chưa có
               </p>
             )}
@@ -121,8 +119,8 @@ export default function ProjectRecordPanel({
               <Block title={`Rủi ro & câu hỏi mở (${openItems.length})`} hint="Điều chưa ngã ngũ — trả lời trong chat khi AI hỏi tới.">
                 <ul className="flex flex-col gap-1.5">
                   {openItems.map((item) => (
-                    <li key={item.id} className="text-[12px] leading-relaxed text-on-surface">
-                      <span className="text-[11px] font-semibold text-on-surface-muted">{OTHER_KIND_LABEL[item.kind] ?? item.kind} · </span>
+                    <li key={item.id} className="text-body leading-relaxed text-on-surface">
+                      <span className="text-caption font-semibold text-on-surface-variant">{OTHER_KIND_LABEL[item.kind] ?? item.kind} · </span>
                       {otherRequirementText(item)}
                     </li>
                   ))}
@@ -135,7 +133,7 @@ export default function ProjectRecordPanel({
               </Block>
             )}
             {!inBriefPhase && spine.screens.length === 0 && openItems.length === 0 && (
-              <p className="px-1 py-2 text-[12px] text-on-surface-muted">Hiện chưa có gì chờ bạn quyết.</p>
+              <p className="px-1 py-2 text-body text-on-surface-variant">Hiện chưa có gì chờ bạn quyết.</p>
             )}
           </>
         )}

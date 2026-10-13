@@ -100,8 +100,8 @@ export default function OnboardingPage() {
   return (
     <section className="w-full max-w-[560px] mx-auto flex flex-col gap-6 pt-10 pb-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[22px] sm:text-[26px] font-extrabold text-on-surface tracking-tight">{t("title")}</h1>
-        <p className="text-[13.5px] text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
+        <h1 className="text-title sm:text-metric font-bold text-on-surface tracking-tight">{t("title")}</h1>
+        <p className="text-body text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
       </div>
 
       {/* Tab dạng segmented dùng chung (components/ui/Tabs). Trước đây tab đang chọn tô tím đặc, trùng chữ và trùng
@@ -122,14 +122,14 @@ export default function OnboardingPage() {
       />
 
       {error ? (
-        <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-[13px] text-on-error-container">
+        <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
           {error}
         </p>
       ) : null}
 
       {tab === "create" ? (
         <form onSubmit={handleCreate} role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
-          <label htmlFor="org-name" className="text-[13px] font-semibold text-on-surface">
+          <label htmlFor="org-name" className="text-body font-semibold text-on-surface">
             {t("nameLabel")}
           </label>
           <input
@@ -138,13 +138,13 @@ export default function OnboardingPage() {
             onChange={(e) => setName(e.target.value)}
             placeholder={t("namePlaceholder")}
             maxLength={80}
-            className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-[14px] text-on-surface"
+            className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-heading text-on-surface"
           />
-          <p className="text-[12.5px] text-on-surface-muted leading-[1.6]">{t("nameHint")}</p>
+          <p className="text-body text-on-surface-muted leading-[1.6]">{t("nameHint")}</p>
           <button
             type="submit"
             disabled={busy}
-            className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-[13.5px] font-semibold text-white"
+            className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
           >
             {busy ? t("creating") : t("createCta")}
           </button>
@@ -152,7 +152,7 @@ export default function OnboardingPage() {
       ) : (
         <div role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
           <form onSubmit={handleCheckCode} className="flex flex-col gap-3">
-            <label htmlFor="invite-code" className="text-[13px] font-semibold text-on-surface">
+            <label htmlFor="invite-code" className="text-body font-semibold text-on-surface">
               {t("codeLabel")}
             </label>
             <input
@@ -163,14 +163,14 @@ export default function OnboardingPage() {
                 setPreview(null);
               }}
               placeholder={t("codePlaceholder")}
-              className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-[14px] text-on-surface tracking-[0.2em] uppercase"
+              className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-heading text-on-surface tracking-[0.2em] uppercase"
             />
-            <p className="text-[12.5px] text-on-surface-muted leading-[1.6]">{t("codeHint")}</p>
+            <p className="text-body text-on-surface-muted leading-[1.6]">{t("codeHint")}</p>
             {preview ? null : (
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-[13.5px] font-semibold text-white"
+                className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
               >
                 {busy ? t("checking") : t("checkCode")}
               </button>
@@ -179,8 +179,8 @@ export default function OnboardingPage() {
 
           {preview ? (
             <div className="flex flex-col gap-3 rounded-lg border border-outline bg-surface-container p-4">
-              <p className="text-[13px] font-semibold text-on-surface">{t("previewTitle")}</p>
-              <p className="text-[13px] text-on-surface-muted">
+              <p className="text-body font-semibold text-on-surface">{t("previewTitle")}</p>
+              <p className="text-body text-on-surface-muted">
                 {t("previewBody", {
                   org: preview.organizationName,
                   role: tRoles(preview.role),
@@ -190,7 +190,7 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={handleJoin}
                 disabled={busy}
-                className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-[13.5px] font-semibold text-white"
+                className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
               >
                 {busy ? t("joining") : t("joinCta")}
               </button>

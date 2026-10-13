@@ -111,7 +111,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
           )}
           <p
             role="status"
-            className={`flex-1 min-w-0 truncate text-[12.5px] ${state.status === "interrupted" ? "text-[#B03030]" : "text-[#33312D]"}`}
+            className={`flex-1 min-w-0 truncate text-body ${state.status === "interrupted" ? "text-[#B03030]" : "text-[#33312D]"}`}
           >
             {headline}
           </p>
@@ -122,7 +122,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
             <button
               type="button"
               onClick={onBackground}
-              className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#F2F1EE] text-[#191817] hover:bg-[#E9E7E2] cursor-pointer"
+              className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold bg-[#F2F1EE] text-[#191817] hover:bg-[#E9E7E2] cursor-pointer"
             >
               Chạy nền
             </button>
@@ -131,7 +131,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
             <button
               type="button"
               onClick={onCancel}
-              className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FDF2F2] text-[#B03030] hover:bg-[#FBE4E4] cursor-pointer"
+              className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold bg-[#FDF2F2] text-[#B03030] hover:bg-[#FBE4E4] cursor-pointer"
             >
               Huỷ lượt
             </button>
@@ -140,13 +140,13 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
         </div>
 
         {slow && state.status !== "reconnecting" && (
-          <p className="text-[11.5px] text-[#6B6862]" role="status">
+          <p className="text-body text-[#6B6862]" role="status">
             AI phản hồi chậm hơn thường lệ, vẫn đang chạy.
           </p>
         )}
 
         {state.retry && (
-          <p className="text-[11.5px] text-[#8A6D1F] bg-[#FBF4E4] rounded-[8px] px-2 py-1">
+          <p className="text-body text-[#8A6D1F] bg-[#FBF4E4] rounded-[8px] px-2 py-1">
             {/* Lý do (parse hỏng, thiếu trường) và số lần là chuyện của hệ thống — user chỉ cần biết lượt này lâu hơn thường lệ */}
             AI đang thử lại…
           </p>

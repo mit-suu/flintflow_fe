@@ -17,6 +17,8 @@ interface ProjectGridProps {
   onDelete: (p: Project) => void;
   onHardDelete: (p: Project) => void;
   onMoveToFolder?: (p: Project) => void;
+  /** Có ⇒ menu card thêm "Ngôn ngữ tài liệu" (FLF-265). */
+  onChangeDocumentLanguage?: (p: Project) => void;
   /** Card kéo được vào thẻ thư mục. */
   draggable?: boolean;
   /** Tên thư mục của dự án (chip trên card) — chỉ truyền ở nơi hiện cả dự án trong thư mục. */
@@ -38,6 +40,7 @@ export default function ProjectGrid({
   onDelete,
   onHardDelete,
   onMoveToFolder,
+  onChangeDocumentLanguage,
   draggable,
   folderNameOf,
   selectable,
@@ -57,6 +60,7 @@ export default function ProjectGrid({
           onDelete={onDelete}
           onHardDelete={onHardDelete}
           onMoveToFolder={onMoveToFolder}
+          onChangeDocumentLanguage={onChangeDocumentLanguage}
           draggable={draggable}
           folderName={folderNameOf?.(p)}
           selectable={selectable}

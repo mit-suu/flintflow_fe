@@ -62,7 +62,7 @@ function useSubmit(onDone: FolderDialogsProps["onDone"], onClose: () => void) {
 
 const ErrorBox = ({ error }: { error: string | null }) =>
   error ? (
-    <p role="alert" className="text-[12.5px] text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
+    <p role="alert" className="text-body text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
       {error}
     </p>
   ) : null;
@@ -85,7 +85,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
     return (
       <Modal open onClose={close} title={t("deleteTitle")}>
         <div className="flex flex-col gap-4">
-          <p className="text-[13.5px] text-on-surface-medium leading-[1.6]">
+          <p className="text-body text-on-surface-medium leading-[1.6]">
             {t("deleteBody", { name: target.folder.name })}
           </p>
           <ErrorBox error={error} />
@@ -114,7 +114,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
           className="flex flex-col gap-4"
         >
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="text-[12.5px] text-on-surface-muted mb-2">
+            <legend className="text-body text-on-surface-muted mb-2">
               {target.projects.length === 1
                 ? t("moveLegend", { name: target.projects[0].name })
                 : t("moveLegendMany", { count: target.projects.length })}
@@ -122,7 +122,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
             {options.map((o) => (
               <label
                 key={o._id ?? "none"}
-                className={`flex items-center gap-2.5 px-3 h-10 rounded-control border cursor-pointer text-[13px] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
+                className={`flex items-center gap-2.5 px-3 h-10 rounded-control border cursor-pointer text-body has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${
                   folderId === o._id ? "border-outline-purple bg-primary-soft text-primary-hover font-semibold" : "border-outline-variant hover:bg-surface-container-low"
                 }`}
               >
@@ -131,7 +131,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
                 {o.name}
               </label>
             ))}
-            {folders.length === 0 && <p className="text-[12px] text-on-surface-muted">{t("noFolders")}</p>}
+            {folders.length === 0 && <p className="text-body text-on-surface-muted">{t("noFolders")}</p>}
           </fieldset>
           <ErrorBox error={error} />
           <div className="flex justify-end gap-2">
@@ -163,7 +163,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
         className="flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="folder-name" className="text-[12.5px] font-bold text-on-surface-medium">
+          <label htmlFor="folder-name" className="text-body font-bold text-on-surface-medium">
             {t("nameLabel")}
           </label>
           <input
@@ -174,11 +174,11 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
             maxLength={FOLDER_NAME_MAX}
             placeholder={t("namePlaceholder")}
             onChange={(e) => setName(e.target.value)}
-            className="h-10 px-3.5 rounded-control border border-outline bg-surface-container-low text-[13.5px] text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="h-10 px-3.5 rounded-control border border-outline bg-surface-container-low text-body text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </div>
         <fieldset>
-          <legend className="text-[12.5px] font-bold text-on-surface-medium mb-2">{t("colorLegend")}</legend>
+          <legend className="text-body font-bold text-on-surface-medium mb-2">{t("colorLegend")}</legend>
           <div className="flex gap-2.5">
             {FOLDER_COLOR_ORDER.map((c) => (
               <label key={c} title={tColor(FOLDER_COLORS[c].colorKey)} className="cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary rounded-full">

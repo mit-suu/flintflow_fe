@@ -34,7 +34,7 @@ export function QuickReplyChip({ children, onClick, tone = "soft", disabled = fa
       aria-busy={busy || undefined}
       aria-label={ariaLabel}
       title={title}
-      className={`min-h-9 px-3.5 py-1.5 rounded-control text-[12.5px] font-semibold text-left cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed ${TONE[tone]}`}
+      className={`min-h-9 px-3.5 py-1.5 rounded-control text-body font-semibold text-left cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed ${TONE[tone]}`}
     >
       {busy && <span aria-hidden className="size-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />}
       {children}

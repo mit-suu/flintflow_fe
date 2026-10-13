@@ -20,7 +20,7 @@ export default function ReasonDialog({ open, title, description, confirmLabel, o
   const tooShort = reason.trim().length < DECISION_REASON_MIN_LENGTH;
   return (
     <Modal open={open} onClose={onClose} title={title}>
-      <div className="flex flex-col gap-3 text-[13px] text-[#4B4842]">
+      <div className="flex flex-col gap-3 text-body text-[#4B4842]">
         <p>{description}</p>
         <textarea
           aria-label="Lý do"
@@ -28,17 +28,17 @@ export default function ReasonDialog({ open, title, description, confirmLabel, o
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           placeholder={`Lý do (ít nhất ${DECISION_REASON_MIN_LENGTH} ký tự)`}
-          className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-[13px]"
+          className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body"
         />
         <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-[13px] font-semibold">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-body font-semibold">
             Quay lại
           </button>
           <button
             type="button"
             disabled={tooShort || busy}
             onClick={() => onConfirm(reason.trim())}
-            className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-[13px] font-bold disabled:opacity-50"
+            className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-body font-bold disabled:opacity-50"
           >
             {busy ? "Đang xử lý…" : confirmLabel}
           </button>

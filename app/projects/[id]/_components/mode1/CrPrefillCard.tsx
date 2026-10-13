@@ -21,7 +21,7 @@ export default function CrPrefillCard({ projectId, prefill, onDismiss }: CrPrefi
   const kind = prefill.source?.kind;
   const source: SourceKind = kind && (NEW_CR_SOURCE_KINDS as readonly string[]).includes(kind) ? (kind as SourceKind) : "verbal";
   return (
-    <div role="status" className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[14px] p-3.5 flex flex-col gap-2 text-[12.5px] text-[#554DB0]">
+    <div role="status" className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[14px] p-3.5 flex flex-col gap-2 text-body text-[#554DB0]">
       <p className="font-bold text-[#191817]">Muốn sửa tài liệu? Hãy tạo change request</p>
       <p>
         Tài liệu đã import — mọi thay đổi phải qua change request để được làm rõ, tìm vị trí ảnh hưởng, kiểm và duyệt trước khi

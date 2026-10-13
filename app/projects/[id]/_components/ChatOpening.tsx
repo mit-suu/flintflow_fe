@@ -24,7 +24,7 @@ export default function ChatOpening({ onPick, disabled = false }: ChatOpeningPro
         type="button"
         disabled={disabled}
         onClick={() => onPick({ message: t(`chips.${key}.message`), intent })}
-        className={`min-h-9 px-3 py-1.5 rounded-control text-left text-[12.5px] font-semibold cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 ${
+        className={`min-h-9 px-3 py-1.5 rounded-control text-left text-body font-semibold cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 ${
           accent ? "bg-primary-soft text-primary hover:bg-primary-light" : "bg-surface-container-low text-on-surface hover:bg-surface-container-high"
         }`}
       >
@@ -37,9 +37,9 @@ export default function ChatOpening({ onPick, disabled = false }: ChatOpeningPro
   return (
     <section className="flex items-start" aria-label={t("aria")}>
       <div className="flex-1 min-w-0 flex flex-col gap-3">
-        <p className="text-[14px] leading-7 text-on-surface">{t("greeting")}</p>
+        <p className="text-heading leading-7 text-on-surface">{t("greeting")}</p>
         <div className="flex flex-col gap-2">
-          <p className="text-[11.5px] font-semibold text-on-surface-muted">{t("hint")}</p>
+          <p className="text-body font-semibold text-on-surface-muted">{t("hint")}</p>
           <ul className="flex flex-wrap gap-2" aria-label={t("suggestionsAria")}>
             {CHAT_OPENING_IDEAS.map((item) => chip(item))}
             {chip(CHAT_OPENING_NO_IDEA, true)}

@@ -10,14 +10,16 @@ import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { createComment, listComments, replyComment, resolveComment } from "@/lib/api/comments";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { knownDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "@/lib/document-language";
 import { BlockView, followsHeading, sectionLabel } from "../_components/DocumentPane";
 import CommentPanel, { commentTab, type CommentTab, type CommentTarget } from "../_components/CommentPanel";
-import type { RenderedDocument, RenderedSection } from "@/types/document";
+import DocumentLanguageChip from "../_components/DocumentLanguageChip";
+import type { DocumentTranslationMeta, RenderedDocument, RenderedSection } from "@/types/document";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Baseline } from "@/types/spine";
 import type { SrsComment } from "@/types/comment";
 import type { OrgRole } from "@/types/organization";
-import type { ProjectMode } from "@/types/project";
+import type { DocumentLanguage, ProjectMode } from "@/types/project";
 
 /** Chu kỳ tải lại comment khi tab đang hiện — đủ nhanh để thấy trả lời / xử lý của người khác, không cần F5. */
 const COMMENT_POLL_MS = 15_000;
@@ -50,6 +52,9 @@ export default function ReadOnlyDocumentPage() {
 
   const [doc, setDoc] = useState<RenderedDocument | null>(null);
   const [progress, setProgress] = useState<ProgressResponse | null>(null);
+  /** FLF-265: ngôn ngữ suy từ dự án + `meta.translation` của bản đang đọc — ghép thành chip chỉ đọc ở header. */
+  const [projectLanguage, setProjectLanguage] = useState<DocumentLanguage | null>(null);
+  const [translation, setTranslation] = useState<DocumentTranslationMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,8 +82,11 @@ export default function ReadOnlyDocumentPage() {
     ]).then(([roleResult, projectResult, baselinesResult]) => {
       const nextRole = roleResult.status === "fulfilled" ? roleResult.value : null;
       const nextBaselines = baselinesResult.status === "fulfilled" ? (baselinesResult.value.data ?? []) : [];
+      const project = projectResult.status === "fulfilled" ? projectResult.value.data : null;
       setRole(nextRole);
-      setMode(projectResult.status === "fulfilled" ? (projectResult.value.data?.mode ?? null) : null);
+      setMode(project?.mode ?? null);
+      // Ngôn ngữ tài liệu (FLF-265) — lỗi thì thôi hiện chip
+      setProjectLanguage(knownDocumentLanguage(project));
       setBaselines(nextBaselines);
       const latest = nextBaselines[nextBaselines.length - 1];
       setVersion(nextRole === "viewer" && latest ? latest.id : "draft");
@@ -94,9 +102,11 @@ export default function ReadOnlyDocumentPage() {
       ([docResult, progressResult]) => {
         if (docResult.status === "fulfilled") {
           setDoc(docResult.value.data);
+          setTranslation(translationMetaOf(docResult.value.meta));
           setError(null);
         } else {
           setDoc(null);
+          setTranslation(null);
           setError(docResult.reason instanceof Error ? docResult.reason.message : "Không tải được tài liệu");
         }
         setProgress(progressResult.status === "fulfilled" ? progressResult.value.data : null);
@@ -151,6 +161,9 @@ export default function ReadOnlyDocumentPage() {
     const info = progress?.sections.find((s) => s.id === section.id);
     return Boolean(info?.required && info.status !== "accepted");
   };
+
+  // `meta.translation` của chính bản đang đọc thắng ngôn ngữ suy từ dự án
+  const language = shownDocumentLanguage(translation, projectLanguage);
 
   const baseline = version && version !== "draft" ? baselines.find((b) => b.id === version) : undefined;
   const versionLabel = baseline ? baseline.version : "nháp";
@@ -233,7 +246,7 @@ export default function ReadOnlyDocumentPage() {
             type="button"
             onClick={() => setFocus({ section_id: section.id, block_index: blockIndex })}
             aria-label={`Xem ${count} comment`}
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#EEEDFB] text-[#4A42A8] cursor-pointer"
+            className="text-caption font-bold px-1.5 py-0.5 rounded-full bg-[#EEEDFB] text-[#4A42A8] cursor-pointer"
           >
             💬 {count}
           </button>
@@ -244,7 +257,7 @@ export default function ReadOnlyDocumentPage() {
             onClick={() => startComment(section, blockIndex)}
             aria-label={blockIndex === null ? `Comment mục ${sectionLabel(section)}` : `Comment đoạn ${blockIndex + 1} của ${sectionLabel(section)}`}
             title="Ghim comment"
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[12px] px-1 rounded hover:bg-[#F0EEEA] cursor-pointer"
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-body px-1 rounded hover:bg-[#F0EEEA] cursor-pointer"
           >
             💬
           </button>
@@ -257,12 +270,13 @@ export default function ReadOnlyDocumentPage() {
     <div className="min-h-screen bg-[#F5F3F0] flex flex-col">
       <header className="bg-white border-b border-[#ECEAE5] px-6 py-3 flex items-center justify-between gap-3 shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
-          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
+          <span className="text-body font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
+          <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
+          {language && <DocumentLanguageChip language={language} />}
         </div>
         <div className="flex items-center gap-3">
           {version !== null && (
-            <label className="flex items-center gap-1.5 text-[11.5px] text-[#6B6862]">
+            <label className="flex items-center gap-1.5 text-body text-[#6B6862]">
               Phiên bản
               <select
                 value={version}
@@ -271,7 +285,7 @@ export default function ReadOnlyDocumentPage() {
                   setTarget(null);
                   setVersion(e.target.value);
                 }}
-                className="px-2 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[12px] text-[#191817]"
+                className="px-2 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body text-[#191817]"
               >
                 <option value="draft">Bản nháp</option>
                 {baselines.map((b) => (
@@ -286,12 +300,12 @@ export default function ReadOnlyDocumentPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 ff-scroll overflow-y-auto p-6">
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-5 items-start">
           <div className="flex-1 min-w-0 max-w-3xl w-full mx-auto flex flex-col gap-3">
-            {loading && <div className="text-[12px] text-[#A8A49C] italic">Đang tải tài liệu…</div>}
+            {loading && <div className="text-body text-[#A8A49C] italic">Đang tải tài liệu…</div>}
             {!loading && error && (
-              <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-[11.5px] text-[#8A4141]">
+              <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-body text-[#8A4141]">
                 Không tải được tài liệu: {error}
               </div>
             )}
@@ -299,13 +313,13 @@ export default function ReadOnlyDocumentPage() {
               doc?.sections.map((section) => (
                 <article key={section.id} className="p-4 rounded-[12px] border border-[#ECEAE5] bg-white flex flex-col gap-2">
                   <div className="group flex items-start justify-between gap-2">
-                    <h5 className="font-bold text-[12.5px] text-[#191817]">
+                    <h5 className="font-bold text-body text-[#191817]">
                       {section.number ? `${section.number}. ` : ""}{section.heading}
                     </h5>
                     {pinControls(section, null)}
                   </div>
                   {isIncomplete(section) ? (
-                    <div className="text-[11.5px] text-[#A8A49C] italic">chưa hoàn thiện</div>
+                    <div className="text-body text-[#A8A49C] italic">chưa hoàn thiện</div>
                   ) : section.blocks.length > 0 ? (
                     section.blocks.map((block, i) => {
                       const pinned = (pinCounts.get(`${section.id}#${i}`) ?? 0) > 0;
@@ -319,7 +333,7 @@ export default function ReadOnlyDocumentPage() {
                       );
                     })
                   ) : (
-                    <div className="text-[11.5px] text-[#A8A49C] italic">chưa hoàn thiện</div>
+                    <div className="text-body text-[#A8A49C] italic">chưa hoàn thiện</div>
                   )}
                 </article>
               ))}
@@ -327,7 +341,7 @@ export default function ReadOnlyDocumentPage() {
 
           <div className="w-full lg:w-[340px] lg:sticky lg:top-0 shrink-0 flex flex-col gap-2">
             {commentError && (
-              <p role="alert" className="text-[11.5px] text-[#B03030]">
+              <p role="alert" className="text-body text-[#B03030]">
                 {commentError}
               </p>
             )}

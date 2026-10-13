@@ -79,7 +79,14 @@ export default function ChatSessionHistory({
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
-        className={open ? "bg-primary-fixed text-primary hover:bg-primary-fixed hover:text-primary" : ""}
+        // Thanh tiêu đề chat không có nền ⇒ nút tự mang nền để còn ra hình nút, và phải đậm hơn nền pane
+        // (`surface-container-low`) một nấc mới thấy; hover đậm thêm một nấc vì nấc mặc định của IconButton
+        // trùng đúng nền lúc đóng.
+        className={
+          open
+            ? "bg-primary-fixed text-primary hover:bg-primary-fixed hover:text-primary"
+            : "bg-surface-container-high text-on-surface-medium hover:bg-surface-container-highest hover:text-on-surface"
+        }
       />
 
       {mounted && (
@@ -92,7 +99,7 @@ export default function ChatSessionHistory({
           }`}
         >
           <div className="flex items-center justify-between px-2 pt-1 pb-1.5">
-            <span className="text-[12.5px] font-bold text-on-surface">Lịch sử phiên chat</span>
+            <span className="text-body font-bold text-on-surface">Lịch sử phiên chat</span>
             {!readOnly && (
               <Button
                 size="sm"
@@ -112,7 +119,7 @@ export default function ChatSessionHistory({
           </div>
 
           <ul className="flex-1 overflow-y-auto ff-scroll flex flex-col gap-0.5">
-            {sessions.length === 0 && <li className="text-center text-[12px] text-on-surface-subtle py-6">Chưa có phiên chat nào</li>}
+            {sessions.length === 0 && <li className="text-center text-body text-on-surface-subtle py-6">Chưa có phiên chat nào</li>}
             {sessions.map((session) => {
               const isActive = session._id === activeSessionId;
               const isPipeline = session._id === pipelineSessionId;
@@ -131,13 +138,13 @@ export default function ChatSessionHistory({
                     }}
                     className="flex-1 min-w-0 text-left px-2.5 py-2 cursor-pointer rounded-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
-                    <div className={`flex items-center gap-1.5 text-[12px] font-bold ${isActive ? "text-primary" : "text-on-surface-dark"}`}>
+                    <div className={`flex items-center gap-1.5 text-body font-bold ${isActive ? "text-primary" : "text-on-surface-dark"}`}>
                       <span className="truncate">Phiên #{session._id.slice(-4)}</span>
                       {isPipeline && (
-                        <span className="shrink-0 px-1.5 py-px rounded-full text-[10px] font-bold bg-primary-soft text-primary-hover">Phiên chính</span>
+                        <span className="shrink-0 px-1.5 py-px rounded-full text-caption font-bold bg-primary-soft text-primary-hover">Phiên chính</span>
                       )}
                     </div>
-                    <div className="text-[11px] text-on-surface-muted truncate mt-0.5">{last ? previewOf(last.content) : "Phiên mới"}</div>
+                    <div className="text-caption text-on-surface-muted truncate mt-0.5">{last ? previewOf(last.content) : "Phiên mới"}</div>
                   </button>
                   {/* Phiên chính giữ transcript các bước của quy trình — không xoá được (BE trả 409 PIPELINE_SESSION_LOCKED) */}
                   {!isPipeline && !readOnly && (
@@ -157,7 +164,7 @@ export default function ChatSessionHistory({
       )}
 
       <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title="Xoá phiên chat?">
-        <p className="text-[13px] text-on-surface-variant leading-relaxed flex gap-2">
+        <p className="text-body text-on-surface-variant leading-relaxed flex gap-2">
           <Icon name="warning" size={18} className="text-error mt-0.5" />
           Lịch sử hội thoại trong phiên này sẽ bị xoá vĩnh viễn. Các đặc tả đã sinh trong dự án vẫn được giữ nguyên.
         </p>

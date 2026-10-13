@@ -59,13 +59,15 @@ export default function Tabs<T extends string>({ label, value, options, onChange
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
-            className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-inner text-[12.5px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-              selected ? "bg-surface-container-lowest text-on-surface shadow-[0_1px_3px_rgba(25,24,23,0.10)]" : "text-on-surface-variant hover:text-on-surface"
+            className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-inner text-body font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              // Tab đang chọn mang màu thương hiệu, không phải "trắng + bóng": nền trắng trên rãnh xám nhạt
+              // là hai sắc gần nhau, phải nhờ bóng mới thấy — tím nói ngay cái nào đang mở.
+              selected ? "bg-primary-fixed text-primary" : "text-on-surface-variant hover:text-on-surface"
             }`}
           >
             {option.label}
             {option.count !== undefined && (
-              <span className={`text-[11px] tabular-nums ${selected ? "text-on-surface-muted" : "text-on-surface-subtle"}`}>{option.count}</span>
+              <span className={`text-caption tabular-nums ${selected ? "text-primary-hover" : "text-on-surface-muted"}`}>{option.count}</span>
             )}
           </button>
         );

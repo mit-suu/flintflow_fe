@@ -10,7 +10,7 @@ interface CountBadgeProps {
 export default function CountBadge({ count, tone = "neutral", max = 99, className }: CountBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10.5px] font-extrabold tabular-nums ${
+      className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-caption font-extrabold tabular-nums ${
         tone === "alert" ? "bg-error text-on-error" : "bg-surface-container-highest text-on-surface-variant"
       } ${className ?? ""}`}
     >

@@ -241,7 +241,7 @@ test.describe("luồng Brief với model thật", () => {
       PROJECT_NAME = existing.data!.name;
       note("note", "-", `chạy tiếp project ${projectId} — ${PROJECT_NAME}`);
     } else {
-      const created = await api<{ _id: string }>(request, "post", "/projects", { name: PROJECT_NAME, mode: "fpt" });
+      const created = await api<{ _id: string }>(request, "post", "/projects", { name: PROJECT_NAME, mode: "fpt", documentLanguage: "en" });
       expect(created.data?._id, `tạo project: ${created.error?.message}`).toBeTruthy();
       projectId = created.data!._id;
       note("note", "-", `project ${projectId} — ${PROJECT_NAME}`);

@@ -28,12 +28,13 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
   const goals = full ? allGoals : allGoals.slice(0, GOALS_PREVIEW);
 
   const chip = (text: string) => (
-    <span key={text} className="text-[10.5px] font-semibold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">
+    // Chữ sẫm trên nền xám đậm hơn card một nấc: xám-nhạt-trên-xám-nhạt đọc ra một cục, không ra chữ
+    <span key={text} className="text-caption font-bold text-on-surface-dark bg-surface-container-high px-2 py-0.5 rounded-full">
       {text}
     </span>
   );
-  const missing = (label: string) => <p className="text-[11.5px] text-on-surface-muted italic">Chưa có {label}.</p>;
-  const label = (text: string) => <h6 className="text-[11px] font-semibold text-on-surface-muted">{text}</h6>;
+  const missing = (label: string) => <p className="text-body text-on-surface-variant italic">Chưa có {label}.</p>;
+  const label = (text: string) => <h6 className="text-caption font-semibold text-on-surface-variant">{text}</h6>;
 
   // Rủi ro & câu hỏi mở nằm ở tab "Chờ bạn quyết" — đây chỉ là những gì đã thống nhất
   return (
@@ -46,7 +47,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
       <section className="flex flex-col gap-0.5">
         {label("Tầm nhìn")}
         {vision ? (
-          <p className={`text-[12px] leading-relaxed ${full ? "" : "line-clamp-3"}`}>{vision}</p>
+          <p className={`text-body leading-relaxed ${full ? "" : "line-clamp-3"}`}>{vision}</p>
         ) : (
           missing("tầm nhìn")
         )}
@@ -55,7 +56,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
       <section className="flex flex-col gap-0.5">
         {label(`Mục tiêu (${allGoals.length})`)}
         {allGoals.length > 0 ? (
-          <ul className="list-disc pl-4 text-[12px] leading-relaxed space-y-0.5">
+          <ul className="list-disc pl-4 text-body leading-relaxed space-y-0.5">
             {goals.map((goal) => (
               <li key={goal.id}>{goal.text}</li>
             ))}
@@ -70,8 +71,8 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
           {label("Ghi chú theo mục tài liệu")}
           {groups.map(([target, entries]) => (
             <div key={target} className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-on-surface-variant">{SECTION_LABEL[target] ?? "Mục khác"}</span>
-              <ul className="list-disc pl-4 text-[11.5px] leading-relaxed space-y-0.5">
+              <span className="text-caption font-semibold text-on-surface-variant">{SECTION_LABEL[target] ?? "Mục khác"}</span>
+              <ul className="list-disc pl-4 text-body leading-relaxed space-y-0.5">
                 {entries.map((entry) => (
                   <li key={entry.id}>
                     {entry.content}
@@ -84,7 +85,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
       )}
 
       {(allGoals.length > GOALS_PREVIEW || groups.length > 0 || (vision?.length ?? 0) > 180) && (
-        <button type="button" onClick={() => setFull((v) => !v)} className="self-start text-[11.5px] font-semibold text-primary hover:underline cursor-pointer">
+        <button type="button" onClick={() => setFull((v) => !v)} className="self-start text-body font-semibold text-primary hover:underline cursor-pointer">
           {full ? "Thu gọn" : "Xem đầy đủ"}
         </button>
       )}

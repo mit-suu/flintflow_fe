@@ -52,11 +52,11 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h3 className="font-extrabold text-[#191817] text-[15px]">Xem lại field độ tin thấp</h3>
-        <p className="text-[12px] text-[#8A867E]">
+        <h3 className="font-extrabold text-[#191817] text-heading">Xem lại field độ tin thấp</h3>
+        <p className="text-body text-[#8A867E]">
           {fields.length} field AI chưa chắc. Sửa giá trị nếu sai; bấm xác nhận để chốt tất cả (field không sửa giữ nguyên như AI trích).
         </p>
-        <p className="text-[12px] text-[#8A6D1F]">
+        <p className="text-body text-[#8A6D1F]">
           Đây là chỗ sửa duy nhất trước khi chốt baseline v0 — sau đó mọi thay đổi đi qua change request.
         </p>
       </div>
@@ -67,17 +67,17 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
           const changed = key in edits && edits[key] !== valueToText(f.value);
           return (
             <li key={key} className={`bg-white border rounded-[14px] p-3 flex flex-col gap-2 ${changed ? "border-[#6A62C4]" : "border-[#ECEAE5]"}`}>
-              <div className="flex flex-wrap items-center gap-2 text-[12px]">
+              <div className="flex flex-wrap items-center gap-2 text-body">
                 <span className="font-bold text-[#191817]" title={f.path}>
                   {pathLabel(f.path, f.entity_name)}
                 </span>
                 <span className="text-[#8A867E]">· {sectionLabel(f.section_id)}</span>
                 {f.origin === "vision" && (
-                  <span className="ml-auto px-2 py-0.5 rounded-full bg-[#EEEBFA] text-[#6A62C4] font-bold text-[11px]" title="Đọc từ ảnh diagram trong tài liệu — luôn cần bạn xác nhận">
+                  <span className="ml-auto px-2 py-0.5 rounded-full bg-[#EEEBFA] text-[#6A62C4] font-bold text-caption" title="Đọc từ ảnh diagram trong tài liệu — luôn cần bạn xác nhận">
                     từ ảnh
                   </span>
                 )}
-                <span className={`${f.origin === "vision" ? "" : "ml-auto "}px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F] font-bold text-[11px]`}>
+                <span className={`${f.origin === "vision" ? "" : "ml-auto "}px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F] font-bold text-caption`}>
                   độ tin {formatPercent(f.confidence)}
                 </span>
               </div>
@@ -86,9 +86,9 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
                 value={text}
                 rows={Math.min(4, Math.max(1, Math.ceil(text.length / 80)))}
                 onChange={(e) => setEdits((prev) => ({ ...prev, [key]: e.target.value }))}
-                className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] text-[12.5px] font-mono"
+                className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] text-body font-mono"
               />
-              <div className="text-[11px] text-[#A8A49C]">
+              <div className="text-caption text-[#A8A49C]">
                 <span title={f.source_block_ids.join(", ")}>
                   Nguồn: {f.source_block_ids.length ? `${f.source_block_ids.length} đoạn trong tài liệu` : "—"}
                 </span>{" "}
@@ -104,7 +104,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
           type="button"
           onClick={submit}
           disabled={busy}
-          className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-[13px] font-bold disabled:opacity-50 cursor-pointer"
+          className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
         >
           {busy ? "Đang lưu…" : "Xác nhận tất cả field"}
         </button>

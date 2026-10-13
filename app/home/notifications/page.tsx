@@ -113,9 +113,9 @@ export default function NotificationsPage() {
       <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8 bg-surface-container-lowest">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">{t("title")}</h1>
+            <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
             {unreadCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#EFEEF9] text-[11.5px] font-bold text-[#554DB0]">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#EFEEF9] text-body font-bold text-[#554DB0]">
                 {t("unreadCount", { count: unreadCount })}
               </span>
             )}
@@ -128,7 +128,7 @@ export default function NotificationsPage() {
                   key={f}
                   type="button"
                   onClick={() => changeFilter(f)}
-                  className={`px-3.5 py-1.5 rounded-inner text-[12px] font-semibold transition-colors cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-inner text-body font-semibold transition-colors cursor-pointer ${
                     filter === f ? "bg-[#191817] text-white" : "text-[#6B6862] hover:text-[#191817]"
                   }`}
                 >
@@ -140,7 +140,7 @@ export default function NotificationsPage() {
               type="button"
               onClick={handleMarkAll}
               disabled={unreadCount === 0}
-              className="px-3.5 py-1.5 rounded-control border border-[#E4E1DC] bg-white text-[12px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-control border border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
             >
               {t("markAll")}
             </button>
@@ -160,7 +160,7 @@ export default function NotificationsPage() {
           {loading ? (
             <PageSkeleton variant="list" label={t("loadingList")} bare />
           ) : items.length === 0 ? (
-            <div className="py-16 text-center text-[13px] text-[#A8A49C]">
+            <div className="py-16 text-center text-body text-[#A8A49C]">
               {filter === "unread" ? t("allRead") : t("empty")}
             </div>
           ) : (
@@ -174,18 +174,18 @@ export default function NotificationsPage() {
                 <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.readAt ? "bg-[#E4E1DC]" : "bg-[#6A62C4]"}`} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[13.5px] font-bold text-[#191817]">{text.title}</span>
-                    <span className="text-[11px] text-[#A8A49C] ml-auto shrink-0">
+                    <span className="text-body font-bold text-[#191817]">{text.title}</span>
+                    <span className="text-caption text-[#A8A49C] ml-auto shrink-0">
                       {formatNotificationTime(n.createdAt, tTime as TimeTranslator, locale)}
                     </span>
                   </div>
-                  <p className="text-[12.5px] text-[#6B6862] leading-[1.55] mt-0.5">{text.body}</p>
+                  <p className="text-body text-[#6B6862] leading-[1.55] mt-0.5">{text.body}</p>
                   <div className="flex gap-3 mt-2">
                     {n.link && (
                       <button
                         type="button"
                         onClick={() => handleOpen(n)}
-                        className="text-[12px] font-semibold text-[#6A62C4] hover:underline cursor-pointer"
+                        className="text-body font-semibold text-[#6A62C4] hover:underline cursor-pointer"
                       >
                         {t("viewDetail")}
                       </button>
@@ -194,7 +194,7 @@ export default function NotificationsPage() {
                       <button
                         type="button"
                         onClick={() => markNotificationRead(n._id).catch(() => setError(t("markFailed")))}
-                        className="text-[12px] font-semibold text-[#6B6862] hover:text-[#191817] cursor-pointer"
+                        className="text-body font-semibold text-[#6B6862] hover:text-[#191817] cursor-pointer"
                       >
                         {t("markRead")}
                       </button>
@@ -212,7 +212,7 @@ export default function NotificationsPage() {
             type="button"
             onClick={loadMore}
             disabled={loadingMore}
-            className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-[12.5px] font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+            className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
           >
             {loadingMore ? tc("loading") : tc("loadMore")}
           </button>

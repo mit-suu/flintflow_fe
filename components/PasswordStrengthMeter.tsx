@@ -54,12 +54,12 @@ export default function PasswordStrengthMeter({ password }: PasswordStrengthMete
             />
           ))}
         </div>
-        <span className={`text-[11px] font-bold shrink-0 ${style.text}`} role="status">
+        <span className={`text-caption font-bold shrink-0 ${style.text}`} role="status">
           {level >= PASSWORD_MIN_LEVEL ? levelLabel : t("notUsable", { level: levelLabel })}
         </span>
       </div>
       {issue && (
-        <p className="text-[11px] text-on-surface-variant leading-snug">{t(`issue.${issue}`, PASSWORD_ISSUE_VALUES)}</p>
+        <p className="text-caption text-on-surface-variant leading-snug">{t(`issue.${issue}`, PASSWORD_ISSUE_VALUES)}</p>
       )}
     </div>
   );

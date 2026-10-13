@@ -33,7 +33,7 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
       <div className="min-h-[58px] flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-6 py-2.5">
         <IconButton icon="menu" label={t("openMenu")} onClick={openNav} className="md:hidden -ml-1" />
 
-        <nav aria-label={t("breadcrumb")} className="min-w-0 flex items-center gap-1.5 text-[13px]">
+        <nav aria-label={t("breadcrumb")} className="min-w-0 flex items-center gap-1.5 text-body">
           {trail.slice(0, -1).map((part) => (
             <span key={part} className="hidden sm:flex items-center gap-1.5 text-on-surface-muted">
               {part}
@@ -54,7 +54,7 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
             <Link
               href="/home/billing"
               title={t("creditsTitle")}
-              className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-control bg-surface-container-high text-[12px] font-semibold text-on-surface hover:bg-surface-container-highest transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-control bg-surface-container-high text-body font-semibold text-on-surface hover:bg-surface-container-highest transition-colors"
             >
               <Icon name="wallet" size={14} className="text-primary" />
               <span className="tabular-nums">{format.number(balance.balance)}</span>

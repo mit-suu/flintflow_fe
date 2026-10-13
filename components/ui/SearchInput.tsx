@@ -26,7 +26,7 @@ export default function SearchInput({ value, onChange, placeholder, label, class
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label}
-        className="flex-1 min-w-0 bg-transparent outline-none text-[12.5px] text-on-surface placeholder:text-on-surface-subtle [&::-webkit-search-cancel-button]:hidden"
+        className="flex-1 min-w-0 bg-transparent outline-none text-body text-on-surface placeholder:text-on-surface-subtle [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button

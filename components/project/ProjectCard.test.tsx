@@ -135,6 +135,23 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
     expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Đổi tên", "Xoá vĩnh viễn"]);
   });
+
+  it("FLF-265: menu có 'Ngôn ngữ tài liệu' cho dự án mode 2; ẩn với mode import và với Viewer", () => {
+    const onChangeDocumentLanguage = vi.fn();
+    const props = { progress: null, onRename: noop, onDelete: noop, onHardDelete: noop, onChangeDocumentLanguage };
+    const { rerender } = renderWithIntl(<ProjectCard project={baseProject} {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ngôn ngữ tài liệu" }));
+    expect(onChangeDocumentLanguage).toHaveBeenCalledWith(baseProject);
+
+    rerender(<ProjectCard project={{ ...baseProject, mode: "import" }} {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).not.toContain("Ngôn ngữ tài liệu");
+
+    // Viewer: không có menu ⋮ nào
+    rerender(<ProjectCard project={baseProject} {...props} readOnly />);
+    expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
+  });
 });
 
 describe("phasePosition — đếm theo phase để thanh không thụt lùi khi tổng bước được chốt", () => {

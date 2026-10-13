@@ -31,9 +31,9 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
         className="bg-surface-container-lowest rounded-dialog p-5 w-[420px] max-w-[90vw] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <h4 className="font-extrabold text-[13.5px] text-on-surface">Bỏ qua vấn đề này?</h4>
-        <p className="text-[11.5px] text-on-surface-variant leading-relaxed">{humanizeText(flag.message)}</p>
-        <label htmlFor="waive-reason" className="text-[11.5px] font-semibold text-on-surface">
+        <h4 className="font-extrabold text-body text-on-surface">Bỏ qua vấn đề này?</h4>
+        <p className="text-body text-on-surface-variant leading-relaxed">{humanizeText(flag.message)}</p>
+        <label htmlFor="waive-reason" className="text-body font-semibold text-on-surface">
           Lý do (tối thiểu {WAIVE_REASON_MIN_LENGTH} ký tự) — sẽ in kèm trong tài liệu
         </label>
         <textarea
@@ -41,19 +41,19 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
           rows={3}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="w-full px-3 py-2 rounded-control bg-surface-container text-[12px] outline-none resize-none focus:ring-2 focus:ring-primary/30"
+          className="w-full px-3 py-2 rounded-control bg-surface-container text-body outline-none resize-none focus:ring-2 focus:ring-primary/30"
           placeholder="Vì sao chấp nhận để nguyên vấn đề này?"
         />
-        <span className="text-[10.5px] text-on-surface-subtle tabular-nums">
+        <span className="text-caption text-on-surface-subtle tabular-nums">
           {reason.trim().length}/{WAIVE_REASON_MIN_LENGTH}
         </span>
-        {error && <div className="text-[11px] text-error">{error}</div>}
+        {error && <div className="text-caption text-error">{error}</div>}
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="h-8 px-3.5 rounded-control text-[12px] font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer disabled:opacity-50"
+            className="h-8 px-3.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer disabled:opacity-50"
           >
             Huỷ
           </button>
@@ -61,7 +61,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             type="button"
             disabled={!canSubmit}
             onClick={() => onSubmit(reason.trim())}
-            className="h-8 px-3.5 rounded-control text-[12px] font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {busy ? "Đang lưu…" : "Bỏ qua vấn đề"}
           </button>
@@ -128,10 +128,10 @@ export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_s
 /** Tab của panel: cờ đỏ (+ mục cần viết lại) chặn chốt bản · cờ vàng nên xem · đã bỏ qua. */
 type IssueTab = "blocking" | "suggestions" | "waived";
 
-const textButton = "text-[11px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:underline";
+const textButton = "text-caption font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:underline";
 /** Hành động phụ: ẩn tới khi rê chuột hoặc focus vào dòng — mỗi dòng chỉ một hành động chính luôn hiện. */
 const secondary = "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity";
-const pillButton = "h-7 px-2.5 shrink-0 rounded-control text-[11px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors";
+const pillButton = "h-7 px-2.5 shrink-0 rounded-control text-caption font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors";
 
 /**
  * Panel "Kiểm tra tài liệu": vấn đề gom theo **việc người dùng phải làm** (xác nhận · sửa · duyệt lại · vẽ lại ·
@@ -261,7 +261,7 @@ export default function FlagsPanel({
       case "confirm":
         return (
           <li key={flag.id} className="group/row py-2 flex items-start gap-3">
-            <p className="flex-1 min-w-0 text-[12px] text-on-surface leading-relaxed">{message}</p>
+            <p className="flex-1 min-w-0 text-body text-on-surface leading-relaxed">{message}</p>
             {onAssumptionDecision && flag.target_id ? (
               <span className="shrink-0 flex items-center gap-1.5 pt-0.5">
                 <button type="button" disabled={busy} onClick={() => onAssumptionDecision({ kind: "confirm", id: flag.target_id as string })} className={`${pillButton} h-6 px-2 bg-success text-white hover:opacity-90`}>
@@ -281,8 +281,8 @@ export default function FlagsPanel({
         return (
           <li key={flag.id} onClick={open.onClick} className={`group/row py-1.5 flex items-center justify-between gap-2 ${open.className}`}>
             <div className="min-w-0 flex flex-col">
-              <span className="text-[12.5px] text-on-surface truncate">{sectionName(flag.section_id)}</span>
-              <span className="text-[11px] text-on-surface-muted flex items-center gap-2.5">
+              <span className="text-body text-on-surface truncate">{sectionName(flag.section_id)}</span>
+              <span className="text-caption text-on-surface-muted flex items-center gap-2.5">
                 {isSectionLevelRule(flag.rule_id) ? `Duyệt lại ở ${stepLabel(flag.remediation_step)}` : message}
                 <span onClick={(e) => e.stopPropagation()}>{waiveLink(flag)}</span>
               </span>
@@ -293,10 +293,10 @@ export default function FlagsPanel({
       }
       case "redraw":
         return (
-          <li key={flag.id} className="group/row py-1.5 flex items-center justify-between gap-3 text-[12px]">
+          <li key={flag.id} className="group/row py-1.5 flex items-center justify-between gap-3 text-body">
             <div className="min-w-0 flex flex-col">
               <span className="text-on-surface leading-relaxed">{message}</span>
-              {sectionLink(flag, "text-[11px] text-on-surface-muted")}
+              {sectionLink(flag, "text-caption text-on-surface-muted")}
             </div>
             {onRedraw && (
               <button type="button" disabled={busy || redrawing === flag.id} onClick={() => void redraw([flag])} className={`${textButton} text-primary shrink-0`}>
@@ -310,8 +310,8 @@ export default function FlagsPanel({
         return (
           <li key={flag.id} onClick={open.onClick} className={`group/row py-2 flex items-center justify-between gap-2 ${open.className}`}>
             <div className="min-w-0 flex flex-col gap-0.5">
-              <span className="text-[12.5px] text-on-surface leading-relaxed">{message}</span>
-              <span className="text-[11px] text-on-surface-muted flex flex-wrap items-center gap-x-2.5" onClick={(e) => e.stopPropagation()}>
+              <span className="text-body text-on-surface leading-relaxed">{message}</span>
+              <span className="text-caption text-on-surface-muted flex flex-wrap items-center gap-x-2.5" onClick={(e) => e.stopPropagation()}>
                 {sectionLink(flag)}
                 {onEditSection && (
                   <button
@@ -364,10 +364,10 @@ export default function FlagsPanel({
     return [...byStep.entries()].map(([stepId, sections]) => (
       <li key={stepId} {...rowOpen(stepId)} className={`group/row py-1.5 flex items-center justify-between gap-2 ${rowOpen(stepId).className}`}>
         <div className="min-w-0 flex flex-col">
-          <span className="text-[12.5px] text-on-surface">
+          <span className="text-body text-on-surface">
             {stepLabel(stepId)}
           </span>
-          <span className="text-[11px] text-on-surface-muted truncate" title={[...sections].map(sectionName).join(", ")}>
+          <span className="text-caption text-on-surface-muted truncate" title={[...sections].map(sectionName).join(", ")}>
             {[...sections].map(sectionName).join(", ")}
           </span>
         </div>
@@ -383,11 +383,11 @@ export default function FlagsPanel({
       const sections = new Set(group.flags.map((f) => f.section_id)).size;
       return (
         <section key={key} className="rounded-card bg-surface-container-lowest px-3.5 pt-3 pb-2 flex flex-col gap-1">
-          <h5 className="text-[13px] font-bold text-on-surface">
+          <h5 className="text-body font-bold text-on-surface">
             {info.title}{" "}
             <span className="font-semibold text-on-surface-muted tabular-nums">({sections === steps ? sections : `${sections} mục · ${steps} bước`})</span>
           </h5>
-          <p className="text-[11.5px] text-on-surface-muted">{info.hint}</p>
+          <p className="text-body text-on-surface-muted">{info.hint}</p>
           <ul className="flex flex-col">{renderStepRows(group)}</ul>
         </section>
       );
@@ -398,10 +398,10 @@ export default function FlagsPanel({
       <section key={key} className="rounded-card bg-surface-container-lowest px-3.5 pt-3 pb-2 flex flex-col gap-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h5 className="text-[13px] font-bold text-on-surface">
+            <h5 className="text-body font-bold text-on-surface">
               {info.title} <span className="font-semibold text-on-surface-muted tabular-nums">({group.flags.length})</span>
             </h5>
-            <p className="text-[11.5px] text-on-surface-muted">{info.hint}</p>
+            <p className="text-body text-on-surface-muted">{info.hint}</p>
           </div>
           {groupAction(group)}
         </div>
@@ -415,12 +415,12 @@ export default function FlagsPanel({
     );
   };
 
-  const emptyNote = (text: string) => <p className="px-1 py-2 text-[12px] text-on-surface-muted">{text}</p>;
+  const emptyNote = (text: string) => <p className="px-1 py-2 text-body text-on-surface-muted">{text}</p>;
 
   return (
     <div className="flex flex-col gap-3" aria-label="Danh sách vấn đề">
       {focusSectionId && (
-        <div className="flex items-center justify-between gap-2 rounded-control bg-primary-soft px-3 py-2 text-[12px] text-primary-hover">
+        <div className="flex items-center justify-between gap-2 rounded-control bg-primary-soft px-3 py-2 text-body text-primary-hover">
           <span className="min-w-0 truncate">
             Vấn đề của <span className="font-bold">{sectionName(focusSectionId)}</span>
           </span>
@@ -437,7 +437,7 @@ export default function FlagsPanel({
         idBase="doc-issues"
         value={tab}
         onChange={setTab}
-        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-[12px]"
+        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
         options={[
           { value: "blocking", label: "Cần xử lý", count: counts.blocking },
           { value: "suggestions", label: "Nên xem", count: counts.suggestions },
@@ -445,7 +445,7 @@ export default function FlagsPanel({
         ]}
       />
 
-      {error && <div className="text-[11.5px] text-error">{error}</div>}
+      {error && <div className="text-body text-error">{error}</div>}
 
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (
@@ -453,10 +453,10 @@ export default function FlagsPanel({
             {showOutdated && (
               <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h5 className="text-[13px] font-bold text-on-surface">
+                  <h5 className="text-body font-bold text-on-surface">
                     Viết lại cho khớp <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
                   </h5>
-                  <p className="text-[11.5px] text-on-surface-muted leading-relaxed">
+                  <p className="text-body text-on-surface-muted leading-relaxed">
                     Có mục viết dựa trên dữ liệu đã bị sửa sau đó. AI viết lại, bạn xem trước rồi mới áp dụng.
                   </p>
                 </div>
@@ -480,8 +480,8 @@ export default function FlagsPanel({
             <ul className="rounded-card bg-surface-container-lowest px-3.5 py-1.5">
               {waivedFlags.map((flag) => (
                 <li key={flag.id} className="py-1.5 flex flex-col gap-0.5">
-                  <span className="text-[12px] font-semibold text-on-surface">{flagGroupTitle(flag.rule_id) ?? humanizeText(flag.message)}</span>
-                  <span className="text-[11px] text-on-surface-muted">
+                  <span className="text-body font-semibold text-on-surface">{flagGroupTitle(flag.rule_id) ?? humanizeText(flag.message)}</span>
+                  <span className="text-caption text-on-surface-muted">
                     {sectionName(flag.section_id)} · Lý do: {flag.waive_reason}
                   </span>
                 </li>
@@ -494,7 +494,7 @@ export default function FlagsPanel({
 
       {/* BE tự kiểm lại sau mỗi lần ghi — nút này chỉ để dùng khi nghi số liệu lệch */}
       {onRecompute && (
-        <button type="button" onClick={onRecompute} disabled={busy} className="self-start px-1 text-[11px] font-semibold text-on-surface-muted hover:text-on-surface hover:underline cursor-pointer disabled:opacity-50">
+        <button type="button" onClick={onRecompute} disabled={busy} className="self-start px-1 text-caption font-semibold text-on-surface-muted hover:text-on-surface hover:underline cursor-pointer disabled:opacity-50">
           Kiểm tra lại toàn bộ tài liệu
         </button>
       )}

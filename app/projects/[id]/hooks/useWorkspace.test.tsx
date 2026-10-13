@@ -122,3 +122,13 @@ describe("useWorkspace — vai trò trong org (FLF-244)", () => {
     expect(none.result.current.canEdit).toBe(true);
   });
 });
+
+describe("useWorkspace — replaceProject (FLF-265 §3.7)", () => {
+  it("thay project bằng bản BE vừa trả ⇒ ngôn ngữ tài liệu mới có ngay, không tải lại workspace", async () => {
+    const { result } = await mount();
+    expect(result.current.project?.documentLanguage).not.toBe("vi");
+
+    act(() => result.current.replaceProject({ ...result.current.project!, documentLanguage: "vi" }));
+    expect(result.current.project?.documentLanguage).toBe("vi");
+  });
+});

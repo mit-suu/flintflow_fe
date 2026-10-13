@@ -40,7 +40,7 @@ describe("CreateProjectForm (UC-13/14)", () => {
     fireEvent.click(submit());
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
-    expect(createProject).toHaveBeenCalledWith("Lumen", "fpt", undefined);
+    expect(createProject).toHaveBeenCalledWith("Lumen", "fpt", undefined, "vi");
   });
 
   it("lỗi hiện dưới form, giữ nguyên mode và tên để thử lại", async () => {
@@ -76,6 +76,51 @@ describe("CreateProjectForm trong thư mục", () => {
     fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
-    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "fpt", "f1"));
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "fpt", "f1", "vi"));
+  });
+});
+
+describe("CreateProjectForm — ngôn ngữ tài liệu (FLF-265)", () => {
+  beforeEach(() => {
+    vi.mocked(createProject).mockReset().mockResolvedValue({ data: { _id: "p1", mode: "fpt" }, error: null } as never);
+  });
+
+  const languageGroup = () => screen.getByRole("radiogroup", { name: /Ngôn ngữ tài liệu|Document language/ });
+
+  it("mặc định theo ngôn ngữ giao diện", () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    expect(languageGroup()).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Tiếng Việt" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("giao diện tiếng Anh ⇒ mặc định English", () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />, "en");
+    expect(screen.getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("đổi được (chuột lẫn phím mũi tên) và gửi trong request", async () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Tiếng Anh" }));
+    expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Tiếng Anh" }), { key: "ArrowRight" });
+    expect(screen.getByRole("radio", { name: "Tiếng Việt" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Tiếng Việt" }), { key: "ArrowLeft" });
+
+    fireEvent.click(submit());
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "fpt", undefined, "en"));
+  });
+
+  it("mode import ⇒ ẩn nhóm, hiện gợi ý theo file, không gửi ngôn ngữ", async () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.click(screen.getByRole("radio", { name: /SRS có sẵn/ }));
+
+    expect(screen.queryByRole("radiogroup", { name: "Ngôn ngữ tài liệu" })).toBeNull();
+    expect(screen.getByText(MESSAGES.vi.app.createProject.language.importHint)).toBeInTheDocument();
+
+    fireEvent.click(submit());
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith(DEFAULT_PROJECT_NAME, "import", undefined, undefined));
   });
 });
