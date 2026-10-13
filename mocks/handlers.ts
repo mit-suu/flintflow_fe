@@ -39,6 +39,7 @@ import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/ty
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
+import type { CreateCommentRequest, SrsComment } from "@/types/comment";
 import {
   countersOf,
   MOCK_SESSION_ID,
@@ -315,11 +316,14 @@ let mockPreviews = new Map<string, { base_version: number; ops: Op[] }>();
 /** Lịch sử hiển thị ở `GET /changes` — chỉ ghi nhận thao tác qua Change panel (preview→apply/reconcile/undo). */
 let mockChangesLog: Change[] = [];
 let mockAssembledAtVersion: number | null = null;
+/** UC-49: comment ghim vào tài liệu (contract endpoint 26–29). */
+let mockComments: SrsComment[] = [];
 
 export const resetMockChangeFlowState = (): void => {
   mockPreviews = new Map();
   mockChangesLog = [];
   mockAssembledAtVersion = null;
+  mockComments = [];
 };
 
 // ─── FLF-265: ngôn ngữ tài liệu + dịch theo lô (#16 `meta.translation`, #26, #27) ────────
@@ -368,6 +372,8 @@ const translationRunFailure = (failure: Exclude<MockTranslationFailure, "stalled
       return fail(422, failure, "AI response failed schema validation for action 'translate_document'");
   }
 };
+
+const mockCommentAuthor = () => ({ _id: mockState.user.id, name: mockState.user.name ?? null, email: mockState.user.email ?? null });
 
 /** Lệnh tự nhiên (T17 chưa hiện thực) — mock đổi mô tả actor đầu tiên để có gì đó xem trước. */
 const mockInstructionToOps = (spine: Spine, instruction: string): Op[] | null => {
@@ -952,6 +958,57 @@ export const handlers = [
   }),
 
   http.patch(api("/users/me"), async ({ request }) => patchMockUser(await request.json().catch(() => null))),
+
+  // Mock chưa có baseline (T19 chưa nối) — trang đọc chỉ có bản nháp.
+  http.get(api("/projects/:projectId/baselines"), () => ok([])),
+
+  http.get(api("/projects/:projectId/comments"), ({ request }) => {
+    const status = new URL(request.url).searchParams.get("status") ?? "open";
+    return ok(status === "all" ? mockComments : mockComments.filter((c) => c.status === "open"));
+  }),
+  http.post(api("/projects/:projectId/comments"), async ({ request }) => {
+    const body = (await request.json()) as CreateCommentRequest;
+    const text = body.text?.trim() ?? "";
+    if (!text) return fail(400, "VALIDATION_ERROR", "Comment không được để trống.");
+    const section = buildMockDocument(mockState).sections.find((s) => s.id === body.anchor.section_id);
+    if (!section) return fail(422, "COMMENT_ANCHOR_NOT_FOUND", "Nội dung được ghim không tồn tại trong phiên bản này.");
+    const heading = [section.number, section.heading].filter(Boolean).join(" ");
+    const comment: SrsComment = {
+      comment_id: `CM-${String(mockComments.length + 1).padStart(3, "0")}`,
+      version: { source: body.version.source, baseline_id: body.version.baseline_id ?? null, label: body.version.source === "draft" ? "draft" : "v1.0" },
+      anchor: {
+        section_id: section.id,
+        block_index: body.anchor.block_index,
+        label: body.anchor.block_index === null ? heading : `${heading} › Block ${body.anchor.block_index + 1}`,
+        excerpt: null,
+      },
+      author: mockCommentAuthor(),
+      author_role: "lead",
+      text,
+      status: "open",
+      cr_id: null,
+      handled_by: null,
+      handled_at: null,
+      replies: [],
+      created_at: new Date().toISOString(),
+    };
+    mockComments = [...mockComments, comment];
+    return ok(comment, { status: 201 });
+  }),
+  http.post(api("/projects/:projectId/comments/:commentId/replies"), async ({ params, request }) => {
+    const comment = mockComments.find((c) => c.comment_id === params.commentId);
+    if (!comment) return fail(404, "COMMENT_NOT_FOUND", "Không tìm thấy comment.");
+    const { text } = (await request.json()) as { text: string };
+    comment.replies = [...comment.replies, { author: mockCommentAuthor(), author_role: "lead", text, at: new Date().toISOString() }];
+    return ok(comment, { status: 201 });
+  }),
+  http.post(api("/projects/:projectId/comments/:commentId/resolve"), ({ params }) => {
+    const comment = mockComments.find((c) => c.comment_id === params.commentId);
+    if (!comment) return fail(404, "COMMENT_NOT_FOUND", "Không tìm thấy comment.");
+    if (comment.status !== "open") return fail(409, "COMMENT_NOT_OPEN", "Comment đã được xử lý.");
+    Object.assign(comment, { status: "resolved", handled_by: mockCommentAuthor(), handled_at: new Date().toISOString() });
+    return ok(comment);
+  }),
 ];
 
 /** Số step registry mock đang phục vụ — dùng trong test. */

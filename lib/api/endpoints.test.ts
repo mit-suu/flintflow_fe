@@ -4,6 +4,7 @@ import * as admin from "./admin";
 import * as billing from "./billing";
 import * as changeRequests from "./change-requests";
 import * as chat from "./chat";
+import * as comments from "./comments";
 import { ApiClientError, apiCall, authFetch } from "./client";
 import * as documents from "./documents";
 import * as exportApi from "./export";
@@ -193,6 +194,16 @@ const cases: EndpointCase[] = [
   ["runTranslation (số lô mặc định của BE)", () => translations.runTranslation("p1"), "/projects/p1/translations/run", post({})],
   ["runTranslation (max_batches)", () => translations.runTranslation("p1", 2), "/projects/p1/translations/run", post({ max_batches: 2 })],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
+  ["listComments", () => comments.listComments("p1"), "/projects/p1/comments?status=open"],
+  ["listComments all", () => comments.listComments("p1", "all"), "/projects/p1/comments?status=all"],
+  [
+    "createComment",
+    () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
+    "/projects/p1/comments",
+    post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
+  ],
+  ["replyComment", () => comments.replyComment("p1", "CM-001", "Đồng ý"), "/projects/p1/comments/CM-001/replies", post({ text: "Đồng ý" })],
+  ["resolveComment", () => comments.resolveComment("p1", "CM-001"), "/projects/p1/comments/CM-001/resolve", post()],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],
   ["fetchUnreadCount", () => notifications.fetchUnreadCount(), "/notifications/unread-count"],
