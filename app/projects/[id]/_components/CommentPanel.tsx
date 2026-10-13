@@ -39,9 +39,9 @@ interface CommentPanelProps {
 }
 
 const STATUS_BADGE: Record<CommentStatus, { text: string; style: string }> = {
-  open: { text: "Đang mở", style: "bg-[#FFF4E0] text-[#8A5A00]" },
-  resolved: { text: "Đã xử lý", style: "bg-[#E8F5EC] text-[#2D6A3E]" },
-  converted: { text: "Đã thành CR", style: "bg-[#EEEDFB] text-[#4A42A8]" },
+  open: { text: "Đang mở", style: "bg-accent-gold-soft text-accent-gold-text" },
+  resolved: { text: "Đã xử lý", style: "bg-success-soft text-success" },
+  converted: { text: "Đã thành CR", style: "bg-primary-soft text-primary-hover" },
 };
 
 /** Hai tab của panel: việc còn phải làm, và lịch sử (đã xử lý hoặc đã thành CR). */
@@ -59,7 +59,7 @@ const formatTime = (iso: string): string =>
   new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 const inputClass =
-  "w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] outline-none text-body text-[#191817] bg-[#FAF9F7]";
+  "w-full px-3 py-2 rounded-control border-[1.5px] border-outline focus:border-primary outline-none text-body text-on-surface bg-surface-container-low";
 
 /** Kiểm như BE (`createCommentSchema`) để khỏi tốn một lượt gọi; thông báo theo đặc tả UC-49. */
 const validate = (text: string): string | null => {
@@ -114,22 +114,22 @@ function Composer({
         className={inputClass}
       />
       <div className="flex items-center justify-between gap-2">
-        <span className={`text-caption ${text.trim().length > COMMENT_TEXT_MAX ? "text-[#B03030]" : "text-[#A8A49C]"}`}>
+        <span className={`text-caption ${text.trim().length > COMMENT_TEXT_MAX ? "text-error" : "text-on-surface-subtle"}`}>
           {text.trim().length}/{COMMENT_TEXT_MAX}
         </span>
         <div className="flex gap-1.5">
           {onCancel && (
-            <button type="button" onClick={onCancel} className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842]">
+            <button type="button" onClick={onCancel} className="px-2.5 py-1 rounded-control border border-outline bg-white text-body font-semibold text-on-surface-medium">
               Huỷ
             </button>
           )}
-          <button type="submit" disabled={busy} className="px-2.5 py-1 rounded-[8px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 cursor-pointer">
+          <button type="submit" disabled={busy} className="px-2.5 py-1 rounded-control bg-on-surface text-white text-body font-bold disabled:opacity-50 cursor-pointer">
             {busy ? "Đang gửi…" : submitLabel}
           </button>
         </div>
       </div>
       {error && (
-        <p role="alert" className="text-body text-[#B03030]">
+        <p role="alert" className="text-body text-error">
           {error}
         </p>
       )}
@@ -175,31 +175,31 @@ function CommentCard({
     <li
       id={`comment-${comment.comment_id}`}
       aria-label={`Comment ${comment.comment_id}`}
-      className={`p-3 rounded-[12px] border bg-white flex flex-col gap-1.5 ${highlighted ? "border-[#6A62C4] ring-2 ring-[#DCD8F0]" : "border-[#ECEAE5]"}`}
+      className={`p-3 rounded-card border bg-white flex flex-col gap-1.5 ${highlighted ? "border-primary ring-2 ring-outline-purple" : "border-outline-variant"}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-caption font-bold text-[#6B6862]">
+        <span className="text-caption font-bold text-on-surface-variant">
           {comment.comment_id} · Ghim vào: {comment.anchor.label} · bản {comment.version.label}
         </span>
         <span className={`text-caption font-bold px-2 py-0.5 rounded-full shrink-0 ${badge.style}`}>
           {comment.status === "converted" && comment.cr_id ? `Đã thành ${comment.cr_id}` : badge.text}
         </span>
       </div>
-      {anchorMissing && <p className="text-caption text-[#8A5A00] italic">Nội dung được ghim không còn trong phiên bản này.</p>}
+      {anchorMissing && <p className="text-caption text-accent-gold-text italic">Nội dung được ghim không còn trong phiên bản này.</p>}
       {comment.anchor.excerpt && (
-        <blockquote className="text-caption text-[#6B6862] border-l-2 border-[#E4E1DC] pl-2 line-clamp-2">{comment.anchor.excerpt}</blockquote>
+        <blockquote className="text-caption text-on-surface-variant border-l-2 border-outline pl-2 line-clamp-2">{comment.anchor.excerpt}</blockquote>
       )}
-      <p className="text-body text-[#191817] whitespace-pre-wrap break-words">{comment.text}</p>
-      <span className="text-caption text-[#A8A49C]">
+      <p className="text-body text-on-surface whitespace-pre-wrap break-words">{comment.text}</p>
+      <span className="text-caption text-on-surface-subtle">
         {personName(comment.author)} ({ROLE_LABEL[comment.author_role]}) · {formatTime(comment.created_at)}
       </span>
 
       {comment.replies.length > 0 && (
-        <ul className="flex flex-col gap-1.5 border-l-2 border-[#F0EEEA] pl-2.5 mt-1" aria-label="Trả lời">
+        <ul className="flex flex-col gap-1.5 border-l-2 border-outline-subtle pl-2.5 mt-1" aria-label="Trả lời">
           {comment.replies.map((r, i) => (
             <li key={i} className="flex flex-col">
-              <p className="text-body text-[#33312D] whitespace-pre-wrap break-words">{r.text}</p>
-              <span className="text-caption text-[#A8A49C]">
+              <p className="text-body text-on-surface-dark whitespace-pre-wrap break-words">{r.text}</p>
+              <span className="text-caption text-on-surface-subtle">
                 {personName(r.author)} ({ROLE_LABEL[r.author_role]}) · {formatTime(r.at)}
               </span>
             </li>
@@ -220,7 +220,7 @@ function CommentCard({
         />
       ) : (
         <div className="flex flex-wrap gap-1.5 mt-0.5">
-          <button type="button" onClick={() => setReplying(true)} className="px-2 py-0.5 rounded-[7px] border border-[#E4E1DC] bg-white text-caption font-semibold text-[#4B4842]">
+          <button type="button" onClick={() => setReplying(true)} className="px-2 py-0.5 rounded-control border border-outline bg-white text-caption font-semibold text-on-surface-medium">
             Trả lời
           </button>
           {open && handler && (
@@ -232,20 +232,20 @@ function CommentCard({
                   setResolveError(err instanceof Error && err.message ? err.message : "Không đánh dấu được. Vui lòng thử lại.")
                 );
               }}
-              className="px-2 py-0.5 rounded-[7px] border border-[#E4E1DC] bg-white text-caption font-semibold text-[#2D6A3E]"
+              className="px-2 py-0.5 rounded-control border border-outline bg-white text-caption font-semibold text-success"
             >
               Đánh dấu đã xử lý
             </button>
           )}
           {open && handler && canCreateCr && (
-            <Link href={crHref} className="px-2 py-0.5 rounded-[7px] bg-[#EEEDFB] text-caption font-bold text-[#4A42A8]">
+            <Link href={crHref} className="px-2 py-0.5 rounded-control bg-primary-soft text-caption font-bold text-primary-hover">
               Tạo CR từ comment
             </Link>
           )}
         </div>
       )}
       {resolveError && (
-        <p role="alert" className="text-caption text-[#B03030]">
+        <p role="alert" className="text-caption text-error">
           {resolveError}
         </p>
       )}
@@ -286,10 +286,10 @@ export default function CommentPanel({
   );
 
   return (
-    <aside aria-label="Comment" className="flex flex-col gap-3 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[14px] p-3.5">
+    <aside aria-label="Comment" className="flex flex-col gap-3 bg-surface-container-low border border-outline-variant rounded-card p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-extrabold text-body text-[#191817]">Comment</h2>
-        <div role="tablist" aria-label="Lọc comment" className="flex p-0.5 rounded-[9px] bg-[#F0EEEA]">
+        <h2 className="font-extrabold text-body text-on-surface">Comment</h2>
+        <div role="tablist" aria-label="Lọc comment" className="flex p-0.5 rounded-control bg-surface-container-high">
           {(["open", "closed"] as const).map((t) => (
             <button
               key={t}
@@ -297,8 +297,8 @@ export default function CommentPanel({
               role="tab"
               aria-selected={tab === t}
               onClick={() => onTabChange(t)}
-              className={`px-2.5 py-1 rounded-[7px] text-caption font-bold cursor-pointer transition-colors ${
-                tab === t ? "bg-white text-[#191817] shadow-sm" : "text-[#8A867E] hover:text-[#191817]"
+              className={`px-2.5 py-1 rounded-inner text-caption font-bold cursor-pointer transition-colors ${
+                tab === t ? "bg-white text-on-surface shadow-sm" : "text-on-surface-muted hover:text-on-surface"
               }`}
             >
               {TAB_LABEL[t]} ({counts[t]})
@@ -308,26 +308,26 @@ export default function CommentPanel({
       </div>
 
       {target ? (
-        <div className="flex flex-col gap-1.5 bg-white border border-[#DCD8F0] rounded-[12px] p-3" aria-label="Comment mới">
-          <span className="text-caption font-bold text-[#4A42A8]">
+        <div className="flex flex-col gap-1.5 bg-white border border-outline-purple rounded-card p-3" aria-label="Comment mới">
+          <span className="text-caption font-bold text-primary-hover">
             Ghim vào: {target.label} · bản {versionLabel}
           </span>
           <Composer placeholder="Viết comment" submitLabel="Đăng comment" autoFocus onSubmit={onPost} onCancel={onCancelTarget} />
         </div>
       ) : commentBlockedReason ? (
-        <p className="text-body text-[#8A5A00] bg-[#FFF8EC] border border-[#F0DFB4] rounded-[10px] px-3 py-2">{commentBlockedReason}</p>
+        <p className="text-body text-accent-gold-text bg-accent-gold-soft border border-accent-gold-border rounded-control px-3 py-2">{commentBlockedReason}</p>
       ) : (
-        <p className="text-body text-[#6B6862]">Rê chuột lên một mục hoặc đoạn trong tài liệu rồi bấm 💬 để ghim comment.</p>
+        <p className="text-body text-on-surface-variant">Rê chuột lên một mục hoặc đoạn trong tài liệu rồi bấm 💬 để ghim comment.</p>
       )}
 
       {focus && (
-        <button type="button" onClick={onClearFocus} className="self-start text-caption font-semibold text-[#4A42A8] underline">
+        <button type="button" onClick={onClearFocus} className="self-start text-caption font-semibold text-primary-hover underline">
           Đang lọc theo chỗ ghim — xem tất cả comment
         </button>
       )}
 
       {visible.length === 0 ? (
-        <p className="text-body text-[#A8A49C] italic">{tab === "open" ? "Không có comment nào đang mở." : "Chưa có comment nào được xử lý hay chuyển thành CR."}</p>
+        <p className="text-body text-on-surface-subtle italic">{tab === "open" ? "Không có comment nào đang mở." : "Chưa có comment nào được xử lý hay chuyển thành CR."}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {visible.map((c) => (

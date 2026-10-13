@@ -246,7 +246,7 @@ export default function ReadOnlyDocumentPage() {
             type="button"
             onClick={() => setFocus({ section_id: section.id, block_index: blockIndex })}
             aria-label={`Xem ${count} comment`}
-            className="text-caption font-bold px-1.5 py-0.5 rounded-full bg-[#EEEDFB] text-[#4A42A8] cursor-pointer"
+            className="text-caption font-bold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary-hover cursor-pointer"
           >
             💬 {count}
           </button>
@@ -257,7 +257,7 @@ export default function ReadOnlyDocumentPage() {
             onClick={() => startComment(section, blockIndex)}
             aria-label={blockIndex === null ? `Comment mục ${sectionLabel(section)}` : `Comment đoạn ${blockIndex + 1} của ${sectionLabel(section)}`}
             title="Ghim comment"
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-body px-1 rounded hover:bg-[#F0EEEA] cursor-pointer"
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-body px-1 rounded hover:bg-surface-container-high cursor-pointer"
           >
             💬
           </button>
@@ -268,7 +268,7 @@ export default function ReadOnlyDocumentPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F3F0] flex flex-col">
-      <header className="bg-white border-b border-[#ECEAE5] px-6 py-3 flex items-center justify-between gap-3 shrink-0 flex-wrap">
+      <header className="bg-white border-b border-outline-variant px-6 py-3 flex items-center justify-between gap-3 shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-body font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
           <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
@@ -276,7 +276,7 @@ export default function ReadOnlyDocumentPage() {
         </div>
         <div className="flex items-center gap-3">
           {version !== null && (
-            <label className="flex items-center gap-1.5 text-body text-[#6B6862]">
+            <label className="flex items-center gap-1.5 text-body text-on-surface-variant">
               Phiên bản
               <select
                 value={version}
@@ -285,7 +285,7 @@ export default function ReadOnlyDocumentPage() {
                   setTarget(null);
                   setVersion(e.target.value);
                 }}
-                className="px-2 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body text-[#191817]"
+                className="px-2 py-1 rounded-control border border-outline bg-white text-body text-on-surface"
               >
                 <option value="draft">Bản nháp</option>
                 {baselines.map((b) => (
@@ -303,28 +303,28 @@ export default function ReadOnlyDocumentPage() {
       <main className="flex-1 ff-scroll overflow-y-auto p-6">
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-5 items-start">
           <div className="flex-1 min-w-0 max-w-3xl w-full mx-auto flex flex-col gap-3">
-            {loading && <div className="text-body text-[#A8A49C] italic">Đang tải tài liệu…</div>}
+            {loading && <div className="text-body text-on-surface-subtle italic">Đang tải tài liệu…</div>}
             {!loading && error && (
-              <div className="bg-[#FDEDED] border border-[#F2CACA] rounded-[14px] p-3.5 text-body text-[#8A4141]">
+              <div className="bg-error-container border border-error-border rounded-control p-3.5 text-body text-on-error-container">
                 Không tải được tài liệu: {error}
               </div>
             )}
             {!loading &&
               doc?.sections.map((section) => (
-                <article key={section.id} className="p-4 rounded-[12px] border border-[#ECEAE5] bg-white flex flex-col gap-2">
+                <article key={section.id} className="p-4 rounded-card border border-outline-variant bg-white flex flex-col gap-2">
                   <div className="group flex items-start justify-between gap-2">
-                    <h5 className="font-bold text-body text-[#191817]">
+                    <h5 className="font-bold text-body text-on-surface">
                       {section.number ? `${section.number}. ` : ""}{section.heading}
                     </h5>
                     {pinControls(section, null)}
                   </div>
                   {isIncomplete(section) ? (
-                    <div className="text-body text-[#A8A49C] italic">chưa hoàn thiện</div>
+                    <div className="text-body text-on-surface-subtle italic">chưa hoàn thiện</div>
                   ) : section.blocks.length > 0 ? (
                     section.blocks.map((block, i) => {
                       const pinned = (pinCounts.get(`${section.id}#${i}`) ?? 0) > 0;
                       return (
-                        <div key={i} className={`group relative flex items-start gap-2 ${pinned ? "border-l-2 border-[#B9B3EC] pl-2" : ""}`}>
+                        <div key={i} className={`group relative flex items-start gap-2 ${pinned ? "border-l-2 border-primary-fixed-dim pl-2" : ""}`}>
                           <div className="flex-1 min-w-0">
                             <BlockView block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
                           </div>
@@ -333,7 +333,7 @@ export default function ReadOnlyDocumentPage() {
                       );
                     })
                   ) : (
-                    <div className="text-body text-[#A8A49C] italic">chưa hoàn thiện</div>
+                    <div className="text-body text-on-surface-subtle italic">chưa hoàn thiện</div>
                   )}
                 </article>
               ))}
@@ -341,7 +341,7 @@ export default function ReadOnlyDocumentPage() {
 
           <div className="w-full lg:w-[340px] lg:sticky lg:top-0 shrink-0 flex flex-col gap-2">
             {commentError && (
-              <p role="alert" className="text-body text-[#B03030]">
+              <p role="alert" className="text-body text-error">
                 {commentError}
               </p>
             )}

@@ -105,7 +105,7 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
         </p>
       )}
       {prefill?.comment_id && (
-        <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] px-3 py-2" aria-label="Comment nguồn">
+        <p className="text-body text-primary-hover bg-primary-soft border border-outline-purple rounded-control px-3 py-2" aria-label="Comment nguồn">
           Tạo từ comment {prefill.comment_id} — tạo xong, comment chuyển sang “Đã thành CR” và người viết comment được báo.
         </p>
       )}
