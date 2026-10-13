@@ -15,12 +15,29 @@ vi.mock("next/link", () => ({
 const PROJECT = { _id: "p1", name: "FlintFlow", domain: "SaaS", status: "active" } as Project;
 
 describe("WorkspaceHeader", () => {
-  it("badge baseline lấy từ phiên bản baseline của Spine", () => {
-    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} baselineVersion="v1.0-conditional" onLogout={() => {}} />);
-    expect(screen.getByText("Baseline v1.0-conditional")).toBeInTheDocument();
+  it("chip trạng thái chốt bản hiện nhãn nơi gọi dựng", () => {
+    renderWithIntl(
+      <WorkspaceHeader project={PROJECT} user={null} baselineStatus={{ label: "Baseline v1.0", tone: "success" }} onLogout={() => {}} />
+    );
+    expect(screen.getByText("Baseline v1.0")).toBeInTheDocument();
   });
 
-  it("chưa ký baseline thì không hiện badge", () => {
+  it("chip bấm được thì mở panel Kiểm & chốt", () => {
+    const onVerifyClick = vi.fn();
+    renderWithIntl(
+      <WorkspaceHeader
+        project={PROJECT}
+        user={null}
+        baselineStatus={{ label: "1 bản chờ bạn duyệt", tone: "warning" }}
+        onVerifyClick={onVerifyClick}
+        onLogout={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByText("1 bản chờ bạn duyệt"));
+    expect(onVerifyClick).toHaveBeenCalled();
+  });
+
+  it("chưa nộp và chưa ký baseline thì không hiện chip", () => {
     renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} onLogout={() => {}} />);
     expect(screen.queryByText(/^Baseline/)).not.toBeInTheDocument();
   });

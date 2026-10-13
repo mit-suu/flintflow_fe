@@ -4,6 +4,7 @@ import * as admin from "./admin";
 import * as billing from "./billing";
 import * as changeRequests from "./change-requests";
 import * as chat from "./chat";
+import * as comments from "./comments";
 import { ApiClientError, apiCall, authFetch } from "./client";
 import * as documents from "./documents";
 import * as exportApi from "./export";
@@ -189,6 +190,21 @@ const cases: EndpointCase[] = [
   ["getDocument", () => exportApi.getDocument("p1", "baseline"), "/projects/p1/document?source=baseline"],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
+  ["submitBaseline", () => exportApi.submitBaseline("p1", 12), "/projects/p1/baseline/submit", post({ base_version: 12 })],
+  [
+    "rejectBaseline",
+    () => exportApi.rejectBaseline("p1", 12, "Thiếu luồng huỷ", ["CM-001"]),
+    "/projects/p1/baseline/reject",
+    post({ base_version: 12, reason: "Thiếu luồng huỷ", comment_ids: ["CM-001"] }),
+  ],
+  ["listComments", () => comments.listComments("p1"), "/projects/p1/comments?status=open"],
+  [
+    "createComment",
+    () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+    "/projects/p1/comments",
+    post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+  ],
+  ["resolveComment", () => comments.resolveComment("p1", "CM-001", { kind: "fixed" }), "/projects/p1/comments/CM-001/resolve", post({ kind: "fixed" })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],
   ["fetchUnreadCount", () => notifications.fetchUnreadCount(), "/notifications/unread-count"],
   [
