@@ -193,223 +193,226 @@ export default function MembersPage() {
   const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
 
   return (
-    <section className="w-full max-w-[820px] mx-auto flex flex-col gap-8 pt-8 pb-12 px-4 sm:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
-        {org ? <p className="text-body text-on-surface-muted">{t("subtitle", { org: org.name })}</p> : null}
-        {org && !isLead ? <p className="text-body text-on-surface-muted">{t("leadOnly")}</p> : null}
-      </div>
-
-      {/* Đang mở hộp thoại thì lỗi hiện TRONG hộp thoại — ở đây sẽ nằm sau lớp mờ, người dùng không đọc được */}
-      {error && pending === null ? (
-        <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
-          {error}
-        </p>
-      ) : null}
-
-      <ul className="flex flex-col gap-2">
-        {members.map((m) => {
-          const isSelf = m.userId === myUserId;
-          return (
-            <li
-              key={m.userId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline bg-surface-container-lowest px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="text-heading font-semibold text-on-surface truncate">
-                  {displayName(m)}
-                  {isSelf ? <span className="ml-2 text-body font-medium text-primary">{t("you")}</span> : null}
-                </p>
-                <p className="text-body text-on-surface-muted">{t("joined", { date: date(m.joinedAt) })}</p>
-                {isSelf && soleLead ? (
-                  <p id="sole-lead-hint" className="mt-1 text-body text-on-surface-muted">
-                    {aloneAsLead ? t("soleLeadAloneHint") : t("soleLeadHint")}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-2">
-                {isLead && !isSelf ? (
-                  <select
-                    aria-label={t("roleLabel", { name: displayName(m) })}
-                    value={m.role}
-                    disabled={busy}
-                    onChange={(e) => handleRoleChange(m, e.target.value as OrgRole)}
-                    className="rounded-lg border border-outline bg-surface px-2 py-1.5 text-body text-on-surface"
-                  >
-                    {ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {tRoles(role)}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-body font-medium text-on-surface-variant">{tRoles(m.role)}</span>
-                )}
-                {isLead && !isSelf ? (
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPending({ kind: "remove", member: m })}>
-                    {t("remove")}
-                  </Button>
-                ) : null}
-                {isSelf ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy || soleLead}
-                    aria-describedby={soleLead ? "sole-lead-hint" : undefined}
-                    onClick={() => setPending({ kind: "leave" })}
-                  >
-                    {t("leave")}
-                  </Button>
-                ) : null}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
-      {isLead ? (
-        <div className="flex flex-col gap-4">
-          <h2 className="text-subtitle font-bold text-on-surface">{t("invite.title")}</h2>
-          <form onSubmit={handleInvite} className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-              {t("invite.roleLabel")}
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as InvitableRole)}
-                className="rounded-lg border border-outline bg-surface px-2 py-2 text-body font-normal"
-              >
-                {INVITABLE.map((role) => (
-                  <option key={role} value={role}>
-                    {tRoles(role)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-1 min-w-[220px] flex-col gap-1 text-body font-semibold text-on-surface">
-              {t("invite.emailLabel")}
-              <input
-                type="email"
-                required
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder={t("invite.emailPlaceholder")}
-                className="rounded-lg border border-outline bg-surface px-3 py-2 text-body font-normal"
-              />
-            </label>
-            <Button type="submit" disabled={busy}>
-              {busy ? t("invite.creating") : t("invite.cta")}
-            </Button>
-          </form>
-
-          {createdCode ? (
-            <div className="rounded-xl border border-primary/40 bg-primary-fixed/40 px-4 py-3">
-              <p className="text-body font-semibold text-on-surface">{t("invite.codeTitle")}</p>
-              <p className="my-1 font-mono text-title font-bold tracking-[0.2em] text-primary" data-testid="invite-code">
-                {createdCode.code}
-              </p>
-              <p className="text-body text-on-surface-muted">
-                {createdCode.email ? t("invite.codeSent", { email: createdCode.email }) : t("invite.codeBody")}
-              </p>
-            </div>
-          ) : null}
-
-          <div className="flex flex-col gap-2">
-            <h3 className="text-heading font-semibold text-on-surface">{t("invitations.title")}</h3>
-            {invitations.length === 0 ? (
-              <p className="text-body text-on-surface-muted">{t("invitations.empty")}</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {invitations.map((inv) => (
-                  <li
-                    key={inv.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-outline px-3 py-2"
-                  >
-                    <div className="min-w-0 text-body">
-                      <span className="font-medium text-on-surface">{inv.email ?? t("invitations.noEmail")}</span>
-                      <span className="ml-2 text-on-surface-muted">
-                        {tRoles(inv.role)} · {t(STATE_KEYS[inv.state])}
-                        {inv.state === "pending" ? " · " + t("invitations.expires", { date: date(inv.expiresAt) }) : ""}
-                      </span>
-                    </div>
-                    {inv.state === "pending" ? (
-                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
-                        {t("invitations.revoke")}
-                      </Button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+    // AppShell khoá chiều cao (h-dvh, <main> overflow-hidden) ⇒ trang phải tự có vùng cuộn, giống billing/notifications
+    <div className="flex-1 overflow-y-auto">
+      <section className="w-full max-w-[820px] mx-auto flex flex-col gap-8 pt-8 pb-12 px-4 sm:px-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
+          {org ? <p className="text-body text-on-surface-muted">{t("subtitle", { org: org.name })}</p> : null}
+          {org && !isLead ? <p className="text-body text-on-surface-muted">{t("leadOnly")}</p> : null}
         </div>
-      ) : null}
 
-      {isLead ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-error/40 px-4 py-4">
-          <h2 className="text-subtitle font-bold text-error">{t("danger.title")}</h2>
-          <p className="text-body text-on-surface-muted leading-[1.6]">{t("danger.body")}</p>
-          {aloneAsLead ? null : <p className="text-body text-on-surface-muted">{t("danger.onlyWhenAlone")}</p>}
-          <Button
-            variant="danger"
-            className="self-start"
-            disabled={busy || !aloneAsLead}
-            onClick={() => setPending({ kind: "delete" })}
-          >
-            {t("danger.cta")}
-          </Button>
-        </div>
-      ) : null}
-
-      <Modal
-        open={pending !== null}
-        onClose={closePending}
-        title={
-          pending?.kind === "remove"
-            ? t("removeTitle")
-            : pending?.kind === "delete"
-              ? t("danger.dialogTitle")
-              : t("leaveTitle")
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-body text-on-surface-muted leading-[1.6]">
-            {pending?.kind === "remove"
-              ? t("removeBody", { name: displayName(pending.member) })
-              : pending?.kind === "delete"
-                ? t("danger.dialogBody", { org: org?.name ?? "" })
-                : t("leaveBody", { org: org?.name ?? "" })}
+        {/* Đang mở hộp thoại thì lỗi hiện TRONG hộp thoại — ở đây sẽ nằm sau lớp mờ, người dùng không đọc được */}
+        {error && pending === null ? (
+          <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
+            {error}
           </p>
-          {error ? (
-            <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
-              {error}
-            </p>
-          ) : null}
-          {pending?.kind === "delete" ? (
-            <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-              {t("danger.confirmLabel", { org: org?.name ?? "" })}
-              <input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                autoComplete="off"
-                className="rounded-lg border border-outline bg-surface px-3 py-2 text-body font-normal"
-              />
-            </label>
-          ) : null}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={closePending} disabled={busy}>
-              {t("cancel")}
-            </Button>
+        ) : null}
+
+        <ul className="flex flex-col gap-2">
+          {members.map((m) => {
+            const isSelf = m.userId === myUserId;
+            return (
+              <li
+                key={m.userId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline bg-surface-container-lowest px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-heading font-semibold text-on-surface truncate">
+                    {displayName(m)}
+                    {isSelf ? <span className="ml-2 text-body font-medium text-primary">{t("you")}</span> : null}
+                  </p>
+                  <p className="text-body text-on-surface-muted">{t("joined", { date: date(m.joinedAt) })}</p>
+                  {isSelf && soleLead ? (
+                    <p id="sole-lead-hint" className="mt-1 text-body text-on-surface-muted">
+                      {aloneAsLead ? t("soleLeadAloneHint") : t("soleLeadHint")}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  {isLead && !isSelf ? (
+                    <select
+                      aria-label={t("roleLabel", { name: displayName(m) })}
+                      value={m.role}
+                      disabled={busy}
+                      onChange={(e) => handleRoleChange(m, e.target.value as OrgRole)}
+                      className="rounded-lg border border-outline bg-surface px-2 py-1.5 text-body text-on-surface"
+                    >
+                      {ROLES.map((role) => (
+                        <option key={role} value={role}>
+                          {tRoles(role)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-body font-medium text-on-surface-variant">{tRoles(m.role)}</span>
+                  )}
+                  {isLead && !isSelf ? (
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPending({ kind: "remove", member: m })}>
+                      {t("remove")}
+                    </Button>
+                  ) : null}
+                  {isSelf ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy || soleLead}
+                      aria-describedby={soleLead ? "sole-lead-hint" : undefined}
+                      onClick={() => setPending({ kind: "leave" })}
+                    >
+                      {t("leave")}
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        {isLead ? (
+          <div className="flex flex-col gap-4">
+            <h2 className="text-subtitle font-bold text-on-surface">{t("invite.title")}</h2>
+            <form onSubmit={handleInvite} className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
+                {t("invite.roleLabel")}
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as InvitableRole)}
+                  className="rounded-lg border border-outline bg-surface px-2 py-2 text-body font-normal"
+                >
+                  {INVITABLE.map((role) => (
+                    <option key={role} value={role}>
+                      {tRoles(role)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-1 min-w-[220px] flex-col gap-1 text-body font-semibold text-on-surface">
+                {t("invite.emailLabel")}
+                <input
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder={t("invite.emailPlaceholder")}
+                  className="rounded-lg border border-outline bg-surface px-3 py-2 text-body font-normal"
+                />
+              </label>
+              <Button type="submit" disabled={busy}>
+                {busy ? t("invite.creating") : t("invite.cta")}
+              </Button>
+            </form>
+
+            {createdCode ? (
+              <div className="rounded-xl border border-primary/40 bg-primary-fixed/40 px-4 py-3">
+                <p className="text-body font-semibold text-on-surface">{t("invite.codeTitle")}</p>
+                <p className="my-1 font-mono text-title font-bold tracking-[0.2em] text-primary" data-testid="invite-code">
+                  {createdCode.code}
+                </p>
+                <p className="text-body text-on-surface-muted">
+                  {createdCode.email ? t("invite.codeSent", { email: createdCode.email }) : t("invite.codeBody")}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-2">
+              <h3 className="text-heading font-semibold text-on-surface">{t("invitations.title")}</h3>
+              {invitations.length === 0 ? (
+                <p className="text-body text-on-surface-muted">{t("invitations.empty")}</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {invitations.map((inv) => (
+                    <li
+                      key={inv.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-outline px-3 py-2"
+                    >
+                      <div className="min-w-0 text-body">
+                        <span className="font-medium text-on-surface">{inv.email ?? t("invitations.noEmail")}</span>
+                        <span className="ml-2 text-on-surface-muted">
+                          {tRoles(inv.role)} · {t(STATE_KEYS[inv.state])}
+                          {inv.state === "pending" ? " · " + t("invitations.expires", { date: date(inv.expiresAt) }) : ""}
+                        </span>
+                      </div>
+                      {inv.state === "pending" ? (
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
+                          {t("invitations.revoke")}
+                        </Button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {isLead ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-error/40 px-4 py-4">
+            <h2 className="text-subtitle font-bold text-error">{t("danger.title")}</h2>
+            <p className="text-body text-on-surface-muted leading-[1.6]">{t("danger.body")}</p>
+            {aloneAsLead ? null : <p className="text-body text-on-surface-muted">{t("danger.onlyWhenAlone")}</p>}
             <Button
               variant="danger"
-              onClick={confirmPending}
-              loading={busy}
-              disabled={pending?.kind === "delete" && !deleteConfirmed}
+              className="self-start"
+              disabled={busy || !aloneAsLead}
+              onClick={() => setPending({ kind: "delete" })}
             >
-              {pending?.kind === "delete" ? t("danger.confirmCta") : t("confirm")}
+              {t("danger.cta")}
             </Button>
           </div>
-        </div>
-      </Modal>
-    </section>
+        ) : null}
+
+        <Modal
+          open={pending !== null}
+          onClose={closePending}
+          title={
+            pending?.kind === "remove"
+              ? t("removeTitle")
+              : pending?.kind === "delete"
+                ? t("danger.dialogTitle")
+                : t("leaveTitle")
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-body text-on-surface-muted leading-[1.6]">
+              {pending?.kind === "remove"
+                ? t("removeBody", { name: displayName(pending.member) })
+                : pending?.kind === "delete"
+                  ? t("danger.dialogBody", { org: org?.name ?? "" })
+                  : t("leaveBody", { org: org?.name ?? "" })}
+            </p>
+            {error ? (
+              <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
+                {error}
+              </p>
+            ) : null}
+            {pending?.kind === "delete" ? (
+              <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
+                {t("danger.confirmLabel", { org: org?.name ?? "" })}
+                <input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  autoComplete="off"
+                  className="rounded-lg border border-outline bg-surface px-3 py-2 text-body font-normal"
+                />
+              </label>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closePending} disabled={busy}>
+                {t("cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={confirmPending}
+                loading={busy}
+                disabled={pending?.kind === "delete" && !deleteConfirmed}
+              >
+                {pending?.kind === "delete" ? t("danger.confirmCta") : t("confirm")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      </section>
+    </div>
   );
 }
