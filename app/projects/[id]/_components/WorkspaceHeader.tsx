@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import Logo from "@/components/Logo";
-import Badge from "@/components/ui/Badge";
+import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import CountBadge from "@/components/ui/CountBadge";
 import DropdownMenu from "@/components/ui/DropdownMenu";
@@ -15,8 +15,11 @@ import type { User } from "@/types/user";
 interface WorkspaceHeaderProps {
   project: Project | null;
   user: User | null;
-  /** Phiên bản baseline mới nhất trong `spine.baselines[]`; `null` khi chưa ký baseline. */
-  baselineVersion?: string | null;
+  /**
+   * Trạng thái chốt bản hiện trên breadcrumb: baseline đã ký, hoặc bản đang chờ duyệt / vừa bị từ chối.
+   * `null` ⇒ không hiện chip. Chữ do nơi gọi dựng vì nó phụ thuộc vai trò người đang xem.
+   */
+  baselineStatus?: { label: string; tone: BadgeTone } | null;
   /** Rail tiến độ đang ẩn ⇒ đầu header có nút hiện lại + logo (logo nằm trên rail khi rail mở). */
   progressHidden?: boolean;
   onShowProgress?: () => void;
@@ -35,6 +38,16 @@ interface WorkspaceHeaderProps {
   toolsLabel?: string;
   /** Số mục trong panel đang chờ user quyết — hiện thành badge trên nút, 0 thì không hiện. */
   toolsCount?: number;
+  /**
+   * Mở/đóng panel "Kiểm tra tài liệu" (cờ đỏ/vàng + chốt baseline). Trước đây panel này chỉ vào được
+   * qua chip trên header pane tài liệu — mà chip đó ghi "Không có vấn đề" khi tài liệu sạch, đúng lúc
+   * người dùng cần nút chốt baseline nhất thì lại không ai đoán ra. Nút ở đây luôn thấy, kể cả khi
+   * đang ở màn Brief.
+   */
+  onVerifyClick?: () => void;
+  verifyActive?: boolean;
+  /** Số vấn đề đang chặn chốt bản — badge đỏ, 0 thì không hiện. */
+  verifyCount?: number;
   onLogout: () => void;
 }
 
@@ -45,7 +58,7 @@ interface WorkspaceHeaderProps {
 export default function WorkspaceHeader({
   project,
   user,
-  baselineVersion = null,
+  baselineStatus = null,
   progressHidden = false,
   onShowProgress,
   currentStep = null,
@@ -57,6 +70,9 @@ export default function WorkspaceHeader({
   toolsActive = false,
   toolsLabel = "Công cụ",
   toolsCount = 0,
+  onVerifyClick,
+  verifyActive = false,
+  verifyCount = 0,
   onLogout,
 }: WorkspaceHeaderProps) {
   return (
@@ -75,10 +91,21 @@ export default function WorkspaceHeader({
           /
         </span>
         <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || "Dự án SRS"}</span>
-        {baselineVersion && (
-          <Badge tone="success" dot className="hidden md:inline-flex ml-1.5">
-            Baseline {baselineVersion}
-          </Badge>
+        {baselineStatus && (
+          // Trạng thái chốt bản là thứ cả Lead lẫn Analyst cần thấy MỌI LÚC (có bản chờ mình duyệt không,
+          // bản mình gửi bị từ chối chưa), nên nó ở ngay breadcrumb. Hành động thì nằm trong panel — bấm
+          // chip là mở panel đó, khỏi phải nhớ nút nào mở cái gì.
+          <button
+            type="button"
+            onClick={onVerifyClick}
+            disabled={!onVerifyClick}
+            title={onVerifyClick ? "Mở Kiểm & chốt" : undefined}
+            className="hidden md:inline-flex ml-1.5 shrink-0 rounded-full enabled:cursor-pointer enabled:hover:opacity-80 transition-opacity"
+          >
+            <Badge tone={baselineStatus.tone} dot>
+              {baselineStatus.label}
+            </Badge>
+          </button>
         )}
       </nav>
 
@@ -97,6 +124,20 @@ export default function WorkspaceHeader({
           </Button>
         )}
         {actions}
+        {onVerifyClick && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="shield-check"
+            onClick={onVerifyClick}
+            aria-pressed={verifyActive}
+            title={verifyCount > 0 ? `Kiểm & chốt — ${verifyCount} vấn đề cần xử lý` : "Kiểm tra tài liệu và chốt baseline"}
+            className={`shrink-0 ${verifyActive ? "bg-primary-soft text-primary-hover" : ""}`}
+          >
+            <span className="hidden md:inline">Kiểm &amp; chốt</span>
+            {verifyCount > 0 && <CountBadge count={verifyCount} tone="alert" />}
+          </Button>
+        )}
         {/* UC-49: bản đọc + comment (Viewer góp ý trên baseline, Lead/Analyst xử lý) */}
         {project && (
           <Link

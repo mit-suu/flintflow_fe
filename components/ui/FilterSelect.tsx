@@ -13,6 +13,13 @@ interface FilterSelectProps<T extends string> {
   value: T;
   options: readonly FilterOption<T>[];
   onChange: (value: T) => void;
+  /**
+   * Mép neo danh sách. `end` (mặc định) nở sang trái — đúng cho bộ lọc đứng cuối thanh công cụ rộng.
+   * Dùng `start` khi nút nằm **sát mép trái** của một khung hẹp: menu rộng tối thiểu 176px, nở sang trái
+   * là tràn ra ngoài khung, mà khung cuộn (`overflow-y-auto`) theo CSS có trục ngang là `auto` chứ không
+   * `visible` nên nó cắt mất phần tràn — người dùng thấy cụt đầu chữ.
+   */
+  align?: "start" | "end";
   className?: string;
 }
 
@@ -23,7 +30,7 @@ interface FilterSelectProps<T extends string> {
  * Theo mẫu ARIA "select-only combobox": nút giữ focus (`role="combobox"`), mục đang trỏ báo qua
  * `aria-activedescendant`. Bàn phím: ↑/↓ di chuyển (đóng thì mở), Enter/Space chọn, Esc đóng, Home/End về đầu/cuối.
  */
-export default function FilterSelect<T extends string>({ label, value, options, onChange, className }: FilterSelectProps<T>) {
+export default function FilterSelect<T extends string>({ label, value, options, onChange, align = "end", className }: FilterSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -112,8 +119,9 @@ export default function FilterSelect<T extends string>({ label, value, options, 
           id={listId}
           role="listbox"
           aria-label={label}
-          // Bộ lọc nằm bên phải thanh công cụ ⇒ canh phải; rộng tối thiểu bằng nút
-          className="absolute right-0 top-[calc(100%+6px)] z-40 min-w-[max(100%,176px)] bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-1.5 flex flex-col gap-0.5"
+          // Rộng tối thiểu bằng nút. Canh theo `align`: mặc định canh phải (bộ lọc ở cuối thanh công cụ),
+          // canh trái khi nút đứng đầu — xem chú thích ở prop `align`.
+          className={`absolute ${align === "start" ? "left-0" : "right-0"} top-[calc(100%+6px)] z-40 min-w-[max(100%,176px)] bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-1.5 flex flex-col gap-0.5`}
         >
           {options.map((option, index) => {
             const selected = index === selectedIndex;

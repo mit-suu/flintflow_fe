@@ -201,6 +201,34 @@ describe("DocumentPane", () => {
     expect(onEditSection).toHaveBeenCalledWith(expect.stringMatching(/^§1 Product Overview$/));
   });
 
+  it("Góp ý ghim vào đúng mục đang đọc, kèm nhãn mục (UC-49)", async () => {
+    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onCommentSection = vi.fn();
+
+    renderWithIntl(<DocumentPane projectId="p1" onCommentSection={onCommentSection} />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "Góp ý" }))[0]);
+    expect(onCommentSection).toHaveBeenCalledWith({ sectionId: "fixed:1", label: "§1 Product Overview" });
+  });
+
+  it("mục có góp ý đang mở ⇒ chấm số mở panel góp ý", async () => {
+    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onOpenSectionComments = vi.fn();
+
+    renderWithIntl(
+      <DocumentPane
+        projectId="p1"
+        commentCountOf={(id) => (id === "fixed:2.1" ? 2 : 0)}
+        onOpenSectionComments={onOpenSectionComments}
+      />
+    );
+
+    const dot = await screen.findByTitle("Xem góp ý của mục này");
+    expect(dot).toHaveTextContent("2");
+    fireEvent.click(dot);
+    expect(onOpenSectionComments).toHaveBeenCalledWith("fixed:2.1");
+  });
+
   it("mode 1 v2 (FLF-185): heading nhóm chỉ tiêu đề; mục riêng có nhãn; số hiệu rỗng không in số; section rỗng gợi ý step sở hữu", async () => {
     const onSelectStep = vi.fn();
     getDocument.mockResolvedValueOnce({

@@ -203,8 +203,21 @@ const cases: EndpointCase[] = [
     post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
   ],
   ["replyComment", () => comments.replyComment("p1", "CM-001", "Đồng ý"), "/projects/p1/comments/CM-001/replies", post({ text: "Đồng ý" })],
-  ["resolveComment", () => comments.resolveComment("p1", "CM-001"), "/projects/p1/comments/CM-001/resolve", post()],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
+  ["submitBaseline", () => exportApi.submitBaseline("p1", 12), "/projects/p1/baseline/submit", post({ base_version: 12 })],
+  [
+    "rejectBaseline",
+    () => exportApi.rejectBaseline("p1", 12, "Thiếu luồng huỷ", ["CM-001"]),
+    "/projects/p1/baseline/reject",
+    post({ base_version: 12, reason: "Thiếu luồng huỷ", comment_ids: ["CM-001"] }),
+  ],
+  [
+    "createComment (ghim cả section)",
+    () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+    "/projects/p1/comments",
+    post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+  ],
+  ["resolveComment", () => comments.resolveComment("p1", "CM-001", { kind: "fixed" }), "/projects/p1/comments/CM-001/resolve", post({ kind: "fixed" })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],
   ["fetchUnreadCount", () => notifications.fetchUnreadCount(), "/notifications/unread-count"],
   [

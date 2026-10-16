@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Tabs from "@/components/ui/Tabs";
 import { workspaceStepLabel as stepLabel } from "./phase-labels";
 import { isFlagWaivable } from "@/types/flags";
@@ -98,7 +98,6 @@ interface FlagsPanelProps {
   onShowSection?: (sectionId: string) => void;
   /** Chỉ hiện vấn đề của một mục (bấm chấm số trên tài liệu). */
   focusSectionId?: string | null;
-  onClearFocus?: () => void;
   /** Số mục đã cũ (dữ liệu nguồn đổi sau khi chốt) — nhóm "Mục cần viết lại" đứng đầu, có nút viết lại tất cả. */
   outdatedCount?: number;
   onRewriteOutdated?: () => void;
@@ -151,7 +150,6 @@ export default function FlagsPanel({
   sectionLabelOf,
   onShowSection,
   focusSectionId = null,
-  onClearFocus,
   outdatedCount = 0,
   onRewriteOutdated,
   rewriting = false,
@@ -170,12 +168,18 @@ export default function FlagsPanel({
       : "blocking"
   );
 
-  const openFlags = sortFlags(flags.filter(isOpen)).filter((f) => !focusSectionId || f.section_id === focusSectionId);
+  /**
+   * Bấm chấm đỏ trên một mục **không lọc** danh sách — nó cuộn tới và làm nổi bật đúng dòng của mục đó.
+   * Lọc đẩy panel vào một chế độ phải bấm "Xem tất cả" mới thoát, mà khi mục đó là mục duy nhất có vấn đề
+   * thì vào/ra chế độ nhìn y hệt nhau nên không ai biết mình đang ở đâu. Nổi bật thì thấy ngay chỗ cần,
+   * vẫn giữ nguyên bối cảnh các vấn đề khác.
+   */
+  const openFlags = sortFlags(flags.filter(isOpen));
   const redGroups = groupByAction(openFlags.filter((f) => f.level === "red"), acceptedSteps);
   const yellowGroups = groupByAction(openFlags.filter((f) => f.level === "yellow"), acceptedSteps);
   const waivedFlags = flags.filter((f) => f.waived_by_user);
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
-  const showOutdated = !focusSectionId && outdatedCount > 0 && Boolean(onRewriteOutdated);
+  const showOutdated = outdatedCount > 0 && Boolean(onRewriteOutdated);
   // Tài liệu chưa tải xong ⇒ tên mục theo mẫu FPT, không hiện mã `fixed:3.1.2` (FLF-247)
   const sectionName = (id: string) => sectionLabelOf?.(id) ?? (fptSectionName(id) || id);
   const counts = issueCounts(openFlags, showOutdated ? outdatedCount : 0, acceptedSteps);
@@ -241,6 +245,25 @@ export default function FlagsPanel({
   const rowOpen = (stepId: string) =>
     onSelectStep ? { onClick: () => onSelectStep(stepId), className: "cursor-pointer hover:bg-surface-container-low -mx-2 px-2 rounded-control" } : { className: "" };
 
+  /**
+   * Dòng của mục vừa bấm chấm đỏ: nền nổi bật + `data-focus-row` để cuộn tới. Không dùng viền/ring
+   * (luật phẳng của repo) — nền `primary-soft` đã đủ tách khỏi nền trắng của card.
+   */
+  const focusClass = (flag: Flag) => (flag.section_id === focusSectionId ? "bg-primary-soft -mx-2 px-2 rounded-control" : "");
+
+  // Dòng được làm nổi bật có thể nằm dưới tầm nhìn (danh sách dài) ⇒ cuộn tới, nếu không thì nổi bật vô nghĩa
+  useEffect(() => {
+    if (!focusSectionId) return;
+    // `?.` trên chính hàm: jsdom (và trình duyệt cũ) không có `scrollIntoView`, thiếu nó thì chỉ mất
+    // phần cuộn chứ không được phép làm hỏng panel
+    document.querySelector("[data-focus-row]")?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  }, [focusSectionId, tab]);
+
+  /**
+   * BR-04: cờ **đỏ** không waive được — chọn "giữ nguyên kèm lý do" chỉ ghi lại lý do, cờ vẫn chặn chốt
+   * bản. Nên nhãn phải nói thẳng điều đó; để nguyên chữ "Bỏ qua" là hứa một lối thoát không có thật,
+   * người dùng bấm xong vẫn không chốt được mà không hiểu vì sao.
+   */
   const waiveLink = (flag: Flag) =>
     onWaive &&
     isFlagWaivable(flag.rule_id) && (
@@ -251,9 +274,10 @@ export default function FlagsPanel({
           setWaiveError(null);
           setWaivingId(flag.id);
         }}
+        title={flag.level === "red" ? "Ghi lại lý do giữ nguyên. Cờ đỏ vẫn chặn chốt bản cho tới khi nội dung được sửa." : undefined}
         className={`${textButton} ${secondary} text-on-surface-muted hover:text-on-surface`}
       >
-        Bỏ qua
+        {flag.level === "red" ? "Giữ nguyên (vẫn chặn)" : "Bỏ qua"}
       </button>
     );
 
@@ -282,11 +306,17 @@ export default function FlagsPanel({
       case "reaccept": {
         const open = rowOpen(flag.remediation_step);
         return (
-          <li key={flag.id} onClick={open.onClick} className={`group/row py-1.5 flex items-center justify-between gap-2 ${open.className}`}>
+          <li
+            key={flag.id}
+            onClick={open.onClick}
+            data-focus-row={flag.section_id === focusSectionId || undefined}
+            className={`group/row py-1.5 flex items-center justify-between gap-2 ${open.className} ${focusClass(flag)}`}
+          >
             <div className="min-w-0 flex flex-col">
               <span className="text-body text-on-surface truncate">{sectionName(flag.section_id)}</span>
               <span className="text-caption text-on-surface-muted flex items-center gap-2.5">
-                {isSectionLevelRule(flag.rule_id) ? `Duyệt lại ở ${stepLabel(flag.remediation_step)}` : message}
+                {/* Nói việc phải làm, không chỉ nói chỗ phải tới — bấm vào dòng này là mở đúng bước đó */}
+                {isSectionLevelRule(flag.rule_id) ? `Mở bước ${stepLabel(flag.remediation_step)} để chạy lại và duyệt` : message}
                 <span onClick={(e) => e.stopPropagation()}>{waiveLink(flag)}</span>
               </span>
             </div>
@@ -422,19 +452,6 @@ export default function FlagsPanel({
 
   return (
     <div className="flex flex-col gap-3" aria-label="Danh sách vấn đề">
-      {focusSectionId && (
-        <div className="flex items-center justify-between gap-2 rounded-control bg-primary-soft px-3 py-2 text-body text-primary-hover">
-          <span className="min-w-0 truncate">
-            Vấn đề của <span className="font-bold">{sectionName(focusSectionId)}</span>
-          </span>
-          {onClearFocus && (
-            <button type="button" onClick={onClearFocus} className="font-bold hover:underline cursor-pointer shrink-0">
-              Xem tất cả
-            </button>
-          )}
-        </div>
-      )}
-
       <Tabs
         label="Loại vấn đề"
         idBase="doc-issues"
@@ -471,7 +488,7 @@ export default function FlagsPanel({
             {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
             {redGroups.length === 0 &&
               !showOutdated &&
-              emptyNote(focusSectionId ? "Mục này không còn vấn đề phải xử lý." : "Không còn vấn đề nào chặn việc chốt bản.")}
+              emptyNote("Không còn vấn đề nào chặn việc chốt bản.")}
           </>
         )}
 

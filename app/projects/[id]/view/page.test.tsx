@@ -171,7 +171,7 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
     expect(await screen.findByRole("listitem", { name: "Comment CM-001" })).toBeInTheDocument();
 
-    await resolveComment(P, "CM-001");
+    await resolveComment(P, "CM-001", { kind: "fixed" });
     fireEvent(window, new Event("focus"));
 
     expect(await screen.findByRole("tab", { name: "Đã đóng (1)" })).toBeInTheDocument();
@@ -205,7 +205,7 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
   it("link thông báo ?comment= tới comment đã đóng ⇒ tự mở tab Đã đóng", async () => {
     await assembleDocument(P, await version());
     await createComment(P, { version: { source: "draft" }, anchor: { section_id: "fixed:1", block_index: null }, text: "Tầm nhìn còn chung chung" });
-    await resolveComment(P, "CM-001");
+    await resolveComment(P, "CM-001", { kind: "fixed" });
     nav.search = "comment=CM-001";
 
     renderWithIntl(<ReadOnlyDocumentPage />);

@@ -228,7 +228,7 @@ export default function ReadOnlyDocumentPage() {
 
   const resolve = async (commentId: string) => {
     try {
-      await resolveComment(projectId, commentId);
+      await resolveComment(projectId, commentId, { kind: "fixed" });
     } catch (err) {
       throw asUserError(err, "Không đánh dấu được. Vui lòng thử lại.");
     }

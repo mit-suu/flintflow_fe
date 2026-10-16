@@ -16,6 +16,7 @@ const comment = (over: Partial<SrsComment> = {}): SrsComment => ({
   cr_id: null,
   handled_by: null,
   handled_at: null,
+  resolution: null,
   replies: [],
   created_at: "2026-10-08T03:00:00.000Z",
   ...over,

@@ -320,7 +320,7 @@ export type BaselineType = "generated" | "imported" | "release";
 
 export interface Baseline {
   id: string;
-  /** Mode 2: `v1.0`, `v1.0-conditional`… Mode 1: `0.0`, `1.0`… */
+  /** Mode 2: `v1.0`, `v1.1`… Mode 1: `0.0`, `1.0`… Mức `-conditional` đã bỏ (BR-04: cờ đỏ không waive được). */
   version: string;
   type: BaselineType;
   /** Mode 1: version tài liệu baseline chụp; mode 2 luôn `null`. */
@@ -329,6 +329,26 @@ export interface Baseline {
   snapshot_ref: string;
   checked_at_version: number;
   waived_count: number;
+}
+
+export type BaselineSubmissionStatus = "pending" | "rejected";
+
+/**
+ * Lượt nộp baseline đang chờ Lead quyết (UC-45) hoặc vừa bị từ chối (UC-46). `null` = chưa ai nộp —
+ * Lead tự duyệt đi thẳng từ trạng thái này. Đọc từ `GET /spine`, không có endpoint riêng.
+ */
+export interface BaselineSubmission {
+  status: BaselineSubmissionStatus;
+  submitted_by: string;
+  submitted_at: IsoDateTime;
+  /** `spine_version` lúc nộp — Lead biết tài liệu có đổi sau khi nộp hay không. */
+  spine_version: number;
+  decided_by: string | null;
+  decided_at: IsoDateTime | null;
+  /** Lý do từ chối; `null` khi đang chờ duyệt. */
+  reason: string | null;
+  /** `CM-nnn` Lead ghim kèm lần từ chối — phải kết luận hết mới gửi lại được (UC-47). */
+  rejection_comment_ids: string[];
 }
 
 /** Loại op (`op.types.ts` của T08) và `revert` do engine ghi lại. */
@@ -399,4 +419,6 @@ export interface Spine {
   flags: Flag[];
   sections: SectionState[];
   baselines: Baseline[];
+  /** Lượt nộp baseline đang chờ Lead quyết hoặc vừa bị từ chối. Spine cũ ⇒ `null`. */
+  baseline_submission: BaselineSubmission | null;
 }

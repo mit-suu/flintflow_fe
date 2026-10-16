@@ -63,7 +63,7 @@ describe("FlagsPanel", () => {
     const onWaive = vi.fn().mockResolvedValue(undefined);
     renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onRecompute={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Bỏ qua" }));
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên (vẫn chặn)" }));
     const textarea = await screen.findByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: "Chấp nhận rủi ro vì phạm vi MVP hiện tại" } });
 
@@ -78,7 +78,7 @@ describe("FlagsPanel", () => {
   it("lý do dưới 20 ký tự thì nút xác nhận bị khoá", async () => {
     renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Bỏ qua" }));
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên (vẫn chặn)" }));
     const textarea = await screen.findByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: "Quá ngắn" } });
 
@@ -222,5 +222,28 @@ describe("FlagsPanel — FLF-177", () => {
     expect(redraw).toHaveLength(1);
     fireEvent.click(redraw[0]);
     await waitFor(() => expect(onRedraw).toHaveBeenCalledWith(stale));
+  });
+});
+
+describe("FlagsPanel — bấm chấm đỏ trên tài liệu", () => {
+  const reaccept: Flag = { ...baseFlag, id: "FL20", rule_id: "section_awaiting_reaccept", section_id: "fixed:1", remediation_step: "S-1.1" };
+  const other: Flag = { ...baseFlag, id: "FL21", rule_id: "section_awaiting_reaccept", section_id: "fixed:2.1", remediation_step: "S-2.1" };
+
+  it("làm nổi bật đúng dòng của mục, KHÔNG lọc mất các vấn đề khác", () => {
+    const { container } = renderWithIntl(
+      <FlagsPanel flags={[reaccept, other]} onRecompute={vi.fn()} sectionLabelOf={(id) => (id === "fixed:1" ? "§1 Product Overview" : "§2.1 Actors")} focusSectionId="fixed:1" />
+    );
+
+    // Vấn đề của mục khác vẫn còn — trước đây bị lọc mất nên người dùng tưởng panel trống
+    expect(screen.getByText("§2.1 Actors")).toBeInTheDocument();
+
+    const focused = container.querySelectorAll("[data-focus-row]");
+    expect(focused).toHaveLength(1);
+    expect(focused[0]).toHaveTextContent("§1 Product Overview");
+  });
+
+  it("không bấm mục nào ⇒ không dòng nào nổi bật", () => {
+    const { container } = renderWithIntl(<FlagsPanel flags={[reaccept, other]} onRecompute={vi.fn()} />);
+    expect(container.querySelectorAll("[data-focus-row]")).toHaveLength(0);
   });
 });
