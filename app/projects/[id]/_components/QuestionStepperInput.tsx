@@ -173,7 +173,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                   role="tab"
                   aria-selected={i === current}
                   onClick={() => goTo(i)}
-                  className={`h-6 px-2 shrink-0 rounded-inner flex items-center gap-1 text-[11px] font-bold transition-colors cursor-pointer ${
+                  className={`h-6 px-2 shrink-0 rounded-inner flex items-center gap-1 text-caption font-bold transition-colors cursor-pointer ${
                     i === current ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container hover:text-on-surface"
                   }`}
                 >
@@ -187,7 +187,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                 role="tab"
                 aria-selected={onReview}
                 onClick={() => goTo(total)}
-                className={`h-6 px-2 shrink-0 rounded-inner text-[11px] font-bold transition-colors cursor-pointer ${
+                className={`h-6 px-2 shrink-0 rounded-inner text-caption font-bold transition-colors cursor-pointer ${
                   onReview ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container hover:text-on-surface"
                 }`}
               >
@@ -195,13 +195,13 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
               </button>
             )}
             {total === 1 && question?.header && (
-              <span className="h-6 px-2 shrink-0 rounded-inner bg-primary-soft text-primary-hover flex items-center text-[11px] font-bold">
+              <span className="h-6 px-2 shrink-0 rounded-inner bg-primary-soft text-primary-hover flex items-center text-caption font-bold">
                 {question.header}
               </span>
             )}
           </div>
           {collapsed && question && (
-            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-on-surface" title={question.question}>
+            <span className="min-w-0 flex-1 truncate text-body font-semibold text-on-surface" title={question.question}>
               {question.question}
             </span>
           )}
@@ -234,8 +234,8 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
           question && (
             <>
               <div className="flex flex-col gap-0.5 px-2 pt-0.5 pb-0.5">
-                <p className="text-[12.5px] font-bold text-on-surface leading-snug">{question.question}</p>
-                {isMultiple && <span className="text-[11px] text-on-surface-muted">Chọn một hoặc nhiều đáp án</span>}
+                <p className="text-body font-bold text-on-surface leading-snug">{question.question}</p>
+                {isMultiple && <span className="text-caption text-on-surface-muted">Chọn một hoặc nhiều đáp án</span>}
               </div>
 
               <div className={`grid gap-2 ${preview !== undefined ? "@[560px]:grid-cols-2" : ""}`}>
@@ -266,7 +266,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                   <label className="flex items-center gap-2 px-2 py-1 rounded-control hover:bg-surface-container transition-colors cursor-text">
                     <span
                       aria-hidden
-                      className={`w-5 h-5 shrink-0 grid place-items-center rounded-inner text-[10.5px] font-bold tabular-nums ${
+                      className={`w-5 h-5 shrink-0 grid place-items-center rounded-inner text-caption font-bold tabular-nums ${
                         answer.custom.trim() ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-muted"
                       }`}
                     >
@@ -287,7 +287,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                       }}
                       aria-label="Câu trả lời khác"
                       placeholder="Khác…"
-                      className="flex-1 min-w-0 bg-transparent outline-none text-[12px] text-on-surface placeholder:text-on-surface-subtle"
+                      className="flex-1 min-w-0 bg-transparent outline-none text-body text-on-surface placeholder:text-on-surface-subtle"
                     />
                   </label>
                 </div>
@@ -295,7 +295,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                 {preview !== undefined && (
                   <pre
                     aria-label="Xem trước lựa chọn"
-                    className="m-0 min-w-0 overflow-x-auto ff-scroll rounded-control bg-surface-container px-3 py-2 font-mono text-[11px] leading-snug text-on-surface whitespace-pre"
+                    className="m-0 min-w-0 overflow-x-auto ff-scroll rounded-control bg-surface-container px-3 py-2 font-mono text-caption leading-snug text-on-surface whitespace-pre"
                   >
                     {preview}
                   </pre>
@@ -311,7 +311,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
             <button
               type="button"
               onClick={onDismiss}
-              className="h-7 px-3 shrink-0 rounded-control text-[11.5px] font-bold bg-surface-container text-on-surface hover:bg-surface-container-high cursor-pointer transition-colors"
+              className="h-7 px-3 shrink-0 rounded-control text-body font-bold bg-surface-container text-on-surface hover:bg-surface-container-high cursor-pointer transition-colors"
             >
               Bỏ qua
             </button>
@@ -320,7 +320,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
             type="button"
             onClick={next}
             disabled={isSubmitTab && ((!hasAnyAnswer && !allowEmpty) || sending)}
-            className={`h-7 px-3 shrink-0 rounded-control text-[11.5px] font-bold flex items-center gap-1.5 transition-colors ${
+            className={`h-7 px-3 shrink-0 rounded-control text-body font-bold flex items-center gap-1.5 transition-colors ${
               isSubmitTab
                 ? "bg-primary text-on-primary hover:bg-primary-hover disabled:bg-surface-container-highest disabled:text-on-surface-subtle"
                 : "bg-surface-container text-on-surface hover:bg-surface-container-high"

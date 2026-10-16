@@ -4,6 +4,7 @@ import * as admin from "./admin";
 import * as billing from "./billing";
 import * as changeRequests from "./change-requests";
 import * as chat from "./chat";
+import * as comments from "./comments";
 import { ApiClientError, apiCall, authFetch } from "./client";
 import * as documents from "./documents";
 import * as exportApi from "./export";
@@ -15,6 +16,7 @@ import * as notifications from "./notifications";
 import * as pipeline from "./pipeline";
 import * as projects from "./projects";
 import * as spine from "./spine";
+import * as translations from "./translations";
 import * as versions from "./versions";
 
 vi.mock("./client", async (importOriginal) => ({
@@ -46,6 +48,12 @@ const cases: EndpointCase[] = [
     post({ name: "App", mode: "fpt", folderId: "f1" }),
   ],
   [
+    "createProject (ngôn ngữ tài liệu)",
+    () => projects.createProject("App", "fpt", undefined, "vi"),
+    "/projects",
+    post({ name: "App", mode: "fpt", documentLanguage: "vi" }),
+  ],
+  [
     "renameProject",
     () => projects.renameProject("p1", "Mới"),
     "/projects/p1/name",
@@ -63,6 +71,12 @@ const cases: EndpointCase[] = [
     () => projects.moveProjectToFolder("p1", "f1"),
     "/projects/p1/folder",
     { method: "PATCH", body: JSON.stringify({ folderId: "f1" }) },
+  ],
+  [
+    "setDocumentLanguage",
+    () => projects.setDocumentLanguage("p1", "en"),
+    "/projects/p1/document-language",
+    { method: "PATCH", body: JSON.stringify({ documentLanguage: "en" }) },
   ],
   ["listFolders", () => folders.listFolders(), "/folders"],
   ["createFolder", () => folders.createFolder({ name: "A", color: "blue" }), "/folders", post({ name: "A", color: "blue" })],
@@ -175,7 +189,21 @@ const cases: EndpointCase[] = [
     post({ base_version: 4 }),
   ],
   ["getDocument", () => exportApi.getDocument("p1", "baseline"), "/projects/p1/document?source=baseline"],
+  // ─── FLF-265: dịch tài liệu theo lô (#26, #27) — body strict, bỏ trống ⇒ BE dùng số lô mặc định ───
+  ["getTranslationStatus", () => translations.getTranslationStatus("p1"), "/projects/p1/translations/status"],
+  ["runTranslation (số lô mặc định của BE)", () => translations.runTranslation("p1"), "/projects/p1/translations/run", post({})],
+  ["runTranslation (max_batches)", () => translations.runTranslation("p1", 2), "/projects/p1/translations/run", post({ max_batches: 2 })],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
+  ["listComments", () => comments.listComments("p1"), "/projects/p1/comments?status=open"],
+  ["listComments all", () => comments.listComments("p1", "all"), "/projects/p1/comments?status=all"],
+  [
+    "createComment",
+    () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
+    "/projects/p1/comments",
+    post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
+  ],
+  ["replyComment", () => comments.replyComment("p1", "CM-001", "Đồng ý"), "/projects/p1/comments/CM-001/replies", post({ text: "Đồng ý" })],
+  ["resolveComment", () => comments.resolveComment("p1", "CM-001"), "/projects/p1/comments/CM-001/resolve", post()],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],
   ["fetchUnreadCount", () => notifications.fetchUnreadCount(), "/notifications/unread-count"],

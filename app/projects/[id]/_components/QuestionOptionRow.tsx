@@ -31,7 +31,7 @@ export default function QuestionOptionRow({ index, label, description, recommend
     >
       <span
         aria-hidden
-        className={`w-5 h-5 shrink-0 grid place-items-center rounded-inner text-[10.5px] font-bold tabular-nums transition-colors ${
+        className={`w-5 h-5 shrink-0 grid place-items-center rounded-inner text-caption font-bold tabular-nums transition-colors ${
           selected ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-muted"
         }`}
       >
@@ -39,12 +39,12 @@ export default function QuestionOptionRow({ index, label, description, recommend
       </span>
       <span className="flex-1 min-w-0 flex flex-col pt-[2px]">
         <span className="flex flex-wrap items-center gap-1.5">
-          <span className={`text-[12px] font-semibold leading-snug ${selected ? "text-primary-hover" : "text-on-surface"}`}>{label}</span>
+          <span className={`text-body font-semibold leading-snug ${selected ? "text-primary-hover" : "text-on-surface"}`}>{label}</span>
           {recommended && (
-            <span className="px-1.5 py-px rounded-full bg-success-soft text-success text-[10px] font-bold leading-4">Khuyến nghị</span>
+            <span className="px-1.5 py-px rounded-full bg-success-soft text-success text-caption font-bold leading-4">Khuyến nghị</span>
           )}
         </span>
-        {description && <span className="text-[11px] text-on-surface-muted leading-snug">{description}</span>}
+        {description && <span className="text-caption text-on-surface-muted leading-snug">{description}</span>}
       </span>
     </button>
   );

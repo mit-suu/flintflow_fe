@@ -587,6 +587,7 @@
       "menu": {
         "rename": "Rename",
         "moveToFolder": "Move to folder",
+        "documentLanguage": "Document language",
         "archive": "Archive",
         "hardDelete": "Delete permanently"
       },
@@ -609,6 +610,12 @@
     "createProject": {
       "defaultName": "Untitled project",
       "nameLabel": "Project name",
+      "language": {
+        "label": "Document language",
+        "vi": "Vietnamese",
+        "en": "English",
+        "importHint": "The document language follows the uploaded file."
+      },
       "pickMode": "Pick a way to start above to continue.",
       "submitting": "Creating…",
       "submit": "Start",
@@ -632,11 +639,49 @@
         "busy": "Deleting…",
         "failed": "Could not delete the project"
       },
+      "documentLanguage": {
+        "title": "Document language",
+        "detail": "New content will be written in this language; existing content, including the text on diagrams, needs a one-time translation (credit estimate in the next step).",
+        "cta": "Change language",
+        "busy": "Changing…",
+        "failed": "Could not change the document language"
+      },
       "renameTitle": "Rename project",
       "renameFailed": "Could not rename the project",
       "renameLabel": "New project name",
       "saveChanges": "Save changes",
       "confirm": "{action} “{name}”?"
+    },
+    "translateDialog": {
+      "title": "Translate document",
+      "checking": "Checking what still needs translating…",
+      "statusFailed": "Could not check what still needs translating",
+      "language": {
+        "vi": "Vietnamese",
+        "en": "English"
+      },
+      "estimate": "{count, plural, one {# item} other {# items}} · ~{credits, plural, one {# credit} other {# credits}}",
+      "direction": "From the original {source} to {target}",
+      "detail": "Only items still showing the original text are translated, including the text on diagrams; translated items stay as they are. Credits are charged per batch actually run — if it stops midway, what was translated is kept.",
+      "nothingToTranslate": "The document is in its original language — nothing to translate.",
+      "allTranslated": "The document is fully translated into {language} — nothing left to translate.",
+      "start": "Translate now",
+      "running": "Translating…",
+      "stopping": "Stopping after the current round…",
+      "progress": "{done}/{total} items",
+      "progressLabel": "Document translation progress",
+      "closeHint": "Close this dialog or press Stop: translation stops after the current round and what was translated is kept.",
+      "stop": "Stop",
+      "done": "Translated {count, plural, one {# item} other {# items}}.",
+      "stopped": "Stopped — translated {count, plural, one {# item} other {# items}}; {remaining} still show the original text.",
+      "stalled": "No more items could be translated — {remaining} still show the original text. Try again in a few minutes.",
+      "insufficientCredit": "Not enough credits to keep translating. Top up, then run it again.",
+      "runningElsewhere": "This document is being translated in another run — wait for it to finish, then try again.",
+      "unreadable": "Couldn't translate right now — the AI returned a result that could not be read. Try again in a few minutes.",
+      "runFailed": "Could not translate the document",
+      "kept": "{count, plural, one {# item was} other {# items were}} translated before it stopped — they are kept.",
+      "creditsUsed": "{credits, plural, one {# credit} other {# credits}} used.",
+      "continue": "Continue translating"
     },
     "folderDialogs": {
       "deleteTitle": "Delete folder",
@@ -1250,6 +1295,8 @@
     "USER_NOT_FOUND": "User not found.",
     "RATE_LIMIT_EXCEEDED": "The AI service is busy. Please try again in a few minutes.",
     "PROJECT_NOT_FOUND": "Project not found or you don't have access.",
+    "DOCUMENT_LANGUAGE_LOCKED": "Projects imported from an existing SRS use the uploaded file's language — the document language cannot be changed.",
+    "TRANSLATION_RUNNING": "This document is being translated in another run — wait for it to finish, then try again.",
     "NAME_REQUIRED": "Please enter a project name.",
     "CHAT_SESSION_NOT_FOUND": "Chat session not found.",
     "CONTENT_REQUIRED": "The message can't be empty.",
@@ -1308,7 +1355,8 @@
     "BAD_REQUEST": "The request was invalid. Please reload the page and try again.",
     "NOT_FOUND": "The requested content wasn't found.",
     "PAYLOAD_TOO_LARGE": "The data you sent is too large.",
-    "FILE_TOO_LARGE": "The file is larger than the allowed limit.",
+    "FILE_TOO_LARGE": "The file is larger than the allowed limit. For Word files with many pictures, compress them (File → Compress Pictures) and upload again.",
+    "FILE_TOO_LARGE_LIMIT": "The file exceeds the {max_mb} MB limit. Compress the pictures in Word (File → Compress Pictures) or move appendices out, then upload again.",
     "UPLOAD_FAILED": "Couldn't upload the file. Please pick it again and retry.",
     "INVALID_ID": "The link or identifier is invalid.",
     "DUPLICATE": "This item already exists.",

@@ -439,6 +439,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
                   }
                   onSpineChanged(event.spine_version);
                 }
+                // Bước im chạy lẻ: server tự Accept sau gate_ready `auto` (E2E FAP #19) — nạp lại để tiến độ và cờ khớp
+                if (event.type === "auto_accepted") onSpineChanged();
               },
             });
             if (!controller.signal.aborted && autoAccepted) {
@@ -674,7 +676,15 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
           return "ok";
         }
         // Tài liệu vừa đổi ở bước khác: tải lại Spine rồi để user bấm lại — không tự ghi đè (BUG-06)
-        if (err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT") onSpineChanged();
+        if (err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT") {
+          const fresh = await getSpine(projectId)
+            .then((res) => res.data?.spine_version)
+            .catch(() => undefined);
+          onSpineChanged(fresh);
+          // BE giữ nguyên thẻ cổng khi gate thất bại ⇒ dựng lại thẻ (đã có version mới) để user bấm lại đúng nút đó. Trước
+          // đây khối lỗi thay thẻ, và "Thử lại" chạy lại cả bước thay vì gửi lại lệnh duyệt (E2E FAP #3).
+          if (fresh !== undefined && (await restore(stepId))?.status === "gate") return "failed";
+        }
         dispatch({ type: "failed", ...toFailure(err) });
         return "failed";
       }

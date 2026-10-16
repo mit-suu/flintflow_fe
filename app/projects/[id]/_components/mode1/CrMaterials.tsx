@@ -24,13 +24,13 @@ export function MaterialList({ items, onRemove, busy = false }: { items: Materia
   return (
     <ul className="flex flex-col gap-1.5" aria-label="Tài liệu bổ sung">
       {items.map((m) => (
-        <li key={m.key} className="bg-white border border-[#ECEAE5] rounded-[10px] px-3 py-2 text-[12px] flex flex-col gap-1">
+        <li key={m.key} className="bg-white border border-[#ECEAE5] rounded-[10px] px-3 py-2 text-body flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <span className="px-1.5 py-0.5 rounded-full bg-[#F2F1FB] text-[#554DB0] text-[10.5px] font-bold">{KIND_LABEL[m.kind]}</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-[#F2F1FB] text-[#554DB0] text-caption font-bold">{KIND_LABEL[m.kind]}</span>
             <span className="flex-1 font-semibold text-[#191817] truncate" title={m.name}>
               {m.name}
             </span>
-            {m.round !== undefined && <span className="text-[11px] text-[#8A867E]">{m.round === 0 ? "lúc tạo CR" : `khi trả lời vòng ${m.round}`}</span>}
+            {m.round !== undefined && <span className="text-caption text-[#8A867E]">{m.round === 0 ? "lúc tạo CR" : `khi trả lời vòng ${m.round}`}</span>}
             {onRemove && (
               <button type="button" disabled={busy} onClick={() => onRemove(m.key)} className="text-[#B03030] font-bold hover:opacity-75 disabled:opacity-50" aria-label={`Xoá tài liệu ${m.name}`}>
                 ✕
@@ -42,7 +42,7 @@ export function MaterialList({ items, onRemove, busy = false }: { items: Materia
               {m.text.length > PREVIEW_CHARS ? `${m.text.slice(0, PREVIEW_CHARS)}…` : m.text}
             </p>
           )}
-          {m.truncated && <p className="text-[11px] text-[#8A6D1F]">Tài liệu dài — AI chỉ đọc phần đầu (20 000 ký tự).</p>}
+          {m.truncated && <p className="text-caption text-[#8A6D1F]">Tài liệu dài — AI chỉ đọc phần đầu (20 000 ký tự).</p>}
         </li>
       ))}
     </ul>
@@ -68,7 +68,7 @@ export function MaterialAdder({ onAddText, onAddFile, busy = false, full = false
   const [text, setText] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  if (full) return <p className="text-[11.5px] text-[#8A867E]">Đã đủ số tài liệu tối đa — xoá bớt để thêm tài liệu khác.</p>;
+  if (full) return <p className="text-body text-[#8A867E]">Đã đủ số tài liệu tối đa — xoá bớt để thêm tài liệu khác.</p>;
 
   return (
     <div className="flex flex-col gap-2">
@@ -79,7 +79,7 @@ export function MaterialAdder({ onAddText, onAddFile, busy = false, full = false
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Tên, ví dụ: Email PM 23/09"
-            className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] text-[12.5px]"
+            className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] text-body"
           />
           <textarea
             aria-label="Nội dung tài liệu"
@@ -87,10 +87,10 @@ export function MaterialAdder({ onAddText, onAddFile, busy = false, full = false
             onChange={(e) => setText(e.target.value)}
             rows={4}
             placeholder="Dán nội dung email, biên bản họp, đặc tả…"
-            className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] text-[12.5px]"
+            className="w-full px-2.5 py-1.5 rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] text-body"
           />
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={() => setPasting(false)} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-[12px] font-semibold">
+            <button type="button" onClick={() => setPasting(false)} className="px-3 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold">
               Huỷ
             </button>
             <button
@@ -103,7 +103,7 @@ export function MaterialAdder({ onAddText, onAddFile, busy = false, full = false
                 setText("");
                 setPasting(false);
               }}
-              className="px-3 py-1 rounded-[8px] bg-[#191817] text-white text-[12px] font-bold disabled:opacity-50"
+              className="px-3 py-1 rounded-[8px] bg-[#191817] text-white text-body font-bold disabled:opacity-50"
             >
               Thêm văn bản
             </button>
@@ -112,11 +112,11 @@ export function MaterialAdder({ onAddText, onAddFile, busy = false, full = false
       )}
       <div className="flex flex-wrap gap-2">
         {!pasting && (
-          <button type="button" disabled={busy} onClick={() => setPasting(true)} className="px-3 py-1 rounded-[8px] border border-[#DCD8F0] bg-white text-[12px] font-bold text-[#554DB0] disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={() => setPasting(true)} className="px-3 py-1 rounded-[8px] border border-[#DCD8F0] bg-white text-body font-bold text-[#554DB0] disabled:opacity-50">
             + Dán văn bản
           </button>
         )}
-        <button type="button" disabled={busy} onClick={() => fileInput.current?.click()} className="px-3 py-1 rounded-[8px] border border-[#DCD8F0] bg-white text-[12px] font-bold text-[#554DB0] disabled:opacity-50">
+        <button type="button" disabled={busy} onClick={() => fileInput.current?.click()} className="px-3 py-1 rounded-[8px] border border-[#DCD8F0] bg-white text-body font-bold text-[#554DB0] disabled:opacity-50">
           {busy ? "Đang đọc tài liệu…" : "+ Đính kèm file"}
         </button>
         <input
@@ -131,7 +131,7 @@ export function MaterialAdder({ onAddText, onAddFile, busy = false, full = false
             if (file) void onAddFile(file);
           }}
         />
-        <span className="self-center text-[11px] text-[#8A867E]">.docx, .pdf, .txt, .md hoặc ảnh (ảnh tốn 1 credit để AI đọc)</span>
+        <span className="self-center text-caption text-[#8A867E]">.docx, .pdf, .txt, .md hoặc ảnh (ảnh tốn 1 credit để AI đọc)</span>
       </div>
     </div>
   );
@@ -141,7 +141,7 @@ export function MaterialAdder({ onAddText, onAddFile, busy = false, full = false
 export function AssumptionsNote({ assumptions }: { assumptions: string[] | undefined }) {
   if (!assumptions?.length) return null;
   return (
-    <div className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#8A6D1F]" aria-label="Giả định cần xác nhận">
+    <div className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[8px] px-2.5 py-1.5 text-body text-[#8A6D1F]" aria-label="Giả định cần xác nhận">
       <p className="font-bold">⚠ Giả định cần xác nhận — tài liệu và câu trả lời chưa nói:</p>
       <ul className="list-disc pl-5">
         {assumptions.map((a, i) => (

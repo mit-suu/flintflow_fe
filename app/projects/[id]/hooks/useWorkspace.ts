@@ -237,11 +237,15 @@ export function useWorkspace(projectId: string) {
     });
   }, []);
 
-  /** Hỏi đáp tự do trong chat; step hiện tại gửi kèm để BE lưu transcript theo step. */
+  /**
+   * Hỏi đáp tự do trong chat; step hiện tại gửi kèm để BE lưu transcript theo step. Trả `data` của sự kiện `finish`
+   * (vd. `kind: "change_preview"` kèm `preview` khi tin bị nhận là lệnh sửa) — `undefined` khi không gửi được.
+   */
   const sendMessage = useCallback(
-    async (currentStep: string | null, customContent?: string) => {
+    async (currentStep: string | null, customContent?: string): Promise<unknown> => {
       const text = customContent ?? inputMessage;
-      if ((!text.trim() && pendingAttachments.length === 0) || !activeSession || sending) return;
+      if ((!text.trim() && pendingAttachments.length === 0) || !activeSession || sending) return undefined;
+      let finishData: unknown;
 
       setSending(true);
       setInputMessage("");
@@ -256,7 +260,7 @@ export function useWorkspace(projectId: string) {
           // Tệp chưa lên được (đã báo lỗi): gỡ tin tạm, trả chữ về ô chat để user gửi lại
           setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
           setInputMessage(text);
-          return;
+          return undefined;
         }
 
         setStreamingMessage("");
@@ -266,7 +270,8 @@ export function useWorkspace(projectId: string) {
           content,
           step,
           onTextDelta: (delta) => setStreamingMessage((prev) => (prev ?? "") + delta),
-          onFinish: ({ session }) => {
+          onFinish: ({ session, data }) => {
+            finishData = data;
             // User đã chuyển/tạo phiên khác giữa chừng ⇒ không kéo khung chat về phiên cũ; chỉ cập nhật xem trước
             setActiveSession((prev) => (prev?._id === session._id ? session : prev));
             setSessions((prev) => prev.map((s) => (s._id === session._id ? { ...s, messages: session.messages.slice(-1) } : s)));
@@ -288,6 +293,7 @@ export function useWorkspace(projectId: string) {
       } finally {
         setSending(false);
       }
+      return finishData;
     },
     [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments]
   );
@@ -303,6 +309,12 @@ export function useWorkspace(projectId: string) {
     (fileName: string) => setPendingAttachments((prev) => prev.filter((f) => f.name !== fileName)),
     []
   );
+
+  /**
+   * Thay project bằng bản BE vừa trả sau một lượt ghi (`PATCH document-language` từ lệnh chat — FLF-265 §3.7) ⇒ chip ngôn
+   * ngữ và khoá tải lại tài liệu theo ngôn ngữ mới, khỏi tải lại cả workspace.
+   */
+  const replaceProject = useCallback((next: Project) => setProject(next), []);
 
   const logout = useCallback(() => {
     void logoutAndRedirect();
@@ -334,6 +346,7 @@ export function useWorkspace(projectId: string) {
       selectAttachment,
       removeAttachment,
       refreshUser,
+      replaceProject,
       logout,
       crPrefill,
       dismissCrPrefill: () => setCrPrefill(null),
@@ -364,6 +377,7 @@ export function useWorkspace(projectId: string) {
       selectAttachment,
       removeAttachment,
       refreshUser,
+      replaceProject,
       logout,
       crPrefill,
       notice,

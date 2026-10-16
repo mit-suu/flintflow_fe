@@ -23,12 +23,12 @@ interface Mode1WorkspaceToolsProps {
  */
 export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false }: Mode1WorkspaceToolsProps) {
   const docs = useDocVersions(projectId);
-  const link = "px-2.5 py-1 rounded-full text-[11.5px] font-bold bg-white border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7]";
+  const link = "px-2.5 py-1 rounded-full text-body font-bold bg-white border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7]";
 
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
-        <h4 className="text-[12px] font-extrabold text-[#191817]">Cờ & change request</h4>
+        <h4 className="text-body font-extrabold text-[#191817]">Cờ & change request</h4>
         <Mode1FlagsPanel projectId={projectId} flags={flags} readOnly={readOnly} />
       </section>
 
@@ -47,7 +47,7 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
       </nav>
 
       <section className="flex flex-col gap-2">
-        {docs.error && <p role="alert" className="text-[12px] text-[#B03030]">{docs.error}</p>}
+        {docs.error && <p role="alert" className="text-body text-[#B03030]">{docs.error}</p>}
         <VersionsPanel
           projectId={projectId}
           projectName={projectName}

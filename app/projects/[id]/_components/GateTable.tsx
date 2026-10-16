@@ -6,11 +6,11 @@ export default function GateTable({ table, defaultOpen = false }: { table: GateT
   if (table.rows.length === 0) return null;
   return (
     <details open={defaultOpen || undefined} className="bg-surface-container-low rounded-card px-3.5 py-2.5">
-      <summary className="text-[12.5px] font-semibold text-on-surface cursor-pointer focus-visible:outline-2 focus-visible:outline-primary">
+      <summary className="text-body font-semibold text-on-surface cursor-pointer focus-visible:outline-2 focus-visible:outline-primary">
         Xem bảng: {table.title_vi} ({table.rows.length + table.truncated} dòng)
       </summary>
-      <div className="overflow-x-auto mt-2">
-        <table className="w-full border-separate border-spacing-0.5 text-[12px]">
+      <div className="ff-scroll overflow-x-auto mt-2">
+        <table className="w-full border-separate border-spacing-0.5 text-body">
           <thead>
             <tr>
               {table.columns.map((column) => (
@@ -33,7 +33,7 @@ export default function GateTable({ table, defaultOpen = false }: { table: GateT
           </tbody>
         </table>
       </div>
-      {table.truncated > 0 && <p className="text-[11.5px] text-on-surface-muted mt-1.5">và {table.truncated} dòng nữa — xem đủ trong tài liệu.</p>}
+      {table.truncated > 0 && <p className="text-body text-on-surface-muted mt-1.5">và {table.truncated} dòng nữa — xem đủ trong tài liệu.</p>}
     </details>
   );
 }

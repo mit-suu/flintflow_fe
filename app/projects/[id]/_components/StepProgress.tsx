@@ -83,12 +83,13 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
   const showLog = state.status !== "reconnecting" && state.status !== "interrupted" && activityLines(state.events, working).length > 0;
   // Đang chờ user trả lời: thẻ hỏi đã nói rõ tới lượt ai — chỉ còn nhật ký những việc đã làm, không có dòng nào khác.
   if (state.status === "needs_input" && !showLog) return null;
+  // Lỗi / gián đoạn: page đã có khối báo lỗi hoặc dải "Chạy lại" — dòng giai đoạn cũ ("Đang xem còn thiếu gì…") trông như AI
+  // vẫn chạy, còn câu "bị gián đoạn" thì lặp đúng câu của dải (E2E FAP #6, #8).
+  if ((state.status === "error" || state.status === "interrupted") && !showLog) return null;
   const headline =
     state.status === "reconnecting"
       ? "Mất kết nối với lượt chạy, đang kết nối lại…"
-      : state.status === "interrupted"
-        ? "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ."
-        : [WORKING_TEXT[state.stage ?? "intake"], state.batch ? `lô ${state.batch.i}/${state.batch.n}` : null].filter(Boolean).join(" · ");
+      : [WORKING_TEXT[state.stage ?? "intake"], state.batch ? `lô ${state.batch.i}/${state.batch.n}` : null].filter(Boolean).join(" · ");
   // Nút chỉ cần khi user muốn làm gì đó với lượt chạy: rê chuột/focus vào bong bóng, hoặc tự hiện khi chạy chậm
   const actionsClass = slow ? "flex" : "hidden group-hover:flex group-focus-within:flex";
 
@@ -111,7 +112,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
           )}
           <p
             role="status"
-            className={`flex-1 min-w-0 truncate text-[12.5px] ${state.status === "interrupted" ? "text-[#B03030]" : "text-[#33312D]"}`}
+            className="flex-1 min-w-0 truncate text-body text-[#33312D]"
           >
             {headline}
           </p>
@@ -122,7 +123,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
             <button
               type="button"
               onClick={onBackground}
-              className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#F2F1EE] text-[#191817] hover:bg-[#E9E7E2] cursor-pointer"
+              className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold bg-[#F2F1EE] text-[#191817] hover:bg-[#E9E7E2] cursor-pointer"
             >
               Chạy nền
             </button>
@@ -131,7 +132,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
             <button
               type="button"
               onClick={onCancel}
-              className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FDF2F2] text-[#B03030] hover:bg-[#FBE4E4] cursor-pointer"
+              className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold bg-[#FDF2F2] text-[#B03030] hover:bg-[#FBE4E4] cursor-pointer"
             >
               Huỷ lượt
             </button>
@@ -140,13 +141,13 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
         </div>
 
         {slow && state.status !== "reconnecting" && (
-          <p className="text-[11.5px] text-[#6B6862]" role="status">
+          <p className="text-body text-[#6B6862]" role="status">
             AI phản hồi chậm hơn thường lệ, vẫn đang chạy.
           </p>
         )}
 
         {state.retry && (
-          <p className="text-[11.5px] text-[#8A6D1F] bg-[#FBF4E4] rounded-[8px] px-2 py-1">
+          <p className="text-body text-[#8A6D1F] bg-[#FBF4E4] rounded-[8px] px-2 py-1">
             {/* Lý do (parse hỏng, thiếu trường) và số lần là chuyện của hệ thống — user chỉ cần biết lượt này lâu hơn thường lệ */}
             AI đang thử lại…
           </p>

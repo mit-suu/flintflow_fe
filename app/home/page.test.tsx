@@ -16,6 +16,7 @@ vi.mock("@/lib/api/projects", () => ({
   createProject: vi.fn(),
   renameProject: vi.fn(),
   deleteProject: vi.fn(),
+  setDocumentLanguage: vi.fn(),
   moveProjectToFolder: vi.fn(async () => ({ data: null, error: null })),
 }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(), moveProjectsToFolder: vi.fn(async () => undefined) }));
@@ -77,7 +78,7 @@ describe("Project Dashboard", () => {
     renderPage();
 
     expect(await screen.findByText("Bắt đầu dự án SRS đầu tiên")).toBeInTheDocument();
-    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    expect(within(screen.getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(3);
 
     // Template khách đang "Sắp có": không chọn được; Upload SRS (mode 1) chọn được
     expect(screen.getByRole("radio", { name: /Có template của khách/ })).toHaveAttribute("aria-disabled", "true");
@@ -86,7 +87,7 @@ describe("Project Dashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p9"));
-    expect(createProject).toHaveBeenCalledWith("Dự án chưa đặt tên", "fpt", undefined);
+    expect(createProject).toHaveBeenCalledWith("Dự án chưa đặt tên", "fpt", undefined, "vi");
     expect(listProjects).toHaveBeenCalledTimes(2);
   });
 
@@ -241,7 +242,7 @@ describe("Project Dashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Dự án mới|Mới/ }));
     const dialog = screen.getByRole("dialog", { name: "Tạo dự án mới" });
-    expect(within(dialog).getAllByRole("radio")).toHaveLength(3);
+    expect(within(within(dialog).getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(3);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Huỷ" }));
     expect(screen.queryByRole("dialog")).toBeNull();

@@ -56,18 +56,18 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
   };
 
   if (unconfirmed.length === 0) {
-    return <p className="text-[11.5px] text-[#6B6862]">Không còn điều nào chờ bạn xác nhận.</p>;
+    return <p className="text-body text-on-surface-variant">Không còn điều nào chờ bạn xác nhận.</p>;
   }
 
   const row = (assumption: Assumption, solo: boolean) => (
-    <li key={assumption.id} className="rounded-[10px] border border-[#ECEAE5] bg-white p-2.5 flex flex-col gap-1.5">
+    <li key={assumption.id} className="rounded-control bg-surface-container-low p-2.5 flex flex-col gap-1.5">
       {/* Không hiện path Spine thô (`project.form_factor`) — user đọc câu tạm hiểu và lý do bằng ngôn ngữ của mình */}
-      <p className="text-[11.5px] text-[#191817]">{assumptionText(assumption)}</p>
+      <p className="text-body text-on-surface">{assumptionText(assumption)}</p>
       {(assumption.rationale_vi || assumption.rationale) && (
-        <p className="text-[10.5px] text-[#6B6862] italic">{assumption.rationale_vi || assumption.rationale}</p>
+        <p className="text-caption text-on-surface-variant italic">{assumption.rationale_vi || assumption.rationale}</p>
       )}
       {solo && (
-        <span className="self-start text-[10px] font-bold text-[#B45309] bg-[#FEF3C7] px-1.5 py-0.5 rounded-full">
+        <span className="self-start text-caption font-bold text-accent-gold-text bg-accent-gold-soft px-1.5 py-0.5 rounded-full">
           Cần duyệt riêng
         </span>
       )}
@@ -76,7 +76,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
           type="button"
           disabled={busy || pending !== null}
           onClick={() => void decide([assumption.id], "confirmed")}
-          className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
+          className="px-2 py-1 rounded-full text-caption font-bold bg-primary text-on-primary hover:bg-primary-hover transition-colors disabled:opacity-50 cursor-pointer"
         >
           Đúng
         </button>
@@ -84,7 +84,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
           type="button"
           disabled={busy || pending !== null}
           onClick={() => void decide([assumption.id], "rejected")}
-          className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] disabled:opacity-50 cursor-pointer"
+          className="px-2 py-1 rounded-full text-caption font-bold bg-surface-container-high text-on-surface-medium hover:bg-surface-container-highest transition-colors disabled:opacity-50 cursor-pointer"
           title="Giá trị đang dựa trên giả định này sai — cần sửa lại chỗ đó"
         >
           Sai
@@ -95,7 +95,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
 
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="text-[11px] text-[#6B6862]">
+      <p className="text-caption text-on-surface-variant">
         {unconfirmed.length} giả định chờ xác nhận. Xác nhận đúng thì nội dung giữ nguyên; báo sai thì phần dựa trên nó
         cần sửa lại.
       </p>
@@ -106,7 +106,7 @@ export default function AssumptionSweepPanel({ spine, onSubmitOps, busy = false 
             type="button"
             disabled={busy || pending !== null}
             onClick={() => void decide(batchable.map((a) => a.id), "confirmed")}
-            className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
+            className="px-2.5 py-1 rounded-full text-caption font-bold bg-primary text-on-primary hover:bg-primary-hover transition-colors disabled:opacity-50 cursor-pointer"
           >
             Xác nhận {batchable.length} giả định còn lại
           </button>

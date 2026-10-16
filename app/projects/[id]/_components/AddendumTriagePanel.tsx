@@ -68,31 +68,31 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
   };
 
   if (entries.length === 0) {
-    return <p className="text-[11.5px] text-[#6B6862]">Chưa có ghi chú nào từ pha Brief.</p>;
+    return <p className="text-body text-on-surface-variant">Chưa có ghi chú nào từ pha Brief.</p>;
   }
 
   const card = (entry: Addendum) => {
     const parked = entry.target_section === PARKED_SECTION;
     return (
-      <li key={entry.id} className="rounded-[10px] border border-[#ECEAE5] bg-white p-2.5 flex flex-col gap-1.5">
+      <li key={entry.id} className="rounded-control bg-surface-container-low p-2.5 flex flex-col gap-1.5">
         <div className="flex items-start justify-between gap-2">
           {/* Tiêu đề là mục tài liệu đích bằng tiếng Việt — không hiện khoá `topic` thô (tiếng Anh) của model */}
-          <span className="text-[11px] font-extrabold text-[#191817]">{entry.topic === "vision" ? "Tầm nhìn" : entry.topic === "goals" ? "Mục tiêu" : (SECTION_LABEL[entry.target_section] ?? "Ghi chú")}</span>
+          <span className="text-caption font-extrabold text-on-surface">{entry.topic === "vision" ? "Tầm nhìn" : entry.topic === "goals" ? "Mục tiêu" : (SECTION_LABEL[entry.target_section] ?? "Ghi chú")}</span>
           {parked && (
-            <span className="text-[10px] font-bold text-[#6B6862] bg-[#F5F4F1] px-1.5 py-0.5 rounded-full shrink-0">
+            <span className="text-caption font-bold text-on-surface-dark bg-surface-container-high px-1.5 py-0.5 rounded-full shrink-0">
               Để dành
             </span>
           )}
         </div>
-        <p className="text-[11.5px] text-[#191817]">{entry.content}</p>
+        <p className="text-body text-on-surface">{entry.content}</p>
 
         <label className="flex items-center gap-1.5 pt-0.5">
-          <span className="text-[10.5px] font-bold text-[#8A867E] shrink-0">Đưa vào</span>
+          <span className="text-caption font-bold text-on-surface-variant shrink-0">Đưa vào</span>
           <select
             value={entry.target_section}
             disabled={busy || pending !== null}
             onChange={(e) => void run(entry.id, [buildRetargetOp(entry.id, e.target.value)])}
-            className="flex-1 text-[11px] rounded-[8px] border border-[#ECEAE5] bg-white px-1.5 py-1 cursor-pointer disabled:opacity-50"
+            className="flex-1 text-caption rounded-inner bg-surface-container-lowest px-1.5 py-1 cursor-pointer disabled:opacity-50"
           >
             {TARGET_OPTIONS.some((o) => o.id === entry.target_section) ? null : (
               <option value={entry.target_section}>Mục khác</option>
@@ -107,19 +107,19 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
 
         {confirmDrop === entry.id ? (
           <div className="flex items-center gap-1.5">
-            <span className="text-[10.5px] text-[#B91C1C] font-bold">Bỏ hẳn vì nội dung sai?</span>
+            <span className="text-caption text-error font-bold">Bỏ hẳn vì nội dung sai?</span>
             <button
               type="button"
               disabled={busy || pending !== null}
               onClick={() => void run(entry.id, [buildDropOp(entry.id)])}
-              className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-[#B91C1C] text-white disabled:opacity-50 cursor-pointer"
+              className="px-2 py-1 rounded-full text-caption font-bold bg-error text-on-error hover:brightness-90 transition-[filter] disabled:opacity-50 cursor-pointer"
             >
               Bỏ
             </button>
             <button
               type="button"
               onClick={() => setConfirmDrop(null)}
-              className="px-2 py-1 rounded-full text-[10.5px] font-bold bg-white border border-[#ECEAE5] text-[#6B6862] cursor-pointer"
+              className="px-2 py-1 rounded-full text-caption font-bold bg-surface-container-high text-on-surface-medium hover:bg-surface-container-highest transition-colors cursor-pointer"
             >
               Thôi
             </button>
@@ -129,7 +129,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
             type="button"
             disabled={busy || pending !== null}
             onClick={() => setConfirmDrop(entry.id)}
-            className="self-start text-[10.5px] font-bold text-[#8A867E] underline disabled:opacity-50 cursor-pointer"
+            className="self-start text-caption font-bold text-on-surface-variant underline disabled:opacity-50 cursor-pointer"
             title="Chỉ bỏ khi nội dung sai — chưa làm bản này thì chọn Để dành ở ô trên"
           >
             Bỏ mục này
@@ -141,7 +141,7 @@ export default function AddendumTriagePanel({ spine, onSubmitOps, busy = false }
 
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="text-[11px] text-[#6B6862]">
+      <p className="text-caption text-on-surface-variant">
         {entries.length} ghi chú. Đổi đích nếu đang nhắm sai chỗ; chọn §5.4 để dành lại cho bản sau. Chỉ bỏ khi nội dung
         sai.
       </p>

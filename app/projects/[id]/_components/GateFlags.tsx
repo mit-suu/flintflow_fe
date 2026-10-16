@@ -58,7 +58,7 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
   return (
     <div className="flex flex-col gap-3">
       {blockingFlags.length > 0 && (
-        <div role="alert" className="bg-error-container rounded-card px-3.5 py-3 flex flex-col gap-2 text-[13px] leading-6 text-on-error-container">
+        <div role="alert" className="bg-error-container rounded-card px-3.5 py-3 flex flex-col gap-2 text-body leading-6 text-on-error-container">
           <p className="font-semibold">Chưa ký được baseline — còn {blockingFlags.length} cờ đỏ chưa xử lý:</p>
           {blockingFlags.map((flag) => (
             <div key={flag.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -75,7 +75,7 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
 
       {newFlags.map((flag) => (
         <div key={flag.id} className="flex flex-col gap-2">
-          <p className="text-[14px] leading-7 text-on-surface">
+          <p className="text-heading leading-7 text-on-surface">
             <span className={`font-semibold ${flag.level === "red" ? "text-error" : "text-accent-gold-text"}`}>
               {flag.level === "red" ? "Vấn đề cần xử lý: " : "Điểm nên xem: "}
             </span>
@@ -95,7 +95,7 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
           </QuickReplyChips>
           {keeping === flag.id && (
             <div className="flex flex-col gap-2">
-              <label htmlFor={`gate-keep-${flag.id}`} className="text-[12px] font-semibold text-on-surface-variant">
+              <label htmlFor={`gate-keep-${flag.id}`} className="text-body font-semibold text-on-surface-variant">
                 Vì sao bạn muốn giữ nguyên? (tối thiểu {WAIVE_REASON_MIN_LENGTH} ký tự, sẽ in kèm trong tài liệu)
               </label>
               <textarea
@@ -103,10 +103,10 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
                 rows={2}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full px-3 py-2 rounded-control bg-surface-container text-[13px] outline-none resize-none focus:bg-surface-container-high"
+                className="w-full px-3 py-2 rounded-control bg-surface-container text-body outline-none resize-none focus:bg-surface-container-high"
               />
               {error && (
-                <p role="alert" className="text-[12px] text-error">
+                <p role="alert" className="text-body text-error">
                   {error}
                 </p>
               )}

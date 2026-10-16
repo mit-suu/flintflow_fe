@@ -94,9 +94,9 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
         onClick={() => onOpen(folder)}
         className={`relative w-full min-h-[136px] flex flex-col gap-3 text-left rounded-card px-5 pt-5 pb-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${color.body}`}
       >
-        <span className="text-[15px] font-semibold text-on-surface line-clamp-1 pr-11">{folder.name}</span>
+        <span className="text-heading font-semibold text-on-surface line-clamp-1 pr-11">{folder.name}</span>
         <span aria-hidden className="mt-auto h-px bg-on-surface/10" />
-        <span className="flex items-center justify-end text-[12px] text-on-surface-variant">
+        <span className="flex items-center justify-end text-body text-on-surface-variant">
           {/* Trái: chỗ avatar thành viên — thêm khi có tổ chức */}
           <span>{t("projectCount", { count: folder.projectCount })}</span>
         </span>
@@ -133,7 +133,7 @@ export function NewFolderTile({ onCreate }: { onCreate: () => void }) {
       <button
         type="button"
         onClick={onCreate}
-        className="w-full h-full min-h-[158px] rounded-card border-2 border-dashed border-outline flex flex-col items-center justify-center gap-1.5 text-[12.5px] font-semibold text-on-surface-muted hover:border-outline-purple hover:text-primary hover:bg-surface-container-lowest transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="w-full h-full min-h-[158px] rounded-card border-2 border-dashed border-outline flex flex-col items-center justify-center gap-1.5 text-body font-semibold text-on-surface-muted hover:border-outline-purple hover:text-primary hover:bg-surface-container-lowest transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <Icon name="plus" size={18} />
         {t("new")}

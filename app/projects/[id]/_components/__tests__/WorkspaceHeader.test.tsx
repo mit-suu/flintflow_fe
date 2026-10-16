@@ -40,6 +40,16 @@ describe("WorkspaceHeader", () => {
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
+  it("nút Xem & comment dẫn tới bản đọc của dự án (UC-49)", () => {
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} onLogout={() => {}} />);
+    expect(screen.getByRole("link", { name: "Xem & comment" })).toHaveAttribute("href", "/projects/p1/view");
+  });
+
+  it("chưa tải xong project ⇒ chưa có nút Xem & comment", () => {
+    renderWithIntl(<WorkspaceHeader project={null} user={null} onLogout={() => {}} />);
+    expect(screen.queryByRole("link", { name: "Xem & comment" })).not.toBeInTheDocument();
+  });
+
   // FLF-221: gõ chat là chạy — header không còn nút chạy bước nào
   it("không có nút chạy bước", () => {
     renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onLogout={() => {}} />);

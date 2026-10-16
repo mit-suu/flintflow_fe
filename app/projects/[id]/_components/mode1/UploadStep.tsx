@@ -3,8 +3,12 @@
 import { useRef, useState, type DragEvent } from "react";
 import Icon from "@/components/ui/Icon";
 
-/** Giới hạn contract #2 — BE vẫn là nơi quyết định (nhận file theo magic bytes, không theo đuôi). */
-export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
+/** Giới hạn contract #2 (40 MB, §4.16) — BE vẫn là nơi quyết định (nhận file theo magic bytes, không theo đuôi). */
+export const MAX_IMPORT_MB = 40;
+export const MAX_IMPORT_BYTES = MAX_IMPORT_MB * 1024 * 1024;
+
+/** Làm tròn lên một chữ số: file vừa quá giới hạn hiện 40.1 MB, không hiện "40 MB lớn hơn 40 MB". */
+const toMb = (bytes: number) => Math.ceil((bytes / (1024 * 1024)) * 10) / 10;
 
 interface UploadStepProps {
   onUpload: (file: File) => void;
@@ -19,7 +23,7 @@ export default function UploadStep({
   onUpload,
   busy = false,
   title = "Tải lên SRS có sẵn (.docx)",
-  hint = "File Word .docx tối đa 10MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.",
+  hint = `File Word .docx tối đa ${MAX_IMPORT_MB} MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.`,
 }: UploadStepProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -28,7 +32,9 @@ export default function UploadStep({
   const pick = (file: File | undefined) => {
     if (!file) return;
     if (file.size > MAX_IMPORT_BYTES) {
-      setLocalError(`File ${file.name} lớn hơn 10MB — hãy nén ảnh hoặc tách phụ lục rồi thử lại.`);
+      setLocalError(
+        `File ${file.name} nặng ${toMb(file.size)} MB, lớn hơn giới hạn ${MAX_IMPORT_MB} MB — hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.`
+      );
       return;
     }
     setLocalError(null);
@@ -60,8 +66,8 @@ export default function UploadStep({
         } ${busy ? "opacity-60 cursor-wait" : ""}`}
       >
         <Icon name="upload" size={34} className="text-[#6A62C4]" />
-        <p className="font-extrabold text-[#191817] text-[14px]">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
-        <p className="text-[12px] text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
+        <p className="font-extrabold text-[#191817] text-heading">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
+        <p className="text-body text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
         <input
           ref={inputRef}
           type="file"
@@ -74,7 +80,7 @@ export default function UploadStep({
           }}
         />
       </div>
-      {localError && <p className="text-[12px] text-[#B03030]">{localError}</p>}
+      {localError && <p className="text-body text-[#B03030]">{localError}</p>}
     </div>
   );
 }

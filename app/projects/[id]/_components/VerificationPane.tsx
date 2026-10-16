@@ -7,12 +7,15 @@ import FlagsPanel from "./FlagsPanel";
 import ReadinessSummary from "./ReadinessSummary";
 import type { Readiness } from "@/types/pipeline";
 import type { Flag } from "@/types/flags";
+import type { Spine } from "@/types/spine";
 import TraceabilityMap from "./TraceabilityMap";
 import { issueCounts } from "./flag-rules";
 
 interface VerificationPaneProps {
   /** Có ⇒ hiện "Bản đồ truy vết" (actor → use case → feature → màn → function) ở cuối panel. */
   projectId?: string;
+  /** Spine đang mở — cho bản đồ truy vết chọn thực thể theo tên thay vì gõ mã. */
+  spine?: Spine;
   readiness: Readiness | null;
   /** Nguồn cờ duy nhất — sống ở `page.tsx` (T8) để `DocumentPane` cũng dùng chung, thay vì mỗi
    * panel tự gọi `useFlags` (hai bản state cờ lệch nhau). */
@@ -41,6 +44,7 @@ interface VerificationPaneProps {
 /** Panel "Kiểm tra tài liệu" (T16) — vấn đề đỏ/vàng gom theo loại, bỏ qua có lý do, tình trạng chốt bản từ BE. */
 export default function VerificationPane({
   projectId,
+  spine,
   readiness,
   flags,
   flagsLoading,
@@ -57,11 +61,11 @@ export default function VerificationPane({
 }: VerificationPaneProps) {
   const [showTrace, setShowTrace] = useState(false);
   return (
-    <aside className="w-full h-full bg-surface-container-low rounded-l-dialog flex flex-col overflow-hidden" aria-label="Kiểm tra tài liệu">
-      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-low)] h-12 pl-4 pr-2 bg-surface-container-low flex items-center justify-between shrink-0">
+    <aside className="w-full h-full bg-surface-container rounded-l-dialog flex flex-col overflow-hidden" aria-label="Kiểm tra tài liệu">
+      <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Icon name="shield-check" size={16} className="text-success" />
-          <h3 className="font-bold text-[13px] text-on-surface truncate">Kiểm tra tài liệu</h3>
+          <h3 className="font-bold text-body text-on-surface truncate">Kiểm tra tài liệu</h3>
         </div>
         <IconButton icon="close" size="sm" label="Đóng kiểm tra tài liệu" onClick={onClose} />
       </div>
@@ -94,11 +98,11 @@ export default function VerificationPane({
               type="button"
               onClick={() => setShowTrace((v) => !v)}
               aria-expanded={showTrace}
-              className="self-start text-[12px] font-bold text-primary hover:underline cursor-pointer"
+              className="self-start text-body font-bold text-primary hover:underline cursor-pointer"
             >
               {showTrace ? "Ẩn bản đồ truy vết" : "Xem bản đồ truy vết"}
             </button>
-            {showTrace && <TraceabilityMap projectId={projectId} />}
+            {showTrace && <TraceabilityMap projectId={projectId} spine={spine} />}
           </section>
         )}
       </div>

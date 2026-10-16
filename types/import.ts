@@ -241,11 +241,24 @@ export interface ImportStateResponse {
   import: ImportedDocument;
 }
 
+/**
+ * Ước tính I-4 còn phải chạy (`GET /import` → `credit_estimate`, BE import-change-contract §4.15): chỉ có ở `mapping_review`
+ * hoặc `extracting` khi job chưa chạy / đang dừng. `available_credits` = credit khả dụng của ví org; `null` với Viewer.
+ */
+export interface CreditEstimate {
+  text_batches: number;
+  diagram_images: number;
+  ai_calls: number;
+  credits: number;
+  available_credits: number | null;
+}
+
 export interface GetImportResponse {
   import: ImportedDocument | null;
   profile: TemplateProfile | null;
   extraction: { sections: ExtractionSection[]; review_fields: ReviewField[] };
   blocks_count: number;
+  credit_estimate?: CreditEstimate | null;
 }
 
 export interface ExtractResponse {
@@ -253,12 +266,16 @@ export interface ExtractResponse {
   sections: ExtractionSection[];
 }
 
+/**
+ * #8 chạy nền (contract §4.16): trả ngay import `baselining`; `baseline` / `flags` luôn `null` — kết quả đọc qua poll #4
+ * (`gap_review`) và gap report.
+ */
 export interface FinalizeResponse {
   import: ImportedDocument;
   doc_version: "0.0";
-  baseline: Baseline;
+  baseline: Baseline | null;
   spine_version: number;
-  flags: { red: number; yellow: number };
+  flags: { red: number; yellow: number } | null;
 }
 
 export interface GapLayoutRow {

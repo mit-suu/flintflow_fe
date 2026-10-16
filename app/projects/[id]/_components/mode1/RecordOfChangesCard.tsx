@@ -22,7 +22,7 @@ const COLLAPSED_ROWS = 5;
 
 const EMPTY_ROW: RocRow = { date: "", version: "", change_type: "M", in_charge: "", description: "" };
 
-const inputClass = "w-full px-2 py-1 rounded-[6px] border border-[#E4E1DC] bg-[#FAF9F7] text-[12px] disabled:opacity-60";
+const inputClass = "w-full px-2 py-1 rounded-[6px] border border-[#E4E1DC] bg-[#FAF9F7] text-body disabled:opacity-60";
 
 /**
  * Record of Changes của file upload (FLF-252): BE đọc bảng lịch sử thay đổi lúc tách file, người dùng xem / sửa / thêm /
@@ -36,8 +36,8 @@ export default function RecordOfChangesCard({ rows, fromFile, onChange, disabled
   return (
     <div className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-3">
       <div>
-        <h4 className="font-bold text-[#191817] text-[13.5px]">Record of Changes của file</h4>
-        <p className="text-[12px] text-[#8A867E] leading-relaxed">
+        <h4 className="font-bold text-[#191817] text-body">Record of Changes của file</h4>
+        <p className="text-body text-[#8A867E] leading-relaxed">
           {fromFile > 0
             ? `Đọc được ${fromFile} dòng lịch sử thay đổi từ file. Sửa nếu đọc sai — các dòng này in lên đầu bảng Record of Changes, lịch sử của FlintFlow nối tiếp phía sau.`
             : "Không tìm thấy bảng Record of Changes trong file. Có thể thêm dòng tay, hoặc để trống — bảng chỉ có lịch sử của FlintFlow."}
@@ -45,8 +45,8 @@ export default function RecordOfChangesCard({ rows, fromFile, onChange, disabled
       </div>
 
       {rows.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[12px]">
+        <div className="ff-scroll overflow-x-auto">
+          <table className="w-full text-body">
             <thead className="text-left text-[#8A867E]">
               <tr>
                 <th className="px-1 py-1 font-bold w-[110px]">Ngày</th>
@@ -112,7 +112,7 @@ export default function RecordOfChangesCard({ rows, fromFile, onChange, disabled
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 text-[12px]">
+      <div className="flex flex-wrap items-center gap-3 text-body">
         <button type="button" disabled={disabled} onClick={() => onChange([...rows, { ...EMPTY_ROW }])} className="font-bold text-[#6A62C4] hover:opacity-75 disabled:opacity-40">
           + Thêm dòng
         </button>

@@ -83,7 +83,7 @@ export default function OtpInput({ digits, onChange, disabled = false }: OtpInpu
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
           onFocus={(e) => e.target.select()}
-          className="h-12 w-11 rounded-control bg-surface-container text-center text-[20px] font-bold text-on-surface outline-none transition-[background-color,box-shadow] hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary disabled:opacity-50 sm:h-14 sm:w-12"
+          className="h-12 w-11 rounded-control bg-surface-container text-center text-title font-bold text-on-surface outline-none transition-[background-color,box-shadow] hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary disabled:opacity-50 sm:h-14 sm:w-12"
         />
       ))}
     </div>
@@ -96,7 +96,7 @@ export const emptyOtp = (): string[] => Array(OTP_LENGTH).fill("");
 export function OtpSpamHint() {
   const t = useTranslations("auth.otp");
   return (
-    <p className="rounded-control bg-accent-gold-soft px-3.5 py-2.5 text-left text-[12px] leading-[1.55] text-accent-gold-text">
+    <p className="rounded-control bg-accent-gold-soft px-3.5 py-2.5 text-left text-body leading-[1.55] text-accent-gold-text">
       {t.rich("spamHint", { b: (chunks) => <strong>{chunks}</strong> })}
     </p>
   );

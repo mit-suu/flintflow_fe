@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Question, StepAnswer } from "@/types/pipeline";
 import { replyContainsQuestion, toDiscoveryQuestion } from "@/lib/question-options";
 import QuestionStepperInput from "./QuestionStepperInput";
@@ -29,14 +30,14 @@ export const splitQuestions = (questions: Question[], reply = ""): { card: Quest
   return { card: questions.filter(hasOptions), open, listed: open.filter((q) => !q.inline || !replyContainsQuestion(reply, q.text)) };
 };
 
-/** Một đoạn chữ thành `answers[]`: dạng `n. ...` thì tách theo thứ tự câu, không thì cả đoạn cho câu đầu. */
+/** Một đoạn chữ thành `answers[]`: dạng `n. ...` / `n) ...` thì tách theo thứ tự câu, không thì cả đoạn cho câu đầu. */
 export const toStepAnswers = (questions: Question[], text: string): StepAnswer[] => {
   const trimmed = text.trim();
   if (!trimmed || questions.length === 0) return [];
   if (questions.length === 1) return [{ question_id: questions[0].id, answer: trimmed }];
   const byIndex = new Map<number, string>();
   for (const line of trimmed.split("\n")) {
-    const match = /^(\d+)\.\s+([\s\S]*)$/.exec(line.trim());
+    const match = /^(\d+)[.)]\s+([\s\S]*)$/.exec(line.trim());
     if (match) byIndex.set(Number(match[1]) - 1, match[2].trim());
   }
   const split = questions.flatMap((q, i) => {
@@ -67,24 +68,50 @@ const cardAnswers = (card: Question[], values: (string | string[] | null)[]): St
     return value === null || value === undefined ? [] : [{ question_id: q.id, answer: value }];
   });
 
+/** Câu mở chưa có câu trả lời riêng trong `typed`. */
+export const unansweredOpen = (open: Question[], typed: StepAnswer[]): Question[] => {
+  const ids = new Set(typed.map((a) => a.question_id));
+  return open.filter((q) => !ids.has(q.id));
+};
+
 export default function ElicitPanel({ questions, onSubmit, chatDraft = "", onChatDraftUsed, onCardChange, onDismiss, sending = false }: ElicitPanelProps) {
   const { card, open } = splitQuestions(questions);
+  /**
+   * Câu tự luận chưa trả lời lúc bấm Gửi (E2E FAP: "Thành phần điểm và trọng số…" bị gửi trống, AI hỏi lại 4 lần).
+   * Lần bấm đầu chỉ nhắc; bấm lần nữa mới gửi thiếu — để AI tự giả định là lựa chọn có chủ ý.
+   */
+  const [missing, setMissing] = useState<Question[]>([]);
   if (card.length === 0) return null;
   return (
-    <QuestionStepperInput
-      key={questions.map((q) => q.id).join("|")}
-      questions={card.map(toDiscoveryQuestion)}
-      onChange={(values) => onCardChange?.(cardAnswers(card, values))}
-      onSubmit={(values) => {
-        // Câu mở đã gõ sẵn ở ô chat đi cùng lượt gửi — một POST /answer đủ câu
-        const typed = open.length > 0 ? toStepAnswers(open, chatDraft) : [];
-        const answers = mergeAnswers(cardAnswers(card, values), typed);
-        if (answers.length === 0) return;
-        onSubmit(answers);
-        if (typed.length > 0) onChatDraftUsed?.();
-      }}
-      onDismiss={onDismiss}
-      sending={sending}
-    />
+    <>
+      {missing.length > 0 && (
+        <p role="alert" className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-caption text-amber-900">
+          Còn {missing.length} câu tự luận chưa trả lời: {missing.map((q) => `“${q.text}”`).join("; ")}. Gõ câu trả lời ở ô chat
+          {open.length > 1 ? " (đánh số 1), 2)… theo thứ tự câu)" : ""} rồi bấm Gửi — hoặc bấm Gửi lần nữa để AI tự giả định.
+        </p>
+      )}
+      <QuestionStepperInput
+        key={questions.map((q) => q.id).join("|")}
+        questions={card.map(toDiscoveryQuestion)}
+        onChange={(values) => onCardChange?.(cardAnswers(card, values))}
+        onSubmit={(values) => {
+          // Câu mở đã gõ sẵn ở ô chat đi cùng lượt gửi — một POST /answer đủ câu
+          const typed = open.length > 0 ? toStepAnswers(open, chatDraft) : [];
+          const left = unansweredOpen(open, typed);
+          const alreadyWarned = left.length > 0 && left.every((q) => missing.some((m) => m.id === q.id));
+          if (left.length > 0 && !alreadyWarned) {
+            setMissing(left);
+            return;
+          }
+          setMissing([]);
+          const answers = mergeAnswers(cardAnswers(card, values), typed);
+          if (answers.length === 0) return;
+          onSubmit(answers);
+          if (typed.length > 0) onChatDraftUsed?.();
+        }}
+        onDismiss={onDismiss}
+        sending={sending}
+      />
+    </>
   );
 }

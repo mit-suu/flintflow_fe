@@ -7,12 +7,12 @@ import { fieldChanges } from "./value-diff";
 export default function FieldChanges({ oldText, newText }: { oldText: string; newText: string | null }) {
   const changes = fieldChanges(oldText, newText);
   if (!newText) return null;
-  if (changes.length === 0) return <p className="text-[11.5px] text-[#8A867E] italic">Không có field nào đổi.</p>;
+  if (changes.length === 0) return <p className="text-body text-[#8A867E] italic">Không có field nào đổi.</p>;
   return (
-    <ul className="flex flex-col gap-1 text-[12px]" aria-label="Thay đổi theo field">
+    <ul className="flex flex-col gap-1 text-body" aria-label="Thay đổi theo field">
       {changes.map((c) => (
         <li key={c.field} className="flex flex-wrap items-start gap-1.5">
-          <span className="text-[10.5px] font-bold text-[#6B6862] shrink-0" title={c.field}>
+          <span className="text-caption font-bold text-[#6B6862] shrink-0" title={c.field}>
             {fieldLabel(c.field)}
           </span>
           <del className="text-[#B03030] bg-[#FDEDED] px-1 rounded whitespace-pre-wrap">{c.before}</del>

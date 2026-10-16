@@ -43,20 +43,26 @@ describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
     expect(target.className).not.toContain("bg-[#F2F1FB]");
   });
 
-  it("file lớn hơn 10MB (kéo thả hoặc chọn) ⇒ báo lỗi, không gọi upload; chọn lại file hợp lệ thì xoá lỗi", () => {
+  it("file lớn hơn 40 MB (kéo thả hoặc chọn) ⇒ báo lỗi nêu MB + cách nén ảnh, không gọi upload; chọn lại file hợp lệ thì xoá lỗi", () => {
     const onUpload = vi.fn();
     renderWithIntl(<UploadStep onUpload={onUpload} />);
+    expect(screen.getByText(/tối đa 40 MB/)).toBeInTheDocument();
 
     drop(zone(), docx("to.docx", MAX_IMPORT_BYTES + 1));
-    expect(screen.getByText(/File to\.docx lớn hơn 10MB/)).toBeInTheDocument();
-    fireEvent.change(screen.getByTestId("docx-input"), { target: { files: [docx("to2.docx", 20 * 1024 * 1024)] } });
-    expect(screen.getByText(/File to2\.docx lớn hơn 10MB/)).toBeInTheDocument();
+    expect(screen.getByText(/File to\.docx nặng 40.1 MB, lớn hơn giới hạn 40 MB/)).toBeInTheDocument();
+    expect(screen.getByText(/File → Compress Pictures/)).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("docx-input"), { target: { files: [docx("to2.docx", 52 * 1024 * 1024)] } });
+    expect(screen.getByText(/File to2\.docx nặng 52 MB, lớn hơn giới hạn 40 MB/)).toBeInTheDocument();
     expect(onUpload).not.toHaveBeenCalled();
 
-    const ok = docx("vua.docx", MAX_IMPORT_BYTES); // đúng 10MB vẫn nhận
+    // SRS ~200 trang có ảnh chụp màn hình (vd 25 MB) vẫn nhận; đúng 40 MB vẫn nhận
+    const srs = docx("srs_200_trang.docx", 25 * 1024 * 1024);
+    fireEvent.change(screen.getByTestId("docx-input"), { target: { files: [srs] } });
+    expect(onUpload).toHaveBeenCalledWith(srs);
+    const ok = docx("vua.docx", MAX_IMPORT_BYTES);
     fireEvent.change(screen.getByTestId("docx-input"), { target: { files: [ok] } });
     expect(onUpload).toHaveBeenCalledWith(ok);
-    expect(screen.queryByText(/lớn hơn 10MB/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lớn hơn giới hạn/)).not.toBeInTheDocument();
   });
 
   it("file không phải .docx kéo thả vào: FE không tự chặn theo đuôi mà gửi lên để BE kiểm magic bytes (NOT_DOCX / LEGACY_DOC)", () => {

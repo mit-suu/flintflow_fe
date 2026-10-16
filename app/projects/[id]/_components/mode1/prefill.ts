@@ -14,6 +14,10 @@ export interface CrPrefill {
   ref?: string;
   /** Mode 1 v3: bản xem trước của panel "Sửa tài liệu có xem trước" đính kèm CR (gợi ý cho AI, sống 15 phút). */
   preview_id?: string;
+  /** UC-49 "Tạo CR từ comment": người yêu cầu = tác giả comment (BR-22). */
+  requester?: string;
+  /** UC-49: comment còn mở được chuyển thành CR này (nguồn "Góp ý của người xem"). */
+  comment_id?: string;
 }
 
 /** Tiêu đề CR từ câu lệnh sửa: dòng đầu, tối đa 80 ký tự (như BE `prefillFrom`). */
@@ -28,6 +32,8 @@ export const titleFromInstruction = (instruction: string): string => {
  */
 export const gapReportHref = (projectId: string): string => `/projects/${projectId}?panel=gap`;
 export const crListHref = (projectId: string): string => `/projects/${projectId}?panel=cr`;
+/** So sánh 2 version (UC-55) — cùng khuôn popup với gap report và CR, nên cũng là một query trên màn tài liệu. */
+export const compareHref = (projectId: string): string => `/projects/${projectId}?panel=compare`;
 export const crHref = (projectId: string, crId: string): string => `/projects/${projectId}?panel=cr&cr=${encodeURIComponent(crId)}`;
 
 export const crPrefillHref = (projectId: string, prefill: CrPrefill): string => {
@@ -46,5 +52,7 @@ export const readCrPrefill = (params: URLSearchParams): CrPrefill | null => {
     source: (CR_SOURCE_KINDS as readonly string[]).includes(source ?? "") ? (source as SourceKind) : undefined,
     ref: params.get("ref") ?? undefined,
     preview_id: params.get("preview_id") ?? undefined,
+    requester: params.get("requester") ?? undefined,
+    comment_id: params.get("comment_id") ?? undefined,
   };
 };

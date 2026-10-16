@@ -161,10 +161,10 @@ export default function GateCard({
 
   return (
     <div className="flex flex-col gap-3" aria-label="Cổng chốt">
-      <p className="text-[14px] leading-7 text-on-surface whitespace-pre-line">{text}</p>
+      <p className="text-heading leading-7 text-on-surface whitespace-pre-line">{text}</p>
 
       {warning && (
-        <p role="status" className="bg-accent-gold-soft text-accent-gold-text rounded-card px-3.5 py-2.5 text-[13px] leading-6">
+        <p role="status" className="bg-accent-gold-soft text-accent-gold-text rounded-card px-3.5 py-2.5 text-body leading-6">
           {warning}
         </p>
       )}
@@ -182,7 +182,7 @@ export default function GateCard({
 
       {asIs && (
         <div className="flex flex-col gap-2">
-          <label htmlFor={`gate-note-${stepId}`} className="text-[12px] font-semibold text-on-surface-variant">
+          <label htmlFor={`gate-note-${stepId}`} className="text-body font-semibold text-on-surface-variant">
             Lý do chấp nhận bản hiện tại (bắt buộc)
           </label>
           <textarea
@@ -190,7 +190,7 @@ export default function GateCard({
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full px-3 py-2 rounded-control bg-surface-container text-[13px] outline-none resize-none focus:bg-surface-container-high"
+            className="w-full px-3 py-2 rounded-control bg-surface-container text-body outline-none resize-none focus:bg-surface-container-high"
           />
           <div className="self-end">
             <QuickReplyChip tone="primary" disabled={note.trim().length === 0 || locked} onClick={submitAsIs}>

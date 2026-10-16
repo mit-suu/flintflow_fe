@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppShell } from "@/components/layout/AppShell";
 import TopBar from "@/components/layout/TopBar";
 import AddToFolderDialog from "@/components/project/AddToFolderDialog";
 import CreateProjectForm from "@/components/project/CreateProjectForm";
@@ -54,11 +55,11 @@ const STICKY_BLEED = "-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8";
 function SectionTitle({ id, title, count, hint }: { id: string; title: string; count?: number; hint?: string }) {
   return (
     <div className={`sticky top-[var(--toolbar-h,0px)] z-[25] -mt-2 py-2 bg-surface-container-lowest flex items-center gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
-      <h2 id={id} className="text-[20px] sm:text-[22px] font-semibold text-on-surface tracking-tight">
+      <h2 id={id} className="text-title sm:text-title font-semibold text-on-surface tracking-tight">
         {title}
       </h2>
       {count !== undefined && <CountBadge count={count} max={999} />}
-      {hint && <p className="hidden sm:block ml-2 text-[12px] text-on-surface-muted truncate">{hint}</p>}
+      {hint && <p className="hidden sm:block ml-2 text-body text-on-surface-muted truncate">{hint}</p>}
     </div>
   );
 }
@@ -73,6 +74,8 @@ export default function HomePage() {
   const tMode = useTranslations("app.sourceMode");
   const router = useRouter();
   const { projects, folders, loading, error, foldersError, reload } = useProjects();
+  // "Dịch tài liệu" sau khi đổi ngôn ngữ dự án (FLF-265) trừ credit ngay trên trang ⇒ chip số dư phải tải lại
+  const { reloadBalance } = useAppShell();
   // Viewer chỉ xem: không tạo/sửa/chuyển/xoá dự án hay thư mục (BE cũng chặn ghi với 403). Chưa biết vai trò ⇒ coi
   // như được — cùng quy ước với trang thanh toán, lỡ bấm thì BE vẫn chặn.
   const canAuthor = useActiveOrganization()?.role !== "viewer";
@@ -228,6 +231,7 @@ export default function HomePage() {
     onDelete: openAction("archive"),
     onHardDelete: openAction("delete"),
     onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", projects: [project] }),
+    onChangeDocumentLanguage: openAction("documentLanguage"),
     selectable: selectMode,
     selectedIds,
     onToggleSelect: (project: Project) =>
@@ -263,14 +267,14 @@ export default function HomePage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[15px] font-extrabold text-on-surface">
+          <h3 className="text-heading font-bold text-on-surface">
             {openFolder
               ? t("emptyFolderTitle")
               : tab === "all" && projects.some((p) => inFolder(p) && p.status === status)
                 ? t("allInFoldersTitle")
                 : t("emptyTitle")}
           </h3>
-          <p className="text-[12.5px] text-on-surface-muted leading-[1.55]">
+          <p className="text-body text-on-surface-muted leading-[1.55]">
             {!canAuthor ? t("viewerEmptyBody") : openFolder ? t("emptyFolderBody") : t("emptyBody")}
           </p>
         </div>
@@ -306,10 +310,10 @@ export default function HomePage() {
         {showOnboarding ? (
           <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 pt-6 pb-2 sm:pt-12 sm:pb-6">
             <div className="flex flex-col gap-2">
-              <h1 id="onboarding-title" className="text-[22px] sm:text-[26px] font-extrabold text-on-surface tracking-tight">
+              <h1 id="onboarding-title" className="text-title sm:text-metric font-bold text-on-surface tracking-tight">
                 {canAuthor ? t("onboardingTitle") : t("viewerEmptyTitle")}
               </h1>
-              <p className="text-[13.5px] text-on-surface-muted leading-[1.6] max-w-[560px]">
+              <p className="text-body text-on-surface-muted leading-[1.6] max-w-[560px]">
                 {canAuthor ? t("onboardingBody") : t("viewerEmptyBody")}
               </p>
             </div>
@@ -325,7 +329,7 @@ export default function HomePage() {
               {selectMode ? (
                 <>
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-[13px] font-semibold text-on-surface" aria-live="polite">
+                    <span className="text-body font-semibold text-on-surface" aria-live="polite">
                       {t("selectedCount", { count: selectedIds.size })}
                     </span>
                     <Button size="sm" variant="secondary" onClick={() => setSelectedIds(new Set(visible.map((p) => p._id)))} disabled={selectedIds.size === visible.length}>
@@ -390,7 +394,7 @@ export default function HomePage() {
             </div>
 
             {(error || dropError) && (
-              <div role="alert" className="flex items-center gap-3 bg-error-container border border-error-border text-on-error-container px-4 py-3 rounded-control text-[12.5px] font-medium">
+              <div role="alert" className="flex items-center gap-3 bg-error-container border border-error-border text-on-error-container px-4 py-3 rounded-control text-body font-medium">
                 <Icon name="error-circle" size={18} />
                 <span className="flex-1">{error ?? dropError}</span>
                 <Button size="sm" variant="secondary" onClick={() => (error ? void reload() : setDropError(null))}>
@@ -415,7 +419,7 @@ export default function HomePage() {
                     hint={folders.length > 0 && tab === "all" ? t("foldersHint") : undefined}
                   />
                   {foldersError && (
-                    <p role="alert" className="text-[12.5px] text-on-error-container">
+                    <p role="alert" className="text-body text-on-error-container">
                       {t("foldersError", { message: foldersError })}
                     </p>
                   )}
@@ -462,7 +466,7 @@ export default function HomePage() {
       </Modal>
 
       <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} />
-      <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} />
+      <ProjectActionDialogs target={actionTarget} onClose={() => setActionTarget(null)} onDone={reload} onCreditsSpent={reloadBalance} />
       <FolderDialogs
         target={folderTarget}
         folders={folders}

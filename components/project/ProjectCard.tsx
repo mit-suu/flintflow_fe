@@ -29,6 +29,8 @@ interface Props {
   onHardDelete: (p: Project) => void;
   /** Có ⇒ menu thêm "Chuyển vào thư mục". */
   onMoveToFolder?: (p: Project) => void;
+  /** Có ⇒ menu thêm "Ngôn ngữ tài liệu" (FLF-265) — trừ dự án mode `import` (ngôn ngữ theo file). */
+  onChangeDocumentLanguage?: (p: Project) => void;
   /** Tên thư mục chứa dự án — hiện chip ở tab "Dự án" (nơi hiện cả dự án trong thư mục). */
   folderName?: string | null;
   /** Cho kéo card thả vào thẻ thư mục. */
@@ -205,6 +207,7 @@ export default function ProjectCard({
   onDelete,
   onHardDelete,
   onMoveToFolder,
+  onChangeDocumentLanguage,
   folderName,
   draggable = false,
   selectable = false,
@@ -229,6 +232,16 @@ export default function ProjectCard({
             label: t("menu.moveToFolder"),
             icon: "folder",
             onSelect: () => onMoveToFolder(project)
+          } as const
+        ]
+      : []),
+    // Mode 1: ngôn ngữ tài liệu theo file tải lên, không đổi được (D3)
+    ...(onChangeDocumentLanguage && project.mode !== "import"
+      ? [
+          {
+            label: t("menu.documentLanguage"),
+            icon: "translate",
+            onSelect: () => onChangeDocumentLanguage(project)
           } as const
         ]
       : []),
@@ -274,9 +287,9 @@ export default function ProjectCard({
         onClick={selectable ? (e) => { e.preventDefault(); onToggleSelect?.(project); } : undefined}
         // Thứ bậc: tên (đậm, đậm màu nhất) → meta nhạt → tiến độ ở đáy. Chỉ tên được in đậm để mắt biết đọc gì trước.
         className="flex flex-col flex-1 min-h-[156px] rounded-card p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-        <h3 className="pr-8 text-[15px] font-semibold text-on-card leading-[1.4] line-clamp-2">{project.name}</h3>
+        <h3 className="pr-8 text-heading font-semibold text-on-card leading-[1.4] line-clamp-2">{project.name}</h3>
 
-        <div className="mt-2 flex items-center gap-1.5 text-[11.5px] text-on-card-variant">
+        <div className="mt-2 flex items-center gap-1.5 text-body text-on-card-variant">
           <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[status.tone]}`} />
           <span className="shrink-0 whitespace-nowrap">{t(`status.${status.key}`)}</span>
           <Dot />
@@ -311,7 +324,7 @@ export default function ProjectCard({
         {/* Đáy card: bước tiếp theo, rồi một hàng [thanh tiến độ | số bước] */}
         <div className="mt-auto pt-6 flex flex-col gap-2">
           {/* Khác hẳn dòng meta (nhạt, thường): đậm vừa, màu đậm, mũi tên tím = "việc tiếp theo" */}
-          <span className="flex items-center gap-1.5 min-w-0 text-[12.5px] font-medium text-on-card-strong">
+          <span className="flex items-center gap-1.5 min-w-0 text-body font-medium text-on-card-strong">
             <Icon name="arrow-right" size={13} className="shrink-0 text-primary" />
             <span className="truncate">
               {project.mode === "import"
@@ -324,7 +337,7 @@ export default function ProjectCard({
               <PhaseBar progress={progress} locale={locale} />
             </div>
             {progress && progress.progress.total > 0 && (
-              <span className="shrink-0 tabular-nums text-[11.5px] font-semibold text-on-card-strong">
+              <span className="shrink-0 tabular-nums text-body font-semibold text-on-card-strong">
                 {progress.progress.done}/{progress.progress.total}
               </span>
             )}

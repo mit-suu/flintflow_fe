@@ -108,7 +108,7 @@ function Checkout({ intentId }: { intentId: string }) {
   if (!detail) {
     return (
       <CenteredCard>
-        <div className="text-[13.5px] text-[#8A4141]">{error === null ? t("notFound") : error || t("loadFailed")}</div>
+        <div className="text-body text-[#8A4141]">{error === null ? t("notFound") : error || t("loadFailed")}</div>
         <BackLink />
       </CenteredCard>
     );
@@ -117,17 +117,17 @@ function Checkout({ intentId }: { intentId: string }) {
   return (
     <CenteredCard>
       <div>
-        <div className="text-[12.5px] text-[#8A867E]">{t("amountToPay")}</div>
-        <div className="text-[30px] font-extrabold text-[#191817]">{formatVnd(detail.amount)}</div>
-        <div className="text-[13px] text-[#6B6862]">{t("receive", { credits: format.number(detail.credits) })}</div>
+        <div className="text-body text-[#8A867E]">{t("amountToPay")}</div>
+        <div className="text-metric font-bold text-on-surface">{formatVnd(detail.amount)}</div>
+        <div className="text-body text-[#6B6862]">{t("receive", { credits: format.number(detail.credits) })}</div>
       </div>
 
       {detail.status === "succeeded" ? (
-        <div className="px-3.5 py-3 rounded-control text-[13px] font-semibold bg-[#E9F6EE] text-[#2F7A4F] border border-[#CBE8D6]">
+        <div className="px-3.5 py-3 rounded-control text-body font-semibold bg-[#E9F6EE] text-[#2F7A4F] border border-[#CBE8D6]">
           {t("succeeded", { credits: format.number(detail.credits) })}
         </div>
       ) : detail.status === "failed" ? (
-        <div className="px-3.5 py-3 rounded-control text-[13px] font-semibold bg-[#FDEDED] text-[#8A4141] border border-[#F2CACA]">
+        <div className="px-3.5 py-3 rounded-control text-body font-semibold bg-[#FDEDED] text-[#8A4141] border border-[#F2CACA]">
           {t("failed")}
         </div>
       ) : (
@@ -142,15 +142,15 @@ function Checkout({ intentId }: { intentId: string }) {
 
           {detail.paymentDescription && (
             <div className="flex flex-col gap-1">
-              <div className="text-[12px] text-[#8A867E]">{t("description")}</div>
+              <div className="text-body text-[#8A867E]">{t("description")}</div>
               <div className="flex items-center gap-2 bg-[#FAF9F7] border border-[#E4E1DC] rounded-control px-3.5 py-2.5">
-                <span className="flex-1 font-mono text-[15px] font-bold text-[#191817] tracking-wide">
+                <span className="flex-1 font-mono text-heading font-bold text-[#191817] tracking-wide">
                   {detail.paymentDescription}
                 </span>
                 <button
                   type="button"
                   onClick={copyDescription}
-                  className="text-[12px] font-bold text-[#6A62C4] hover:underline cursor-pointer"
+                  className="text-body font-bold text-[#6A62C4] hover:underline cursor-pointer"
                 >
                   {copied ? t("copied") : t("copy")}
                 </button>
@@ -158,19 +158,19 @@ function Checkout({ intentId }: { intentId: string }) {
             </div>
           )}
 
-          <div className="text-[12px] text-[#6B6862] leading-[1.55]">
+          <div className="text-body text-[#6B6862] leading-[1.55]">
             {t("instructions")}
           </div>
 
           {timedOut ? (
-            <div className="flex items-center gap-3 bg-[#FFF6E5] border border-[#F2DDB0] text-[#7A5A12] px-3.5 py-2.5 rounded-control text-[12px]">
+            <div className="flex items-center gap-3 bg-[#FFF6E5] border border-[#F2DDB0] text-[#7A5A12] px-3.5 py-2.5 rounded-control text-body">
               <span className="flex-1">{t("stopped")}</span>
               <button type="button" onClick={resumePolling} className="font-bold hover:underline cursor-pointer">
                 {t("recheck")}
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-[12px] text-[#A8A49C]">
+            <div className="flex items-center gap-2 text-body text-[#A8A49C]">
               <span className="w-3.5 h-3.5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner shrink-0" />
               {t("waiting")}
             </div>
@@ -179,7 +179,7 @@ function Checkout({ intentId }: { intentId: string }) {
       )}
 
       {error !== null && (
-        <div className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-3.5 py-2.5 rounded-control text-[12px]">
+        <div className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-3.5 py-2.5 rounded-control text-body">
           {error || t("loadFailed")}
         </div>
       )}
@@ -196,7 +196,7 @@ function CheckoutFromQuery() {
   if (!intentId) {
     return (
       <CenteredCard>
-        <div className="text-[13.5px] text-[#8A4141]">{t("missingIntent")}</div>
+        <div className="text-body text-[#8A4141]">{t("missingIntent")}</div>
         <BackLink />
       </CenteredCard>
     );
@@ -219,7 +219,7 @@ function CheckoutFallback() {
   const tc = useTranslations("app.common");
   return (
     <CenteredCard>
-      <div className="text-center text-[13px] text-[#A8A49C]">{tc("loading")}</div>
+      <div className="text-center text-body text-[#A8A49C]">{tc("loading")}</div>
     </CenteredCard>
   );
 }

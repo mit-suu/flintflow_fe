@@ -29,7 +29,7 @@ export const buildNameOps = (
     .map(([id, value]) => ({ op: "set", path: `${collection}[id=${id}].${field}`, value: value.trim(), reason: "Panel Tên riêng" }));
 
 const inputClass =
-  "w-full px-2 py-1 rounded-inner bg-surface-container text-[12.5px] text-on-surface outline-none focus:ring-2 focus:ring-primary/30";
+  "w-full px-2 py-1 rounded-inner bg-surface-container text-body text-on-surface outline-none focus:ring-2 focus:ring-primary/30";
 
 /**
  * Tên & thuật ngữ (Phases §2.3): danh sách **chỉ đọc**, bấm một tên để sửa ngay tại dòng (Enter lưu, Esc huỷ) —
@@ -85,7 +85,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
         idBase="names"
         value={tab}
         onChange={switchTab}
-        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-[11.5px] [&>button]:h-7"
+        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body [&>button]:h-7"
         options={(Object.keys(TAB_LABEL) as Tab[]).map((id) => ({
           value: id,
           label: TAB_LABEL[id],
@@ -94,7 +94,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
       />
 
       <ul role="tabpanel" id="names-panel" aria-labelledby={`names-tab-${tab}`} className="flex flex-col">
-        {rows.length === 0 && <li className="py-1.5 text-[12px] text-on-surface-muted">Chưa có mục nào.</li>}
+        {rows.length === 0 && <li className="py-1.5 text-body text-on-surface-muted">Chưa có mục nào.</li>}
         {shown.map((row) =>
           editing?.id === row.id ? (
             <li key={row.id} className="py-1">
@@ -121,10 +121,10 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
                 className="group/name w-full -mx-2 px-2 py-1.5 rounded-control flex items-center justify-between gap-2 text-left hover:bg-surface-container-low cursor-pointer"
               >
                 <span className="min-w-0 flex flex-col">
-                  <span className="text-[12.5px] text-on-surface truncate">{row.value}</span>
-                  {row.hint && <span className="text-[11px] text-on-surface-muted line-clamp-2">{row.hint}</span>}
+                  <span className="text-body text-on-surface truncate">{row.value}</span>
+                  {row.hint && <span className="text-caption text-on-surface-muted line-clamp-2">{row.hint}</span>}
                 </span>
-                <span className="shrink-0 text-[11px] font-semibold text-primary opacity-0 group-hover/name:opacity-100 group-focus-visible/name:opacity-100">
+                <span className="shrink-0 text-caption font-semibold text-primary opacity-0 group-hover/name:opacity-100 group-focus-visible/name:opacity-100">
                   Sửa
                 </span>
               </button>
@@ -134,7 +134,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
       </ul>
 
       {rows.length > PREVIEW_ROWS && (
-        <button type="button" onClick={() => setShowAll((v) => !v)} className="self-start text-[11.5px] font-semibold text-primary hover:underline cursor-pointer">
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="self-start text-body font-semibold text-primary hover:underline cursor-pointer">
           {showAll ? "Thu gọn" : `Xem thêm ${rows.length - PREVIEW_ROWS}`}
         </button>
       )}
@@ -157,21 +157,21 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
               className={inputClass}
             />
             <div className="flex justify-end gap-1.5">
-              <button type="button" onClick={() => setAdding(null)} className="h-7 px-2.5 rounded-control text-[11.5px] font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer">
+              <button type="button" onClick={() => setAdding(null)} className="h-7 px-2.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer">
                 Huỷ
               </button>
               <button
                 type="button"
                 disabled={busy || !adding.term.trim()}
                 onClick={() => void saveNewTerm()}
-                className="h-7 px-2.5 rounded-control text-[11.5px] font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                className="h-7 px-2.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 Thêm
               </button>
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => setAdding({ term: "", definition: "" })} className="self-start text-[11.5px] font-semibold text-primary hover:underline cursor-pointer">
+          <button type="button" onClick={() => setAdding({ term: "", definition: "" })} className="self-start text-body font-semibold text-primary hover:underline cursor-pointer">
             + Thêm thuật ngữ
           </button>
         ))}

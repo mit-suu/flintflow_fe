@@ -33,7 +33,7 @@ export default function PasswordInput({
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[12px] font-bold text-[#4B4842]" htmlFor={id}>
+      <label className="text-body font-bold text-[#4B4842]" htmlFor={id}>
         {label}
       </label>
       <div className="relative">
@@ -48,7 +48,7 @@ export default function PasswordInput({
           placeholder="••••••••"
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
-          className={`w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] outline-none transition-all text-[#191817] text-[13.5px] focus:ring-1 ${
+          className={`w-full px-3.5 py-2.5 pr-10 rounded-[8px] border-[1.5px] outline-none transition-all text-[#191817] text-body focus:ring-1 ${
             error
               ? "border-[#B03030] bg-[#FDF6F6] focus:border-[#B03030] focus:ring-[#B03030]"
               : "border-[#E4E1DC] bg-[#FAF9F7] focus:border-[#6A62C4] focus:ring-[#6A62C4]"
@@ -64,7 +64,7 @@ export default function PasswordInput({
         </button>
       </div>
       {error && (
-        <p id={errorId} className="text-[11.5px] font-semibold text-[#B03030] flex items-center gap-1 pt-0.5">
+        <p id={errorId} className="text-body font-semibold text-[#B03030] flex items-center gap-1 pt-0.5">
           <Icon name="warning" size={14} />
           {error}
         </p>

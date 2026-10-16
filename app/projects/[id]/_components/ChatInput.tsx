@@ -103,7 +103,7 @@ export default function ChatInput({
           {pendingAttachments.map((file) => (
             <div
               key={file.name}
-              className="flex items-center gap-1.5 pl-2.5 pr-1.5 h-7 bg-primary-soft rounded-inner text-[11.5px] font-semibold text-primary-hover"
+              className="flex items-center gap-1.5 pl-2.5 pr-1.5 h-7 bg-primary-soft rounded-inner text-body font-semibold text-primary-hover"
             >
               <Icon name="file" size={14} />
               <span className="truncate max-w-[150px]">{file.name}</span>
@@ -133,7 +133,7 @@ export default function ChatInput({
           placeholder={placeholder}
           rows={compact ? 1 : 2}
           disabled={sending}
-          className={`${compact ? "order-2 flex-1 min-w-0 py-1" : "w-full"} resize-none outline-none text-[13px] text-on-surface placeholder:text-on-surface-subtle bg-transparent leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+          className={`${compact ? "order-2 flex-1 min-w-0 py-1" : "w-full"} resize-none outline-none text-body text-on-surface placeholder:text-on-surface-subtle bg-transparent leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
         />
 
         {/* compact: bỏ khung thanh công cụ, nút đính kèm sang trái ô gõ, nút gửi sang phải */}
@@ -147,11 +147,11 @@ export default function ChatInput({
                 disabled={Boolean(editDisabledReason) && !editMode}
                 aria-pressed={editMode}
                 title={editDisabledReason && !editMode ? editDisabledReason : editMode ? "Tắt để quay lại trò chuyện" : "Gõ lệnh sửa tài liệu, xem trước rồi mới áp dụng"}
-                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 whitespace-nowrap text-[12px] font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
                   editMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
                 }`}
               >
-                <Icon name="pencil" size={15} weight={editMode ? "fill" : "regular"} />
+                <Icon name="pencil" size={15} weight={editMode ? "bold" : "regular"} />
                 Sửa tài liệu
               </button>
             )}

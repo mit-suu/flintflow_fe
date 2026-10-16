@@ -31,6 +31,13 @@ export interface Mode1MockState {
   sections: ExtractionSection[];
   /** Job I-4 nền đang chạy (#6/#10 trả ngay; mỗi lần poll #4 trích thêm một section). */
   extractRunning: boolean;
+  /**
+   * Job baseline–kiểm nền (#8 / #10 ở `baselining`·`checking` trả ngay, §4.16): `finalize` ⇒ poll #4 kế tiếp tạo 0.0 rồi
+   * sang `checking`; `check` ⇒ poll kế tiếp chạy 1.11 (hết credit ⇒ `paused: credits`) rồi `gap_review`. `null` = không chạy.
+   */
+  finalizeJob: "finalize" | "check" | null;
+  /** Test đặt `true` để job tạo bản gốc kế tiếp lỗi (BE hoàn về trước finalize, `paused: resume_later`). */
+  failNextFinalize: boolean;
   reviewFields: ReviewField[];
   baselines: Baseline[];
   versions: DocVersion[];
@@ -117,6 +124,8 @@ export const createMode1MockState = (): Mode1MockState => ({
   ],
   sections: [],
   extractRunning: false,
+  finalizeJob: null,
+  failNextFinalize: false,
   reviewFields: [],
   baselines: [],
   versions: [],
