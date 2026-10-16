@@ -1619,6 +1619,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
             {!mode1 && (
               <ProjectRecordPanel
+                projectId={projectId}
                 spine={spine}
                 onSubmitOps={async (ops) => void (await submitOps(ops))}
                 onMarkPlaceholder={(id) => void markPlaceholder(id)}

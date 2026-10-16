@@ -694,6 +694,8 @@ export const handlers = [
   http.get(api("/projects/:projectId/spine"), () => ok(mockState.spine)),
   http.get(api("/projects/:projectId/progress"), () => ok(progressOf(mockState))),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
+  // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
+  http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),
 
   http.get(api("/projects/:projectId/steps"), () => {
     const response: StepsResponse = {

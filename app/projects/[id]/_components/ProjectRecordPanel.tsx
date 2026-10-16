@@ -13,10 +13,13 @@ import AddendumTriagePanel from "./AddendumTriagePanel";
 import ScreenQueuePanel from "./ScreenQueuePanel";
 import EditHistory from "./EditHistory";
 import { pendingRecordCount } from "./project-record-pending";
+import SourcesPanel from "./SourcesPanel";
+import { useSources } from "../hooks/useSources";
 
-type RecordTab = "agreed" | "pending" | "history";
+type RecordTab = "agreed" | "pending" | "sources" | "history";
 
 interface ProjectRecordPanelProps {
+  projectId: string;
   spine: Spine;
   onSubmitOps: (ops: Op[]) => Promise<void> | void;
   onMarkPlaceholder: (screenId: string) => void;
@@ -47,6 +50,7 @@ function Block({ title, hint, children }: { title: string; hint?: string; childr
  * **Đã thống nhất** (tra cứu) · **Chờ bạn quyết** (chỉ phần của giai đoạn hiện tại) · **Lịch sử** sửa.
  */
 export default function ProjectRecordPanel({
+  projectId,
   spine,
   onSubmitOps,
   onMarkPlaceholder,
@@ -62,6 +66,8 @@ export default function ProjectRecordPanel({
   const decisions = (spine.decisions ?? []).filter((d) => d.superseded_by === null);
   const [tab, setTab] = useState<RecordTab>(pendingCount > 0 ? "pending" : "agreed");
   const busy = saving || readOnly;
+  // FLF-292: nguồn tài liệu của yêu cầu — tải lại khi Spine đổi (lượt Draft mới có thể ghi nguồn mới)
+  const sources = useSources(projectId, spine.spine_version);
 
   return (
     <div className="flex flex-col gap-3">
@@ -74,6 +80,7 @@ export default function ProjectRecordPanel({
         options={[
           { value: "agreed", label: "Đã thống nhất" },
           { value: "pending", label: "Chờ bạn quyết", ...(pendingCount > 0 ? { count: pendingCount } : {}) },
+          { value: "sources", label: "Nguồn" },
           { value: "history", label: "Lịch sử" },
         ]}
       />
@@ -137,6 +144,8 @@ export default function ProjectRecordPanel({
             )}
           </>
         )}
+
+        {tab === "sources" && <SourcesPanel spine={spine} sources={sources.sources} loading={sources.loading} error={sources.error} />}
 
         {tab === "history" && (
           <Block title="Lịch sử sửa" hint="20 thay đổi gần nhất, mới nhất ở trên.">
