@@ -75,6 +75,13 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
     return heading ? `${sectionLabel(id)} — ${heading}` : sectionLabel(id);
   };
 
+  // Nhiều heading cùng trích vào một mục FPT (mẫu IEEE: Reliability + Availability) ⇒ báo cho người dùng biết
+  const sectionOf = (blockId: string, suggested: string) => headings[blockId] ?? suggested;
+  const sharing = (blockId: string, section: string): string[] =>
+    section.startsWith("fixed:")
+      ? profile.heading_map.filter((o) => o.block_id !== blockId && sectionOf(o.block_id, o.section_id) === section).map((o) => o.heading_text)
+      : [];
+
   const rows = lowOnly ? profile.heading_map.filter((h) => h.confidence < MAPPING_CONFIDENCE_THRESHOLD) : profile.heading_map;
   const missingRequired = profile.required_sections.filter(
     (id) => !profile.heading_map.some((h) => (headings[h.block_id] ?? h.section_id) === id)
@@ -130,7 +137,8 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
               </tr>
             )}
             {rows.map((h) => {
-              const value = headings[h.block_id] ?? h.section_id;
+              const value = sectionOf(h.block_id, h.section_id);
+              const shared = sharing(h.block_id, value);
               return (
                 <tr key={h.block_id} className="border-t border-[#F0EEEA]">
                   <td className="px-3 py-2">
@@ -139,6 +147,11 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                       Nhận theo {DETECTOR_LABELS[h.detected_by]}
                       {h.template_section && value === UNMAPPED_SECTION ? " · mục riêng của mẫu, giữ nguyên văn" : ""}
                     </div>
+                    {shared.length > 0 && (
+                      <div className="text-caption text-[#8A6D1F]">
+                        Cùng trích vào “{sectionLabel(value)}” với: {shared.join(", ")} — nội dung của heading này vẫn in dưới chính nó.
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <ConfidenceBadge value={h.confidence} />

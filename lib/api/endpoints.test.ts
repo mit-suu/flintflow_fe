@@ -16,6 +16,7 @@ import * as notifications from "./notifications";
 import * as pipeline from "./pipeline";
 import * as projects from "./projects";
 import * as spine from "./spine";
+import * as translations from "./translations";
 import * as versions from "./versions";
 
 vi.mock("./client", async (importOriginal) => ({
@@ -188,7 +189,20 @@ const cases: EndpointCase[] = [
     post({ base_version: 4 }),
   ],
   ["getDocument", () => exportApi.getDocument("p1", "baseline"), "/projects/p1/document?source=baseline"],
+  // ─── FLF-265: dịch tài liệu theo lô (#26, #27) — body strict, bỏ trống ⇒ BE dùng số lô mặc định ───
+  ["getTranslationStatus", () => translations.getTranslationStatus("p1"), "/projects/p1/translations/status"],
+  ["runTranslation (số lô mặc định của BE)", () => translations.runTranslation("p1"), "/projects/p1/translations/run", post({})],
+  ["runTranslation (max_batches)", () => translations.runTranslation("p1", 2), "/projects/p1/translations/run", post({ max_batches: 2 })],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
+  ["listComments", () => comments.listComments("p1"), "/projects/p1/comments?status=open"],
+  ["listComments all", () => comments.listComments("p1", "all"), "/projects/p1/comments?status=all"],
+  [
+    "createComment",
+    () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
+    "/projects/p1/comments",
+    post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
+  ],
+  ["replyComment", () => comments.replyComment("p1", "CM-001", "Đồng ý"), "/projects/p1/comments/CM-001/replies", post({ text: "Đồng ý" })],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
   ["submitBaseline", () => exportApi.submitBaseline("p1", 12), "/projects/p1/baseline/submit", post({ base_version: 12 })],
   [
@@ -197,9 +211,8 @@ const cases: EndpointCase[] = [
     "/projects/p1/baseline/reject",
     post({ base_version: 12, reason: "Thiếu luồng huỷ", comment_ids: ["CM-001"] }),
   ],
-  ["listComments", () => comments.listComments("p1"), "/projects/p1/comments?status=open"],
   [
-    "createComment",
+    "createComment (ghim cả section)",
     () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
     "/projects/p1/comments",
     post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),

@@ -39,6 +39,7 @@ import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/ty
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
+import type { CommentResolutionInput, CreateCommentRequest, SrsComment } from "@/types/comment";
 import {
   countersOf,
   MOCK_SESSION_ID,
@@ -315,12 +316,64 @@ let mockPreviews = new Map<string, { base_version: number; ops: Op[] }>();
 /** Lịch sử hiển thị ở `GET /changes` — chỉ ghi nhận thao tác qua Change panel (preview→apply/reconcile/undo). */
 let mockChangesLog: Change[] = [];
 let mockAssembledAtVersion: number | null = null;
+/** UC-49: comment ghim vào tài liệu (contract endpoint 26–29). */
+let mockComments: SrsComment[] = [];
 
 export const resetMockChangeFlowState = (): void => {
   mockPreviews = new Map();
   mockChangesLog = [];
   mockAssembledAtVersion = null;
+  mockComments = [];
 };
+
+// ─── FLF-265: ngôn ngữ tài liệu + dịch theo lô (#16 `meta.translation`, #26, #27) ────────
+// Ngôn ngữ tài liệu = `mockState.project.documentLanguage` (thiếu ⇒ `en`); ngôn ngữ gốc mode 2 luôn `en`, mode import
+// theo file ⇒ coi như trùng. Khác nhau ⇒ `GET /document` kèm `meta.translation`, `status` đếm phần thiếu, `run` dịch dần.
+
+/** Số đơn vị chữ của tài liệu mock (BE: mỗi field theo id một đơn vị). */
+export const MOCK_TRANSLATION_UNITS = 100;
+/** Một lô ~40 đơn vị, 2 credit — như `splitBatches` + giá `translate_document` của BE. */
+const MOCK_TRANSLATION_BATCH = 40;
+const MOCK_TRANSLATION_BATCH_CREDITS = 2;
+
+/** Lỗi giả lập của `POST /translations/run`; `stalled` = lô trả credit mà không dịch được mục nào (`translated: 0`). */
+export type MockTranslationFailure = "INSUFFICIENT_CREDIT" | "TRANSLATION_RUNNING" | "PARSE_FAILED" | "SCHEMA_MISMATCH" | "ORG_ROLE_FORBIDDEN" | "stalled";
+
+/** Trạng thái bản dịch mock — test đổi trực tiếp để đi đúng nhánh; `resetMockTranslationState` trả về mặc định. */
+export const mockTranslation = {
+  /** Đơn vị còn in chữ gốc của ngôn ngữ tài liệu hiện tại. */
+  missing: MOCK_TRANSLATION_UNITS,
+  /** Lỗi trả cho mọi lượt `run` từ lượt thứ `failFromCall` (đếm từ 1); `null` ⇒ chạy bình thường. */
+  failure: null as MockTranslationFailure | null,
+  failFromCall: 1,
+  /** Số lượt `POST /translations/run` đã nhận (kể cả lượt lỗi). */
+  runCalls: 0,
+};
+
+export const resetMockTranslationState = (): void => {
+  Object.assign(mockTranslation, { missing: MOCK_TRANSLATION_UNITS, failure: null, failFromCall: 1, runCalls: 0 });
+};
+
+const mockDocumentLanguages = () => {
+  const source_locale: DocumentLanguage = "en";
+  const locale: DocumentLanguage = mockState.project.mode === "import" ? source_locale : (mockState.project.documentLanguage ?? "en");
+  return { locale, source_locale };
+};
+
+const translationRunFailure = (failure: Exclude<MockTranslationFailure, "stalled">) => {
+  switch (failure) {
+    case "INSUFFICIENT_CREDIT":
+      return fail(402, failure, "Không đủ credit để dịch lô tiếp theo");
+    case "TRANSLATION_RUNNING":
+      return fail(409, failure, "Tài liệu đang được dịch ở một lượt khác — đợi lượt đó xong rồi chạy lại.");
+    case "ORG_ROLE_FORBIDDEN":
+      return fail(403, failure, "Viewer không được dịch tài liệu");
+    default:
+      return fail(422, failure, "AI response failed schema validation for action 'translate_document'");
+  }
+};
+
+const mockCommentAuthor = () => ({ _id: mockState.user.id, name: mockState.user.name ?? null, email: mockState.user.email ?? null });
 
 /** Lệnh tự nhiên (T17 chưa hiện thực) — mock đổi mô tả actor đầu tiên để có gì đó xem trước. */
 const mockInstructionToOps = (spine: Spine, instruction: string): Op[] | null => {
@@ -550,8 +603,44 @@ export const handlers = [
     if (mockState.project.mode === "import") {
       return fail(409, "DOCUMENT_LANGUAGE_LOCKED", "Dự án import dùng ngôn ngữ của file — không đổi được ngôn ngữ tài liệu");
     }
+    // Bản dịch theo ngôn ngữ: đổi sang ngôn ngữ khác ⇒ nội dung đã có thành "thiếu" với ngôn ngữ mới
+    if (documentLanguage !== mockState.project.documentLanguage) mockTranslation.missing = MOCK_TRANSLATION_UNITS;
     mockState.project = { ...mockState.project, documentLanguage, updatedAt: new Date().toISOString() };
     return ok(mockState.project);
+  }),
+  // FLF-265 #26: đếm + ước tính, không gọi model; ngôn ngữ = gốc ⇒ total 0
+  http.get(api("/projects/:projectId/translations/status"), ({ params }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    const { locale, source_locale } = mockDocumentLanguages();
+    if (locale === source_locale) return ok({ locale, source_locale, total: 0, missing: 0, batches: 0, estimated_credits: 0 });
+    const batches = Math.ceil(mockTranslation.missing / MOCK_TRANSLATION_BATCH);
+    return ok({
+      locale,
+      source_locale,
+      total: MOCK_TRANSLATION_UNITS,
+      missing: mockTranslation.missing,
+      batches,
+      estimated_credits: batches * MOCK_TRANSLATION_BATCH_CREDITS,
+    });
+  }),
+  // FLF-265 #27: body strict `{ max_batches? }` (1–10, mặc định 5); mỗi lượt dịch tối đa `max_batches` lô ⇒ `remaining` giảm dần
+  http.post(api("/projects/:projectId/translations/run"), async ({ params, request }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+    const maxBatches = body.max_batches === undefined ? 5 : body.max_batches;
+    if (Object.keys(body).some((key) => key !== "max_batches") || !Number.isInteger(maxBatches) || (maxBatches as number) < 1 || (maxBatches as number) > 10) {
+      return fail(400, "VALIDATION_ERROR", "max_batches: expected an integer from 1 to 10; no other keys");
+    }
+    mockTranslation.runCalls += 1;
+    const { locale, source_locale } = mockDocumentLanguages();
+    if (locale === source_locale || mockTranslation.missing === 0) return ok({ translated: 0, remaining: 0, credits_used: 0 });
+    const failure = mockTranslation.runCalls >= mockTranslation.failFromCall ? mockTranslation.failure : null;
+    if (failure === "stalled") return ok({ translated: 0, remaining: mockTranslation.missing, credits_used: MOCK_TRANSLATION_BATCH_CREDITS });
+    if (failure) return translationRunFailure(failure);
+    const batches = Math.min(maxBatches as number, Math.ceil(mockTranslation.missing / MOCK_TRANSLATION_BATCH));
+    const translated = Math.min(mockTranslation.missing, batches * MOCK_TRANSLATION_BATCH);
+    mockTranslation.missing -= translated;
+    return ok({ translated, remaining: mockTranslation.missing, credits_used: batches * MOCK_TRANSLATION_BATCH_CREDITS });
   }),
   http.get(api("/folders"), () => ok([])),
   http.post(api("/feedback"), async ({ request }) => {
@@ -605,6 +694,8 @@ export const handlers = [
   http.get(api("/projects/:projectId/spine"), () => ok(mockState.spine)),
   http.get(api("/projects/:projectId/progress"), () => ok(progressOf(mockState))),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
+  // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
+  http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),
 
   http.get(api("/projects/:projectId/steps"), () => {
     const response: StepsResponse = {
@@ -841,10 +932,13 @@ export const handlers = [
     if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
     // FLF-264: BE dựng bản còn thiếu ngay lúc đọc, nên lượt đọc luôn ra nội dung của spine_version hiện tại
     mockAssembledAtVersion = mockState.spine.spine_version;
+    // FLF-265: ngôn ngữ tài liệu khác ngôn ngữ gốc ⇒ `meta.translation`; mục chưa dịch in chữ gốc (mock giữ nguyên chữ)
+    const { locale, source_locale } = mockDocumentLanguages();
     return okWithMeta(buildMockDocument(mockState), {
       assembled_at_version: mockAssembledAtVersion,
       spine_version: mockState.spine.spine_version,
       stale: false,
+      ...(locale !== source_locale ? { translation: { locale, source_locale, missing: mockTranslation.missing } } : {}),
     });
   }),
 
@@ -859,11 +953,72 @@ export const handlers = [
         "Content-Disposition": `attachment; filename="${mockState.project.name}${source === "draft" ? "-draft" : ""}.docx"`,
         "X-Assembled-At-Version": String(mockAssembledAtVersion),
         "X-Spine-Version": String(mockState.spine.spine_version),
+        // FLF-265 #18: file ra theo ngôn ngữ tài liệu của dự án
+        "X-Document-Language": mockDocumentLanguages().locale,
       },
     });
   }),
 
   http.patch(api("/users/me"), async ({ request }) => patchMockUser(await request.json().catch(() => null))),
+
+  // Mock chưa có baseline (T19 chưa nối) — trang đọc chỉ có bản nháp.
+  http.get(api("/projects/:projectId/baselines"), () => ok([])),
+
+  http.get(api("/projects/:projectId/comments"), ({ request }) => {
+    const status = new URL(request.url).searchParams.get("status") ?? "open";
+    return ok(status === "all" ? mockComments : mockComments.filter((c) => c.status === "open"));
+  }),
+  http.post(api("/projects/:projectId/comments"), async ({ request }) => {
+    const body = (await request.json()) as CreateCommentRequest;
+    const text = body.text?.trim() ?? "";
+    if (!text) return fail(400, "VALIDATION_ERROR", "Comment không được để trống.");
+    const section = buildMockDocument(mockState).sections.find((s) => s.id === body.anchor.section_id);
+    if (!section) return fail(422, "COMMENT_ANCHOR_NOT_FOUND", "Nội dung được ghim không tồn tại trong phiên bản này.");
+    const heading = [section.number, section.heading].filter(Boolean).join(" ");
+    const blockIndex = body.anchor.block_index ?? null;
+    const comment: SrsComment = {
+      comment_id: `CM-${String(mockComments.length + 1).padStart(3, "0")}`,
+      version: { source: body.version.source, baseline_id: body.version.baseline_id ?? null, label: body.version.source === "draft" ? "draft" : "v1.0" },
+      anchor: {
+        section_id: section.id,
+        block_index: blockIndex,
+        label: blockIndex === null ? heading : `${heading} › Block ${blockIndex + 1}`,
+        excerpt: null,
+      },
+      author: mockCommentAuthor(),
+      author_role: "lead",
+      text,
+      status: "open",
+      cr_id: null,
+      handled_by: null,
+      handled_at: null,
+      resolution: null,
+      replies: [],
+      created_at: new Date().toISOString(),
+    };
+    mockComments = [...mockComments, comment];
+    return ok(comment, { status: 201 });
+  }),
+  http.post(api("/projects/:projectId/comments/:commentId/replies"), async ({ params, request }) => {
+    const comment = mockComments.find((c) => c.comment_id === params.commentId);
+    if (!comment) return fail(404, "COMMENT_NOT_FOUND", "Không tìm thấy comment.");
+    const { text } = (await request.json()) as { text: string };
+    comment.replies = [...comment.replies, { author: mockCommentAuthor(), author_role: "lead", text, at: new Date().toISOString() }];
+    return ok(comment, { status: 201 });
+  }),
+  http.post(api("/projects/:projectId/comments/:commentId/resolve"), async ({ params, request }) => {
+    const comment = mockComments.find((c) => c.comment_id === params.commentId);
+    if (!comment) return fail(404, "COMMENT_NOT_FOUND", "Không tìm thấy comment.");
+    if (comment.status !== "open") return fail(409, "COMMENT_NOT_OPEN", "Comment đã được xử lý.");
+    const { kind, reason } = (await request.json()) as CommentResolutionInput;
+    Object.assign(comment, {
+      status: "resolved",
+      handled_by: mockCommentAuthor(),
+      handled_at: new Date().toISOString(),
+      resolution: { kind, reason: kind === "kept" ? (reason ?? null) : null },
+    });
+    return ok(comment);
+  }),
 ];
 
 /** Số step registry mock đang phục vụ — dùng trong test. */

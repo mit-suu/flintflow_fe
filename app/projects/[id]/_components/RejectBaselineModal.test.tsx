@@ -4,9 +4,9 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import RejectBaselineModal from "./RejectBaselineModal";
-import type { Comment } from "@/types/comment";
+import type { SrsComment } from "@/types/comment";
 
-const comment = (id: string): Comment => ({
+const comment = (id: string): SrsComment => ({
   comment_id: id,
   version: { source: "draft", baseline_id: null, label: "draft" },
   anchor: { section_id: "fixed:2.1", block_index: null, label: "2.1 Actors", excerpt: null },

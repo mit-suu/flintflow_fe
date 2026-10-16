@@ -4,9 +4,9 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import CommentsPanel from "./CommentsPanel";
-import type { Comment } from "@/types/comment";
+import type { SrsComment } from "@/types/comment";
 
-const comment = (id: string, over: Partial<Comment> = {}): Comment => ({
+const comment = (id: string, over: Partial<SrsComment> = {}): SrsComment => ({
   comment_id: id,
   version: { source: "draft", baseline_id: null, label: "draft" },
   anchor: { section_id: "fixed:2.1", block_index: null, label: "2.1 Actors", excerpt: "Founder manages…" },
@@ -24,7 +24,7 @@ const comment = (id: string, over: Partial<Comment> = {}): Comment => ({
 });
 
 const props = {
-  comments: [] as Comment[],
+  comments: [] as SrsComment[],
   loading: false,
   error: null as string | null,
   busy: false,

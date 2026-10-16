@@ -49,7 +49,8 @@ const APPROVAL = new Set([
 ]);
 
 /** Đuôi thân mật không mang nghĩa — cắt dần cho tới khi hết ("được rồi nhé" ⇒ "được"). */
-const TRAILING = /\s+(nhé|nhe|nha|nhen|nhỉ|ạ|à|luôn|rồi|đi|thôi|bạn|nhá)$/u;
+// "tiếp"/"tục": câu của chip "Đúng rồi, đi tiếp" gõ tay ("đúng rồi đi tiếp" ⇒ "đúng") — E2E FAP: gõ đúng câu chip mà vẫn thành `revision`.
+const TRAILING = /\s+(nhé|nhe|nha|nhen|nhỉ|ạ|à|luôn|rồi|đi|thôi|bạn|nhá|tiếp|tục)$/u;
 
 /** Có phủ định ở bất kỳ đâu ⇒ không phải lời duyệt ("chưa ổn", "ok nhưng không duyệt"). */
 const NEGATION = /(^|[^\p{L}])(không|chưa|ko|k|đừng|nhưng|no|not|nope|but)([^\p{L}]|$)/u;

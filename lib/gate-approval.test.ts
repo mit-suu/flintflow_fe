@@ -8,7 +8,7 @@ import { isGateApproval } from "./gate-approval";
  */
 describe("isGateApproval", () => {
   it("nhận một tiếng ừ đứng một mình, kể cả có đuôi thân mật", () => {
-    for (const text of ["oke", "OK", "ok.", "Ổn", "ừ", "đồng ý", "duyệt", "chốt", "được rồi", "ổn rồi nhé", "đúng rồi", "chuẩn luôn"])
+    for (const text of ["oke", "OK", "ok.", "Ổn", "ừ", "đồng ý", "duyệt", "chốt", "được rồi", "ổn rồi nhé", "đúng rồi", "chuẩn luôn", "Đúng rồi, đi tiếp", "ok, tiếp tục"])
       expect(isGateApproval(text), text).toBe(true);
   });
 
