@@ -28,11 +28,12 @@ interface ProposalCardProps {
 const RECALL_ONLY_SOURCES: readonly LocationFoundBy[] = ["vector", "keyword"];
 
 /**
- * Vị trí chỉ đến từ truy hồi: không có nguồn tất định nào. Cùng định nghĩa với `isRecallOnly` ở BE
- * (`change-request/spine-location.ts`), để FE và BE không nói hai chuyện khác nhau về một vị trí.
+ * Vị trí chỉ đến từ truy hồi: không có nguồn tất định nào. BE có một hàm cùng tên ý
+ * (`change-request/spine-location.ts`) nhưng nó chỉ dùng nội bộ để cắt trần 80 vị trí, không phải nghĩa
+ * người dùng thấy — nên đừng coi hai bên là một.
  */
 const isRecallOnlyLocation = (loc: Pick<CrLocation, "found_by">): boolean =>
-  loc.found_by.length > 0 && loc.found_by.every((b) => RECALL_ONLY_SOURCES.includes(b));
+  loc.found_by.every((b) => RECALL_ONLY_SOURCES.includes(b));
 
 /**
  * Vị trí mà "gần nghĩa" là lý do DUY NHẤT nó có trong danh sách: có `vector` và không có nguồn tất định

@@ -50,8 +50,8 @@ export interface Mode1MockState {
   /** FLF-186: khoá phần tử theo path ⇒ CR đang giữ. */
   locks: Map<string, string>;
   /**
-   * §4.17: có ứng viên vector thì chúng THAY nguồn `keyword`. Mặc định bật để dev thấy được tính năng;
-   * tắt đi phải cho ra đúng hành vi cũ (`EMBEDDING_PROVIDER=off`, Mongo không phải Atlas, chưa embed).
+   * §4.17: có ứng viên vector thì chúng THAY nguồn `keyword`. Mặc định **tắt** như BE
+   * (`EMBEDDING_PROVIDER=off`); bật lên trong test nào cần đường vector.
    */
   vectorEnabled: boolean;
 }
@@ -140,7 +140,7 @@ export const createMode1MockState = (): Mode1MockState => ({
   crSeq: 0,
   elements: initialElements(),
   locks: new Map(),
-  vectorEnabled: true,
+  vectorEnabled: false,
 });
 
 export let mode1State: Mode1MockState = createMode1MockState();

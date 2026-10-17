@@ -32,7 +32,8 @@ describe("KnowledgeAnswer — có trích dẫn", () => {
     expect(note).toHaveTextContent("gate-check");
     expect(note).toHaveTextContent("Caps");
     expect(note).toHaveTextContent("Hướng dẫn nội bộ FlintFlow");
-    expect(note).toHaveTextContent("gate-check#caps");
+    // `chunk_id` là khoá nội bộ của kho tri thức, không có nghĩa với BA đang đọc — không bày ra giao diện
+    expect(note).not.toHaveTextContent("gate-check#caps");
   });
 
   it("source_kind standard hiện nhãn chuẩn ngoài", () => {
@@ -100,8 +101,10 @@ describe("ChatBubble — tin tri thức", () => {
   });
 
   it("nhãn nói rõ đã tra kho tri thức, và không bao giờ nói là đã ghi", () => {
+    // Một nhãn cho cả hai trạng thái: khối trả lời đã tự nói "Không đủ căn cứ", nhãn nhắc lại thì tin
+    // hiện câu đó hai lần.
     expect(writeBadgeOf(aiMessage(grounded))).toEqual({ text: "Trả lời từ kho tri thức", wrote: false });
-    expect(writeBadgeOf(aiMessage(ungrounded))).toEqual({ text: "Không đủ căn cứ", wrote: false });
+    expect(writeBadgeOf(aiMessage(ungrounded))).toEqual({ text: "Trả lời từ kho tri thức", wrote: false });
   });
 
   it("không đổi hành vi của tin chat thường và tin lượt hỏi của bước", () => {

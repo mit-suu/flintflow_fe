@@ -39,11 +39,26 @@ describe("ChatInput — chip Hỏi kiến thức BA", () => {
     rerender(<ChatInput {...props} onToggleKnowledgeMode={() => {}} />);
     expect(chip()).toBeInTheDocument();
 
-    rerender(<ChatInput {...props} onToggleKnowledgeMode={() => {}} compact />);
-    expect(chip()).not.toBeInTheDocument();
-
     rerender(<ChatInput {...props} onToggleKnowledgeMode={() => {}} knowledgeHidden />);
     expect(chip()).not.toBeInTheDocument();
+  });
+
+  // Thu gọn = đang có thẻ hỏi của bước, mà đó chính là lúc hay hỏi kiến thức nhất. Ẩn chip ở đó thì chế
+  // độ gửi đang bật không còn tín hiệu nào và câu trả lời bước bị gửi thành câu hỏi tri thức.
+  it("thu gọn vẫn hiện chip, chỉ bỏ nhãn chữ", () => {
+    render(<ChatInput {...props} onToggleKnowledgeMode={() => {}} knowledgeMode compact />);
+    const button = chip()!;
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    expect(button.textContent).toBe("");
+  });
+
+  it("bật chế độ tri thức ⇒ ẩn nút đính kèm (gửi chỉ có file là câu hỏi vô nghĩa vẫn tốn credit)", () => {
+    const { rerender } = render(<ChatInput {...props} onToggleKnowledgeMode={() => {}} />);
+    expect(screen.getByLabelText("Đính kèm tài liệu tham khảo")).not.toHaveAttribute("hidden");
+
+    rerender(<ChatInput {...props} onToggleKnowledgeMode={() => {}} knowledgeMode />);
+    expect(screen.getByLabelText("Đính kèm tài liệu tham khảo")).toHaveAttribute("hidden");
   });
 
   it("aria-pressed theo knowledgeMode và bấm thì gọi handler", () => {

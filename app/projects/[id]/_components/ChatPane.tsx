@@ -383,13 +383,15 @@ export default function ChatPane({
                   knowledgeHidden={knowledgeHidden}
                   toolbarExtra={inputTools}
                   placeholder={
-                    questionCard || showQuestions
-                      ? "Hoặc trả lời trực tiếp…"
-                      : sendAsEdit
-                        ? (editPlaceholder ??
-                          "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
-                        : knowledgeMode
-                          ? "Hỏi một câu về nghiệp vụ BA, vd: Khi nào thì dùng include thay vì extend?"
+                    // Chế độ tri thức xét trước cả thẻ hỏi: khi có thẻ hỏi, ô nhập thu gọn và chip chỉ
+                    // còn icon, nên placeholder là tín hiệu rõ nhất cho biết câu gõ ra sẽ đi đâu.
+                    knowledgeMode
+                      ? "Hỏi một câu về nghiệp vụ BA, vd: Khi nào thì dùng include thay vì extend?"
+                      : questionCard || showQuestions
+                        ? "Hoặc trả lời trực tiếp…"
+                        : sendAsEdit
+                          ? (editPlaceholder ??
+                            "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
                           : inputPlaceholder
                   }
                 />

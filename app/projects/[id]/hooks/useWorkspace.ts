@@ -293,6 +293,14 @@ export function useWorkspace(projectId: string) {
             if (!(err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR")) console.error("[Chat] Stream error:", err);
             setStreamingMessage(null);
             setKnowledgePending(false);
+            // Sự kiện `error` giữa luồng (hết credit, provider lỗi) KHÔNG làm `streamSse` ném, nên
+            // `catch` bên dưới không chạy. Chat thường còn phần chữ đã stream để user hiểu chuyện gì
+            // xảy ra; lượt tri thức không stream chữ nên nếu im lặng thì chỉ còn cái spinner tắt đi.
+            if (opts?.knowledge) {
+              setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+              setInputMessage(text);
+              setNotice(errorMessage(err, "Không tra được kho tri thức"));
+            }
           },
         });
       } catch (err) {

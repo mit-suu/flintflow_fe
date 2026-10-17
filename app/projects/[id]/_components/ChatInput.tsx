@@ -166,22 +166,28 @@ export default function ChatInput({
                 Sửa tài liệu
               </button>
             )}
-            {onToggleKnowledgeMode && !compact && !knowledgeHidden && (
+            {/* Hiện CẢ khi thu gọn, chỉ bỏ nhãn: thu gọn nghĩa là đang có thẻ hỏi của bước, mà "không
+                biết trả lời nên hỏi kiến thức" chính là lúc cần chip này nhất. Ẩn nó đi thì chế độ gửi
+                đang bật không còn tín hiệu nào, và câu trả lời bước sẽ bị gửi thành câu hỏi tri thức. */}
+            {onToggleKnowledgeMode && !knowledgeHidden && (
               <button
                 type="button"
                 onClick={onToggleKnowledgeMode}
                 aria-pressed={knowledgeMode}
+                aria-label="Hỏi kiến thức BA"
                 title={
                   knowledgeMode
                     ? "Tắt để quay lại trò chuyện"
-                    : "Hỏi kiến thức nghiệp vụ BA — câu trả lời có trích dẫn nguồn (2 credit)"
+                    : "Hỏi kiến thức nghiệp vụ BA — câu trả lời có trích dẫn nguồn, tốn credit"
                 }
-                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
+                className={`h-8 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
+                  compact ? "w-8 justify-center shrink-0" : "pl-2 pr-2.5"
+                } ${
                   knowledgeMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
                 }`}
               >
                 <Icon name="book" size={15} weight={knowledgeMode ? "bold" : "regular"} />
-                Hỏi kiến thức BA
+                {!compact && "Hỏi kiến thức BA"}
               </button>
             )}
             {/* Attachment Button */}
@@ -193,9 +199,11 @@ export default function ChatInput({
               className="hidden"
               accept=".pdf,.docx,.txt,.md"
             />
+            {/* Lượt tri thức không nhận đính kèm: gửi khi chỉ có file ⇒ nội dung thành
+                "[Đính kèm tài liệu]", một câu hỏi vô nghĩa vẫn tốn credit. */}
             <button
               type="button"
-              hidden={editMode}
+              hidden={editMode || knowledgeMode}
               onClick={() => fileInputRef.current?.click()}
               className="w-8 h-8 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
               aria-label="Đính kèm tài liệu tham khảo"

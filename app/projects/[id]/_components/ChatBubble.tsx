@@ -12,7 +12,7 @@ type KnowledgeShape = { reply: string; grounded: boolean; citations: KnowledgeCi
  * Tin của lượt hỏi tri thức (`pipeline-contract.md` §1.2): tin CHAT mang thêm `grounded` + `citations`.
  * Nhận theo hình dữ liệu, vì transcript lưu đúng object đó — tin cũ và tin mới cùng một đường đọc.
  */
-const knowledgeShapeOf = (data: object): KnowledgeShape | null => {
+export const knowledgeShapeOf = (data: object): KnowledgeShape | null => {
   const d = data as { reply?: unknown; grounded?: unknown; citations?: unknown };
   if (typeof d.reply !== "string" || typeof d.grounded !== "boolean" || !Array.isArray(d.citations)) return null;
   return { reply: d.reply, grounded: d.grounded, citations: d.citations as KnowledgeCitation[] };
@@ -52,10 +52,10 @@ export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boole
     // FLF-279: lượt tri thức cũng không ghi gì vào Spine, nhưng "Chỉ trao đổi" không nói được nó đã tra
     // kho tri thức. Phải xét TRƯỚC nhánh `questions` bên dưới: tin tri thức mang `questions: []` nên
     // nhánh đó sẽ nuốt nó và trả `null` ⇒ mất nhãn.
+    // Cùng một nhãn cho cả hai trạng thái: khối trả lời đã tự nói "Không đủ căn cứ", nhãn nhắc lại thì
+    // một tin hiện câu đó hai lần.
     if (typeof (data as { grounded?: unknown }).grounded === "boolean") {
-      return (data as { grounded: boolean }).grounded
-        ? { text: "Trả lời từ kho tri thức", wrote: false }
-        : { text: "Không đủ căn cứ", wrote: false };
+      return { text: "Trả lời từ kho tri thức", wrote: false };
     }
     // Lượt hỏi của bước (lời đáp + câu hỏi): không phải hỏi đáp tự do, nhãn "Chỉ trao đổi" không có nghĩa gì
     if (Array.isArray((data as { questions?: unknown }).questions)) return null;

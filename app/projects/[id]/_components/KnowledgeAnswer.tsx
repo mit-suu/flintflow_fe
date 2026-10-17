@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import type { KnowledgeCitation } from "@/types/chat";
 import { SOURCE_KIND_LABELS, splitCitationRefs } from "./knowledge-citations";
@@ -19,6 +19,7 @@ interface KnowledgeAnswerProps {
  */
 function CitationChip({ citation }: { citation: KnowledgeCitation }) {
   const [open, setOpen] = useState(false);
+  const noteId = useId();
   const wrapRef = useRef<HTMLSpanElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -32,11 +33,18 @@ function CitationChip({ citation }: { citation: KnowledgeCitation }) {
     const onMouseDown = (e: MouseEvent) => {
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
     };
+    // Tab sang chip kế tiếp cũng phải đóng: chỉ bắt chuột và Escape thì người dùng bàn phím mở được
+    // nhiều ô chi tiết chồng lên nhau.
+    const onFocusIn = (e: FocusEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("focusin", onFocusIn);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("focusin", onFocusIn);
     };
   }, [open]);
 
@@ -47,6 +55,7 @@ function CitationChip({ citation }: { citation: KnowledgeCitation }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-controls={open ? noteId : undefined}
         aria-label={`Nguồn ${citation.ref}: ${citation.source} · ${citation.section}`}
         className={`px-1.5 rounded-inner text-caption font-bold align-baseline transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           open ? "bg-primary text-on-primary" : "bg-primary-soft text-primary-hover hover:bg-primary-fixed"
@@ -57,13 +66,13 @@ function CitationChip({ citation }: { citation: KnowledgeCitation }) {
 
       {open && (
         <span
+          id={noteId}
           role="note"
-          className="absolute bottom-full left-0 mb-1.5 z-30 w-[260px] flex flex-col gap-1 rounded-card bg-surface-container-lowest p-3 text-left shadow-[0_8px_24px_rgba(25,24,23,0.14)]"
+          className="absolute bottom-full left-0 mb-1.5 z-40 w-[260px] max-w-[min(260px,70vw)] flex flex-col gap-1 rounded-card bg-surface-container-lowest p-3 text-left shadow-[0_8px_24px_rgba(25,24,23,0.14)]"
         >
           <span className="text-body font-bold text-on-surface">{citation.source}</span>
           <span className="text-body text-on-surface-variant">{citation.section}</span>
           <span className="text-caption font-semibold text-primary">{SOURCE_KIND_LABELS[citation.source_kind]}</span>
-          <span className="text-caption text-on-surface-subtle break-all">{citation.chunk_id}</span>
         </span>
       )}
     </span>

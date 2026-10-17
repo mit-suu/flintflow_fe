@@ -262,6 +262,28 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(clear.change_request.clarifications[0].answers).toHaveLength(2);
   });
 
+  // FLF-279 phần B (§4.17): ứng viên vector THAY nguồn `keyword`; tắt (mặc định, `EMBEDDING_PROVIDER=off`)
+  // thì vị trí phải y như trước.
+  it("vector tắt ⇒ vị trí vẫn tìm bằng từ khoá, không có vector_score", async () => {
+    const detail = await crToReview("Log out of all devices");
+
+    expect(detail.locations.length).toBeGreaterThan(0);
+    expect(detail.locations.every((l) => l.found_by.includes("keyword"))).toBe(true);
+    expect(detail.locations.some((l) => l.found_by.includes("vector"))).toBe(false);
+    expect(detail.locations.every((l) => l.vector_score === null)).toBe(true);
+  });
+
+  it("vector bật ⇒ vector thay keyword, có vector_score, và vị trí đầu vừa spine_link vừa vector", async () => {
+    state().vectorEnabled = true;
+    const detail = await crToReview("Log out of all devices");
+
+    expect(detail.locations.every((l) => l.found_by.includes("keyword"))).toBe(false);
+    expect(detail.locations.every((l) => l.found_by.includes("vector"))).toBe(true);
+    expect(detail.locations.every((l) => typeof l.vector_score === "number")).toBe(true);
+    expect(detail.locations[0].found_by).toEqual(["spine_link", "vector"]);
+    expect(detail.locations[0].vector_score).toBeCloseTo(0.91);
+  });
+
   it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; duyệt ⇒ phần tử đổi, 0.1, mở khoá", async () => {
     const detail = await crToReview("Log out of all devices");
     expect(detail.change_request.status).toBe("in_review");

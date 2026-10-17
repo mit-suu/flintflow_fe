@@ -53,7 +53,7 @@ import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecisio
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
-import ChatBubble from "./_components/ChatBubble";
+import ChatBubble, { knowledgeShapeOf } from "./_components/ChatBubble";
 import StepProgress from "./_components/StepProgress";
 import ChatOpening from "./_components/ChatOpening";
 import RunPill from "./_components/RunPill";
@@ -121,10 +121,20 @@ const GATE_ACTION_TEXT: Record<GateAction, (note?: string) => string> = {
   accept_as_is: (note) => `Duyệt như hiện tại: ${note ?? ""}`.trim(),
 };
 
-const replyOfAsk = (content: string): string => {
+/**
+ * Lời đáp của lượt hỏi, lấy từ tin AI trong transcript. `null` ⇒ tin này KHÔNG phải lời đáp của lượt hỏi.
+ *
+ * Tin tri thức (FLF-279) cũng mang `reply: string`, nên phải loại nó ra: nhận lầm thì tin tri thức bị
+ * gộp vào bong bóng câu hỏi của bước và bị `hideTrailingAiMessage` cắt khỏi khung chat — user trả 2
+ * credit rồi không thấy gì.
+ */
+export const replyOfAsk = (content: string): string | null => {
   try {
     const data: unknown = JSON.parse(content);
-    if (data && typeof data === "object" && typeof (data as { reply?: unknown }).reply === "string") return (data as { reply: string }).reply;
+    if (data && typeof data === "object") {
+      if (knowledgeShapeOf(data)) return null;
+      if (typeof (data as { reply?: unknown }).reply === "string") return (data as { reply: string }).reply;
+    }
   } catch {
     // chữ thường
   }
@@ -1311,8 +1321,18 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     // FLF-279 §1.2: BE xử lý lượt tri thức TRƯỚC lượt chờ trả lời của step và trước lệnh sửa, và chốt
     // 409 CHANGE_REQUIRES_CR của mode 1 không áp. Rẽ ở đây để FE theo đúng thứ tự đó — đặt muộn hơn thì
     // ở mode 1 câu hỏi bị đẩy vào CR, còn ở `needs_input` nó bị tính là câu trả lời của bước.
-    // Chip tự tắt sau một lượt: mỗi lượt BE chỉ nhận một câu hỏi và không đọc lịch sử chat.
-    if (knowledgeMode) {
+    //
+    // `intent` / `asMessage` là các lối gửi do code dựng (chip mở đầu, lệnh đổi ngôn ngữ gửi lại thành
+    // tin): chúng mang ý định riêng, không phải câu user gõ để hỏi, nên không đi nhánh này.
+    if (knowledgeMode && !asMessage && intent === undefined) {
+      // Hợp đồng chỉ cho lượt tri thức đi trước lượt CHỜ trả lời; nó không nói gì về lúc step đang
+      // chạy. Gửi lúc đó thì `onFinish` thay cả session bằng bản BE và các tin runner vừa chèn tại chỗ
+      // biến mất khỏi khung chat.
+      if (aiWorking) {
+        setToast("AI đang làm — đợi xong lượt này rồi hỏi tiếp nhé");
+        return;
+      }
+      // Chip tự tắt sau một lượt: mỗi lượt BE chỉ nhận một câu hỏi và không đọc lịch sử chat.
       setKnowledgeMode(false);
       return void (await ws.sendMessage(currentStep, custom, { knowledge: true }));
     }
@@ -1526,8 +1546,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onToggleKnowledgeMode={
             canEdit
               ? () => {
+                  // Tắt tri thức ⇒ trả `editMode` về mặc định của chế độ dự án, không để nó nằm lại
+                  // `false`: ở mode 1, chat im lặng thôi đã là chat sửa-qua-CR.
+                  if (knowledgeMode) {
+                    setKnowledgeMode(false);
+                    setEditMode(mode1);
+                    return;
+                  }
                   setEditMode(false);
-                  setKnowledgeMode((on) => !on);
+                  setKnowledgeMode(true);
                 }
               : undefined
           }
