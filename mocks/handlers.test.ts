@@ -10,7 +10,8 @@ import { MOCK_TRANSLATION_UNITS, mockTiming, mockTranslation, resetMockTranslati
 import { mockServer } from "./server";
 import { MOCK_PROJECT_ID, MOCK_SESSION_ID, mockState, resetMockState } from "./state";
 import { apiCall } from "@/lib/api";
-import type { ChatSession } from "@/types/chat";
+import { streamChatMessage } from "@/lib/ai-stream";
+import type { ChatSession, KnowledgeReply } from "@/types/chat";
 
 const P = MOCK_PROJECT_ID;
 
@@ -123,6 +124,81 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     await expect(apiCall(`/projects/${P}/chats/${MOCK_SESSION_ID}`, { method: "DELETE" })).rejects.toMatchObject({
       code: "PIPELINE_SESSION_LOCKED",
       status: 409,
+    });
+  });
+
+  describe("FLF-279 lượt hỏi tri thức (§1.2)", () => {
+    /** Thu các sự kiện của một lượt `knowledge: true`; luồng đúng phải chỉ có một `finish`. */
+    const askKnowledge = async (content: string) => {
+      const events: { type: string; data?: unknown; cost?: number; tokensUsed?: unknown }[] = [];
+      await streamChatMessage({
+        projectId: P,
+        chatId: MOCK_SESSION_ID,
+        content,
+        step: "chat",
+        knowledge: true,
+        onTextDelta: () => events.push({ type: "text-delta" }),
+        onFinish: (payload) => events.push({ type: "finish", ...payload }),
+      });
+      return events;
+    };
+
+    it("có trích dẫn: một finish duy nhất, grounded, citations đủ hai source_kind, 2 credit", async () => {
+      const events = await askKnowledge("Trần lượt gọi model mỗi bước là bao nhiêu?");
+
+      expect(events.map((e) => e.type)).toEqual(["finish"]);
+      const data = events[0].data as KnowledgeReply;
+      expect(data.grounded).toBe(true);
+      expect(data.reply).toMatch(/\[K1\]/);
+      expect(data.citations.map((c) => c.ref)).toEqual(["K1", "K2"]);
+      expect(data.citations.map((c) => c.source_kind)).toEqual(["internal_skill", "standard"]);
+      expect(events[0].cost).toBe(2);
+    });
+
+    it("không đủ căn cứ: grounded false, citations rỗng, không trừ credit", async () => {
+      const events = await askKnowledge("Câu này ngoài kho tri thức của FlintFlow");
+
+      const data = events[0].data as KnowledgeReply;
+      expect(data.grounded).toBe(false);
+      expect(data.citations).toEqual([]);
+      expect(events[0].cost).toBe(0);
+      expect(events[0].tokensUsed).toBeNull();
+    });
+
+    it("tin AI lưu vào phiên dưới dạng JSON ⇒ tải lại phiên vẫn đọc được trích dẫn", async () => {
+      await askKnowledge("Trần regenerate mỗi bước là bao nhiêu?");
+
+      const reloaded = await apiCall<ChatSession>(`/projects/${P}/chats/${MOCK_SESSION_ID}`);
+      const last = reloaded.data!.messages.at(-1)!;
+      expect(last.role).toBe("ai");
+      const parsed = JSON.parse(last.content) as KnowledgeReply;
+      expect(parsed.grounded).toBe(true);
+      expect(parsed.citations[0].source).toBe("gate-check");
+    });
+
+    it("KNOWLEDGE_ENABLED=false ⇒ 409 KNOWLEDGE_DISABLED và phiên không ghi gì", async () => {
+      mockState.knowledgeDisabled = true;
+      const before = mockState.sessions[0].messages.length;
+
+      await expect(askKnowledge("Trần lượt gọi model?")).rejects.toMatchObject({
+        code: "KNOWLEDGE_DISABLED",
+        status: 409,
+      });
+      expect(mockState.sessions[0].messages).toHaveLength(before);
+    });
+
+    it("lượt chat thường không đi nhánh tri thức: vẫn stream chữ, tin AI là chữ thuần", async () => {
+      const deltas: string[] = [];
+      await streamChatMessage({
+        projectId: P,
+        chatId: MOCK_SESSION_ID,
+        content: "Chào bạn",
+        step: "chat",
+        onTextDelta: (d) => deltas.push(d),
+      });
+
+      expect(deltas.length).toBeGreaterThan(0);
+      expect(mockState.sessions[0].messages.at(-1)!.content).not.toMatch(/^\{/);
     });
   });
 

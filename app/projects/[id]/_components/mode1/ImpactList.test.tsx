@@ -54,6 +54,30 @@ describe("ImpactList — vị trí ảnh hưởng (C-3, UC-50)", () => {
     expect(screen.getByText("2 chưa kết luận")).toBeInTheDocument();
   });
 
+  // FLF-279 phần B (§4.17): vector THAY keyword khi có; tắt vector ⇒ dòng tóm tắt y như cũ.
+  it("đếm riêng vị trí mà gần nghĩa là lý do duy nhất; vị trí chỉ có keyword không tính", () => {
+    renderWithIntl(
+      <ImpactList
+        locations={[
+          location("L001", { found_by: ["vector"], vector_score: 0.87 }),
+          location("L002", { found_by: ["vector"], vector_score: 0.83 }),
+          // Có liên kết field ⇒ không phải "chỉ nhờ nghĩa"
+          location("L003", { found_by: ["spine_link", "vector"], vector_score: 0.91 }),
+          // Trùng TỪ, không phải gần NGHĨA — tuy cũng là truy hồi
+          location("L004", { found_by: ["keyword"] }),
+        ]}
+        editable={false}
+        onPatch={vi.fn()}
+      />
+    );
+    expect(screen.getByText("4 chưa kết luận · 2 tìm theo nghĩa")).toBeInTheDocument();
+  });
+
+  it("không vị trí nào từ vector (vector tắt) ⇒ dòng tóm tắt không nhắc gì tới nghĩa", () => {
+    renderWithIntl(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
+    expect(screen.queryByText(/tìm theo nghĩa/)).not.toBeInTheDocument();
+  });
+
   it("tag found_by của từng vị trí theo nguồn tìm thấy (liên kết field / nhắc mã / từ khoá)", () => {
     renderWithIntl(<ImpactList locations={LOCATIONS} editable={false} onPatch={vi.fn()} />);
     expect(tagsOf("L001")).toEqual(["Liên kết field", "Nhắc mã"]);

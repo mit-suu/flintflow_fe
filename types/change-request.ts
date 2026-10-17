@@ -97,7 +97,12 @@ export interface Cr {
 
 /** `preview` (mode 1 v3): phần tử bị op của bản xem trước đính kèm CR chạm tới. */
 /** `diagram` (§4.13): phần nối giữ hình gốc của người dùng — BE tự đề xuất vẽ lại (không qua AI). */
-export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview" | "diagram";
+/**
+ * `vector` (import-change-contract §4.17): phần tử gần nghĩa với CR theo Atlas Vector Search. Có ứng viên
+ * vector thì chúng **thay** nguồn `keyword`; tắt tính năng (`EMBEDDING_PROVIDER=off`) thì `keyword` như cũ.
+ * Một vị trí có thể vừa `spine_link` vừa `vector`.
+ */
+export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview" | "diagram" | "vector";
 export type LocationConclusion = "edit" | "comment" | "not_related";
 
 /**
@@ -111,6 +116,11 @@ export interface CrLocation {
   section_title: string;
   current_text: string;
   found_by: LocationFoundBy[];
+  /**
+   * Điểm gần nghĩa 0..1 của vị trí có `found_by: vector`; `null` với vị trí tìm bằng đồ thị / từ khoá.
+   * Tuỳ chọn trong DTO của BE, nên có thể thiếu hẳn ở CR cũ.
+   */
+  vector_score?: number | null;
   entity_paths: string[];
   owner_step: string | null;
   conclusion: LocationConclusion | null;

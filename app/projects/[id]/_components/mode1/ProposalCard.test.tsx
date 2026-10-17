@@ -46,6 +46,43 @@ const proposal = (over: Partial<NonNullable<CrLocation["proposal"]>> = {}): NonN
 
 const card = () => screen.getByRole("article", { name: "Vị trí L001" });
 
+// FLF-279 phần B (§4.17): chip "Theo nghĩa" từng trống chữ vì `LocationFoundBy` ở FE thiếu `vector`.
+describe("ProposalCard — vị trí tìm theo nghĩa", () => {
+  const chip = () => screen.getByText(/^Theo nghĩa/);
+
+  it("chip mang nhãn và độ khớp", () => {
+    renderWithIntl(
+      <ProposalCard location={location({ found_by: ["vector"], vector_score: 0.87 })} editable={false} onPatch={vi.fn()} />
+    );
+    expect(chip()).toHaveTextContent("Theo nghĩa · 87%");
+  });
+
+  it("thiếu vector_score hoặc null ⇒ chỉ có nhãn, không NaN% và không dấu · lửng", () => {
+    const { unmount } = renderWithIntl(
+      <ProposalCard location={location({ found_by: ["vector"], vector_score: null })} editable={false} onPatch={vi.fn()} />
+    );
+    expect(chip().textContent).toBe("Theo nghĩa");
+    unmount();
+
+    renderWithIntl(<ProposalCard location={location({ found_by: ["vector"] })} editable={false} onPatch={vi.fn()} />);
+    expect(chip().textContent).toBe("Theo nghĩa");
+  });
+
+  it("chỉ gần nghĩa ⇒ chip tô khác; có thêm liên kết field ⇒ chip như các nguồn khác", () => {
+    const { unmount } = renderWithIntl(
+      <ProposalCard location={location({ found_by: ["vector"], vector_score: 0.87 })} editable={false} onPatch={vi.fn()} />
+    );
+    expect(chip().className).toContain("bg-info-soft");
+    unmount();
+
+    renderWithIntl(
+      <ProposalCard location={location({ found_by: ["spine_link", "vector"], vector_score: 0.91 })} editable={false} onPatch={vi.fn()} />
+    );
+    expect(chip().className).not.toContain("bg-info-soft");
+    expect(chip()).toHaveTextContent("Theo nghĩa · 91%");
+  });
+});
+
 describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81, FLF-186)", () => {
   it("chưa kết luận: hiện path, mục, tóm tắt phần tử, nguồn tìm thấy, bước sở hữu, phần tử liên quan; không có huy hiệu kết luận", () => {
     renderWithIntl(

@@ -121,4 +121,48 @@ describe("streamChatMessage", () => {
     expect(onError).toHaveBeenCalledWith(new Error("Quá tải"));
     expect(onFinish).toHaveBeenCalledWith({ session, data: undefined, tokensUsed: undefined, cost: 2 });
   });
+
+  it("gửi knowledge: true khi hỏi kiến thức, và không gửi field đó ở lượt chat thường", async () => {
+    const session = { _id: "c1", projectId: "p1", messages: [], createdAt: "2026-10-17" };
+    const finish = { type: "finish", session, data: { reply: "x", questions: [], grounded: true, citations: [] }, cost: 2 };
+    vi.mocked(authFetch)
+      .mockResolvedValueOnce(sseResponse([`data: ${JSON.stringify(finish)}\n\n`]))
+      .mockResolvedValueOnce(sseResponse([`data: ${JSON.stringify({ type: "finish", session, cost: 1 })}\n\n`]));
+
+    const base = { projectId: "p1", chatId: "c1", content: "Trần lượt gọi model là bao nhiêu?", step: "chat" };
+    await streamChatMessage({ ...base, knowledge: true });
+    await streamChatMessage(base);
+
+    const bodyOf = (call: number) => JSON.parse(vi.mocked(authFetch).mock.calls[call][1]?.body as string);
+    expect(bodyOf(0)).toEqual({ content: base.content, step: "chat", knowledge: true });
+    expect(bodyOf(1)).not.toHaveProperty("knowledge");
+  });
+
+  it("lượt hỏi kiến thức không stream chữ: chỉ onFinish được gọi, kèm grounded và citations", async () => {
+    const session = { _id: "c1", projectId: "p1", messages: [], createdAt: "2026-10-17" };
+    const data = {
+      reply: "Mỗi bước tối đa 8 lượt gọi model [K1].",
+      questions: [],
+      grounded: true,
+      citations: [{ ref: "K1", chunk_id: "gate-check#caps", source: "gate-check", section: "Caps", source_kind: "internal_skill" }],
+    };
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      sseResponse([`data: ${JSON.stringify({ type: "finish", session, data, tokensUsed: 320, cost: 2 })}\n\n`])
+    );
+    const onTextDelta = vi.fn();
+    const onFinish = vi.fn();
+
+    await streamChatMessage({
+      projectId: "p1",
+      chatId: "c1",
+      content: "Trần lượt gọi model là bao nhiêu?",
+      step: "chat",
+      knowledge: true,
+      onTextDelta,
+      onFinish,
+    });
+
+    expect(onTextDelta).not.toHaveBeenCalled();
+    expect(onFinish).toHaveBeenCalledWith({ session, data, tokensUsed: 320, cost: 2 });
+  });
 });

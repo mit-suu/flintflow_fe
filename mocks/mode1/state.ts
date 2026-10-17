@@ -49,6 +49,11 @@ export interface Mode1MockState {
   elements: MockElement[];
   /** FLF-186: khoá phần tử theo path ⇒ CR đang giữ. */
   locks: Map<string, string>;
+  /**
+   * §4.17: có ứng viên vector thì chúng THAY nguồn `keyword`. Mặc định **tắt** như BE
+   * (`EMBEDDING_PROVIDER=off`); bật lên trong test nào cần đường vector.
+   */
+  vectorEnabled: boolean;
 }
 
 export interface MockElement {
@@ -135,6 +140,7 @@ export const createMode1MockState = (): Mode1MockState => ({
   crSeq: 0,
   elements: initialElements(),
   locks: new Map(),
+  vectorEnabled: false,
 });
 
 export let mode1State: Mode1MockState = createMode1MockState();

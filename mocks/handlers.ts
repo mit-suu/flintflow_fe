@@ -14,7 +14,7 @@ import {
   orderedSteps,
   phaseOfStep,
 } from "@/lib/constants/step-registry";
-import type { ChatMessage, ChatSession } from "@/types/chat";
+import type { ChatMessage, ChatSession, KnowledgeReply } from "@/types/chat";
 import type {
   ApplyResult,
   ChangeDiff,
@@ -247,6 +247,63 @@ const sseStream = (stepId: string, produce: (send: (event: StepEvent) => void) =
 
 /** Nhịp giả lập stream; 0 trong test. */
 export const mockTiming = { stepDelayMs: 250 };
+
+/**
+ * Lượt hỏi tri thức (`pipeline-contract.md` §1.2). Khác luồng chat thường ở hai điểm, và cả hai đều là
+ * thứ FE phải chịu được:
+ *
+ * - **không có `text-delta`**: phát đúng một `finish` rồi đóng, nên UI không thể dựa vào chữ chạy để
+ *   biết lượt còn sống;
+ * - **`content` của tin AI là chuỗi JSON của chính `data`** — đúng như BE lưu transcript. Nhờ vậy tin
+ *   tải lại từ `GET /chats/:chatId` đọc được bằng cùng một đường với tin vừa về.
+ *
+ * Từ chối vì không đủ căn cứ thì BE không gọi model: `cost: 0`, `tokensUsed: null`.
+ */
+const knowledgeStream = (session: ChatSession, body: { content: string; step?: string }) => {
+  const grounded = !body.content.toLowerCase().includes(mockState.knowledgeUngroundedHint.toLowerCase());
+  const data: KnowledgeReply = grounded
+    ? {
+        reply:
+          "Theo hướng dẫn nội bộ FlintFlow, mỗi bước chỉ được gọi model tối đa 8 lượt và regenerate tối đa " +
+          "3 lần [K1]. Hết trần thì bước phải chốt bằng accept_as_is kèm ghi chú lý do [K2].",
+        questions: [],
+        grounded: true,
+        citations: [
+          { ref: "K1", chunk_id: "gate-check#caps", source: "gate-check", section: "Caps", source_kind: "internal_skill" },
+          { ref: "K2", chunk_id: "ieee-830#4.3", source: "IEEE 830-1998", section: "4.3 Specific requirements", source_kind: "standard" },
+        ],
+      }
+    : {
+        reply:
+          "Không đủ căn cứ trong kho tri thức của FlintFlow để trả lời câu này. Bạn thử hỏi lại sát hơn " +
+          "vào quy trình soạn SRS, hoặc đính kèm tài liệu nguồn rồi hỏi lại.",
+        questions: [],
+        grounded: false,
+        citations: [],
+      };
+
+  const at = new Date().toISOString();
+  const user: ChatMessage = { role: "user", content: body.content, step: body.step, createdAt: at };
+  const ai: ChatMessage = { role: "ai", content: JSON.stringify(data), step: body.step, createdAt: at };
+  session.messages = [...session.messages, user, ai];
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      await delay(mockTiming.stepDelayMs);
+      const finish = {
+        type: "finish",
+        session: withPipelineFlag(session),
+        data,
+        tokensUsed: grounded ? 320 : null,
+        cost: grounded ? 2 : 0,
+      };
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(finish)}\n\n`));
+      controller.close();
+    },
+  });
+  return new HttpResponse(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+};
 
 const runSteps = async (state: MockState, stepId: string, send: (event: StepEvent) => void) => {
   const def = getStepDef(stepId);
@@ -670,9 +727,19 @@ export const handlers = [
     return ok(null);
   }),
   http.post(api("/projects/:projectId/chats/:chatId/messages/stream"), async ({ params, request }) => {
-    const body = (await request.json()) as { content: string; step?: string };
+    const body = (await request.json()) as { content: string; step?: string; knowledge?: boolean };
     const session = mockState.sessions.find((s) => s._id === params.chatId);
     if (!session) return fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
+
+    // Lượt hỏi tri thức (contract §1.2): không stream chữ, phát đúng một `finish`. Tắt tính năng thì
+    // 409 và KHÔNG ghi gì vào phiên — FE phải tự gỡ tin hiện tạm.
+    if (body.knowledge) {
+      if (mockState.knowledgeDisabled) {
+        return fail(409, "KNOWLEDGE_DISABLED", "Tính năng hỏi kiến thức đang tắt trên máy chủ");
+      }
+      return knowledgeStream(session, body);
+    }
+
     const reply = `(mock) Đã ghi nhận: "${body.content}". Bạn có thể chạy step ${mockState.spine.progress.current_step} ở thanh tiến độ.`;
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({

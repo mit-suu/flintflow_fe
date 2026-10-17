@@ -23,6 +23,14 @@ interface ChatInputProps {
   editMode?: boolean;
   /** Lý do khoá chip (vd. step đang chạy) — có ⇒ chip mờ, hover ra lý do. */
   editDisabledReason?: string | null;
+  /**
+   * Có ⇒ hiện chip "Hỏi kiến thức BA": bật lên thì câu gửi đi là câu hỏi tri thức, trả lời có trích
+   * dẫn nguồn. Loại trừ với chip "Sửa tài liệu" — hai chế độ đi hai đường gửi khác nhau.
+   */
+  onToggleKnowledgeMode?: () => void;
+  knowledgeMode?: boolean;
+  /** Máy chủ tắt Knowledge RAG (409 KNOWLEDGE_DISABLED) ⇒ không hiện chip nữa. */
+  knowledgeHidden?: boolean;
   /** Nút thêm ở thanh công cụ ô nhập (vd. menu cách AI làm việc) — ẩn khi ô nhập thu gọn. */
   toolbarExtra?: ReactNode;
 }
@@ -40,6 +48,9 @@ export default function ChatInput({
   onToggleEditMode,
   editMode = false,
   editDisabledReason = null,
+  onToggleKnowledgeMode,
+  knowledgeMode = false,
+  knowledgeHidden = false,
   toolbarExtra,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -155,6 +166,30 @@ export default function ChatInput({
                 Sửa tài liệu
               </button>
             )}
+            {/* Hiện CẢ khi thu gọn, chỉ bỏ nhãn: thu gọn nghĩa là đang có thẻ hỏi của bước, mà "không
+                biết trả lời nên hỏi kiến thức" chính là lúc cần chip này nhất. Ẩn nó đi thì chế độ gửi
+                đang bật không còn tín hiệu nào, và câu trả lời bước sẽ bị gửi thành câu hỏi tri thức. */}
+            {onToggleKnowledgeMode && !knowledgeHidden && (
+              <button
+                type="button"
+                onClick={onToggleKnowledgeMode}
+                aria-pressed={knowledgeMode}
+                aria-label="Hỏi kiến thức BA"
+                title={
+                  knowledgeMode
+                    ? "Tắt để quay lại trò chuyện"
+                    : "Hỏi kiến thức nghiệp vụ BA — câu trả lời có trích dẫn nguồn, tốn credit"
+                }
+                className={`h-8 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
+                  compact ? "w-8 justify-center shrink-0" : "pl-2 pr-2.5"
+                } ${
+                  knowledgeMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
+                }`}
+              >
+                <Icon name="book" size={15} weight={knowledgeMode ? "bold" : "regular"} />
+                {!compact && "Hỏi kiến thức BA"}
+              </button>
+            )}
             {/* Attachment Button */}
             <input
               type="file"
@@ -164,9 +199,11 @@ export default function ChatInput({
               className="hidden"
               accept=".pdf,.docx,.txt,.md"
             />
+            {/* Lượt tri thức không nhận đính kèm: gửi khi chỉ có file ⇒ nội dung thành
+                "[Đính kèm tài liệu]", một câu hỏi vô nghĩa vẫn tốn credit. */}
             <button
               type="button"
-              hidden={editMode}
+              hidden={editMode || knowledgeMode}
               onClick={() => fileInputRef.current?.click()}
               className="w-8 h-8 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
               aria-label="Đính kèm tài liệu tham khảo"
