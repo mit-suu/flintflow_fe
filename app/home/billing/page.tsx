@@ -1,10 +1,10 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import PageSkeleton from "@/components/ui/PageSkeleton";
+import { Badge, Button, Card, EmptyState, IconButton, PageSkeleton } from "@/components/ui";
 import {
   createCheckout,
   fetchBalance,
@@ -17,8 +17,8 @@ import {
   type CreditTransaction,
   type PlanDefinition,
   type PlanId,
-} from "../../../lib/api/billing";
-import { emitNotificationsChanged } from "../../../lib/api/notifications";
+} from "@/lib/api/billing";
+import { emitNotificationsChanged } from "@/lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 
@@ -27,6 +27,27 @@ const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "deduct") return `−${tx.amount}`;
   return String(tx.amount);
 };
+
+/** Chỉ đổi màu con số, không đổi hình thẻ: khả dụng là con số người dùng theo dõi, số khác chỉ là tham chiếu. */
+type StatTone = "primary" | "error" | "muted" | "plain";
+
+const STAT_TONE: Record<StatTone, string> = {
+  primary: "text-primary",
+  error: "text-error",
+  muted: "text-on-surface-muted",
+  plain: "text-on-surface",
+};
+
+/** Thẻ số của trang ví: nhãn nhỏ in hoa, số lớn, dòng đơn vị. */
+function StatCard({ label, value, hint, tone = "plain" }: { label: string; value: ReactNode; hint: string; tone?: StatTone }) {
+  return (
+    <Card className="p-5">
+      <div className="text-body font-bold text-on-surface-muted uppercase tracking-[0.04em]">{label}</div>
+      <div className={`text-metric font-bold leading-tight tracking-tight mt-1 ${STAT_TONE[tone]}`}>{value}</div>
+      <div className="text-body text-on-surface-subtle">{hint}</div>
+    </Card>
+  );
+}
 
 export default function BillingPage() {
   const t = useTranslations("app.billing");
@@ -131,6 +152,30 @@ export default function BillingPage() {
 
   const lowCredit = balance ? balance.available < balance.lowCreditThreshold : false;
 
+  // Bốn thẻ cùng một khuôn: ba con số của ví và gói hiện tại. "credit" là đơn vị, không dịch.
+  const statCards: { key: string; label: string; value: ReactNode; hint: string; tone: StatTone }[] = balance
+    ? [
+        { key: "available", label: t("available"), value: format.number(balance.available), hint: "credit", tone: lowCredit ? "error" : "primary" },
+        { key: "balance", label: t("balance"), value: format.number(balance.balance), hint: "credit", tone: "plain" },
+        { key: "reserved", label: t("reserved"), value: format.number(balance.reserved), hint: "credit", tone: "muted" },
+        {
+          key: "currentPlan",
+          label: t("currentPlan"),
+          value: balance.planLabel,
+          hint: balance.subscription
+            ? t("validUntil", {
+                date: format.dateTime(new Date(balance.subscription.currentPeriodEnd), {
+                  day: "numeric",
+                  month: "numeric",
+                  year: "numeric",
+                }),
+              })
+            : t("defaultPlan"),
+          tone: "plain",
+        },
+      ]
+    : [];
+
   return (
     <>
       <TopBar trail={[tc("account"), t("title")]} />
@@ -139,11 +184,9 @@ export default function BillingPage() {
         <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
         {error !== null && (
-          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-control text-xs font-medium">
+          <div className="flex items-center gap-3 bg-error-container text-on-error-container px-4 py-3 rounded-control text-body font-medium">
             <span className="flex-1">{error || t("errors.load")}</span>
-            <button type="button" onClick={() => setError(null)} aria-label={tc("dismiss")} className="font-bold hover:opacity-75">
-              ✕
-            </button>
+            <IconButton icon="close" label={tc("dismiss")} size="sm" onClick={() => setError(null)} className="shrink-0" />
           </div>
         )}
 
@@ -157,41 +200,14 @@ export default function BillingPage() {
             {/* Balance */}
             {balance && (
               <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { key: "available" as const, value: balance.available, accent: lowCredit ? "#B03030" : "#6A62C4" },
-                  { key: "balance" as const, value: balance.balance, accent: "#191817" },
-                  { key: "reserved" as const, value: balance.reserved, accent: "#8A867E" },
-                ].map((card) => (
-                  <div key={card.key} className="bg-white border border-[#ECEAE5] rounded-card p-5">
-                    <div className="text-body font-bold text-[#8A867E] uppercase tracking-[0.04em]">
-                      {t(card.key)}
-                    </div>
-                    <div className="text-metric font-bold leading-tight tracking-tight mt-1" style={{ color: card.accent }}>
-                      {format.number(card.value)}
-                    </div>
-                    <div className="text-body text-[#A8A49C]">credit</div>
-                  </div>
+                {statCards.map((card) => (
+                  <StatCard key={card.key} label={card.label} value={card.value} hint={card.hint} tone={card.tone} />
                 ))}
-                <div className="bg-white border border-[#ECEAE5] rounded-card p-5">
-                  <div className="text-body font-bold text-[#8A867E] uppercase tracking-[0.04em]">{t("currentPlan")}</div>
-                  <div className="text-metric font-bold leading-tight tracking-tight mt-1 text-[#191817]">{balance.planLabel}</div>
-                  <div className="text-body text-[#A8A49C]">
-                    {balance.subscription
-                      ? t("validUntil", {
-                          date: format.dateTime(new Date(balance.subscription.currentPeriodEnd), {
-                            day: "numeric",
-                            month: "numeric",
-                            year: "numeric",
-                          }),
-                        })
-                      : t("defaultPlan")}
-                  </div>
-                </div>
               </section>
             )}
 
             {lowCredit && (
-              <div className="bg-[#FFF6E5] border border-[#F2DDB0] text-[#7A5A12] px-4 py-3 rounded-control text-body font-medium">
+              <div className="bg-accent-gold-soft text-accent-gold-text px-4 py-3 rounded-control text-body font-medium">
                 {t("lowCredit")}
               </div>
             )}
@@ -200,37 +216,39 @@ export default function BillingPage() {
             <section className="flex flex-col gap-3">
               <h2 className="text-heading font-bold text-on-surface">{t("buyCredits")}</h2>
               {canPurchase ? null : (
-                <p role="note" className="rounded-lg bg-[#F4F3FE] px-3 py-2 text-body text-[#4B4842]">
+                <p role="note" className="rounded-control bg-primary-soft px-3 py-2 text-body text-on-surface-medium">
                   {t("leadOnlyPurchase")}
                 </p>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {packages.map((pkg) => (
-                  <div key={pkg.id} className="bg-white border border-[#ECEAE5] rounded-card p-5 flex flex-col gap-3">
+                  <Card key={pkg.id} className="p-5 flex flex-col gap-3">
                     <div>
-                      <div className="text-body font-bold text-[#4B4842]">{pkg.label}</div>
+                      <div className="text-body font-bold text-on-surface-medium">{pkg.label}</div>
                       <div className="text-metric font-bold leading-tight tracking-tight text-on-surface">
                         {format.number(pkg.credits)}{" "}
-                        <span className="text-body font-semibold text-[#8A867E]">credit</span>
+                        <span className="text-body font-semibold text-on-surface-muted">credit</span>
                       </div>
-                      <div className="text-body text-[#6B6862]">{formatVnd(pkg.amount)}</div>
+                      <div className="text-body text-on-surface-variant">{formatVnd(pkg.amount)}</div>
                     </div>
                     {canPurchase ? (
-                    <button
-                      type="button"
-                      onClick={() => handleBuy(pkg)}
-                      disabled={busy !== null}
-                      className="mt-auto py-2.5 rounded-control btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
-                    >
-                      {busy === pkg.id ? t("creatingTx") : t("buyNow")}
-                    </button>
+                      // `loading` giữ nguyên nhãn và tự khoá nút ⇒ bố cục không nhảy khi đang tạo giao dịch
+                      <Button
+                        variant="primary"
+                        size="md"
+                        fullWidth
+                        className="mt-auto"
+                        loading={busy === pkg.id}
+                        disabled={busy !== null}
+                        onClick={() => handleBuy(pkg)}
+                      >
+                        {t("buyNow")}
+                      </Button>
                     ) : null}
-                  </div>
+                  </Card>
                 ))}
               </div>
-              <p className="text-body text-[#A8A49C]">
-                {t("vietqrNote")}
-              </p>
+              <p className="text-body text-on-surface-subtle">{t("vietqrNote")}</p>
             </section>
 
             {/* Plans */}
@@ -240,40 +258,31 @@ export default function BillingPage() {
                 {plans.map((plan) => {
                   const isCurrent = balance?.plan === plan.id;
                   return (
-                    <div
-                      key={plan.id}
-                      className={`bg-white rounded-card p-5 flex items-center gap-4 border ${
-                        isCurrent ? "border-[#6A62C4]" : "border-[#ECEAE5]"
-                      }`}
-                    >
+                    // Gói hiện tại đánh dấu bằng huy hiệu: `Card` đã có viền riêng, thêm viền màu nữa là chồng hai khai báo
+                    <Card key={plan.id} className="p-5 flex items-center gap-4">
                       <div className="flex-1">
                         <div className="text-heading font-bold text-on-surface">{plan.label}</div>
-                        <div className="text-body text-[#6B6862]">
+                        <div className="text-body text-on-surface-variant">
                           {t("creditsPerMonth", { credits: format.number(plan.monthlyCredits) })} ·{" "}
                           {plan.priceVnd === 0 ? t("free") : t("pricePerMonth", { price: formatVnd(plan.priceVnd) })}
                         </div>
                       </div>
                       {isCurrent ? (
-                        <span className="px-3 py-1 rounded-full bg-[#EFEEF9] text-body font-bold text-[#554DB0]">
+                        <Badge tone="primary" size="md">
                           {t("current")}
-                        </span>
+                        </Badge>
                       ) : canPurchase ? (
-                        <button
-                          type="button"
-                          onClick={() => handleUpgrade(plan)}
+                        <Button
+                          variant="secondary"
+                          size="md"
+                          loading={busy === `plan:${plan.id}`}
                           disabled={busy !== null}
-                          className="px-4 py-2 rounded-control border-[1.5px] border-[#E4E1DC] bg-white text-body font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+                          onClick={() => handleUpgrade(plan)}
                         >
-                          {busy === `plan:${plan.id}`
-                            ? plan.priceVnd > 0
-                              ? t("creatingTx")
-                              : t("switching")
-                            : plan.priceVnd > 0
-                              ? t("buyPlan", { plan: plan.label })
-                              : t("switchTo", { plan: plan.label })}
-                        </button>
+                          {plan.priceVnd > 0 ? t("buyPlan", { plan: plan.label }) : t("switchTo", { plan: plan.label })}
+                        </Button>
                       ) : null}
-                    </div>
+                    </Card>
                   );
                 })}
               </div>
@@ -282,13 +291,13 @@ export default function BillingPage() {
             {/* Ledger */}
             <section className="flex flex-col gap-3">
               <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
-              <div className="bg-white border border-[#ECEAE5] rounded-card overflow-x-auto">
+              <Card className="overflow-x-auto ff-scroll">
                 {ledger.length === 0 ? (
-                  <div className="py-10 text-center text-body text-[#A8A49C]">{t("noTx")}</div>
+                  <EmptyState icon="wallet" title={t("noTx")} />
                 ) : (
                   <table className="w-full text-body">
                     <thead>
-                      <tr className="text-left text-caption uppercase tracking-[0.04em] text-[#8A867E] border-b border-[#F0EEEA]">
+                      <tr className="text-left text-caption uppercase tracking-[0.04em] text-on-surface-muted border-b border-outline-subtle">
                         <th className="px-5 py-3 font-bold">{t("col.time")}</th>
                         <th className="px-5 py-3 font-bold">{t("col.type")}</th>
                         <th className="px-5 py-3 font-bold">{t("col.action")}</th>
@@ -298,8 +307,8 @@ export default function BillingPage() {
                     </thead>
                     <tbody>
                       {ledger.map((tx) => (
-                        <tr key={tx._id} className="border-b border-[#F7F6F3] last:border-b-0">
-                          <td className="px-5 py-3 text-[#6B6862] whitespace-nowrap">
+                        <tr key={tx._id} className="border-b border-outline-subtle last:border-b-0">
+                          <td className="px-5 py-3 text-on-surface-variant whitespace-nowrap">
                             {format.dateTime(new Date(tx.createdAt), {
                               day: "numeric",
                               month: "numeric",
@@ -309,36 +318,38 @@ export default function BillingPage() {
                               second: "2-digit",
                             })}
                           </td>
-                          <td className="px-5 py-3 text-[#191817] font-semibold whitespace-nowrap">
+                          <td className="px-5 py-3 text-on-surface font-semibold whitespace-nowrap">
                             {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
                             {tx.state && (
-                              <span className="ml-1.5 text-caption font-medium text-[#8A867E]">({t(`txState.${tx.state}`)})</span>
+                              <span className="ml-1.5 text-caption font-medium text-on-surface-muted">({t(`txState.${tx.state}`)})</span>
                             )}
                           </td>
-                          <td className="px-5 py-3 text-[#6B6862]">{actionLabel(tx.actionType)}</td>
+                          <td className="px-5 py-3 text-on-surface-variant">{actionLabel(tx.actionType)}</td>
                           <td
                             className={`px-5 py-3 text-right font-bold ${
-                              tx.type === "purchase" ? "text-[#2F7A4F]" : tx.type === "deduct" ? "text-[#B03030]" : "text-[#6B6862]"
+                              tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
                             }`}
                           >
                             {signedAmount(tx)}
                           </td>
-                          <td className="px-5 py-3 text-right text-[#191817]">{tx.balanceAfter}</td>
+                          <td className="px-5 py-3 text-right text-on-surface">{tx.balanceAfter}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
               {ledgerPage < ledgerTotalPages && (
-                <button
-                  type="button"
-                  onClick={handleLoadMore}
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="self-center"
+                  loading={busy === "ledger"}
                   disabled={busy !== null}
-                  className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
+                  onClick={handleLoadMore}
                 >
-                  {busy === "ledger" ? tc("loading") : tc("loadMore")}
-                </button>
+                  {tc("loadMore")}
+                </Button>
               )}
             </section>
           </>
