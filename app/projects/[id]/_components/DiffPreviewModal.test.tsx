@@ -5,6 +5,7 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import DiffPreviewModal from "./DiffPreviewModal";
 import type { PreviewResult } from "@/types/pipeline";
+import type { Spine } from "@/types/spine";
 
 const basePreview: PreviewResult = {
   ok: true,
@@ -104,5 +105,54 @@ describe("DiffPreviewModal — FLF-177", () => {
     expect(screen.getByText("2 section vẫn đúng nội dung")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận không đổi" }));
     expect(onConfirm).toHaveBeenCalled();
+  });
+
+  describe("FLF-297 — thêm use case", () => {
+    const spine = {
+      actors: [{ id: "A01", name: "Lecturer", kind: "human", description: "" }],
+      functions: [{ id: "F01", name: "Take Attendance" }],
+    } as unknown as Spine;
+    const addUc = (value: Record<string, unknown>): PreviewResult => ({
+      ...basePreview,
+      changes: [{ op: "add", path: "use_cases[]", before: null, value, reason: null }],
+    });
+
+    it("hiện tên tác nhân thay vì mã; chưa gắn chức năng ⇒ cảnh báo, vẫn cho áp dụng", () => {
+      renderWithIntl(
+        <DiffPreviewModal
+          preview={addUc({ id: "UC27", name: "Send Absence Warning", actor_ids: ["A01"], function_ids: [] })}
+          spine={spine}
+          onCancel={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      );
+      expect(screen.getByText(/Tác nhân: Lecturer;/)).toBeInTheDocument();
+      expect(screen.queryByText(/Tác nhân: A01/)).not.toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("“Send Absence Warning” chưa gắn chức năng nào");
+      expect(screen.getByRole("button", { name: "Xác nhận" })).toBeEnabled();
+    });
+
+    it("đã gắn chức năng ⇒ không cảnh báo, chức năng hiện tên; mã lạ giữ nguyên", () => {
+      renderWithIntl(
+        <DiffPreviewModal
+          preview={addUc({ name: "Send Absence Warning", actor_ids: ["A09"], function_ids: ["F01"] })}
+          spine={spine}
+          onCancel={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      );
+      expect(screen.getByText(/Tác nhân: A09; Chức năng liên quan: Take Attendance/)).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("sửa field tham chiếu: trước / sau đều hiện tên", () => {
+      const preview: PreviewResult = {
+        ...basePreview,
+        changes: [{ op: "set", path: "use_cases[id=UC27].function_ids", before: ["F01"], value: [], reason: null }],
+      };
+      renderWithIntl(<DiffPreviewModal preview={preview} spine={spine} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+      expect(screen.getByText("Take Attendance")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("“UC27” chưa gắn chức năng nào");
+    });
   });
 });

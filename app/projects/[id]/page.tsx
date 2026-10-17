@@ -1899,12 +1899,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectId={projectId}
           preview={changes.preview}
           instruction={changes.pendingInstruction}
+          spine={spineState.spine}
           onCancel={() => setEditDetailOpen(false)}
         />
       )}
       {changes.preview && ((changes.previewSource === "instruction" && editDetailOpen && !mode1) || changes.previewSource === "reconcile") && (
         <DiffPreviewModal
           preview={changes.preview}
+          spine={spineState.spine}
           busy={changes.applying}
           confirmLabel={changes.previewSource === "reconcile" ? "Cập nhật" : "Áp dụng"}
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
