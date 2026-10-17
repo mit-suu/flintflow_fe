@@ -396,6 +396,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Chip "Sửa tài liệu" trên ô chat: bật ⇒ nội dung gửi đi là lệnh sửa (`/changes/preview`), không phải tin chat. */
   // Mode 1 (phase 8): chat bên trái mặc định là sửa tài liệu qua change request; tắt chip ⇒ hỏi đáp
   const [editMode, setEditMode] = useState(mode1);
+  /**
+   * Chip "Hỏi kiến thức BA" (FLF-279): bật ⇒ câu gửi đi là câu hỏi tri thức (`knowledge: true`), trả lời
+   * có trích dẫn. Loại trừ với `editMode` — hai chế độ đi hai đường gửi khác nhau, trộn vào một biến là
+   * mở đường cho lỗi gửi lầm.
+   */
+  const [knowledgeMode, setKnowledgeMode] = useState(false);
   const [savingChange, setSavingChange] = useState(false);
   /** Lỗi của lượt ghi op thuần (panel Tên riêng, hàng đợi màn, quyết định giả định) — nói bằng tiếng Việt. */
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -966,6 +972,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       return;
     }
     setEditMode(true);
+    setKnowledgeMode(false);
     if (prefill !== undefined) ws.setInputMessage(prefill);
     // Đợi ô nhập render lại với chip bật rồi mới focus, con trỏ về cuối dòng
     setTimeout(() => {
@@ -1301,6 +1308,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const sendFromChat = async (custom?: string, intent?: RunIntent, asMessage = false) => {
     // FLF-265 §3.7: chặn lệnh đổi ngôn ngữ tài liệu trước MỌI nhánh gửi (mode 1, phiên phụ, trả lời, cổng, chạy bước)
     if (!asMessage && interceptLanguageCommand(custom ?? ws.inputMessage, "chat", intent)) return;
+    // FLF-279 §1.2: BE xử lý lượt tri thức TRƯỚC lượt chờ trả lời của step và trước lệnh sửa, và chốt
+    // 409 CHANGE_REQUIRES_CR của mode 1 không áp. Rẽ ở đây để FE theo đúng thứ tự đó — đặt muộn hơn thì
+    // ở mode 1 câu hỏi bị đẩy vào CR, còn ở `needs_input` nó bị tính là câu trả lời của bước.
+    // Chip tự tắt sau một lượt: mỗi lượt BE chỉ nhận một câu hỏi và không đọc lịch sử chat.
+    if (knowledgeMode) {
+      setKnowledgeMode(false);
+      return void (await ws.sendMessage(currentStep, custom, { knowledge: true }));
+    }
     if (mode1) return void (await ws.sendMessage(currentStep, custom));
     // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
     if (!onPipelineSession) return sendChat(custom);
@@ -1507,6 +1522,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           editMode={editMode}
           onToggleEditMode={() => (editMode ? setEditMode(false) : startEditing())}
           editDisabledReason={editDisabledReason}
+          knowledgeMode={knowledgeMode}
+          onToggleKnowledgeMode={
+            canEdit
+              ? () => {
+                  setEditMode(false);
+                  setKnowledgeMode((on) => !on);
+                }
+              : undefined
+          }
+          knowledgeHidden={ws.knowledgeDisabled}
+          knowledgePending={ws.knowledgePending}
           inputTools={
             mode1 ? undefined : (
               <AiSettingsMenu

@@ -1,9 +1,22 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatMessage, KnowledgeCitation } from "@/types/chat";
 import { parseChatQuestion, replyContainsQuestion } from "@/lib/question-options";
 import { displayUserText } from "./user-text";
+import KnowledgeAnswer from "./KnowledgeAnswer";
+
+type KnowledgeShape = { reply: string; grounded: boolean; citations: KnowledgeCitation[] };
+
+/**
+ * Tin của lượt hỏi tri thức (`pipeline-contract.md` §1.2): tin CHAT mang thêm `grounded` + `citations`.
+ * Nhận theo hình dữ liệu, vì transcript lưu đúng object đó — tin cũ và tin mới cùng một đường đọc.
+ */
+const knowledgeShapeOf = (data: object): KnowledgeShape | null => {
+  const d = data as { reply?: unknown; grounded?: unknown; citations?: unknown };
+  if (typeof d.reply !== "string" || typeof d.grounded !== "boolean" || !Array.isArray(d.citations)) return null;
+  return { reply: d.reply, grounded: d.grounded, citations: d.citations as KnowledgeCitation[] };
+};
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -36,6 +49,14 @@ export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boole
       return count > 0 ? { text: `Đã ghi ${count} thay đổi`, wrote: true } : { text: "Không đổi gì", wrote: false };
     }
     if (data.kind === "change_clarification" || data.kind === "change_error") return { text: "Chưa ghi gì", wrote: false };
+    // FLF-279: lượt tri thức cũng không ghi gì vào Spine, nhưng "Chỉ trao đổi" không nói được nó đã tra
+    // kho tri thức. Phải xét TRƯỚC nhánh `questions` bên dưới: tin tri thức mang `questions: []` nên
+    // nhánh đó sẽ nuốt nó và trả `null` ⇒ mất nhãn.
+    if (typeof (data as { grounded?: unknown }).grounded === "boolean") {
+      return (data as { grounded: boolean }).grounded
+        ? { text: "Trả lời từ kho tri thức", wrote: false }
+        : { text: "Không đủ căn cứ", wrote: false };
+    }
     // Lượt hỏi của bước (lời đáp + câu hỏi): không phải hỏi đáp tự do, nhãn "Chỉ trao đổi" không có nghĩa gì
     if (Array.isArray((data as { questions?: unknown }).questions)) return null;
   } catch {
@@ -82,25 +103,29 @@ export default function ChatBubble({
    * trả một object lớn kèm khối tự chấm tiến độ, và FE đọc từng mẩu trong lúc stream. Discovery giờ là
    * step chạy qua step runner, tiến độ đọc từ Spine — không còn gì để vớt.
    */
-  const parseAiMessage = (content: string): { reply: string; openQuestions: string[] } => {
+  const parseAiMessage = (content: string): { reply: string; openQuestions: string[]; knowledge: KnowledgeShape | null } => {
     const raw = (content ?? "").trim();
-    if (!raw) return { reply: "", openQuestions: [] };
-    if (!raw.startsWith("{")) return { reply: raw, openQuestions: [] };
+    if (!raw) return { reply: "", openQuestions: [], knowledge: null };
+    if (!raw.startsWith("{")) return { reply: raw, openQuestions: [], knowledge: null };
     try {
       const data: unknown = JSON.parse(raw);
       if (data && typeof data === "object" && typeof (data as { reply?: unknown }).reply === "string") {
+        // FLF-279: nhận ra lượt tri thức bằng HÌNH của dữ liệu, không bằng một cờ riêng — transcript lưu
+        // đúng object này, nên tin tải lại từ phiên cũ đi cùng một đường với tin vừa về.
+        const knowledge = knowledgeShapeOf(data);
+        if (knowledge) return { reply: knowledge.reply, openQuestions: [], knowledge };
         // FLF-220: câu mở (không có lựa chọn) nằm ngay trong tin nhắn AI; câu `inline` chỉ bỏ khi `reply` đã chứa nó; trả lời bằng ô chat; câu có lựa chọn ở thẻ hỏi
         const questions = (data as { questions?: unknown }).questions;
         const reply = (data as { reply: string }).reply;
         const openQuestions = (Array.isArray(questions) ? questions : [])
           .map(parseChatQuestion)
           .flatMap((q) => (q && q.options.length === 0 && !(q.inline && replyContainsQuestion(reply, q.question)) ? [q.question] : []));
-        return { reply, openQuestions };
+        return { reply, openQuestions, knowledge: null };
       }
     } catch (_) {
       // JSON chưa đủ (đang stream) — hiện nguyên văn, ticker bên dưới vẫn chạy
     }
-    return { reply: raw, openQuestions: [] };
+    return { reply: raw, openQuestions: [], knowledge: null };
   };
 
   const parsed = parseAiMessage(message.content);
@@ -299,7 +324,15 @@ export default function ChatBubble({
         )}
         <div className="space-y-3">
           <div className="text-[#191817] space-y-1.5 relative">
-            {activeReply ? (
+            {/* Lượt tri thức: không stream chữ nên ticker không có việc gì làm; chip trích dẫn phải là
+                phần tử bấm được, không thể đi qua renderMarkdown. */}
+            {parsed.knowledge ? (
+              <KnowledgeAnswer
+                reply={parsed.knowledge.reply}
+                grounded={parsed.knowledge.grounded}
+                citations={parsed.knowledge.citations}
+              />
+            ) : activeReply ? (
               renderMarkdown(activeReply, isStreaming)
             ) : isStreaming ? (
               <div className="flex items-center gap-2 py-1.5 text-[#6B6862] text-body">

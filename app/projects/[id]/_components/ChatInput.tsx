@@ -23,6 +23,14 @@ interface ChatInputProps {
   editMode?: boolean;
   /** Lý do khoá chip (vd. step đang chạy) — có ⇒ chip mờ, hover ra lý do. */
   editDisabledReason?: string | null;
+  /**
+   * Có ⇒ hiện chip "Hỏi kiến thức BA": bật lên thì câu gửi đi là câu hỏi tri thức, trả lời có trích
+   * dẫn nguồn. Loại trừ với chip "Sửa tài liệu" — hai chế độ đi hai đường gửi khác nhau.
+   */
+  onToggleKnowledgeMode?: () => void;
+  knowledgeMode?: boolean;
+  /** Máy chủ tắt Knowledge RAG (409 KNOWLEDGE_DISABLED) ⇒ không hiện chip nữa. */
+  knowledgeHidden?: boolean;
   /** Nút thêm ở thanh công cụ ô nhập (vd. menu cách AI làm việc) — ẩn khi ô nhập thu gọn. */
   toolbarExtra?: ReactNode;
 }
@@ -40,6 +48,9 @@ export default function ChatInput({
   onToggleEditMode,
   editMode = false,
   editDisabledReason = null,
+  onToggleKnowledgeMode,
+  knowledgeMode = false,
+  knowledgeHidden = false,
   toolbarExtra,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +164,24 @@ export default function ChatInput({
               >
                 <Icon name="pencil" size={15} weight={editMode ? "bold" : "regular"} />
                 Sửa tài liệu
+              </button>
+            )}
+            {onToggleKnowledgeMode && !compact && !knowledgeHidden && (
+              <button
+                type="button"
+                onClick={onToggleKnowledgeMode}
+                aria-pressed={knowledgeMode}
+                title={
+                  knowledgeMode
+                    ? "Tắt để quay lại trò chuyện"
+                    : "Hỏi kiến thức nghiệp vụ BA — câu trả lời có trích dẫn nguồn (2 credit)"
+                }
+                className={`h-8 pl-2 pr-2.5 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
+                  knowledgeMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
+                }`}
+              >
+                <Icon name="book" size={15} weight={knowledgeMode ? "bold" : "regular"} />
+                Hỏi kiến thức BA
               </button>
             )}
             {/* Attachment Button */}

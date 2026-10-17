@@ -54,6 +54,16 @@ interface ChatPaneProps {
   onToggleEditMode?: () => void;
   /** Lý do chưa sửa được lúc này (vd. step đang chạy) — chip bị khoá. */
   editDisabledReason?: string | null;
+  /** Chip "Hỏi kiến thức BA" trên ô nhập (FLF-279). */
+  knowledgeMode?: boolean;
+  onToggleKnowledgeMode?: () => void;
+  /** Máy chủ tắt Knowledge RAG ⇒ ẩn chip. */
+  knowledgeHidden?: boolean;
+  /**
+   * Đang chờ câu trả lời tri thức. Luồng này không stream chữ nên không có bong bóng chữ chạy để báo
+   * lượt còn sống — phải vẽ một dòng chờ riêng, nếu không khung chat im lặng hoàn toàn.
+   */
+  knowledgePending?: boolean;
   /** Nút thêm trên thanh công cụ ô nhập (menu cách AI làm việc). */
   inputTools?: ReactNode;
   /** Tiêu đề pane — mặc định của workspace pipeline (mode 2). */
@@ -140,6 +150,10 @@ export default function ChatPane({
   editMode = false,
   onToggleEditMode,
   editDisabledReason = null,
+  knowledgeMode = false,
+  onToggleKnowledgeMode,
+  knowledgeHidden = false,
+  knowledgePending = false,
   inputTools
 }: ChatPaneProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -271,15 +285,24 @@ export default function ChatPane({
               </div>
             ))}
 
-            {isStreaming && (
-              <ChatBubble
-                message={{
-                  role: "ai",
-                  content: streamingMessage ?? "",
-                  createdAt: new Date().toISOString()
-                }}
-                isStreaming
-              />
+            {/* Lượt tri thức thắng: nó không có chữ để chạy, nên bong bóng streaming sẽ rỗng — hai khối
+                chờ cùng lúc chỉ làm người đọc tưởng có hai lượt đang chạy. */}
+            {knowledgePending ? (
+              <div className="flex items-center gap-2 text-body text-on-surface-muted px-1" role="status">
+                <span aria-hidden className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
+                Đang tra kho tri thức…
+              </div>
+            ) : (
+              isStreaming && (
+                <ChatBubble
+                  message={{
+                    role: "ai",
+                    content: streamingMessage ?? "",
+                    createdAt: new Date().toISOString()
+                  }}
+                  isStreaming
+                />
+              )
             )}
 
             {isNonPipelineSession && (
@@ -355,6 +378,9 @@ export default function ChatPane({
                   onToggleEditMode={onToggleEditMode}
                   editMode={sendAsEdit}
                   editDisabledReason={editDisabledReason}
+                  onToggleKnowledgeMode={onToggleKnowledgeMode}
+                  knowledgeMode={knowledgeMode}
+                  knowledgeHidden={knowledgeHidden}
                   toolbarExtra={inputTools}
                   placeholder={
                     questionCard || showQuestions
@@ -362,7 +388,9 @@ export default function ChatPane({
                       : sendAsEdit
                         ? (editPlaceholder ??
                           "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
-                        : inputPlaceholder
+                        : knowledgeMode
+                          ? "Hỏi một câu về nghiệp vụ BA, vd: Khi nào thì dùng include thay vì extend?"
+                          : inputPlaceholder
                   }
                 />
               </>
