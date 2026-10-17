@@ -866,7 +866,10 @@
         "addBody": "Tạo một tổ chức mới, hoặc nhập mã mời để tham gia tổ chức khác.",
         "addCta": "Tạo hoặc tham gia",
         "loadError": "Không tải được danh sách tổ chức.",
-        "goToProjects": "Vào dự án"
+        "goToProjects": "Vào dự án",
+        "loading": "Đang tải danh sách tổ chức…",
+        "emptyTitle": "Bạn chưa thuộc tổ chức nào",
+        "emptyBody": "Tạo một tổ chức để bắt đầu dự án, hoặc nhập mã mời để tham gia tổ chức của người khác."
       },
       "members": {
         "title": "Thành viên",
