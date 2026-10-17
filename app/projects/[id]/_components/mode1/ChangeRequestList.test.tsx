@@ -31,7 +31,7 @@ const cr = (cr_id: string, status: CrStatus, over: Partial<Cr> = {}): Cr => ({
   status,
   paused: null,
   clarifications: [],
-  base_doc_version: "0.0",
+  base_doc_version: "0.1",
   result_doc_version: null,
   created_by: "u1",
   submitted_at: null,
@@ -51,7 +51,7 @@ const serveList = (list: Cr[]) =>
 
 const LIST = [
   cr("CR-001", "in_review"),
-  cr("CR-002", "written", { result_doc_version: "0.1" }),
+  cr("CR-002", "written", { result_doc_version: "0.2" }),
   cr("CR-003", "cancelled"),
   cr("CR-004", "proposing", { paused: { reason: "credits", at: "2026-09-20T03:00:00.000Z" } }),
 ];
@@ -84,7 +84,7 @@ describe("ChangeRequestList", () => {
     expect(screen.getByText("Tạm dừng")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Tất cả" }));
-    await waitFor(() => expect(screen.getByText(/ghi vào bản 0\.1/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/ghi vào bản 0.2/)).toBeInTheDocument());
   });
 
   it("danh sách rỗng ⇒ câu giải thích, không phải bảng trống", async () => {

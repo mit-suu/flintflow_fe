@@ -12,7 +12,7 @@ const P = MODE1_PROJECT_ID;
 
 const docx = () => new File(["PK mock"], "SRS_Lumen.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 
-/** Upload → … → finalize: import ở `gap_review`, có version 0.0 + baseline. */
+/** Upload → … → finalize: import ở `gap_review`, có version 0.1 + baseline. */
 export const importToGapReview = async (): Promise<string> => {
   const id = (await uploadImport(P, docx())).data!.import.id;
   await confirmLatest(P, id);

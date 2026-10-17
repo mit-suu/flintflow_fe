@@ -13,7 +13,7 @@ const FRIENDLY: Record<string, string> = {
   PROJECT_MODE_MISMATCH: "Dự án này không phải dự án upload SRS (mode 1).",
   IMPORT_STAMP_FOREIGN_PROJECT: "File này được xuất từ một dự án khác — không nhập vào dự án này được.",
   IMPORT_NEEDS_LATEST_CONFIRM: "Hãy xác nhận đây là bản mới nhất trước.",
-  CR_REQUIRES_BASELINE: "Cần hoàn tất import (baseline 0.0) trước khi tạo change request.",
+  CR_REQUIRES_BASELINE: "Cần hoàn tất import (baseline 0.1) trước khi tạo change request.",
   RELEASE_RED_FLAGS_OPEN: "Còn cờ đỏ chưa xử lý — chưa release được.",
   CR_VALUE_CHANGED: "Phần tử vừa bị sửa ở chỗ khác sau khi đề xuất — chạy lại đề xuất rồi kiểm lại.",
   CORE_STEP_REQUIRED: "Step này thuộc đầu mục mẫu FPT hoặc đã có dữ liệu — không tắt được.",

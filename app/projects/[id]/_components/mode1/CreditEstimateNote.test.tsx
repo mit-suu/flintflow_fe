@@ -75,7 +75,7 @@ describe("CreditEstimateNote trong wizard", () => {
     updated_at: "2026-09-19T00:00:00.000Z",
   });
   const profile: TemplateProfile = {
-    doc_version: "0.0",
+    doc_version: "0.1",
     heading_map: [{ block_id: "B0001", heading_text: "1 Product Overview", section_id: "fixed:1", confidence: 0.6, detected_by: "numbering_pattern", confirmed: false }],
     table_map: [],
     required_sections: [],

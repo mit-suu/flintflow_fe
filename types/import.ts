@@ -200,7 +200,7 @@ export interface ExtractionSection {
   error: string | null;
 }
 
-/** Ngưỡng độ tin (BE `import.constants.ts`): mapping < 0.8 ⇒ xác nhận mapping; field < 0.7 ⇒ xác nhận field. */
+/** Ngưỡng độ tin (BE `import.constants.ts`): mapping < 0.9 ⇒ xác nhận mapping; field < 0.8 ⇒ xác nhận field. */
 export const MAPPING_CONFIDENCE_THRESHOLD = 0.8;
 export const FIELD_CONFIDENCE_THRESHOLD = 0.7;
 export const UNMAPPED_SECTION = "unmapped";
@@ -272,7 +272,7 @@ export interface ExtractResponse {
  */
 export interface FinalizeResponse {
   import: ImportedDocument;
-  doc_version: "0.0";
+  doc_version: string;
   baseline: Baseline | null;
   spine_version: number;
   flags: { red: number; yellow: number } | null;

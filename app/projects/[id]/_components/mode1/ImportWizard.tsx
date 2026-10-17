@@ -62,7 +62,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
     return res;
   };
 
-  // Baseline 0.0 + kiểm chạy nền xong (poll thấy `gap_review`) ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
+  // Baseline 0.1 + kiểm chạy nền xong (poll thấy `gap_review`) ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
   const finalizeDone = imp.finalizeDone;
   const navigated = useRef(false);
   useEffect(() => {
@@ -177,9 +177,9 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
 
       {(status === "baselining" || status === "checking") && doc && (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] p-5 flex flex-col gap-3">
-          <h3 className="font-extrabold text-[#191817] text-heading">Tạo baseline 0.0 và kiểm tra</h3>
+          <h3 className="font-extrabold text-[#191817] text-heading">Tạo baseline 0.1 và kiểm tra</h3>
           <p className="text-body text-[#4B4842] leading-relaxed">
-            Ghi các field đã xác nhận làm chỉ mục, lưu tài liệu gốc thành version <strong>0.0</strong>, rồi chạy kiểm tra: AI soát ngữ
+            Ghi các field đã xác nhận làm chỉ mục, lưu tài liệu gốc thành version <strong>0.1</strong>, rồi chạy kiểm tra: AI soát ngữ
             nghĩa (cờ vàng, tốn credit) và luật tất định (cờ đỏ/vàng). Kết quả nằm ở gap report.
           </p>
           {status === "baselining" && !doc.paused && !imp.finalizing && (
@@ -209,7 +209,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
               <div className="flex flex-col gap-0.5">
                 <span className="font-bold text-[#191817]">Đang tạo bản gốc và kiểm tra tài liệu…</span>
                 <span className="text-[12px]">
-                  {status === "checking" ? "Đã tạo bản gốc 0.0, đang kiểm tra (AI + luật)." : "Đang ghi dữ liệu, vẽ sơ đồ và tạo version 0.0."} Tài liệu
+                  {status === "checking" ? "Đã tạo bản gốc 0.1, đang kiểm tra (AI + luật)." : "Đang ghi dữ liệu, vẽ sơ đồ và tạo version 0.0."} Tài liệu
                   lớn có thể mất vài phút — có thể rời trang, việc vẫn chạy tiếp.
                 </span>
               </div>
@@ -225,7 +225,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
                 }
                 className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
               >
-                {imp.busy === "finalize" ? "Đang bắt đầu…" : "Tạo baseline 0.0"}
+                {imp.busy === "finalize" ? "Đang bắt đầu…" : "Tạo baseline 0.1"}
               </button>
             </div>
           )}
