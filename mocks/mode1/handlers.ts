@@ -959,13 +959,18 @@ export const mode1Handlers = [
       const found = hits.length ? hits : S().elements.filter((e) => e.path.startsWith("nfrs[")).slice(0, 1);
       const conflicts = lock(cr.cr_id, found.map((e) => e.path));
       if (conflicts.length) return pathLocked(conflicts);
+      // §4.17: có ứng viên vector ⇒ chúng THAY nguồn `keyword`. Vị trí đầu giả là trường hợp vừa có
+      // liên kết field vừa gần nghĩa (hợp đồng cho phép trùng) ⇒ không phải recall-only, chip để tông
+      // xám như cũ; các vị trí sau chỉ đến từ nghĩa.
+      const vector = S().vectorEnabled;
       d.locations = found.map((e, i): CrLocation => ({
         location_id: `L${String(i + 1).padStart(3, "0")}`,
         path: e.path,
         section_id: e.section_id,
         section_title: e.section_title,
         current_text: valueText(e.value),
-        found_by: ["keyword"],
+        found_by: vector ? (i === 0 ? ["spine_link", "vector"] : ["vector"]) : ["keyword"],
+        vector_score: vector ? Number((0.91 - i * 0.04).toFixed(2)) : null,
         entity_paths: [],
         owner_step: null,
         conclusion: null,

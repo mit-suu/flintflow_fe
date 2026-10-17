@@ -55,6 +55,7 @@ export const FOUND_BY_LABELS: Record<LocationFoundBy, string> = {
   keyword: "Từ khoá",
   preview: "Từ bản xem trước",
   diagram: "Hình gốc",
+  vector: "Theo nghĩa",
 };
 
 export const CONCLUSION_LABELS: Record<LocationConclusion, string> = {
