@@ -22,7 +22,7 @@ export interface CommentVersion {
   source: "draft" | "baseline";
   /** `snapshot_ref` của baseline; `null` với bản nháp. */
   baseline_id: string | null;
-  /** `draft`, `v1.0`, `0.0`… */
+  /** `draft`, `v1.0`, `0.1`… */
   label: string;
 }
 

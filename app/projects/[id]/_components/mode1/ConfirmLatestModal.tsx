@@ -21,7 +21,7 @@ export default function ConfirmLatestModal({ open, fileName, onConfirm, onPickAn
       <div className="flex flex-col gap-4 text-body text-[#4B4842] leading-relaxed">
         <p>
           <strong className="text-[#191817]">{fileName}</strong> không do FlintFlow xuất ra. Sau khi nhập, tài liệu này thành
-          bản gốc <strong>0.0</strong> của dự án và mọi chỉnh sửa về sau phải đi qua change request.
+          bản gốc <strong>0.1</strong> của dự án và mọi chỉnh sửa về sau phải đi qua change request.
         </p>
         <p className="text-body text-[#8A867E]">Nếu còn bản mới hơn ở chỗ khác (email, ổ chung…), hãy chọn bản đó.</p>
         <div className="flex gap-2.5 justify-end">

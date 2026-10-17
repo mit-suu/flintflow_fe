@@ -32,7 +32,7 @@ export interface Mode1MockState {
   /** Job I-4 nền đang chạy (#6/#10 trả ngay; mỗi lần poll #4 trích thêm một section). */
   extractRunning: boolean;
   /**
-   * Job baseline–kiểm nền (#8 / #10 ở `baselining`·`checking` trả ngay, §4.16): `finalize` ⇒ poll #4 kế tiếp tạo 0.0 rồi
+   * Job baseline–kiểm nền (#8 / #10 ở `baselining`·`checking` trả ngay, §4.16): `finalize` ⇒ poll #4 kế tiếp tạo 0.1 rồi
    * sang `checking`; `check` ⇒ poll kế tiếp chạy 1.11 (hết credit ⇒ `paused: credits`) rồi `gap_review`. `null` = không chạy.
    */
   finalizeJob: "finalize" | "check" | null;
@@ -71,7 +71,7 @@ const now = () => new Date().toISOString();
 
 const block = (n: number, kind: DocBlock["kind"], text: string, extra: Partial<DocBlock> = {}): DocBlock => ({
   block_id: `B${String(n).padStart(4, "0")}`,
-  doc_version: "0.0",
+  doc_version: "0.1",
   kind,
   level: kind === "heading" ? 1 : null,
   heading_path: [],
@@ -83,7 +83,7 @@ const block = (n: number, kind: DocBlock["kind"], text: string, extra: Partial<D
   ...extra,
 });
 
-/** Tài liệu mẫu 0.0 — theo `doc/sample-baseline.docx` rút gọn. */
+/** Tài liệu mẫu 0.1 — theo `doc/sample-baseline.docx` rút gọn. */
 export const initialBlocks = (): DocBlock[] => [
   block(1, "heading", "1 Product Overview", { section_id: "fixed:1" }),
   block(2, "paragraph", "Lumen is an online learning platform that lets instructors publish courses and students learn at their own pace.", { heading_path: ["1 Product Overview"], section_id: "fixed:1" }),

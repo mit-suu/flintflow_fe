@@ -178,7 +178,7 @@ describe("mock mode 1 — import (#2–#10)", () => {
 
     const fin = await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
     // chạy nền (§4.16): trả ngay baselining, baseline/flags null; gọi lại khi đang chạy = không làm gì
-    expect(fin.body.data).toMatchObject({ doc_version: "0.0", baseline: null, flags: null, import: { status: "baselining", paused: null } });
+    expect(fin.body.data).toMatchObject({ doc_version: "0.1", baseline: null, flags: null, import: { status: "baselining", paused: null } });
     expect((await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion })).body.data?.import.status).toBe("baselining");
     expect((await pollFinalize()).import).toMatchObject({ status: "gap_review", paused: null });
     expect(state().baselines.filter((b) => b.type === "imported")).toHaveLength(1);
@@ -233,7 +233,7 @@ describe("mock mode 1 — import (#2–#10)", () => {
     expect((await call("POST", `/projects/${P}/import`, upload("SRS_v2.docx"))).body.error?.code).toBe("IMPORT_INVALID_STATE");
     const diff = await call<ReuploadDiff>("POST", `/projects/${P}/reupload`, upload("SRS_v0.0_sua.docx"));
     expect(diff.status).toBe(201);
-    expect(diff.body.data).toMatchObject({ against_version: "0.0", summary: { added: 1, modified: 1 } });
+    expect(diff.body.data).toMatchObject({ against_version: "0.1", summary: { added: 1, modified: 1 } });
     expect((await call<DocVersion[]>("GET", `/projects/${P}/versions`)).body.data).toHaveLength(1);
   });
 });
@@ -262,7 +262,7 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(clear.change_request.clarifications[0].answers).toHaveLength(2);
   });
 
-  it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; duyệt ⇒ phần tử đổi, 0.1, mở khoá", async () => {
+  it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; duyệt ⇒ phần tử đổi, 0.2, mở khoá", async () => {
     const detail = await crToReview("Log out of all devices");
     expect(detail.change_request.status).toBe("in_review");
     const locked = detail.locations.map((l) => l.path);
@@ -280,16 +280,16 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
     expect((await call("POST", `${base}/groups/G01/decision`, { decision: "rejected", reason: "ngắn", base_version: state().spineVersion })).status).toBe(400);
     const written = (await call<CrDetail>("POST", `${base}/groups/G01/decision`, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: state().spineVersion })).body.data!;
-    expect(written.change_request).toMatchObject({ status: "written", result_doc_version: "0.1" });
+    expect(written.change_request).toMatchObject({ status: "written", result_doc_version: "0.2" });
 
     // giá trị phần tử đã đổi theo đề xuất; khoá của CR mở hết
     const edited = written.locations.find((l) => l.conclusion === "edit")!;
     expect(written.locations.find((l) => l.location_id === edited.location_id)?.current_text).toBe(edited.proposal?.new_text);
     expect([...state().locks.values()]).not.toContain(detail.change_request.cr_id);
-    expect((await call<DocBlock[]>("GET", `/projects/${P}/versions/0.1/blocks`)).status).toBe(200);
-    expect((await call<CompareResponse>("GET", `/projects/${P}/versions/compare?from=0.0&to=0.1`)).status).toBe(200);
-    const dl = await call("GET", `/projects/${P}/versions/0.1/download`);
-    expect(dl.headers.get("content-disposition")).toContain("_v0.1_DRAFT.docx");
+    expect((await call<DocBlock[]>("GET", `/projects/${P}/versions/0.2/blocks`)).status).toBe(200);
+    expect((await call<CompareResponse>("GET", `/projects/${P}/versions/compare?from=0.1&to=0.2`)).status).toBe(200);
+    const dl = await call("GET", `/projects/${P}/versions/0.2/download`);
+    expect(dl.headers.get("content-disposition")).toContain("_v0.2_DRAFT.docx");
   });
 
   it("nộp khi còn vị trí chưa kết luận ⇒ CR_LOCATION_UNCONCLUDED", async () => {
@@ -374,12 +374,12 @@ describe("mock mode 1 — release (#31)", () => {
 
     state().redFlags = 0;
     const rel = (await call<ReleaseResponse>("POST", `/projects/${P}/release`, { base_version: state().spineVersion })).body.data!;
-    expect(rel.version).toMatchObject({ version: "1.0", kind: "release", has_clean_file: true, based_on: "0.1" });
+    expect(rel.version).toMatchObject({ version: "1.0", kind: "release", has_clean_file: true, based_on: "0.2" });
     expect(rel.baseline.type).toBe("release");
     expect(rel.cr_ids).toEqual([detail.change_request.cr_id]);
 
     const versions = (await call<DocVersion[]>("GET", `/projects/${P}/versions`)).body.data!.map((v) => v.version);
-    expect(versions).toEqual(["1.0", "0.1", "0.0"]);
+    expect(versions).toEqual(["1.0", "0.2", "0.1"]);
     expect((await call("GET", `/projects/${P}/versions/1.0/download`)).headers.get("content-disposition")).toContain("_v1.0.docx");
     expect((await call("GET", `/projects/${P}/versions/9.9/blocks`)).body.error?.code).toBe("DOC_VERSION_NOT_FOUND");
   });
