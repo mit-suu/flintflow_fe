@@ -105,3 +105,28 @@ describe("câu mở inline (đã hỏi trong lời AI)", () => {
     expect(list).not.toHaveTextContent("Ai là người duyệt lịch hẹn?");
   });
 });
+
+describe("E2E FAP #7: thẻ lẫn trắc nghiệm + tự luận", () => {
+  const qs = [
+    { id: "Q1", text: "Thang điểm?", options: [{ label: "Thang 10" }, { label: "Thang 4" }] },
+    { id: "Q2", text: "Thành phần điểm và trọng số?" },
+  ];
+
+  it("câu tự luận để trống ⇒ lần bấm Gửi đầu chỉ nhắc, bấm lần nữa mới gửi; gõ `1)` vẫn tách đúng câu", async () => {
+    const { render, screen, fireEvent } = await import("@testing-library/react");
+    const { default: ElicitPanel, toStepAnswers: split } = await import("../ElicitPanel");
+    const sent: unknown[] = [];
+    render(<ElicitPanel questions={qs} chatDraft="" onSubmit={(a) => sent.push(a)} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Thang 10/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi câu trả lời" }));
+    expect(sent).toEqual([]);
+    expect(screen.getByRole("alert")).toHaveTextContent("Thành phần điểm và trọng số?");
+    fireEvent.click(screen.getByRole("button", { name: "Gửi câu trả lời" }));
+    expect(sent).toEqual([[{ question_id: "Q1", answer: "Thang 10" }]]);
+
+    expect(split([qs[1], { id: "Q3", text: "Ngưỡng vắng?" }], "1) 10/30/60\n2) 20%")).toEqual([
+      { question_id: "Q2", answer: "10/30/60" },
+      { question_id: "Q3", answer: "20%" },
+    ]);
+  });
+});

@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
 import RejectBaselineModal from "./RejectBaselineModal";
-import type { Comment } from "@/types/comment";
+import type { SrsComment } from "@/types/comment";
 import type { BlockingFlag } from "./gate-helpers";
 import type { BaselineSubmission } from "@/types/spine";
 import type { OrgRole } from "@/types/organization";
@@ -21,7 +21,7 @@ interface BaselineApprovalPanelProps {
    * mà không chỉ ra cái nào thì người dùng không tin được.
    */
   blockingFlags: BlockingFlag[];
-  comments: Comment[];
+  comments: SrsComment[];
   busy: boolean;
   error: string | null;
   onSubmit: () => Promise<void>;

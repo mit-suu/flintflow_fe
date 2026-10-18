@@ -40,12 +40,12 @@ const version = (v: string, kind: DocVersion["kind"], cr_ids: string[] = []): Do
   created_at: "2026-09-19T00:00:00.000Z",
 });
 
-const DRAFTS = [version("0.2", "cr_revision", ["CR-002", "CR-003"]), version("0.1", "cr_revision", ["CR-001"]), version("0.0", "imported")];
+const DRAFTS = [version("0.3", "cr_revision", ["CR-002", "CR-003"]), version("0.2", "cr_revision", ["CR-001"]), version("0.1", "imported")];
 const RELEASED = [version("1.0", "release", ["CR-001", "CR-002"]), ...DRAFTS];
 
 type Props = Parameters<typeof VersionsPanel>[0];
 const renderPanel = (over: Partial<Props> = {}) => {
-  const props: Props = { projectId: P, projectName: "Lumen", versions: DRAFTS, redOpen: 0, selected: "0.2", onSelect: vi.fn(), onReleased: vi.fn(), ...over };
+  const props: Props = { projectId: P, projectName: "Lumen", versions: DRAFTS, redOpen: 0, selected: "0.3", onSelect: vi.fn(), onReleased: vi.fn(), ...over };
   renderWithIntl(<VersionsPanel {...props} />);
   return props;
 };
@@ -106,7 +106,7 @@ describe("VersionsPanel — nút Release (BR-04, Flow 6)", () => {
     expect(screen.queryByText(/cờ đỏ/)).not.toBeInTheDocument();
 
     fireEvent.click(releaseButton());
-    expect(screen.getByText(/Release từ bản 0.2\?/)).toBeInTheDocument();
+    expect(screen.getByText(/Release từ bản 0.3\?/)).toBeInTheDocument();
     expect(screen.queryByText(/đã là bản release/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
     expect(releaseButton()).toBeEnabled();
@@ -164,17 +164,17 @@ describe("VersionsPanel — nút Release (BR-04, Flow 6)", () => {
 
 describe("VersionsPanel — danh sách version và tải file", () => {
   it("nhãn loại version, link CR đã ghi, chọn version gọi onSelect", () => {
-    const props = renderPanel({ versions: RELEASED, selected: "0.1" });
+    const props = renderPanel({ versions: RELEASED, selected: "0.2" });
     const items = screen.getAllByRole("listitem");
-    expect(items.map((li) => li.querySelector("button")!.textContent)).toEqual(["1.0", "0.2", "0.1", "0.0"]);
+    expect(items.map((li) => li.querySelector("button")!.textContent)).toEqual(["1.0", "0.3", "0.2", "0.1"]);
     expect(items[0]).toHaveTextContent("Bản release");
     expect(items[1]).toHaveTextContent("Bản nháp sau CR");
     expect(items[3]).toHaveTextContent("Bản import");
     expect(items[2].className).toContain("border-[#6A62C4]");
     expect(within(items[1]).getByRole("link", { name: "CR-003" })).toHaveAttribute("href", `/projects/${P}?panel=cr&cr=CR-003`);
 
-    fireEvent.click(screen.getByRole("button", { name: "Xem bản 0.0" }));
-    expect(props.onSelect).toHaveBeenCalledWith("0.0");
+    fireEvent.click(screen.getByRole("button", { name: "Xem bản 0.1" }));
+    expect(props.onSelect).toHaveBeenCalledWith("0.1");
   });
 
   it("nút tải theo loại: release ⇒ chỉ bản sạch; bản nháp sau CR ⇒ bản nháp + bản có đánh dấu (3.14); import ⇒ bản gốc", () => {
@@ -184,19 +184,19 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     expect(within(items[0]).queryByRole("button", { name: "Tải bản có đánh dấu" })).not.toBeInTheDocument();
     expect(within(items[1]).getByRole("button", { name: "Tải bản nháp (DRAFT)" })).toBeInTheDocument();
     expect(within(items[1]).getByRole("button", { name: "Tải bản có đánh dấu" })).toBeInTheDocument();
-    // FLF-185: bản 0.0 lưu bản render từ Spine; file người dùng upload tải riêng
+    // FLF-185: bản 0.1 lưu bản render từ Spine; file người dùng upload tải riêng
     expect(within(items[3]).getByRole("button", { name: "Tải bản render (DRAFT)" })).toBeInTheDocument();
     expect(within(items[3]).getByRole("button", { name: "Tải file gốc" })).toBeInTheDocument();
     expect(within(items[1]).queryByRole("button", { name: "Tải file gốc" })).not.toBeInTheDocument();
   });
 
-  it("tải file gốc của bản 0.0 ⇒ variant=original, tên mặc định _original", async () => {
+  it("tải file gốc của bản 0.1 ⇒ variant=original, tên mặc định _original", async () => {
     const seen = serveDownload();
     renderPanel({ versions: RELEASED });
     fireEvent.click(screen.getByRole("button", { name: "Tải file gốc" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
-    expect(seen).toEqual(["0.0?variant=original"]);
-    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_v0.0_original.docx");
+    expect(seen).toEqual(["0.1?variant=original"]);
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_v0.1_original.docx");
   });
 
   it("tải: gửi variant đúng; BE không gửi tên ⇒ tên mặc định (_DRAFT cho nháp, _tracked_DRAFT cho bản có đánh dấu)", async () => {
@@ -211,24 +211,24 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     fireEvent.click(within(items[1]).getByRole("button", { name: "Tải bản có đánh dấu" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(3));
 
-    expect(seen).toEqual(["1.0?variant=auto", "0.2?variant=auto", "0.2?variant=tracked"]);
-    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v0.2_DRAFT.docx", "Lumen_v0.2_tracked_DRAFT.docx"]);
+    expect(seen).toEqual(["1.0?variant=auto", "0.3?variant=auto", "0.3?variant=tracked"]);
+    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v0.3_DRAFT.docx", "Lumen_v0.3_tracked_DRAFT.docx"]);
   });
 
   it("tải dùng tên BE trả nếu có; lỗi tải ⇒ hiện thông báo", async () => {
-    serveDownload("SRS_v0.2_DRAFT.docx");
+    serveDownload("SRS_v0.3_DRAFT.docx");
     renderPanel();
     fireEvent.click(screen.getAllByRole("button", { name: "Tải bản nháp (DRAFT)" })[0]);
     await waitFor(() => expect(saveBlob).toHaveBeenCalled());
-    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("SRS_v0.2_DRAFT.docx");
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("SRS_v0.3_DRAFT.docx");
 
     mockServer.use(
       http.get(`${API_BASE_URL}/projects/:projectId/versions/:v/download`, () =>
-        HttpResponse.json({ data: null, error: { code: "DOC_VERSION_NOT_FOUND", message: "Không có version 0.0" } }, { status: 404 })
+        HttpResponse.json({ data: null, error: { code: "DOC_VERSION_NOT_FOUND", message: "Không có version 0.1" } }, { status: 404 })
       )
     );
     fireEvent.click(screen.getByRole("button", { name: "Tải bản render (DRAFT)" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Không có version 0.0");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không có version 0.1");
   });
 });
 

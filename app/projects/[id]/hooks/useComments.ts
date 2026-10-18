@@ -2,17 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createComment, listComments, resolveComment } from "@/lib/api/comments";
-import type { Comment, CommentResolutionInput, CreateCommentInput } from "@/types/comment";
+import type { SrsComment, CommentResolutionInput, CreateCommentRequest } from "@/types/comment";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 export interface UseCommentsResult {
   /** Luôn là danh sách `status=all` — panel tự lọc, khỏi gọi lại BE mỗi lần đổi tab. */
-  comments: Comment[];
+  comments: SrsComment[];
   loading: boolean;
   error: string | null;
   busy: boolean;
   reload: () => Promise<void>;
-  create: (input: CreateCommentInput) => Promise<Comment | null>;
+  create: (input: CreateCommentRequest) => Promise<SrsComment | null>;
   resolve: (commentId: string, resolution: CommentResolutionInput) => Promise<void>;
   /** Số comment đang mở theo `anchor.section_id` — `DocumentPane` vẽ chấm số trên từng mục. */
   openCountBySection: ReadonlyMap<string, number>;
@@ -25,7 +25,7 @@ export interface UseCommentsResult {
  * Tải lại khi `spineVersion` đổi: lô op mới có thể làm chỗ ghim không còn trong bản đang đọc.
  */
 export function useComments(projectId: string, spineVersion: number | null): UseCommentsResult {
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<SrsComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -57,11 +57,11 @@ export function useComments(projectId: string, spineVersion: number | null): Use
   }, [projectId, spineVersion, reload]);
 
   const create = useCallback(
-    async (input: CreateCommentInput) => {
+    async (input: CreateCommentRequest) => {
       setBusy(true);
       try {
         const res = await createComment(projectId, input);
-        if (res.data) setComments((prev) => [...prev, res.data as Comment]);
+        if (res.data) setComments((prev) => [...prev, res.data as SrsComment]);
         setError(null);
         return res.data ?? null;
       } catch (err) {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
-import { getProject } from "@/lib/api/projects";
+import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { createBaseline, rejectBaseline, submitBaseline } from "@/lib/api/export";
@@ -16,6 +16,7 @@ import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text"
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
 import { isGateApproval } from "@/lib/gate-approval";
 import type { Diagram, ReviewMode } from "@/types/spine";
+import { chatChangePreview } from "@/lib/chat-change-preview";
 import type { Project } from "@/types/project";
 import type { Flag } from "@/types/flags";
 import PageSkeleton, { type WorkspacePane } from "@/components/ui/PageSkeleton";
@@ -40,11 +41,19 @@ import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
+import TranslateDialog from "@/components/project/TranslateDialog";
+import { DOCUMENT_LANGUAGE_NAME, knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
+import { getTranslationStatus } from "@/lib/api/translations";
+import { submitGate } from "@/lib/api/pipeline";
+import type { TranslationStatus } from "@/types/document";
+import type { DocumentLanguage } from "@/types/project";
+import LanguageCommandCard from "./_components/LanguageCommandCard";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
-import ChatBubble from "./_components/ChatBubble";
+import ChatBubble, { knowledgeShapeOf } from "./_components/ChatBubble";
 import StepProgress from "./_components/StepProgress";
 import ChatOpening from "./_components/ChatOpening";
 import RunPill from "./_components/RunPill";
@@ -64,7 +73,7 @@ import { isFlagWaivable } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
-import { unitOfStep, useStepRunner } from "./hooks/useStepRunner";
+import { isPhaseUnit, unitOfStep, useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
 import { useComments } from "./hooks/useComments";
 import CommentsPanel from "./_components/CommentsPanel";
@@ -80,9 +89,28 @@ const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+/** Toast tự tắt sau khoảng này — trước đây nó ở mãi và che nút Gửi của ô chat. */
+const TOAST_MS = 5000;
 /** Nút "Vẽ lại sơ đồ" dưới hình của mỗi mục trong DocumentPane — tạm ẩn; đổi thành `true` để hiện lại. */
 const REDRAW_SECTION_ENABLED = false;
 /** Tin AI của lượt hỏi trong lịch sử là `{reply, questions}` (BE ghi kèm câu hỏi) hoặc chữ thường — lấy phần lời đáp. */
+/**
+ * Lệnh đổi ngôn ngữ tài liệu vừa bị chặn trước khi gửi (FLF-265 §3.7) — thẻ trong chat giữ câu gốc và đường gửi ban đầu
+ * (ô chat thường hay chip "Sửa tài liệu") để "Gửi như tin nhắn" đi đúng đường cũ, không đổi gì.
+ */
+interface LanguageCommandState {
+  id: number;
+  kind: Exclude<LanguageCommandOutcome, "send">;
+  text: string;
+  target: DocumentLanguage;
+  via: "chat" | "edit";
+  intent?: RunIntent;
+  /** `same`: ước tính dịch của ngôn ngữ hiện tại (đọc sau khi thẻ hiện) — còn mục thiếu thì mời dịch nốt. */
+  status: TranslationStatus | null;
+  busy: boolean;
+  error: string | null;
+}
+
 /** Cổng chốt nêu tối đa chừng này cờ mới — nhiều hơn thì user xem tiếp ở panel Kiểm tra. */
 const MAX_GATE_FLAGS = 3;
 /** Thao tác ở cổng duyệt như một lượt của user trong lịch sử — cùng câu chữ BE ghi transcript. */
@@ -93,10 +121,20 @@ const GATE_ACTION_TEXT: Record<GateAction, (note?: string) => string> = {
   accept_as_is: (note) => `Duyệt như hiện tại: ${note ?? ""}`.trim(),
 };
 
-const replyOfAsk = (content: string): string => {
+/**
+ * Lời đáp của lượt hỏi, lấy từ tin AI trong transcript. `null` ⇒ tin này KHÔNG phải lời đáp của lượt hỏi.
+ *
+ * Tin tri thức (FLF-279) cũng mang `reply: string`, nên phải loại nó ra: nhận lầm thì tin tri thức bị
+ * gộp vào bong bóng câu hỏi của bước và bị `hideTrailingAiMessage` cắt khỏi khung chat — user trả 2
+ * credit rồi không thấy gì.
+ */
+export const replyOfAsk = (content: string): string | null => {
   try {
     const data: unknown = JSON.parse(content);
-    if (data && typeof data === "object" && typeof (data as { reply?: unknown }).reply === "string") return (data as { reply: string }).reply;
+    if (data && typeof data === "object") {
+      if (knowledgeShapeOf(data)) return null;
+      if (typeof (data as { reply?: unknown }).reply === "string") return (data as { reply: string }).reply;
+    }
   } catch {
     // chữ thường
   }
@@ -359,6 +397,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   }, [focusMode]);
   const [exportOpen, setExportOpen] = useState(false);
   /**
+   * Hộp "Dịch tài liệu" (FLF-265): mở từ cảnh báo "N mục chưa dịch" trên tài liệu; lệnh chat "dịch sang tiếng …" (§3.7)
+   * cũng mở bằng chính state này. Mode 1 không dịch (D3).
+   */
+  const [translateOpen, setTranslateOpen] = useState(false);
+  /** Ước tính đã đọc sẵn (lệnh chat vừa đổi ngôn ngữ / thẻ "Dịch N mục còn thiếu") ⇒ hộp dịch khỏi đọc lại lần đầu. */
+  const [translateStatus, setTranslateStatus] = useState<TranslationStatus | undefined>(undefined);
+  /** Thẻ lệnh đổi ngôn ngữ tài liệu trong chat (§3.7); `languageCommandSeq` bỏ kết quả về trễ của thẻ đã thay. */
+  const [languageCommand, setLanguageCommand] = useState<LanguageCommandState | null>(null);
+  const languageCommandSeq = useRef(0);
+  /**
    * Bước đang xem, kèm số lần chọn. Chọn lại đúng bước đang xem là thao tác có nghĩa ("cho tôi xem lại
    * kết quả"), nhưng nếu chỉ giữ id thì state không đổi và React bỏ qua — user bấm mà màn hình đứng im.
    * `nonce` tăng mỗi lần chọn để phần cuộn-và-nháy bên dưới chạy lại kể cả khi id không đổi.
@@ -383,11 +431,24 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Chip "Sửa tài liệu" trên ô chat: bật ⇒ nội dung gửi đi là lệnh sửa (`/changes/preview`), không phải tin chat. */
   // Mode 1 (phase 8): chat bên trái mặc định là sửa tài liệu qua change request; tắt chip ⇒ hỏi đáp
   const [editMode, setEditMode] = useState(mode1);
+  /**
+   * Chip "Hỏi kiến thức BA" (FLF-279): bật ⇒ câu gửi đi là câu hỏi tri thức (`knowledge: true`), trả lời
+   * có trích dẫn. Loại trừ với `editMode` — hai chế độ đi hai đường gửi khác nhau, trộn vào một biến là
+   * mở đường cho lỗi gửi lầm.
+   */
+  const [knowledgeMode, setKnowledgeMode] = useState(false);
   const [savingChange, setSavingChange] = useState(false);
   /** Lỗi của lượt ghi op thuần (panel Tên riêng, hàng đợi màn, quyết định giả định) — nói bằng tiếng Việt. */
   const [saveError, setSaveError] = useState<string | null>(null);
   /** Thông báo ngắn sau một việc đã xong ("Đã áp dụng 3 thay đổi") — BUG-27. */
   const [toast, setToast] = useState<string | null>(null);
+  /** "Giữ nguyên, duyệt lại" đang gửi (E2E FAP #20). */
+  const [keepingStep, setKeepingStep] = useState(false);
+  useEffect(() => {
+    if (toast === null) return;
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
   /** Lớp 5: thu tiến trình thành một pill ở góc để đi làm việc khác trong lúc AI soạn. */
   const [background, setBackground] = useState(false);
 
@@ -484,6 +545,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
 
+  /**
+   * Vòng dịch xong / dừng giữa chừng (FLF-265): chữ dịch nằm ở lớp bản dịch, Spine và `spine_version` không đổi ⇒ chỉ
+   * tải lại tài liệu và số dư credit.
+   */
+  const handleTranslated = useCallback(() => {
+    setDocumentRefreshToken((v) => v + 1);
+    refreshUser();
+  }, [refreshUser]);
+
   const rememberStat = useCallback((stepId: string | null, payload: { duration_ms?: number; credits_used?: number } | null | undefined) => {
     if (!stepId || payload?.duration_ms === undefined) return;
     recordStepStat(stepId, { duration_ms: payload.duration_ms, credits: payload.credits_used ?? 0 });
@@ -514,17 +584,20 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     rememberStat(runner.state.stepId, runner.state.gate?.payload);
   }, [runner.state.status, runner.state.stepId, runner.state.gate, rememberStat]);
 
+
+  const spine = spineState.spine;
+  const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
+
   // Reload / mất mạng giữa chừng: dựng lại đúng chỗ đang dở (BUG-07) — không chạy lại, không tốn credit.
   const { restore: restoreRunner } = runner;
   const restoredRef = useRef(false);
   useEffect(() => {
-    if (!ws.ready || restoredRef.current) return;
+    if (!ws.ready || restoredRef.current || currentStep === null) return;
     restoredRef.current = true;
-    void restoreRunner();
-  }, [ws.ready, restoreRunner]);
-
-  const spine = spineState.spine;
-  const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
+    // `/run-state/active` bỏ qua lượt đã gián đoạn (BE restart, mất kết nối) ⇒ hỏi thêm run-state của bước hiện tại để
+    // còn dải "Chạy lại" sau reload (E2E FAP #2). Lượt đã xong thì reducer trả về rảnh như cũ.
+    void restoreRunner().then((run) => (run === null ? restoreRunner(currentStep) : run));
+  }, [ws.ready, restoreRunner, currentStep]);
   const currentPhase = progress?.progress.current_phase ?? steps?.current_phase ?? spine?.progress.current_phase ?? null;
   // Giai đoạn hiển thị theo bước đang làm: `current_phase` còn là phase vừa xong khi `current_step` đã sang phase kế
   const shownPhase = steps?.steps.find((s) => s.id === currentStep)?.phase ?? currentPhase;
@@ -668,14 +741,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const handleErrorAction = useCallback(
     async (action: ErrorAction) => {
       const stepId = runner.state.stepId;
+      // Lượt chạy cả giai đoạn lỗi trước khi tới bước nào thì `stepId` rỗng — "Thử lại" từng không làm gì (E2E FAP #3);
+      // lượt phỏng vấn đầu giai đoạn (`S-5@S05`) chạy lại bằng đường giai đoạn, không phải `/steps/:id/run`.
+      const unit = stepId !== null && isPhaseUnit(stepId) ? stepId : stepId === null ? runner.state.phase : null;
+      const rerun = async () => {
+        if (unit) await runner.runWholePhase(unit);
+        else if (stepId) await runner.run(stepId);
+      };
       switch (action.kind) {
         case "cancel_and_rerun":
           await runner.cancel();
-          if (stepId) await runner.run(stepId);
+          await rerun();
           return;
         case "retry":
           runner.reset();
-          if (stepId) await runner.run(stepId);
+          await rerun();
           return;
         case "goto_step":
           runner.reset();
@@ -774,6 +854,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         setEditCardOpen(false);
       } else if (action === "instruction") {
         setEditDetailOpen(false);
+        // Lệnh sửa đã ghi ⇒ ô chat về trả lời bước; muốn sửa tiếp thì bật lại chip (E2E FAP: kẹt "Mô tả chỗ cần sửa…")
+        if (!mode1) setEditMode(false);
         setAppliedEdit({ instruction: pendingInstructionRef.current, count: result.changes.length, version: result.spine_version });
         // BE đã ghi tin "Đã áp dụng …" vào phiên
         if (activeSessionId) void reloadActiveSession(activeSessionId);
@@ -782,7 +864,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         setAppliedEdit(null);
       }
     },
-    [handleChangeApplied, activeSessionId, reloadActiveSession]
+    [handleChangeApplied, activeSessionId, reloadActiveSession, mode1]
   );
   const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
@@ -916,6 +998,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     setEditCardOpen(false);
     setEditDetailOpen(false);
     setAppliedEdit(null);
+    if (!mode1) setEditMode(false);
   };
   /** Bật chip sửa và đưa con trỏ vào ô chat — `prefill` điền sẵn chỗ cần sửa (nút "Sửa mục này" trên tài liệu). */
   const startEditing = (prefill?: string) => {
@@ -924,6 +1007,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       return;
     }
     setEditMode(true);
+    setKnowledgeMode(false);
     if (prefill !== undefined) ws.setInputMessage(prefill);
     // Đợi ô nhập render lại với chip bật rồi mới focus, con trỏ về cuối dòng
     setTimeout(() => {
@@ -998,6 +1082,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * tên dự án tiếng Việt user gõ lúc tạo. Chưa chốt tên thì mới rơi về tên dự án.
    */
   const documentName = spine?.project.system_name?.trim() || ws.project?.name;
+  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
+  const documentLanguage = knownDocumentLanguage(ws.project);
   /**
    * BUG-03: vòng S-5 của màn đang để trống — panel Tiến độ mở lại được, thay vì khoá cứng 5 bước.
    * Chỉ S-5.1 là chỗ vào: chạy nó đưa màn về `in_progress` và các bước còn lại tự tới lượt.
@@ -1155,10 +1241,129 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     });
   };
 
-  const sendFromChat = async (custom?: string, intent?: RunIntent) => {
-    if (mode1) return ws.sendMessage(currentStep, custom);
+  /** Mở hộp "Dịch tài liệu"; `status` đã đọc sẵn thì hộp khỏi đọc lại lần đầu. */
+  const openTranslate = (status?: TranslationStatus) => {
+    setTranslateStatus(status);
+    setTranslateOpen(true);
+  };
+
+  /**
+   * FLF-265 §3.7 (D15): câu gõ là lệnh đổi ngôn ngữ tài liệu ⇒ KHÔNG gửi cho AI (dù là tin chat, lượt chạy bước hay lệnh
+   * sửa) — AI sẽ viết lại chữ Spine sang ngôn ngữ khác, trong khi Spine phải giữ tiếng Anh và bản dịch nằm ở lớp overlay.
+   * Hiện thẻ xác nhận trong chat thay vào. Viewer / câu không phải lệnh ⇒ `false`, nơi gọi gửi như cũ.
+   * Đính kèm đang chờ được giữ nguyên trong ô chat (chưa tải lên): "Gửi như tin nhắn" mang chúng đi cùng câu, còn đổi
+   * ngôn ngữ thì chúng ở lại cho tin nhắn kế tiếp.
+   */
+  const interceptLanguageCommand = (text: string, via: LanguageCommandState["via"], intent?: RunIntent): boolean => {
+    const target = parseLanguageCommand(text);
+    const kind = languageCommandOutcome({ target, canEdit, mode1, current: documentLanguage });
+    if (target === null || kind === "send") return false;
+    const id = ++languageCommandSeq.current;
+    ws.setInputMessage("");
+    setLanguageCommand({ id, kind, text: text.trim(), target, via, ...(intent ? { intent } : {}), status: null, busy: false, error: null });
+    // Đã ở đúng ngôn ngữ mà khác ngôn ngữ gốc: đọc ước tính để mời dịch nốt phần còn thiếu (lỗi ⇒ thẻ không có nút đó)
+    if (kind === "same" && target !== MODE2_SOURCE_LANGUAGE) {
+      void getTranslationStatus(projectId).then(
+        (res) => setLanguageCommand((prev) => (prev?.id === id && res.data ? { ...prev, status: res.data } : prev)),
+        () => undefined
+      );
+    }
+    return true;
+  };
+
+  /** Lệnh sửa (chip "Sửa tài liệu") cũng đi qua bước chặn — lệnh dịch không được thành một lệnh sửa gửi cho AI. */
+  const sendEditInstruction = (text: string) => {
+    if (interceptLanguageCommand(text, "edit")) return;
+    if (mode1) void crChat.send(text);
+    else submitEditInstruction(text);
+  };
+
+  /** "Gửi như tin nhắn": đúng câu đã gõ, đúng đường ban đầu, bỏ qua bước chặn. */
+  const sendLanguageCommandAsMessage = () => {
+    if (!languageCommand) return;
+    const { text, via, intent } = languageCommand;
+    setLanguageCommand(null);
+    if (via === "chat") void sendFromChat(text, intent, true);
+    else if (mode1) void crChat.send(text);
+    else submitEditInstruction(text);
+  };
+
+  /** Đóng thẻ không làm gì: trả câu về ô chat (nếu ô đang trống) để user sửa lại. */
+  const dismissLanguageCommand = () => {
+    if (!languageCommand) return;
+    if (!ws.inputMessage.trim()) ws.setInputMessage(languageCommand.text);
+    setLanguageCommand(null);
+  };
+
+  /**
+   * "Đồng ý": `PATCH document-language` ⇒ project mới vào workspace (chip + khoá tải lại tài liệu đổi theo) ⇒ đích khác
+   * ngôn ngữ gốc và còn mục chưa dịch thì mở hộp "Dịch tài liệu" với ước tính vừa đọc (user xác nhận credit ở đó).
+   */
+  const confirmLanguageSwitch = async () => {
+    const command = languageCommand;
+    if (!command || command.kind !== "switch") return;
+    setLanguageCommand({ ...command, busy: true, error: null });
+    try {
+      const res = await setDocumentLanguage(projectId, command.target);
+      const next = res.data ?? (ws.project ? { ...ws.project, documentLanguage: command.target } : null);
+      if (next) ws.replaceProject(next);
+    } catch (err) {
+      setLanguageCommand((prev) =>
+        prev?.id === command.id ? { ...prev, busy: false, error: userErrorMessage(err, "Không đổi được ngôn ngữ tài liệu") } : prev
+      );
+      return;
+    }
+    setLanguageCommand((prev) => (prev?.id === command.id ? null : prev));
+    setDocumentRefreshToken((v) => v + 1);
+    setToast(`Đã đổi tài liệu sang ${DOCUMENT_LANGUAGE_NAME[command.target]}`);
+    if (command.target === MODE2_SOURCE_LANGUAGE) return;
+    const status = await getTranslationStatus(projectId).then(
+      (res) => res.data,
+      () => null
+    );
+    if (status && status.missing > 0) openTranslate(status);
+  };
+
+  /**
+   * Tin chat thường mà BE nhận là lệnh sửa ("Bổ sung: …") trả kèm bản xem trước ⇒ mở thẻ sửa với nút Áp dụng. Trước đây
+   * chat chỉ hiện "…bấm Áp dụng để ghi" mà không có nút nào (E2E FAP #4).
+   */
+  const sendChat = async (custom?: string) => {
+    const instruction = (custom ?? ws.inputMessage).trim();
+    const data = await ws.sendMessage(currentStep, custom);
+    const preview = chatChangePreview(data);
+    if (!preview) return;
+    pendingInstructionRef.current = instruction;
+    changes.adoptPreview(preview, instruction);
+    setAppliedEdit(null);
+    setEditDetailOpen(false);
+    setEditCardOpen(true);
+  };
+
+  const sendFromChat = async (custom?: string, intent?: RunIntent, asMessage = false) => {
+    // FLF-265 §3.7: chặn lệnh đổi ngôn ngữ tài liệu trước MỌI nhánh gửi (mode 1, phiên phụ, trả lời, cổng, chạy bước)
+    if (!asMessage && interceptLanguageCommand(custom ?? ws.inputMessage, "chat", intent)) return;
+    // FLF-279 §1.2: BE xử lý lượt tri thức TRƯỚC lượt chờ trả lời của step và trước lệnh sửa, và chốt
+    // 409 CHANGE_REQUIRES_CR của mode 1 không áp. Rẽ ở đây để FE theo đúng thứ tự đó — đặt muộn hơn thì
+    // ở mode 1 câu hỏi bị đẩy vào CR, còn ở `needs_input` nó bị tính là câu trả lời của bước.
+    //
+    // `intent` / `asMessage` là các lối gửi do code dựng (chip mở đầu, lệnh đổi ngôn ngữ gửi lại thành
+    // tin): chúng mang ý định riêng, không phải câu user gõ để hỏi, nên không đi nhánh này.
+    if (knowledgeMode && !asMessage && intent === undefined) {
+      // Hợp đồng chỉ cho lượt tri thức đi trước lượt CHỜ trả lời; nó không nói gì về lúc step đang
+      // chạy. Gửi lúc đó thì `onFinish` thay cả session bằng bản BE và các tin runner vừa chèn tại chỗ
+      // biến mất khỏi khung chat.
+      if (aiWorking) {
+        setToast("AI đang làm — đợi xong lượt này rồi hỏi tiếp nhé");
+        return;
+      }
+      // Chip tự tắt sau một lượt: mỗi lượt BE chỉ nhận một câu hỏi và không đọc lịch sử chat.
+      setKnowledgeMode(false);
+      return void (await ws.sendMessage(currentStep, custom, { knowledge: true }));
+    }
+    if (mode1) return void (await ws.sendMessage(currentStep, custom));
     // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
-    if (!onPipelineSession) return ws.sendMessage(currentStep, custom);
+    if (!onPipelineSession) return sendChat(custom);
     if (aiWorking) {
       setToast("AI đang làm — đợi xong lượt này rồi nhắn tiếp nhé");
       return;
@@ -1166,7 +1371,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     const raw = (custom ?? ws.inputMessage).trim();
     const status = runner.state.status;
     const toRun = stepNotStarted || (reopenable && status === "idle");
-    if (status !== "needs_input" && status !== "gate_ready" && !toRun) return ws.sendMessage(currentStep, custom);
+    if (status !== "needs_input" && status !== "gate_ready" && !toRun) return sendChat(custom);
     if (!(await ws.uploadPendingAttachments())) return;
     const text = raw || "[Đính kèm tài liệu]";
 
@@ -1219,6 +1424,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * `reopen`: cờ có thể trễ hơn Spine (mục đã được chốt lại ở nơi khác) — khi đó BE không coi bước là cũ nữa và
    * từ chối chạy bước đã accepted; user đã bấm chủ động nên mở lại bước (B7) thay vì báo "Bước này đã chốt".
    */
+  /**
+   * Bước bị hoà giải đưa về chờ duyệt (`revision_requested`) mà nội dung vẫn đúng: duyệt nguyên trạng, không bắt AI soạn lại.
+   * Chỉ có "Cập nhật lại bước này" thì mỗi lần duyệt lại AI viết khác đi đôi chút ⇒ mục khác thành "cũ" ⇒ hoà giải ⇒ lại chờ
+   * duyệt — vòng không hội tụ (E2E FAP #20). BE vốn cho `accept` ở trạng thái này.
+   */
+  const keepStepAsIs = async (stepId: string) => {
+    const sessionId = ws.pipelineSession?._id;
+    const baseVersion = getBaseVersion();
+    if (!sessionId || baseVersion === null) return;
+    setKeepingStep(true);
+    try {
+      const res = await submitGate(projectId, stepId, { session_id: sessionId, action: "accept", base_version: baseVersion });
+      onSpineChanged(res.data?.spine_version);
+      setToast(`Đã duyệt lại ${stepLabel(stepId)} giữ nguyên nội dung`);
+    } catch (err) {
+      onSpineChanged();
+      setToast(userErrorMessage(err, "Chưa duyệt lại được bước này. Vui lòng thử lại."));
+    } finally {
+      setKeepingStep(false);
+    }
+  };
+
   const rerunStaleStep = async (stepId: string) => {
     const text = t("rerunStep.message");
     await runner.run(stepId, { message: text, standalone: true, reopen: true, onStarted: () => ws.appendLocalMessage(text, stepId) });
@@ -1333,13 +1560,31 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           }
           streamingMessage={ws.streamingMessage}
           isStreaming={ws.streamingMessage !== null}
-          onEditInstruction={mode1 ? (text) => void crChat.send(text) : submitEditInstruction}
+          onEditInstruction={sendEditInstruction}
           onGoToPipeline={ws.pipelineSession ? () => void ws.selectSession(ws.pipelineSession!) : undefined}
           readOnlyNotice={canEdit ? undefined : "Bạn đang xem với vai trò Viewer — chỉ đọc được tài liệu, không gửi tin hay chạy bước AI."}
           editPlaceholder={mode1 ? crChat.inputHint : undefined}
           editMode={editMode}
           onToggleEditMode={() => (editMode ? setEditMode(false) : startEditing())}
           editDisabledReason={editDisabledReason}
+          knowledgeMode={knowledgeMode}
+          onToggleKnowledgeMode={
+            canEdit
+              ? () => {
+                  // Tắt tri thức ⇒ trả `editMode` về mặc định của chế độ dự án, không để nó nằm lại
+                  // `false`: ở mode 1, chat im lặng thôi đã là chat sửa-qua-CR.
+                  if (knowledgeMode) {
+                    setKnowledgeMode(false);
+                    setEditMode(mode1);
+                    return;
+                  }
+                  setEditMode(false);
+                  setKnowledgeMode(true);
+                }
+              : undefined
+          }
+          knowledgeHidden={ws.knowledgeDisabled}
+          knowledgePending={ws.knowledgePending}
           inputTools={
             mode1 ? undefined : (
               <AiSettingsMenu
@@ -1382,13 +1627,25 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu
                 bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.
               </p>
-              <button
-                type="button"
-                onClick={() => void rerunStaleStep(viewedStep)}
-                className="self-start h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
-              >
-                Cập nhật lại bước này
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void rerunStaleStep(viewedStep)}
+                  className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+                >
+                  Cập nhật lại bước này
+                </button>
+                {viewedSummary?.status === "revision_requested" && (
+                  <button
+                    type="button"
+                    disabled={keepingStep}
+                    onClick={() => void keepStepAsIs(viewedStep)}
+                    className="h-8 px-3.5 rounded-control text-body font-bold bg-surface text-on-surface hover:bg-surface-container-low cursor-pointer disabled:opacity-50"
+                  >
+                    {keepingStep ? "Đang duyệt…" : "Giữ nguyên, duyệt lại"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {runnerStep && !background && onPipelineSession && (
@@ -1505,6 +1762,25 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               onDismiss={closeEditCard}
             />
           )}
+          {languageCommand && (
+            <LanguageCommandCard
+              kind={languageCommand.kind}
+              text={languageCommand.text}
+              target={languageCommand.target}
+              sourceLanguage={MODE2_SOURCE_LANGUAGE}
+              missing={languageCommand.status?.missing ?? null}
+              busy={languageCommand.busy}
+              error={languageCommand.error}
+              onConfirm={() => void confirmLanguageSwitch()}
+              onTranslate={() => {
+                const status = languageCommand.status ?? undefined;
+                setLanguageCommand(null);
+                openTranslate(status);
+              }}
+              onSendAsMessage={sendLanguageCommandAsMessage}
+              onCancel={dismissLanguageCommand}
+            />
+          )}
         </ChatPane>
 
         {briefHidden ? null : briefPane ? (
@@ -1542,6 +1818,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
+          documentLanguage={documentLanguage}
+          // Dịch tốn credit ⇒ chỉ Lead/Analyst; mode 1 giữ ngôn ngữ file, không dịch (D3)
+          onTranslate={!mode1 && canEdit ? () => setTranslateOpen(true) : undefined}
         />
         )}
 
@@ -1570,6 +1849,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
             {!mode1 && (
               <ProjectRecordPanel
+                projectId={projectId}
                 spine={spine}
                 onSubmitOps={async (ops) => void (await submitOps(ops))}
                 onMarkPlaceholder={(id) => void markPlaceholder(id)}
@@ -1678,7 +1958,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       {(toast ?? ws.notice) && (
         <div
           role="status"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-body font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-body font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
         >
           <span>{toast ?? ws.notice}</span>
           <button
@@ -1700,12 +1980,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectId={projectId}
           preview={changes.preview}
           instruction={changes.pendingInstruction}
+          spine={spineState.spine}
           onCancel={() => setEditDetailOpen(false)}
         />
       )}
       {changes.preview && ((changes.previewSource === "instruction" && editDetailOpen && !mode1) || changes.previewSource === "reconcile") && (
         <DiffPreviewModal
           preview={changes.preview}
+          spine={spineState.spine}
           busy={changes.applying}
           confirmLabel={changes.previewSource === "reconcile" ? "Cập nhật" : "Áp dụng"}
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
@@ -1722,6 +2004,29 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectName={documentName}
           flags={flags}
           onClose={() => setExportOpen(false)}
+          documentLanguage={documentLanguage}
+          // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
+          onTranslate={
+            !mode1 && canEdit
+              ? () => {
+                  setExportOpen(false);
+                  setTranslateOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {!mode1 && canEdit && (
+        <TranslateDialog
+          projectId={projectId}
+          open={translateOpen}
+          initialStatus={translateStatus}
+          onClose={() => {
+            setTranslateOpen(false);
+            setTranslateStatus(undefined);
+          }}
+          onDone={handleTranslated}
         />
       )}
 

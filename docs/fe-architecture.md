@@ -49,6 +49,33 @@ Chạy step là **SSE** (`lib/ai-stream.ts`): `intake · elicit · answer_needed
 render · flags · gate_ready · error`. Luôn huỷ luồng khi rời trang hoặc chạy lại; luồng đóng sớm phải
 thành lỗi rõ ràng, không im lặng.
 
+### Ba chế độ gửi của ô chat
+
+Ô chat có ba đường gửi, chọn bằng chip trên thanh công cụ, **loại trừ nhau**:
+
+| Chế độ | Chip | Đi đâu |
+| --- | --- | --- |
+| Hỏi đáp | (mặc định) | `POST /messages/stream` — stream `text-delta` rồi `finish` |
+| Sửa tài liệu | "Sửa tài liệu" | `/changes/preview` → xác nhận → `/changes` |
+| Hỏi kiến thức BA | "Hỏi kiến thức BA" | `POST /messages/stream` kèm `knowledge: true` |
+
+Lượt **hỏi kiến thức** (contract §1.2) khác hai lượt kia ở hai điểm, và cả hai đều ràng buộc UI:
+
+- **Không stream chữ**: route phát đúng một `finish` rồi đóng. Không có `text-delta`, nên khung chat
+  phải vẽ trạng thái chờ riêng (`knowledgePending`) — bong bóng chữ chạy sẽ rỗng.
+- **Tin AI mang `grounded` + `citations[]`**, và transcript lưu đúng object đó. Nhờ vậy `ChatBubble`
+  nhận lượt tri thức theo **hình dữ liệu** (`knowledgeShapeOf`), nên tin tải lại từ phiên cũ đi cùng một
+  đường đọc với tin vừa về. Nhãn `[K1]` thành chip bấm được (`knowledge-citations.ts`,
+  `KnowledgeAnswer.tsx`); `grounded: false` hiện khối cảnh báo, **không** phải tin lỗi.
+
+Thứ tự rẽ nhánh trong `sendFromChat` là hợp đồng: lượt tri thức đi **trước** lượt chờ trả lời của bước
+và trước lệnh sửa (BE xử lý theo thứ tự đó, và chốt `409 CHANGE_REQUIRES_CR` của mode 1 không áp) —
+nhưng **sau** guard "AI đang làm", vì gửi lúc bước đang chạy thì `finish` thay cả session và các tin
+runner chèn tại chỗ biến mất. Lượt tri thức cũng không được nhận lầm là lời đáp của lượt hỏi
+(`replyOfAsk` loại nó ra), nếu không `hideTrailingAiMessage` sẽ cắt câu trả lời khỏi khung chat.
+
+`409 KNOWLEDGE_DISABLED` ⇒ máy chủ tắt tính năng: ẩn chip, không thử lại.
+
 ## Đa ngôn ngữ (vi / en)
 
 **Nhãn step và phase** lấy từ `lib/constants/step-registry.json` — **bản sao** của

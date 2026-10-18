@@ -77,7 +77,7 @@ describe("Dashboard — song ngữ", () => {
     expect(screen.getByRole("menuitem", { name: "Document language" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("menuitem", { name: "Document language" }));
     const languageDialog = await screen.findByRole("dialog");
-    expect(languageDialog).toHaveTextContent("diagrams stay in English");
+    expect(languageDialog).toHaveTextContent("including the text on diagrams");
     expect(vietnameseLeftovers(languageDialog)).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

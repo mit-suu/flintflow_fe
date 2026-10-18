@@ -5,12 +5,12 @@ import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import { COMMENT_TEXT_MAX, KEEP_REASON_MIN_LENGTH, type Comment, type CommentResolutionInput, type PendingCommentAnchor } from "@/types/comment";
+import { COMMENT_TEXT_MAX, KEEP_REASON_MIN_LENGTH, type SrsComment, type CommentResolutionInput, type PendingCommentAnchor } from "@/types/comment";
 
 type Filter = "open" | "all";
 
 interface CommentsPanelProps {
-  comments: Comment[];
+  comments: SrsComment[];
   loading: boolean;
   error: string | null;
   busy: boolean;
@@ -31,7 +31,7 @@ interface CommentsPanelProps {
 
 const ROLE_LABEL: Record<string, string> = { lead: "Lead", analyst: "Analyst", viewer: "Viewer" };
 
-const STATUS_CHIP: Record<Comment["status"], { text: string; style: string } | null> = {
+const STATUS_CHIP: Record<SrsComment["status"], { text: string; style: string } | null> = {
   open: null,
   resolved: { text: "Đã xử lý", style: "bg-success-container text-success" },
   converted: { text: "Đã thành CR", style: "bg-primary-soft text-primary" },
@@ -91,7 +91,7 @@ function CommentCard({
   onResolve,
   onShowSection,
 }: {
-  comment: Comment;
+  comment: SrsComment;
   canResolve: boolean;
   busy: boolean;
   onResolve: (commentId: string, resolution: CommentResolutionInput) => Promise<void>;

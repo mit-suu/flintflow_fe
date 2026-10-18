@@ -12,13 +12,13 @@ vi.mock("@/lib/api/comments", () => ({
 }));
 
 import { useComments } from "./useComments";
-import type { Comment } from "@/types/comment";
+import type { SrsComment } from "@/types/comment";
 
-const comment = (id: string, sectionId = "fixed:2.1", status: Comment["status"] = "open"): Comment => ({
+const comment = (id: string, sectionId = "fixed:2.1", status: SrsComment["status"] = "open"): SrsComment => ({
   comment_id: id,
   version: { source: "draft", baseline_id: null, label: "draft" },
   anchor: { section_id: sectionId, block_index: null, label: "2.1 Actors", excerpt: null },
-  author: null,
+  author: { _id: "u1", name: "Lead", email: null },
   author_role: "lead",
   text: `Góp ý ${id}`,
   status,

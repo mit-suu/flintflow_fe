@@ -97,7 +97,12 @@ export interface Cr {
 
 /** `preview` (mode 1 v3): phần tử bị op của bản xem trước đính kèm CR chạm tới. */
 /** `diagram` (§4.13): phần nối giữ hình gốc của người dùng — BE tự đề xuất vẽ lại (không qua AI). */
-export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview" | "diagram";
+/**
+ * `vector` (import-change-contract §4.17): phần tử gần nghĩa với CR theo Atlas Vector Search. Có ứng viên
+ * vector thì chúng **thay** nguồn `keyword`; tắt tính năng (`EMBEDDING_PROVIDER=off`) thì `keyword` như cũ.
+ * Một vị trí có thể vừa `spine_link` vừa `vector`.
+ */
+export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview" | "diagram" | "vector";
 export type LocationConclusion = "edit" | "comment" | "not_related";
 
 /**
@@ -111,6 +116,11 @@ export interface CrLocation {
   section_title: string;
   current_text: string;
   found_by: LocationFoundBy[];
+  /**
+   * Điểm gần nghĩa 0..1 của vị trí có `found_by: vector`; `null` với vị trí tìm bằng đồ thị / từ khoá.
+   * Tuỳ chọn trong DTO của BE, nên có thể thiếu hẳn ở CR cũ.
+   */
+  vector_score?: number | null;
   entity_paths: string[];
   owner_step: string | null;
   conclusion: LocationConclusion | null;
@@ -174,6 +184,8 @@ export interface CreateCrRequest {
   requester: string;
   /** Mode 1 v3: bản xem trước (`POST /changes/preview`) đính kèm làm gợi ý. Hết hạn ⇒ CR vẫn tạo, `meta.seed_dropped`. */
   preview_id?: string;
+  /** UC-49: comment `CM-nnn` còn mở được chuyển thành CR này — cần `source.kind = viewer_comment`. */
+  comment_id?: string;
   /** Phase 7: đoạn văn bản nguồn dán ở 3.1 (≤ 5). File upload sau khi tạo qua `addCrMaterialFile`. */
   materials?: { name: string; text: string }[];
 }

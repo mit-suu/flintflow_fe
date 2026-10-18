@@ -38,7 +38,7 @@ const version = (v: string, kind: DocVersion["kind"] = "cr_revision"): DocVersio
 });
 
 /** Mới nhất trước, như GET /versions. */
-const VERSIONS = [version("1.0", "release"), version("0.1"), version("0.0", "imported")];
+const VERSIONS = [version("1.0", "release"), version("0.2"), version("0.1", "imported")];
 
 const serveCompare = (res: (from: string, to: string) => CompareResponse | Response) => {
   const seen: { from: string | null; to: string | null }[] = [];
@@ -64,7 +64,7 @@ const pick = (label: string, version: string) => {
 
 describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
   it("ít hơn 2 version ⇒ báo không so sánh được", () => {
-    renderWithIntl(<VersionCompare projectId={P} versions={[version("0.0", "imported")]} />);
+    renderWithIntl(<VersionCompare projectId={P} versions={[version("0.1", "imported")]} />);
     expect(screen.getByText("Cần ít nhất 2 version để so sánh.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "So sánh" })).not.toBeInTheDocument();
   });
@@ -82,12 +82,12 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
       ],
     }));
     renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
-    expect(combo("Từ")).toHaveTextContent("0.1");
+    expect(combo("Từ")).toHaveTextContent("0.2");
     expect(combo("Đến")).toHaveTextContent("1.0");
 
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
-    expect(await screen.findByText("0.1 → 1.0: 1 thêm · 1 xoá · 1 sửa · 1 di chuyển")).toBeInTheDocument();
-    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
+    expect(await screen.findByText("0.2 → 1.0: 1 thêm · 1 xoá · 1 sửa · 1 di chuyển")).toBeInTheDocument();
+    expect(seen).toEqual([{ from: "0.2", to: "1.0" }]);
 
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]).getByText("Thêm")).toBeInTheDocument();
@@ -110,29 +110,29 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
     expect(screen.getByText("Cần ít nhất 2 version để so sánh.")).toBeInTheDocument();
 
     rerender(<VersionCompare projectId={P} versions={VERSIONS} />);
-    expect(combo("Từ")).toHaveTextContent("0.1");
+    expect(combo("Từ")).toHaveTextContent("0.2");
     expect(combo("Đến")).toHaveTextContent("1.0");
 
     const button = screen.getByRole("button", { name: "So sánh" });
     expect(button).toBeEnabled();
     fireEvent.click(button);
-    await screen.findByText(/0.1 → 1.0: 0 thêm/);
-    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
+    await screen.findByText(/0.2 → 1.0: 0 thêm/);
+    expect(seen).toEqual([{ from: "0.2", to: "1.0" }]);
   });
 
   it("version đang chọn bị xoá khỏi danh sách ⇒ rơi về mặc định, không query mã đã mất", async () => {
     const seen = serveCompare((from, to) => ({ from, to, summary: { added: 0, removed: 0, modified: 0, moved: 0 }, blocks: [] }));
     const { rerender } = renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
-    pick("Từ", "0.0");
-    expect(combo("Từ")).toHaveTextContent("0.0");
-
-    // Danh sách tải lại không còn 0.0
-    rerender(<VersionCompare projectId={P} versions={[version("1.0", "release"), version("0.1")]} />);
+    pick("Từ", "0.1");
     expect(combo("Từ")).toHaveTextContent("0.1");
 
+    // Danh sách tải lại không còn 0.1
+    rerender(<VersionCompare projectId={P} versions={[version("1.0", "release"), version("0.2")]} />);
+    expect(combo("Từ")).toHaveTextContent("0.2");
+
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
-    await screen.findByText(/0.1 → 1.0: 0 thêm/);
-    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
+    await screen.findByText(/0.2 → 1.0: 0 thêm/);
+    expect(seen).toEqual([{ from: "0.2", to: "1.0" }]);
   });
 
   it("chọn cùng một version ⇒ nút khoá kèm gợi ý; chọn lại thì so được", async () => {
@@ -143,10 +143,10 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
     expect(screen.getByRole("button", { name: "So sánh" })).toBeDisabled();
     expect(screen.getByText("Chọn hai version khác nhau.")).toBeInTheDocument();
 
-    pick("Từ", "0.0");
+    pick("Từ", "0.1");
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
     expect(await screen.findByText("Không có khác biệt.")).toBeInTheDocument();
-    expect(seen).toEqual([{ from: "0.0", to: "1.0" }]);
+    expect(seen).toEqual([{ from: "0.1", to: "1.0" }]);
   });
 
   it("BE lỗi ⇒ hiện thông điệp; so lại thành công thì xoá lỗi", async () => {
@@ -159,11 +159,11 @@ describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
     renderWithIntl(<VersionCompare projectId={P} versions={VERSIONS} />);
 
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
-    expect(await screen.findByText("Không có version 0.1")).toBeInTheDocument();
+    expect(await screen.findByText("Không có version 0.2")).toBeInTheDocument();
 
     fail = false;
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
-    await waitFor(() => expect(screen.queryByText("Không có version 0.1")).not.toBeInTheDocument());
-    expect(screen.getByText(/0.1 → 1.0: 0 thêm/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Không có version 0.2")).not.toBeInTheDocument());
+    expect(screen.getByText(/0.2 → 1.0: 0 thêm/)).toBeInTheDocument();
   });
 });

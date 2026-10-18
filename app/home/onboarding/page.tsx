@@ -98,106 +98,109 @@ export default function OnboardingPage() {
   };
 
   return (
-    <section className="w-full max-w-[560px] mx-auto flex flex-col gap-6 pt-10 pb-12">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-title sm:text-metric font-bold text-on-surface tracking-tight">{t("title")}</h1>
-        <p className="text-body text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
-      </div>
+    // AppShell khoá chiều cao (h-dvh, <main> overflow-hidden) ⇒ trang phải tự có vùng cuộn, giống billing/notifications
+    <div className="flex-1 overflow-y-auto">
+      <section className="w-full max-w-[560px] mx-auto flex flex-col gap-6 pt-10 pb-12">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-title sm:text-metric font-bold text-on-surface tracking-tight">{t("title")}</h1>
+          <p className="text-body text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
+        </div>
 
-      {/* Tab dạng segmented dùng chung (components/ui/Tabs). Trước đây tab đang chọn tô tím đặc, trùng chữ và trùng
-          màu với nút "Tạo tổ chức" bên dưới ⇒ trông như hai nút giống hệt nhau. */}
-      <Tabs
-        label={t("title")}
-        idBase="org-onboarding"
-        value={tab}
-        className="self-start"
-        options={[
-          { value: "create", label: t("createTab") },
-          { value: "join", label: t("joinTab") },
-        ]}
-        onChange={(next) => {
-          setTab(next);
-          setError(null);
-        }}
-      />
+        {/* Tab dạng segmented dùng chung (components/ui/Tabs). Trước đây tab đang chọn tô tím đặc, trùng chữ và trùng
+            màu với nút "Tạo tổ chức" bên dưới ⇒ trông như hai nút giống hệt nhau. */}
+        <Tabs
+          label={t("title")}
+          idBase="org-onboarding"
+          value={tab}
+          className="self-start"
+          options={[
+            { value: "create", label: t("createTab") },
+            { value: "join", label: t("joinTab") },
+          ]}
+          onChange={(next) => {
+            setTab(next);
+            setError(null);
+          }}
+        />
 
-      {error ? (
-        <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
-          {error}
-        </p>
-      ) : null}
+        {error ? (
+          <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
+            {error}
+          </p>
+        ) : null}
 
-      {tab === "create" ? (
-        <form onSubmit={handleCreate} role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
-          <label htmlFor="org-name" className="text-body font-semibold text-on-surface">
-            {t("nameLabel")}
-          </label>
-          <input
-            id="org-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t("namePlaceholder")}
-            maxLength={80}
-            className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-heading text-on-surface"
-          />
-          <p className="text-body text-on-surface-muted leading-[1.6]">{t("nameHint")}</p>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
-          >
-            {busy ? t("creating") : t("createCta")}
-          </button>
-        </form>
-      ) : (
-        <div role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
-          <form onSubmit={handleCheckCode} className="flex flex-col gap-3">
-            <label htmlFor="invite-code" className="text-body font-semibold text-on-surface">
-              {t("codeLabel")}
+        {tab === "create" ? (
+          <form onSubmit={handleCreate} role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
+            <label htmlFor="org-name" className="text-body font-semibold text-on-surface">
+              {t("nameLabel")}
             </label>
             <input
-              id="invite-code"
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
-                setPreview(null);
-              }}
-              placeholder={t("codePlaceholder")}
-              className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-heading text-on-surface tracking-[0.2em] uppercase"
+              id="org-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("namePlaceholder")}
+              maxLength={80}
+              className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-heading text-on-surface"
             />
-            <p className="text-body text-on-surface-muted leading-[1.6]">{t("codeHint")}</p>
-            {preview ? null : (
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
-              >
-                {busy ? t("checking") : t("checkCode")}
-              </button>
-            )}
+            <p className="text-body text-on-surface-muted leading-[1.6]">{t("nameHint")}</p>
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
+            >
+              {busy ? t("creating") : t("createCta")}
+            </button>
           </form>
+        ) : (
+          <div role="tabpanel" id="org-onboarding-panel" aria-labelledby={"org-onboarding-tab-" + tab} className="flex flex-col gap-3">
+            <form onSubmit={handleCheckCode} className="flex flex-col gap-3">
+              <label htmlFor="invite-code" className="text-body font-semibold text-on-surface">
+                {t("codeLabel")}
+              </label>
+              <input
+                id="invite-code"
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  setPreview(null);
+                }}
+                placeholder={t("codePlaceholder")}
+                className="rounded-lg border border-outline bg-surface px-3 py-2.5 text-heading text-on-surface tracking-[0.2em] uppercase"
+              />
+              <p className="text-body text-on-surface-muted leading-[1.6]">{t("codeHint")}</p>
+              {preview ? null : (
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
+                >
+                  {busy ? t("checking") : t("checkCode")}
+                </button>
+              )}
+            </form>
 
-          {preview ? (
-            <div className="flex flex-col gap-3 rounded-lg border border-outline bg-surface-container p-4">
-              <p className="text-body font-semibold text-on-surface">{t("previewTitle")}</p>
-              <p className="text-body text-on-surface-muted">
-                {t("previewBody", {
-                  org: preview.organizationName,
-                  role: tRoles(preview.role),
-                })}
-              </p>
-              <button
-                type="button"
-                onClick={handleJoin}
-                disabled={busy}
-                className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
-              >
-                {busy ? t("joining") : t("joinCta")}
-              </button>
-            </div>
-          ) : null}
-        </div>
-      )}
-    </section>
+            {preview ? (
+              <div className="flex flex-col gap-3 rounded-lg border border-outline bg-surface-container p-4">
+                <p className="text-body font-semibold text-on-surface">{t("previewTitle")}</p>
+                <p className="text-body text-on-surface-muted">
+                  {t("previewBody", {
+                    org: preview.organizationName,
+                    role: tRoles(preview.role),
+                  })}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleJoin}
+                  disabled={busy}
+                  className="rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-60 px-4 py-2.5 text-body font-semibold text-white"
+                >
+                  {busy ? t("joining") : t("joinCta")}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

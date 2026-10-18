@@ -3,12 +3,15 @@ import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
 import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
+import { getDocument } from "@/lib/api/export";
+import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
 import type { StepEvent } from "@/types/pipeline";
-import { mockTiming } from "./handlers";
+import { MOCK_TRANSLATION_UNITS, mockTiming, mockTranslation, resetMockTranslationState } from "./handlers";
 import { mockServer } from "./server";
 import { MOCK_PROJECT_ID, MOCK_SESSION_ID, mockState, resetMockState } from "./state";
 import { apiCall } from "@/lib/api";
-import type { ChatSession } from "@/types/chat";
+import { streamChatMessage } from "@/lib/ai-stream";
+import type { ChatSession, KnowledgeReply } from "@/types/chat";
 
 const P = MOCK_PROJECT_ID;
 
@@ -124,6 +127,81 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     });
   });
 
+  describe("FLF-279 lượt hỏi tri thức (§1.2)", () => {
+    /** Thu các sự kiện của một lượt `knowledge: true`; luồng đúng phải chỉ có một `finish`. */
+    const askKnowledge = async (content: string) => {
+      const events: { type: string; data?: unknown; cost?: number; tokensUsed?: unknown }[] = [];
+      await streamChatMessage({
+        projectId: P,
+        chatId: MOCK_SESSION_ID,
+        content,
+        step: "chat",
+        knowledge: true,
+        onTextDelta: () => events.push({ type: "text-delta" }),
+        onFinish: (payload) => events.push({ type: "finish", ...payload }),
+      });
+      return events;
+    };
+
+    it("có trích dẫn: một finish duy nhất, grounded, citations đủ hai source_kind, 2 credit", async () => {
+      const events = await askKnowledge("Trần lượt gọi model mỗi bước là bao nhiêu?");
+
+      expect(events.map((e) => e.type)).toEqual(["finish"]);
+      const data = events[0].data as KnowledgeReply;
+      expect(data.grounded).toBe(true);
+      expect(data.reply).toMatch(/\[K1\]/);
+      expect(data.citations.map((c) => c.ref)).toEqual(["K1", "K2"]);
+      expect(data.citations.map((c) => c.source_kind)).toEqual(["internal_skill", "standard"]);
+      expect(events[0].cost).toBe(2);
+    });
+
+    it("không đủ căn cứ: grounded false, citations rỗng, không trừ credit", async () => {
+      const events = await askKnowledge("Câu này ngoài kho tri thức của FlintFlow");
+
+      const data = events[0].data as KnowledgeReply;
+      expect(data.grounded).toBe(false);
+      expect(data.citations).toEqual([]);
+      expect(events[0].cost).toBe(0);
+      expect(events[0].tokensUsed).toBeNull();
+    });
+
+    it("tin AI lưu vào phiên dưới dạng JSON ⇒ tải lại phiên vẫn đọc được trích dẫn", async () => {
+      await askKnowledge("Trần regenerate mỗi bước là bao nhiêu?");
+
+      const reloaded = await apiCall<ChatSession>(`/projects/${P}/chats/${MOCK_SESSION_ID}`);
+      const last = reloaded.data!.messages.at(-1)!;
+      expect(last.role).toBe("ai");
+      const parsed = JSON.parse(last.content) as KnowledgeReply;
+      expect(parsed.grounded).toBe(true);
+      expect(parsed.citations[0].source).toBe("gate-check");
+    });
+
+    it("KNOWLEDGE_ENABLED=false ⇒ 409 KNOWLEDGE_DISABLED và phiên không ghi gì", async () => {
+      mockState.knowledgeDisabled = true;
+      const before = mockState.sessions[0].messages.length;
+
+      await expect(askKnowledge("Trần lượt gọi model?")).rejects.toMatchObject({
+        code: "KNOWLEDGE_DISABLED",
+        status: 409,
+      });
+      expect(mockState.sessions[0].messages).toHaveLength(before);
+    });
+
+    it("lượt chat thường không đi nhánh tri thức: vẫn stream chữ, tin AI là chữ thuần", async () => {
+      const deltas: string[] = [];
+      await streamChatMessage({
+        projectId: P,
+        chatId: MOCK_SESSION_ID,
+        content: "Chào bạn",
+        step: "chat",
+        onTextDelta: (d) => deltas.push(d),
+      });
+
+      expect(deltas.length).toBeGreaterThan(0);
+      expect(mockState.sessions[0].messages.at(-1)!.content).not.toMatch(/^\{/);
+    });
+  });
+
   it("POST /resume trả reverted_step + spine_version hiện tại", async () => {
     const res = await resumeProject(P);
     expect(res.data).toMatchObject({ reverted_step: null, spine_version: await version() });
@@ -154,5 +232,41 @@ describe("mock PATCH /projects/:id/document-language (FLF-265 #1a)", () => {
     mockState.project = { ...mockState.project, mode: "import" };
     await expect(setDocumentLanguage(P, "vi")).rejects.toMatchObject({ code: "DOCUMENT_LANGUAGE_LOCKED", status: 409 });
     expect(mockState.project.documentLanguage).toBeUndefined();
+  });
+});
+
+describe("mock dịch tài liệu theo lô (FLF-265 #16, #26, #27)", () => {
+  beforeEach(() => resetMockTranslationState());
+
+  it("dự án en (ngôn ngữ gốc) ⇒ GET /document không có meta.translation, status total 0, run không làm gì", async () => {
+    expect((await getDocument(P)).meta?.translation).toBeUndefined();
+    expect((await getTranslationStatus(P)).data).toEqual({ locale: "en", source_locale: "en", total: 0, missing: 0, batches: 0, estimated_credits: 0 });
+    expect((await runTranslation(P)).data).toEqual({ translated: 0, remaining: 0, credits_used: 0 });
+  });
+
+  it("đổi sang vi ⇒ meta.translation + ước tính; run dịch dần theo max_batches tới remaining 0", async () => {
+    await setDocumentLanguage(P, "vi");
+    expect((await getDocument(P)).meta?.translation).toEqual({ locale: "vi", source_locale: "en", missing: MOCK_TRANSLATION_UNITS });
+    expect((await getTranslationStatus(P)).data).toMatchObject({ locale: "vi", source_locale: "en", missing: 100, batches: 3, estimated_credits: 6 });
+
+    expect((await runTranslation(P, 1)).data).toEqual({ translated: 40, remaining: 60, credits_used: 2 });
+    expect((await runTranslation(P)).data).toEqual({ translated: 60, remaining: 0, credits_used: 4 });
+    expect((await getDocument(P)).meta?.translation).toEqual({ locale: "vi", source_locale: "en", missing: 0 });
+    await expect(runTranslation(P, 11)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  });
+
+  it("lỗi bật được theo lượt: 402 / 409 / 422 / 403, và lượt không tiến (translated 0)", async () => {
+    await setDocumentLanguage(P, "vi");
+    mockTranslation.failure = "INSUFFICIENT_CREDIT";
+    mockTranslation.failFromCall = 2;
+    expect((await runTranslation(P, 1)).data?.translated).toBe(40);
+    await expect(runTranslation(P)).rejects.toMatchObject({ code: "INSUFFICIENT_CREDIT", status: 402 });
+
+    for (const [failure, status] of [["TRANSLATION_RUNNING", 409], ["PARSE_FAILED", 422], ["SCHEMA_MISMATCH", 422], ["ORG_ROLE_FORBIDDEN", 403]] as const) {
+      mockTranslation.failure = failure;
+      await expect(runTranslation(P)).rejects.toMatchObject({ code: failure, status });
+    }
+    mockTranslation.failure = "stalled";
+    expect((await runTranslation(P)).data).toEqual({ translated: 0, remaining: 60, credits_used: 2 });
   });
 });

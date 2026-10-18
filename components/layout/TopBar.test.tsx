@@ -1,7 +1,8 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
-import AppShell from "./AppShell";
+import { fetchBalance, type BalanceResponse } from "@/lib/api/billing";
+import AppShell, { useAppShell } from "./AppShell";
 import TopBar from "./TopBar";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/home", useRouter: () => ({ refresh: vi.fn() }) }));
@@ -29,6 +30,30 @@ describe("TopBar", () => {
     expect(chip).toHaveTextContent("1.250");
     expect(chip).toHaveTextContent("Pro");
     expect(chip).toHaveAttribute("href", "/home/billing");
+  });
+
+  it("FLF-265: trang vừa trừ credit gọi reloadBalance ⇒ chip số dư tải lại ngay, không chờ đổi trang", async () => {
+    function SpendCredits() {
+      const { reloadBalance } = useAppShell();
+      return (
+        <button type="button" onClick={reloadBalance}>
+          Dịch xong
+        </button>
+      );
+    }
+    renderWithIntl(
+      <AppShell sidebar={null}>
+        <TopBar trail={["Dự án"]} />
+        <SpendCredits />
+      </AppShell>
+    );
+    const chip = await screen.findByRole("link", { name: /credits/ });
+    expect(chip).toHaveTextContent("1.250");
+
+    vi.mocked(fetchBalance).mockResolvedValueOnce({ balance: 1244, planLabel: "Pro" } as BalanceResponse);
+    fireEvent.click(screen.getByRole("button", { name: "Dịch xong" }));
+
+    await waitFor(() => expect(chip).toHaveTextContent("1.244"));
   });
 
   it("có nút đổi ngôn ngữ trên mọi trang đã đăng nhập", () => {

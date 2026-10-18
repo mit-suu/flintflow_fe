@@ -33,7 +33,7 @@ const serveVersions = (versions: unknown[]) => {
 };
 
 const VERSION_00 = {
-  version: "0.0",
+  version: "0.1",
   kind: "import",
   based_on: null,
   cr_ids: [],

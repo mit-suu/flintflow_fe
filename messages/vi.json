@@ -641,7 +641,7 @@
       },
       "documentLanguage": {
         "title": "Ngôn ngữ tài liệu",
-        "detail": "Nội dung mới sẽ viết theo ngôn ngữ này; nội dung đã có cần dịch một lần (ước tính credit ở bước sau); sơ đồ giữ tiếng Anh.",
+        "detail": "Nội dung mới sẽ viết theo ngôn ngữ này; nội dung đã có, kể cả chữ trên sơ đồ, cần dịch một lần (ước tính credit ở bước sau).",
         "cta": "Đổi ngôn ngữ",
         "busy": "Đang đổi…",
         "failed": "Không thể đổi ngôn ngữ tài liệu"
@@ -651,6 +651,37 @@
       "renameLabel": "Tên dự án mới",
       "saveChanges": "Lưu thay đổi",
       "confirm": "{action} “{name}”?"
+    },
+    "translateDialog": {
+      "title": "Dịch tài liệu",
+      "checking": "Đang kiểm tra phần chưa dịch…",
+      "statusFailed": "Không kiểm tra được phần chưa dịch",
+      "language": {
+        "vi": "tiếng Việt",
+        "en": "tiếng Anh"
+      },
+      "estimate": "{count, plural, other {# mục}} · ~{credits} credit",
+      "direction": "Từ chữ gốc {source} sang {target}",
+      "detail": "Chỉ dịch các mục đang hiện chữ gốc, kể cả chữ trên sơ đồ; mục đã dịch giữ nguyên. Credit trừ theo từng lô thật sự chạy — dừng giữa chừng thì phần đã dịch vẫn được giữ.",
+      "nothingToTranslate": "Tài liệu đang ở ngôn ngữ gốc — không có gì cần dịch.",
+      "allTranslated": "Tài liệu đã dịch đủ sang {language} — không còn mục nào cần dịch.",
+      "start": "Dịch ngay",
+      "running": "Đang dịch…",
+      "stopping": "Đang dừng sau lượt đang chạy…",
+      "progress": "{done}/{total} mục",
+      "progressLabel": "Tiến độ dịch tài liệu",
+      "closeHint": "Đóng hộp này hoặc bấm Dừng: việc dịch dừng sau lượt đang chạy, phần đã dịch được giữ.",
+      "stop": "Dừng",
+      "done": "Đã dịch xong {count, plural, other {# mục}}.",
+      "stopped": "Đã dừng — đã dịch {count, plural, other {# mục}}, còn {remaining} mục giữ chữ gốc.",
+      "stalled": "Không dịch thêm được mục nào — còn {remaining} mục giữ chữ gốc. Thử lại sau ít phút.",
+      "insufficientCredit": "Không đủ credit để dịch tiếp. Nạp thêm credit rồi chạy lại.",
+      "runningElsewhere": "Tài liệu đang được dịch ở một lượt khác — đợi lượt đó xong rồi thử lại.",
+      "unreadable": "Chưa dịch được lúc này — AI trả kết quả không đọc được. Thử lại sau ít phút.",
+      "runFailed": "Không dịch được tài liệu",
+      "kept": "Đã dịch {count, plural, other {# mục}} trước khi dừng — phần này được giữ.",
+      "creditsUsed": "Đã dùng {credits} credit.",
+      "continue": "Dịch tiếp"
     },
     "folderDialogs": {
       "deleteTitle": "Xoá thư mục",
@@ -835,7 +866,10 @@
         "addBody": "Tạo một tổ chức mới, hoặc nhập mã mời để tham gia tổ chức khác.",
         "addCta": "Tạo hoặc tham gia",
         "loadError": "Không tải được danh sách tổ chức.",
-        "goToProjects": "Vào dự án"
+        "goToProjects": "Vào dự án",
+        "loading": "Đang tải danh sách tổ chức…",
+        "emptyTitle": "Bạn chưa thuộc tổ chức nào",
+        "emptyBody": "Tạo một tổ chức để bắt đầu dự án, hoặc nhập mã mời để tham gia tổ chức của người khác."
       },
       "members": {
         "title": "Thành viên",
@@ -1265,6 +1299,7 @@
     "RATE_LIMIT_EXCEEDED": "Dịch vụ AI đang quá tải. Vui lòng thử lại sau ít phút.",
     "PROJECT_NOT_FOUND": "Không tìm thấy dự án hoặc bạn không có quyền truy cập.",
     "DOCUMENT_LANGUAGE_LOCKED": "Dự án import SRS có sẵn dùng ngôn ngữ của file tải lên — không đổi được ngôn ngữ tài liệu.",
+    "TRANSLATION_RUNNING": "Tài liệu đang được dịch ở một lượt khác — đợi lượt đó xong rồi thử lại.",
     "NAME_REQUIRED": "Vui lòng nhập tên dự án.",
     "CHAT_SESSION_NOT_FOUND": "Không tìm thấy phiên chat.",
     "CONTENT_REQUIRED": "Tin nhắn không được để trống.",

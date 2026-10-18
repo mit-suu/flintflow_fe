@@ -42,7 +42,15 @@ const renderPane = (
   session: ChatSession,
   onEditInstruction = vi.fn(),
   onSendMessage = vi.fn(),
-  extra: { editMode?: boolean; onGoToPipeline?: () => void; onToggleEditMode?: () => void; readOnlyNotice?: string } = {}
+  extra: {
+    editMode?: boolean;
+    onGoToPipeline?: () => void;
+    onToggleEditMode?: () => void;
+    readOnlyNotice?: string;
+    knowledgePending?: boolean;
+    streamingMessage?: string | null;
+    isStreaming?: boolean;
+  } = {}
 ) => {
   renderWithIntl(
     <ChatPane
@@ -60,6 +68,29 @@ const renderPane = (
   );
   return { onEditInstruction, onSendMessage };
 };
+
+// FLF-279: lượt tri thức không stream chữ, nên nếu không vẽ gì thì khung chat im lặng hoàn toàn trong
+// lúc chờ — đúng cái acceptance criteria muốn tránh.
+describe("ChatPane — chờ câu trả lời tri thức", () => {
+  it("hiện dòng chờ có role=status khi knowledgePending", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Đang tra kho tri thức…");
+  });
+
+  it("không chờ tri thức ⇒ không có dòng đó", () => {
+    renderPane(withPipelineFlag(true));
+
+    expect(screen.queryByText("Đang tra kho tri thức…")).not.toBeInTheDocument();
+  });
+
+  it("dòng chờ thắng bong bóng chữ chạy — lượt tri thức không có chữ nên bong bóng đó sẽ rỗng", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true, isStreaming: true, streamingMessage: "" });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Đang tra kho tri thức…");
+    expect(screen.queryByText("", { selector: ".animate-ping" })).not.toBeInTheDocument();
+  });
+});
 
 describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip (FLF-244)", () => {
   beforeEach(() => {

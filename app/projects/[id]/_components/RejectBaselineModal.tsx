@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import type { Comment } from "@/types/comment";
+import type { SrsComment } from "@/types/comment";
 
 const REASON_MAX = 2000;
 
@@ -11,7 +11,7 @@ interface RejectBaselineModalProps {
   open: boolean;
   onClose: () => void;
   /** Góp ý đang mở của dự án — Lead chọn trong đây để gắn vào lượt từ chối. */
-  openComments: Comment[];
+  openComments: SrsComment[];
   busy: boolean;
   /** `commentIds` luôn có ít nhất một phần tử (nút gửi tắt khi chưa chọn). */
   onReject: (reason: string, commentIds: readonly [string, ...string[]]) => Promise<void>;

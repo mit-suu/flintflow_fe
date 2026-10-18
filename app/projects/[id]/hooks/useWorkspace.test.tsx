@@ -122,3 +122,70 @@ describe("useWorkspace — vai trò trong org (FLF-244)", () => {
     expect(none.result.current.canEdit).toBe(true);
   });
 });
+
+describe("useWorkspace — replaceProject (FLF-265 §3.7)", () => {
+  it("thay project bằng bản BE vừa trả ⇒ ngôn ngữ tài liệu mới có ngay, không tải lại workspace", async () => {
+    const { result } = await mount();
+    expect(result.current.project?.documentLanguage).not.toBe("vi");
+
+    act(() => result.current.replaceProject({ ...result.current.project!, documentLanguage: "vi" }));
+    expect(result.current.project?.documentLanguage).toBe("vi");
+  });
+});
+
+/**
+ * FLF-279 — lượt hỏi tri thức. Hai nhánh hỏng dễ im lặng: máy chủ tắt tính năng (409), và lỗi giữa luồng
+ * (`streamSse` phát `error` mà KHÔNG ném, nên `catch` không chạy). Luồng này không stream chữ, nên im
+ * lặng nghĩa là user chỉ thấy spinner tắt đi.
+ */
+describe("useWorkspace — lượt hỏi tri thức (FLF-279)", () => {
+  const ask = async (result: { current: ReturnType<typeof useWorkspace> }) => {
+    await act(async () => {
+      await result.current.sendMessage("chat", "Trần lượt gọi model là bao nhiêu?", { knowledge: true });
+    });
+  };
+
+  it("409 KNOWLEDGE_DISABLED ⇒ ẩn chip, báo lý do, trả chữ về ô nhập, không để tin ma", async () => {
+    mockState.knowledgeDisabled = true;
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    await ask(result);
+
+    expect(result.current.knowledgeDisabled).toBe(true);
+    expect(result.current.notice).toMatch(/đang tắt/);
+    expect(result.current.inputMessage).toBe("Trần lượt gọi model là bao nhiêu?");
+    expect(result.current.activeSession!.messages).toHaveLength(before);
+    expect(result.current.knowledgePending).toBe(false);
+  });
+
+  it("lỗi giữa luồng ⇒ có thông báo, gỡ tin tạm, trả chữ về ô nhập (không kết thúc im lặng)", async () => {
+    mockServer.use(
+      http.post(`*/projects/${MOCK_PROJECT_ID}/chats/${MOCK_SESSION_ID}/messages/stream`, () => {
+        const body = `data: ${JSON.stringify({ type: "error", error: "Ví credit không đủ" })}\n\n`;
+        return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+      })
+    );
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    await ask(result);
+
+    expect(result.current.notice).toBeTruthy();
+    expect(result.current.activeSession!.messages).toHaveLength(before);
+    expect(result.current.inputMessage).toBe("Trần lượt gọi model là bao nhiêu?");
+    expect(result.current.knowledgePending).toBe(false);
+  });
+
+  it("lượt tri thức thành công ⇒ tin AI vào phiên, không còn chờ", async () => {
+    const { result } = await mount();
+
+    await ask(result);
+
+    const last = result.current.activeSession!.messages.at(-1)!;
+    expect(last.role).toBe("ai");
+    expect(JSON.parse(last.content).grounded).toBe(true);
+    expect(result.current.knowledgePending).toBe(false);
+    expect(result.current.knowledgeDisabled).toBe(false);
+  });
+});

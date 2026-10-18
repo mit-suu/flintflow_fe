@@ -4,11 +4,11 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import BaselineApprovalPanel from "./BaselineApprovalPanel";
-import type { Comment } from "@/types/comment";
+import type { SrsComment } from "@/types/comment";
 import type { BaselineSubmission } from "@/types/spine";
 import type { BlockingFlag } from "./gate-helpers";
 
-const comment = (id: string, status: Comment["status"] = "open"): Comment => ({
+const comment = (id: string, status: SrsComment["status"] = "open"): SrsComment => ({
   comment_id: id,
   version: { source: "draft", baseline_id: null, label: "draft" },
   anchor: { section_id: "fixed:2.1", block_index: null, label: "2.1 Actors", excerpt: null },
@@ -40,7 +40,7 @@ const props = {
   submission: null as BaselineSubmission | null,
   blocking: 0,
   blockingFlags: [] as BlockingFlag[],
-  comments: [] as Comment[],
+  comments: [] as SrsComment[],
   busy: false,
   error: null as string | null,
   onSubmit: vi.fn(async () => {}),

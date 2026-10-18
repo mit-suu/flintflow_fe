@@ -23,12 +23,12 @@ const column = (block_id: string, column_index: number, header: string, field_pa
 });
 
 const profile = (over: Partial<TemplateProfile> = {}): TemplateProfile => ({
-  doc_version: "0.0",
+  doc_version: "0.1",
   heading_map: [
     heading("B0001", "1 Product Overview", "fixed:1", 0.97),
     heading("B0004", "2.1 Actors", "fixed:2.1", 0.95, "outline_level"),
     heading("B0007", "3.2.4 Log out of system", "feature:@B0007", 0.62, "numbering_pattern"),
-    heading("B0011", "Phụ lục B — Biên bản họp", "unmapped", 0.3),
+    heading("B0011", "Phụ lục B — Biên bản họp", "unmapped", 0.4),
   ],
   table_map: [column("B0005", 0, "Actor", "actors[].name"), column("B0005", 1, "Description", "actors[].description", 0.55)],
   required_sections: ["fixed:1", "fixed:2.1", "fixed:5.3"],
@@ -184,6 +184,28 @@ describe("MappingReviewTable — mẫu IEEE (FLF-252)", () => {
     expect(screen.queryByText(/ieee830/)).not.toBeInTheDocument();
   });
 
+  it("nhiều heading cùng trích vào một mục FPT ⇒ báo theo tiêu đề heading, đổi section thì hết báo", () => {
+    renderWithIntl(
+      <MappingReviewTable
+        profile={profile({
+          template_family: "ieee830",
+          heading_map: [
+            { ...heading("B0008", "3.5.1 Reliability", "fixed:4.2.2", 1), template_section: "ieee830:3.5.1" },
+            { ...heading("B0009", "3.5.2 Availability", "fixed:4.2.2", 1), template_section: "ieee830:3.5.2" },
+            { ...heading("B0010", "1.4 References", "unmapped", 1), template_section: "ieee830:1.4" },
+          ],
+        })}
+        onSubmit={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/với: 3\.5\.2 Availability — nội dung của heading này vẫn in dưới chính nó/)).toBeInTheDocument();
+    expect(screen.getByText(/với: 3\.5\.1 Reliability/)).toBeInTheDocument();
+    // mục giữ nguyên văn không tính là dùng chung; không lộ mã nội bộ
+    expect(screen.queryByText(/fixed:|unmapped/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Section cho 3.5.2 Availability" }), { target: { value: "fixed:4.2.3" } });
+    expect(screen.queryByText(/Cùng trích vào/)).not.toBeInTheDocument();
+  });
+
   it("import cũ không có họ mẫu ⇒ coi như mẫu FPT", () => {
     renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
     expect(screen.getByText("mẫu FPT")).toBeInTheDocument();
@@ -216,7 +238,7 @@ describe("MappingReviewTable — dữ liệu dưới tiêu đề cột (FLF-252)
 describe("MappingReviewTable — cột bảng không có tiêu đề (FLF-179)", () => {
   it("header rỗng ⇒ hiện \"Cột N (không có tiêu đề)\" và vẫn gán field được", () => {
     const onSubmit = vi.fn();
-    renderWithIntl(<MappingReviewTable profile={profile({ table_map: [column("B0005", 2, "", null, 0.3)] })} onSubmit={onSubmit} />);
+    renderWithIntl(<MappingReviewTable profile={profile({ table_map: [column("B0005", 2, "", null, 0.4)] })} onSubmit={onSubmit} />);
     expect(screen.getByText("Cột 3 (không có tiêu đề)")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Dữ liệu cho cột Cột 3 (không có tiêu đề)"), { target: { value: "use_cases[].name" } });
     submit();

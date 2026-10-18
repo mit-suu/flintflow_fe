@@ -88,13 +88,13 @@ const invalidImportState = (to: string) =>
 
 const parseDocument = () => {
   const blocks = initialBlocks();
-  S().blocks.set("0.0", blocks);
+  S().blocks.set("0.1", blocks);
   S().profile = {
-    doc_version: "0.0",
+    doc_version: "0.1",
     language: "en",
     required_sections: ["fixed:5.3"],
     layout: [],
-    record_of_changes: [{ date: "01/05/2026", version: "0.1", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu" }],
+    record_of_changes: [{ date: "01/05/2026", version: "0.2", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu" }],
     heading_map: blocks
       .filter((b) => b.kind === "heading")
       .map((b) => ({
@@ -136,7 +136,7 @@ const creditEstimate = (): CreditEstimate | null => {
 
 /**
  * Finalize chạy nền như BE (§4.16): #8 bật job rồi trả ngay `baselining`; mỗi lần poll #4 chạy **một** chặng — tạo
- * baseline + version 0.0 (sang `checking`), rồi 1.11 (tốn credit; hết ⇒ `paused: credits`) ⇒ `gap_review`.
+ * baseline + version 0.1 (sang `checking`), rồi 1.11 (tốn credit; hết ⇒ `paused: credits`) ⇒ `gap_review`.
  */
 const runFinalizeStep = () => {
   const doc = S().importDoc!;
@@ -149,9 +149,9 @@ const runFinalizeStep = () => {
       return;
     }
     S().spineVersion += 1;
-    const baseline = newBaseline("imported", "0.0");
+    const baseline = newBaseline("imported", "0.1");
     S().baselines.push(baseline);
-    addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true });
+    addVersion({ version: "0.1", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true });
     setImportStatus("checking");
     S().finalizeJob = "check";
     return;
@@ -549,7 +549,7 @@ export const mode1Handlers = [
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
       const name = file.name;
       if (/other-project/i.test(name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.3", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
       }
       const issues =
         /\.doc$/i.test(name)
@@ -605,7 +605,7 @@ export const mode1Handlers = [
         import: S().importDoc,
         profile: S().profile,
         extraction: { sections: S().sections, review_fields: S().reviewFields.filter((f) => !f.confirmed) },
-        blocks_count: S().blocks.get("0.0")?.length ?? 0,
+        blocks_count: S().blocks.get("0.1")?.length ?? 0,
         credit_estimate: creditEstimate(),
       });
     }),
@@ -676,7 +676,7 @@ export const mode1Handlers = [
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
       // Đang chạy ⇒ không làm gì, trả trạng thái hiện tại
-      if (S().finalizeJob) return ok({ import: doc, doc_version: "0.0", baseline: null, spine_version: S().spineVersion, flags: null });
+      if (S().finalizeJob) return ok({ import: doc, doc_version: "0.1", baseline: null, spine_version: S().spineVersion, flags: null });
       if (doc.status !== "baselining") return invalidImportState("checking");
       const body = await readJson(request);
       const conflict = versionConflict(body.base_version);
@@ -684,7 +684,7 @@ export const mode1Handlers = [
       S().finalizedRecordOfChanges = (body.record_of_changes as RocRow[] | undefined) ?? null;
       doc.paused = null;
       S().finalizeJob = "finalize";
-      return ok({ import: doc, doc_version: "0.0", baseline: null, spine_version: S().spineVersion, flags: null });
+      return ok({ import: doc, doc_version: "0.1", baseline: null, spine_version: S().spineVersion, flags: null });
     }),
   ),
 
@@ -712,7 +712,7 @@ export const mode1Handlers = [
       const flags = [...(S().redFlags > 0 ? [redFlag()] : []), yellowFlag()];
       return ok({
         project_id: MODE1_PROJECT_ID,
-        doc_version: "0.0",
+        doc_version: "0.1",
         generated_at: now(),
         totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1, unrendered_diagrams: 1 },
         missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
@@ -754,7 +754,7 @@ export const mode1Handlers = [
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
       if (/other-project/i.test(file.name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.3", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
       }
       const diff = {
         id: `66f00000000000000000r${String(S().reuploads.length + 1).padStart(3, "0")}`,
@@ -959,13 +959,18 @@ export const mode1Handlers = [
       const found = hits.length ? hits : S().elements.filter((e) => e.path.startsWith("nfrs[")).slice(0, 1);
       const conflicts = lock(cr.cr_id, found.map((e) => e.path));
       if (conflicts.length) return pathLocked(conflicts);
+      // §4.17: có ứng viên vector ⇒ chúng THAY nguồn `keyword`. Vị trí đầu giả là trường hợp vừa có
+      // liên kết field vừa gần nghĩa (hợp đồng cho phép trùng) ⇒ không phải recall-only, chip để tông
+      // xám như cũ; các vị trí sau chỉ đến từ nghĩa.
+      const vector = S().vectorEnabled;
       d.locations = found.map((e, i): CrLocation => ({
         location_id: `L${String(i + 1).padStart(3, "0")}`,
         path: e.path,
         section_id: e.section_id,
         section_title: e.section_title,
         current_text: valueText(e.value),
-        found_by: ["keyword"],
+        found_by: vector ? (i === 0 ? ["spine_link", "vector"] : ["vector"]) : ["keyword"],
+        vector_score: vector ? Number((0.91 - i * 0.04).toFixed(2)) : null,
         entity_paths: [],
         owner_step: null,
         conclusion: null,

@@ -1,6 +1,6 @@
 /**
  * Version tài liệu + release mode 1 — bám `flintflow_be/src/modules/doc-version/doc-version.dto.ts` (FLF-171).
- * Import `0.0`; mỗi CR ghi xong lên minor (`0.1`…); release lên major (`1.0`…).
+ * Import `0.1`; mỗi CR ghi xong lên minor (`0.2`…); release lên major (`1.0`…).
  */
 import type { BlockDiffEntry, BlockDiffSummary } from "./import";
 import type { Baseline, IsoDateTime } from "./spine";
@@ -16,15 +16,15 @@ export interface DocVersion {
   has_clean_file: boolean;
   /** Mode 1 v3 (BPMN 3.14): có bản Track Changes của CR — tải qua `variant=tracked`. */
   has_tracked_file: boolean;
-  /** Có file gốc người dùng upload (bản import 0.0 — FLF-184), tải qua `variant=original`. */
+  /** Có file gốc người dùng upload (bản import 0.1 — FLF-184), tải qua `variant=original`. */
   has_original_file: boolean;
   created_by: string;
   created_at: IsoDateTime;
 }
 
 /**
- * `auto`: release ⇒ bản sạch, draft ⇒ Track Changes + DRAFT (bản 0.0 là bản render từ Spine — FLF-184).
- * `tracked`: luôn bản có Track Changes. `original`: file người dùng upload (chỉ bản 0.0).
+ * `auto`: release ⇒ bản sạch, draft ⇒ Track Changes + DRAFT (bản 0.1 là bản render từ Spine — FLF-184).
+ * `tracked`: luôn bản có Track Changes. `original`: file người dùng upload (chỉ bản 0.1).
  */
 export type DownloadVariant = "auto" | "tracked" | "original";
 

@@ -223,8 +223,11 @@ export default function FlagsPanel({
       <span className={className}>{sectionName(flag.section_id)}</span>
     );
 
-  /** Mũi tên › ở cuối dòng: cả dòng bấm được để mở bước, nút này là đích bàn phím / trình đọc màn hình. */
-  const chevron = (stepId: string) =>
+  /**
+   * Mũi tên › ở cuối dòng: cả dòng bấm được để mở bước, nút này là đích bàn phím / trình đọc màn hình. `label`: tên nút
+   * trùng chữ người thấy trên dòng ("Duyệt lại ở …") để trình đọc màn hình / getByRole tìm được (E2E FAP #15).
+   */
+  const chevron = (stepId: string, label = `Mở bước ${stepLabel(stepId)} (${stepId})`) =>
     onSelectStep && (
       <button
         type="button"
@@ -232,7 +235,7 @@ export default function FlagsPanel({
           e.stopPropagation();
           onSelectStep(stepId);
         }}
-        aria-label={`Mở bước ${stepLabel(stepId)} (${stepId})`}
+        aria-label={label}
         className="shrink-0 w-6 h-6 grid place-items-center rounded-inner text-on-surface-subtle group-hover/row:text-primary cursor-pointer"
       >
         <Icon name="caret-right" size={14} />
@@ -317,7 +320,7 @@ export default function FlagsPanel({
                 <span onClick={(e) => e.stopPropagation()}>{waiveLink(flag)}</span>
               </span>
             </div>
-            {chevron(flag.remediation_step)}
+            {chevron(flag.remediation_step, isSectionLevelRule(flag.rule_id) ? `Duyệt lại ở ${stepLabel(flag.remediation_step)}` : undefined)}
           </li>
         );
       }
