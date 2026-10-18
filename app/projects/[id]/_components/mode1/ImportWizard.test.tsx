@@ -55,8 +55,8 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     fireEvent.change(value, { target: { value: "system" } });
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.0" }));
-    // Xong baseline 0.0 ⇒ sang màn Tài liệu & version, popup gap report mở sẵn
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.1" }));
+    // Xong baseline 0.1 ⇒ sang màn Tài liệu & version, popup gap report mở sẵn
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
     expect(mode1State.mode1State.reviewFields[0]).toMatchObject({ confirmed: true, edited_value: "system" });
     expect(mode1State.mode1State.project.import_state).toBe("gap_review");
@@ -71,10 +71,10 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
 
     expect(await screen.findByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Mô tả dòng 1"), { target: { value: "Tạo tài liệu (bản đầu)" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tạo baseline 0.0" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tạo baseline 0.1" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
     expect(mode1State.mode1State.finalizedRecordOfChanges).toEqual([
-      { date: "01/05/2026", version: "0.1", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu (bản đầu)" },
+      { date: "01/05/2026", version: "0.2", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu (bản đầu)" },
     ]);
   });
 
@@ -89,7 +89,7 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     expect(screen.queryByRole("radio")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
-    expect(await screen.findByRole("button", { name: "Tạo baseline 0.0" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Tạo baseline 0.1" })).toBeInTheDocument();
     expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Tiếng Việt");
   });
 
@@ -113,7 +113,7 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     fireEvent.click(start);
     expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
-    const baseline = await screen.findByRole("button", { name: "Tạo baseline 0.0" });
+    const baseline = await screen.findByRole("button", { name: "Tạo baseline 0.1" });
     expect(screen.getByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeInTheDocument();
 
     // Giữ import ở `checking`: finalize đẩy trạng thái rồi trả lỗi conflict ⇒ wizard đọc lại, không chuyển trang
@@ -145,13 +145,13 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     for (let i = 0; i < 50 && (await getImport(P)).data!.import!.status === "extracting"; i++);
     await patchFields(P, { import_id: id, confirm_all: true });
     renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={60_000} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.0" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.1" }));
     expect(await screen.findByText("Đang tạo bản gốc và kiểm tra tài liệu…")).toBeInTheDocument();
     expect(screen.getByText(/có thể rời trang, việc vẫn chạy tiếp/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Tạo baseline 0.0" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo baseline 0.1" })).not.toBeInTheDocument();
     expect(screen.queryByText(/dòng lịch sử thay đổi từ file/)).not.toBeInTheDocument();
     // lần đọc lại ngay sau #8 đã qua chặng tạo bản gốc (mock chạy một chặng mỗi lần đọc) ⇒ đang kiểm tra, vẫn poll
-    expect(screen.getByText(/Đã tạo bản gốc 0.0, đang kiểm tra/)).toBeInTheDocument();
+    expect(screen.getByText(/Đã tạo bản gốc 0.1, đang kiểm tra/)).toBeInTheDocument();
     expect(mode1State.mode1State.importDoc?.status).toBe("checking");
     expect(push).not.toHaveBeenCalled();
   });
@@ -159,11 +159,11 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
   it("1.11 hết credit trong job nền ⇒ dừng ở checking, banner kiểm tra; nạp rồi Tiếp tục ⇒ sang gap report", async () => {
     fireEvent.click(await uploadAndMap());
     fireEvent.click(await screen.findByRole("button", { name: "Xác nhận tất cả field" }));
-    const create = await screen.findByRole("button", { name: "Tạo baseline 0.0" });
+    const create = await screen.findByRole("button", { name: "Tạo baseline 0.1" });
     mode1State.mode1State.credits = 0;
     fireEvent.click(create);
     expect(await screen.findByText(/Kiểm tra đang tạm dừng — hết credit/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Tạo baseline 0.0" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tạo baseline 0.1" })).not.toBeInTheDocument();
     expect(mode1State.mode1State.importDoc?.status).toBe("checking");
     mode1State.mode1State.credits = 100;
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
@@ -175,7 +175,7 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
     fireEvent.click(await uploadAndMap());
     fireEvent.click(await screen.findByRole("button", { name: "Xác nhận tất cả field" }));
     mode1State.mode1State.failNextFinalize = true;
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.0" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.1" }));
     expect(await screen.findByText(/Tạo bản gốc đang tạm dừng — bị gián đoạn/)).toBeInTheDocument();
     expect(screen.getByText(/dữ liệu đã được đưa về như trước bước này/)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
