@@ -32,7 +32,7 @@ beforeEach(() => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-/** Import xong + một CR ghi vào tài liệu ⇒ có 0.0 và 0.1. */
+/** Import xong + một CR ghi vào tài liệu ⇒ có 0.1 và 0.1. */
 const withRevision = async () => {
   await importToGapReview();
   const detail = await crToReview();
@@ -46,7 +46,7 @@ describe("GapReportView (UC-23)", () => {
     const onChanged = vi.fn();
     renderWithIntl(<GapReportView projectId={P} projectName="Lumen" onChanged={onChanged} />);
 
-    expect(await screen.findByText("Gap report — bản 0.0")).toBeInTheDocument();
+    expect(await screen.findByText("Gap report — bản 0.1")).toBeInTheDocument();
     expect(screen.getByText(/Mục 5.3 Application Messages List bắt buộc/)).toBeInTheDocument();
     expect(screen.getByText("Phụ lục B — Biên bản họp")).toBeInTheDocument();
 
@@ -67,7 +67,7 @@ describe("GapReportView (UC-23)", () => {
   it("gapReportPrefill chỉ liệt kê cờ đỏ trên nội dung đã có — bỏ section_empty và mục thiếu (mục thiếu có CR riêng — missingSectionsPrefill)", () => {
     const text = gapReportPrefill({
       project_id: P,
-      doc_version: "0.0",
+      doc_version: "0.1",
       generated_at: "",
       totals: { red: 2, yellow: 0, missing_sections: 1, unmapped_headings: 0, low_confidence_fields: 0, missing_fpt_sections: 1, unrendered_diagrams: 0 },
       missing_fpt_sections: [{ section_id: "fixed:3.1.1", title: "Screens Flow", step_id: "S-4.2", in_layout: false }],
@@ -91,7 +91,7 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
   it("còn cờ đỏ ⇒ Release bị khoá kèm lý do", async () => {
     await importToGapReview();
     const versions = (await listVersions(P)).data!;
-    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={1} selected="0.0" onSelect={vi.fn()} onReleased={vi.fn()} />);
+    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={1} selected="0.1" onSelect={vi.fn()} onReleased={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Release" })).toBeDisabled();
     expect(screen.getByText(/Còn 1 cờ đỏ/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tải bản render (DRAFT)" })).toBeEnabled();
@@ -102,7 +102,7 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
     const versions = await withRevision();
     mode1State.mode1State.redFlags = 0;
     const onReleased = vi.fn();
-    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.1" onSelect={vi.fn()} onReleased={onReleased} />);
+    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.2" onSelect={vi.fn()} onReleased={onReleased} />);
 
     expect(screen.getByRole("button", { name: "Tải bản nháp (DRAFT)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tải bản có đánh dấu" })).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
 
   it("BE vẫn chặn (422 RELEASE_RED_FLAGS_OPEN) ⇒ hiện danh sách cờ chặn", async () => {
     const versions = await withRevision();
-    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.1" onSelect={vi.fn()} onReleased={vi.fn()} />);
+    renderWithIntl(<VersionsPanel projectId={P} versions={versions} redOpen={0} selected="0.2" onSelect={vi.fn()} onReleased={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Release" }));
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận release" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/Mục 5.3 Application Messages List/);
@@ -122,11 +122,11 @@ describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
 });
 
 describe("VersionCompare (UC-55) và ReuploadDiffView (UC-24)", () => {
-  it("so sánh 0.0 → 0.1 liệt kê block sửa", async () => {
+  it("so sánh 0.1 → 0.2 liệt kê block sửa", async () => {
     const versions = await withRevision();
     renderWithIntl(<VersionCompare projectId={P} versions={versions} />);
     fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
-    expect(await screen.findByText(/0.0 → 0.1: 0 thêm · 0 xoá · 1 sửa/)).toBeInTheDocument();
+    expect(await screen.findByText(/0.1 → 0.2: 0 thêm · 0 xoá · 1 sửa/)).toBeInTheDocument();
   });
 
   it("tải lại file ⇒ diff, không tạo version, nút tạo CR nguồn reupload", async () => {

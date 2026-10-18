@@ -48,7 +48,7 @@ describe("ChangeRequestForm (UC-48)", () => {
 });
 
 describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
-  it("làm rõ (hỏi lại) → trả lời → tìm vị trí + khoá → đề xuất → kiểm → nộp → duyệt ⇒ ghi bản 0.1", async () => {
+  it("làm rõ (hỏi lại) → trả lời → tìm vị trí + khoá → đề xuất → kiểm → nộp → duyệt ⇒ ghi bản 0.2", async () => {
     const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
@@ -71,7 +71,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     fireEvent.change(await screen.findByLabelText(/^Lý do duyệt /), { target: { value: "Đúng yêu cầu của khách" } });
     await click("Xác nhận duyệt");
 
-    expect(await screen.findByText(/vào bản 0.1/)).toBeInTheDocument();
+    expect(await screen.findByText(/vào bản 0.2/)).toBeInTheDocument();
     expect(S().crs.get("CR-001")!.change_request.status).toBe("written");
     expect(S().locks.size).toBe(0);
   });

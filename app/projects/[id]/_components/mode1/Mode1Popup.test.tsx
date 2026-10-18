@@ -26,7 +26,7 @@ vi.mock("../../hooks/mode1/useDocVersions", () => ({
   useDocVersions: (_projectId: string, options: { redFlags?: boolean } = {}) => {
     docsOptions.push(options);
     return {
-      versions: docsLoading ? [] : [{ version: "1.0" }, { version: "0.0" }],
+      versions: docsLoading ? [] : [{ version: "1.0" }, { version: "0.1" }],
       redOpen: null,
       loading: docsLoading,
       error: null,

@@ -51,7 +51,7 @@ const rejectForeignOnce = () => {
 const DIFF: ReuploadDiff = {
   id: "66f00000000000000000r001",
   original_name: "SRS_sua.docx",
-  against_version: "0.1",
+  against_version: "0.2",
   created_at: "2026-09-19T00:00:00.000Z",
   summary: { added: 1, removed: 1, modified: 1, moved: 1 },
   blocks: [
@@ -83,7 +83,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     pick("SRS_sua.docx");
     expect(await screen.findByText(/1 thêm · 0 xoá · 1 sửa · 0 di chuyển/)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(mode1State.mode1State.versions.map((v) => v.version)).toEqual(["0.0"]);
+    expect(mode1State.mode1State.versions.map((v) => v.version)).toEqual(["0.1"]);
   });
 
   it("chưa có baseline ⇒ hiện lỗi BE (IMPORT_INVALID_STATE)", async () => {
@@ -136,7 +136,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     await waitFor(() => expect(sent).not.toBeNull());
     expect(typeof sent).toBe("object");
     expect(screen.getByText("SRS_sua.docx")).toBeInTheDocument();
-    expect(screen.getByText(/so với bản 0.1/)).toBeInTheDocument();
+    expect(screen.getByText(/so với bản 0.2/)).toBeInTheDocument();
     expect(readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams)).toEqual({
       ...reuploadPrefill(DIFF),
       source: "reupload",
@@ -150,7 +150,7 @@ describe("reuploadPrefill", () => {
     const { title, description } = reuploadPrefill(DIFF);
     expect(title).toBe("Cập nhật theo file SRS_sua.docx");
     expect(description.split("\n")).toEqual([
-      "Áp các thay đổi trong file tải lại SRS_sua.docx (so với bản 0.1):",
+      "Áp các thay đổi trong file tải lại SRS_sua.docx (so với bản 0.2):",
       "- Thêm: NFR-P03: 500 learners.",
       '- Xoá: "[SmartArt]"',
       '- Sửa: "quickly" → "within 2 seconds"',

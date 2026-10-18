@@ -30,7 +30,7 @@ interface VersionsPanelProps {
 }
 
 /**
- * Version & release (Flow 6, UC-57): `0.0` import → `0.x` sau mỗi CR (Track Changes + DRAFT) → `x.0` release
+ * Version & release (Flow 6, UC-57): `0.1` import → `0.x` sau mỗi CR (Track Changes + DRAFT) → `x.0` release
  * (bản sạch). Release bị khoá khi còn cờ đỏ (BR-04, mode 1 không waive) — BE vẫn chặn lần nữa.
  */
 export default function VersionsPanel({ projectId, projectName, versions, redOpen, selected, onSelect, onReleased, readOnly = false }: VersionsPanelProps) {

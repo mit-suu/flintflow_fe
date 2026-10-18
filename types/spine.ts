@@ -320,7 +320,7 @@ export type BaselineType = "generated" | "imported" | "release";
 
 export interface Baseline {
   id: string;
-  /** Mode 2: `v1.0`, `v1.1`… Mode 1: `0.0`, `1.0`… Mức `-conditional` đã bỏ (BR-04: cờ đỏ không waive được). */
+  /** Mode 2: `v1.0`, `v1.1`… Mode 1: `0.1`, `1.0`… Mức `-conditional` đã bỏ (BR-04: cờ đỏ không waive được). */
   version: string;
   type: BaselineType;
   /** Mode 1: version tài liệu baseline chụp; mode 2 luôn `null`. */

@@ -72,7 +72,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
                   : "border-transparent text-[#8A867E] hover:text-[#191817]"
             }`;
             return disabled ? (
-              <span key={tab.id} className={className} title="Cần hoàn tất import (baseline 0.0) trước" aria-disabled="true">
+              <span key={tab.id} className={className} title="Cần hoàn tất import (baseline 0.1) trước" aria-disabled="true">
                 {tab.label}
               </span>
             ) : (
