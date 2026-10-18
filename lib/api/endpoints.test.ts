@@ -203,8 +203,21 @@ const cases: EndpointCase[] = [
     post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
   ],
   ["replyComment", () => comments.replyComment("p1", "CM-001", "Đồng ý"), "/projects/p1/comments/CM-001/replies", post({ text: "Đồng ý" })],
-  ["resolveComment", () => comments.resolveComment("p1", "CM-001"), "/projects/p1/comments/CM-001/resolve", post()],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
+  ["submitBaseline", () => exportApi.submitBaseline("p1", 12), "/projects/p1/baseline/submit", post({ base_version: 12 })],
+  [
+    "rejectBaseline",
+    () => exportApi.rejectBaseline("p1", 12, "Thiếu luồng huỷ", ["CM-001"]),
+    "/projects/p1/baseline/reject",
+    post({ base_version: 12, reason: "Thiếu luồng huỷ", comment_ids: ["CM-001"] }),
+  ],
+  [
+    "createComment (ghim cả section)",
+    () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+    "/projects/p1/comments",
+    post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+  ],
+  ["resolveComment", () => comments.resolveComment("p1", "CM-001", { kind: "fixed" }), "/projects/p1/comments/CM-001/resolve", post({ kind: "fixed" })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],
   ["fetchUnreadCount", () => notifications.fetchUnreadCount(), "/notifications/unread-count"],
   [
@@ -270,9 +283,9 @@ const cases: EndpointCase[] = [
   ],
   // ─── mode 1: version + release (#12, #13, #15, #31) ───
   ["listVersions", () => versions.listVersions("p1"), "/projects/p1/versions"],
-  ["getVersionBlocks", () => versions.getVersionBlocks("p1", "0.1"), "/projects/p1/versions/0.1/blocks"],
-  ["getVersionBlocks (mã hoá version)", () => versions.getVersionBlocks("p1", "0.1/x"), "/projects/p1/versions/0.1%2Fx/blocks"],
-  ["compareVersions", () => versions.compareVersions("p1", "0.0", "0.1"), "/projects/p1/versions/compare?from=0.0&to=0.1"],
+  ["getVersionBlocks", () => versions.getVersionBlocks("p1", "0.2"), "/projects/p1/versions/0.2/blocks"],
+  ["getVersionBlocks (mã hoá version)", () => versions.getVersionBlocks("p1", "0.2/x"), "/projects/p1/versions/0.2%2Fx/blocks"],
+  ["compareVersions", () => versions.compareVersions("p1", "0.1", "0.2"), "/projects/p1/versions/compare?from=0.1&to=0.2"],
   ["releaseDocument", () => versions.releaseDocument("p1", 12), "/projects/p1/release", post({ base_version: 12 })],
   // ─── mode 1: change request (#16–#30) ───
   [
@@ -281,11 +294,11 @@ const cases: EndpointCase[] = [
       changeRequests.createCr("p1", {
         title: "T",
         description: "D",
-        source: { kind: "gap_report", ref: "gap-report 0.0", note: null },
+        source: { kind: "gap_report", ref: "gap-report 0.1", note: null },
         requester: "PM Lan",
       }),
     "/projects/p1/change-requests",
-    post({ title: "T", description: "D", source: { kind: "gap_report", ref: "gap-report 0.0", note: null }, requester: "PM Lan" }),
+    post({ title: "T", description: "D", source: { kind: "gap_report", ref: "gap-report 0.1", note: null }, requester: "PM Lan" }),
   ],
   ["listCrs", () => changeRequests.listCrs("p1"), "/projects/p1/change-requests"],
   ["listCrs (lọc trạng thái)", () => changeRequests.listCrs("p1", "in_review"), "/projects/p1/change-requests?status=in_review"],
@@ -482,24 +495,24 @@ describe("lib/api wrappers", () => {
   it("downloadVersion: mặc định variant=auto; tracked khi yêu cầu", async () => {
     vi.mocked(authFetch).mockImplementation(async () => new Response("docx", { status: 200 }));
 
-    await versions.downloadVersion("p1", "0.2");
+    await versions.downloadVersion("p1", "0.3");
     await versions.downloadVersion("p1", "1.0", "tracked");
 
     expect(vi.mocked(authFetch).mock.calls.map((c) => c[0])).toEqual([
-      "/projects/p1/versions/0.2/download?variant=auto",
+      "/projects/p1/versions/0.3/download?variant=auto",
       "/projects/p1/versions/1.0/download?variant=tracked",
     ]);
   });
 
   it("fetchFile lỗi ⇒ ApiClientError mang code/meta của envelope; body không phải JSON ⇒ DOWNLOAD_FAILED", async () => {
     vi.mocked(authFetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { code: "DOC_VERSION_NOT_FOUND", message: "Không có version 0.9" }, meta: { version: "0.9" } }), {
+      new Response(JSON.stringify({ error: { code: "DOC_VERSION_NOT_FOUND", message: "Không có version 0.10" }, meta: { version: "0.10" } }), {
         status: 404,
       })
     );
-    const failed = files.fetchFile("/projects/p1/versions/0.9/download?variant=auto");
+    const failed = files.fetchFile("/projects/p1/versions/0.10/download?variant=auto");
     await expect(failed).rejects.toBeInstanceOf(ApiClientError);
-    await expect(failed).rejects.toMatchObject({ status: 404, code: "DOC_VERSION_NOT_FOUND", meta: { version: "0.9" } });
+    await expect(failed).rejects.toMatchObject({ status: 404, code: "DOC_VERSION_NOT_FOUND", meta: { version: "0.10" } });
 
     vi.mocked(authFetch).mockResolvedValueOnce(new Response("<html>", { status: 502 }));
     await expect(files.fetchFile("/x")).rejects.toMatchObject({

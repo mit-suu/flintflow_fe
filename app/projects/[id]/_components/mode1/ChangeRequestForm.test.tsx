@@ -137,7 +137,7 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
     renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "T", description: "D", source: "verbal" }} onCreated={onCreated} onCancel={vi.fn()} />);
     type("Người yêu cầu *", "PM Lan");
     submit();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Cần hoàn tất import (baseline 0.0) trước khi tạo change request.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cần hoàn tất import (baseline 0.1) trước khi tạo change request.");
     expect(onCreated).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Tạo change request" })).toBeEnabled();
   });
@@ -158,12 +158,12 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
     await importToGapReview();
     const onCreated = vi.fn();
     const onCancel = vi.fn();
-    renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "Sửa theo gap report", description: "- Thiếu mục 5.3", source: "gap_report", ref: "gap-report 0.0" }} onCreated={onCreated} onCancel={onCancel} />);
+    renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "Sửa theo gap report", description: "- Thiếu mục 5.3", source: "gap_report", ref: "gap-report 0.1" }} onCreated={onCreated} onCancel={onCancel} />);
     type("Người yêu cầu *", "PM Lan");
     submit();
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(mode1State.mode1State.crs.get("CR-001")?.change_request).toMatchObject({
-      source: { kind: "gap_report", ref: "gap-report 0.0" },
+      source: { kind: "gap_report", ref: "gap-report 0.1" },
       requester: "PM Lan",
     });
 

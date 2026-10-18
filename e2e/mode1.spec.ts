@@ -122,14 +122,14 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   await expect(page.getByRole("progressbar")).toBeVisible({ timeout: 30_000 });
   await snap(page, "extracting");
   const fields = page.getByRole("button", { name: "Xác nhận tất cả field" });
-  const baseline = page.getByRole("button", { name: "Tạo baseline 0.0" });
+  const baseline = page.getByRole("button", { name: "Tạo baseline 0.1" });
   const pausedBanner = page.getByText(/đang tạm dừng/);
   const afterExtract = await firstVisible(page, [fields, baseline, pausedBanner], AI_TIMEOUT);
   await snap(page, "after-extract");
   expect(afterExtract, "I-4 không được dừng giữa chừng").not.toBe(2);
   if (afterExtract === 0) await fields.click();
 
-  // ── 4. Baseline 0.0 ⇒ gap report (1.10–1.13) ───────────────────────────────────────
+  // ── 4. Baseline 0.1 ⇒ gap report (1.10–1.13) ───────────────────────────────────────
   await baseline.click({ timeout: 60_000 });
   await page.waitForURL(/\/gap-report$/, { timeout: AI_TIMEOUT });
   await expect(page.getByText(/Gap report — bản 0\.0/)).toBeVisible({ timeout: 30_000 });
@@ -147,7 +147,7 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   expect(await visible(flagsPanel.getByRole("button", { name: "Waive" })), "mode 1 v3 không waive").toBe(false);
   await snap(page, "workspace");
 
-  // Bản 0.0 giữ được file gốc người dùng upload (FLF-184)
+  // Bản 0.1 giữ được file gốc người dùng upload (FLF-184)
   const original = page.getByRole("button", { name: "Tải file gốc" });
   if (await visible(original)) console.log(`[e2e] file gốc: ${await saveDownload(page, () => original.first().click())}`);
 

@@ -39,7 +39,7 @@ import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/ty
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
-import type { CreateCommentRequest, SrsComment } from "@/types/comment";
+import type { CommentResolutionInput, CreateCommentRequest, SrsComment } from "@/types/comment";
 import {
   countersOf,
   MOCK_SESSION_ID,
@@ -694,6 +694,8 @@ export const handlers = [
   http.get(api("/projects/:projectId/spine"), () => ok(mockState.spine)),
   http.get(api("/projects/:projectId/progress"), () => ok(progressOf(mockState))),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
+  // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
+  http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),
 
   http.get(api("/projects/:projectId/steps"), () => {
     const response: StepsResponse = {
@@ -973,13 +975,14 @@ export const handlers = [
     const section = buildMockDocument(mockState).sections.find((s) => s.id === body.anchor.section_id);
     if (!section) return fail(422, "COMMENT_ANCHOR_NOT_FOUND", "Nội dung được ghim không tồn tại trong phiên bản này.");
     const heading = [section.number, section.heading].filter(Boolean).join(" ");
+    const blockIndex = body.anchor.block_index ?? null;
     const comment: SrsComment = {
       comment_id: `CM-${String(mockComments.length + 1).padStart(3, "0")}`,
       version: { source: body.version.source, baseline_id: body.version.baseline_id ?? null, label: body.version.source === "draft" ? "draft" : "v1.0" },
       anchor: {
         section_id: section.id,
-        block_index: body.anchor.block_index,
-        label: body.anchor.block_index === null ? heading : `${heading} › Block ${body.anchor.block_index + 1}`,
+        block_index: blockIndex,
+        label: blockIndex === null ? heading : `${heading} › Block ${blockIndex + 1}`,
         excerpt: null,
       },
       author: mockCommentAuthor(),
@@ -989,6 +992,7 @@ export const handlers = [
       cr_id: null,
       handled_by: null,
       handled_at: null,
+      resolution: null,
       replies: [],
       created_at: new Date().toISOString(),
     };
@@ -1002,11 +1006,17 @@ export const handlers = [
     comment.replies = [...comment.replies, { author: mockCommentAuthor(), author_role: "lead", text, at: new Date().toISOString() }];
     return ok(comment, { status: 201 });
   }),
-  http.post(api("/projects/:projectId/comments/:commentId/resolve"), ({ params }) => {
+  http.post(api("/projects/:projectId/comments/:commentId/resolve"), async ({ params, request }) => {
     const comment = mockComments.find((c) => c.comment_id === params.commentId);
     if (!comment) return fail(404, "COMMENT_NOT_FOUND", "Không tìm thấy comment.");
     if (comment.status !== "open") return fail(409, "COMMENT_NOT_OPEN", "Comment đã được xử lý.");
-    Object.assign(comment, { status: "resolved", handled_by: mockCommentAuthor(), handled_at: new Date().toISOString() });
+    const { kind, reason } = (await request.json()) as CommentResolutionInput;
+    Object.assign(comment, {
+      status: "resolved",
+      handled_by: mockCommentAuthor(),
+      handled_at: new Date().toISOString(),
+      resolution: { kind, reason: kind === "kept" ? (reason ?? null) : null },
+    });
     return ok(comment);
   }),
 ];

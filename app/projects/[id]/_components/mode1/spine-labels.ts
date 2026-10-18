@@ -144,16 +144,55 @@ export const sectionTitle = (sectionId: string | null | undefined, title?: strin
 
 const BOOLEAN_TEXT = { true: "Có", false: "Không" } as const;
 
+type NamedCollection = "actors" | "roles" | "features" | "screens" | "functions" | "use_cases";
+
+/** Tên phần tử theo mã, từng bộ sưu tập: `{ actors: { A01: "Lecturer" } }`. */
+export type RefNames = Partial<Record<NamedCollection, Readonly<Record<string, string>>>>;
+
+/** Field tham chiếu ⇒ bộ sưu tập chứa phần tử được trỏ tới. */
+const REF_FIELDS: Readonly<Record<string, NamedCollection>> = {
+  actor_id: "actors",
+  actor_ids: "actors",
+  role_id: "roles",
+  feature_id: "features",
+  screen_id: "screens",
+  flow_to: "screens",
+  function_ids: "functions",
+  primary_function_id: "functions",
+  includes: "use_cases",
+  extends: "use_cases",
+};
+
+/** Bảng tên từ Spine — để giá trị tham chiếu hiện "Lecturer" thay vì "A01" (FLF-297). */
+export const refNames = (spine: Partial<Record<NamedCollection, { id: string; name: string }[]>> | null | undefined): RefNames => {
+  if (!spine) return {};
+  const out: RefNames = {};
+  for (const col of Object.values(REF_FIELDS)) {
+    out[col] ??= Object.fromEntries((spine[col] ?? []).filter((e) => e.name).map((e) => [e.id, e.name]));
+  }
+  return out;
+};
+
+/** Mã trong field tham chiếu ⇒ tên; không tìm thấy (phần tử mới thêm cùng lô) ⇒ giữ mã. */
+export const resolveRefs = (field: string | undefined, value: unknown, names: RefNames | undefined): unknown => {
+  const table = field && names ? names[REF_FIELDS[field]] : undefined;
+  if (!table) return value;
+  const name = (id: unknown) => (typeof id === "string" && table[id]) || id;
+  return Array.isArray(value) ? value.map(name) : name(value);
+};
+
 /** Giá trị Spine ⇒ chữ đọc được (không JSON): mảng nối ", ", object "Tên: …; Mô tả: …", rỗng "—". */
-export const readableValue = (value: unknown): string => {
+export const readableValue = (value: unknown, names?: RefNames): string => {
   if (value === undefined || value === null || value === "") return "—";
   if (typeof value === "string") return value;
   if (typeof value === "boolean") return BOOLEAN_TEXT[String(value) as "true" | "false"];
   if (typeof value === "number") return String(value);
-  if (Array.isArray(value)) return value.length ? value.map(readableValue).join(", ") : "—";
+  if (Array.isArray(value)) return value.length ? value.map((v) => readableValue(v, names)).join(", ") : "—";
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>).filter(([k]) => !k.startsWith("_"));
-    return entries.length ? entries.map(([k, v]) => `${fieldLabel(k)}: ${readableValue(v)}`).join("; ") : "—";
+    return entries.length
+      ? entries.map(([k, v]) => `${fieldLabel(k)}: ${readableValue(resolveRefs(k, v, names), names)}`).join("; ")
+      : "—";
   }
   return String(value);
 };

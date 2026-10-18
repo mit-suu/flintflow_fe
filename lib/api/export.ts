@@ -2,7 +2,7 @@
  * Dựng tài liệu, export Word và baseline — theo danh sách endpoint T08; chốt payload ở T16.
  */
 import type { DocumentSource, RenderedDocument } from "@/types/document";
-import type { Baseline } from "@/types/spine";
+import type { Baseline, BaselineSubmission } from "@/types/spine";
 import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
 
 /**
@@ -119,4 +119,26 @@ export const createBaseline = (projectId: string, baseVersion: number) =>
   apiCall<Baseline>(`/projects/${projectId}/baseline`, {
     method: "POST",
     body: JSON.stringify({ base_version: baseVersion }),
+  });
+
+/**
+ * UC-45 — Analyst gửi Lead duyệt. Chưa khoá baseline, chỉ đặt `spine.baseline_submission` sang `pending`.
+ * Lỗi riêng cần xử ở nơi gọi: `422 BASELINE_BLOCKED` (`meta.flags[]`), `422 REJECTION_COMMENTS_OPEN`
+ * (`meta.comment_ids[]` — lượt từ chối trước còn góp ý chưa xử lý), `409 BASELINE_ALREADY_SUBMITTED`.
+ */
+export const submitBaseline = (projectId: string, baseVersion: number) =>
+  apiCall<BaselineSubmission>(`/projects/${projectId}/baseline/submit`, {
+    method: "POST",
+    body: JSON.stringify({ base_version: baseVersion }),
+  });
+
+/**
+ * UC-46 luồng thay thế — Lead từ chối. `business-flow.md §3.5` đòi **cả** lý do **và** comment ghim, nên
+ * `commentIds` là mảng không rỗng ngay ở kiểu: từ chối bằng mỗi câu lý do thì Analyst không biết sửa chỗ
+ * nào và không bước nào được mở lại.
+ */
+export const rejectBaseline = (projectId: string, baseVersion: number, reason: string, commentIds: readonly [string, ...string[]]) =>
+  apiCall<BaselineSubmission>(`/projects/${projectId}/baseline/reject`, {
+    method: "POST",
+    body: JSON.stringify({ base_version: baseVersion, reason, comment_ids: commentIds }),
   });

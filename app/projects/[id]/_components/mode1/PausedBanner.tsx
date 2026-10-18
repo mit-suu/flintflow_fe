@@ -14,7 +14,7 @@ interface PausedBannerProps {
   what: string;
   /**
    * Câu thay cho "AI lỗi, đã thử lại 2 lần" khi việc dừng không phải do AI (`resume_later` của job nền bị lỗi / gián đoạn,
-   * vd tạo bản gốc 0.0). Không áp cho hết credit.
+   * vd tạo bản gốc 0.1). Không áp cho hết credit.
    */
   interrupted?: string;
 }

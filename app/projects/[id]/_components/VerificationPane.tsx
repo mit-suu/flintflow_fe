@@ -1,10 +1,11 @@
-"use client";
+"useclient";
 
 import { useState, type ComponentProps } from "react";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import FlagsPanel from "./FlagsPanel";
 import ReadinessSummary from "./ReadinessSummary";
+import BaselineApprovalPanel from "./BaselineApprovalPanel";
 import type { Readiness } from "@/types/pipeline";
 import type { Flag } from "@/types/flags";
 import type { Spine } from "@/types/spine";
@@ -34,10 +35,15 @@ interface VerificationPaneProps {
   onRedraw?: (flag: Flag) => Promise<void> | void;
   /** Xác nhận / bác bỏ giả định ngay tại panel (BUG-13). */
   onAssumptionDecision?: (decision: { kind: "confirm" | "reject"; id: string }) => void;
+  /**
+   * Chốt baseline (UC-45/46/47) — không truyền ⇒ không hiện khối đó (mode 1 đi đường release riêng,
+   * trang xem read-only).
+   */
+  baseline?: ComponentProps<typeof BaselineApprovalPanel>;
   /** Nhãn mục, cuộn tới mục, lọc theo mục, nhóm "Mục cần viết lại" — chuyển thẳng cho `FlagsPanel`. */
   issues?: Pick<
     ComponentProps<typeof FlagsPanel>,
-    "sectionLabelOf" | "onShowSection" | "focusSectionId" | "onClearFocus" | "outdatedCount" | "onRewriteOutdated" | "rewriting" | "onEditSection" | "acceptedSteps"
+    "sectionLabelOf" | "onShowSection" | "focusSectionId" | "outdatedCount" | "onRewriteOutdated" | "rewriting" | "onEditSection" | "acceptedSteps"
   >;
 }
 
@@ -57,11 +63,12 @@ export default function VerificationPane({
   onRedraw,
   onAssumptionDecision,
   onConfirmAllAssumptions,
+  baseline,
   issues,
 }: VerificationPaneProps) {
   const [showTrace, setShowTrace] = useState(false);
   return (
-    <aside className="w-full h-full bg-surface-container rounded-l-dialog flex flex-col overflow-hidden" aria-label="Kiểm tra tài liệu">
+    <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label="Kiểm tra tài liệu">
       <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Icon name="shield-check" size={16} className="text-success" />
@@ -72,6 +79,7 @@ export default function VerificationPane({
 
       <div className="flex-1 overflow-y-auto ff-scroll p-4 space-y-3">
         <ReadinessSummary counts={readiness ? issueCounts(flags, issues?.outdatedCount ?? 0, issues?.acceptedSteps) : null} />
+        {baseline && <BaselineApprovalPanel {...baseline} />}
 
         {flagsLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-muted">

@@ -35,6 +35,14 @@ interface DocumentPaneProps {
   /** "Sửa mục này" trên từng mục — nhận nhãn mục (`§3.2 Actors`) để điền sẵn lệnh sửa vào ô chat. */
   onEditSection?: (sectionLabel: string) => void;
   /**
+   * "Góp ý" trên từng mục (UC-49): ghim lời nhắn vào mục, **không** đổi nội dung (BR-05) nên vẫn giữ
+   * nguyên tắc document pane read-only. Không truyền ⇒ không có nút (trang xem, mode 1).
+   */
+  onCommentSection?: (anchor: { sectionId: string; label: string }) => void;
+  /** Số góp ý đang mở của một mục — vẽ chấm số trên header mục, bấm mở panel Góp ý. */
+  commentCountOf?: (sectionId: string) => number;
+  onOpenSectionComments?: (sectionId: string) => void;
+  /**
    * Chip trạng thái duy nhất trên header: số vấn đề phải xử lý (cờ đỏ + mục cần viết lại) và số gợi ý (cờ vàng).
    * Bấm mở panel "Kiểm tra tài liệu".
    */
@@ -304,9 +312,16 @@ function SectionView({
   emptyHint,
   mode1 = false,
   onEdit,
+  onComment,
+  commentCount = 0,
+  onOpenComments,
   onRedraw,
 }: {
   onEdit?: (sectionLabel: string) => void;
+  onComment?: (sectionLabel: string) => void;
+  /** Số góp ý đang mở của mục này. */
+  commentCount?: number;
+  onOpenComments?: () => void;
   onRedraw?: () => Promise<void>;
   section: RenderedSection;
   projectId: string;
@@ -367,6 +382,29 @@ function SectionView({
               {issues.count}
             </button>
           )}
+          {commentCount > 0 && (
+            // Tông trung tính để không lẫn với chấm cờ đỏ/vàng ngay bên cạnh
+            <button
+              type="button"
+              onClick={onOpenComments}
+              disabled={!onOpenComments}
+              title="Xem góp ý của mục này"
+              className="flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant enabled:cursor-pointer disabled:cursor-default"
+            >
+              <Icon name="feedback" size={11} />
+              {commentCount}
+            </button>
+          )}
+          {onComment && (
+            // Ghim góp ý vào đúng mục đang đọc. Không đổi nội dung (BR-05) — document pane vẫn read-only
+            <button
+              type="button"
+              onClick={() => onComment(sectionLabel(section))}
+              className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
+            >
+              Góp ý
+            </button>
+          )}
           {onEdit && (
             // Hiện khi rê chuột / focus vào mục: sửa ngay chỗ đang đọc, lệnh gõ tiếp ở ô chat
             <button
@@ -402,6 +440,9 @@ export default function DocumentPane({
   emptyHintOf,
   mode1 = false,
   onEditSection,
+  onCommentSection,
+  commentCountOf,
+  onOpenSectionComments,
   issues,
   onOpenIssues,
   onOpenSectionIssues,
@@ -533,6 +574,9 @@ export default function DocumentPane({
               emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
               mode1={mode1}
               onEdit={onEditSection}
+              onComment={onCommentSection ? (label) => onCommentSection({ sectionId: section.id, label }) : undefined}
+              commentCount={commentCountOf?.(section.id) ?? 0}
+              onOpenComments={onOpenSectionComments ? () => onOpenSectionComments(section.id) : undefined}
               onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
             />
           ))}

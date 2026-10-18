@@ -1,8 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import type { PreviewResult } from "@/types/pipeline";
-import { pathLabel, readableValue, ruleLabel, sectionName, violationText } from "./mode1/spine-labels";
+import { useMemo, useState } from "react";
+import type { ChangeDiff, PreviewResult } from "@/types/pipeline";
+import type { Spine } from "@/types/spine";
+import {
+  pathLabel,
+  readableValue,
+  refNames,
+  resolveRefs,
+  ruleLabel,
+  sectionName,
+  violationText,
+  type RefNames,
+} from "./mode1/spine-labels";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
@@ -17,6 +27,8 @@ interface DiffPreviewModalProps {
   note?: string;
   /** Cho bấm xác nhận cả khi bản xem trước lỗi (mode 1 v3: vẫn tạo CR, chỉ không kèm bản xem trước). */
   confirmWhenInvalid?: boolean;
+  /** Spine hiện tại — đổi mã tham chiếu (`A01`) thành tên (`Lecturer`) trong bảng diff. */
+  spine?: Spine | null;
 }
 
 /** Nhánh xử lý của BE nói bằng lời dễ hiểu. */
@@ -26,13 +38,34 @@ const BRANCH_LABEL: Record<NonNullable<PreviewResult["branch"]>, string> = {
   post_baseline: "Sửa sau khi đã ký bản",
 };
 
-const short = (value: unknown): string => {
+const short = (value: unknown, field: string | undefined, names: RefNames): string => {
   if (value === undefined) return "—";
   if (value === null) return "—";
   if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return "(xoá)";
-  const text = readableValue(value);
+  const text = readableValue(resolveRefs(field, value, names), names);
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 };
+
+/** Field cuối của path: `use_cases[id=UC27].actor_ids` ⇒ `actor_ids`; path trỏ cả phần tử ⇒ undefined. */
+const lastField = (path: string): string | undefined => /\.([a-z_]+)$/.exec(path)?.[1];
+
+const isEmptyList = (v: unknown) => v === undefined || v === null || (Array.isArray(v) && v.length === 0);
+
+/**
+ * Use case sau lô sửa không gắn chức năng nào (thêm mới thiếu `function_ids`, hoặc xoá hết) — truy vết UC → chức năng
+ * (UC-78) sẽ hụt. Trả tên/mã để cảnh báo trước khi áp (FLF-297).
+ */
+const useCasesWithoutFunction = (changes: ChangeDiff[]): string[] =>
+  changes.flatMap((c) => {
+    if (c.op === "remove" || !c.path.startsWith("use_cases[")) return [];
+    const id = /^use_cases\[(?:id=)?([^\]]*)\]/.exec(c.path)?.[1];
+    if (/^use_cases\[[^\]]*\]$/.test(c.path)) {
+      const uc = c.value as Record<string, unknown> | null;
+      if (!uc || typeof uc !== "object" || !isEmptyList(uc.function_ids)) return [];
+      return [typeof uc.name === "string" && uc.name ? uc.name : id || "use case mới"];
+    }
+    return lastField(c.path) === "function_ids" && isEmptyList(c.value) ? [id || "use case"] : [];
+  });
 
 const RELATION_LABELS: Record<string, string> = { owner: "mục chứa", reads: "mục dùng tới", derived: "mục suy ra" };
 
@@ -46,8 +79,11 @@ export default function DiffPreviewModal({
   busyLabel = "Đang áp dụng…",
   note,
   confirmWhenInvalid = false,
+  spine,
 }: DiffPreviewModalProps) {
   const [reason, setReason] = useState("");
+  const names = useMemo(() => refNames(spine), [spine]);
+  const unlinkedUseCases = useCasesWithoutFunction(preview.changes);
   // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
   // để user bấm Xác nhận rồi ăn lỗi khó hiểu. Luồng CR (`confirmWhenInvalid`) không áp thẳng — lý do
   // không đi đâu ở bước này nên không hỏi, tránh bắt gõ một câu rồi âm thầm vứt đi.
@@ -119,12 +155,19 @@ export default function DiffPreviewModal({
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top" title={change.path}>
                       {pathLabel(change.path)}
                     </td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, lastField(change.path), names)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {unlinkedUseCases.length > 0 && (
+          <div role="alert" className="bg-[#FFF7E6] border border-[#F0DDB0] rounded-[12px] p-3 text-body text-[#8A6D1F]">
+            Use case {unlinkedUseCases.map((n) => `“${n}”`).join(", ")} chưa gắn chức năng nào. Sau khi áp dụng, phần truy
+            vết sẽ báo thiếu — nên nói rõ chức năng liên quan trong yêu cầu, hoặc bổ sung ngay sau đó.
           </div>
         )}
 

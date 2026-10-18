@@ -7,6 +7,9 @@ import { useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
 import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
+import type { BadgeTone } from "@/components/ui/Badge";
+import { createBaseline, rejectBaseline, submitBaseline } from "@/lib/api/export";
+import { userErrorMessage } from "@/lib/api/error-messages";
 import { friendlyError, type ErrorAction } from "@/lib/errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
@@ -43,7 +46,6 @@ import { DOCUMENT_LANGUAGE_NAME, knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } 
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
 import { submitGate } from "@/lib/api/pipeline";
-import { userErrorMessage } from "@/lib/api/error-messages";
 import type { TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
@@ -73,6 +75,9 @@ import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
 import { isPhaseUnit, unitOfStep, useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
+import { useComments } from "./hooks/useComments";
+import CommentsPanel from "./_components/CommentsPanel";
+import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comment";
 import { useTurnNotice } from "./hooks/useTurnNotice";
 
 /** Bề rộng cửa sổ — để biết có đủ chỗ cho rail tiến độ + chat + tài liệu + panel phải cùng lúc không. */
@@ -134,8 +139,14 @@ const PANEL_WIDTH_KEY = "flintflow_right_panel_width";
 const BRIEF_WIDTH_KEY = "flintflow_brief_panel_width";
 const CHAT_MIN = 320;
 const DOC_MIN = 320;
+/**
+ * Bề rộng pane tài liệu còn **đọc được**, khác `DOC_MIN` là mức tối thiểu kỹ thuật. Dưới mức này header
+ * của nó (tên · version · DRAFT · chip vấn đề · Làm mới) hết chỗ và các nhãn chồng lên nhau, nên khi cần
+ * nhường chỗ cho panel phải thì ẩn rail tiến độ trước chứ không ép pane xuống `DOC_MIN`.
+ */
+const DOC_COMFORT = 460;
 /** Panel phải — mỗi lúc chỉ mở một; mở từ chip trạng thái của tài liệu hoặc nút "Công cụ" trên header. */
-type WorkspacePanel = "verification" | "tools";
+type WorkspacePanel = "verification" | "tools" | "comments";
 const PROGRESS_OPEN_KEY = "flintflow_workspace_progress_open";
 
 /** Mặc định mở: lần đầu vào workspace phải thấy ngay mình đang ở bước nào, rail ẩn chỉ khi user tự đóng. */
@@ -275,6 +286,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     waive: waiveFlagFn,
     recompute: recomputeFlagsFn,
   } = useFlags(projectId, spineState.version);
+  // Góp ý ghim vào nội dung (UC-49) — nguồn duy nhất cho cả `DocumentPane` (chấm số) lẫn panel, như `useFlags`
+  const comments = useComments(projectId, spineState.version);
 
   // Panel phải: mỗi lúc một (rail icon). Mode 1 mở sẵn cột cờ & version.
   const [rightPanel, setRightPanel] = useState<WorkspacePanel | null>(mode1 ? "tools" : null);
@@ -336,7 +349,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     },
   });
   const viewport = useSyncExternalStore(subscribeViewport, viewportWidth, () => Number.POSITIVE_INFINITY);
-  const narrow = viewport < rail.width + CHAT_MIN + DOC_MIN + panel.width;
+  /**
+   * Mở panel phải mà thiếu chỗ ⇒ **ẩn rail tiến độ trước**, chưa co pane nội dung vội.
+   *
+   * Thứ tự hi sinh này có lý do: rail bật lại bằng một nút và không mất thông tin nào, còn pane tài liệu
+   * co quá thì header của nó (tên · version · DRAFT · chip vấn đề · Làm mới) không đủ chỗ và chữ chồng
+   * lên nhau. Nên tính chỗ cho rail theo bề rộng **đủ đọc** của pane giữa (`DOC_COMFORT`), không phải
+   * bề rộng tối thiểu kỹ thuật.
+   */
+  const narrow = rightPanel !== null && viewport - panel.width - CHAT_MIN - DOC_COMFORT < rail.width;
   const railShown = progressOpen && !(narrow && rightPanel !== null);
   const toggleProgress = () => {
     // Rail đang bị tạm ẩn vì panel ⇒ "Hiện tiến độ" = đóng panel, không lật lựa chọn đã lưu
@@ -809,6 +830,97 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   // FLF-248: cờ "rỗng" của bước đã chốt là vấn đề thật (chặn ký baseline), không phải "sẽ điền ở bước sau"
   const acceptedSteps = new Set((steps?.steps ?? []).filter((s) => s.status === "accepted").map((s) => s.id));
   const documentIssues = issueCounts(flags, outdatedSections, acceptedSteps);
+
+  // ── Góp ý + chốt baseline (UC-45/46/47) ──────────────────────────
+  /** Chỗ người dùng vừa bấm "Góp ý" — panel mở sẵn ô soạn cho chỗ đó. */
+  const [pendingComment, setPendingComment] = useState<PendingCommentAnchor | null>(null);
+  /** Panel góp ý đang lọc theo mã của lượt Lead từ chối baseline. */
+  const [focusCommentIds, setFocusCommentIds] = useState<readonly string[] | null>(null);
+  const openComments = (commentIds?: readonly string[]) => {
+    setFocusCommentIds(commentIds ?? null);
+    setRightPanel("comments");
+  };
+  const startComment = (anchor: PendingCommentAnchor) => {
+    setPendingComment(anchor);
+    setFocusCommentIds(null);
+    setRightPanel("comments");
+  };
+  const submitComment = async (text: string) => {
+    if (!pendingComment) return;
+    await comments.create({
+      version: { source: "draft" },
+      anchor: {
+        section_id: pendingComment.sectionId,
+        ...(pendingComment.blockIndex !== undefined ? { block_index: pendingComment.blockIndex } : {}),
+      },
+      text,
+    });
+    setPendingComment(null);
+  };
+  /** Xử lý góp ý mở lại bước sở hữu mục ở BE (UC-47) ⇒ phải đọc lại Spine để tiến độ hiện đúng. */
+  const resolveComment = async (commentId: string, resolution: CommentResolutionInput) => {
+    await comments.resolve(commentId, resolution);
+    await spineState.reload();
+  };
+
+  const [baselineBusy, setBaselineBusy] = useState(false);
+  const [baselineError, setBaselineError] = useState<string | null>(null);
+  /** Cờ đỏ chặn lượt nộp/ký gần nhất, lấy từ `meta.flags[]` của 422 — xem `runBaselineAction`. */
+  const [baselineBlockingFlags, setBaselineBlockingFlags] = useState<BlockingFlag[]>([]);
+
+  /**
+   * Chip trạng thái chốt bản trên breadcrumb. Nói theo vai trò người đang xem: Lead cần biết "có bản chờ
+   * mình duyệt", Analyst cần biết "bản mình gửi đang ở đâu". Chưa nộp gì và chưa ký gì ⇒ không có chip.
+   */
+  const baselineStatus = ((): { label: string; tone: BadgeTone } | null => {
+    if (mode1) return null; // mode 1 chốt bản qua release gói CR, không đi đường nộp/duyệt baseline
+    const submission = spine?.baseline_submission ?? null;
+    const isLead = ws.orgRole === "lead";
+    if (submission?.status === "pending") {
+      return isLead ? { label: "1 bản chờ bạn duyệt", tone: "warning" } : { label: "Chờ Lead duyệt", tone: "info" };
+    }
+    if (submission?.status === "rejected") {
+      const open = submission.rejection_comment_ids.filter(
+        (id) => comments.comments.find((c) => c.comment_id === id)?.status === "open"
+      ).length;
+      return { label: open > 0 ? `Lead chưa duyệt — ${open} góp ý` : "Lead chưa duyệt", tone: "danger" };
+    }
+    const version = spine?.baselines.at(-1)?.version;
+    return version ? { label: `Baseline ${version}`, tone: "success" } : null;
+  })();
+  /**
+   * Mọi điều kiện thật do BE kiểm. Lỗi `BASELINE_BLOCKED` / `REJECTION_COMMENTS_OPEN` mang `meta` chỉ
+   * đúng chỗ phải xử lý, nên đẩy người dùng sang panel tương ứng thay vì chỉ hiện câu lỗi.
+   */
+  const runBaselineAction = async (action: (baseVersion: number) => Promise<unknown>) => {
+    const baseVersion = getBaseVersion();
+    if (baseVersion === null) {
+      setBaselineError("Chưa đọc được tài liệu. Vui lòng tải lại trang.");
+      return;
+    }
+    setBaselineBusy(true);
+    setBaselineError(null);
+    setBaselineBlockingFlags([]);
+    try {
+      await action(baseVersion);
+      await Promise.all([spineState.reload(), comments.reload()]);
+    } catch (err) {
+      setBaselineError(userErrorMessage(err, "Chưa thực hiện được. Vui lòng thử lại."));
+      if (err instanceof ApiClientError && err.code === "BASELINE_BLOCKED") {
+        // Lượt quét ở mức ký (`at_baseline`) của BE vừa MỞ RA cờ mới và ghi vào Spine. Không tải lại thì
+        // panel vẫn hiện danh sách cờ cũ (thường là rỗng) trong khi câu lỗi nói "còn cờ đỏ" — nhìn như app
+        // nói dối. `meta.flags[]` là nguồn chuẩn cho đúng lượt này nên giữ luôn để hiện ngay tên việc phải làm.
+        setBaselineBlockingFlags((err.meta as { flags?: BlockingFlag[] } | undefined)?.flags ?? []);
+        await spineState.reload();
+        openIssues();
+      }
+      if (err instanceof ApiClientError && err.code === "REJECTION_COMMENTS_OPEN") {
+        openComments((err.meta as { comment_ids?: string[] } | undefined)?.comment_ids);
+      }
+    } finally {
+      setBaselineBusy(false);
+    }
+  };
   /** Chip sửa khoá khi step đang chạy / chờ trả lời: hai luồng cùng ghi Spine sẽ vấp 409 SPINE_VERSION_CONFLICT. */
   const editDisabledReason =
     !mode1 && runner.state.busy
@@ -880,6 +992,34 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       return el ? x - el.getBoundingClientRect().left : null;
     },
   });
+
+  /**
+   * Mở panel phải thì **co bớt khung kéo được** để lấy chỗ, thay vì đẩy nội dung ra khỏi màn hình.
+   *
+   * Khung chat đã tự co (`shrink min-w-[320px]`), nhưng cột Brief và panel phải đều `shrink-0` nên trên
+   * màn hẹp tổng bề rộng vượt viewport và phần thừa bị cắt mất — trước đây người dùng phải tự zoom
+   * trình duyệt mới đọc được panel.
+   *
+   * Trần này **tạm thời**: đóng panel là bề rộng user đã kéo quay lại nguyên vẹn, không ghi đè lựa chọn
+   * của họ trong localStorage.
+   */
+  useEffect(() => {
+    if (rightPanel === null) {
+      chat.capTo(null);
+      brief.capTo(null);
+      return;
+    }
+    const taken = (railShown ? rail.width : 0) + panel.width;
+    if (briefPane && !briefHidden) {
+      // Pha Brief: chat co giãn (flex-1), cột tóm tắt mới là cái cố định ⇒ co nó
+      brief.capTo(viewport - taken - CHAT_MIN);
+      chat.capTo(null);
+    } else {
+      // Pha tài liệu: pane tài liệu co giãn, khung chat cố định ⇒ co khung chat
+      chat.capTo(viewport - taken - DOC_MIN);
+      brief.capTo(null);
+    }
+  }, [rightPanel, viewport, railShown, rail.width, panel.width, briefPane, briefHidden, chat, brief]);
 
   // Chỉ tính "đang chạy ở nơi khác" khi tab này không giữ lượt nào: lượt của chính tab (đang ở cổng, đang chờ trả lời)
   // cũng làm `running` bật nhưng ô chat vẫn phải dùng được để yêu cầu sửa / trả lời.
@@ -1277,7 +1417,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         <WorkspaceHeader
           project={ws.project}
           user={ws.user}
-          baselineVersion={spine?.baselines.at(-1)?.version ?? null}
+          baselineStatus={baselineStatus}
           progressHidden={!mode1 && !railShown}
           onShowProgress={toggleProgress}
           // FLF-221: không còn nút chạy — gõ chat là chạy
@@ -1302,6 +1442,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             ) : undefined
           }
           onEnterFocus={() => setFocusMode(true)}
+          // Mode 1 chốt bản qua release gói CR, không có panel kiểm tra + chốt baseline
+          onVerifyClick={mode1 ? undefined : () => (rightPanel === "verification" ? setRightPanel(null) : openIssues())}
+          verifyActive={rightPanel === "verification"}
+          verifyCount={documentIssues.blocking}
           onToolsClick={() => togglePanel("tools")}
           toolsActive={rightPanel === "tools"}
           toolsLabel={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}
@@ -1580,6 +1724,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           issues={documentIssues}
           onOpenIssues={() => (rightPanel === "verification" && !issueSectionId ? setRightPanel(null) : openIssues())}
           onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
+          // Góp ý ghim vào mục (UC-49) — Viewer cũng góp ý được (BR-05: comment không đổi nội dung),
+          // nhưng chỉ trên bản đã phát hành, nên ở bản nháp chỉ mở cho Lead/Analyst.
+          onCommentSection={canEdit ? startComment : undefined}
+          commentCountOf={(sectionId) => comments.openCountBySection.get(sectionId) ?? 0}
+          onOpenSectionComments={() => openComments()}
           rewriteError={!editCardOpen ? changes.error : null}
           onSectionsLoaded={handleSectionsLoaded}
           // Mode 1 v3: tài liệu chỉ đổi qua change request — không vẽ lại thẳng.
@@ -1598,7 +1747,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label="Đổi cỡ panel bên phải" />
         <div id="workspace-right-panel" style={{ width: panel.width }} className="h-full shrink-0">
         {shownPanel === "tools" && spine && (
-          <aside className="w-full h-full bg-surface-container rounded-l-dialog flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
+          <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
             <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Icon name="folder" size={16} className="text-primary" />
@@ -1619,6 +1768,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
             {!mode1 && (
               <ProjectRecordPanel
+                projectId={projectId}
                 spine={spine}
                 onSubmitOps={async (ops) => void (await submitOps(ops))}
                 onMarkPlaceholder={(id) => void markPlaceholder(id)}
@@ -1643,7 +1793,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               sectionLabelOf: (id) => sectionLabels.get(id),
               onShowSection: showSection,
               focusSectionId: issueSectionId,
-              onClearFocus: () => setIssueSectionId(null),
               // "Hoà giải" cũ: gom các mục đã cũ, AI viết lại cho khớp, xem trước rồi áp (mode 1 sửa qua CR nên không có)
               outdatedCount: outdatedSections,
               onRewriteOutdated: canEdit
@@ -1669,6 +1818,42 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             onAssumptionDecision={mode1 || !canEdit ? undefined : (decision) => void applyAssumptionDecision(decision)}
             onConfirmAllAssumptions={mode1 || !canEdit ? undefined : (ids) => void confirmAllAssumptions(ids)}
             onRecompute={canEdit ? handleFlagRecompute : undefined}
+            // Mode 1 chốt bản qua release gói CR (UC-52), không đi đường nộp/duyệt baseline 1.0
+            baseline={
+              mode1
+                ? undefined
+                : {
+                    role: ws.orgRole,
+                    submission: spine?.baseline_submission ?? null,
+                    blocking: documentIssues.blocking,
+                    blockingFlags: baselineBlockingFlags,
+                    comments: comments.comments,
+                    busy: baselineBusy,
+                    error: baselineError,
+                    onSubmit: () => runBaselineAction((v) => submitBaseline(projectId, v)),
+                    onApprove: () => runBaselineAction((v) => createBaseline(projectId, v)),
+                    onReject: (reason, ids) => runBaselineAction((v) => rejectBaseline(projectId, v, reason, ids)),
+                    onOpenComments: openComments,
+                  }
+            }
+          />
+        )}
+
+        {shownPanel === "comments" && (
+          <CommentsPanel
+            comments={comments.comments}
+            loading={comments.loading}
+            error={comments.error}
+            busy={comments.busy}
+            canResolve={canEdit}
+            pendingAnchor={pendingComment}
+            onCancelPending={() => setPendingComment(null)}
+            onSubmit={submitComment}
+            onResolve={resolveComment}
+            onShowSection={showSection}
+            focusCommentIds={focusCommentIds}
+            onClearFocus={() => setFocusCommentIds(null)}
+            onClose={() => setRightPanel(null)}
           />
         )}
         </div>
@@ -1714,12 +1899,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           projectId={projectId}
           preview={changes.preview}
           instruction={changes.pendingInstruction}
+          spine={spineState.spine}
           onCancel={() => setEditDetailOpen(false)}
         />
       )}
       {changes.preview && ((changes.previewSource === "instruction" && editDetailOpen && !mode1) || changes.previewSource === "reconcile") && (
         <DiffPreviewModal
           preview={changes.preview}
+          spine={spineState.spine}
           busy={changes.applying}
           confirmLabel={changes.previewSource === "reconcile" ? "Cập nhật" : "Áp dụng"}
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}

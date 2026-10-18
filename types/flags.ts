@@ -46,3 +46,4 @@ export interface TraceabilityResponse {
   nodes: TraceabilityNode[];
   edges: TraceabilityEdge[];
 }
+

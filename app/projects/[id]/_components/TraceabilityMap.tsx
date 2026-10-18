@@ -50,18 +50,48 @@ function NodeRow({ node }: { node: TraceGroupNode }) {
   );
 }
 
+/**
+ * Số mục hiện sẵn mỗi nhóm. Một actor gốc kéo theo vài chục use case, đổ hết ra thì panel thành một cột
+ * dài vô tận và nhóm bên dưới ("Dẫn tới" che mất "Quan hệ ngang") không ai cuộn tới. Xem đủ thì bấm mở.
+ */
+const PREVIEW_COUNT = 5;
+
 function Group({ title, nodes, reason }: { title: string; nodes: TraceGroupNode[]; reason: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const hidden = nodes.length - PREVIEW_COUNT;
+  const shown = expanded ? nodes : nodes.slice(0, PREVIEW_COUNT);
+
   return (
     <section className="flex flex-col gap-1.5">
-      <h4 className="text-caption font-bold uppercase tracking-wide text-on-surface-subtle">{title}</h4>
+      <h4 className="text-caption font-bold uppercase tracking-wide text-on-surface-subtle">
+        {title}
+        {/* `aria-hidden`: số chỉ nhắc lại độ dài danh sách ngay bên dưới, và giữ tên nhóm sạch cho trình đọc màn hình */}
+        {nodes.length > 0 && (
+          <span aria-hidden className="ml-1.5 font-mono text-on-surface-muted">
+            {nodes.length}
+          </span>
+        )}
+      </h4>
       {nodes.length === 0 ? (
         <p className="text-caption text-on-surface-subtle italic">{reason}</p>
       ) : (
-        <ul className="flex flex-col gap-1.5">
-          {nodes.map((node) => (
-            <NodeRow key={`${node.kind}:${node.id}`} node={node} />
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-col gap-1.5">
+            {shown.map((node) => (
+              <NodeRow key={`${node.kind}:${node.id}`} node={node} />
+            ))}
+          </ul>
+          {hidden > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              className="self-start text-caption font-bold text-primary hover:underline cursor-pointer"
+            >
+              {expanded ? "Thu gọn" : `Xem thêm ${hidden} mục`}
+            </button>
+          )}
+        </>
       )}
     </section>
   );
@@ -113,14 +143,14 @@ export default function TraceabilityMap({ projectId, spine }: TraceabilityMapPro
   return (
     <div className="flex flex-col gap-2.5" aria-label="Bản đồ truy vết">
       <div className="flex flex-wrap items-center gap-1.5">
-        <FilterSelect label="Loại" value={entity} options={ENTITY_OPTIONS} onChange={changeEntity} />
+        <FilterSelect label="Loại" value={entity} options={ENTITY_OPTIONS} onChange={changeEntity} align="start" />
         {spine ? (
           items.length === 0 ? (
             <span className="flex-1 min-w-0 text-caption text-on-surface-subtle italic">
               Tài liệu chưa có {entityLabel(entity).toLowerCase()} nào.
             </span>
           ) : (
-            <FilterSelect label="Mục" value={selected} options={items} onChange={setId} className="min-w-0" />
+            <FilterSelect label="Mục" value={selected} options={items} onChange={setId} align="start" className="min-w-0" />
           )
         ) : (
           <input

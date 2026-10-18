@@ -51,6 +51,35 @@ describe("TraceabilityMap — bản đồ truy vết có chiều", () => {
     expect(screen.queryByText(/actor_ids/)).not.toBeInTheDocument();
   });
 
+  it("nhóm dài chỉ hiện 5 mục đầu, còn lại nằm sau nút Xem thêm", async () => {
+    // Một actor gốc kéo theo vài chục use case — đổ hết ra thì nhóm bên dưới không ai cuộn tới
+    const many = Array.from({ length: 8 }, (_, i) => ({
+      kind: "use_case" as const,
+      id: `UC${String(i + 1).padStart(2, "0")}`,
+      label: `Use case ${i + 1}`,
+    }));
+    getTraceability.mockResolvedValueOnce({
+      data: {
+        nodes: [{ kind: "actor", id: "A01", label: "Founder" }, ...many],
+        edges: many.map((n) => ({ from: n.id, to: "A01", field: "actor_ids" })),
+      },
+      error: null,
+    });
+
+    renderWithIntl(<TraceabilityMap projectId="p1" />);
+    tra("A01");
+    await screen.findByText("Founder");
+
+    expect(within(group("Dẫn tới")).getByText("Use case 5")).toBeInTheDocument();
+    expect(within(group("Dẫn tới")).queryByText("Use case 6")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Xem thêm 3 mục" }));
+    expect(within(group("Dẫn tới")).getByText("Use case 8")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Thu gọn" }));
+    expect(within(group("Dẫn tới")).queryByText("Use case 6")).not.toBeInTheDocument();
+  });
+
   it("tra use case: nguồn, dẫn tới và quan hệ ngang nằm đúng ba khối; include không bị gọi là dẫn tới", async () => {
     const response: TraceabilityResponse = {
       nodes: [

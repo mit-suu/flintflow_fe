@@ -866,7 +866,10 @@
         "addBody": "Create a new organization, or enter an invitation code to join another one.",
         "addCta": "Create or join",
         "loadError": "Could not load your organizations.",
-        "goToProjects": "Go to projects"
+        "goToProjects": "Go to projects",
+        "loading": "Loading your organizations…",
+        "emptyTitle": "You are not in any organization yet",
+        "emptyBody": "Create an organization to start a project, or enter an invitation code to join someone else's."
       },
       "members": {
         "title": "Members",
@@ -1324,6 +1327,12 @@
     "NO_WORKING_DRAFT": "This project has no content to build a document from yet.",
     "NOTHING_TO_UNDO": "Nothing left to undo.",
     "BASELINE_BLOCKED": "There are unresolved red flags — the baseline can't be recorded yet.",
+    "BASELINE_ALREADY_SUBMITTED": "The document is already waiting for the Lead to approve it.",
+    "NO_PENDING_SUBMISSION": "Nothing is waiting for approval. Please reload the page.",
+    "REJECTION_COMMENTS_OPEN": "Some comments from the Lead's rejection have not been handled yet.",
+    "COMMENT_NOT_OPEN": "This comment has already been handled.",
+    "COMMENT_ANCHOR_NOT_FOUND": "That spot is no longer in the version you are reading — reload and pin it again.",
+    "COMMENT_VERSION_FORBIDDEN": "Your role can only comment on a released version.",
     "NOT_PIPELINE_SESSION": "This chat is for Q&A only — the workflow runs in the main session.",
     "PIPELINE_SESSION_LOCKED": "The main session can't be deleted — it holds the document workflow.",
     "NOT_IMPLEMENTED": "This feature isn't supported yet.",
