@@ -5,6 +5,10 @@ import type { ChatMessage } from "@/types/chat";
 import { parseChatQuestion, replyContainsQuestion } from "@/lib/question-options";
 import { displayUserText } from "./user-text";
 
+/** Escape ký tự HTML trong chữ của AI trước khi gắn `<strong>` cho `**…**`. */
+export const escapeHtml = (text: string): string =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
 interface ChatBubbleProps {
   message: ChatMessage;
   messageIndex?: number;
@@ -151,9 +155,14 @@ export default function ChatBubble({
 
   const renderMarkdown = (text: string, showCursor: boolean = false) => {
     const lines = text.split("\n");
-    return lines.map((line, i) => {
+    return lines.map((rawLine, i) => {
       const isLastLine = i === lines.length - 1;
-      let formatted = line;
+      // Tiêu đề markdown ("### Phạm vi") hiện thành một dòng đậm, không lòi dấu "#"
+      const heading = /^\s*#{1,6}\s+(.*)$/.exec(rawLine);
+      const line = heading ? `**${heading[1].replace(/\*\*/g, "")}**` : rawLine;
+      // Chữ của AI là chữ, không phải HTML: escape trước khi tô đậm — "Nhập <tên màn hình>" không bị trình duyệt nuốt
+      // thành thẻ lạ, và nội dung lấy từ tài liệu upload không chèn được script
+      let formatted = escapeHtml(line);
       // Auto-close incomplete bold tag while streaming
       const starCount = (line.match(/\*\*/g) || []).length;
       if (starCount % 2 !== 0) {
@@ -178,7 +187,7 @@ export default function ChatBubble({
             key={i}
             className="ml-5 list-disc text-heading text-on-surface leading-7"
           >
-            <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-*]\s+/, "") }} />
+            <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^\s*[-*]\s+/, "") }} />
             {cursorElement}
           </li>
         );
