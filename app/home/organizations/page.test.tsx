@@ -1,14 +1,33 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import AppShell from "@/components/layout/AppShell";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import OrganizationsPage from "./page";
 
 vi.mock("@/lib/api/orgs", () => ({ fetchMyOrganizations: vi.fn(), switchOrganization: vi.fn() }));
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
+// Trang có `TopBar`, và `TopBar` đọc context của `AppShell` (chip credits, nút mở menu) — nên test phải dựng
+// đúng khung đó. Khung gọi `GET /billing/balance` và `usePathname`, hai thứ phải mock theo.
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/home/organizations",
+  // `TopBar` chứa `LocaleSwitcher`, nó điều hướng khi đổi ngôn ngữ
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => null) }));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => ({ id: "org-a", name: "Nhóm A", role: "lead" }),
+}));
 
 const assign = vi.fn();
+
+const renderPage = () =>
+  renderWithIntl(
+    <AppShell sidebar={<div />}>
+      <OrganizationsPage />
+    </AppShell>
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -22,7 +41,7 @@ beforeEach(() => {
 
 describe("đổi tổ chức (UC-10)", () => {
   it("liệt kê org kèm vai trò, đánh dấu org đang mở", async () => {
-    renderWithIntl(<OrganizationsPage />);
+    renderPage();
 
     expect(await screen.findByText("Nhóm A")).toBeInTheDocument();
     expect(screen.getByText("Nhóm B")).toBeInTheDocument();
@@ -40,7 +59,7 @@ describe("đổi tổ chức (UC-10)", () => {
       accessToken: "t",
       organization: { id: "org-b", name: "Nhóm B", role: "viewer", joinedAt: "2026-09-02T00:00:00Z" },
     });
-    renderWithIntl(<OrganizationsPage />);
+    renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Mở tổ chức này" }));
 
@@ -50,7 +69,29 @@ describe("đổi tổ chức (UC-10)", () => {
   });
 
   it("có lối tạo hoặc tham gia thêm tổ chức", async () => {
-    renderWithIntl(<OrganizationsPage />);
+    renderPage();
     expect(await screen.findByRole("link", { name: "Tạo hoặc tham gia" })).toHaveAttribute("href", "/home/onboarding");
+  });
+
+  it("đang tải thì hiện skeleton, KHÔNG phải danh sách rỗng", async () => {
+    // Danh sách chưa về: trước đây `orgs ?? []` làm trang nói user không thuộc tổ chức nào
+    vi.mocked(fetchMyOrganizations).mockReturnValue(new Promise(() => {}));
+    renderPage();
+
+    const skeleton = await screen.findByTestId("page-skeleton");
+    expect(skeleton).toHaveAttribute("data-variant", "list");
+    expect(screen.queryByText("Bạn chưa thuộc tổ chức nào")).toBeNull();
+  });
+
+  it("không có tổ chức nào thì hiện trạng thái rỗng có lối sang onboarding", async () => {
+    vi.mocked(fetchMyOrganizations).mockResolvedValue([]);
+    renderPage();
+
+    expect(await screen.findByText("Bạn chưa thuộc tổ chức nào")).toBeInTheDocument();
+    expect(screen.queryByTestId("page-skeleton")).toBeNull();
+    // Một lối đi duy nhất, không hai link cùng tên: khối "thêm tổ chức" nhường chỗ cho trạng thái rỗng
+    const cta = screen.getAllByRole("link", { name: "Tạo hoặc tham gia" });
+    expect(cta).toHaveLength(1);
+    expect(cta[0]).toHaveAttribute("href", "/home/onboarding");
   });
 });
