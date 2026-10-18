@@ -102,6 +102,12 @@ export interface StreamChatParams {
   content: string;
   step: string;
   discoveryStep?: number;
+  /**
+   * `true` ⇒ lượt hỏi kiến thức (contract §1.2): trả lời từ Knowledge RAG, 2 credit. Route này **không
+   * stream chữ** — nó phát đúng một `finish` rồi đóng, nên `onTextDelta` không bao giờ được gọi và UI
+   * phải tự hiện trạng thái chờ. Server tắt tính năng ⇒ `409 KNOWLEDGE_DISABLED`.
+   */
+  knowledge?: boolean;
   onTextDelta?: (delta: string) => void;
   onFinish?: (payload: {
     session: ChatSession;
@@ -119,6 +125,7 @@ export const streamChatMessage = ({
   content,
   step,
   discoveryStep,
+  knowledge,
   onTextDelta,
   onFinish,
   onError,
@@ -126,7 +133,8 @@ export const streamChatMessage = ({
 }: StreamChatParams): Promise<void> =>
   streamSse<ChatStreamEvent>(
     `/projects/${projectId}/chats/${chatId}/messages/stream`,
-    { content, step, discoveryStep },
+    // `knowledge` chỉ gửi khi bật: lượt chat thường giữ body đúng như cũ, đọc log không phải đoán.
+    { content, step, discoveryStep, ...(knowledge ? { knowledge: true } : {}) },
     {
       signal,
       onError,

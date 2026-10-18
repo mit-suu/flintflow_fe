@@ -2,7 +2,7 @@
 
 import type { CrLocation, PatchLocationRequest } from "@/types/change-request";
 import { CONCLUSION_LABELS } from "./labels";
-import ProposalCard from "./ProposalCard";
+import ProposalCard, { isVectorOnlyLocation } from "./ProposalCard";
 
 interface ImpactListProps {
   locations: CrLocation[];
@@ -24,6 +24,8 @@ export default function ImpactList({ locations, editable, onPatch, onOwnerDraft,
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
+  // Vector tắt (`EMBEDDING_PROVIDER=off`) ⇒ 0, và dòng tóm tắt y như trước.
+  const vectorOnly = locations.filter(isVectorOnlyLocation).length;
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-baseline gap-2">
@@ -33,6 +35,7 @@ export default function ImpactList({ locations, editable, onPatch, onOwnerDraft,
             .filter((k) => counts[k])
             .map((k) => `${counts[k]} ${CONCLUSION_LABELS[k].toLowerCase()}`)
             .concat(counts.pending ? [`${counts.pending} chưa kết luận`] : [])
+            .concat(vectorOnly ? [`${vectorOnly} tìm theo nghĩa`] : [])
             .join(" · ")}
         </span>
       </div>

@@ -28,6 +28,10 @@ export function useWorkspace(projectId: string) {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
+  /** Đang chờ câu trả lời tri thức — luồng đó không stream chữ nên `streamingMessage` không nói được gì. */
+  const [knowledgePending, setKnowledgePending] = useState(false);
+  /** BE trả `409 KNOWLEDGE_DISABLED` ⇒ tính năng tắt ở máy chủ, ẩn chip và đừng thử lại. */
+  const [knowledgeDisabled, setKnowledgeDisabled] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
   /**
    * Mode 1 (G9, BR-03; v3 — BPMN 3.1): lệnh sửa trong chat bị BE chặn `409 CHANGE_REQUIRES_CR` ⇒ thẻ mời tạo CR, mở form
@@ -240,9 +244,12 @@ export function useWorkspace(projectId: string) {
   /**
    * Hỏi đáp tự do trong chat; step hiện tại gửi kèm để BE lưu transcript theo step. Trả `data` của sự kiện `finish`
    * (vd. `kind: "change_preview"` kèm `preview` khi tin bị nhận là lệnh sửa) — `undefined` khi không gửi được.
+   *
+   * `opts.knowledge` ⇒ lượt hỏi tri thức (contract §1.2): BE trả lời từ Knowledge RAG, không stream chữ,
+   * và lượt này không thành câu trả lời của step.
    */
   const sendMessage = useCallback(
-    async (currentStep: string | null, customContent?: string): Promise<unknown> => {
+    async (currentStep: string | null, customContent?: string, opts?: { knowledge?: boolean }): Promise<unknown> => {
       const text = customContent ?? inputMessage;
       if ((!text.trim() && pendingAttachments.length === 0) || !activeSession || sending) return undefined;
       let finishData: unknown;
@@ -264,14 +271,17 @@ export function useWorkspace(projectId: string) {
         }
 
         setStreamingMessage("");
+        setKnowledgePending(Boolean(opts?.knowledge));
         await streamChatMessage({
           projectId,
           chatId: activeSession._id,
           content,
           step,
+          knowledge: opts?.knowledge,
           onTextDelta: (delta) => setStreamingMessage((prev) => (prev ?? "") + delta),
           onFinish: ({ session, data }) => {
             finishData = data;
+            setKnowledgePending(false);
             // User đã chuyển/tạo phiên khác giữa chừng ⇒ không kéo khung chat về phiên cũ; chỉ cập nhật xem trước
             setActiveSession((prev) => (prev?._id === session._id ? session : prev));
             setSessions((prev) => prev.map((s) => (s._id === session._id ? { ...s, messages: session.messages.slice(-1) } : s)));
@@ -282,16 +292,34 @@ export function useWorkspace(projectId: string) {
             // Mode 1 chặn lệnh sửa bằng 409 CHANGE_REQUIRES_CR — luồng bình thường, xử lý ở catch bên dưới
             if (!(err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR")) console.error("[Chat] Stream error:", err);
             setStreamingMessage(null);
+            setKnowledgePending(false);
+            // Sự kiện `error` giữa luồng (hết credit, provider lỗi) KHÔNG làm `streamSse` ném, nên
+            // `catch` bên dưới không chạy. Chat thường còn phần chữ đã stream để user hiểu chuyện gì
+            // xảy ra; lượt tri thức không stream chữ nên nếu im lặng thì chỉ còn cái spinner tắt đi.
+            if (opts?.knowledge) {
+              setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+              setInputMessage(text);
+              setNotice(errorMessage(err, "Không tra được kho tri thức"));
+            }
           },
         });
       } catch (err) {
         setStreamingMessage(null);
         setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+        // Tính năng tắt ở máy chủ: BE không ghi gì vào phiên, nên gỡ tin tạm (ở trên) là sạch. Ẩn chip
+        // thay vì để user bấm lại một thứ chắc chắn không chạy.
+        if (err instanceof ApiClientError && err.code === "KNOWLEDGE_DISABLED") {
+          setKnowledgeDisabled(true);
+          setNotice("Tính năng hỏi kiến thức đang tắt trên máy chủ.");
+          setInputMessage(text);
+          return undefined;
+        }
         const meta = err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR" ? (err.meta as ChangeRequiresCrMeta | undefined) : undefined;
         if (meta?.prefill) setCrPrefill({ ...meta.prefill, instruction: content });
         else setNotice(errorMessage(err, "Không thể gửi tin nhắn"));
       } finally {
         setSending(false);
+        setKnowledgePending(false);
       }
       return finishData;
     },
@@ -331,6 +359,8 @@ export function useWorkspace(projectId: string) {
       setInputMessage,
       sending,
       streamingMessage,
+      knowledgePending,
+      knowledgeDisabled,
       pendingAttachments,
       createSession,
       selectSession,
@@ -363,6 +393,8 @@ export function useWorkspace(projectId: string) {
       inputMessage,
       sending,
       streamingMessage,
+      knowledgePending,
+      knowledgeDisabled,
       pendingAttachments,
       createSession,
       selectSession,

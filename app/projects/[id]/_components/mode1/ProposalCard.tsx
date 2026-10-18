@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { CrLocation, LocationConclusion, PatchLocationRequest } from "@/types/change-request";
+import type { CrLocation, LocationFoundBy, LocationConclusion, PatchLocationRequest } from "@/types/change-request";
 import { AssumptionsNote } from "./CrMaterials";
 import FieldChanges from "./FieldChanges";
 import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
-import { CONCLUSION_LABELS, FOUND_BY_LABELS } from "./labels";
+import { CONCLUSION_LABELS, FOUND_BY_LABELS, formatPercent } from "./labels";
 import { valueSummary } from "./value-diff";
 import VerifyResult from "./VerifyResult";
 import { stepLabel } from "@/lib/constants/step-registry";
@@ -20,6 +20,30 @@ interface ProposalCardProps {
   onOwnerDraft?: (instruction: string) => void;
   busy?: boolean;
 }
+
+/**
+ * Nguồn chỉ nói "có nội dung gần giống", khác với nguồn tất định (`spine_link` liên kết field, `mention`
+ * nhắc mã, `preview` từ bản xem trước, `diagram` từ hình gốc).
+ */
+const RECALL_ONLY_SOURCES: readonly LocationFoundBy[] = ["vector", "keyword"];
+
+/**
+ * Vị trí chỉ đến từ truy hồi: không có nguồn tất định nào. BE có một hàm cùng tên ý
+ * (`change-request/spine-location.ts`) nhưng nó chỉ dùng nội bộ để cắt trần 80 vị trí, không phải nghĩa
+ * người dùng thấy — nên đừng coi hai bên là một.
+ */
+const isRecallOnlyLocation = (loc: Pick<CrLocation, "found_by">): boolean =>
+  loc.found_by.every((b) => RECALL_ONLY_SOURCES.includes(b));
+
+/**
+ * Vị trí mà "gần nghĩa" là lý do DUY NHẤT nó có trong danh sách: có `vector` và không có nguồn tất định
+ * nào. Người duyệt nên đọc kỹ hơn những vị trí này.
+ *
+ * Hẹp hơn `isRecallOnlyLocation`: vị trí chỉ có `keyword` cũng là recall-only, nhưng nó trùng TỪ chứ
+ * không gần NGHĨA — gộp hai thứ lại thì nhãn nói sai về cách máy tìm ra nó.
+ */
+export const isVectorOnlyLocation = (loc: Pick<CrLocation, "found_by">): boolean =>
+  loc.found_by.includes("vector") && isRecallOnlyLocation(loc);
 
 const CONCLUSION_TONE: Record<LocationConclusion, string> = {
   edit: "bg-[#F2F1FB] text-[#554DB0]",
@@ -161,11 +185,29 @@ export default function ProposalCard({ location, editable, onPatch, onOwnerDraft
         <span className="font-bold text-[#191817]" title={location.path}>
           {isDiagramLocation(location) ? diagramLocationTitle(location) : sectionTitle(location.section_id, location.section_title) || pathLabel(location.path)}
         </span>
-        {location.found_by.map((f) => (
-          <span key={f} className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold">
-            {FOUND_BY_LABELS[f]}
-          </span>
-        ))}
+        {location.found_by.map((f) => {
+          // Chip "Theo nghĩa" mang luôn độ khớp. `vector_score` tuỳ chọn ⇒ chỉ format khi thật là số:
+          // `?? 0` sẽ in "0%", một con số sai, khác hẳn với "không có số".
+          const vector = f === "vector";
+          const score = vector && typeof location.vector_score === "number" ? ` · ${formatPercent(location.vector_score)}` : "";
+          // Vị trí chỉ tìm được nhờ nghĩa: tô khác để mắt bắt được trong hàng chip xám. Hàng này đã dùng
+          // xám / tím / vàng, nên xanh info là màu duy nhất còn trống ở đây.
+          const vectorOnly = vector && isVectorOnlyLocation(location);
+          return (
+            <span
+              key={f}
+              title={
+                vector
+                  ? "Máy tìm ra vị trí này vì nội dung gần nghĩa với yêu cầu, không phải vì trùng từ — nên đọc kỹ trước khi duyệt."
+                  : undefined
+              }
+              className={`px-1.5 py-0.5 rounded font-semibold ${vectorOnly ? "bg-info-soft text-info" : "bg-[#F0EEEA] text-[#4B4842]"}`}
+            >
+              {FOUND_BY_LABELS[f]}
+              {score}
+            </span>
+          );
+        })}
         {/* Vị trí "mục trống" (phương án B): path là cả mảng — CR thêm phần tử mới chứ không sửa cái đang có */}
         {location.path.endsWith("[]") && <span className="px-1.5 py-0.5 rounded bg-[#F2F1FB] text-[#6A62C4] font-bold">mục trống — thêm mới</span>}
         {location.owner_step && <span className="text-[#A8A49C]" title={location.owner_step}>· phần “{stepLabel(location.owner_step)}”</span>}
