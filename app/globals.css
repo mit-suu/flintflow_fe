@@ -362,7 +362,17 @@ body {
   background-size: 22px 22px;
 }
 
+/* ── Đệm đáy vùng cuộn (`pb-scroll-end`) ──
+   Cuộn tới cuối thì dòng cuối phải còn khoảng thở, không dính sát mép dưới khung nhìn như bị cắt ngang.
+   `env(safe-area-inset-bottom)` cộng thêm phần bị thanh home indicator / thanh điều hướng của điện thoại
+   che mất — trên máy tính giá trị đó là 0 nên không ảnh hưởng gì.
+   Đặt ở vùng cuộn CỦA TRANG; khung danh sách tự cuộn bên trong không dùng (chúng có trần chiều cao riêng). */
+@utility pb-scroll-end {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* ── Thanh cuộn custom (`ff-scroll`) ──
+   CHỈ dùng trong workspace (`app/projects/**`). Khu `/home` để thanh cuộn mặc định của hệ điều hành.
    Mảnh, bo tròn, rãnh trong suốt; thumb nhạt và đậm lên khi rê chuột vào vùng cuộn. Chrome/Edge/Safari dùng
    `::-webkit-scrollbar` (cho bo góc); Firefox chỉ hiểu `scrollbar-width/color` nên khai ở nhánh @supports. */
 .ff-scroll {
