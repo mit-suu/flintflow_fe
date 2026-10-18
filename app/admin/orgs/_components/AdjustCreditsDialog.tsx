@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Modal from "@/components/ui/Modal";
 import { ApiClientError } from "@/lib/api/client";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import {
@@ -10,7 +9,19 @@ import {
   type AdjustOrgCreditsResult,
   type AdminOrg,
 } from "@/lib/api/admin";
-import { ErrorBanner, inputClass } from "../../_components/AdminPage";
+import { Button } from "@/components/shadcn/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { Label } from "@/components/shadcn/label";
+import { Textarea } from "@/components/shadcn/textarea";
+import { ErrorBanner } from "../../_components/AdminPage";
 
 const REASON_MIN_LENGTH = 3;
 const REASON_MAX_LENGTH = 500;
@@ -79,118 +90,107 @@ export default function AdjustCreditsDialog({ org, onClose, onAdjusted }: Adjust
     }
   };
 
-  const toggleClass = (active: boolean) =>
-    `flex-1 h-9 rounded-[10px] text-[12.5px] font-bold border transition-colors cursor-pointer ${
-      active ? "bg-[#191817] text-white border-[#191817]" : "bg-white text-[#6B6862] border-[#E4E1DC] hover:bg-[#FAF9F7]"
-    }`;
-
   return (
-    <Modal open={org !== null} onClose={close} title="Điều chỉnh credit">
-      {org && (
-        <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
-          <div className="rounded-[12px] bg-[#FAF9F7] border border-[#ECEAE5] px-4 py-3 text-[12.5px] text-[#33312D]">
-            <div className="font-bold text-[#191817]">{org.name}</div>
-            <div className="mt-1 text-[#6B6862]">
+    <Dialog open={org !== null} onOpenChange={(open) => !open && close()}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Điều chỉnh credit</DialogTitle>
+          {org && (
+            <DialogDescription>
               {org.wallet ? (
                 <>
-                  Số dư {formatNumber(balance)} · đang giữ {formatNumber(reserved)} · khả dụng{" "}
-                  <span className="font-bold text-[#191817]">{formatNumber(available)}</span>
+                  {org.name} — số dư {formatNumber(balance)} · đang giữ {formatNumber(reserved)} · khả dụng{" "}
+                  <span className="text-foreground font-semibold">{formatNumber(available)}</span>
                 </>
               ) : (
-                "Tổ chức chưa có ví — ví sẽ được tạo khi điều chỉnh lần đầu."
+                <>{org.name} — chưa có ví; ví sẽ được tạo khi điều chỉnh lần đầu.</>
               )}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        {org && (
+          <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
+            {/* Nút chọn chiều điều chỉnh, không phải tab: cùng một form, chỉ đổi dấu của số credit. */}
+            <div className="flex gap-2" role="group" aria-label="Loại điều chỉnh">
+              {(
+                [
+                  ["add", "Cộng credit"],
+                  ["subtract", "Trừ credit"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={direction === value ? "secondary" : "outline"}
+                  aria-pressed={direction === value}
+                  onClick={() => setDirection(value)}
+                  className="flex-1"
+                >
+                  {label}
+                </Button>
+              ))}
             </div>
-          </div>
 
-          <div className="flex gap-2" role="group" aria-label="Loại điều chỉnh">
-            <button
-              type="button"
-              aria-pressed={direction === "add"}
-              onClick={() => setDirection("add")}
-              className={toggleClass(direction === "add")}
-            >
-              Cộng credit
-            </button>
-            <button
-              type="button"
-              aria-pressed={direction === "subtract"}
-              onClick={() => setDirection("subtract")}
-              className={toggleClass(direction === "subtract")}
-            >
-              Trừ credit
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-bold text-[#6B6862]">Số credit</span>
-              <input
-                type="text"
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="adjust-amount">Số credit</Label>
+              <Input
+                id="adjust-amount"
                 inputMode="numeric"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
                 placeholder="Ví dụ: 100"
-                className={inputClass}
+                aria-invalid={amountInput.trim() !== "" && (!amountValid || exceedsAvailable)}
                 autoFocus
               />
-            </label>
-            {amountInput.trim() !== "" && !amountValid && (
-              <span className="text-[11.5px] text-[#B03030]">Nhập số nguyên dương.</span>
-            )}
-            {exceedsAvailable && (
-              <span className="text-[11.5px] text-[#B03030]">
-                Chỉ trừ được tối đa {formatNumber(Math.max(available, 0))} credit (phần khả dụng).
-              </span>
-            )}
-          </div>
+              {amountInput.trim() !== "" && !amountValid && (
+                <span className="text-destructive text-caption">Nhập số nguyên dương.</span>
+              )}
+              {exceedsAvailable && (
+                <span className="text-destructive text-caption">
+                  Chỉ trừ được tối đa {formatNumber(Math.max(available, 0))} credit (phần khả dụng).
+                </span>
+              )}
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-bold text-[#6B6862]">Lý do (bắt buộc)</span>
-              <textarea
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="adjust-reason">Lý do (bắt buộc)</Label>
+              <Textarea
+                id="adjust-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 maxLength={REASON_MAX_LENGTH}
                 rows={3}
                 placeholder="Ví dụ: Bù credit do sự cố hệ thống ngày 20/09"
-                className="px-3 py-2 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#6A62C4]"
               />
-            </label>
-            <span className="text-[11px] text-[#A8A49C]">
-              Lý do được lưu vào lịch sử giao dịch và gửi kèm thông báo cho Lead của tổ chức.
-            </span>
-          </div>
+              <span className="text-muted-foreground text-caption">
+                Lý do được lưu vào lịch sử giao dịch và gửi kèm thông báo cho Lead của tổ chức.
+              </span>
+            </div>
 
-          {amountValid && !exceedsAvailable && (
-            <p className="text-[12.5px] text-[#33312D]">
-              Số dư sau điều chỉnh:{" "}
-              <span className="font-bold">{formatNumber(balance + signed)}</span>
-            </p>
-          )}
+            {amountValid && !exceedsAvailable && (
+              <p className="text-body">
+                Số dư sau điều chỉnh: <span className="font-bold">{formatNumber(balance + signed)}</span>
+              </p>
+            )}
 
-          {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
+            {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={close}
-              disabled={saving}
-              className="h-9 px-4 rounded-[10px] border border-[#E4E1DC] text-[12.5px] font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] disabled:opacity-60"
-            >
-              Huỷ
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !amountValid || exceedsAvailable || reasonTooShort}
-              className={`h-9 px-4 rounded-[10px] text-white text-[12.5px] font-bold disabled:opacity-60 ${
-                direction === "add" ? "bg-[#2F7A4F] hover:bg-[#276742]" : "bg-[#B03030] hover:bg-[#962828]"
-              }`}
-            >
-              {saving ? "Đang lưu…" : direction === "add" ? "Xác nhận cộng" : "Xác nhận trừ"}
-            </button>
-          </div>
-        </form>
-      )}
-    </Modal>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={close} disabled={saving}>
+                Huỷ
+              </Button>
+              <Button
+                type="submit"
+                variant={direction === "add" ? "default" : "destructive"}
+                disabled={saving || !amountValid || exceedsAvailable || reasonTooShort}
+              >
+                {saving ? "Đang lưu…" : direction === "add" ? "Xác nhận cộng" : "Xác nhận trừ"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

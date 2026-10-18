@@ -13,6 +13,7 @@ import AdminLayout from "./layout";
  */
 
 vi.mock("next-intl/server", () => ({ getMessages: vi.fn(async () => MESSAGES.vi) }));
+vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }), usePathname: () => "/admin" }));
 vi.mock("@/lib/auth", () => ({ isAuthenticated: () => false, getUserRole: () => "admin", clearAuthToken: vi.fn() }));
 vi.mock("@/lib/api", () => ({ refreshSession: () => new Promise(() => {}) }));

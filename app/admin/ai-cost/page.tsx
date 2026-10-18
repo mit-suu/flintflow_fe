@@ -1,24 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { CircleAlert, Coins, DollarSign, Sparkles } from "lucide-react";
+import { getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
+import { fetchAiCost, formatNumber, formatUsd, type AiCostGroupBy, type AiCostReport } from "@/lib/api/admin";
+import { Button } from "@/components/shadcn/button";
+import { DataTable, DataTableViewOptions } from "@/components/shadcn/data-table";
+import { Input } from "@/components/shadcn/input";
+import { Label } from "@/components/shadcn/label";
 import {
-  fetchAiCost,
-  formatNumber,
-  formatUsd,
-  type AiCostGroupBy,
-  type AiCostReport,
-} from "@/lib/api/admin";
-import {
-  AdminTopBar,
-  ErrorBanner,
-  LoadingBlock,
-  inputClass,
-  tableCellClass,
-  tableHeadClass,
-} from "../_components/AdminPage";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/select";
+import AdminHeader from "../_components/AdminHeader";
+import { AdminMain, AdminPageHeader, ErrorBanner, LoadingBlock, StatCard } from "../_components/AdminPage";
+import { aiCostColumns } from "./_components/AiCostColumns";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const PAGE_SIZE = 20;
 const toDateInput = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(date);
 
 const GROUP_LABELS: Record<AiCostGroupBy, string> = {
@@ -41,8 +44,11 @@ export default function AdminAiCostPage() {
   });
   const [filters, setFilters] = useState<Filters>(draft);
   const [report, setReport] = useState<AiCostReport | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Bộ lọc đã tải xong (kể cả khi lỗi). Khác bộ đang cần ⇒ đang tải. */
+  const [loadedFilters, setLoadedFilters] = useState<Filters | null>(null);
+
+  const loading = loadedFilters !== filters;
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +61,7 @@ export default function AdminAiCostPage() {
       } catch (err) {
         if (!cancelled) setError(userErrorMessage(err, "Không thể tải chi phí AI"));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedFilters(filters);
       }
     };
     void load();
@@ -64,10 +70,19 @@ export default function AdminAiCostPage() {
     };
   }, [filters]);
 
-  const apply = (next: Filters) => {
-    setLoading(true);
-    setFilters(next);
-  };
+  const columns = useMemo(() => aiCostColumns(GROUP_LABELS[report?.groupBy ?? filters.groupBy]), [report, filters]);
+
+  // Cả báo cáo về trong một lần gọi nên phân trang ngay trên dữ liệu đang có — không phải hỏi BE từng trang.
+  const table = useReactTable({
+    data: report?.rows ?? [],
+    columns,
+    initialState: { pagination: { pageIndex: 0, pageSize: PAGE_SIZE } },
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    enableSorting: false,
+  });
+
+  const apply = (next: Filters) => setFilters(next);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,127 +95,101 @@ export default function AdminAiCostPage() {
     apply(next);
   };
 
+  const totals = report?.totals;
+
   return (
     <>
-      <AdminTopBar trail={["Chi phí AI"]} />
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Chi phí AI</h1>
-            <p className="text-[12.5px] text-[#8A867E] mt-1">
-              Token từ nhật ký gọi AI, credit từ giao dịch đã trừ (không tính lượt đã hoàn).
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1 text-[11px] font-semibold text-[#8A867E]">
-              Từ ngày
-              <input
-                type="date"
-                value={draft.from}
-                max={draft.to}
-                onChange={(e) => setDraft({ ...draft, from: e.target.value })}
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-[11px] font-semibold text-[#8A867E]">
-              Đến ngày
-              <input
-                type="date"
-                value={draft.to}
-                min={draft.from}
-                onChange={(e) => setDraft({ ...draft, to: e.target.value })}
-                className={inputClass}
-              />
-            </label>
-            <button
-              type="submit"
-              className="h-9 px-4 rounded-[10px] bg-[#191817] text-white text-[12.5px] font-semibold hover:opacity-90 cursor-pointer"
-            >
-              Xem
-            </button>
-          </form>
-        </div>
-
-        <div className="flex bg-white border border-[#E4E1DC] rounded-full p-0.5 self-start">
-          {(Object.keys(GROUP_LABELS) as AiCostGroupBy[]).map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => changeGroupBy(g)}
-              className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
-                filters.groupBy === g ? "bg-[#191817] text-white" : "text-[#6B6862] hover:text-[#191817]"
-              }`}
-            >
-              Theo {GROUP_LABELS[g].toLowerCase()}
-            </button>
-          ))}
-        </div>
+      <AdminHeader />
+      <AdminMain>
+        <AdminPageHeader
+          title="Chi phí AI"
+          description="Token từ nhật ký gọi AI, credit từ giao dịch đã trừ (không tính lượt đã hoàn)."
+        />
 
         {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
-        <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
-          {loading ? (
-            <LoadingBlock label="Đang tổng hợp chi phí…" bare />
-          ) : (
-            report && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-[#FAF9F7]">
-                    <tr>
-                      <th className={tableHeadClass}>{GROUP_LABELS[report.groupBy]}</th>
-                      <th className={`${tableHeadClass} text-right`}>Lượt gọi</th>
-                      <th className={`${tableHeadClass} text-right`}>Lỗi</th>
-                      <th className={`${tableHeadClass} text-right`}>Token vào</th>
-                      <th className={`${tableHeadClass} text-right`}>Token ra</th>
-                      <th className={`${tableHeadClass} text-right`}>Credit đã trừ</th>
-                      <th className={`${tableHeadClass} text-right`}>USD ước tính</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#F3F1EE]">
-                    {report.rows.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-12 text-center text-[13px] text-[#A8A49C]">
-                          Không có dữ liệu trong khoảng thời gian này
-                        </td>
-                      </tr>
-                    ) : (
-                      report.rows.map((row) => (
-                        <tr key={row.key} className="hover:bg-[#FAF9F7]">
-                          <td className={`${tableCellClass} font-semibold`}>{row.label}</td>
-                          <td className={`${tableCellClass} text-right`}>{formatNumber(row.calls)}</td>
-                          <td className={`${tableCellClass} text-right`}>{formatNumber(row.failedCalls)}</td>
-                          <td className={`${tableCellClass} text-right`}>{formatNumber(row.promptTokens)}</td>
-                          <td className={`${tableCellClass} text-right`}>{formatNumber(row.completionTokens)}</td>
-                          <td className={`${tableCellClass} text-right`}>{formatNumber(row.credits)}</td>
-                          <td className={`${tableCellClass} text-right`}>{formatUsd(row.estimatedUsd)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  {report.rows.length > 0 && (
-                    <tfoot className="bg-[#FAF9F7] border-t border-[#ECEAE5]">
-                      <tr>
-                        <td className={`${tableCellClass} font-extrabold`}>Tổng</td>
-                        <td className={`${tableCellClass} text-right font-bold`}>{formatNumber(report.totals.calls)}</td>
-                        <td className={`${tableCellClass} text-right font-bold`}>{formatNumber(report.totals.failedCalls)}</td>
-                        <td className={`${tableCellClass} text-right font-bold`}>{formatNumber(report.totals.promptTokens)}</td>
-                        <td className={`${tableCellClass} text-right font-bold`}>
-                          {formatNumber(report.totals.completionTokens)}
-                        </td>
-                        <td className={`${tableCellClass} text-right font-bold`}>{formatNumber(report.totals.credits)}</td>
-                        <td className={`${tableCellClass} text-right font-bold`}>{formatUsd(report.totals.estimatedUsd)}</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
+        {loading && !report ? (
+          <LoadingBlock label="Đang tổng hợp chi phí…" variant="cards" />
+        ) : (
+          report && (
+            <>
+              {/* Tổng của cả khoảng thời gian lên thẻ, giống trang Số liệu — thay cho hàng tổng dưới bảng,
+                  vốn bị đẩy xuống dưới cùng và không ai cuộn tới. */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard label="Lượt gọi" icon={Sparkles} value={formatNumber(totals?.calls ?? 0)} />
+                <StatCard label="Lượt lỗi" icon={CircleAlert} value={formatNumber(totals?.failedCalls ?? 0)} />
+                <StatCard label="Credit đã trừ" icon={Coins} value={formatNumber(totals?.credits ?? 0)} />
+                <StatCard
+                  label="USD ước tính"
+                  icon={DollarSign}
+                  value={formatUsd(totals?.estimatedUsd ?? 0)}
+                  hint={report.pricingNote}
+                />
               </div>
-            )
-          )}
-        </div>
 
-        {report && <p className="text-[11px] text-[#A8A49C]">* {report.pricingNote}.</p>}
-      </div>
+              <DataTable
+                table={table}
+                columns={columns}
+                emptyMessage="Không có dữ liệu trong khoảng thời gian này"
+                className={loading ? "opacity-60 transition-opacity" : undefined}
+                toolbar={
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor="cost-from" className="text-muted-foreground text-caption">
+                          Từ ngày
+                        </Label>
+                        <Input
+                          id="cost-from"
+                          type="date"
+                          value={draft.from}
+                          max={draft.to}
+                          onChange={(e) => setDraft({ ...draft, from: e.target.value })}
+                          className="h-8 w-[150px]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor="cost-to" className="text-muted-foreground text-caption">
+                          Đến ngày
+                        </Label>
+                        <Input
+                          id="cost-to"
+                          type="date"
+                          value={draft.to}
+                          min={draft.from}
+                          onChange={(e) => setDraft({ ...draft, to: e.target.value })}
+                          className="h-8 w-[150px]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor="cost-group" className="text-muted-foreground text-caption">
+                          Gom theo
+                        </Label>
+                        <Select value={filters.groupBy} onValueChange={(v) => changeGroupBy(v as AiCostGroupBy)}>
+                          <SelectTrigger id="cost-group" className="h-8 w-[150px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(GROUP_LABELS) as AiCostGroupBy[]).map((g) => (
+                              <SelectItem key={g} value={g}>
+                                {GROUP_LABELS[g]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button type="submit" variant="outline" size="sm" className="h-8">
+                        Xem
+                      </Button>
+                    </form>
+                    <DataTableViewOptions table={table} />
+                  </div>
+                }
+              />
+            </>
+          )
+        )}
+      </AdminMain>
     </>
   );
 }

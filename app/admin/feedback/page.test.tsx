@@ -8,6 +8,8 @@ vi.mock("@/lib/api/admin", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/admin")>()),
   fetchAdminFeedback: vi.fn(),
 }));
+// Thanh trên của admin cần context SidebarProvider của layout — ngoài phạm vi test này
+vi.mock("../_components/AdminHeader", () => ({ default: () => null }));
 
 describe("AdminFeedbackPage", () => {
   it("hiện góp ý thật: loại, người gửi, nội dung", async () => {

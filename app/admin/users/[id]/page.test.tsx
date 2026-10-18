@@ -11,11 +11,8 @@ vi.mock("@/lib/api/admin", async (importOriginal) => ({
   fetchAdminUser: vi.fn(),
   setAdminUserStatus: vi.fn(),
 }));
-// TopBar của admin cần context layout — ngoài phạm vi test UC-66/67
-vi.mock("../../_components/AdminPage", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../_components/AdminPage")>()),
-  AdminTopBar: () => null,
-}));
+// Thanh trên của admin cần context SidebarProvider của layout — ngoài phạm vi test UC-66/67
+vi.mock("../../_components/AdminHeader", () => ({ default: () => null }));
 
 const ACTIVE_USER: AdminUserDetail = {
   _id: "u1",

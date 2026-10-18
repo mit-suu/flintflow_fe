@@ -1,32 +1,93 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { X, type LucideIcon } from "lucide-react";
 import PageSkeleton, { type PageSkeletonVariant } from "@/components/ui/PageSkeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/shadcn/card";
+import { cn } from "@/lib/utils";
 
-export function AdminTopBar({ trail, actions }: { trail: string[]; actions?: ReactNode }) {
+/**
+ * Vùng nội dung của một trang admin — đúng khuôn `Main` của bộ admin gốc: lề 1rem, và khi khung đủ rộng
+ * thì giới hạn bề ngang rồi căn giữa để dòng trong bảng không kéo dài hết màn hình lớn.
+ *
+ * Cột cao bằng khung và không tự cuộn: phần cố định (tiêu đề, thanh lọc) nằm thẳng trong này, phần dài
+ * thì bọc `AdminScroll`.
+ */
+export function AdminMain({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className="h-[58px] bg-white border-b border-[#E4E1DC] flex items-center px-6 gap-3.5 shrink-0 z-10">
-      <div className="flex items-center gap-1.5 text-[13px] text-[#8A867E]">
-        <span>Quản trị</span>
-        {trail.map((part, idx) => (
-          <span key={`${part}-${idx}`} className="flex items-center gap-1.5">
-            <span className="text-[#D6D2CB]">/</span>
-            <span className={idx === trail.length - 1 ? "text-[#191817] font-bold" : ""}>{part}</span>
-          </span>
-        ))}
+    <main
+      className={cn(
+        "flex flex-1 flex-col gap-4 overflow-hidden px-4 py-6 sm:gap-6",
+        "@7xl/content:mx-auto @7xl/content:w-full @7xl/content:max-w-7xl",
+        className
+      )}
+    >
+      {children}
+    </main>
+  );
+}
+
+/**
+ * Phần cuộn được của trang (danh sách dài, thẻ, bảng tự dựng) — những thứ bên ngoài nó thì đứng yên.
+ * `ff-scroll` là thanh cuộn custom dùng chung với workspace (`app/globals.css`).
+ */
+export function AdminScroll({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <div className={cn("ff-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto sm:gap-6", className)}>
+      {children}
+    </div>
+  );
+}
+
+/** Tiêu đề trang + một câu mô tả + hành động bên phải. */
+export function AdminPageHeader({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div>
+        <h1 className="text-title font-extrabold">{title}</h1>
+        {description && <p className="text-muted-foreground text-body">{description}</p>}
       </div>
-      {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+      {children && <div className="flex items-center gap-2">{children}</div>}
     </div>
   );
 }
 
 export function ErrorBanner({ message, onClose }: { message: string; onClose?: () => void }) {
   return (
-    <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
+    <div
+      role="alert"
+      className="bg-error-container text-on-error-container flex items-center gap-3 rounded-control px-4 py-3 text-body font-medium"
+    >
       <span className="flex-1">{message}</span>
       {onClose && (
-        <button type="button" onClick={onClose} className="font-bold hover:opacity-75">
-          ✕
+        <button type="button" onClick={onClose} aria-label="Đóng thông báo" className="cursor-pointer hover:opacity-75">
+          <X className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Thông báo thành công (đổi credit, đổi trạng thái…) — cùng khuôn với `ErrorBanner`. */
+export function SuccessBanner({ message, onClose }: { message: string; onClose?: () => void }) {
+  return (
+    <div
+      role="status"
+      className="bg-success-soft text-success flex items-center gap-3 rounded-control px-4 py-3 text-body font-medium"
+    >
+      <span className="flex-1">{message}</span>
+      {onClose && (
+        <button type="button" onClick={onClose} aria-label="Đóng thông báo" className="cursor-pointer hover:opacity-75">
+          <X className="size-4" />
         </button>
       )}
     </div>
@@ -37,21 +98,51 @@ export function ErrorBanner({ message, onClose }: { message: string; onClose?: (
  * Giữ chỗ lúc tải nội dung trang admin. `variant` chọn theo hình nội dung thật (bảng, lưới thẻ…) để
  * lúc dữ liệu về không nhảy layout — `label` chỉ dành cho trình đọc màn hình.
  */
-export function LoadingBlock({ label, variant = "table", rows, bare = false }: { label: string; variant?: PageSkeletonVariant; rows?: number; bare?: boolean }) {
+export function LoadingBlock({
+  label,
+  variant = "table",
+  rows,
+  bare = false,
+}: {
+  label: string;
+  variant?: PageSkeletonVariant;
+  rows?: number;
+  bare?: boolean;
+}) {
   return <PageSkeleton variant={variant} rows={rows} label={label} bare={bare} />;
 }
 
-export function StatCard({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+export function StatCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  href,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: string;
+  icon?: LucideIcon;
+  /** Bấm vào đi đâu. Bỏ trống thì ô chỉ là con số. */
+  href?: string;
+}) {
+  const card = (
+    <Card className={cn("h-full gap-2", href && "hover:bg-muted/50 transition-colors")}>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle className="text-body font-medium">{label}</CardTitle>
+        {Icon && <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />}
+      </CardHeader>
+      <CardContent>
+        <div className="text-metric font-extrabold tabular-nums">{value}</div>
+        {hint && <p className="text-muted-foreground text-caption">{hint}</p>}
+      </CardContent>
+    </Card>
+  );
+
+  if (!href) return card;
   return (
-    <div className="bg-white border border-[#ECEAE5] rounded-[16px] px-5 py-4">
-      <div className="text-[11.5px] font-semibold text-[#8A867E]">{label}</div>
-      <div className="text-[26px] font-extrabold text-[#191817] tracking-tight mt-1">{value}</div>
-      {hint && <div className="text-[11px] text-[#A8A49C] mt-0.5">{hint}</div>}
-    </div>
+    <Link href={href} className="block">
+      {card}
+    </Link>
   );
 }
-
-export const tableHeadClass = "py-2.5 px-4 text-[11px] font-bold text-[#8A867E] uppercase tracking-[0.04em]";
-export const tableCellClass = "py-3 px-4 text-[12.5px] text-[#33312D]";
-export const inputClass =
-  "h-9 px-3 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#6A62C4]";
