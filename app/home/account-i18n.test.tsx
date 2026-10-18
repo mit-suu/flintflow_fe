@@ -87,7 +87,7 @@ vi.mock("@/lib/api/users", () => ({
 }));
 
 const renderInShell = (page: ReactElement, locale: Locale) =>
-  renderWithIntl(<AppShell sidebar={null}>{page}</AppShell>, locale);
+  renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={null}>{page}</AppShell>, locale);
 
 const PAGES: readonly [string, ReactElement, string][] = [
   ["thông báo", <NotificationsPage key="n" />, "Notifications"],

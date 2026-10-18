@@ -33,7 +33,7 @@ beforeEach(() => {
 describe("trang thanh toán theo vai trò trong tổ chức", () => {
   it("Analyst không thấy nút mua, thấy lời giải thích ai được nạp", async () => {
     activeOrg.value = { id: "org-1", name: "Nhóm A", role: "analyst" };
-    renderWithIntl(<AppShell sidebar={<div />}><BillingPage /></AppShell>);
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
 
     expect(await screen.findByText("Gói 100 credit")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mua ngay" })).toBeNull();
@@ -43,7 +43,7 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
 
   it("Lead thấy đủ nút mua và không có lời nhắc", async () => {
     activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
-    renderWithIntl(<AppShell sidebar={<div />}><BillingPage /></AppShell>);
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
 
     expect(await screen.findByRole("button", { name: "Mua ngay" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Mua gói Pro/ })).toBeInTheDocument();
@@ -51,7 +51,7 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
   });
 
   it("chưa biết vai trò thì vẫn hiện nút — BE vẫn chặn, Lead không bị mất nút", async () => {
-    renderWithIntl(<AppShell sidebar={<div />}><BillingPage /></AppShell>);
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
     expect(await screen.findByRole("button", { name: "Mua ngay" })).toBeInTheDocument();
   });
 });

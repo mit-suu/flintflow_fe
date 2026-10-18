@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchBalance } from "@/lib/api/billing";
 import { listProjects } from "@/lib/api/projects";
-import { logoutAndRedirect } from "@/lib/auth";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
 import AppShell from "./AppShell";
@@ -39,7 +38,7 @@ const renderSidebar = (projects: Project[], pathname = "/home") => {
   vi.mocked(listProjects).mockResolvedValue({ data: projects, error: null } as never);
   return renderWithIntl(
     <ProjectsProvider>
-      <AppShell sidebar={<AppSidebar user={{ name: "hiep", email: "hiep@x.vn", isAdmin: false }} />}>
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<AppSidebar />}>
         <p>nội dung</p>
       </AppShell>
     </ProjectsProvider>
@@ -63,17 +62,21 @@ describe("AppSidebar", () => {
     await waitFor(() => expect(within(screen.getByRole("link", { name: /Thông báo/ })).getByText("3")).toBeInTheDocument());
   });
 
-  // task-26: BE đã có module tổ chức ⇒ hai mục này thôi là "Sắp có", thành link thật.
-  it("Thành viên và đổi tổ chức: là link tới trang của nó, không còn badge \"Sắp có\"", () => {
+  // task-26: BE đã có module tổ chức ⇒ mục này thôi là "Sắp có", thành link thật.
+  it("Thành viên: là link tới trang của nó, không còn badge \"Sắp có\"", () => {
     renderSidebar([], "/home/members");
     const members = screen.getByRole("link", { name: /Thành viên/ });
-    const switcher = screen.getByRole("link", { name: /Đổi tổ chức/ });
 
     expect(members).toHaveAttribute("href", "/home/members");
-    expect(switcher).toHaveAttribute("href", "/home/organizations");
     expect(members).toHaveAttribute("aria-current", "page");
-    expect(switcher).not.toHaveAttribute("aria-current");
     expect(screen.queryByText("Sắp có")).toBeNull();
+  });
+
+  // Đổi tổ chức là đổi ngữ cảnh, không phải điều hướng ⇒ không còn là mục nav, mà là bộ chọn tại chỗ.
+  it("không còn mục nav \"Đổi tổ chức\" trỏ sang /home/organizations", () => {
+    renderSidebar([], "/home/members");
+    expect(screen.queryByRole("link", { name: /Đổi tổ chức/ })).toBeNull();
+    expect(screen.queryAllByRole("link").map((a) => a.getAttribute("href"))).not.toContain("/home/organizations");
   });
 
   it('"Gần đây": 3 dự án đang làm mới sửa nhất; ẩn khi chưa có dự án', async () => {
@@ -110,27 +113,13 @@ describe("AppSidebar", () => {
     const initial = toggleLabel();
 
     // Bấm vào một mục (link) thì không thu gọn — mục cũ "Sắp có" nay đã là link thật
-    fireEvent.click(screen.getByRole("link", { name: /Đổi tổ chức/ }));
+    fireEvent.click(screen.getByRole("link", { name: /Thành viên/ }));
     expect(toggleLabel()).toBe(initial);
 
     fireEvent.click(card);
     expect(toggleLabel()).not.toBe(initial);
     fireEvent.click(card);
     expect(toggleLabel()).toBe(initial);
-  });
-
-  it("menu user: Đăng xuất gọi logoutAndRedirect (thu hồi phiên rồi về /login)", () => {
-    renderSidebar([]);
-    fireEvent.click(screen.getByRole("button", { name: "Tài khoản hiep" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Đăng xuất/ }));
-    expect(logoutAndRedirect).toHaveBeenCalledOnce();
-  });
-
-  it("menu user: Hồ sơ cá nhân mở /home/profile", () => {
-    renderSidebar([]);
-    fireEvent.click(screen.getByRole("button", { name: "Tài khoản hiep" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Hồ sơ cá nhân/ }));
-    expect(push).toHaveBeenCalledWith("/home/profile");
   });
 
   it("Gửi góp ý mở dialog", () => {
@@ -166,8 +155,8 @@ describe("AppShell — số dư theo vai trò", () => {
   it("Lead/Analyst ⇒ tải số dư, nhãn gói lấy từ BE", async () => {
     activeOrg.value = { id: "o1", name: "Org", role: "lead" };
     renderSidebar([]);
+    // Nhãn gói hiển thị ở TopBar (xem TopBar.test) — ở đây chỉ kiểm thanh bên có kích hoạt tải số dư
     await waitFor(() => expect(fetchBalance).toHaveBeenCalled());
-    expect(await screen.findByText(/Pro/)).toBeInTheDocument();
     activeOrg.value = null;
   });
 

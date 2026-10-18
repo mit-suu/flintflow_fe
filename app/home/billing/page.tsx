@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import { Badge, Button, Card, EmptyState, IconButton, PageSkeleton } from "@/components/ui";
+import { Badge, Button, EmptyState, IconButton, PageSkeleton } from "@/components/ui";
 import {
   createCheckout,
   fetchBalance,
@@ -41,11 +41,11 @@ const STAT_TONE: Record<StatTone, string> = {
 /** Thẻ số của trang ví: nhãn nhỏ in hoa, số lớn, dòng đơn vị. */
 function StatCard({ label, value, hint, tone = "plain" }: { label: string; value: ReactNode; hint: string; tone?: StatTone }) {
   return (
-    <Card className="p-5">
+    <div className="rounded-card bg-surface-container-low p-5">
       <div className="text-body font-bold text-on-surface-muted uppercase tracking-[0.04em]">{label}</div>
       <div className={`text-metric font-bold leading-tight tracking-tight mt-1 ${STAT_TONE[tone]}`}>{value}</div>
       <div className="text-body text-on-surface-subtle">{hint}</div>
-    </Card>
+    </div>
   );
 }
 
@@ -180,7 +180,7 @@ export default function BillingPage() {
     <>
       <TopBar trail={[tc("account"), t("title")]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-surface-container-lowest">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
         <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
         {error !== null && (
@@ -222,7 +222,7 @@ export default function BillingPage() {
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {packages.map((pkg) => (
-                  <Card key={pkg.id} className="p-5 flex flex-col gap-3">
+                  <div key={pkg.id} className="rounded-card bg-surface-container-low p-5 flex flex-col gap-3">
                     <div>
                       <div className="text-body font-bold text-on-surface-medium">{pkg.label}</div>
                       <div className="text-metric font-bold leading-tight tracking-tight text-on-surface">
@@ -245,7 +245,7 @@ export default function BillingPage() {
                         {t("buyNow")}
                       </Button>
                     ) : null}
-                  </Card>
+                  </div>
                 ))}
               </div>
               <p className="text-body text-on-surface-subtle">{t("vietqrNote")}</p>
@@ -258,8 +258,8 @@ export default function BillingPage() {
                 {plans.map((plan) => {
                   const isCurrent = balance?.plan === plan.id;
                   return (
-                    // Gói hiện tại đánh dấu bằng huy hiệu: `Card` đã có viền riêng, thêm viền màu nữa là chồng hai khai báo
-                    <Card key={plan.id} className="p-5 flex items-center gap-4">
+                    // Gói hiện tại đánh dấu bằng huy hiệu, không bằng viền màu — cả trang không dùng nét để phân tách
+                    <div key={plan.id} className="rounded-card bg-surface-container-low p-5 flex items-center gap-4">
                       <div className="flex-1">
                         <div className="text-heading font-bold text-on-surface">{plan.label}</div>
                         <div className="text-body text-on-surface-variant">
@@ -282,7 +282,7 @@ export default function BillingPage() {
                           {plan.priceVnd > 0 ? t("buyPlan", { plan: plan.label }) : t("switchTo", { plan: plan.label })}
                         </Button>
                       ) : null}
-                    </Card>
+                    </div>
                   );
                 })}
               </div>
@@ -291,24 +291,24 @@ export default function BillingPage() {
             {/* Ledger */}
             <section className="flex flex-col gap-3">
               <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
-              <Card className="overflow-x-auto ff-scroll">
+              <div className="rounded-card bg-surface-container-low p-1.5 max-h-[52dvh] overflow-auto">
                 {ledger.length === 0 ? (
                   <EmptyState icon="wallet" title={t("noTx")} />
                 ) : (
                   <table className="w-full text-body">
                     <thead>
-                      <tr className="text-left text-caption uppercase tracking-[0.04em] text-on-surface-muted border-b border-outline-subtle">
-                        <th className="px-5 py-3 font-bold">{t("col.time")}</th>
-                        <th className="px-5 py-3 font-bold">{t("col.type")}</th>
-                        <th className="px-5 py-3 font-bold">{t("col.action")}</th>
-                        <th className="px-5 py-3 font-bold text-right">{t("col.credit")}</th>
-                        <th className="px-5 py-3 font-bold text-right">{t("col.availableAfter")}</th>
+                      <tr className="text-left text-caption uppercase tracking-[0.04em] text-on-surface-muted">
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.time")}</th>
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.type")}</th>
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.action")}</th>
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.credit")}</th>
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.availableAfter")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ledger.map((tx) => (
-                        <tr key={tx._id} className="border-b border-outline-subtle last:border-b-0">
-                          <td className="px-5 py-3 text-on-surface-variant whitespace-nowrap">
+                        <tr key={tx._id} className="transition-colors hover:bg-surface-container-lowest">
+                          <td className="px-4 py-2.5 text-on-surface-variant whitespace-nowrap">
                             {format.dateTime(new Date(tx.createdAt), {
                               day: "numeric",
                               month: "numeric",
@@ -318,27 +318,27 @@ export default function BillingPage() {
                               second: "2-digit",
                             })}
                           </td>
-                          <td className="px-5 py-3 text-on-surface font-semibold whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-on-surface font-semibold whitespace-nowrap">
                             {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
                             {tx.state && (
                               <span className="ml-1.5 text-caption font-medium text-on-surface-muted">({t(`txState.${tx.state}`)})</span>
                             )}
                           </td>
-                          <td className="px-5 py-3 text-on-surface-variant">{actionLabel(tx.actionType)}</td>
+                          <td className="px-4 py-2.5 text-on-surface-variant">{actionLabel(tx.actionType)}</td>
                           <td
-                            className={`px-5 py-3 text-right font-bold ${
+                            className={`px-4 py-2.5 text-right font-bold ${
                               tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
                             }`}
                           >
                             {signedAmount(tx)}
                           </td>
-                          <td className="px-5 py-3 text-right text-on-surface">{tx.balanceAfter}</td>
+                          <td className="px-4 py-2.5 text-right text-on-surface">{tx.balanceAfter}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 )}
-              </Card>
+              </div>
               {ledgerPage < ledgerTotalPages && (
                 <Button
                   variant="secondary"

@@ -8,12 +8,22 @@ import {
   switchOrganization,
 } from "@/lib/api/orgs";
 import { fetchMe } from "@/lib/api/users";
+import AppShell from "@/components/layout/AppShell";
 import OnboardingPage from "./page";
+
+/** Tổ chức đang mở quyết định khung của trang; đặt trước mỗi test, mặc định là "chưa thuộc tổ chức nào". */
+const shared = vi.hoisted(() => ({ activeOrgId: null as string | null }));
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, push: vi.fn() }),
+  useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/home/onboarding",
+}));
+vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: () => shared.activeOrgId }));
+// `AppShell` (dựng ở nhánh đã có tổ chức) gọi số dư và vai trò — ngoài phạm vi test onboarding
+vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => null) }));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => ({ id: "org-1", name: "Nhóm A", role: "lead" }),
 }));
 vi.mock("@/lib/api/orgs", () => ({
   createOrganization: vi.fn(),
@@ -27,6 +37,7 @@ const assign = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  shared.activeOrgId = null;
   Object.defineProperty(window, "location", { value: { ...window.location, assign }, writable: true });
   vi.mocked(fetchMe).mockResolvedValue({ id: "u1", email: "tien@flintflow.test", name: "Tien" } as never);
 });
@@ -164,5 +175,28 @@ describe("tên tổ chức gợi ý", () => {
     await waitFor(() => expect(fetchMe).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
     expect(input).toHaveValue("Tên tự gõ");
+  });
+});
+
+describe("khung trang theo lối vào", () => {
+  it("chưa thuộc tổ chức nào: không dựng thanh trên và không có lối quay lại", async () => {
+    renderWithIntl(<OnboardingPage />);
+
+    await waitFor(() => expect(fetchMe).toHaveBeenCalled());
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Tổ chức của bạn/ })).not.toBeInTheDocument();
+  });
+
+  it("vào từ trang Đổi tổ chức: giữ thanh trên và có lối quay lại, không phải dùng back của trình duyệt", async () => {
+    shared.activeOrgId = "org-1";
+    renderWithIntl(
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}>
+        <OnboardingPage />
+      </AppShell>
+    );
+
+    const trail = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    expect(trail).toHaveTextContent("Chọn nơi làm việc");
+    expect(screen.getByRole("link", { name: /Tổ chức của bạn/ })).toHaveAttribute("href", "/home/organizations");
   });
 });

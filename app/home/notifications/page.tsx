@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import PageSkeleton from "@/components/ui/PageSkeleton";
+import { Badge, Button, EmptyState, PageSkeleton, Tabs } from "@/components/ui";
 import type { Locale } from "@/lib/i18n";
 import { useNotificationText } from "@/lib/notification-text";
 import { formatNotificationTime, type TimeTranslator } from "@/lib/time-ago";
@@ -110,112 +110,119 @@ export default function NotificationsPage() {
     <>
       <TopBar trail={[tc("account"), t("title")]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8 bg-surface-container-lowest">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-5 px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
             {unreadCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#EFEEF9] text-body font-bold text-[#554DB0]">
+              <Badge tone="primary" size="md">
                 {t("unreadCount", { count: unreadCount })}
-              </span>
+              </Badge>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex bg-white border border-[#E4E1DC] rounded-control p-0.5">
-              {(["all", "unread"] as const).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => changeFilter(f)}
-                  className={`px-3.5 py-1.5 rounded-inner text-body font-semibold transition-colors cursor-pointer ${
-                    filter === f ? "bg-[#191817] text-white" : "text-[#6B6862] hover:text-[#191817]"
-                  }`}
-                >
-                  {f === "all" ? t("filterAll") : t("filterUnread")}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={handleMarkAll}
-              disabled={unreadCount === 0}
-              className="px-3.5 py-1.5 rounded-control border border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
-            >
+            <Tabs
+              label={t("title")}
+              idBase="notifications"
+              value={filter}
+              options={[
+                { value: "all", label: t("filterAll") },
+                { value: "unread", label: t("filterUnread") },
+              ]}
+              onChange={changeFilter}
+            />
+            <Button size="sm" variant="secondary" disabled={unreadCount === 0} onClick={() => void handleMarkAll()}>
               {t("markAll")}
-            </button>
+            </Button>
           </div>
         </div>
 
         {error !== null && (
-          <div className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-control text-xs font-medium">
+          <div
+            role="alert"
+            className="flex items-center gap-3 rounded-control bg-error-container px-3 py-2 text-body text-on-error-container"
+          >
             <span className="flex-1">{error || t("loadFailed")}</span>
-            <button type="button" onClick={() => setError(null)} aria-label={tc("dismiss")} className="font-bold hover:opacity-75">
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              aria-label={tc("dismiss")}
+              className="font-bold hover:opacity-75 cursor-pointer"
+            >
               ✕
             </button>
           </div>
         )}
 
-        <div className="bg-white border border-[#ECEAE5] rounded-card overflow-hidden">
+        {/* Cùng khuôn với danh sách thành viên: mảng nền mờ gom cả cục, mỗi dòng nổi lên khi rê chuột — không
+            viền ngoài, không kẻ ngang. Danh sách tự cuộn trong khung nên bộ lọc và nút "Tải thêm" luôn thấy được. */}
+        <div
+          role="tabpanel"
+          id="notifications-panel"
+          aria-labelledby={`notifications-tab-${filter}`}
+          className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[64dvh] overflow-y-auto"
+        >
           {loading ? (
             <PageSkeleton variant="list" label={t("loadingList")} bare />
           ) : items.length === 0 ? (
-            <div className="py-16 text-center text-body text-[#A8A49C]">
-              {filter === "unread" ? t("allRead") : t("empty")}
-            </div>
+            <EmptyState icon="bell" title={filter === "unread" ? t("allRead") : t("empty")} />
           ) : (
             items.map((n) => {
               const text = notificationText(n);
               return (
-              <div
-                key={n._id}
-                className={`flex gap-3 px-5 py-4 border-b border-[#F3F1EE] last:border-b-0 ${n.readAt ? "" : "bg-[#F8F7FF]"}`}
-              >
-                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.readAt ? "bg-[#E4E1DC]" : "bg-[#6A62C4]"}`} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-body font-bold text-[#191817]">{text.title}</span>
-                    <span className="text-caption text-[#A8A49C] ml-auto shrink-0">
-                      {formatNotificationTime(n.createdAt, tTime as TimeTranslator, locale)}
-                    </span>
-                  </div>
-                  <p className="text-body text-[#6B6862] leading-[1.55] mt-0.5">{text.body}</p>
-                  <div className="flex gap-3 mt-2">
-                    {n.link && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpen(n)}
-                        className="text-body font-semibold text-[#6A62C4] hover:underline cursor-pointer"
-                      >
-                        {t("viewDetail")}
-                      </button>
-                    )}
-                    {!n.readAt && (
-                      <button
-                        type="button"
-                        onClick={() => markNotificationRead(n._id).catch(() => setError(t("markFailed")))}
-                        className="text-body font-semibold text-[#6B6862] hover:text-[#191817] cursor-pointer"
-                      >
-                        {t("markRead")}
-                      </button>
-                    )}
+                <div
+                  key={n._id}
+                  className={`flex gap-3 rounded-control px-4 py-3 transition-colors ${
+                    // Chưa đọc đã có nền riêng ⇒ không đổi màu khi rê chuột, nếu không sẽ mất dấu "chưa đọc"
+                    n.readAt ? "hover:bg-surface-container-lowest" : "bg-primary-soft"
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                      n.readAt ? "bg-surface-container-highest" : "bg-primary"
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-body font-bold text-on-surface">{text.title}</span>
+                      <span className="text-caption text-on-surface-subtle ml-auto shrink-0">
+                        {formatNotificationTime(n.createdAt, tTime as TimeTranslator, locale)}
+                      </span>
+                    </div>
+                    <p className="text-body text-on-surface-variant leading-[1.55] mt-0.5">{text.body}</p>
+                    <div className="flex gap-3 mt-2">
+                      {n.link && (
+                        <button
+                          type="button"
+                          onClick={() => void handleOpen(n)}
+                          className="text-body font-semibold text-primary hover:underline cursor-pointer"
+                        >
+                          {t("viewDetail")}
+                        </button>
+                      )}
+                      {!n.readAt && (
+                        <button
+                          type="button"
+                          onClick={() => markNotificationRead(n._id).catch(() => setError(t("markFailed")))}
+                          className="text-body font-semibold text-on-surface-variant hover:text-on-surface cursor-pointer"
+                        >
+                          {t("markRead")}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
               );
             })
           )}
         </div>
 
         {hasMore && !loading && (
-          <button
-            type="button"
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="self-center px-5 py-2 rounded-control border border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842] hover:bg-[#FAF9F7] disabled:opacity-50 cursor-pointer"
-          >
+          <Button variant="secondary" loading={loadingMore} className="self-center" onClick={() => void loadMore()}>
             {loadingMore ? tc("loading") : tc("loadMore")}
-          </button>
+          </Button>
         )}
       </div>
     </>

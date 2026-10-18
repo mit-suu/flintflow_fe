@@ -1,7 +1,7 @@
 import type { IconName } from "@/components/ui/Icon";
 
 /** `id` vừa là khoá React vừa là key nhãn trong `app.shell.items.*` — thêm mục thì thêm key ở cả hai bản messages. */
-export type SidebarItemId = "projects" | "notifications" | "orgSwitcher" | "members" | "billing";
+export type SidebarItemId = "projects" | "notifications" | "members" | "billing";
 
 interface SidebarItemBase {
   id: SidebarItemId;
@@ -42,9 +42,9 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   {
     id: "org",
     labelKey: "sectionOrg",
-    // Đổi tổ chức nằm trong nhóm Tổ chức — không chiếm vị trí đầu sidebar (task-26: BE đã có module org)
+    // Đổi tổ chức không nằm ở đây: nó là đổi ngữ cảnh chứ không phải điều hướng, nên là bộ chọn ngay trên nhãn
+    // nhóm (`OrgSwitcher`). Mục bên dưới là quản lý CHÍNH tổ chức đang mở: thành viên, lời mời, xoá tổ chức.
     items: [
-      { id: "orgSwitcher", icon: "building", status: "ready", href: "/home/organizations" },
       { id: "members", icon: "users", status: "ready", href: "/home/members" },
       { id: "billing", icon: "credit-card", status: "ready", href: "/home/billing" },
     ],
