@@ -87,6 +87,19 @@ describe("BriefSummaryCard — nhóm ghi chú theo mục tài liệu", () => {
     ]);
   });
 
+  it("mọi section chưa có nhãn gom vào một nhóm duy nhất, đứng cuối", () => {
+    const groups = groupByTarget([
+      addendum("AD01", "fixed:9.9"),
+      addendum("AD02", "fixed:1"),
+      addendum("AD03", "fixed:7.7"),
+    ]);
+
+    expect(groups.map(([target, entries]) => [target, entries.map((e) => e.id)])).toEqual([
+      ["fixed:1", ["AD02"]],
+      ["__other__", ["AD01", "AD03"]],
+    ]);
+  });
+
   it("không có ghi chú ⇒ không nhóm nào", () => {
     expect(groupByTarget([])).toEqual([]);
   });
