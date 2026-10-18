@@ -14,7 +14,7 @@ export interface CardAnswer {
 }
 
 interface QuestionStepperInputProps {
-  /** Chỉ câu CÓ lựa chọn — câu mở trả lời bằng ô chat. */
+  /** Câu có lựa chọn (thêm dòng "Khác…") và câu mở (ô nhập nhiều dòng) — mỗi câu một tab. */
   questions: DiscoveryQuestion[];
   /** Mỗi phần tử ứng với câu cùng chỉ số; câu chưa trả lời là `null`. */
   onSubmit: (answers: (string | string[] | null)[]) => void;
@@ -64,6 +64,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
   const [collapsed, setCollapsed] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const otherRef = useRef<HTMLInputElement>(null);
+  const openRef = useRef<HTMLTextAreaElement>(null);
 
   // Đặt focus vào thẻ để phím số / mũi tên dùng được ngay, không cuộn trang
   useEffect(() => {
@@ -119,15 +120,15 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
     update(current, isMultiple ? { ...answer, custom: text } : { selected: text.trim() ? [] : answer.selected, custom: text });
 
   const handleCardKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    // Đang gõ trong ô "Khác…" ⇒ để ô đó tự xử lý phím
-    if (e.target instanceof HTMLInputElement) return;
+    // Đang gõ trong ô "Khác…" / ô trả lời câu mở ⇒ để ô đó tự xử lý phím
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     const digit = Number(e.key);
     if (!onReview && Number.isInteger(digit) && digit >= 1 && digit <= options.length) {
       e.preventDefault();
       toggleOption(options[digit - 1].label);
     } else if (!onReview && digit === options.length + 1) {
       e.preventDefault();
-      otherRef.current?.focus();
+      (options.length === 0 ? openRef.current : otherRef.current)?.focus();
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
       goTo(current + 1);
@@ -262,7 +263,30 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                     );
                   })}
 
-                  {/* "Khác…": luôn có, gõ tự do */}
+                  {/* Câu mở: ô nhập nhiều dòng ngay trên thẻ — trước đây câu mở không có chỗ trả lời nào ngoài ô chat */}
+                  {options.length === 0 && (
+                    <textarea
+                      ref={openRef}
+                      rows={3}
+                      value={answer.custom}
+                      onChange={(e) => setCustom(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Enter = sang câu kế / gửi; Shift+Enter xuống dòng
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          next();
+                        } else if (e.key === "Escape") {
+                          cardRef.current?.focus({ preventScroll: true });
+                        }
+                      }}
+                      aria-label="Câu trả lời của bạn"
+                      placeholder="Nhập câu trả lời của bạn… (Shift+Enter để xuống dòng)"
+                      className="mx-1 min-h-[72px] resize-y rounded-control border border-outline-variant bg-surface px-3 py-2 text-body text-on-surface outline-none placeholder:text-on-surface-subtle focus:border-primary"
+                    />
+                  )}
+
+                  {/* "Khác…": luôn có với câu có lựa chọn, gõ tự do */}
+                  {options.length > 0 && (
                   <label className="flex items-center gap-2 px-2 py-1 rounded-control hover:bg-surface-container transition-colors cursor-text">
                     <span
                       aria-hidden
@@ -290,6 +314,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                       className="flex-1 min-w-0 bg-transparent outline-none text-body text-on-surface placeholder:text-on-surface-subtle"
                     />
                   </label>
+                  )}
                 </div>
 
                 {preview !== undefined && (

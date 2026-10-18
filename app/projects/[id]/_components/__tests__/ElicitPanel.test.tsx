@@ -118,6 +118,9 @@ describe("E2E FAP #7: thẻ lẫn trắc nghiệm + tự luận", () => {
     const sent: unknown[] = [];
     render(<ElicitPanel questions={qs} chatDraft="" onSubmit={(a) => sent.push(a)} />);
     fireEvent.click(screen.getByRole("radio", { name: /Thang 10/ }));
+    // Câu tự luận giờ nằm ngay trên thẻ (tab riêng, ô nhập riêng); để trống rồi sang "Xem lại" gửi
+    expect(screen.getByRole("textbox", { name: "Câu trả lời của bạn" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Xem lại" }));
     fireEvent.click(screen.getByRole("button", { name: "Gửi câu trả lời" }));
     expect(sent).toEqual([]);
     expect(screen.getByRole("alert")).toHaveTextContent("Thành phần điểm và trọng số?");
@@ -127,6 +130,48 @@ describe("E2E FAP #7: thẻ lẫn trắc nghiệm + tự luận", () => {
     expect(split([qs[1], { id: "Q3", text: "Ngưỡng vắng?" }], "1) 10/30/60\n2) 20%")).toEqual([
       { question_id: "Q2", answer: "10/30/60" },
       { question_id: "Q3", answer: "20%" },
+    ]);
+  });
+});
+
+describe("lượt chỉ có câu mở (ảnh lỗi B-1.1): thẻ hỏi vẫn hiện, mỗi câu một ô nhập", () => {
+  const qs = [
+    { id: "Q_users", text: "Ai là người dùng chính của app?" },
+    { id: "Q_auth", text: "Đăng nhập và xác thực giao dịch theo hướng nào?", inline: true },
+  ];
+
+  it("hiện thẻ với ô nhập cho từng câu; nhập rồi gửi ⇒ đủ câu trả lời theo id", async () => {
+    const { render, screen, fireEvent } = await import("@testing-library/react");
+    const { default: ElicitPanel } = await import("../ElicitPanel");
+    const sent: unknown[] = [];
+    render(<ElicitPanel questions={qs} onSubmit={(a) => sent.push(a)} />);
+    expect(screen.getByText("Ai là người dùng chính của app?")).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Câu trả lời của bạn" }), { target: { value: "Khách hàng cá nhân" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp" }));
+    expect(screen.getByText("Đăng nhập và xác thực giao dịch theo hướng nào?")).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Câu trả lời của bạn" }), { target: { value: "OTP + vân tay" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Xem lại" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi câu trả lời" }));
+    expect(sent).toEqual([
+      [
+        { question_id: "Q_users", answer: "Khách hàng cá nhân" },
+        { question_id: "Q_auth", answer: "OTP + vân tay" },
+      ],
+    ]);
+  });
+
+  it("chưa nhập trên thẻ mà ô chat có chữ đánh số ⇒ vẫn gửi được, chữ chia theo câu", async () => {
+    const { render, screen, fireEvent } = await import("@testing-library/react");
+    const { default: ElicitPanel } = await import("../ElicitPanel");
+    const sent: unknown[] = [];
+    render(<ElicitPanel questions={qs} chatDraft={"1. Khách hàng cá nhân\n2. OTP"} onSubmit={(a) => sent.push(a)} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Xem lại" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi câu trả lời" }));
+    expect(sent).toEqual([
+      [
+        { question_id: "Q_users", answer: "Khách hàng cá nhân" },
+        { question_id: "Q_auth", answer: "OTP" },
+      ],
     ]);
   });
 });
