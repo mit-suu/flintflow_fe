@@ -276,7 +276,7 @@ export default function ProjectCard({
           : undefined
       }
       // Nền phẳng tím nhạt như thẻ thư mục (đổi màu này thì đổi cả màu chữ/rãnh tiến độ — xem PhaseBar), không viền, không bóng; hover ngả tím nhạt.
-      // Đang mở menu ⋮ ⇒ nâng cả card (z-21 > nút ⋮ z-20 của card khác, < tiêu đề mục dính z-25), để menu không bị nút ⋮ của card bên dưới đè lên
+      // Đang mở menu ⋮ ⇒ nâng cả card (z-21 > nút ⋮ z-20 của card khác, < tiêu đề mục dính z-27), để menu không bị nút ⋮ của card bên dưới đè lên
       className={`relative flex flex-col rounded-card transition-colors duration-200 has-[[aria-expanded=true]]:z-[21] ${
         selected ? "bg-primary-soft" : "bg-surface-card hover:bg-surface-card-hover"
       } ${draggable && !selectable ? "cursor-grab active:cursor-grabbing" : ""}`}>

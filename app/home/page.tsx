@@ -54,7 +54,10 @@ const STICKY_BLEED = "-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8";
  */
 function SectionTitle({ id, title, count, hint }: { id: string; title: string; count?: number; hint?: string }) {
   return (
-    <div className={`sticky top-[var(--toolbar-h,0px)] z-[25] -mt-2 py-2 bg-surface-container-lowest flex items-center gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
+    // `z-[27]` phải CAO HƠN `z-[26]` mà `FolderCard` tự nâng lên lúc hover: thẻ cuộn chui xuống dưới tiêu đề
+    // mà rê chuột vào thì nó nhảy đè lên, che mất tiêu đề. Tiêu đề có nền đặc nên thẻ khuất gọn bên dưới —
+    // đổi lại bóng đổ của thẻ bị nền tiêu đề cắt, nhưng lúc đó thẻ đã khuất một nửa, cái bóng không ai thấy.
+    <div className={`sticky top-[var(--toolbar-h,0px)] z-[27] -mt-2 py-2 bg-surface-container-lowest flex items-center gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
       <h2 id={id} className="text-title sm:text-title font-semibold text-on-surface tracking-tight">
         {title}
       </h2>
@@ -305,7 +308,8 @@ export default function HomePage() {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-4 sm:px-6 lg:px-8 pb-8 bg-surface-container-lowest"
+        // `pb-12`: chừa khoảng thở ở đáy, cuộn hết trang thì dòng cuối không dính sát mép dưới khung nhìn
+        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-4 sm:px-6 lg:px-8 pb-scroll-end bg-surface-container-lowest"
       >
         {showOnboarding ? (
           <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 pt-6 pb-2 sm:pt-12 sm:pb-6">
