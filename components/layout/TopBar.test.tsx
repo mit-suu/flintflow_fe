@@ -2,17 +2,20 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import { fetchBalance, type BalanceResponse } from "@/lib/api/billing";
+import { logoutAndRedirect } from "@/lib/auth";
 import AppShell, { useAppShell } from "./AppShell";
 import TopBar from "./TopBar";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/home", useRouter: () => ({ refresh: vi.fn() }) }));
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ usePathname: () => "/home", useRouter: () => ({ push, refresh: vi.fn() }) }));
+vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 1250, planLabel: "Pro" })) }));
 // Số dư chỉ tải cho Lead/Analyst (Viewer bị BE chặn) — xem AppSidebar.test
 vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => ({ id: "o1", name: "Org", role: "lead" }) }));
 
 const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) =>
   renderWithIntl(
-    <AppShell sidebar={<nav aria-label="Điều hướng chính">sidebar</nav>}>
+    <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<nav aria-label="Điều hướng chính">sidebar</nav>}>
       <TopBar trail={["Tài khoản", "Thông báo"]} {...props} />
     </AppShell>
   );
@@ -42,7 +45,7 @@ describe("TopBar", () => {
       );
     }
     renderWithIntl(
-      <AppShell sidebar={null}>
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={null}>
         <TopBar trail={["Dự án"]} />
         <SpendCredits />
       </AppShell>
@@ -67,6 +70,28 @@ describe("TopBar", () => {
     renderTopBar({ search: <input aria-label="Tìm dự án" />, actions: <button type="button">Dự án mới</button> });
     expect(screen.getAllByRole("textbox", { name: "Tìm dự án" })).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Dự án mới" })).toBeInTheDocument();
+  });
+
+  // Menu tài khoản chuyển từ chân thanh bên lên đây để mọi trang `/home` đều với tới được
+  it("avatar mở menu tài khoản: Hồ sơ cá nhân điều hướng tới /home/profile", () => {
+    renderTopBar();
+    fireEvent.click(screen.getByRole("button", { name: "Tài khoản Test" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Hồ sơ cá nhân/ }));
+    expect(push).toHaveBeenCalledWith("/home/profile");
+  });
+
+  it("menu tài khoản: Đăng xuất gọi logoutAndRedirect (thu hồi phiên rồi về /login)", () => {
+    renderTopBar();
+    fireEvent.click(screen.getByRole("button", { name: "Tài khoản Test" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Đăng xuất/ }));
+    expect(logoutAndRedirect).toHaveBeenCalledOnce();
+  });
+
+  it("menu tài khoản: mục Thanh toán mang nhãn gói lấy từ BE", async () => {
+    renderTopBar();
+    await screen.findByRole("link", { name: /credits/ });
+    fireEvent.click(screen.getByRole("button", { name: "Tài khoản Test" }));
+    expect(screen.getByRole("menuitem", { name: /Thanh toán/ })).toHaveTextContent("Gói Pro");
   });
 
   it("nút Mở menu (mobile) mở drawer dạng dialog, Esc đóng và trả focus", () => {

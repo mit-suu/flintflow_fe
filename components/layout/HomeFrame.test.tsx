@@ -15,8 +15,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 // Khung đầy đủ và guard được test riêng — ở đây chỉ cần biết HomeFrame chọn khung nào
-vi.mock("./AppShell", () => ({ default: ({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) => <div data-testid="app-shell">{sidebar}{children}</div> }));
-vi.mock("./AppSidebar", () => ({ default: ({ user }: { user: { name: string } }) => <nav data-testid="app-sidebar">{user.name}</nav> }));
+// `user` giờ đi vào AppShell (TopBar dựng menu tài khoản từ context), không còn truyền xuống AppSidebar
+vi.mock("./AppShell", () => ({ default: ({ sidebar, user, children }: { sidebar: React.ReactNode; user: { name: string }; children: React.ReactNode }) => <div data-testid="app-shell" data-user-name={user.name}>{sidebar}{children}</div> }));
+vi.mock("./AppSidebar", () => ({ default: () => <nav data-testid="app-sidebar" /> }));
 vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn() }));
 // Hook đồng bộ ngôn ngữ test riêng — ở đây chỉ cần biết HomeFrame đưa hồ sơ cho nó
 vi.mock("@/lib/hooks/use-account-locale", () => ({ useAccountLocaleSync: vi.fn() }));
@@ -67,14 +68,16 @@ describe("HomeFrame", () => {
   });
 });
 
-describe("HomeFrame — tên ở thanh bên", () => {
+describe("HomeFrame — tên người dùng đưa xuống khung", () => {
   it("hồ sơ có tên ⇒ thay tên đoán từ email bằng tên thật", async () => {
     pathname = "/home";
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");
     vi.mocked(fetchMe).mockResolvedValue({ email: "tien@flintflow.test", name: "Tiến Nguyễn" } as never);
     renderWithIntl(<HomeFrame user={user}><p>trang chủ</p></HomeFrame>);
 
-    expect(await screen.findByText("Tiến Nguyễn")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("app-shell")).toHaveAttribute("data-user-name", "Tiến Nguyễn")
+    );
   });
 
   it("không lấy được hồ sơ ⇒ giữ tên đoán từ email", async () => {
@@ -84,7 +87,7 @@ describe("HomeFrame — tên ở thanh bên", () => {
     renderWithIntl(<HomeFrame user={user}><p>trang chủ</p></HomeFrame>);
 
     await waitFor(() => expect(fetchMe).toHaveBeenCalled());
-    expect(screen.getByTestId("app-sidebar")).toHaveTextContent("tien");
+    expect(screen.getByTestId("app-shell")).toHaveAttribute("data-user-name", "tien");
   });
 });
 

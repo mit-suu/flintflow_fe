@@ -13,8 +13,8 @@ import { fetchMe } from "@/lib/api/users";
 import { useAccountLocaleSync } from "@/lib/hooks/use-account-locale";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { User } from "@/types/user";
-import AppShell from "./AppShell";
-import AppSidebar, { type SidebarUser } from "./AppSidebar";
+import AppShell, { type AppUser } from "./AppShell";
+import AppSidebar from "./AppSidebar";
 
 /**
  * Khung của `/home/*`. Đặt TRONG `AuthGuard` (chỉ chạy ở client sau khi xác thực) nên đọc token ở đây không lệch SSR.
@@ -24,7 +24,7 @@ import AppSidebar, { type SidebarUser } from "./AppSidebar";
  * Free" khi chưa có tổ chức nào: bấm mục nào cũng bị đẩy ngược về onboarding, còn provider và số dư thì tải
  * bằng token chưa có org ⇒ 409. `OrgGuard` vẫn quyết định ở lại onboarding, tự mở org, hay đẩy về onboarding.
  */
-export default function HomeFrame({ user, children }: { user: SidebarUser; children: React.ReactNode }) {
+export default function HomeFrame({ user, children }: { user: AppUser; children: React.ReactNode }) {
   const pathname = usePathname();
   const t = useTranslations("app.shell");
   // JWT không có tên ⇒ layout chỉ đoán từ email ("lead.tien"). Lấy tên thật từ hồ sơ; lỗi thì giữ tên đoán.
@@ -67,7 +67,10 @@ export default function HomeFrame({ user, children }: { user: SidebarUser; child
 
   return (
     <ProjectsProvider>
-      <AppShell sidebar={<AppSidebar user={profileName ? { ...user, name: profileName } : user} />}>
+      <AppShell
+        user={profileName ? { ...user, name: profileName } : user}
+        sidebar={<AppSidebar />}
+      >
         <OrgGuard>{children}</OrgGuard>
       </AppShell>
     </ProjectsProvider>

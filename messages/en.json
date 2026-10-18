@@ -439,6 +439,7 @@
       "leadOnlyPurchase": "Only the organization Lead can buy credits or change the plan. When the organization needs more credits, let your Lead know."
     },
     "checkout": {
+      "title": "Transaction",
       "back": "Back to billing",
       "loading": "Loading transaction…",
       "loadFailed": "Could not load the transaction",
@@ -510,10 +511,10 @@
       "collapse": "Collapse sidebar",
       "sectionMain": "Main",
       "sectionOrg": "Organization",
+      "orgSwitcher": "Current organization: {org}. Switch organization",
       "items": {
         "projects": "Projects",
         "notifications": "Notifications",
-        "orgSwitcher": "Switch organization",
         "members": "Members",
         "billing": "Credits & billing"
       },
@@ -862,8 +863,6 @@
         "current": "Current",
         "switch": "Open this organization",
         "roleLine": "Role: {role}",
-        "addTitle": "Add an organization",
-        "addBody": "Create a new organization, or enter an invitation code to join another one.",
         "addCta": "Create or join",
         "loadError": "Could not load your organizations.",
         "goToProjects": "Go to projects",
@@ -877,6 +876,7 @@
         "you": "You",
         "joined": "Joined {date}",
         "roleLabel": "Role of {name}",
+        "rowActions": "Actions for {name}",
         "remove": "Remove from organization",
         "removeTitle": "Remove member?",
         "removeBody": "{name} loses access to every project of the organization right away. The projects stay with the organization.",
