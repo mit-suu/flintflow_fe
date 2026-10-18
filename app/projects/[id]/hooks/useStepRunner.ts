@@ -89,6 +89,7 @@ export type RunnerAction =
   | { type: "answered"; count?: number }
   | { type: "busy"; busy: boolean }
   | { type: "failed"; code: string; message: string; meta?: Record<string, unknown> }
+  | { type: "answerFailed"; questions: Question[]; elicitText: string; code: string; message: string; meta?: Record<string, unknown> }
   | { type: "restored"; state: RunState; at?: number }
   /** Sự kiện của các bước trước trong cùng giai đoạn (chạy liền), dựng lại nhật ký sau reload — FLF-221. */
   | { type: "history"; events: (StepEvent & { at?: number | string })[] }
@@ -151,6 +152,25 @@ const gateOf = (event: GateReadyEvent): RunnerGate => ({
   emptySections: event.empty_sections ?? [],
 });
 
+/**
+ * Lời AI của lượt hỏi đang chờ, dựng lại từ nhật ký run-state: `elicit` cuối cùng đứng trước `answer_needed` cuối cùng (sau
+ * reload / lượt chat tự do chạy ở nền, không có SSE nên `elicitText` rỗng — thẻ hỏi hiện mà không có lời giải thích của AI).
+ */
+export const askReplyOf = (events: readonly StepEvent[]): string => {
+  const asked = events.findLastIndex((e) => e.type === "answer_needed");
+  if (asked < 0) return "";
+  let end = asked - 1;
+  while (end >= 0 && events[end].type !== "elicit") end--;
+  if (end < 0) return "";
+  // Các mẩu stream liền nhau của cùng lượt — đúng luật nối của reducer
+  let start = end;
+  while (start > 0 && events[start - 1].type === "elicit" && events[start - 1].step_id === events[end].step_id) start--;
+  return events
+    .slice(start, end + 1)
+    .map((e) => (e.type === "elicit" ? e.delta : ""))
+    .join("");
+};
+
 /** Máy trạng thái của một lượt chạy step — thuần để test (03-live-status-flow §4). */
 export function stepRunnerReducer(state: RunnerState, action: RunnerAction): RunnerState {
   switch (action.type) {
@@ -192,8 +212,13 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
             batch: event.batch ?? null,
             retry: null,
           };
-        case "elicit":
-          return { ...next, elicitText: state.elicitText + event.delta };
+        case "elicit": {
+          // Chỉ nối các mẩu stream liền nhau của cùng một lượt; có sự kiện khác chen giữa (bước mới, đã nhận trả lời, cổng
+          // tự duyệt…) thì đây là một lời mới — nối vào thì lời của bước trước dính vào lời hỏi của bước sau
+          const previous = state.events.at(-1);
+          const streaming = previous?.type === "elicit" && previous.step_id === event.step_id;
+          return { ...next, elicitText: streaming ? state.elicitText + event.delta : event.delta };
+        }
         case "answer_needed":
           return { ...next, questions: event.questions, busy: false, detail: `Chờ bạn trả lời ${event.questions.length} câu hỏi` };
         case "answer_received":
@@ -204,7 +229,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
           return { ...next, summary: [...state.summary, ...(event.summary ?? [])] };
         case "gate_ready":
           // Bước im: server tự Accept ngay — chỉ vào nhật ký, không dựng thẻ cổng (bấm chip lúc này ăn 409 và làm gãy luồng)
-          if (event.auto) return { ...next, status: "drafting", busy: true, stage: null, detail: null, retry: null };
+          if (event.auto) return { ...next, status: "drafting", busy: true, stage: null, detail: null, retry: null, elicitText: "" };
           return { ...next, gate: gateOf(event), busy: false, stage: "gate", detail: null, retry: null };
         case "phase_progress":
           return {
@@ -214,11 +239,14 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
             phaseProgress: { index: event.step_index, total: event.step_total },
             stepId: event.step_id,
             busy: !event.needs_user,
+            // Sang bước mới: lời hỏi / câu hỏi của bước trước không thuộc về bước này
+            elicitText: "",
+            questions: [],
           };
         case "auto_accepted":
           // Bước tự hoàn tất: không phải một cổng chốt phải bấm — bỏ `gate_ready` của nó, chuỗi chạy tiếp (kể cả sang giai
           // đoạn kế trên cùng luồng khi cả giai đoạn tự qua); giữ thẻ lại thì user thấy cổng của một bước đã chốt.
-          return { ...next, status: "drafting", stage: null, detail: null, gate: null, busy: true, autoAccepted: [...state.autoAccepted, { step_id: event.step_id, reason_vi: event.reason_vi }] };
+          return { ...next, status: "drafting", stage: null, detail: null, gate: null, busy: true, elicitText: "", autoAccepted: [...state.autoAccepted, { step_id: event.step_id, reason_vi: event.reason_vi }] };
         case "phase_gate":
           return { ...next, status: state.status, phaseGate: event };
         case "error":
@@ -241,6 +269,17 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       };
     case "busy":
       return { ...state, busy: action.busy };
+    case "answerFailed":
+      // Gửi câu trả lời lỗi: thẻ hỏi phải còn để gửi lại — xoá câu hỏi rồi chuyển "error" thì user mất chỗ trả lời
+      return {
+        ...state,
+        status: "needs_input",
+        questions: action.questions,
+        elicitText: action.elicitText,
+        busy: false,
+        detail: null,
+        error: { code: action.code, message: action.message, ...(action.meta ? { meta: action.meta } : {}) },
+      };
     case "failed":
       return { ...state, status: "error", error: { code: action.code, message: action.message, ...(action.meta ? { meta: action.meta } : {}) }, busy: false };
     case "reconnecting":
@@ -265,7 +304,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         lastEventAt: at,
       };
       if (run.status === "gate" && run.gate_payload) return { ...base, status: "gate_ready", gate: gateOf(run.gate_payload), phaseGate: run.phase_gate ?? null };
-      if (run.status === "waiting_answer" && run.questions) return { ...base, status: "needs_input", questions: run.questions };
+      if (run.status === "waiting_answer" && run.questions) return { ...base, status: "needs_input", questions: run.questions, elicitText: askReplyOf(events) };
       if (run.status === "running" && run.alive) return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true };
       if (run.status === "interrupted" || (run.status === "running" && !run.alive)) {
         // Lỗi của lượt (vd lượt chạy tiếp ở nền sau khi trả lời) hiện ở khối lỗi kèm nút làm lại
@@ -565,28 +604,30 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
    * còn chờ. Lượt phỏng vấn giai đoạn đã tách kết nối mà vẫn còn câu chờ sau lượt chat ⇒ dựng lại thẻ, chưa chạy lại.
    */
   const answer = useCallback(
-    async (answers: StepAnswer[], message?: string) => {
+    async (answers: StepAnswer[], message?: string): Promise<boolean> => {
       const stepId = stepRef.current;
-      if (!stepId || !sessionId) return;
+      if (!stepId || !sessionId) return false;
       const restored = state.source === "restored";
+      const pending = { questions: state.questions, elicitText: state.elicitText };
       dispatch({ type: "answered", count: answers.length });
       try {
         await answerStep(projectId, stepId, { session_id: sessionId, answers, ...(message ? { message } : {}) });
       } catch (err) {
-        dispatch({ type: "failed", ...toFailure(err) });
-        return;
+        dispatch({ type: "answerFailed", ...pending, ...toFailure(err) });
+        return false;
       }
-      if (!restored || !isPhaseUnit(stepId)) return;
+      if (!restored || !isPhaseUnit(stepId)) return true;
       if (message) {
         const waiting = await getRunState(projectId, stepId).then((r) => r.data).catch(() => null);
         if (waiting?.status === "waiting_answer") {
           dispatch({ type: "restored", state: waiting, at: Date.now() });
-          return;
+          return true;
         }
       }
       await runWholePhase(stepId);
+      return true;
     },
-    [projectId, sessionId, state.source, runWholePhase]
+    [projectId, sessionId, state.source, state.questions, state.elicitText, runWholePhase]
   );
 
   /**

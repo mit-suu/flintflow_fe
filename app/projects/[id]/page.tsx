@@ -825,6 +825,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     },
     [handleChangeApplied, activeSessionId, reloadActiveSession, mode1]
   );
+  /**
+   * Lượt chạy tới cổng chốt ⇒ đọc lại lịch sử: lời AI của lượt không hỏi gì (Elicit trả lời rồi soạn luôn) chỉ tới qua SSE
+   * và trước đây chỉ hiện sau khi tải lại trang — trên màn hình user thấy tin mình gửi mà không thấy AI đáp gì.
+   */
+  const reachedGate = !mode1 && ws.isPipelineActive && runner.state.status === "gate_ready";
+  useEffect(() => {
+    if (reachedGate && activeSessionId) void reloadActiveSession(activeSessionId);
+  }, [reachedGate, activeSessionId, reloadActiveSession]);
   const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
   // FLF-248: cờ "rỗng" của bước đã chốt là vấn đề thật (chặn ký baseline), không phải "sẽ điền ở bước sau"
@@ -1158,35 +1166,56 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    * vào transcript của bước). Gộp nó với câu hỏi thành MỘT bong bóng, và ẩn bản trong lịch sử cho khỏi hiện hai lần.
    */
   const lastChatMessage = ws.activeSession?.messages.at(-1);
+  // Bước (hoặc đơn vị giai đoạn của lượt phỏng vấn) đang hỏi: `answer_needed` cuối cùng nói rõ, kể cả sau reload
+  const askStep = runner.state.events.findLast((e) => e.type === "answer_needed")?.step_id ?? runner.state.stepId;
+  // Tin AI cuối chỉ là lời hỏi khi nó thuộc ĐÚNG bước đang hỏi — tin cổng chốt / lời sửa / lời của bước trước mà bị lấy làm
+  // lời hỏi thì câu hỏi hiện dưới một đoạn không liên quan, còn tin đó biến khỏi lịch sử
   const trailingAskReply =
-    !mode1 && onPipelineSession && runner.state.status === "needs_input" && lastChatMessage?.role === "ai"
+    !mode1 && onPipelineSession && runner.state.status === "needs_input" && lastChatMessage?.role === "ai" && askStep !== null && lastChatMessage.step === askStep
       ? replyOfAsk(lastChatMessage.content)
       : null;
   const askReply = runner.state.elicitText || trailingAskReply || "";
-  const openQuestions = splitQuestions(runner.state.questions, askReply).listed;
+  // Người sửa được có thẻ hỏi chứa MỌI câu (kể cả câu mở, mỗi câu một ô nhập) ⇒ bong bóng chỉ còn lời AI, không liệt kê lại.
+  // Người chỉ xem không có thẻ ⇒ vẫn liệt kê câu mở trong bong bóng.
+  const openQuestions = ws.canEdit ? [] : splitQuestions(runner.state.questions, askReply).listed;
 
   /**
    * Lượt hỏi tới qua SSE nên chưa có trong lịch sử trên màn hình — trả lời xong là thẻ hỏi đóng và câu hỏi biến mất theo.
    * Chèn nó (lời đáp + câu hỏi, đúng dạng BE ghi transcript) vào lịch sử ngay trước câu trả lời. Đã có ⇒ bỏ qua.
    */
-  const keepAskInHistory = () => {
-    if (trailingAskReply !== null || runner.state.questions.length === 0) return;
+  const keepAskInHistory = (): string | null => {
+    if (trailingAskReply !== null || runner.state.questions.length === 0) return null;
     // Câu `inline` mà lời AI đã chứa thì không lưu lại thành dòng câu hỏi riêng
     const content = JSON.stringify({
       reply: askReply,
       questions: runner.state.questions.filter((q) => !(q.inline && replyContainsQuestion(askReply, q.text))).map((q) => ({ question: q.text })),
     });
-    ws.appendLocalMessage(content, runner.state.stepId, "ai");
+    ws.appendLocalMessage(content, askStep, "ai");
+    return content;
   };
 
   /**
    * Câu trả lời trên thẻ vào lịch sử ngay: MỘT bong bóng, mỗi đáp án một dòng, chữ gõ ở ô chat (`typed`) nối ngay sau —
    * câu hỏi đã nằm ở tin AI ngay trên. Đúng dạng BE ghi transcript.
    */
-  const showCardAnswers = (answers: readonly StepAnswer[], typed = "") => {
+  const showCardAnswers = (answers: readonly StepAnswer[], typed = ""): string | null => {
     const lines = [...answers.map((a) => (Array.isArray(a.answer) ? a.answer.join(", ") : a.answer).trim()), typed.trim()].filter((line) => line !== "");
-    if (lines.length === 0) return;
-    ws.appendLocalMessage(lines.join("\n"), runner.state.stepId);
+    if (lines.length === 0) return null;
+    const content = lines.join("\n");
+    ws.appendLocalMessage(content, askStep);
+    return content;
+  };
+
+  /** Gửi câu trả lời; BE từ chối ⇒ gỡ lượt hỏi/đáp vừa chèn tạm vào lịch sử (thẻ hỏi đã được dựng lại để gửi lại). */
+  const sendAnswers = async (answers: StepAnswer[], typed?: string): Promise<boolean> => {
+    const ask = keepAskInHistory();
+    const said = showCardAnswers(answers, typed);
+    const sent = await runner.answer(answers, typed);
+    if (!sent) {
+      if (said) ws.dropLocalMessage(said);
+      if (ask) ws.dropLocalMessage(ask, "ai");
+    }
+    return sent;
   };
 
   /** Chip "Sửa theo đề xuất" của một cờ mới: gửi yêu cầu sửa nêu đúng vấn đề đó, như user tự gõ ở ô chat. */
@@ -1319,9 +1348,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       const onCard = cardAnswers.key === questionSetKey ? cardAnswers.answers : [];
       setCardAnswers({ key: "", answers: [] });
       ws.setInputMessage("");
-      keepAskInHistory();
-      showCardAnswers(onCard, text);
-      await runner.answer(onCard, text);
+      // Lỗi gửi ⇒ chữ về lại ô chat, không mất
+      if (!(await sendAnswers(onCard, text))) ws.setInputMessage(raw);
       return;
     }
     if (status === "gate_ready") {
@@ -1522,9 +1550,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 questions={runner.state.questions}
                 onSubmit={(answers) => {
                   setCardAnswers({ key: "", answers: [] });
-                  keepAskInHistory();
-                  showCardAnswers(answers);
-                  void runner.answer(answers);
+                  void sendAnswers(answers);
                 }}
                 chatDraft={ws.inputMessage}
                 onChatDraftUsed={() => ws.setInputMessage("")}
