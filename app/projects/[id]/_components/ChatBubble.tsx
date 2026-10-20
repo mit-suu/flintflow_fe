@@ -42,7 +42,8 @@ export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boole
     if (data.kind === "change_preview") {
       // FLF-244: BE chỉ lưu `change_count`; tin cũ còn mảng `changes`
       const count = typeof data.change_count === "number" ? data.change_count : Array.isArray(data.changes) ? data.changes.length : 0;
-      return { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false };
+      // FLF-300: bản xem trước lỗi / rỗng không có gì để xác nhận
+      return count > 0 ? { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false } : { text: "Chưa ghi gì", wrote: false };
     }
     if (data.kind === "change_applied") {
       const count = typeof (data as { count?: unknown }).count === "number" ? (data as { count: number }).count : 0;

@@ -55,5 +55,8 @@ describe("Chat — phân đoạn theo bước và nhãn ghi (BUG-24, BUG-09)", (
     expect(writeBadgeOf({ role: "ai", content: "Tôi sẽ bổ sung UC18", createdAt: "" })).toMatchObject({ text: "Chỉ trao đổi", wrote: false });
     const preview = JSON.stringify({ kind: "change_preview", changes: [{}, {}] });
     expect(writeBadgeOf({ role: "ai", content: preview, createdAt: "" })).toMatchObject({ text: "Chờ bạn xác nhận (2 thay đổi)" });
+    // FLF-300: bản xem trước lỗi (0 thay đổi) không có gì để xác nhận
+    const failed = JSON.stringify({ kind: "change_preview", reply: "…", change_count: 0 });
+    expect(writeBadgeOf({ role: "ai", content: failed, createdAt: "" })).toMatchObject({ text: "Chưa ghi gì", wrote: false });
   });
 });
