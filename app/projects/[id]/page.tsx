@@ -1755,10 +1755,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 void changes.confirmPreview();
               }}
               onCancel={closeEditCard}
-              onUndo={() => {
-                editActionRef.current = "undo";
-                void changes.undo();
-              }}
+              // BR-03 (FLF-294): sau baseline không hoàn tác — gỡ thay đổi là một change request mới
+              onUndo={
+                (spine?.baselines.length ?? 0) > 0
+                  ? undefined
+                  : () => {
+                      editActionRef.current = "undo";
+                      void changes.undo();
+                    }
+              }
               onDismiss={closeEditCard}
             />
           )}
@@ -1991,9 +1996,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           busy={changes.applying}
           confirmLabel={changes.previewSource === "reconcile" ? "Cập nhật" : "Áp dụng"}
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
-          onConfirm={(reason) => {
+          onConfirm={(reason, changeRequest) => {
             editActionRef.current = changes.previewSource === "reconcile" ? "outdated" : "instruction";
-            void changes.confirmPreview(reason);
+            void changes.confirmPreview(reason, changeRequest);
           }}
         />
       )}
