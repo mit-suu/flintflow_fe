@@ -25,7 +25,7 @@ export interface OrgMember {
   joinedAt: string;
 }
 
-export type InvitationState = "pending" | "accepted" | "revoked" | "expired";
+export type InvitationState = "pending" | "accepted" | "declined" | "revoked" | "expired";
 
 export interface Invitation {
   id: string;
@@ -46,6 +46,18 @@ export interface InvitationPreview {
   role: InvitableRole;
   roleLabel: string;
   expiresAt: string;
+}
+
+/** Lời mời đang chờ của chính người đăng nhập — chấp nhận / từ chối trong app, không cần gõ mã. */
+export interface MyInvitation {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  role: InvitableRole;
+  roleLabel: string;
+  inviterName: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 /** Đổi org hoặc nhận mã mời đều trả token mới mang `orgId` của org vừa vào. */

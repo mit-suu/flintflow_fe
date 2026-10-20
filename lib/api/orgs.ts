@@ -12,6 +12,7 @@ import type {
   Invitation,
   InvitationPreview,
   InvitableRole,
+  MyInvitation,
   OrgMember,
   OrgRole,
   Organization,
@@ -109,6 +110,22 @@ export const revokeInvitation = async (orgId: string, invitationId: string): Pro
 /** Xem trước trước khi tham gia. Mã hỏng/hết hạn/đã dùng ⇒ `INVITE_INVALID` (410). */
 export const previewInvitation = async (code: string): Promise<InvitationPreview> =>
   unwrap(await apiCall<InvitationPreview>(`/invitations/${encodeURIComponent(code)}`));
+
+/** Lời mời đang chờ của tôi (còn hạn, chưa nhận / từ chối), mới nhất trước. Không bao giờ có mã thô. */
+export const fetchMyInvitations = async (): Promise<MyInvitation[]> =>
+  unwrap(await apiCall<MyInvitation[]>("/invitations/mine"));
+
+/** Chấp nhận lời mời đang chờ, không cần mã. Trả token mới mang `orgId` như `acceptInvitation`. */
+export const acceptMyInvitation = async (invitationId: string): Promise<AcceptInvitationResult> => {
+  const result = unwrap(
+    await apiCall<AcceptInvitationResult>(`/invitations/mine/${invitationId}/accept`, { method: "POST" })
+  );
+  saveAuthToken(result.accessToken);
+  return result;
+};
+
+export const declineMyInvitation = async (invitationId: string): Promise<Invitation> =>
+  unwrap(await apiCall<Invitation>(`/invitations/mine/${invitationId}/decline`, { method: "POST" }));
 
 /** UC-09 — nhận mã mời. Cũng trả token mới mang `orgId`, lưu ngay như `switchOrganization`. */
 export const acceptInvitation = async (code: string): Promise<AcceptInvitationResult> => {

@@ -10,6 +10,7 @@ import { getActiveOrgId } from "@/lib/api/token-store";
 import type { Organization } from "@/types/organization";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import PendingInvitations from "@/components/org/PendingInvitations";
 
 /** Link trông như nút: `Button` render `<button>` nên không dùng được cho điều hướng thật. */
 const LINK_SECONDARY =
@@ -74,6 +75,9 @@ export default function OrganizationsPage() {
               {error}
             </p>
           ) : null}
+
+          {/* Thông báo "Lời mời tham gia tổ chức" dẫn về đây */}
+          <PendingInvitations />
 
           {loadingOrgs ? (
             <PageSkeleton variant="list" label={t("loading")} />

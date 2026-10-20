@@ -20,6 +20,8 @@ vi.mock("@/lib/api/orgs", () => ({
   switchOrganization: vi.fn(),
   previewInvitation: vi.fn(),
   acceptInvitation: vi.fn(),
+  // Lời mời đang chờ có test riêng (components/org/PendingInvitations.test.tsx); ở đây không có lời mời nào
+  fetchMyInvitations: vi.fn(async () => []),
 }));
 vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn() }));
 

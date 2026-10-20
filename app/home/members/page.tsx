@@ -38,6 +38,7 @@ type Pending = { kind: "remove"; member: OrgMember } | { kind: "leave" } | { kin
 const STATE_KEYS = {
   pending: "invitations.states.pending",
   accepted: "invitations.states.accepted",
+  declined: "invitations.states.declined",
   revoked: "invitations.states.revoked",
   expired: "invitations.states.expired",
 } as const;

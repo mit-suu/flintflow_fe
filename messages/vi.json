@@ -830,6 +830,12 @@
         "analyst": "Analyst",
         "viewer": "Viewer"
       },
+      "pendingInvites": {
+        "title": "Lời mời đang chờ",
+        "line": "{inviter} mời bạn với vai trò {role} · hết hạn {date}",
+        "accept": "Chấp nhận",
+        "decline": "Từ chối"
+      },
       "guard": {
         "checking": "Đang mở tổ chức của bạn…"
       },
@@ -908,6 +914,7 @@
           "states": {
             "pending": "Đang chờ",
             "accepted": "Đã dùng",
+            "declined": "Đã từ chối",
             "revoked": "Đã thu hồi",
             "expired": "Hết hạn"
           }
@@ -1344,6 +1351,11 @@
     "LAST_LEAD": "Tổ chức phải còn ít nhất một Lead — hãy chỉ định người khác làm Lead trước.",
     "ALREADY_MEMBER": "Bạn đã là thành viên của tổ chức này.",
     "INVITE_INVALID": "Mã mời không dùng được: đã hết hạn, đã dùng hoặc đã bị thu hồi.",
+    "INVITE_ALREADY_PENDING": "Email này đang có lời mời chờ chấp nhận — thu hồi lời mời cũ nếu muốn gửi lại.",
+    "INVITEE_NOT_FOUND": "Email này chưa có tài khoản FlintFlow — hãy nhờ người được mời đăng ký trước rồi mời lại.",
+    "INVITEE_ALREADY_MEMBER": "Người này đã là thành viên của tổ chức.",
+    "INVITEE_SUSPENDED": "Tài khoản bạn mời đang bị khoá — không thể mời vào tổ chức.",
+    "INVITE_EMAIL_MISMATCH": "Mã mời này dành cho một email khác — hãy đăng nhập bằng đúng tài khoản được mời.",
     "INVITE_NOT_FOUND": "Không tìm thấy lời mời.",
     "INVITE_ALREADY_USED": "Mã mời đã được dùng.",
     "PLAN_LIMIT_MEMBERS": "Tổ chức đã đạt trần số thành viên của gói hiện tại.",

@@ -830,6 +830,12 @@
         "analyst": "Analyst",
         "viewer": "Viewer"
       },
+      "pendingInvites": {
+        "title": "Pending invitations",
+        "line": "{inviter} invited you as {role} · expires {date}",
+        "accept": "Accept",
+        "decline": "Decline"
+      },
       "guard": {
         "checking": "Opening your organization…"
       },
@@ -908,6 +914,7 @@
           "states": {
             "pending": "Pending",
             "accepted": "Used",
+            "declined": "Declined",
             "revoked": "Revoked",
             "expired": "Expired"
           }
@@ -1344,6 +1351,11 @@
     "LAST_LEAD": "An organization must keep at least one Lead — make someone else a Lead first.",
     "ALREADY_MEMBER": "You are already a member of this organization.",
     "INVITE_INVALID": "This invitation code cannot be used: it has expired, been used, or been revoked.",
+    "INVITE_ALREADY_PENDING": "This email already has a pending invitation — revoke it first if you want to send a new one.",
+    "INVITEE_NOT_FOUND": "This email has no FlintFlow account yet — ask the person to sign up first, then invite them again.",
+    "INVITEE_ALREADY_MEMBER": "This person is already a member of the organization.",
+    "INVITEE_SUSPENDED": "The account you are inviting is suspended — it cannot be invited to the organization.",
+    "INVITE_EMAIL_MISMATCH": "This invitation code is for a different email — sign in with the invited account.",
     "INVITE_NOT_FOUND": "Invitation not found.",
     "INVITE_ALREADY_USED": "This invitation code has already been used.",
     "PLAN_LIMIT_MEMBERS": "The organization has reached the member limit of its current plan.",

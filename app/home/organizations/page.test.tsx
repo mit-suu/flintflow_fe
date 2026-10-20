@@ -6,7 +6,11 @@ import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import OrganizationsPage from "./page";
 
-vi.mock("@/lib/api/orgs", () => ({ fetchMyOrganizations: vi.fn(), switchOrganization: vi.fn() }));
+vi.mock("@/lib/api/orgs", () => ({
+  fetchMyOrganizations: vi.fn(),
+  switchOrganization: vi.fn(),
+  fetchMyInvitations: vi.fn(async () => []),
+}));
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
 // Trang có `TopBar`, và `TopBar` đọc context của `AppShell` (chip credits, nút mở menu) — nên test phải dựng
 // đúng khung đó. Khung gọi `GET /billing/balance` và `usePathname`, hai thứ phải mock theo.

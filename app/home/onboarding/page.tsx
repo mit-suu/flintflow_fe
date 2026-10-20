@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/orgs";
 import { fetchMe } from "@/lib/api/users";
 import Tabs from "@/components/ui/Tabs";
+import PendingInvitations from "@/components/org/PendingInvitations";
 import type { InvitationPreview } from "@/types/organization";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
@@ -105,6 +106,9 @@ export default function OnboardingPage() {
           <h1 className="text-title sm:text-metric font-bold text-on-surface tracking-tight">{t("title")}</h1>
           <p className="text-body text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
         </div>
+
+        {/* Lời mời gửi tới tài khoản này: bấm nhận luôn, khỏi gõ mã từ email */}
+        <PendingInvitations />
 
         {/* Tab dạng segmented dùng chung (components/ui/Tabs). Trước đây tab đang chọn tô tím đặc, trùng chữ và trùng
             màu với nút "Tạo tổ chức" bên dưới ⇒ trông như hai nút giống hệt nhau. */}
