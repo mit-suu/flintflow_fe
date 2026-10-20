@@ -810,7 +810,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
-      setToast(result.changes.length > 0 ? `Đã áp dụng ${result.changes.length} thay đổi (v${result.spine_version})` : "Đã xác nhận: nội dung không đổi");
+      setToast(result.changes.length > 0 ? `Đã áp dụng ${result.changes.length} thay đổi` : "Đã xác nhận: nội dung không đổi");
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
