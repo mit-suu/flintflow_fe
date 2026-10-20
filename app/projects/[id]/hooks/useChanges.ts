@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } from "@/lib/api/spine";
-import type { ApplyResult, PreviewResult } from "@/types/pipeline";
+import type { ApplyResult, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
@@ -27,9 +27,9 @@ export interface UseChangesResult {
   requestPreview: (instruction: string) => Promise<PreviewOutcome>;
   /**
    * Xác nhận `preview` đang hiển thị — tự chọn `applyChanges` hay `reconcile` theo nguồn gốc.
-   * `reason` bắt buộc khi `preview.branch === "post_baseline"` (BE trả 400 nếu thiếu).
+   * `reason` + `changeRequest` bắt buộc khi `preview.branch === "post_baseline"` (BE trả 400 nếu thiếu — FLF-294).
    */
-  confirmPreview: (reason?: string) => Promise<void>;
+  confirmPreview: (reason?: string, changeRequest?: ChangeRequestInfo) => Promise<void>;
   cancelPreview: () => void;
   /** Nhận bản xem trước BE đã dựng từ tin chat thường (tin bị nhận là lệnh sửa) — để thẻ sửa có nút Áp dụng. */
   adoptPreview: (preview: PreviewResult, instruction: string) => void;
@@ -137,7 +137,7 @@ export function useChanges(
   }, [projectId, getBaseVersion, onApplied]);
 
   const confirmPreview = useCallback(
-    async (reason?: string) => {
+    async (reason?: string, changeRequest?: ChangeRequestInfo) => {
       const baseVersion = getBaseVersion();
       if (baseVersion === null || !preview?.preview_id || !previewSource) return;
       setApplying(true);
@@ -153,6 +153,8 @@ export function useChanges(
                 ...(sessionId ? { session_id: sessionId } : {}),
                 // Sau baseline BE bắt buộc lý do ở cấp transaction (vào Record of Changes)
                 ...(reason?.trim() ? { reason: reason.trim() } : {}),
+                // FLF-294: sau baseline lượt áp là một change request (người yêu cầu + nguồn)
+                ...(changeRequest ? { change_request: changeRequest } : {}),
               })
             : await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
         if (res.data && !isPreviewResult(res.data)) {

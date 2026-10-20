@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ChangeDiff, PreviewResult } from "@/types/pipeline";
+import type { ChangeDiff, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
 import {
   pathLabel,
@@ -13,13 +13,17 @@ import {
   violationText,
   type RefNames,
 } from "./mode1/spine-labels";
+import { CR_SOURCE_KINDS, CR_SOURCE_LABELS } from "./mode1/labels";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
   busy?: boolean;
   onCancel: () => void;
-  /** `reason` chỉ có khi nhánh là `post_baseline` — BE bắt buộc, vào §I Record of Changes. */
-  onConfirm: (reason?: string) => void;
+  /**
+   * `reason` + `changeRequest` chỉ có khi nhánh là `post_baseline`: sau baseline lượt áp là một change request
+   * (BR-03, FLF-294) — BE bắt buộc người yêu cầu + nguồn + lý do, ghi `CR-nnn` vào §I Record of Changes.
+   */
+  onConfirm: (reason?: string, changeRequest?: ChangeRequestInfo) => void;
   /** Mode 1 v3: "Tạo CR" thay "Xác nhận" — bản xem trước dùng để soạn change request, không áp thẳng. */
   confirmLabel?: string;
   busyLabel?: string;
@@ -82,6 +86,9 @@ export default function DiffPreviewModal({
   spine,
 }: DiffPreviewModalProps) {
   const [reason, setReason] = useState("");
+  const [requester, setRequester] = useState("");
+  const [sourceKind, setSourceKind] = useState<ChangeRequestInfo["source"]["kind"] | "">("");
+  const [sourceRef, setSourceRef] = useState("");
   const names = useMemo(() => refNames(spine), [spine]);
   const unlinkedUseCases = useCasesWithoutFunction(preview.changes);
   // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
@@ -98,7 +105,11 @@ export default function DiffPreviewModal({
     (confirmWhenInvalid || (preview.ok && !hasViolations && Boolean(preview.preview_id))) &&
     !empty &&
     !busy &&
-    (!needsReason || reason.trim().length > 0);
+    (!needsReason || (reason.trim().length > 0 && requester.trim().length > 0 && sourceKind !== ""));
+  const changeRequest = (): ChangeRequestInfo | undefined =>
+    needsReason && sourceKind !== ""
+      ? { requester: requester.trim(), source: { kind: sourceKind, ref: sourceRef.trim() || null } }
+      : undefined;
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
@@ -198,8 +209,55 @@ export default function DiffPreviewModal({
 
         {needsReason && !empty && (
           <div className="flex flex-col gap-1.5">
+            <p className="text-body text-[#554DB0] bg-[#F2F1FB] rounded-[10px] px-3 py-2">
+              Tài liệu đã có baseline — thay đổi này sẽ được ghi thành một change request (mã CR cấp khi áp dụng).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="cr-requester" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
+                  Người yêu cầu
+                </label>
+                <input
+                  id="cr-requester"
+                  value={requester}
+                  onChange={(e) => setRequester(e.target.value)}
+                  maxLength={120}
+                  placeholder="Ví dụ: Chị Lan (phòng Đào tạo)"
+                  className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none focus:border-[#6A62C4]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="cr-source" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
+                  Nguồn
+                </label>
+                <select
+                  id="cr-source"
+                  value={sourceKind}
+                  onChange={(e) => setSourceKind(e.target.value as ChangeRequestInfo["source"]["kind"] | "")}
+                  className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none focus:border-[#6A62C4]"
+                >
+                  <option value="">Chọn nguồn…</option>
+                  {CR_SOURCE_KINDS.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {CR_SOURCE_LABELS[kind]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <label htmlFor="cr-source-ref" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
+              Tham chiếu nguồn (tuỳ chọn)
+            </label>
+            <input
+              id="cr-source-ref"
+              value={sourceRef}
+              onChange={(e) => setSourceRef(e.target.value)}
+              maxLength={300}
+              placeholder="Ví dụ: Biên bản họp 15/10, email ngày 12/10"
+              className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none focus:border-[#6A62C4]"
+            />
             <label htmlFor="change-reason" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
-              Lý do thay đổi (bắt buộc sau baseline)
+              Lý do thay đổi
             </label>
             <textarea
               id="change-reason"
@@ -228,7 +286,7 @@ export default function DiffPreviewModal({
             <button
               type="button"
               disabled={!canConfirm}
-              onClick={() => onConfirm(needsReason ? reason.trim() : undefined)}
+              onClick={() => onConfirm(needsReason ? reason.trim() : undefined, changeRequest())}
               className="px-3.5 py-1.5 rounded-full text-body font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {busy ? busyLabel : preview.no_change && !confirmWhenInvalid ? "Xác nhận không đổi" : confirmLabel}

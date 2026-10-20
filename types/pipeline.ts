@@ -4,6 +4,7 @@
  */
 import type { SectionStatus } from "./document";
 import type { Change, Spine, StepStatus } from "./spine";
+import type { NEW_CR_SOURCE_KINDS } from "./change-request";
 
 // ─── changes ─────────────────────────────────────────────────────
 
@@ -25,6 +26,14 @@ export interface ChangeRequest {
   preview_id?: string;
   /** Phiên chat nơi gõ lệnh sửa — BE đọc đuôi hội thoại và ghi lượt sửa vào phiên (contract-change 2026-09-28). */
   session_id?: string;
+  /** FLF-294 (BR-03): sau baseline lượt áp là một change request — bắt buộc người yêu cầu + nguồn (400 `CR_FIELDS_REQUIRED`). */
+  change_request?: ChangeRequestInfo;
+}
+
+/** FLF-294: người yêu cầu + nguồn của change request sau baseline — 6 nguồn của C-1 như CR mode 1. */
+export interface ChangeRequestInfo {
+  requester: string;
+  source: { kind: (typeof NEW_CR_SOURCE_KINDS)[number]; ref?: string | null };
 }
 
 export interface Violation {
