@@ -9,11 +9,8 @@ vi.mock("@/lib/api/admin", async (importOriginal) => ({
   fetchAdminOrgs: vi.fn(),
   adjustAdminOrgCredits: vi.fn(),
 }));
-// TopBar của admin cần context layout — ngoài phạm vi test UC-90
-vi.mock("../_components/AdminPage", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../_components/AdminPage")>()),
-  AdminTopBar: () => null,
-}));
+// Thanh trên của admin cần context SidebarProvider của layout — ngoài phạm vi test UC-90
+vi.mock("../_components/AdminHeader", () => ({ default: () => null }));
 
 const ORGS: AdminOrg[] = [
   {
@@ -67,11 +64,14 @@ describe("AdminOrgsPage — UC-90 danh sách tổ chức", () => {
     renderWithIntl(<AdminOrgsPage />);
     await screen.findByText("Alpha Studio");
 
-    fireEvent.change(screen.getByLabelText("Lọc theo gói"), { target: { value: "pro" } });
+    fireEvent.click(screen.getByRole("button", { name: /Gói/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Pro" }));
     await waitFor(() => expect(fetchAdminOrgs).toHaveBeenLastCalledWith({ page: 1, limit: 20, plan: "pro" }));
 
-    fireEvent.change(screen.getByLabelText("Tìm tổ chức"), { target: { value: "  beta " } });
-    fireEvent.click(screen.getByRole("button", { name: "Tìm" }));
+    // Ô tìm gọi API sau khi ngừng gõ (debounce), không cần nút bấm
+    fireEvent.change(screen.getByPlaceholderText("Tìm theo tên hoặc email người tạo"), {
+      target: { value: "  beta " },
+    });
     await waitFor(() =>
       expect(fetchAdminOrgs).toHaveBeenLastCalledWith({ page: 1, limit: 20, plan: "pro", q: "beta" })
     );

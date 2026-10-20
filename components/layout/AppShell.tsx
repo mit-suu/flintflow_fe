@@ -7,7 +7,15 @@ import { useDialogFocus } from "@/lib/hooks/use-dialog-focus";
 import { fetchBalance, type BalanceResponse } from "@/lib/api/billing";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 
+export interface AppUser {
+  name: string;
+  email: string;
+  isAdmin: boolean;
+}
+
 interface AppShellContextValue {
+  /** Người đang đăng nhập — `TopBar` dựng menu tài khoản từ đây nên mọi trang đều có, không phải truyền tay. */
+  user: AppUser;
   navOpen: boolean;
   openNav: () => void;
   closeNav: () => void;
@@ -58,6 +66,7 @@ const getCollapsedSnapshot = () => sessionCollapsed ?? readCollapsed();
 
 interface AppShellProps {
   sidebar: ReactNode;
+  user: AppUser;
   children: ReactNode;
 }
 
@@ -65,7 +74,7 @@ interface AppShellProps {
  * Khung chung của `/home/*`: sidebar trái (drawer trên mobile < md) + vùng nội dung. Trang tự render
  * `TopBar` của mình ở đầu nội dung.
  */
-export default function AppShell({ sidebar, children }: AppShellProps) {
+export default function AppShell({ sidebar, user, children }: AppShellProps) {
   const t = useTranslations("app.shell");
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
@@ -112,8 +121,8 @@ export default function AppShell({ sidebar, children }: AppShellProps) {
   }, [navOpen]);
 
   const value = useMemo(
-    () => ({ navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance }),
-    [navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance]
+    () => ({ user, navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance }),
+    [user, navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance]
   );
 
   return (

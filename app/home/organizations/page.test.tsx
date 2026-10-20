@@ -28,7 +28,7 @@ const assign = vi.fn();
 
 const renderPage = () =>
   renderWithIntl(
-    <AppShell sidebar={<div />}>
+    <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}>
       <OrganizationsPage />
     </AppShell>
   );

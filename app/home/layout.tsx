@@ -2,10 +2,10 @@
 
 import AuthGuard from "@/components/AuthGuard";
 import HomeFrame from "@/components/layout/HomeFrame";
-import { type SidebarUser } from "@/components/layout/AppSidebar";
+import { type AppUser } from "@/components/layout/AppShell";
 import { getStoredAuthToken, decodeJwt } from "@/lib/auth";
 
-function getUserInfo(): SidebarUser {
+function getUserInfo(): AppUser {
   const token = getStoredAuthToken();
   const payload = token ? decodeJwt(token) : null;
   const email = payload?.email ?? "";

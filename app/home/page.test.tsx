@@ -40,7 +40,7 @@ const project = (id: string, over: Partial<Project> = {}): Project => ({
 const renderPage = () =>
   renderWithIntl(
     <ProjectsProvider>
-      <AppShell sidebar={null}>
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={null}>
         <HomePage />
       </AppShell>
     </ProjectsProvider>

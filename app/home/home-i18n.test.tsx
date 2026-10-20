@@ -41,7 +41,7 @@ const user = { name: "Mai", email: "mai@studio.vn", isAdmin: false };
 const renderDashboard = (locale: Locale) =>
   renderWithIntl(
     <ProjectsProvider>
-      <AppShell sidebar={<AppSidebar user={user} />}>
+      <AppShell user={user} sidebar={<AppSidebar />}>
         <HomePage />
       </AppShell>
     </ProjectsProvider>,

@@ -35,6 +35,8 @@ vi.mock("@/lib/api/token-store", () => ({
   getStoredAuthToken: vi.fn(() => "token"),
   decodeJwt: vi.fn(),
 }));
+// TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang thành viên
+vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
 
 const assign = vi.fn();
 const ME = "u-me";
@@ -57,6 +59,18 @@ const setup = (myRole: OrgRole) => {
   });
   vi.mocked(fetchMembers).mockResolvedValue([member(ME, myRole, "Tôi"), member("u-2", "analyst", "Bình")]);
   vi.mocked(fetchInvitations).mockResolvedValue([]);
+};
+
+/** Hành động phá huỷ của một dòng nằm trong menu ⋮ — mở menu rồi mới lấy được mục. */
+const rowAction = async (member: string, action: string) => {
+  fireEvent.click(await screen.findByRole("button", { name: "Thao tác với " + member }));
+  return screen.getByRole("menuitem", { name: action });
+};
+
+/** Form mời nằm trong hộp thoại, mở bằng nút cạnh tiêu đề trang. */
+const openInvite = async () => {
+  fireEvent.click(await screen.findByRole("button", { name: "Mời thành viên" }));
+  return screen.findByRole("dialog");
 };
 
 beforeEach(() => {
@@ -84,7 +98,9 @@ describe("trang thành viên — Lead", () => {
 
     await screen.findByText("Bình");
     expect(screen.queryByRole("combobox", { name: "Vai trò của Tôi" })).toBeNull();
-    expect(screen.getAllByRole("button", { name: "Xoá khỏi tổ chức" })).toHaveLength(1);
+    // Dòng của chính mình chỉ rời được, không tự xoá mình
+    expect(await rowAction("Tôi", "Rời tổ chức")).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Xoá khỏi tổ chức" })).toBeNull();
   });
 
   it("xoá thành viên phải qua hộp xác nhận", async () => {
@@ -92,7 +108,7 @@ describe("trang thành viên — Lead", () => {
     vi.mocked(removeMember).mockResolvedValue(undefined);
     renderWithIntl(<MembersPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Xoá khỏi tổ chức" }));
+    fireEvent.click(await rowAction("Bình", "Xoá khỏi tổ chức"));
     expect(removeMember).not.toHaveBeenCalled();
 
     const dialog = await screen.findByRole("dialog");
@@ -113,9 +129,10 @@ describe("trang thành viên — Lead", () => {
     });
     renderWithIntl(<MembersPage />);
 
-    fireEvent.change(await screen.findByRole("combobox", { name: "Vai trò" }), { target: { value: "viewer" } });
-    fireEvent.change(screen.getByLabelText("Email người được mời"), { target: { value: "moi@flintflow.test" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tạo mã mời" }));
+    const dialog = await openInvite();
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Vai trò" }), { target: { value: "viewer" } });
+    fireEvent.change(within(dialog).getByLabelText("Email người được mời"), { target: { value: "moi@flintflow.test" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Tạo mã mời" }));
 
     await waitFor(() => expect(createInvitation).toHaveBeenCalledWith("org-a", "viewer", "moi@flintflow.test"));
     expect(await screen.findByTestId("invite-code")).toHaveTextContent("ABCD234567");
@@ -140,8 +157,8 @@ describe("trang thành viên — không phải Lead", () => {
 
     expect(await screen.findByText("Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.")).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Xoá khỏi tổ chức" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Tạo mã mời" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mời thành viên" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Thao tác với Bình/ })).toBeNull();
     expect(fetchInvitations).not.toHaveBeenCalled();
   });
 
@@ -157,7 +174,7 @@ describe("trang thành viên — không phải Lead", () => {
     });
     renderWithIntl(<MembersPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Rời tổ chức" }));
+    fireEvent.click(await rowAction("Tôi", "Rời tổ chức"));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Xác nhận" }));
 
     await waitFor(() => expect(leaveOrganization).toHaveBeenCalledWith("org-a"));
@@ -171,7 +188,7 @@ describe("trang thành viên — không phải Lead", () => {
     vi.mocked(fetchMyOrganizations).mockResolvedValue([]);
     renderWithIntl(<MembersPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Rời tổ chức" }));
+    fireEvent.click(await rowAction("Tôi", "Rời tổ chức"));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Xác nhận" }));
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/home/onboarding"));
@@ -244,7 +261,8 @@ describe("góp ý UI tổ chức (kiểm bằng Playwright 2026-10-04)", () => {
     setup("lead");
     renderWithIntl(<MembersPage />);
 
-    const email = await screen.findByLabelText("Email người được mời");
+    const dialog = await openInvite();
+    const email = within(dialog).getByLabelText("Email người được mời");
     expect(email).toBeRequired();
     // required của trình duyệt bị bỏ qua khi submit bằng code ⇒ vẫn phải có chốt chặn trong handler
     fireEvent.submit(email.closest("form") as HTMLFormElement);
@@ -264,26 +282,30 @@ describe("góp ý UI tổ chức (kiểm bằng Playwright 2026-10-04)", () => {
       createdAt: "2026-10-04T00:00:00Z",
     });
     renderWithIntl(<MembersPage />);
-    fireEvent.change(await screen.findByLabelText("Email người được mời"), { target: { value: "moi@flintflow.test" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tạo mã mời" }));
+    const dialog = await openInvite();
+    fireEvent.change(within(dialog).getByLabelText("Email người được mời"), {
+      target: { value: "moi@flintflow.test" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Tạo mã mời" }));
 
     expect(await screen.findByText(/Đã gửi mã tới moi@flintflow.test/)).toBeInTheDocument();
   });
 
-  it("Lead duy nhất: nút Rời tổ chức bị khoá kèm lời giải thích", async () => {
+  it("Lead duy nhất: mục Rời tổ chức bị khoá, lời giải thích gắn vào nút mở menu", async () => {
     setup("lead");
     renderWithIntl(<MembersPage />);
 
-    const leave = await screen.findByRole("button", { name: "Rời tổ chức" });
-    expect(leave).toBeDisabled();
-    expect(leave).toHaveAccessibleDescription(/Lead duy nhất/);
+    const trigger = await screen.findByRole("button", { name: "Thao tác với Tôi" });
+    expect(trigger).toHaveAccessibleDescription(/Lead duy nhất/);
+    fireEvent.click(trigger);
+    expect(screen.getByRole("menuitem", { name: "Rời tổ chức" })).toBeDisabled();
   });
 
   it("có Lead khác thì Lead rời được", async () => {
     setup("lead");
     vi.mocked(fetchMembers).mockResolvedValue([member(ME, "lead", "Tôi"), member("u-2", "lead", "Bình")]);
     renderWithIntl(<MembersPage />);
-    expect(await screen.findByRole("button", { name: "Rời tổ chức" })).toBeEnabled();
+    expect(await rowAction("Tôi", "Rời tổ chức")).toBeEnabled();
   });
 
   it("lỗi khi xác nhận trong hộp thoại hiện NGAY TRONG hộp thoại, không bị che sau lớp mờ", async () => {
@@ -291,7 +313,7 @@ describe("góp ý UI tổ chức (kiểm bằng Playwright 2026-10-04)", () => {
     vi.mocked(removeMember).mockRejectedValue(new Error("Tổ chức phải còn ít nhất một Lead"));
     renderWithIntl(<MembersPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Xoá khỏi tổ chức" }));
+    fireEvent.click(await rowAction("Bình", "Xoá khỏi tổ chức"));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Xác nhận" }));
 

@@ -2,22 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { FileCheck, FolderKanban, Sparkles, Users } from "lucide-react";
 import {
   fetchAdminMetrics,
   fetchAiCost,
   formatNumber,
-  formatUsd,
   type AdminMetrics,
   type AiCostReport,
 } from "@/lib/api/admin";
-import {
-  AdminTopBar,
-  ErrorBanner,
-  LoadingBlock,
-  StatCard,
-  tableCellClass,
-  tableHeadClass,
-} from "../_components/AdminPage";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/shadcn/card";
+import AdminHeader from "../_components/AdminHeader";
+import AiCallsChart from "./_components/AiCallsChart";
+import { AdminMain, AdminPageHeader, AdminScroll, ErrorBanner, LoadingBlock, StatCard } from "../_components/AdminPage";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -55,82 +51,75 @@ export default function AdminMetricsPage() {
 
   return (
     <>
-      <AdminTopBar trail={["Số liệu"]} />
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8">
-        <h1 className="text-[24px] font-extrabold text-[#191817] tracking-tight">Số liệu hệ thống</h1>
+      <AdminHeader />
+      <AdminMain>
+        <AdminPageHeader title="Số liệu hệ thống" description="Tình hình chung của FlintFlow trong 7 ngày gần nhất." />
 
         {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
 
-        {loading ? (
-          <LoadingBlock label="Đang tải số liệu…" variant="cards" />
-        ) : (
-          metrics && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Người dùng" value={formatNumber(metrics.usersTotal)} hint={`+${formatNumber(metrics.usersNew7d)} trong 7 ngày`} />
+        <AdminScroll>
+          {loading ? (
+            <LoadingBlock label="Đang tải số liệu…" variant="cards" />
+          ) : (
+            metrics && (
+              <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                  label="Người dùng"
+                  icon={Users}
+                  href="/admin/users"
+                  value={formatNumber(metrics.usersTotal)}
+                  hint={`+${formatNumber(metrics.usersNew7d)} trong 7 ngày`}
+                />
                 <StatCard
                   label="Dự án"
+                  icon={FolderKanban}
                   value={formatNumber(metrics.projectsTotal)}
                   hint={`${formatNumber(metrics.projectsActive7d)} hoạt động trong 7 ngày`}
                 />
-                <StatCard label="Baseline" value={formatNumber(metrics.baselinesTotal)} hint="Có từ khi bật S-9 baseline" />
+                <StatCard
+                  label="Baseline"
+                  icon={FileCheck}
+                  value={formatNumber(metrics.baselinesTotal)}
+                  hint="Có từ khi bật S-9 baseline"
+                />
                 <StatCard
                   label="Lượt gọi AI hôm nay"
+                  icon={Sparkles}
+                  href="/admin/ai-cost"
                   value={formatNumber(metrics.aiCallsToday)}
                   hint={`Lỗi 7 ngày: ${(metrics.aiFailRate7d * 100).toFixed(1)}% / ${formatNumber(metrics.aiCalls7d)} lượt`}
                 />
               </div>
 
               {cost7d && (
-                <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F3F1EE]">
-                    <h2 className="text-[14px] font-bold text-[#191817]">AI 7 ngày gần nhất</h2>
-                    <Link href="/admin/ai-cost" className="text-[12px] font-semibold text-[#6A62C4] hover:underline">
-                      Xem chi phí chi tiết
-                    </Link>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-[#FAF9F7]">
-                        <tr>
-                          <th className={tableHeadClass}>Ngày</th>
-                          <th className={`${tableHeadClass} text-right`}>Lượt gọi</th>
-                          <th className={`${tableHeadClass} text-right`}>Lỗi</th>
-                          <th className={`${tableHeadClass} text-right`}>Token</th>
-                          <th className={`${tableHeadClass} text-right`}>Credit đã trừ</th>
-                          <th className={`${tableHeadClass} text-right`}>USD ước tính</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#F3F1EE]">
-                        {cost7d.rows.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="py-10 text-center text-[13px] text-[#A8A49C]">
-                              Chưa có lượt gọi AI nào trong 7 ngày
-                            </td>
-                          </tr>
-                        ) : (
-                          cost7d.rows.map((row) => (
-                            <tr key={row.key}>
-                              <td className={tableCellClass}>{row.label}</td>
-                              <td className={`${tableCellClass} text-right`}>{formatNumber(row.calls)}</td>
-                              <td className={`${tableCellClass} text-right`}>{formatNumber(row.failedCalls)}</td>
-                              <td className={`${tableCellClass} text-right`}>
-                                {formatNumber(row.promptTokens + row.completionTokens)}
-                              </td>
-                              <td className={`${tableCellClass} text-right`}>{formatNumber(row.credits)}</td>
-                              <td className={`${tableCellClass} text-right`}>{formatUsd(row.estimatedUsd)}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Lượt gọi AI theo ngày</CardTitle>
+                    <CardDescription>
+                      Cột tím là tổng lượt gọi, cột đỏ là lượt lỗi. Số tiền và token xem ở{" "}
+                      <Link href="/admin/ai-cost" className="font-medium underline underline-offset-4">
+                        Chi phí AI
+                      </Link>
+                      .
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {cost7d.rows.length === 0 ? (
+                      <p className="text-muted-foreground py-12 text-center text-body">
+                        Chưa có lượt gọi AI nào trong 7 ngày
+                      </p>
+                    ) : (
+                      <AiCallsChart rows={cost7d.rows} />
+                    )}
+                  </CardContent>
+                </Card>
               )}
-            </>
-          )
-        )}
-      </div>
+              </>
+            )
+          )}
+        </AdminScroll>
+      </AdminMain>
     </>
   );
 }

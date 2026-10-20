@@ -1,37 +1,33 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import PageSkeleton from "@/components/ui/PageSkeleton";
+import { Avatar, Button, LINK_PRIMARY, PageSkeleton } from "@/components/ui";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import PasswordInput from "../../../components/PasswordInput";
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
-import { USER_AVATAR } from "@/components/layout/AppSidebar";
 import { ApiClientError } from "../../../lib/api/client";
 import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../../../lib/api/users";
 import { logoutAndRedirect } from "../../../lib/auth";
 import type { User } from "../../../types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
-const cardClass = "bg-white border border-[#ECEAE5] rounded-[16px] p-5 sm:p-6 flex flex-col gap-4";
+// Mỗi khối là một mảng nền mờ, không viền — cùng ngôn ngữ với danh sách ở trang Thành viên.
+const cardClass = "bg-surface-container-low rounded-card p-5 sm:p-6 flex flex-col gap-4";
+// Ô nhập cũng phẳng: nền đặc hơn nền khối một nấc để thấy ranh giới, viền thay bằng vòng focus.
 const inputClass =
-  "w-full px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#E4E1DC] focus:border-[#6A62C4] focus:ring-1 focus:ring-[#6A62C4] outline-none transition-all text-[#191817] bg-[#FAF9F7] text-body";
-const primaryButtonClass =
-  "px-4 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60";
+  "w-full px-3.5 py-2.5 rounded-control bg-surface-container-lowest outline-none transition-all focus:ring-2 focus:ring-primary text-on-surface text-body";
 
 const displayNameOf = (user: User) => user.name || user.email.split("@")[0];
 
-function Spinner() {
-  return <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white ff-spinner shrink-0" />;
-}
-
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 py-3 border-t border-[#F0EEEA] first:border-t-0">
-      <div className="sm:w-[160px] shrink-0 text-body font-bold text-[#8A867E]">{label}</div>
-      <div className="min-w-0 flex-1 text-body text-[#191817]">{children}</div>
+    // Tách dòng bằng nền của chính nó, không bằng kẻ ngang: nền trắng nổi trên nền mờ của khối.
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 rounded-control bg-surface-container-lowest px-3.5 py-2.5">
+      <div className="sm:w-[160px] shrink-0 text-body font-bold text-on-surface-muted">{label}</div>
+      <div className="min-w-0 flex-1 text-body text-on-surface">{children}</div>
     </div>
   );
 }
@@ -71,27 +67,22 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
   return (
     <section className={cardClass}>
       <div className="flex items-center gap-4">
-        <div
-          className={`w-16 h-16 rounded-full shrink-0 flex items-center justify-center text-metric font-bold ${USER_AVATAR}`}
-          aria-hidden
-        >
-          {displayName.charAt(0).toUpperCase()}
-        </div>
+        <Avatar name={displayName} email={user.email} size="lg" />
         <div className="min-w-0">
           <div className="text-subtitle font-bold leading-tight tracking-tight text-on-surface truncate">{displayName}</div>
-          <div className="text-body text-[#8A867E] truncate">{user.email}</div>
+          <div className="text-body text-on-surface-muted truncate">{user.email}</div>
         </div>
       </div>
 
       <h2 className="text-heading font-bold text-on-surface pt-1">{t("info")}</h2>
 
       {saved && !editing && (
-        <div className="p-3 rounded-[10px] bg-[#EAF6EE] text-[#1F7A45] text-body font-semibold border border-[#C2E5CF]">
+        <div className="p-3 rounded-control bg-success-soft text-success text-body font-semibold">
           {t("nameSaved")}
         </div>
       )}
 
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-1">
         <InfoRow label={t("nameLabel")}>
           {editing ? (
             <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleSave}>
@@ -104,50 +95,48 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
                 className={inputClass}
               />
               <div className="flex gap-2 shrink-0">
-                <button type="submit" disabled={saving} className={primaryButtonClass}>
-                  {saving ? <Spinner /> : null}
+                <Button type="submit" loading={saving}>
                   {tc("save")}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     setEditing(false);
                     setName(user.name ?? "");
                     setError(null);
                   }}
-                  className="px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] text-body font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] transition-colors"
                 >
                   {tc("cancel")}
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
             <div className="flex items-center gap-3">
-              <span className="truncate">{user.name || <span className="text-[#A8A49C] italic">{t("nameUnset")}</span>}</span>
+              <span className="truncate">{user.name || <span className="text-on-surface-subtle italic">{t("nameUnset")}</span>}</span>
               <button
                 type="button"
                 onClick={() => {
                   setEditing(true);
                   setSaved(false);
                 }}
-                className="ml-auto text-body font-bold text-[#6A62C4] hover:underline shrink-0"
+                className="ml-auto text-body font-bold text-primary hover:underline shrink-0"
               >
                 {t("edit")}
               </button>
             </div>
           )}
-          {error && <p className="text-body font-semibold text-[#B03030] pt-1">{error}</p>}
+          {error && <p className="text-body font-semibold text-error pt-1">{error}</p>}
         </InfoRow>
 
         <InfoRow label={t("email")}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="break-all">{user.email}</span>
             {user.emailVerified ? (
-              <span className="px-2 py-0.5 rounded-full bg-[#EAF6EE] text-[#1F7A45] text-caption font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-success-soft text-success text-caption font-bold">
                 {t("emailVerified")}
               </span>
             ) : (
-              <span className="px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F] text-caption font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text text-caption font-bold">
                 {t("emailUnverified")}
               </span>
             )}
@@ -171,7 +160,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
         <InfoRow label={t("credits")}>
           <div className="flex items-center gap-3">
             <span className="font-bold">{t("creditAmount", { credits: format.number(user.balance ?? 0) })}</span>
-            <Link href="/home/billing" className="ml-auto text-body font-bold text-[#6A62C4] hover:underline shrink-0">
+            <Link href="/home/billing" className="ml-auto text-body font-bold text-primary hover:underline shrink-0">
               {t("toBilling")}
             </Link>
           </div>
@@ -208,20 +197,20 @@ function ChangePasswordCard({ user }: { user: User }) {
     return (
       <section className={cardClass}>
         <h2 className="text-heading font-bold text-on-surface">{t("createPasswordTitle")}</h2>
-        <p className="text-body text-[#6B6862] leading-[1.6]">
+        <p className="text-body text-on-surface-variant leading-[1.6]">
           {t.rich("createPasswordBody", {
             email: user.email,
-            b: (chunks) => <strong className="text-[#191817]">{chunks}</strong>,
+            b: (chunks) => <strong className="text-on-surface">{chunks}</strong>,
           })}
         </p>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <Link
             href={`/forgot-password?email=${encodeURIComponent(user.email)}&mode=create`}
-            className={`${primaryButtonClass} self-start`}
+            className={`${LINK_PRIMARY} self-start`}
           >
             {t("createPasswordCta")}
           </Link>
-          <span className="text-caption text-[#A8A49C]">
+          <span className="text-caption text-on-surface-subtle">
             {t("createPasswordNote")}
           </span>
         </div>
@@ -257,18 +246,18 @@ function ChangePasswordCard({ user }: { user: User }) {
     <section className={cardClass}>
       <div>
         <h2 className="text-heading font-bold text-on-surface">{t("changePasswordTitle")}</h2>
-        <p className="text-body text-[#8A867E] mt-1 leading-[1.6]">
+        <p className="text-body text-on-surface-muted mt-1 leading-[1.6]">
           {t("changePasswordBody")}
         </p>
       </div>
 
       {success && (
-        <div className="p-3 rounded-[10px] bg-[#EAF6EE] text-[#1F7A45] text-body font-semibold border border-[#C2E5CF]">
+        <div className="p-3 rounded-control bg-success-soft text-success text-body font-semibold">
           {t("changePasswordSuccess")}
         </div>
       )}
       {error && (
-        <div className="p-3 rounded-[10px] bg-[#FDEDED] border border-[#F2CACA] text-body text-[#8A4141]">{error}</div>
+        <div className="p-3 rounded-control bg-error-container text-body text-on-error-container">{error}</div>
       )}
 
       <form className="flex flex-col gap-3.5 max-w-[420px]" onSubmit={handleSubmit}>
@@ -306,24 +295,17 @@ function ChangePasswordCard({ user }: { user: User }) {
         />
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
-          <button type="submit" disabled={saving || !canSubmit} className={primaryButtonClass}>
-            {saving ? (
-              <>
-                <Spinner />
-                {t("saving")}
-              </>
-            ) : (
-              t("submit")
-            )}
-          </button>
+          <Button type="submit" loading={saving} disabled={!canSubmit}>
+            {saving ? t("saving") : t("submit")}
+          </Button>
           <div className="flex flex-col">
             <Link
               href={`/forgot-password?email=${encodeURIComponent(user.email)}`}
-              className="text-body font-semibold text-[#6A62C4] hover:underline"
+              className="text-body font-semibold text-primary hover:underline"
             >
               {t("forgotCurrent")}
             </Link>
-            <span className="text-caption text-[#A8A49C]">{t("forgotNote")}</span>
+            <span className="text-caption text-on-surface-subtle">{t("forgotNote")}</span>
           </div>
         </div>
       </form>
@@ -356,47 +338,36 @@ function LogoutAllCard() {
     <section className={cardClass}>
       <div>
         <h2 className="text-heading font-bold text-on-surface">{t("logoutAllTitle")}</h2>
-        <p className="text-body text-[#8A867E] mt-1 leading-[1.6]">{t("logoutAllBody")}</p>
+        <p className="text-body text-on-surface-muted mt-1 leading-[1.6]">{t("logoutAllBody")}</p>
       </div>
 
       {error && (
-        <div className="p-3 rounded-[10px] bg-[#FDEDED] border border-[#F2CACA] text-body text-[#8A4141]">{error}</div>
+        <div className="p-3 rounded-control bg-error-container text-body text-on-error-container">{error}</div>
       )}
 
       {confirming ? (
-        <div className="flex flex-col gap-3 p-3.5 rounded-[10px] bg-[#FDF6F6] border border-[#F2CACA]">
-          <p className="text-body font-semibold text-[#8A4141]">{t("logoutAllConfirm")}</p>
+        <div className="flex flex-col gap-3 p-3.5 rounded-control bg-error-container">
+          <p className="text-body font-semibold text-on-error-container">{t("logoutAllConfirm")}</p>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => void handleLogoutAll()}
-              disabled={working}
-              className="px-4 py-2.5 rounded-[10px] bg-[#B03030] hover:bg-[#962828] text-white text-body font-bold flex items-center gap-2 disabled:opacity-60"
-            >
-              {working ? <Spinner /> : null}
+            <Button variant="danger" loading={working} onClick={() => void handleLogoutAll()}>
               {t("logoutAllConfirmCta")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              disabled={working}
-              className="px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#E4E1DC] text-body font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] transition-colors disabled:opacity-60"
-            >
+            </Button>
+            <Button variant="secondary" disabled={working} onClick={() => setConfirming(false)}>
               {tc("cancel")}
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          className="self-start text-error"
           onClick={() => {
             setConfirming(true);
             setError(null);
           }}
-          className="self-start px-4 py-2.5 rounded-[10px] border-[1.5px] border-[#F2CACA] text-body font-bold text-[#B03030] bg-white hover:bg-[#FDEDED] transition-colors"
         >
           {t("logoutAllCta")}
-        </button>
+        </Button>
       )}
     </section>
   );
@@ -431,13 +402,13 @@ export default function ProfilePage() {
     <>
       <TopBar trail={[tc("account"), t("breadcrumb")]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-6 sm:p-8 bg-surface-container-lowest">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
         <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
         {loading ? (
           <PageSkeleton variant="form" label={t("loading")} />
         ) : error || !user ? (
-          <div className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-xs font-medium">
+          <div className="bg-error-container text-on-error-container px-4 py-3 rounded-control text-body font-medium">
             {error || t("loadFailed")}
           </div>
         ) : (

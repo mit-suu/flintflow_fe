@@ -4,19 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import TopBar from "@/components/layout/TopBar";
-import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui";
+import { Badge, Button, EmptyState, Icon, LINK_PRIMARY, LINK_SECONDARY, PageSkeleton } from "@/components/ui";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { Organization } from "@/types/organization";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import PendingInvitations from "@/components/org/PendingInvitations";
-
-/** Link trông như nút: `Button` render `<button>` nên không dùng được cho điều hướng thật. */
-const LINK_SECONDARY =
-  "inline-flex h-8 items-center rounded-control bg-surface-container-high px-3.5 text-body font-bold text-on-surface-medium hover:bg-surface-container-highest transition-colors";
-const LINK_PRIMARY =
-  "inline-flex h-10 items-center rounded-control bg-primary px-5 text-body font-bold text-on-primary hover:bg-primary-hover transition-colors";
 
 /**
  * UC-10 / BPMN Flow 9.3–9.4 (và 7.13 khi có nhiều org) — chọn tổ chức để làm việc. Dự án, ví và vai trò
@@ -63,11 +57,20 @@ export default function OrganizationsPage() {
     <>
       <TopBar trail={[tc("account"), t("title")]} />
 
-      <div className="flex-1 overflow-y-auto ff-scroll flex flex-col gap-6 p-6 sm:p-8 bg-surface-container-lowest">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
         <div className="w-full max-w-[720px] mx-auto flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
-            <p className="text-body text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
+          {/* Hành động chính của trang nằm cạnh tiêu đề, cùng khuôn với trang Thành viên */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-2">
+              <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
+              <p className="text-body text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
+            </div>
+            {noOrgs ? null : (
+              <Link href={ONBOARDING_PATH} className={LINK_PRIMARY}>
+                <Icon name="plus" size={16} />
+                {t("addCta")}
+              </Link>
+            )}
           </div>
 
           {error ? (
@@ -93,14 +96,31 @@ export default function OrganizationsPage() {
               }
             />
           ) : (
-            <div role="list" className="flex flex-col gap-2">
+            // Mảng nền mờ gom cả danh sách, mỗi dòng nổi lên khi rê chuột — không viền, không kẻ ngang.
+            // Nhiều tổ chức thì cuộn trong khung thay vì kéo dài trang.
+            <div
+              role="list"
+              className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[60dvh] overflow-y-auto"
+            >
               {(orgs ?? []).map((org) => {
                 const isCurrent = org.id === activeOrgId;
                 return (
-                  <Card key={org.id} role="listitem" className="flex items-center justify-between gap-4 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-heading font-semibold text-on-surface truncate">{org.name}</p>
-                      <p className="text-body text-on-surface-muted">{t("roleLine", { role: tRoles(org.role) })}</p>
+                  <div
+                    key={org.id}
+                    role="listitem"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-control px-3 py-2.5 transition-colors hover:bg-surface-container-lowest"
+                  >
+                    <div className="min-w-0 flex flex-1 items-center gap-3">
+                      <span
+                        aria-hidden
+                        className="shrink-0 grid size-10 place-items-center rounded-full bg-primary-fixed text-primary"
+                      >
+                        <Icon name="building" size={18} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-heading font-semibold text-on-surface truncate">{org.name}</p>
+                        <p className="text-body text-on-surface-muted">{t("roleLine", { role: tRoles(org.role) })}</p>
+                      </div>
                     </div>
                     {isCurrent ? (
                       // Trước đây chỉ là chữ màu tím, trông như nút mà bấm không được. Giờ là huy hiệu trạng thái (không
@@ -124,21 +144,9 @@ export default function OrganizationsPage() {
                         {t("switch")}
                       </Button>
                     )}
-                  </Card>
+                  </div>
                 );
               })}
-            </div>
-          )}
-
-          {/* Viền gạch = lời mời, không phải dữ liệu (cùng cách với `NewFolderTile`). Khi chưa thuộc tổ chức nào
-              thì `EmptyState` đã mang đúng lời mời đó, nên không dựng hai lối đi cùng tên cạnh nhau. */}
-          {noOrgs ? null : (
-            <div className="flex flex-col gap-2 rounded-card border-2 border-dashed border-outline px-4 py-4">
-              <p className="text-heading font-semibold text-on-surface">{t("addTitle")}</p>
-              <p className="text-body text-on-surface-muted">{t("addBody")}</p>
-              <Link href={ONBOARDING_PATH} className="self-start text-body font-semibold text-primary hover:underline">
-                {t("addCta")}
-              </Link>
             </div>
           )}
         </div>

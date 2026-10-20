@@ -439,6 +439,7 @@
       "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead."
     },
     "checkout": {
+      "title": "Giao dịch",
       "back": "Quay lại trang thanh toán",
       "loading": "Đang tải giao dịch…",
       "loadFailed": "Không thể tải giao dịch",
@@ -510,10 +511,10 @@
       "collapse": "Thu gọn thanh bên",
       "sectionMain": "Chính",
       "sectionOrg": "Tổ chức",
+      "orgSwitcher": "Tổ chức đang mở: {org}. Đổi tổ chức",
       "items": {
         "projects": "Dự án",
         "notifications": "Thông báo",
-        "orgSwitcher": "Đổi tổ chức",
         "members": "Thành viên",
         "billing": "Credits & Thanh toán"
       },
@@ -868,8 +869,6 @@
         "current": "Đang mở",
         "switch": "Mở tổ chức này",
         "roleLine": "Vai trò: {role}",
-        "addTitle": "Thêm tổ chức",
-        "addBody": "Tạo một tổ chức mới, hoặc nhập mã mời để tham gia tổ chức khác.",
         "addCta": "Tạo hoặc tham gia",
         "loadError": "Không tải được danh sách tổ chức.",
         "goToProjects": "Vào dự án",
@@ -883,6 +882,7 @@
         "you": "Bạn",
         "joined": "Tham gia {date}",
         "roleLabel": "Vai trò của {name}",
+        "rowActions": "Thao tác với {name}",
         "remove": "Xoá khỏi tổ chức",
         "removeTitle": "Xoá thành viên?",
         "removeBody": "{name} sẽ mất quyền vào mọi dự án của tổ chức ngay lập tức. Dự án vẫn ở lại với tổ chức.",

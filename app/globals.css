@@ -1,4 +1,11 @@
 @import "tailwindcss";
+/* Hiệu ứng vào/ra (`animate-in`, `fade-in-0`, `slide-in-from-*`) mà primitive ở `components/shadcn/` dùng. */
+@import "tw-animate-css";
+
+/* App chỉ có bảng màu sáng. Primitive copy từ shadcn mang theo class `dark:*`; mặc định Tailwind 4 gắn
+   `dark:` vào `prefers-color-scheme: dark`, nên trên máy đặt dark OS các class đó sẽ bật và lẫn tông.
+   Neo biến thể vào class `.dark` — không chỗ nào trong app đặt class này nên `dark:*` không bao giờ bật. */
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   /* ── Brand palette ── */
@@ -22,7 +29,7 @@
 
   /* ── Primary palette: tím indigo DỊU (bớt bão hoà so với #6A62C4 cũ — gắt, mỏi mắt). Chữ trắng trên primary ≈ 5:1 (AA).
      Còn hex tím ghi cứng ở các trang cũ thì dùng đúng các giá trị này. ── */
-  --color-primary: #6a62c4;
+  --color-primary: var(--primary); /* giá trị ở `:root` bên dưới — #6a62c4, dùng chung cả app lẫn admin */
   --color-primary-container: #6a62c4;
   --color-primary-hover: #554db0;
   --color-primary-light: #8e87d6;
@@ -94,7 +101,7 @@
   --color-surface-sidebar: #f4f4f6;
   --color-surface-variant: #eceae5;
   --color-surface-tint: #6a62c4;
-  --color-background: #f5f3f0;
+  /* `background` khai ở khối "Cầu nối tên màu của shadcn" bên dưới (vẫn là #f5f3f0 cho cả app). */
   --color-on-surface: #191817;
   --color-on-surface-variant: #6b6862;
   --color-on-surface-muted: #8a867e;
@@ -150,6 +157,112 @@
      hinting riêng cho hệ điều hành. Đánh đổi: mỗi máy một dáng chữ. */
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* ── Cầu nối tên màu của shadcn ──
+     Primitive ở `components/shadcn/` gọi màu bằng tên ngữ nghĩa riêng của nó: `bg-background`,
+     `text-muted-foreground`, `border-border`, `bg-sidebar-accent`… Ở đây chỉ KHAI TÊN và trỏ sang biến
+     thường (`var(--card)`), còn giá trị đặt ở `:root` (cả app) và đè lại trong `.admin-theme` (khu quản
+     trị). Nhờ `@theme inline`, utility sinh ra là `var(--color-card)` → `var(--card)`, nên đè ở một thẻ
+     cha là cả cây con đổi theo — không phải sửa class trong từng component. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ── Giá trị mặc định cho cả app ──
+   Giữ nguyên tông ấm hiện tại: `background` vẫn là `surface-container`, `foreground` là `on-surface`…
+   Trang ngoài admin dùng `bg-background` sẽ không đổi gì so với trước. */
+:root {
+  --primary: #6a62c4;
+  --background: #f5f3f0;
+  --foreground: #191817;
+  --card: #ffffff;
+  --card-foreground: #191817;
+  --popover: #ffffff;
+  --popover-foreground: #191817;
+  --primary-foreground: #ffffff;
+  --secondary: #eceae5;
+  --secondary-foreground: #33312d;
+  --muted: #f0eeea;
+  --muted-foreground: #6b6862;
+  --accent: #f2f1fb;
+  --accent-foreground: #554db0;
+  --destructive: #b03030;
+  --border: #e4e1dc;
+  --input: #e4e1dc;
+  --ring: #6a62c4;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #191817;
+  --sidebar-accent: #f2f1fb;
+  --sidebar-accent-foreground: #554db0;
+  --sidebar-border: #eceae5;
+  --sidebar-ring: #6a62c4;
+}
+
+/* ── Khu quản trị (`app/admin/**`) ──
+   Bản dịch sang tím của `theme.css` trong bộ admin gốc (SpeakPing cam, Tách Tách xanh lá): cùng cấu
+   trúc, chỉ đổi hue sang tím thương hiệu `#6a62c4`.
+   Theo đúng bản gốc:
+   - `sidebar` = `background`: một mảng nền liền, ngăn nhau bằng đúng đường `border` — không phải cột
+     trắng nổi trên nền xám như khu `/home`.
+   - `card` trắng để thẻ và bảng nổi lên khỏi nền.
+   - `accent` là sắc tím nhạt (mục sidebar đang chọn, hover menu), chữ trên nó là mực đậm chứ không phải
+     tím — chữ tím trên nền tím nhạt đọc mệt ở cỡ nhỏ.
+   Nền ngả tím thay vì be ấm: khu admin là một bề mặt riêng, nếu trộn be của app với tím thương hiệu thì
+   xám ấm và tím đánh nhau — bản gốc cũng lấy nền là sắc rất nhạt của chính màu thương hiệu. */
+.admin-theme {
+  /* Hai lớp nền: rãnh ngoài (`sidebar`) hơi xám → tấm nội dung và thẻ đều TRẮNG, tách nhau bằng viền.
+     Không dùng nền kem/be: sắc đó ngả xám, cạnh tím thương hiệu thì nhìn như màn hình bị ố.
+     Mọi sắc xám phụ (hover, viền, badge) ngả tím rất nhẹ thay vì ngả vàng, để ăn với `primary`.
+     Tím KHÔNG dùng làm nền trang — nó để dành cho điểm nhấn: mục sidebar đang chọn, hover menu, nút
+     chính, cột biểu đồ. Nền tím trải cả trang thì mọi điểm nhấn tím mất tác dụng. */
+  --background: #ffffff;
+  --foreground: #191817; /* = on-surface */
+  --card: #ffffff;
+  --card-foreground: #191817;
+  --popover: #ffffff;
+  --popover-foreground: #191817;
+  --primary-foreground: #ffffff;
+  --secondary: #ececf0; /* badge, nút phụ trên nền trắng */
+  --secondary-foreground: #3b3857; /* = on-card-strong */
+  --muted: #f4f4f6; /* = surface-sidebar — hàng tiêu đề bảng, hover hàng */
+  --muted-foreground: #6b6b75;
+  --accent: #e4e1f6; /* = primary-fixed — tím nhạt cho mục đang chọn, hover menu */
+  --accent-foreground: #554db0; /* = primary-hover */
+  --destructive: #b03030; /* = error */
+  --border: #e6e6ea;
+  --input: #e6e6ea;
+  --ring: #6a62c4;
+  /* Sidebar mượn nguyên bộ màu của sidebar khu người dùng (`components/layout/SidebarNavItem.tsx`):
+     chữ `on-surface-variant`, mục đang chọn là `primary-fixed` + chữ `primary`. */
+  /* Rãnh ngoài: đúng xám của cột sidebar khu người dùng. Trung tính, KHÔNG pha tím — nền đã ngả tím thì
+     mục đang chọn (cũng tím) chẳng còn gì để tương phản, cả mảng nhìn đục. */
+  --sidebar: #f4f4f6; /* = surface-sidebar */
+  --sidebar-foreground: #6b6b75;
+  --sidebar-accent: #e4e1f6; /* = primary-fixed */
+  --sidebar-accent-foreground: #6a62c4; /* = primary */
+  --sidebar-border: #e6e6ea;
+  --sidebar-ring: #6a62c4;
 }
 
 /* ── Base Styles ── */
@@ -159,6 +272,20 @@ body {
   color: var(--color-on-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Màu viền mặc định trong khu quản trị ──
+   Tailwind 4 bỏ màu viền mặc định: class `border` trơ trọi lấy `currentColor`, tức là **màu chữ** — nên
+   mọi thẻ, bảng, ô nhập của bộ shadcn hiện viền gần như đen. Bộ admin gốc xử lý bằng một dòng reset ở
+   `@layer base`; chép lại đúng vậy, nhưng khoanh trong `.admin-theme` để không đụng tới phần còn lại của
+   app (ở đó nhiều chỗ đang dựa vào màu viền ghi thẳng trong class). */
+@layer base {
+  .admin-theme *,
+  .admin-theme ::before,
+  .admin-theme ::after {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
 }
 
 /* ── Nhịp chữ của tiêu đề ──
@@ -362,7 +489,17 @@ body {
   background-size: 22px 22px;
 }
 
+/* ── Đệm đáy vùng cuộn (`pb-scroll-end`) ──
+   Cuộn tới cuối thì dòng cuối phải còn khoảng thở, không dính sát mép dưới khung nhìn như bị cắt ngang.
+   `env(safe-area-inset-bottom)` cộng thêm phần bị thanh home indicator / thanh điều hướng của điện thoại
+   che mất — trên máy tính giá trị đó là 0 nên không ảnh hưởng gì.
+   Đặt ở vùng cuộn CỦA TRANG; khung danh sách tự cuộn bên trong không dùng (chúng có trần chiều cao riêng). */
+@utility pb-scroll-end {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* ── Thanh cuộn custom (`ff-scroll`) ──
+   CHỈ dùng trong workspace (`app/projects/**`). Khu `/home` để thanh cuộn mặc định của hệ điều hành.
    Mảnh, bo tròn, rãnh trong suốt; thumb nhạt và đậm lên khi rê chuột vào vùng cuộn. Chrome/Edge/Safari dùng
    `::-webkit-scrollbar` (cho bo góc); Firefox chỉ hiểu `scrollbar-width/color` nên khai ở nhánh @supports. */
 .ff-scroll {
