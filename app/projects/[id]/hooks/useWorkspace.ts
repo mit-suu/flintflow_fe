@@ -39,6 +39,8 @@ export function useWorkspace(projectId: string) {
    */
   const [crPrefill, setCrPrefill] = useState<(ChangeRequiresCrMeta["prefill"] & { instruction: string }) | null>(null);
   const didInit = useRef(false);
+  /** Lượt chat đang stream — `stopMessage` huỷ fetch, BE thấy luồng đóng thì ngắt model và không ghi tin AI. */
+  const streamAbortRef = useRef<AbortController | null>(null);
   /** Thông báo lỗi hiện ở pill toast của trang (thay `alert()` — FLF-244). */
   const [notice, setNotice] = useState<string | null>(null);
   /** Vai trò trong org đang mở — Viewer chỉ đọc (FLF-244). `null` khi chưa biết: không khoá gì, BE vẫn chặn. */
@@ -272,12 +274,15 @@ export function useWorkspace(projectId: string) {
 
         setStreamingMessage("");
         setKnowledgePending(Boolean(opts?.knowledge));
+        const abort = new AbortController();
+        streamAbortRef.current = abort;
         await streamChatMessage({
           projectId,
           chatId: activeSession._id,
           content,
           step,
           knowledge: opts?.knowledge,
+          signal: abort.signal,
           onTextDelta: (delta) => setStreamingMessage((prev) => (prev ?? "") + delta),
           onFinish: ({ session, data }) => {
             finishData = data;
@@ -303,6 +308,12 @@ export function useWorkspace(projectId: string) {
             }
           },
         });
+        // `streamSse` nuốt AbortError ⇒ về đây không có `finish`. BE đã ghi tin user (giữ tin tạm), bỏ chữ dở
+        // vì BE không lưu nó — tải lại trang vẫn thấy đúng như vậy.
+        if (abort.signal.aborted) {
+          setStreamingMessage(null);
+          setNotice("Đã dừng AI.");
+        }
       } catch (err) {
         setStreamingMessage(null);
         setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
@@ -318,6 +329,7 @@ export function useWorkspace(projectId: string) {
         if (meta?.prefill) setCrPrefill({ ...meta.prefill, instruction: content });
         else setNotice(errorMessage(err, "Không thể gửi tin nhắn"));
       } finally {
+        streamAbortRef.current = null;
         setSending(false);
         setKnowledgePending(false);
       }
@@ -325,6 +337,14 @@ export function useWorkspace(projectId: string) {
     },
     [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments]
   );
+
+  /** Nút dừng / Esc: huỷ lượt chat đang chạy. Không có lượt nào thì không làm gì. */
+  const stopMessage = useCallback(() => {
+    streamAbortRef.current?.abort();
+  }, []);
+
+  // Rời trang giữa lượt ⇒ đóng luồng để BE không sinh tiếp
+  useEffect(() => () => streamAbortRef.current?.abort(), []);
 
   const selectAttachment = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -370,6 +390,7 @@ export function useWorkspace(projectId: string) {
       canEdit,
       orgRole,
       sendMessage,
+      stopMessage,
       uploadPendingAttachments,
       appendLocalMessage,
       dropLocalMessage,
@@ -404,6 +425,7 @@ export function useWorkspace(projectId: string) {
       canEdit,
       orgRole,
       sendMessage,
+      stopMessage,
       uploadPendingAttachments,
       appendLocalMessage,
       dropLocalMessage,

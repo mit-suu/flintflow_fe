@@ -30,6 +30,8 @@ interface ChatPaneProps {
   setInputMessage: (msg: string) => void;
   onSendMessage: (customContent?: string) => void;
   sending: boolean;
+  /** Dừng lượt AI đang chạy (chat stream hoặc lượt chạy step) — nút dừng + Esc trên ô nhập. */
+  onStop?: () => void;
   pendingAttachments: File[];
   onSelectAttachment: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemoveAttachment: (name: string) => void;
@@ -154,7 +156,8 @@ export default function ChatPane({
   onToggleKnowledgeMode,
   knowledgeHidden = false,
   knowledgePending = false,
-  inputTools
+  inputTools,
+  onStop
 }: ChatPaneProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Ô nhập nổi đè lên đáy danh sách tin nhắn ⇒ đo chiều cao của nó để chừa chỗ cho tin nhắn cuối
@@ -371,6 +374,7 @@ export default function ChatPane({
                     }
                   }}
                   sending={sending}
+                  onStop={onStop}
                   pendingAttachments={pendingAttachments}
                   onSelectAttachment={onSelectAttachment}
                   onRemoveAttachment={onRemoveAttachment}

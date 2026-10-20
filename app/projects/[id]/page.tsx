@@ -1532,6 +1532,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           setInputMessage={ws.setInputMessage}
           onSendMessage={(custom) => void sendFromChat(custom)}
           sending={ws.sending || (!mode1 && aiWorking)}
+          // Nút dừng / Esc: lượt chat đang stream ⇒ huỷ nó; không thì lượt chạy step của tab này ⇒ huỷ như "Huỷ lượt".
+          // Step chạy ở tab khác (`stepRunningElsewhere`) không dừng từ đây — vẫn qua thanh tiến độ.
+          onStop={ws.sending ? ws.stopMessage : !mode1 && runner.state.busy ? () => void runner.cancel() : undefined}
           inputPlaceholder={
             !mode1 && !onPipelineSession
               ? "Hỏi AI về dự án, hoặc bật Sửa tài liệu để sửa…"
