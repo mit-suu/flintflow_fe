@@ -36,6 +36,7 @@ import VerificationPane from "./_components/VerificationPane";
 import BriefPanel, { briefHasData } from "./_components/BriefPanel";
 import ChatEditCard, { type AppliedEdit } from "./_components/ChatEditCard";
 import DiffPreviewModal from "./_components/DiffPreviewModal";
+import { editLockReason } from "./_components/edit-lock";
 import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import { pendingRecordCount } from "./_components/project-record-pending";
@@ -962,13 +963,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       setBaselineBusy(false);
     }
   };
-  /** Chip sửa khoá khi step đang chạy / chờ trả lời: hai luồng cùng ghi Spine sẽ vấp 409 SPINE_VERSION_CONFLICT. */
-  const editDisabledReason =
-    !mode1 && runner.state.busy
-      ? "Bước đang chạy — đợi chạy xong rồi hãy sửa tài liệu"
-      : !mode1 && runner.state.status === "needs_input"
-        ? "Trả lời câu hỏi của bước đang chạy trước đã"
-        : null;
+  const editDisabledReason = editLockReason({
+    mode1,
+    submission: spine?.baseline_submission,
+    runnerBusy: runner.state.busy,
+    runnerNeedsInput: runner.state.status === "needs_input",
+  });
   const { requestPreview, cancelPreview } = changes;
   const submitEditInstruction = useCallback(
     (instruction: string) => {
