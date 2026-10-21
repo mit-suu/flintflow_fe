@@ -244,18 +244,19 @@ describe("DocumentPane", () => {
       error: null,
       meta: { assembled_at_version: 5, spine_version: 5, stale: false },
     });
-    const hints: Record<string, { stepId: string; missing: boolean }> = {
-      "fixed:5.1": { stepId: "S-7.1", missing: true },
-      "fixed:4.2.4": { stepId: "S-6.5", missing: false },
+    const hints: Record<string, { stepId: string }> = {
+      "fixed:5.1": { stepId: "S-7.1" },
+      "fixed:4.2.4": { stepId: "S-6.5" },
     };
     renderWithIntl(<DocumentPane projectId="p1" onSelectStep={onSelectStep} emptyHintOf={(id) => hints[id]} />);
 
     expect(await screen.findByText("2. Yêu cầu người dùng")).toBeInTheDocument();
     expect(document.querySelector("[data-section-id=\"group:2\"]")?.textContent).not.toContain("Chưa hoàn thiện");
     const rules = document.querySelector("[data-section-id=\"fixed:5.1\"]") as HTMLElement;
-    expect(rules).toHaveTextContent("Thiếu");
+    // FLF-312: mẫu FPT không bắt buộc — mục trống không mang nhãn "Thiếu"
+    expect(rules).not.toHaveTextContent("Thiếu");
     expect(rules).toHaveTextContent("Chưa có nội dung — chạy step S-7.1");
-    expect(document.querySelector("[data-section-id=\"fixed:4.2.4\"]")).not.toHaveTextContent("Thiếu");
+    expect(document.querySelector("[data-section-id=\"fixed:4.2.4\"]")).toHaveTextContent("Chưa có nội dung — chạy step S-6.5");
     const appendix = document.querySelector("[data-section-id=\"custom:CS02\"]") as HTMLElement;
     expect(appendix).toHaveTextContent("Mục riêng");
     expect(appendix.querySelector("h5")?.textContent).toBe("Phụ lục A Biên bản họp");

@@ -168,11 +168,12 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
           busy={imp.busy === "extract" || imp.busy === "resume"}
           onStart={() => void after(imp.extract())}
           onResume={() => void after(imp.resume())}
+          headingMap={imp.data?.profile?.heading_map}
         />
       )}
 
       {status === "fields_review" && (
-        <FieldsReview fields={imp.data?.extraction.review_fields ?? []} busy={imp.busy === "fields"} onSubmit={(body) => void after(imp.saveFields(body))} />
+        <FieldsReview fields={imp.data?.extraction.review_fields ?? []} headingMap={imp.data?.profile?.heading_map} busy={imp.busy === "fields"} onSubmit={(body) => void after(imp.saveFields(body))} />
       )}
 
       {(status === "baselining" || status === "checking") && doc && (

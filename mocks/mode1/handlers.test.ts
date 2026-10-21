@@ -186,7 +186,7 @@ describe("mock mode 1 — import (#2–#10)", () => {
 
     const report = (await call<GapReport>("GET", `/projects/${P}/gap-report`)).body.data!;
     expect(report.totals.red).toBe(1);
-    expect(report.missing_sections[0].section_id).toBe("fixed:5.3");
+    expect(report).not.toHaveProperty("missing_fpt_sections");
     const docx = await call("GET", `/projects/${P}/gap-report?format=docx`);
     expect(docx.headers.get("content-type")).toContain("wordprocessingml");
   });

@@ -68,17 +68,11 @@ describe("StepProgressBar", () => {
     expect(screen.getByRole("button", { name: stepLabel("S-3.2") })).toBeDisabled();
   });
 
-  it("mode 1 v2 (FLF-185): step của đầu mục FPT thiếu ⇒ chấm đỏ + nhãn Thiếu; hết khi step đã chốt", () => {
+  it("FLF-312: mẫu FPT không bắt buộc — bước không còn nhãn Thiếu", () => {
     const list = [step("S-2.5", "accepted"), step("S-3.1", "pending"), step("S-7.1", "pending")];
-    const { rerender } = renderWithIntl(
-      <StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} missingStepIds={new Set(["S-7.1", "S-2.5"])} />
-    );
-    expect(screen.getByTestId("step-missing")).toHaveTextContent("Thiếu 1");
-    expect(screen.getByRole("button", { name: `${stepLabel("S-7.1")} (Thiếu)` })).toHaveAttribute("data-missing", "true");
-    // S-2.5 thuộc kế hoạch "thiếu" nhưng đã accepted ⇒ không còn đỏ
-    expect(screen.getByRole("button", { name: stepLabel("S-2.5") })).not.toHaveAttribute("data-missing");
-    rerender(<StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
-    expect(screen.queryByTestId("step-missing")).not.toBeInTheDocument();
+    renderWithIntl(<StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
+    expect(screen.queryByText(/Thiếu/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: stepLabel("S-7.1") })).toBeInTheDocument();
   });
 });
 

@@ -11,8 +11,6 @@ interface StepProgressBarProps {
   /** Step đang chọn để xem/chạy. */
   selectedStepId: string | null;
   onSelectStep: (stepId: string) => void;
-  /** Mode 1 v2 (FLF-185): step của đầu mục mẫu FPT file không có — nhãn đỏ "Thiếu" tới khi chốt. */
-  missingStepIds?: ReadonlySet<string>;
   /** Chỉ hiện bước của một phase; bỏ trống ⇒ mọi phase, gom theo nhóm. */
   phase?: string | null;
   /**
@@ -82,7 +80,6 @@ const Connector = ({ above, below }: { above: boolean; below: boolean }) => (
 const DOT_TONE = {
   current: "size-2.5 bg-primary-hover",
   revision: "size-2 bg-accent-gold",
-  missing: "size-2 bg-error",
   plain: "size-2 bg-surface-container-highest",
 } as const;
 
@@ -111,34 +108,20 @@ export default function StepProgressBar({
   progress,
   selectedStepId,
   onSelectStep,
-  missingStepIds,
   phase = null,
   reopenableStepIds,
 }: StepProgressBarProps) {
   const current = progress?.current_step ?? null;
-  const isMissing = (step: StepSummary) => !!missingStepIds?.has(step.id) && step.status !== "accepted";
-  const missingCount = steps.filter(isMissing).length;
   const percent = progress && progress.total > 0 ? Math.round((progress.done * 100) / progress.total) : 0;
   const groups = (phase ? [phase] : PHASES).map((p) => ({ phase: p, items: steps.filter((s) => s.phase === p) })).filter((g) => g.items.length > 0);
 
   return (
     <div className="flex flex-col gap-2" aria-label="Tiến độ theo bước">
-      {(progress?.show_percent || missingCount > 0) && (
+      {progress?.show_percent && (
         <div className="flex items-center gap-2">
-          {progress?.show_percent && (
-            <span className="text-body font-bold text-primary-hover tabular-nums" data-testid="step-percent">
-              {percent}% hoàn thành
-            </span>
-          )}
-          {missingCount > 0 && (
-            <span
-              className="text-caption font-bold px-2 py-0.5 rounded-full bg-error-container text-error"
-              data-testid="step-missing"
-              title="Đầu mục mẫu FPT file upload không có — chạy step để AI soạn trước khi ký baseline v1"
-            >
-              Thiếu {missingCount}
-            </span>
-          )}
+          <span className="text-body font-bold text-primary-hover tabular-nums" data-testid="step-percent">
+            {percent}% hoàn thành
+          </span>
         </div>
       )}
 
@@ -162,8 +145,7 @@ export default function StepProgressBar({
               // trước đây panel khoá cứng 5 bước của màn đó và không còn đường nào quay lại.
               const reopenable = reopenableStepIds?.has(step.id) ?? false;
               const clickable = step.status === "accepted" || isCurrent || step.status === "revision_requested" || reopenable;
-              const missing = isMissing(step);
-              const cell = missing ? "text-error font-medium" : isCurrent ? STEP_ACTIVE_CELL : CELL[step.status];
+              const cell = isCurrent ? STEP_ACTIVE_CELL : CELL[step.status];
               return (
                 <li key={step.id} className="relative">
                   <Connector above={!first} below={!last} />
@@ -171,17 +153,16 @@ export default function StepProgressBar({
                     type="button"
                     disabled={!clickable}
                     onClick={() => onSelectStep(step.id)}
-                    aria-label={`${stepLabel(step.id)}${missing ? " (Thiếu)" : ""}`}
+                    aria-label={stepLabel(step.id)}
                     aria-current={isCurrent ? "step" : undefined}
-                    data-missing={missing || undefined}
                     title={`${step.id} · ${stepLabel(step.id)} — ${
-                      missing ? "Thiếu: đầu mục FPT file không có" : isCurrent ? "đang làm" : reopenable ? "màn đang để trống — bấm để mở lại" : STATUS_HINT[step.status]
+                      isCurrent ? "đang làm" : reopenable ? "màn đang để trống — bấm để mở lại" : STATUS_HINT[step.status]
                     }`}
                     className={`group w-full py-1 flex items-start gap-2 text-left ${
                       clickable ? "cursor-pointer" : "cursor-not-allowed"
                     } focus-visible:outline-none`}
                   >
-                    <Dot tone={missing ? "missing" : isCurrent ? "current" : step.status === "revision_requested" ? "revision" : "plain"} />
+                    <Dot tone={isCurrent ? "current" : step.status === "revision_requested" ? "revision" : "plain"} />
                     {/* Nền chỉ ôm lấy chữ chứ không trải hết bề ngang: cột chấm phải đứng ngoài ô màu thì mốc thời
                         gian mới đọc được. Vùng bấm vẫn là cả dòng. */}
                     <span
@@ -190,7 +171,6 @@ export default function StepProgressBar({
                       } ${isCurrent ? "" : "group-hover:bg-surface-container"}`}
                     >
                       {stepLabel(step.id)}
-                      {missing && <span className="ml-2 text-caption font-bold">Thiếu</span>}
                     </span>
                   </button>
                 </li>

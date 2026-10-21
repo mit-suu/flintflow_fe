@@ -16,7 +16,7 @@ const FRIENDLY: Record<string, string> = {
   CR_REQUIRES_BASELINE: "Cần hoàn tất import (baseline 0.1) trước khi tạo change request.",
   RELEASE_RED_FLAGS_OPEN: "Còn cờ đỏ chưa xử lý — chưa release được.",
   CR_VALUE_CHANGED: "Phần tử vừa bị sửa ở chỗ khác sau khi đề xuất — chạy lại đề xuất rồi kiểm lại.",
-  CORE_STEP_REQUIRED: "Step này thuộc đầu mục mẫu FPT hoặc đã có dữ liệu — không tắt được.",
+  CORE_STEP_REQUIRED: "Bước này luôn chạy hoặc đã có dữ liệu — không tắt được.",
   STEP_NOT_IN_PLAN: "Step không có trong kế hoạch của dự án.",
   BASELINE_BLOCKED: "Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.",
   RATE_LIMIT_EXCEEDED: "Máy chủ AI từ chối phục vụ (hết hạn mức, chưa gắn thanh toán, hoặc gọi quá nhanh). Kiểm tra tài khoản nhà cung cấp AI rồi thử lại.",

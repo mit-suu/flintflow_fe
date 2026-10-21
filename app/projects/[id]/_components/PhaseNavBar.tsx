@@ -15,8 +15,6 @@ interface PhaseNavBarProps {
   onSelectPhase?: (phase: PhaseId) => void;
   /** Nội dung dưới giai đoạn đang mở (danh sách bước). */
   renderPhaseBody?: (phase: PhaseId) => ReactNode;
-  /** Mode 1 v2: giai đoạn có bước "Thiếu" mang nhãn đỏ "Thiếu". */
-  missingStepIds?: ReadonlySet<string>;
   /** Bước đang làm — ghi tên ngay dưới giai đoạn khi giai đoạn đó đang gập (xem `rowClass`). */
   currentStepId?: string | null;
 }
@@ -94,7 +92,6 @@ export default function PhaseNavBar({
   openPhases,
   onSelectPhase,
   renderPhaseBody,
-  missingStepIds,
   currentStepId,
 }: PhaseNavBarProps) {
   const phases = visiblePhases(steps);
@@ -114,7 +111,6 @@ export default function PhaseNavBar({
           ...groupPhases.map((phase) => {
             const state = phaseState(phase, currentPhase, steps);
             const open = !!openPhases?.has(phase);
-            const hasMissing = !!missingStepIds && steps.some((s) => s.phase === phase && s.status !== "accepted" && missingStepIds.has(s.id));
             const label = PHASE_NAV_LABELS[phase];
             const single = SINGLE_ITEM_PHASES.has(phase);
             const active = state === "active";
@@ -135,7 +131,6 @@ export default function PhaseNavBar({
                     <span className="block text-body leading-snug break-words">{label}</span>
                     {currentStepLabel && <span className="block text-caption font-medium opacity-75 truncate">{currentStepLabel}</span>}
                   </span>
-                  {hasMissing && <span className="mt-0.5 shrink-0 text-caption font-bold px-1.5 rounded-full bg-error-container text-error">Thiếu</span>}
                   {/* Mũi tên luôn hiện (bản cũ chỉ hiện khi rê chuột ⇒ không ai biết dòng mở ra được): xoay 90° và đậm
                       lên khi giai đoạn đang mở. Mục đơn không có bước con nên không có mũi tên. */}
                   {!single && (
