@@ -800,6 +800,8 @@
       "joined": "Joined",
       "credits": "Credits",
       "creditAmount": "{credits} credits",
+      "creditOrg": "of the organization {org}",
+      "creditNoOrg": "No organization selected — credits belong to an organization's wallet",
       "toBilling": "Billing & credits →",
       "createPasswordTitle": "Create a password",
       "createPasswordBody": "Your account signs in with Google, so it has no password yet. Create one to also sign in with the email <b>{email}</b> — Google keeps working as before.",
