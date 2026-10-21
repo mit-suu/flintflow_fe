@@ -92,7 +92,6 @@ const parseDocument = () => {
   S().profile = {
     doc_version: "0.1",
     language: "en",
-    required_sections: ["fixed:5.3"],
     layout: [],
     record_of_changes: [{ date: "01/05/2026", version: "0.2", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu" }],
     heading_map: blocks
@@ -203,10 +202,10 @@ const extractNextSection = () => {
 const redFlag = (): Flag => ({
   id: "FL001",
   level: "red",
-  rule_id: "section_empty",
-  section_id: "fixed:5.3",
-  message: "Mục 5.3 Application Messages List bắt buộc nhưng tài liệu không có",
-  remediation_step: "S-7.2",
+  rule_id: "dead_reference",
+  section_id: "fixed:4.2.3",
+  message: "NFR-02 trỏ tới UC-99 không tồn tại",
+  remediation_step: "S-6.4",
   opened_at_version: S().spineVersion,
   resolved_at: null,
   waived_by_user: false,
@@ -696,7 +695,7 @@ export const mode1Handlers = [
       const body = (await request.json()) as { step_id: string; enabled: boolean };
       const entry = S().stepPlan.find((s) => s.step_id === body.step_id);
       if (!entry) return fail(404, "STEP_NOT_IN_PLAN", `Step ${body.step_id} không có trong kế hoạch`);
-      if (!body.enabled && entry.state === "applied") return fail(409, "CORE_STEP_REQUIRED", "Không tắt được step của đầu mục mẫu FPT");
+      if (!body.enabled && !entry.section_ids.length) return fail(409, "CORE_STEP_REQUIRED", "Bước ghép / kiểm tra tài liệu luôn chạy nên không tắt được.");
       entry.state = body.enabled ? "enabled" : "hidden";
       return ok({ steps: S().stepPlan });
     }),
@@ -714,16 +713,13 @@ export const mode1Handlers = [
         project_id: MODE1_PROJECT_ID,
         doc_version: "0.1",
         generated_at: now(),
-        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1, unrendered_diagrams: 1 },
-        missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
+        totals: { red: S().redFlags, yellow: 1, low_confidence_fields: 0, unrendered_diagrams: 1 },
         unrendered_diagrams: [{ diagram_id: "", kind: "usecase", section_id: "", title: "Sơ đồ use case", reason: "not_rendered" }],
         layout: [
           { order: 0, section_id: "fixed:1", heading: "1 Giới thiệu", level: 1, kind: "fpt", red: 0, yellow: 0 },
           { order: 1, section_id: "custom:CS01", heading: "Phụ lục B — Biên bản họp", level: 1, kind: "custom", red: 0, yellow: 0 },
         ],
         sections: [...new Set(flags.map((f) => f.section_id))].map((section_id) => ({ section_id, title: section_id, flags: flags.filter((f) => f.section_id === section_id) })),
-        missing_sections: [{ section_id: "fixed:5.3", title: "Application Messages List" }],
-        unmapped_headings: [{ block_id: "B0011", text: "Phụ lục B — Biên bản họp" }],
         low_confidence_fields: [],
       });
     }),

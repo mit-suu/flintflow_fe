@@ -123,9 +123,9 @@ export const createMode1MockState = (): Mode1MockState => ({
   profile: null,
   finalizedRecordOfChanges: null,
   stepPlan: [
-    { step_id: "S-2.1", state: "applied", missing: false, section_ids: ["fixed:1"], reason: "Có trong template, đã có nội dung" },
-    { step_id: "S-7.1", state: "applied", missing: true, section_ids: ["fixed:5.1"], reason: "Đầu mục mẫu FPT — file không có" },
-    { step_id: "B-0.1", state: "hidden", missing: false, section_ids: [], reason: "Không sinh đầu mục" },
+    { step_id: "S-2.1", state: "applied", section_ids: ["fixed:1"], reason: "Có trong file, đã có nội dung" },
+    { step_id: "S-7.1", state: "hidden", section_ids: ["fixed:5.1"], reason: "File không có đầu mục này — bật nếu muốn AI soạn thêm" },
+    { step_id: "B-0.1", state: "hidden", section_ids: [], reason: "Không sinh đầu mục" },
   ],
   sections: [],
   extractRunning: false,

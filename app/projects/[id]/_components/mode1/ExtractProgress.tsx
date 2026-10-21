@@ -1,7 +1,7 @@
 "use client";
 
-import { sectionLabel } from "@/lib/constants/fpt-sections";
-import type { CreditEstimate, ExtractionSection, ImportedDocument } from "@/types/import";
+import { sectionLabelIn } from "@/lib/constants/fpt-sections";
+import type { CreditEstimate, ExtractionSection, HeadingMapEntry, ImportedDocument } from "@/types/import";
 import CreditEstimateNote from "./CreditEstimateNote";
 import PausedBanner from "./PausedBanner";
 import { humanizeText } from "./spine-labels";
@@ -18,6 +18,8 @@ interface ExtractProgressProps {
   onStart: () => void;
   onResume: () => void;
   busy?: boolean;
+  /** Heading của profile — ghi rõ tính năng / chức năng mới (section tạm) theo tiêu đề trong file. */
+  headingMap?: HeadingMapEntry[];
 }
 
 const STATUS_ICON: Record<ExtractionSection["status"], { icon: IconName; color: string; label: string }> = {
@@ -30,7 +32,7 @@ const STATUS_ICON: Record<ExtractionSection["status"], { icon: IconName; color: 
  * 1.8 Trích field (I-4) theo section — chạy nền, FE poll `GET /import`. Hiện tiến độ, credit còn lại và banner
  * paused (UC-61, UC-75). Số liệu do BE trả; FE chỉ đếm section theo trạng thái để vẽ thanh tiến độ.
  */
-export default function ExtractProgress({ doc, sections, running, credits, estimate = null, onStart, onResume, busy = false }: ExtractProgressProps) {
+export default function ExtractProgress({ doc, sections, running, credits, estimate = null, onStart, onResume, busy = false, headingMap }: ExtractProgressProps) {
   const done = sections.filter((s) => s.status === "done").length;
   const total = sections.length;
   const notStarted = !running && !doc.paused && doc.extract_cursor === null && done === 0;
@@ -73,7 +75,7 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
           <div className="flex items-center justify-between text-body font-semibold text-[#4B4842]">
             <span>
               {running && <span className="inline-block w-3 h-3 mr-1.5 align-middle rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />}
-              {running ? `Đang trích${doc.extract_cursor ? ` ${sectionLabel(doc.extract_cursor)}` : ""}…` : "Đã dừng"}
+              {running ? `Đang trích${doc.extract_cursor ? ` ${sectionLabelIn(doc.extract_cursor, headingMap)}` : ""}…` : "Đã dừng"}
             </span>
             <span>
               {done}/{total} section
@@ -93,7 +95,7 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
             return (
               <li key={s.section_id} className={`px-3 py-2 flex items-center gap-3 text-body ${current ? "bg-[#F2F1FB]" : ""}`}>
                 <Icon name={st.icon} size={18} style={{ color: st.color }} label={st.label} />
-                <span className="flex-1 font-semibold text-[#191817]">{sectionLabel(s.section_id)}</span>
+                <span className="flex-1 font-semibold text-[#191817]">{sectionLabelIn(s.section_id, headingMap)}</span>
                 {s.status === "done" && (
                   <span className="text-body text-[#8A867E]">
                     {s.fields_total} field{s.fields_needing_review > 0 && <strong className="text-[#8A6D1F]"> · {s.fields_needing_review} cần xem</strong>}

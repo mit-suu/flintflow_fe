@@ -146,7 +146,6 @@ export interface TemplateProfile {
   doc_version: string;
   heading_map: HeadingMapEntry[];
   table_map: TableMapEntry[];
-  required_sections: string[];
   language: string;
   /** FLF-182 — rỗng với import trước mode 1 v2. */
   layout: LayoutEntry[];
@@ -163,8 +162,6 @@ export type StepPlanState = "applied" | "hidden" | "enabled";
 export interface StepPlanEntry {
   step_id: string;
   state: StepPlanState;
-  /** Đầu mục mẫu FPT mà file không có (hoặc chỉ có heading) ⇒ "Thiếu" + cờ đỏ `section_empty` (FLF-183). Giữ nguyên sau khi step chạy xong — "Thiếu" chỉ hiện khi step chưa accepted. */
-  missing: boolean;
   section_ids: string[];
   reason: string;
 }
@@ -295,22 +292,15 @@ export interface GapReport {
   totals: {
     red: number;
     yellow: number;
-    missing_sections: number;
-    unmapped_headings: number;
     low_confidence_fields: number;
-    missing_fpt_sections: number;
     unrendered_diagrams: number;
   };
-  /** Mode 1 v2 (FLF-184, D6): đầu mục mẫu FPT file không có / chỉ có heading — cờ đỏ, chặn ký v1 tới khi chạy `step_id`. */
-  missing_fpt_sections: { section_id: string; title: string; step_id: string; in_layout: boolean }[];
   /** Mode 1 v2 (nợ T4): hình dựng được từ Spine nhưng chưa có bản vẽ (import lúc thiếu PlantUML) hoặc vẽ lỗi — không chặn ký v1. */
   unrendered_diagrams: { diagram_id: string; kind: string; section_id: string; title: string; reason: "not_rendered" | "error" }[];
   /** Mục theo thứ tự file upload (FLF-184). */
   layout: GapLayoutRow[];
   /** Cờ theo section — theo thứ tự layout. */
   sections: { section_id: string; title: string; flags: Flag[] }[];
-  missing_sections: { section_id: string; title: string }[];
-  unmapped_headings: { block_id: string; text: string }[];
   low_confidence_fields: ReviewField[];
 }
 

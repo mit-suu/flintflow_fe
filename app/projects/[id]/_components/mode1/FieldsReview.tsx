@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { sectionLabel } from "@/lib/constants/fpt-sections";
-import type { FieldsPatchRequest, ReviewField } from "@/types/import";
+import { sectionLabelIn } from "@/lib/constants/fpt-sections";
+import type { FieldsPatchRequest, HeadingMapEntry, ReviewField } from "@/types/import";
 import { formatPercent } from "./labels";
 import { pathLabel } from "./spine-labels";
 
@@ -10,6 +10,8 @@ interface FieldsReviewProps {
   fields: ReviewField[];
   onSubmit: (body: Omit<FieldsPatchRequest, "import_id">) => void;
   busy?: boolean;
+  /** Heading của profile — ghi rõ tính năng / chức năng mới (section tạm) theo tiêu đề trong file. */
+  headingMap?: HeadingMapEntry[];
 }
 
 const fieldKey = (f: ReviewField) => `${f.section_id}|${f.path}`;
@@ -38,7 +40,7 @@ export const ORIGIN_LABEL: Record<ReviewField["origin"], string> = {
   vision: "AI đọc từ ảnh",
 };
 
-export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsReviewProps) {
+export default function FieldsReview({ fields, onSubmit, busy = false, headingMap }: FieldsReviewProps) {
   const [edits, setEdits] = useState<Record<string, string>>({});
 
   const submit = () =>
@@ -71,7 +73,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false }: FieldsR
                 <span className="font-bold text-[#191817]" title={f.path}>
                   {pathLabel(f.path, f.entity_name)}
                 </span>
-                <span className="text-[#8A867E]">· {sectionLabel(f.section_id)}</span>
+                <span className="text-[#8A867E]">· {sectionLabelIn(f.section_id, headingMap)}</span>
                 {f.origin === "vision" && (
                   <span className="ml-auto px-2 py-0.5 rounded-full bg-[#EEEBFA] text-[#6A62C4] font-bold text-caption" title="Đọc từ ảnh diagram trong tài liệu — luôn cần bạn xác nhận">
                     từ ảnh

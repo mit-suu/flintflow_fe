@@ -75,6 +75,6 @@ export const reuploadDocument = (projectId: string, file: File) =>
 /** #32 (FLF-182): step nào chạy / ẩn / thiếu theo template của file upload. */
 export const getStepPlan = (projectId: string) => apiCall<StepPlanResponse>(`${base(projectId)}/step-plan`);
 
-/** #33: bật step ẩn / tắt step đã bật. 409 `CORE_STEP_REQUIRED` khi tắt step của đầu mục FPT; 404 `STEP_NOT_IN_PLAN`. */
+/** #33: bật step ẩn / tắt step đã bật. 409 `CORE_STEP_REQUIRED` khi tắt bước luôn chạy / step đã có dữ liệu; 404 `STEP_NOT_IN_PLAN`. */
 export const patchStepPlan = (projectId: string, body: StepPlanPatchRequest) =>
   apiCall<StepPlanResponse>(`${base(projectId)}/step-plan`, { method: "PATCH", body: JSON.stringify(body) });

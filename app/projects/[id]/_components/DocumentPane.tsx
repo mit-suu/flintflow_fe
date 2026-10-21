@@ -23,8 +23,7 @@ interface DocumentPaneProps {
   /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc lệnh sửa trong chat áp lô). */
   refreshToken?: number;
   /**
-   * Mode 1 v2 (FLF-185): step sở hữu section chưa có nội dung — hiện "Chưa có nội dung — chạy step X" thay câu chung,
-   * `missing` = đầu mục mẫu FPT file upload không có (đỏ).
+   * Mode 1 v2 (FLF-185): step sở hữu section chưa có nội dung — hiện "Chưa có nội dung — chạy step X" thay câu chung.
    */
   emptyHintOf?: (sectionId: string) => EmptyHint | undefined;
   /**
@@ -114,7 +113,6 @@ export const sectionLabel = (section: Pick<RenderedSection, "number" | "heading"
 
 export interface EmptyHint {
   stepId: string;
-  missing: boolean;
 }
 
 const STATUS_BADGE: Record<SectionStatus, { text: string; style: string } | null> = {
@@ -288,8 +286,7 @@ function EmptySection({ hint, onSelectStep, mode1 = false }: { hint?: EmptyHint;
   if (mode1) return <span className="text-body text-on-surface-muted italic">Mục còn trống — tạo change request (nguồn gap report) để bổ sung.</span>;
   if (!hint) return <span className="text-body text-on-surface-muted italic">Chưa hoàn thiện</span>;
   return (
-    <span className={`text-body italic inline-flex items-baseline gap-1.5 flex-wrap ${hint.missing ? "text-error" : "text-on-surface-muted"}`}>
-      {hint.missing && <span className="not-italic text-caption font-extrabold px-1.5 py-0.5 rounded-full bg-error text-on-error">Thiếu</span>}
+    <span className="text-body italic inline-flex items-baseline gap-1.5 flex-wrap text-on-surface-muted">
       <span>
         Chưa có nội dung — chạy step {hint.stepId} · {stepLabel(hint.stepId)}
       </span>
