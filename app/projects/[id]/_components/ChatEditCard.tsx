@@ -27,7 +27,8 @@ interface ChatEditCardProps {
   onShowDetail: () => void;
   onApply: () => void;
   onCancel: () => void;
-  onUndo: () => void;
+  /** Không có ⇒ không hiện nút Hoàn tác (sau baseline, BR-03). */
+  onUndo?: () => void;
   onDismiss: () => void;
 }
 
@@ -156,7 +157,7 @@ export default function ChatEditCard({
             <Icon name="check-circle" size={15} />
             {applied.count > 0 ? `Đã áp dụng ${applied.count} thay đổi` : "Đã xác nhận, nội dung không đổi"}
           </span>
-          {applied.count > 0 && (
+          {applied.count > 0 && onUndo && (
             <button
               type="button"
               onClick={onUndo}

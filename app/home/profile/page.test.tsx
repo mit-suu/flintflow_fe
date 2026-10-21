@@ -22,6 +22,7 @@ const LOCAL_USER: User = {
   email: "hiep@flintflow.vn",
   name: "Hiệp",
   balance: 1200,
+  creditOrganization: { id: "o1", name: "Nhóm 1" },
   createdAt: "2026-09-01T00:00:00.000Z",
   authProvider: "local",
   emailVerified: true,
@@ -56,6 +57,14 @@ describe("ProfilePage", () => {
     expect(screen.getByText("✓ Đã xác thực")).toBeInTheDocument();
     expect(screen.getByText("Email/mật khẩu")).toBeInTheDocument();
     expect(screen.getByText("1.200 credit")).toBeInTheDocument();
+    // FLF-310: credit là của tổ chức đang chọn, ghi rõ tên
+    expect(screen.getByTestId("credit-org")).toHaveTextContent("của tổ chức Nhóm 1");
+  });
+
+  it("FLF-310: chưa chọn tổ chức ⇒ không hiện số credit, báo credit nằm ở ví tổ chức", async () => {
+    await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
+    expect(screen.queryByText("0 credit")).not.toBeInTheDocument();
+    expect(screen.getByText("Chưa chọn tổ chức — credit nằm ở ví của tổ chức")).toBeInTheDocument();
   });
 
   it("sửa tên hiển thị ⇒ gọi updateMyName và hiện tên mới", async () => {

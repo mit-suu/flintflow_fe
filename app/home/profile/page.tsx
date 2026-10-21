@@ -159,7 +159,16 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
 
         <InfoRow label={t("credits")}>
           <div className="flex items-center gap-3">
-            <span className="font-bold">{t("creditAmount", { credits: format.number(user.balance ?? 0) })}</span>
+            {user.creditOrganization ? (
+              <span className="min-w-0">
+                <span className="font-bold">{t("creditAmount", { credits: format.number(user.balance ?? 0) })}</span>{" "}
+                <span className="text-on-surface-muted" data-testid="credit-org">
+                  {t("creditOrg", { org: user.creditOrganization.name })}
+                </span>
+              </span>
+            ) : (
+              <span className="text-on-surface-muted">{t("creditNoOrg")}</span>
+            )}
             <Link href="/home/billing" className="ml-auto text-body font-bold text-primary hover:underline shrink-0">
               {t("toBilling")}
             </Link>

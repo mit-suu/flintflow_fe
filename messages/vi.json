@@ -800,6 +800,8 @@
       "joined": "Ngày tham gia",
       "credits": "Credit hiện có",
       "creditAmount": "{credits} credit",
+      "creditOrg": "của tổ chức {org}",
+      "creditNoOrg": "Chưa chọn tổ chức — credit nằm ở ví của tổ chức",
       "toBilling": "Thanh toán & credit →",
       "createPasswordTitle": "Tạo mật khẩu",
       "createPasswordBody": "Tài khoản của bạn đang đăng nhập bằng Google nên chưa có mật khẩu. Tạo mật khẩu để có thể đăng nhập bằng email <b>{email}</b> — vẫn dùng Google được như cũ.",

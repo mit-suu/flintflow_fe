@@ -810,7 +810,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
-      setToast(result.changes.length > 0 ? `Đã áp dụng ${result.changes.length} thay đổi (v${result.spine_version})` : "Đã xác nhận: nội dung không đổi");
+      setToast(result.changes.length > 0 ? `Đã áp dụng ${result.changes.length} thay đổi` : "Đã xác nhận: nội dung không đổi");
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
@@ -1755,10 +1755,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 void changes.confirmPreview();
               }}
               onCancel={closeEditCard}
-              onUndo={() => {
-                editActionRef.current = "undo";
-                void changes.undo();
-              }}
+              // BR-03 (FLF-294): sau baseline không hoàn tác — gỡ thay đổi là một change request mới
+              onUndo={
+                (spine?.baselines.length ?? 0) > 0
+                  ? undefined
+                  : () => {
+                      editActionRef.current = "undo";
+                      void changes.undo();
+                    }
+              }
               onDismiss={closeEditCard}
             />
           )}
@@ -1991,9 +1996,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           busy={changes.applying}
           confirmLabel={changes.previewSource === "reconcile" ? "Cập nhật" : "Áp dụng"}
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
-          onConfirm={(reason) => {
+          onConfirm={(reason, changeRequest) => {
             editActionRef.current = changes.previewSource === "reconcile" ? "outdated" : "instruction";
-            void changes.confirmPreview(reason);
+            void changes.confirmPreview(reason, changeRequest);
           }}
         />
       )}

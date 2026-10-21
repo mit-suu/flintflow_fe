@@ -28,6 +28,35 @@ describe("DiffPreviewModal", () => {
     expect(screen.getByText("Administrator")).toBeInTheDocument();
   });
 
+  it("FLF-294: sau baseline phải có người yêu cầu + nguồn + lý do mới bấm được; onConfirm nhận change request", () => {
+    const onConfirm = vi.fn();
+    renderWithIntl(<DiffPreviewModal preview={{ ...basePreview, branch: "post_baseline" }} onCancel={vi.fn()} onConfirm={onConfirm} />);
+    const confirm = screen.getByRole("button", { name: "Xác nhận" });
+
+    fireEvent.change(screen.getByLabelText("Lý do thay đổi"), { target: { value: "Khách đổi tên vai trò" } });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Người yêu cầu"), { target: { value: "Chị Lan" } });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Nguồn"), { target: { value: "meeting_minutes" } });
+    fireEvent.change(screen.getByLabelText("Tham chiếu nguồn (tuỳ chọn)"), { target: { value: "Biên bản 15/10" } });
+    expect(confirm).toBeEnabled();
+
+    fireEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalledWith("Khách đổi tên vai trò", {
+      requester: "Chị Lan",
+      source: { kind: "meeting_minutes", ref: "Biên bản 15/10" },
+    });
+  });
+
+  it("FLF-294: trước baseline không hỏi change request, onConfirm không kèm gì", () => {
+    const onConfirm = vi.fn();
+    renderWithIntl(<DiffPreviewModal preview={{ ...basePreview, branch: "dependent" }} onCancel={vi.fn()} onConfirm={onConfirm} />);
+
+    expect(screen.queryByLabelText("Người yêu cầu")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận" }));
+    expect(onConfirm).toHaveBeenCalledWith(undefined, undefined);
+  });
+
   it("có violations thì hiện danh sách vi phạm và khoá nút Xác nhận", () => {
     const preview: PreviewResult = {
       ...basePreview,

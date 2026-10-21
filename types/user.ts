@@ -1,4 +1,4 @@
-/** User trả về từ `GET /users/me` (kèm số dư ví credit). */
+/** User trả về từ `GET /users/me` (kèm credit của tổ chức đang chọn). */
 export interface User {
   id: string;
   email: string;
@@ -10,7 +10,10 @@ export interface User {
    * đang hiển thị (`useAccountLocaleSync`).
    */
   locale?: "vi" | "en" | null;
+  /** FLF-310: credit khả dụng của tổ chức đang chọn (không còn ví cá nhân); chưa chọn tổ chức ⇒ 0. */
   balance?: number;
+  /** FLF-310: tổ chức sở hữu `balance`; `null` khi chưa chọn tổ chức. */
+  creditOrganization?: { id: string; name: string } | null;
   createdAt?: string;
   updatedAt?: string;
   /** Chỉ có ở `GET /users/me` (trang Hồ sơ). */

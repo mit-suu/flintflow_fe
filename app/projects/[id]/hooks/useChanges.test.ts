@@ -50,6 +50,21 @@ describe("useChanges", () => {
     await waitFor(() => expect(result.current.preview).toBeNull());
   });
 
+  it("FLF-294: confirmPreview gửi kèm reason + change_request (sau baseline lượt áp là một CR)", async () => {
+    const baseVersion = await seedActor();
+    const applySpy = vi.spyOn(spineApi, "applyChanges");
+    const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, vi.fn()));
+
+    await result.current.requestPreview("làm rõ vai trò");
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+    const changeRequest = { requester: "Chị Lan", source: { kind: "meeting_minutes" as const, ref: "Biên bản 15/10" } };
+    await result.current.confirmPreview("Khách đổi tên vai trò", changeRequest);
+
+    await waitFor(() => expect(applySpy).toHaveBeenCalled());
+    expect(applySpy.mock.calls.at(-1)?.[1]).toMatchObject({ reason: "Khách đổi tên vai trò", change_request: changeRequest });
+    applySpy.mockRestore();
+  });
+
   it("lệnh không tìm được đối tượng ⇒ clarification, không có preview", async () => {
     const baseVersion = await version();
     const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, vi.fn()));

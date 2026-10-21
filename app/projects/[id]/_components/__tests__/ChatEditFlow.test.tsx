@@ -96,6 +96,12 @@ describe("ChatEditCard", () => {
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
+  it("FLF-294: không truyền onUndo (sau baseline) ⇒ không có nút Hoàn tác", () => {
+    render(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={undefined} />);
+    expect(screen.getByText("Đã áp dụng 3 thay đổi")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hoàn tác" })).not.toBeInTheDocument();
+  });
+
   it("lệnh mơ hồ ⇒ hiện câu hỏi làm rõ", () => {
     render(<ChatEditCard {...cardProps} clarification="Bạn muốn đổi actor nào?" />);
     expect(screen.getByText("Bạn muốn đổi actor nào?")).toBeInTheDocument();
