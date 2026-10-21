@@ -78,7 +78,6 @@ describe("CreditEstimateNote trong wizard", () => {
     doc_version: "0.1",
     heading_map: [{ block_id: "B0001", heading_text: "1 Product Overview", section_id: "fixed:1", confidence: 0.6, detected_by: "numbering_pattern", confirmed: false }],
     table_map: [],
-    required_sections: [],
     language: "en",
     layout: [],
   };

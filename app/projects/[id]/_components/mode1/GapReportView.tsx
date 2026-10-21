@@ -46,10 +46,7 @@ const FlagRow = ({ flag }: { flag: Flag }) => (
   </li>
 );
 
-/**
- * Mô tả CR điền sẵn từ gap report: cờ đỏ trên nội dung đã có (người dùng sửa lại trước khi gửi). Mục FPT còn thiếu có
- * CR riêng (`missingSectionsPrefill`) — mode 1 v3 (BPMN Flow 1 ⇒ 3.1) không còn chạy step, C-3 dựng vị trí thêm mới.
- */
+/** Mô tả CR điền sẵn từ gap report: cờ đỏ trên nội dung đã có (người dùng sửa lại trước khi gửi). */
 export const gapReportPrefill = (report: GapReport): { title: string; description: string } => {
   const reds = report.sections.flatMap((s) =>
     s.flags.filter((f) => f.level === "red" && f.rule_id !== "section_empty").map((f) => `- ${sectionTitle(s.section_id, s.title)}: ${humanizeText(f.message)}`)
@@ -60,16 +57,10 @@ export const gapReportPrefill = (report: GapReport): { title: string; descriptio
   };
 };
 
-/** 1.13 Gap report (UC-23): cờ đỏ/vàng theo section, section thiếu, heading không khớp, field còn độ tin thấp. */
-/** Mode 1 v3: CR điền các mục FPT còn thiếu — đích là mã section (C-3 ⇒ vị trí thêm mới), nguồn gap report. */
-export const missingSectionsPrefill = (report: GapReport): { title: string; description: string } => ({
-  title: "Bổ sung các mục còn thiếu",
-  description: [
-    "Soạn nội dung cho các đầu mục mẫu FPT còn thiếu trong gap report của bản " + report.doc_version + ":",
-    ...report.missing_fpt_sections.map((m) => `- ${sectionTitle(m.section_id, m.title)}`),
-  ].join("\n"),
-});
-
+/**
+ * 1.13 Gap report (UC-23): cờ đỏ/vàng theo section, hình chưa vẽ, field còn độ tin thấp. Mẫu FPT không bắt buộc (FLF-312):
+ * không liệt kê đầu mục FPT thiếu hay tiêu đề ngoài mẫu.
+ */
 export default function GapReportView({ projectId, projectName, onChanged, readOnly = false }: GapReportViewProps) {
   const [report, setReport] = useState<GapReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -128,48 +119,18 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Tile label="Cờ đỏ" value={report.totals.red} tone="red" />
         <Tile label="Cờ vàng" value={report.totals.yellow} tone="yellow" />
-        <Tile label="Mục mẫu FPT không có" value={report.totals.missing_sections} tone="neutral" />
-        <Tile label="Tiêu đề ngoài mẫu" value={report.totals.unmapped_headings} tone="neutral" />
         <Tile label="Dữ liệu chưa chắc" value={report.totals.low_confidence_fields} tone="yellow" />
       </div>
-
-      {report.missing_fpt_sections.length > 0 && (
-        <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2" aria-label="Đầu mục FPT còn thiếu">
-          <h3 className="font-extrabold text-[#191817] text-heading">Đầu mục mẫu FPT còn thiếu</h3>
-          <p className="text-body text-[#8A867E]">
-            Không bắt buộc — bản xuất theo template bạn upload. Cần thì tạo change request để AI soạn nội dung theo quy tắc của
-            mục đó.
-          </p>
-          <ul className="flex flex-col gap-1 text-body text-[#33312D]">
-            {report.missing_fpt_sections.map((m) => (
-              <li key={m.section_id} className="flex items-center gap-2">
-                <span className="font-semibold" title={m.section_id}>
-                  {sectionTitle(m.section_id, m.title)}
-                </span>
-                <span className="text-[#8A867E]">— {m.in_layout ? "có tiêu đề, chưa có nội dung" : "file không có"}</span>
-              </li>
-            ))}
-          </ul>
-          {!readOnly && (
-          <Link
-            href={crPrefillHref(projectId, { ...missingSectionsPrefill(report), source: "gap_report", ref: `Gap report bản ${report.doc_version}` })}
-            className="self-start px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white text-body font-bold"
-          >
-            Tạo CR bổ sung mục thiếu
-          </Link>
-          )}
-        </section>
-      )}
 
       <div className="flex flex-wrap gap-3 bg-white border border-[#ECEAE5] rounded-[14px] p-4">
         <div className="flex-1 min-w-[240px] text-body text-[#4B4842]">
           <p className="font-bold text-[#191817]">Bước tiếp theo</p>
           <p>
-            Không cần sửa ⇒ tải báo cáo để gửi (kết thúc). Cần sửa ⇒ tạo change request (nguồn: gap report) — cả nội dung đã có lẫn mục còn
-            thiếu.
+            Không cần sửa ⇒ tải báo cáo để gửi (kết thúc). Cần sửa hoặc muốn thêm mục ⇒ tạo change request (nguồn: gap
+            report).
           </p>
         </div>
         <button
@@ -206,17 +167,6 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
         </section>
       )}
 
-      {report.missing_sections.length > 0 && (
-        <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
-          <h3 className="font-extrabold text-[#191817] text-heading">Mục bắt buộc không có trong tài liệu</h3>
-          <ul className="list-disc pl-5 text-body text-[#33312D]">
-            {report.missing_sections.map((m) => (
-              <li key={m.section_id}>{sectionTitle(m.section_id, m.title)}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {report.unrendered_diagrams.length > 0 && (
         <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
           <h3 className="font-extrabold text-[#191817] text-heading">Hình chưa vẽ được</h3>
@@ -226,19 +176,6 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
               <li key={`${d.kind}:${d.diagram_id}`}>
                 {humanizeText(d.title)}
                 <span className="text-[#6B6760]"> — {d.reason === "error" ? "vẽ lỗi" : "chưa vẽ"}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {report.unmapped_headings.length > 0 && (
-        <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
-          <h3 className="font-extrabold text-[#191817] text-heading">Tiêu đề mục ngoài mẫu FPT (giữ nguyên văn, không trích)</h3>
-          <ul className="text-body text-[#33312D] flex flex-col gap-1">
-            {report.unmapped_headings.map((h) => (
-              <li key={h.block_id}>
-                {h.text}
               </li>
             ))}
           </ul>

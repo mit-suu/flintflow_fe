@@ -31,7 +31,6 @@ const profile = (over: Partial<TemplateProfile> = {}): TemplateProfile => ({
     heading("B0011", "Phụ lục B — Biên bản họp", "unmapped", 0.4),
   ],
   table_map: [column("B0005", 0, "Actor", "actors[].name"), column("B0005", 1, "Description", "actors[].description", 0.55)],
-  required_sections: ["fixed:1", "fixed:2.1", "fixed:5.3"],
   language: "en",
   layout: [],
   ...over,
@@ -59,7 +58,7 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
     expect(screen.getByText("1 Product Overview", HEADING)).toBeInTheDocument();
     expect(screen.getByText("Nhận theo cấp đề mục")).toBeInTheDocument();
     expect(rowTexts().filter((t) => t.includes("Nhận theo"))).toHaveLength(4);
-    expect(rowTexts().some((t) => /B\d{4}/.test(t) && !t.includes("(tạm)"))).toBe(false);
+    expect(rowTexts().some((t) => /B\d{4}/.test(t) && !t.includes("mới"))).toBe(false);
   });
 
   it("không có dòng độ tin thấp ⇒ mặc định hiện hết; bật lọc thì báo không có dòng nào", () => {
@@ -80,11 +79,13 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
     const options = within(select).getAllByRole("option").map((o) => o.textContent);
     expect(options).toContain("1 Product Overview");
     expect(options).toContain("3.1.2 Screen Descriptions");
-    expect(options).toContain("Tính năng (tạm) — 3.2.4 Log out of system");
+    expect(options).toContain("Tính năng mới — 3.2.4 Log out of system");
     expect(options.at(-1)).toBe("Không khớp (giữ nguyên, không trích)");
     // section tạm không bị lặp
-    expect(options.filter((o) => o === "Tính năng (tạm) — 3.2.4 Log out of system")).toHaveLength(1);
+    expect(options.filter((o) => o === "Tính năng mới — 3.2.4 Log out of system")).toHaveLength(1);
     expect(options.some((o) => /B\d{4}|fixed:/.test(o ?? ""))).toBe(false);
+    // ghi rõ "tính năng / chức năng mới" là gì
+    expect(screen.getByText(/“Tính năng mới” \/ “Chức năng mới”: tính năng, chức năng lấy từ chính tiêu đề trong file/)).toBeInTheDocument();
   });
 
   it("đổi section + sửa cột bảng ⇒ lưu chỉ gửi các dòng đã đổi, kèm confirm_all; cột bỏ trống ⇒ field_path null", () => {
@@ -118,12 +119,9 @@ describe("MappingReviewTable — xác nhận mapping heading → section (UC-21,
     expect(onSubmit).toHaveBeenCalledWith({ headings: [], tables: [], confirm_all: true });
   });
 
-  it("section bắt buộc chưa có heading ⇒ cảnh báo; gán heading vào section đó thì hết cảnh báo", () => {
+  it("FLF-312: mẫu FPT không bắt buộc ⇒ không cảnh báo mục FPT chưa có heading", () => {
     renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
-    expect(screen.getByText(/Chưa có heading nào cho section bắt buộc: 5.3 Application Messages List/)).toBeInTheDocument();
-
-    fireEvent.change(screen.getByRole("combobox", { name: "Section cho Phụ lục B — Biên bản họp" }), { target: { value: "fixed:5.3" } });
-    expect(screen.queryByText(/Chưa có heading nào cho section bắt buộc/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/section bắt buộc/)).not.toBeInTheDocument();
   });
 
   it("không có bảng ⇒ không hiện phần cột bảng; đang lưu ⇒ nút khoá", () => {

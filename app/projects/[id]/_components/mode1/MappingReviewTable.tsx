@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FPT_SECTIONS, sectionLabel } from "@/lib/constants/fpt-sections";
+import { FPT_SECTIONS, isProvisionalSection, sectionLabel, sectionLabelIn } from "@/lib/constants/fpt-sections";
 import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateFamily, type TemplateProfile } from "@/types/import";
 import { formatPercent } from "./labels";
 import { COLUMN_ROLE_LABELS, TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
@@ -55,6 +55,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
       .filter((id, i, all) => id !== UNMAPPED_SECTION && !FPT_SECTIONS.some((s) => s.id === id) && all.indexOf(id) === i);
     return [...FPT_SECTIONS.map((s) => s.id), ...extra, UNMAPPED_SECTION];
   }, [profile.heading_map]);
+  const hasProvisional = options.some(isProvisionalSection);
 
   const columnValue = (blockId: string, column: number, suggested: string | null) => {
     const key = tableKey(blockId, column);
@@ -68,12 +69,8 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
     if (entity && !(t.block_id in tableEntity)) tableEntity[t.block_id] = entity;
   }
 
-  // Section tạm (`feature:@B0007`) cùng nhãn "Tính năng (tạm)" ⇒ ghép tiêu đề heading sinh ra nó để phân biệt
-  const optionLabel = (id: string) => {
-    const block = /@(B[0-9]+)$/.exec(id)?.[1];
-    const heading = block && profile.heading_map.find((h) => h.block_id === block)?.heading_text;
-    return heading ? `${sectionLabel(id)} — ${heading}` : sectionLabel(id);
-  };
+  // Section tạm (`feature:@B0007`) ⇒ ghi rõ tính năng / chức năng nào: lấy tiêu đề heading sinh ra nó
+  const optionLabel = (id: string) => sectionLabelIn(id, profile.heading_map);
 
   // Nhiều heading cùng trích vào một mục FPT (mẫu IEEE: Reliability + Availability) ⇒ báo cho người dùng biết
   const sectionOf = (blockId: string, suggested: string) => headings[blockId] ?? suggested;
@@ -83,9 +80,6 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
       : [];
 
   const rows = lowOnly ? profile.heading_map.filter((h) => h.confidence < MAPPING_CONFIDENCE_THRESHOLD) : profile.heading_map;
-  const missingRequired = profile.required_sections.filter(
-    (id) => !profile.heading_map.some((h) => (headings[h.block_id] ?? h.section_id) === id)
-  );
 
   const submit = () =>
     onSubmit({
@@ -106,6 +100,12 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
             {profile.heading_map.length} heading, {lowCount} dòng độ tin dưới {formatPercent(MAPPING_CONFIDENCE_THRESHOLD)}. Heading
             “không khớp” được giữ nguyên văn và không trích field.
           </p>
+          {hasProvisional && (
+            <p className="text-body text-[#8A867E]">
+              “Tính năng mới” / “Chức năng mới”: tính năng, chức năng lấy từ chính tiêu đề trong file (ghi kèm sau dấu “—”); mã
+              tính năng, chức năng được cấp sau khi nhập xong.
+            </p>
+          )}
           <p className="text-body text-[#4B4842]">
             Nhận dạng: <strong>{TEMPLATE_FAMILY_LABELS[profile.template_family ?? "fpt"]}</strong>
             {profile.template_family && profile.template_family !== "fpt"
@@ -254,13 +254,6 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
             </tbody>
           </table>
         </div>
-      )}
-
-      {missingRequired.length > 0 && (
-        <p className="text-body text-[#8A6D1F] bg-[#FBF4E4] border border-[#EFD9A6] rounded-[10px] px-3 py-2">
-          Chưa có heading nào cho section bắt buộc: {missingRequired.map(sectionLabel).join(", ")}. Có thể để trống — gap report sẽ
-          ghi là thiếu.
-        </p>
       )}
 
       <div className="flex justify-end">
