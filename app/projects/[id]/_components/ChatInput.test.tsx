@@ -79,3 +79,31 @@ describe("ChatInput — chip Hỏi kiến thức BA", () => {
     expect(chip()).toBeInTheDocument();
   });
 });
+
+// Dừng AI như Esc của Claude Code: đang chạy ⇒ nút gửi thành nút dừng, Esc ở đâu trong trang cũng dừng.
+describe("ChatInput — dừng AI", () => {
+  it("đang chạy và có onStop ⇒ nút Dừng AI thay nút gửi, bấm thì gọi onStop", () => {
+    const onStop = vi.fn();
+    render(<ChatInput {...props} sending onStop={onStop} />);
+    expect(screen.queryByRole("button", { name: "Gửi tin nhắn" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dừng AI" }));
+    expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("Esc dừng khi đang chạy (ô gõ đang khoá nên nghe ở cửa sổ); hết chạy thì Esc không làm gì", () => {
+    const onStop = vi.fn();
+    const { rerender } = render(<ChatInput {...props} sending onStop={onStop} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onStop).toHaveBeenCalledTimes(1);
+
+    rerender(<ChatInput {...props} sending={false} onStop={onStop} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("không có onStop ⇒ giữ nút gửi có spinner như cũ", () => {
+    render(<ChatInput {...props} sending />);
+    expect(screen.queryByRole("button", { name: "Dừng AI" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gửi tin nhắn" })).toBeDisabled();
+  });
+});
