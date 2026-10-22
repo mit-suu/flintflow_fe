@@ -33,6 +33,8 @@ interface ChatInputProps {
   knowledgeHidden?: boolean;
   /** Nút thêm ở thanh công cụ ô nhập (vd. menu cách AI làm việc) — ẩn khi ô nhập thu gọn. */
   toolbarExtra?: ReactNode;
+  /** Có ⇒ khi `sending`, nút gửi thành nút dừng và phím Esc dừng lượt AI đang chạy (như Esc của Claude Code). */
+  onStop?: () => void;
 }
 
 export default function ChatInput({
@@ -52,6 +54,7 @@ export default function ChatInput({
   knowledgeMode = false,
   knowledgeHidden = false,
   toolbarExtra,
+  onStop,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -99,6 +102,20 @@ export default function ChatInput({
     el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`;
     el.style.overflowY = el.scrollHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden";
   }, [draft, compact]);
+  const stoppable = sending && Boolean(onStop);
+  // Ô gõ bị khoá khi AI đang làm nên không nhận phím — nghe Esc ở cả cửa sổ, chỉ trong lúc dừng được.
+  // Esc đã có chỗ khác xử lý (đóng hộp thoại…) thì nhường.
+  useEffect(() => {
+    if (!stoppable || !onStop) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      onStop();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stoppable, onStop]);
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -217,28 +234,40 @@ export default function ChatInput({
 
           {/* Nút gửi không bao giờ bị thu hay bị đẩy: nó là đường đi chính của màn này */}
           <div className={`flex items-center gap-3 shrink-0 ${compact ? "order-3" : ""}`}>
-            <button
-              type="button"
-              onClick={send}
-              disabled={
-                (!draft.trim() && pendingAttachments.length === 0) ||
-                sending
-              }
-              aria-label="Gửi tin nhắn"
-              className={`w-8 h-8 rounded-control flex items-center justify-center text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer ${
-                (draft.trim() || pendingAttachments.length > 0) &&
-                !sending
-                  ? "bg-primary hover:bg-primary-hover"
-                  : "bg-surface-container-highest text-on-surface-subtle cursor-not-allowed"
-              }`}
-              title="Gửi tin nhắn (Enter)"
-            >
-              {sending ? (
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
-              ) : (
-                <Icon name="arrow-up" size={16} weight="bold" />
-              )}
-            </button>
+            {stoppable ? (
+              <button
+                type="button"
+                onClick={onStop}
+                aria-label="Dừng AI"
+                title="Dừng AI (Esc)"
+                className="w-8 h-8 rounded-control grid place-items-center bg-primary hover:bg-primary-hover text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer"
+              >
+                <span className="w-2.5 h-2.5 rounded-[2px] bg-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={send}
+                disabled={
+                  (!draft.trim() && pendingAttachments.length === 0) ||
+                  sending
+                }
+                aria-label="Gửi tin nhắn"
+                className={`w-8 h-8 rounded-control flex items-center justify-center text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer ${
+                  (draft.trim() || pendingAttachments.length > 0) &&
+                  !sending
+                    ? "bg-primary hover:bg-primary-hover"
+                    : "bg-surface-container-highest text-on-surface-subtle cursor-not-allowed"
+                }`}
+                title="Gửi tin nhắn (Enter)"
+              >
+                {sending ? (
+                  <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
+                ) : (
+                  <Icon name="arrow-up" size={16} weight="bold" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
