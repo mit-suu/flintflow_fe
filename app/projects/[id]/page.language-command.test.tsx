@@ -181,14 +181,15 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
     expect(screen.queryByRole("status", { name: "Ngôn ngữ tài liệu" })).toBeNull();
   }, 30_000);
 
-  it("Viewer: không có ô chat ⇒ không có thẻ, không đổi được gì", async () => {
+  it("Viewer: không vào workspace (chuyển sang trang đọc) ⇒ không có ô chat, không đổi được gì", async () => {
     activeOrg.id = "org-a";
     mockServer.use(
       http.get("*/orgs/:orgId", ({ params }) => HttpResponse.json({ data: { id: params.orgId, name: "Nhóm A", role: "viewer", memberCount: 2 }, error: null }))
     );
+    router.replace.mockClear();
     renderWithIntl(<WorkspacePage />);
 
-    expect(await screen.findByText(/vai trò Viewer/)).toBeInTheDocument();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/projects/${nav.id}/view`));
     expect(document.getElementById("flintflow-chat-input")).toBeNull();
     expect(screen.queryByRole("status", { name: "Ngôn ngữ tài liệu" })).toBeNull();
   }, 30_000);

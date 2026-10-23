@@ -52,6 +52,7 @@ const renderTools = (over: Partial<Parameters<typeof Mode1WorkspaceTools>[0]> = 
       projectName="Lumen LMS"
       flags={[]}
       onSpineChanged={vi.fn()}
+      canRelease
       {...over}
     />
   );
@@ -110,6 +111,17 @@ describe("Mode1WorkspaceTools — Viewer (readOnly)", () => {
     expect(within(nav).getByRole("link", { name: "Gap report" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Change request" })).toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Nhập SRS" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Mode1WorkspaceTools — Analyst (không phải Lead)", () => {
+  it("vẫn có Nhập SRS nhưng không có Release (chỉ Lead release)", async () => {
+    serveVersions([VERSION_00]);
+    renderTools({ canRelease: false });
+    const nav = screen.getByRole("navigation", { name: "Import & change request" });
+    expect(within(nav).getByRole("link", { name: "Nhập SRS" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
   });
