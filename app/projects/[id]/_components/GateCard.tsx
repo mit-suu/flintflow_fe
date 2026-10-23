@@ -43,6 +43,8 @@ interface GateCardProps {
   onConfirmAssumptions?: (ids: string[]) => Promise<unknown>;
   /** Cờ đỏ đang chặn ký baseline (422 BASELINE_BLOCKED khi Accept ở S-9.5). */
   blockingFlags?: BlockingFlag[];
+  /** Ký baseline ở S-9.5 chỉ Lead (UC-39); Analyst nộp cho Lead duyệt ở panel Kiểm tra (UC-38). BE chặn 403. */
+  canSignOff?: boolean;
   onGoToStep?: (stepId: string) => void;
   /** Cờ đỏ/vàng mới của lượt này, nêu trong tin kèm chip xử lý. */
   newFlags?: GateNewFlag[];
@@ -97,6 +99,7 @@ export default function GateCard({
   settledAssumptionIds,
   onConfirmAssumptions,
   blockingFlags,
+  canSignOff = true,
   onGoToStep,
   newFlags,
   onFixFlag,
@@ -142,7 +145,8 @@ export default function GateCard({
   const warning = warningSentence(!wroteOps && !nothingToDo, emptySections);
 
   const regenerateLeft = regenerateUsed < regenerateLimit && actions.includes("regenerate");
-  const showAcceptAsIs = actions.includes("accept_as_is") || regenerateUsed >= regenerateLimit;
+  const signOffBlocked = stepId === SIGN_OFF_STEP && !canSignOff;
+  const showAcceptAsIs = !signOffBlocked && (actions.includes("accept_as_is") || regenerateUsed >= regenerateLimit);
   const menuItems = [
     {
       label: `↻ Làm lại · còn ${Math.max(0, regenerateLimit - regenerateUsed)} lần`,
@@ -200,11 +204,19 @@ export default function GateCard({
         </div>
       )}
 
+      {signOffBlocked && (
+        <p role="status" className="bg-surface-container rounded-card px-3.5 py-2.5 text-body leading-6 text-on-surface-muted">
+          Chỉ Lead ký được baseline. Bạn nộp baseline để Lead duyệt ở panel Kiểm tra.
+        </p>
+      )}
+
       <QuickReplyChips>
-        <QuickReplyChip tone="primary" busy={locked} disabled={!actions.includes("accept")} onClick={() => void act("accept")}>
-          {/* FLF-248: Accept ở S-9.5 là ký baseline — nhãn chung "đi tiếp" làm người dùng đi tìm nút ký ở chat */}
-          {stepId === SIGN_OFF_STEP ? "Ký baseline" : "Đúng rồi, đi tiếp"}
-        </QuickReplyChip>
+        {!signOffBlocked && (
+          <QuickReplyChip tone="primary" busy={locked} disabled={!actions.includes("accept")} onClick={() => void act("accept")}>
+            {/* FLF-248: Accept ở S-9.5 là ký baseline — nhãn chung "đi tiếp" làm người dùng đi tìm nút ký ở chat */}
+            {stepId === SIGN_OFF_STEP ? "Ký baseline" : "Đúng rồi, đi tiếp"}
+          </QuickReplyChip>
+        )}
         {actions.includes("revision") && (
           <QuickReplyChip tone="soft" disabled={locked} onClick={() => onWantEdit?.()}>
             Tôi muốn sửa

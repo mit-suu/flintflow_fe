@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import BackLink from "@/components/ui/BackLink";
-import { getDocument, listBaselines } from "@/lib/api/export";
+import { downloadWordExport, getDocument, listBaselines } from "@/lib/api/export";
+import { saveBlob } from "@/lib/api/files";
 import { getProgress } from "@/lib/api/pipeline";
 import { getProject } from "@/lib/api/projects";
 import { fetchOrganization } from "@/lib/api/orgs";
@@ -175,6 +176,20 @@ export default function ReadOnlyDocumentPage() {
       : null;
   const canComment = commentBlockedReason === null && !!doc;
 
+  // UC-50: tải bản đã phát hành (Viewer chỉ tải được bản này — bản nháp BE trả 403)
+  const [downloading, setDownloading] = useState(false);
+  const download = async (baselineId: string) => {
+    setDownloading(true);
+    try {
+      const { blob, filename } = await downloadWordExport(projectId, "baseline", baselineId);
+      saveBlob(blob, filename ?? `${doc?.projectName ?? "SRS"}_v${versionLabel}.docx`);
+    } catch (err) {
+      setError(userErrorMessage(err, "Tải file thất bại"));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const highlighted = highlightId ? comments.find((c) => c.comment_id === highlightId) : undefined;
   const tab: CommentTab = tabChoice ?? (highlighted ? commentTab(highlighted) : "open");
 
@@ -296,7 +311,22 @@ export default function ReadOnlyDocumentPage() {
               </select>
             </label>
           )}
-          <BackLink href={`/projects/${projectId}`}>Về không gian làm việc</BackLink>
+          {baseline && (
+            <button
+              type="button"
+              onClick={() => void download(baseline.id)}
+              disabled={downloading}
+              className="px-3 py-1.5 rounded-control border border-outline bg-white text-body font-bold text-on-surface hover:bg-surface-container cursor-pointer disabled:opacity-60"
+            >
+              {downloading ? "Đang tải…" : `Tải bản ${baseline.version} (.docx)`}
+            </button>
+          )}
+          {/* Viewer không có workspace (bị chuyển về đây) ⇒ quay về danh sách dự án */}
+          {role === "viewer" ? (
+            <BackLink href="/home">Về danh sách dự án</BackLink>
+          ) : (
+            <BackLink href={`/projects/${projectId}`}>Về không gian làm việc</BackLink>
+          )}
         </div>
       </header>
 

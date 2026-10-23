@@ -25,7 +25,7 @@ interface VersionsPanelProps {
   onSelect?: (version: string) => void;
   /** Sau release: tải lại danh sách, header. */
   onReleased: () => void;
-  /** Viewer: ẩn mục Release — vẫn xem và tải các version. */
+  /** Viewer / Analyst: ẩn mục Release (chỉ Lead release) — vẫn xem và tải các version. */
   readOnly?: boolean;
 }
 

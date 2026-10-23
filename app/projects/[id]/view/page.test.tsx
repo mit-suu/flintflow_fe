@@ -145,6 +145,32 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
     expect(await screen.findByText(/Viewer chỉ comment được trên phiên bản đã phát hành — dự án chưa có bản nào/)).toBeInTheDocument();
     expect(await screen.findByText(/1\. Product Overview/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Comment mục/ })).not.toBeInTheDocument();
+    // Không có bản phát hành ⇒ không có nút tải; quay về danh sách dự án, không về workspace
+    expect(screen.queryByRole("button", { name: /^Tải bản/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Về danh sách dự án/ })).toHaveAttribute("href", "/home");
+  });
+
+  it("Viewer mở bản đã phát hành ⇒ tải .docx của đúng bản đó (source=baseline)", async () => {
+    orgId.value = "org-1";
+    let query = "";
+    mockServer.use(
+      http.get("*/orgs/org-1", () => HttpResponse.json({ data: { _id: "org-1", name: "Org", role: "viewer" }, error: null })),
+      http.get("*/projects/:projectId/baselines", () =>
+        HttpResponse.json({ data: [{ id: "bl-1", version: "1.0", spine_version: 1, signed_by: "u", signed_at: "2026-10-01T00:00:00.000Z" }], error: null })
+      ),
+      http.get("*/projects/:projectId/export/word", ({ request }) => {
+        query = new URL(request.url).search;
+        return new HttpResponse("docx", { headers: { "Content-Disposition": 'attachment; filename="SRS_v1.0.docx"' } });
+      })
+    );
+    const createUrl = vi.fn(() => "blob:x");
+    Object.assign(URL, { createObjectURL: createUrl, revokeObjectURL: vi.fn() });
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Tải bản 1.0 (.docx)" }));
+    await waitFor(() => expect(createUrl).toHaveBeenCalled());
+    expect(query).toBe("?source=baseline&baseline_id=bl-1");
   });
   it("Lead đánh dấu đã xử lý ⇒ comment rời tab Đang mở sang tab Đã đóng, số đếm cập nhật", async () => {
     orgId.value = "org-1";

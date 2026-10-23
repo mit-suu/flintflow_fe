@@ -306,6 +306,14 @@ describe("GateCard — cờ và bảng", () => {
     expect(screen.queryByRole("button", { name: /Đúng rồi, đi tiếp/ })).toBeNull();
   });
 
+  it("S-9.5 với Analyst (canSignOff=false): không có Ký baseline / Duyệt như hiện tại, nhắc nộp cho Lead", () => {
+    renderWithIntl(<GateCard stepId="S-9.5" actions={ALL} regenerateUsed={3} canSignOff={false} onAction={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Ký baseline" })).toBeNull();
+    expect(screen.getByText(/Chỉ Lead ký được baseline/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
+    expect(screen.queryByText(/Duyệt như hiện tại/)).toBeNull();
+  });
+
   const flag: GateNewFlag = { id: "FL07", level: "red", message: "Use case UC03 chưa có chức năng", waivable: true };
 
   it("cờ mới: câu nêu cờ + Sửa theo đề xuất gọi onFixFlag", () => {

@@ -66,6 +66,8 @@ import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
 import { compareHref, crListHref, gapReportHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
+import { fetchOrganization } from "@/lib/api/orgs";
+import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
@@ -261,13 +263,28 @@ export default function WorkspacePage() {
     };
   }, [projectId]);
 
+  // UC-47: Viewer không vào workspace (Spine, cờ, CR là dữ liệu làm việc — BE trả 403) ⇒ sang trang đọc tài liệu.
+  // Lỗi đọc vai trò ⇒ coi như không phải Viewer (BE vẫn chặn).
+  const [isViewer, setIsViewer] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const orgId = getActiveOrgId();
+    (orgId ? fetchOrganization(orgId).then((org) => org.role === "viewer") : Promise.resolve(false))
+      .catch(() => false)
+      .then((viewer) => !cancelled && setIsViewer(viewer));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const mode1 = project?.mode === "import";
   const importDone = !!project?.import_state && IMPORT_DONE_STATUSES.includes(project.import_state);
   useEffect(() => {
-    if (mode1 && !importDone) router.replace(`/projects/${projectId}/import`);
-  }, [mode1, importDone, projectId, router]);
+    if (isViewer) router.replace(`/projects/${projectId}/view`);
+    else if (isViewer === false && mode1 && !importDone) router.replace(`/projects/${projectId}/import`);
+  }, [isViewer, mode1, importDone, projectId, router]);
 
-  if (project === null || (mode1 && !importDone)) return <WorkspaceLoading projectId={projectId} />;
+  if (project === null || isViewer !== false || (mode1 && !importDone)) return <WorkspaceLoading projectId={projectId} />;
   return <FptWorkspace mode1={mode1} />;
 }
 
@@ -1678,6 +1695,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               settledAssumptionIds={settledAssumptionIds}
               onConfirmAssumptions={(ids) => confirmAllAssumptions(ids)}
               blockingFlags={blockingFlags}
+              canSignOff={ws.orgRole === "lead"}
               newFlags={newGateFlags}
               onFixFlag={fixFlagByChat}
               onKeepFlag={(flag, reason) => handleFlagWaive(flag.id, reason)}
@@ -1852,6 +1870,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 flags={flags}
                 onSpineChanged={() => onSpineChanged()}
                 readOnly={!canEdit}
+                canRelease={ws.orgRole === "lead"}
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}

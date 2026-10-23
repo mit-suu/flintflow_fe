@@ -15,13 +15,15 @@ interface Mode1WorkspaceToolsProps {
   onSpineChanged: () => void;
   /** Viewer: ẩn tạo CR, nhập SRS và release — vẫn xem cờ, CR, version và tải file. */
   readOnly?: boolean;
+  /** Release = khoá baseline mới (UC-45): chỉ Lead — Analyst không thấy mục Release (BE cũng chặn 403). */
+  canRelease?: boolean;
 }
 
 /**
  * Cột công cụ của workspace mode 1 v3 (bám BPMN — plan `mode1-v3/phase-3-fe-mode1.md` 3.1): cờ đỏ + lối tạo CR, gap
  * report + change request, version & release (Flow 6). Không còn kế hoạch step / ký baseline v1 / waive.
  */
-export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false }: Mode1WorkspaceToolsProps) {
+export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false, canRelease = false }: Mode1WorkspaceToolsProps) {
   const docs = useDocVersions(projectId);
   const link = "px-2.5 py-1 rounded-full text-body font-bold bg-white border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7]";
 
@@ -53,7 +55,7 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
           projectName={projectName}
           versions={docs.versions}
           redOpen={docs.redOpen}
-          readOnly={readOnly}
+          readOnly={readOnly || !canRelease}
           onReleased={() => {
             void docs.reload();
             onSpineChanged();
