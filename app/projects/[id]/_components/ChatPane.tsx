@@ -107,6 +107,19 @@ export const stepDividers = (
  * Câu hỏi CÓ lựa chọn trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step) — vào thẻ hỏi. Câu mở
  * hiện trong bong bóng AI (`ChatBubble`). Đọc cả tin nhắn cũ (`suggestedAnswers`) lẫn mới (`options`).
  */
+/**
+ * FLF-311: tin AI là câu hỏi làm rõ của LỆNH SỬA (vd màn hình riêng hay popup) ⇒ câu trả lời phải đi tiếp lệnh sửa
+ * (`onEditInstruction`), không phải lượt chat thường — nếu không BE coi "Popup mở từ My Grades" là một câu chat và lệnh
+ * thêm use case dở dang.
+ */
+export const isChangeClarification = (content: string): boolean => {
+  try {
+    return (JSON.parse(content) as { kind?: unknown }).kind === "change_clarification";
+  } catch {
+    return false;
+  }
+};
+
 const parseQuestions = (content: string): DiscoveryQuestion[] => {
   try {
     const parsed: unknown = JSON.parse(content);
@@ -200,6 +213,7 @@ export default function ChatPane({
   );
   const showQuestions =
     !questionCard && latestQuestions.length > 0 && dismissedKey !== questionKey;
+  const answersChangeQuestion = last?.role === "ai" && isChangeClarification(last.content);
 
   // Không có session hoặc session vắng field ⇒ coi như pipeline. Phiên phụ chỉ khác ở dải thông báo — gửi là hỏi đáp,
   // bật chip là lệnh sửa, như phiên chính (FLF-244).
@@ -350,11 +364,10 @@ export default function ChatPane({
                       onSubmit={(values) => {
                         // Chữ đang gõ ở ô chat đi cùng lượt gửi (trả lời câu mở trong tin nhắn AI)
                         const draft = inputMessage.trim();
-                        onSendMessage(
-                          [formatAnswers(values), draft]
-                            .filter(Boolean)
-                            .join("\n")
-                        );
+                        const answer = [formatAnswers(values), draft].filter(Boolean).join("\n");
+                        // FLF-311: trả lời câu hỏi làm rõ của lệnh sửa ⇒ đi tiếp lệnh sửa, không thành lượt chat thường
+                        if (answersChangeQuestion && onEditInstruction) onEditInstruction(answer);
+                        else onSendMessage(answer);
                         if (draft) setInputMessage("");
                       }}
                       onDismiss={() => setDismissedKey(questionKey)}

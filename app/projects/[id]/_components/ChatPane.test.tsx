@@ -270,3 +270,45 @@ describe("ChatPane — nhãn đời thường, credit chỉ ở header", () => {
     expect(container.textContent).not.toMatch(/credit/i);
   });
 });
+
+describe("ChatPane — thẻ chọn của câu hỏi làm rõ lệnh sửa (FLF-311)", () => {
+  const withLastAi = (content: string): ChatSession =>
+    ({
+      ...baseSession,
+      is_pipeline: true,
+      messages: [
+        { role: "user", content: "Thêm use case Request Grade Review", step: "chat", createdAt: "2026-10-21T00:00:00.000Z" },
+        { role: "ai", content, step: "chat", createdAt: "2026-10-21T00:00:01.000Z" },
+      ],
+    }) as ChatSession;
+  const choose = async (label: RegExp) => {
+    fireEvent.click(await screen.findByRole("radio", { name: label }));
+    const send = screen.queryByRole("button", { name: "Gửi câu trả lời" });
+    if (send) fireEvent.click(send);
+  };
+
+  it("câu hỏi màn riêng / popup của lệnh sửa ⇒ lựa chọn đi tiếp lệnh sửa (onEditInstruction), không thành chat thường", async () => {
+    const clarification = JSON.stringify({
+      kind: "change_clarification",
+      reply: "Màn hình riêng hay popup mở từ My Grades?",
+      questions: [{ question: "Chọn giao diện", options: [{ label: "Màn hình riêng" }, { label: "Popup mở từ My Grades" }] }],
+    });
+    const { onEditInstruction, onSendMessage } = renderPane(withLastAi(clarification));
+
+    await choose(/Popup mở từ My Grades/);
+
+    await waitFor(() => expect(onEditInstruction).toHaveBeenCalledTimes(1));
+    expect(onEditInstruction.mock.calls[0][0]).toContain("Popup mở từ My Grades");
+    expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("câu hỏi của bước (không phải lệnh sửa) ⇒ vẫn gửi như tin chat (onSendMessage)", async () => {
+    const stepQuestion = JSON.stringify({ reply: "Chọn mô hình", questions: [{ question: "Mô hình", options: [{ label: "B2B" }, { label: "B2C" }] }] });
+    const { onEditInstruction, onSendMessage } = renderPane(withLastAi(stepQuestion));
+
+    await choose(/B2C/);
+
+    await waitFor(() => expect(onSendMessage).toHaveBeenCalledTimes(1));
+    expect(onEditInstruction).not.toHaveBeenCalled();
+  });
+});
