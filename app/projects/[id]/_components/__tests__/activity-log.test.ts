@@ -31,6 +31,12 @@ describe("activityLines (FLF-221)", () => {
     expect(lines[2].status).toBe("failed");
   });
 
+  it("en: cùng các dòng bằng tiếng Anh (dữ liệu BE giữ nguyên)", () => {
+    const lines = activityLines(events, false, "en");
+    expect(lines.map((l) => l.text)).toEqual(["Draft content", "Write +2 actor ~1 use case", "Found 1 error to fix"]);
+    expect(lines[1].details).toEqual(["Add actor: A01", "Add actor: A02", "Update use case: UC1"]);
+  });
+
   it("đọc tin/câu trả lời chỉ hiện lúc đang đọc, xong thì biến mất; câu hỏi và cổng duyệt không thành dòng", () => {
     const reading: LoggedEvent[] = [
       { type: "answer_needed", step_id: "B-0.1", questions: [] },

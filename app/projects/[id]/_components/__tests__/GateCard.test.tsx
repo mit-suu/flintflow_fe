@@ -2,8 +2,15 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import GateCard, { groupSummary, joinSummaryTexts, unsettledAssumptions, type GateNewFlag } from "../GateCard";
-import { fallbackGateMessage } from "../gate-helpers";
+import { createTranslator } from "next-intl";
+import { MESSAGES } from "@/test/intl";
+import { fallbackGateMessage, projectFieldText, type GateHelpersT } from "../gate-helpers";
 import type { GateAction, GateReadyEvent } from "@/types/pipeline";
+
+const helpersT = (locale: "vi" | "en") =>
+  createTranslator({ locale, messages: MESSAGES[locale], namespace: "workspace.gateHelpers" }) as unknown as GateHelpersT;
+const tVi = helpersT("vi");
+const tEn = helpersT("en");
 
 const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 
@@ -169,20 +176,37 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
       fallbackGateMessage([
         { kind: "update", collection: "project", id: null, title_vi: "complexity: small" },
         { kind: "add", collection: "assumptions", id: "AS3", title_vi: "Small internal tool" },
-      ])
+      ], undefined, tVi)
     ).toBe("Tôi đã cập nhật: sửa 1 thông tin dự án (Độ phức tạp: Nhỏ). Bạn xem giúp, ổn thì mình đi tiếp nhé.");
   });
 
   it("chỉ có giả định hoặc không có gì ⇒ vẫn là một câu đọc được", () => {
-    expect(fallbackGateMessage([])).toBe("Tôi đã xong bước này. Bạn xem giúp, ổn thì mình đi tiếp nhé.");
+    expect(fallbackGateMessage([], undefined, tVi)).toBe("Tôi đã xong bước này. Bạn xem giúp, ổn thì mình đi tiếp nhé.");
     // FLF-260: lý do "không đổi gì" theo ngôn ngữ phiên ⇒ câu bọc cùng ngôn ngữ
-    expect(fallbackGateMessage([], "Nền tảng đã chốt — không cần hỏi lại.")).toBe(
+    expect(fallbackGateMessage([], "Nền tảng đã chốt — không cần hỏi lại.", tVi, "vi")).toBe(
       "Bước này không thay đổi tài liệu: Nền tảng đã chốt — không cần hỏi lại. Bạn xem giúp, ổn thì mình đi tiếp nhé."
     );
-    expect(fallbackGateMessage([], "The platform is already settled — no need to ask again.")).toBe(
+    expect(fallbackGateMessage([], "The platform is already settled — no need to ask again.", tVi, "vi")).toBe(
       "This step doesn't change the document: The platform is already settled — no need to ask again. Take a look — if it looks right, let's move on."
     );
-    expect(fallbackGateMessage([{ kind: "add", collection: "assumptions", id: "AS3", title_vi: "X" }])).toMatch(/^Tôi đã xong bước này/);
+    expect(fallbackGateMessage([{ kind: "add", collection: "assumptions", id: "AS3", title_vi: "X" }], undefined, tVi)).toMatch(/^Tôi đã xong bước này/);
+  });
+
+  it("giao diện tiếng Anh: câu tạm tiếng Anh; lý do tiếng Việt vẫn giữ câu bọc cùng ngôn ngữ với lý do", () => {
+    expect(
+      fallbackGateMessage([{ kind: "update", collection: "project", id: null, title_vi: "complexity: small" }], undefined, tEn, "en")
+    ).toBe("I’ve updated: updated 1 project info (Complexity: Small). Take a look — if it looks right, let’s move on.");
+    expect(fallbackGateMessage([], undefined, tEn, "en")).toBe("I’ve finished this step. Take a look — if it looks right, let’s move on.");
+    expect(fallbackGateMessage([], "Already settled", tEn, "en")).toBe(
+      "This step doesn’t change the document: Already settled. Take a look — if it looks right, let’s move on."
+    );
+    expect(fallbackGateMessage([], "Nền tảng đã chốt", tEn, "en")).toMatch(/^Bước này không thay đổi tài liệu: Nền tảng đã chốt\./);
+  });
+
+  it("projectFieldText: dịch theo translator; vắng translator ⇒ tiếng Việt như cũ", () => {
+    expect(projectFieldText("complexity: small", tEn)).toBe("Complexity: Small");
+    expect(projectFieldText("complexity: small", tVi)).toBe("Độ phức tạp: Nhỏ");
+    expect(projectFieldText("unknown_field: x", tEn)).toBe("unknown_field: x");
   });
 
   it("Duyệt vẫn xác nhận các giả định mới trước khi chốt bước (chưa có ô Đúng/Sửa/Bỏ)", async () => {
@@ -275,7 +299,8 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
   });
 
   it("groupSummary gộp theo loại thay đổi và collection", () => {
-    expect(groupSummary(payload.summary ?? []).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
+    expect(groupSummary(payload.summary ?? [], tVi).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
+    expect(groupSummary(payload.summary ?? [], tEn).map((g) => g.label)).toEqual(["+2 permissions", "~1 functions"]);
   });
 
   it("nối tóm tắt: bỏ dấu câu cuối mỗi mục, nối bằng '; '", () => {

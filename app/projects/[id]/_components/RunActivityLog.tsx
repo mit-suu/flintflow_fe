@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import { activityLines, type LoggedEvent } from "./activity-log";
 
@@ -15,11 +16,12 @@ interface RunActivityLogProps {
  * dòng bên dưới. Dựng lại được sau reload vì sự kiện lưu ở run-state.
  */
 export default function RunActivityLog({ events, running }: RunActivityLogProps) {
-  const lines = activityLines(events, running);
+  const t = useTranslations("workspace.activityLog");
+  const lines = activityLines(events, running, useLocale());
   if (lines.length === 0) return null;
 
   return (
-    <ol className="flex flex-col gap-1" aria-label="Nhật ký hoạt động của AI">
+    <ol className="flex flex-col gap-1" aria-label={t("aria")}>
       {lines.map((line) =>
         line.kind === "step" ? (
           <li key={line.key} title={line.title} className="pt-1 first:pt-0 text-body font-semibold text-on-surface-variant">
@@ -39,7 +41,7 @@ export default function RunActivityLog({ events, running }: RunActivityLogProps)
             </span>
             <span title={line.text} className={`flex-1 min-w-0 truncate ${line.status === "running" ? "text-on-surface" : line.status === "failed" ? "text-error" : "text-on-surface-variant"}`}>
               {line.text}
-              <span className="sr-only">{line.status === "running" ? " (đang làm)" : line.status === "failed" ? " (lỗi)" : " (xong)"}</span>
+              <span className="sr-only">{t(line.status === "running" ? "running" : line.status === "failed" ? "failed" : "done")}</span>
             </span>
             </div>
             {line.details.length > 0 && (

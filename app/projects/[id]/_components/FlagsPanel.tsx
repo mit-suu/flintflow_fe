@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Tabs from "@/components/ui/Tabs";
-import { workspaceStepLabel as stepLabel } from "./phase-labels";
+import { workspaceStepLabel } from "./phase-labels";
 import { isFlagWaivable } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
-import { humanizeText, sectionName as fptSectionName } from "./mode1/spine-labels";
-import { ACTION_INFO, WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup } from "./flag-rules";
+import { useMode1Labels } from "./mode1/i18n";
+import { WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup } from "./flag-rules";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { hookErrorText } from "@/lib/hook-errors";
 
 /** Nhóm dài hơn mức này chỉ hiện chừng ấy dòng đầu + "Xem thêm". */
 const PREVIEW_ROWS = 5;
@@ -22,6 +24,8 @@ interface WaiveModalProps {
 }
 
 function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) {
+  const t = useTranslations("workspace.flags");
+  const { humanizeText } = useMode1Labels();
   const [reason, setReason] = useState("");
   const canSubmit = reason.trim().length >= WAIVE_REASON_MIN_LENGTH && !busy;
 
@@ -31,10 +35,10 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
         className="bg-surface-container-lowest rounded-dialog p-5 w-[420px] max-w-[90vw] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <h4 className="font-extrabold text-body text-on-surface">Bỏ qua vấn đề này?</h4>
+        <h4 className="font-extrabold text-body text-on-surface">{t("waiveHeading")}</h4>
         <p className="text-body text-on-surface-variant leading-relaxed">{humanizeText(flag.message)}</p>
         <label htmlFor="waive-reason" className="text-body font-semibold text-on-surface">
-          Lý do (tối thiểu {WAIVE_REASON_MIN_LENGTH} ký tự) — sẽ in kèm trong tài liệu
+          {t("waiveReasonLabel", { min: WAIVE_REASON_MIN_LENGTH })}
         </label>
         <textarea
           id="waive-reason"
@@ -42,7 +46,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className="w-full px-3 py-2 rounded-control bg-surface-container text-body outline-none resize-none focus:ring-2 focus:ring-primary/30"
-          placeholder="Vì sao chấp nhận để nguyên vấn đề này?"
+          placeholder={t("waivePlaceholder")}
         />
         <span className="text-caption text-on-surface-subtle tabular-nums">
           {reason.trim().length}/{WAIVE_REASON_MIN_LENGTH}
@@ -55,7 +59,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             disabled={busy}
             className="h-8 px-3.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer disabled:opacity-50"
           >
-            Huỷ
+            {t("cancel")}
           </button>
           <button
             type="button"
@@ -63,7 +67,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             onClick={() => onSubmit(reason.trim())}
             className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {busy ? "Đang lưu…" : "Bỏ qua vấn đề"}
+            {busy ? t("saving") : t("waiveSubmit")}
           </button>
         </div>
       </div>
@@ -156,6 +160,12 @@ export default function FlagsPanel({
   onEditSection,
   acceptedSteps,
 }: FlagsPanelProps) {
+  const t = useTranslations("workspace.flags");
+  const tRule = useTranslations("workspace.flagRules");
+  const tHook = useTranslations("workspace.hookErrors");
+  const { humanizeText, sectionName: fptSectionName } = useMode1Labels();
+  const locale = useLocale();
+  const stepLabel = (stepId: string) => workspaceStepLabel(stepId, locale);
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
   const [redrawing, setRedrawing] = useState<string | null>(null);
@@ -198,7 +208,7 @@ export default function FlagsPanel({
       await onWaive?.(waivingFlag.id, reason);
       setWaivingId(null);
     } catch (err) {
-      setWaiveError(userErrorMessage(err, "Không bỏ qua được vấn đề này"));
+      setWaiveError(userErrorMessage(err, t("waiveFailed")));
     }
   };
 
@@ -227,7 +237,7 @@ export default function FlagsPanel({
    * Mũi tên › ở cuối dòng: cả dòng bấm được để mở bước, nút này là đích bàn phím / trình đọc màn hình. `label`: tên nút
    * trùng chữ người thấy trên dòng ("Duyệt lại ở …") để trình đọc màn hình / getByRole tìm được (E2E FAP #15).
    */
-  const chevron = (stepId: string, label = `Mở bước ${stepLabel(stepId)} (${stepId})`) =>
+  const chevron = (stepId: string, label = t("openStepAria", { label: stepLabel(stepId), stepId })) =>
     onSelectStep && (
       <button
         type="button"
@@ -274,10 +284,10 @@ export default function FlagsPanel({
           setWaiveError(null);
           setWaivingId(flag.id);
         }}
-        title={flag.level === "red" ? "Ghi lại lý do giữ nguyên. Cờ đỏ vẫn chặn chốt bản cho tới khi nội dung được sửa." : undefined}
+        title={flag.level === "red" ? t("keepTitle") : undefined}
         className={`${textButton} ${secondary} text-on-surface-muted hover:text-on-surface`}
       >
-        {flag.level === "red" ? "Giữ nguyên (vẫn chặn)" : "Bỏ qua"}
+        {flag.level === "red" ? t("keepBlocking") : t("waive")}
       </button>
     );
 
@@ -292,10 +302,10 @@ export default function FlagsPanel({
             {onAssumptionDecision && flag.target_id ? (
               <span className="shrink-0 flex items-center gap-1.5 pt-0.5">
                 <button type="button" disabled={busy} onClick={() => onAssumptionDecision({ kind: "confirm", id: flag.target_id as string })} className={`${pillButton} h-6 px-2 bg-success text-white hover:opacity-90`}>
-                  Đúng
+                  {t("right")}
                 </button>
                 <button type="button" disabled={busy} onClick={() => onAssumptionDecision({ kind: "reject", id: flag.target_id as string })} className={`${pillButton} h-6 px-2 text-error hover:bg-error-container`}>
-                  Sai
+                  {t("wrong")}
                 </button>
               </span>
             ) : (
@@ -316,11 +326,11 @@ export default function FlagsPanel({
               <span className="text-body text-on-surface truncate">{sectionName(flag.section_id)}</span>
               <span className="text-caption text-on-surface-muted flex items-center gap-2.5">
                 {/* Nói việc phải làm, không chỉ nói chỗ phải tới — bấm vào dòng này là mở đúng bước đó */}
-                {isSectionLevelRule(flag.rule_id) ? `Mở bước ${stepLabel(flag.remediation_step)} để chạy lại và duyệt` : message}
+                {isSectionLevelRule(flag.rule_id) ? t("reacceptHint", { label: stepLabel(flag.remediation_step) }) : message}
                 <span onClick={(e) => e.stopPropagation()}>{waiveLink(flag)}</span>
               </span>
             </div>
-            {chevron(flag.remediation_step, isSectionLevelRule(flag.rule_id) ? `Duyệt lại ở ${stepLabel(flag.remediation_step)}` : undefined)}
+            {chevron(flag.remediation_step, isSectionLevelRule(flag.rule_id) ? t("reacceptAt", { label: stepLabel(flag.remediation_step) }) : undefined)}
           </li>
         );
       }
@@ -333,7 +343,7 @@ export default function FlagsPanel({
             </div>
             {onRedraw && (
               <button type="button" disabled={busy || redrawing === flag.id} onClick={() => void redraw([flag])} className={`${textButton} text-primary shrink-0`}>
-                {redrawing === flag.id ? "Đang vẽ…" : "Vẽ lại"}
+                {redrawing === flag.id ? t("redrawing") : t("redraw")}
               </button>
             )}
           </li>
@@ -351,9 +361,9 @@ export default function FlagsPanel({
                     type="button"
                     onClick={() => onEditSection(sectionName(flag.section_id))}
                     className={`${textButton} ${secondary} text-primary`}
-                    title="Gõ lệnh sửa cho mục này trong chat"
+                    title={t("editInChatTitle")}
                   >
-                    Sửa trong chat
+                    {t("editInChat")}
                   </button>
                 )}
                 {waiveLink(flag)}
@@ -373,14 +383,14 @@ export default function FlagsPanel({
       if (ids.length > 1)
         return (
           <button type="button" disabled={busy} onClick={() => onConfirmAllAssumptions(ids)} className={`${pillButton} bg-success text-white hover:opacity-90`}>
-            Đúng hết
+            {t("allRight")}
           </button>
         );
     }
     if (group.action === "redraw" && onRedraw && group.flags.length > 1)
       return (
         <button type="button" disabled={busy || redrawing !== null} onClick={() => void redraw(group.flags)} className={`${pillButton} bg-primary-soft text-primary-hover hover:bg-primary-fixed`}>
-          {redrawing ? "Đang vẽ…" : "Vẽ lại tất cả"}
+          {redrawing ? t("redrawing") : t("redrawAll")}
         </button>
       );
     return null;
@@ -410,7 +420,7 @@ export default function FlagsPanel({
   };
 
   const renderGroup = (group: ActionGroup, key: string) => {
-    const info = ACTION_INFO[group.action];
+    const info = { title: t(`action.${group.action}.title`), hint: t(`action.${group.action}.hint`) };
     if (group.action === "run_step") {
       const steps = new Set(group.flags.map((f) => f.remediation_step)).size;
       const sections = new Set(group.flags.map((f) => f.section_id)).size;
@@ -418,7 +428,7 @@ export default function FlagsPanel({
         <section key={key} className="rounded-card bg-surface-container-lowest px-3.5 pt-3 pb-2 flex flex-col gap-1">
           <h5 className="text-body font-bold text-on-surface">
             {info.title}{" "}
-            <span className="font-semibold text-on-surface-muted tabular-nums">({sections === steps ? sections : `${sections} mục · ${steps} bước`})</span>
+            <span className="font-semibold text-on-surface-muted tabular-nums">({sections === steps ? sections : t("sectionsSteps", { sections, steps })})</span>
           </h5>
           <p className="text-body text-on-surface-muted">{info.hint}</p>
           <ul className="flex flex-col">{renderStepRows(group)}</ul>
@@ -441,7 +451,7 @@ export default function FlagsPanel({
         <ul className="flex flex-col">{rows.map((flag) => renderRow(group, flag))}</ul>
         {!expanded && (
           <button type="button" onClick={() => setShowAll((prev) => ({ ...prev, [key]: true }))} className={`${textButton} self-start text-primary py-1`}>
-            Xem thêm {group.flags.length - PREVIEW_ROWS}
+            {t("showMore", { count: group.flags.length - PREVIEW_ROWS })}
           </button>
         )}
       </section>
@@ -451,21 +461,21 @@ export default function FlagsPanel({
   const emptyNote = (text: string) => <p className="px-1 py-2 text-body text-on-surface-muted">{text}</p>;
 
   return (
-    <div className="flex flex-col gap-3" aria-label="Danh sách vấn đề">
+    <div className="flex flex-col gap-3" aria-label={t("listAria")}>
       <Tabs
-        label="Loại vấn đề"
+        label={t("tabsLabel")}
         idBase="doc-issues"
         value={tab}
         onChange={setTab}
         className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
         options={[
-          { value: "blocking", label: "Cần xử lý", count: counts.blocking },
-          { value: "suggestions", label: "Nên xem", count: counts.suggestions },
-          { value: "waived", label: "Đã bỏ qua", count: waivedFlags.length },
+          { value: "blocking", label: t("tab.blocking"), count: counts.blocking },
+          { value: "suggestions", label: t("tab.suggestions"), count: counts.suggestions },
+          { value: "waived", label: t("tab.waived"), count: waivedFlags.length },
         ]}
       />
 
-      {error && <div className="text-body text-error">{error}</div>}
+      {error && <div className="text-body text-error">{hookErrorText(error, tHook)}</div>}
 
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (
@@ -474,41 +484,41 @@ export default function FlagsPanel({
               <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h5 className="text-body font-bold text-on-surface">
-                    Viết lại cho khớp <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
+                    {t("rewriteTitle")} <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
                   </h5>
                   <p className="text-body text-on-surface-muted leading-relaxed">
-                    Có mục viết dựa trên dữ liệu đã bị sửa sau đó. AI viết lại, bạn xem trước rồi mới áp dụng.
+                    {t("rewriteHint")}
                   </p>
                 </div>
                 <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
-                  {rewriting ? "Đang kiểm tra…" : "Viết lại"}
+                  {rewriting ? t("rewriteChecking") : t("rewrite")}
                 </button>
               </section>
             )}
             {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
             {redGroups.length === 0 &&
               !showOutdated &&
-              emptyNote("Không còn vấn đề nào chặn việc chốt bản.")}
+              emptyNote(t("noBlocking"))}
           </>
         )}
 
         {tab === "suggestions" &&
-          (yellowGroups.length > 0 ? yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`)) : emptyNote("Không có gợi ý nào."))}
+          (yellowGroups.length > 0 ? yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`)) : emptyNote(t("noSuggestions")))}
 
         {tab === "waived" &&
           (waivedFlags.length > 0 ? (
             <ul className="rounded-card bg-surface-container-lowest px-3.5 py-1.5">
               {waivedFlags.map((flag) => (
                 <li key={flag.id} className="py-1.5 flex flex-col gap-0.5">
-                  <span className="text-body font-semibold text-on-surface">{flagGroupTitle(flag.rule_id) ?? humanizeText(flag.message)}</span>
+                  <span className="text-body font-semibold text-on-surface">{flagGroupTitle(flag.rule_id, tRule) ?? humanizeText(flag.message)}</span>
                   <span className="text-caption text-on-surface-muted">
-                    {sectionName(flag.section_id)} · Lý do: {flag.waive_reason}
+                    {t("waivedReason", { section: sectionName(flag.section_id), reason: flag.waive_reason ?? "" })}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            emptyNote("Chưa bỏ qua vấn đề nào.")
+            emptyNote(t("noWaived"))
           ))}
       </div>
 
@@ -521,7 +531,7 @@ export default function FlagsPanel({
           disabled={busy}
           className="self-start h-8 px-2.5 rounded-control text-body font-semibold text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Kiểm tra lại toàn bộ tài liệu
+          {t("recompute")}
         </button>
       )}
 

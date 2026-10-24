@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   addCrMaterialFile,
   addCrMaterialText,
@@ -16,7 +17,7 @@ import {
   type CrAction,
 } from "@/lib/api/change-requests";
 import { CR_AMENDABLE_STATUSES, CR_OPEN_STATUSES, CR_REDRAFT_STATUSES, type CrDetail, type CrLocation, type NEW_CR_SOURCE_KINDS } from "@/types/change-request";
-import { errorText } from "../../_components/mode1/errors";
+import { useErrorText } from "../../_components/mode1/i18n";
 
 /** Nguồn + người yêu cầu chọn ở thẻ 3.1 trong chat. */
 export interface CrChatSource {
@@ -70,6 +71,9 @@ export const titleFromInstruction = (instruction: string): string => {
  * Mọi trạng thái lấy từ `CrDetail` BE trả — hook chỉ nhớ thêm (localStorage) đề xuất nào người dùng đã đồng ý.
  */
 export function useCrChat(projectId: string, enabled = true) {
+  // Chỉ dùng trong callback (`send`) và lúc render (`inputHint`) — không nằm trong effect tải dữ liệu
+  const t = useTranslations("mode1.crChat");
+  const errorText = useErrorText();
   const [detail, setDetail] = useState<CrDetail | null>(null);
   const [loading, setLoading] = useState(enabled);
   /** Lệnh sửa đầu tiên đang chờ chọn nguồn + người yêu cầu. */
@@ -181,7 +185,7 @@ export function useCrChat(projectId: string, enabled = true) {
         if (alive.current) setBusy(null);
       }
     },
-    [projectId, crId]
+    [projectId, crId, errorText]
   );
 
   /**
@@ -251,16 +255,16 @@ export function useCrChat(projectId: string, enabled = true) {
           const d = await call("answers", () => answerClarifications(projectId, c.cr_id, [value]));
           await advance(d);
         } else {
-          setError("AI đang hỏi nhiều câu — trả lời ở thẻ câu hỏi phía trên (chọn gợi ý hoặc gõ từng câu).");
+          setError(t("multiQuestion"));
         }
         return;
       }
-      if (c.paused) return setError("Bước AI đang tạm dừng — bấm “Tiếp tục” ở phía trên trước.");
-      if (!CR_AMENDABLE_STATUSES.includes(c.status)) return setError("AI đang chạy — đợi xong bước này rồi gõ tiếp.");
+      if (c.paused) return setError(t("paused"));
+      if (!CR_AMENDABLE_STATUSES.includes(c.status)) return setError(t("running"));
       const d = await call("amend", () => amendCr(projectId, c.cr_id, value));
       await advance(d);
     },
-    [advance, call, detail, projectId, redraftFor]
+    [advance, call, detail, projectId, redraftFor, t]
   );
 
   const withCr = <T,>(fn: (id: string, d: CrDetail) => T): T | undefined => (detail ? fn(detail.change_request.cr_id, detail) : undefined);
@@ -275,12 +279,12 @@ export function useCrChat(projectId: string, enabled = true) {
     redraftFor,
     /** Placeholder ô chat theo bước đang ở. */
     inputHint: !detail
-      ? "Gõ yêu cầu sửa tài liệu, vd: Thêm yêu cầu hiệu năng cho màn tra cứu"
+      ? t("hintNew")
       : redraftFor
-        ? "Gõ hướng sửa lại cho đề xuất đang chọn…"
+        ? t("hintRedraft")
         : detail.change_request.status === "awaiting_answers"
-          ? "Trả lời câu hỏi của AI…"
-          : `Gõ thêm lệnh sửa để gộp vào ${detail.change_request.cr_id}…`,
+          ? t("hintAnswer")
+          : t("hintAmend", { crId: detail.change_request.cr_id }),
     clearError: () => setError(null),
     cancelPending: () => setPending(null),
     isAccepted,

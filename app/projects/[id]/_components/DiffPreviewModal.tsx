@@ -1,19 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ChangeDiff, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
-import {
-  pathLabel,
-  readableValue,
-  refNames,
-  resolveRefs,
-  ruleLabel,
-  sectionName,
-  violationText,
-  type RefNames,
-} from "./mode1/spine-labels";
-import { CR_SOURCE_KINDS, CR_SOURCE_LABELS } from "./mode1/labels";
+import { refNames, resolveRefs, type RefNames } from "./mode1/spine-labels";
+import { CR_SOURCE_KINDS } from "./mode1/labels";
+import { useMode1Labels } from "./mode1/i18n";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
@@ -35,17 +28,17 @@ interface DiffPreviewModalProps {
   spine?: Spine | null;
 }
 
-/** Nhánh xử lý của BE nói bằng lời dễ hiểu. */
-const BRANCH_LABEL: Record<NonNullable<PreviewResult["branch"]>, string> = {
-  silent: "Không ảnh hưởng mục khác",
-  dependent: "Kéo theo mục liên quan",
-  post_baseline: "Sửa sau khi đã ký bản",
-};
-
-const short = (value: unknown, field: string | undefined, names: RefNames): string => {
+/** `deletedText`: chữ cho giá trị đã bị xoá (`workspace.diff.deleted`); `readableValue` theo ngôn ngữ (`useMode1Labels`). */
+const short = (
+  value: unknown,
+  field: string | undefined,
+  names: RefNames,
+  deletedText: string,
+  readableValue: (value: unknown, names?: RefNames) => string
+): string => {
   if (value === undefined) return "—";
   if (value === null) return "—";
-  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return "(xoá)";
+  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return deletedText;
   const text = readableValue(resolveRefs(field, value, names), names);
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 };
@@ -59,19 +52,21 @@ const isEmptyList = (v: unknown) => v === undefined || v === null || (Array.isAr
  * Use case sau lô sửa không gắn chức năng nào (thêm mới thiếu `function_ids`, hoặc xoá hết) — truy vết UC → chức năng
  * (UC-78) sẽ hụt. Trả tên/mã để cảnh báo trước khi áp (FLF-297).
  */
-const useCasesWithoutFunction = (changes: ChangeDiff[]): string[] =>
+const useCasesWithoutFunction = (changes: ChangeDiff[], labels: { newUseCase: string; useCase: string }): string[] =>
   changes.flatMap((c) => {
     if (c.op === "remove" || !c.path.startsWith("use_cases[")) return [];
     const id = /^use_cases\[(?:id=)?([^\]]*)\]/.exec(c.path)?.[1];
     if (/^use_cases\[[^\]]*\]$/.test(c.path)) {
       const uc = c.value as Record<string, unknown> | null;
       if (!uc || typeof uc !== "object" || !isEmptyList(uc.function_ids)) return [];
-      return [typeof uc.name === "string" && uc.name ? uc.name : id || "use case mới"];
+      return [typeof uc.name === "string" && uc.name ? uc.name : id || labels.newUseCase];
     }
-    return lastField(c.path) === "function_ids" && isEmptyList(c.value) ? [id || "use case"] : [];
+    return lastField(c.path) === "function_ids" && isEmptyList(c.value) ? [id || labels.useCase] : [];
   });
 
-const RELATION_LABELS: Record<string, string> = { owner: "mục chứa", reads: "mục dùng tới", derived: "mục suy ra" };
+/** Quan hệ của mục bị ảnh hưởng có nhãn riêng (`workspace.diff.relation.*`); quan hệ lạ ⇒ "liên quan". */
+const RELATIONS = ["owner", "reads", "derived"] as const;
+const isKnownRelation = (relation: string): relation is (typeof RELATIONS)[number] => (RELATIONS as readonly string[]).includes(relation);
 
 /** Bảng diff trước khi áp lệnh sửa (UC 6.8): path / before / value / section ảnh hưởng / diagram. */
 export default function DiffPreviewModal({
@@ -79,18 +74,20 @@ export default function DiffPreviewModal({
   busy = false,
   onCancel,
   onConfirm,
-  confirmLabel = "Xác nhận",
-  busyLabel = "Đang áp dụng…",
+  confirmLabel,
+  busyLabel,
   note,
   confirmWhenInvalid = false,
   spine,
 }: DiffPreviewModalProps) {
+  const t = useTranslations("workspace.diff");
+  const { pathLabel, readableValue, ruleLabel, sectionName, violationText, crSource } = useMode1Labels();
   const [reason, setReason] = useState("");
   const [requester, setRequester] = useState("");
   const [sourceKind, setSourceKind] = useState<ChangeRequestInfo["source"]["kind"] | "">("");
   const [sourceRef, setSourceRef] = useState("");
   const names = useMemo(() => refNames(spine), [spine]);
-  const unlinkedUseCases = useCasesWithoutFunction(preview.changes);
+  const unlinkedUseCases = useCasesWithoutFunction(preview.changes, { newUseCase: t("newUseCase"), useCase: t("useCase") });
   // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
   // để user bấm Xác nhận rồi ăn lỗi khó hiểu. Luồng CR (`confirmWhenInvalid`) không áp thẳng — lý do
   // không đi đâu ở bước này nên không hỏi, tránh bắt gõ một câu rồi âm thầm vứt đi.
@@ -118,12 +115,12 @@ export default function DiffPreviewModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-extrabold text-heading text-[#191817]">Xem trước thay đổi</h3>
+          <h3 className="font-extrabold text-heading text-[#191817]">{t("title")}</h3>
           <div className="flex items-center gap-2">
             {preview.branch && (
-              <span className="px-2 py-0.5 rounded-full text-caption font-bold bg-[#F2F1FB] text-[#6A62C4]">{BRANCH_LABEL[preview.branch]}</span>
+              <span className="px-2 py-0.5 rounded-full text-caption font-bold bg-[#F2F1FB] text-[#6A62C4]">{t(`branch.${preview.branch}`)}</span>
             )}
-            <button type="button" onClick={onCancel} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
+            <button type="button" onClick={onCancel} aria-label={t("close")} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
               ✕
             </button>
           </div>
@@ -143,10 +140,10 @@ export default function DiffPreviewModal({
 
         {preview.changes.length === 0 ? (
           <div className="text-body py-4 text-center flex flex-col gap-1">
-            <span className="text-[#A8A49C] italic">Không có thay đổi nào.</span>
+            <span className="text-[#A8A49C] italic">{t("none")}</span>
             {preview.no_change && (
               <span className="text-[#4B4842]">
-                {preview.notes ?? "Nội dung của các mục này vẫn đúng — xác nhận để gỡ cờ “đã cũ”."}
+                {preview.notes ?? t("noChangeNote")}
               </span>
             )}
           </div>
@@ -155,9 +152,9 @@ export default function DiffPreviewModal({
             <table className="w-full border-collapse text-caption">
               <thead>
                 <tr>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Phần thay đổi</th>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Trước</th>
-                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">Sau</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">{t("colPath")}</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">{t("colBefore")}</th>
+                  <th className="border border-[#ECEAE5] bg-[#FAF9F7] px-2 py-1 text-left font-bold">{t("colAfter")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,8 +163,8 @@ export default function DiffPreviewModal({
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top" title={change.path}>
                       {pathLabel(change.path)}
                     </td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, lastField(change.path), names)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names, t("deleted"), readableValue)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, lastField(change.path), names, t("deleted"), readableValue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -177,31 +174,30 @@ export default function DiffPreviewModal({
 
         {unlinkedUseCases.length > 0 && (
           <div role="alert" className="bg-[#FFF7E6] border border-[#F0DDB0] rounded-[12px] p-3 text-body text-[#8A6D1F]">
-            Use case {unlinkedUseCases.map((n) => `“${n}”`).join(", ")} chưa gắn chức năng nào. Sau khi áp dụng, phần truy
-            vết sẽ báo thiếu — nên nói rõ chức năng liên quan trong yêu cầu, hoặc bổ sung ngay sau đó.
+            {t("unlinked", { names: unlinkedUseCases.map((n) => `“${n}”`).join(", ") })}
           </div>
         )}
 
         {preview.impact && (
           <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 flex flex-col gap-2 text-caption text-[#4B4842]">
-            <div className="font-extrabold text-caption text-[#8A867E] tracking-wider uppercase">Phạm vi ảnh hưởng</div>
+            <div className="font-extrabold text-caption text-[#8A867E] tracking-wider uppercase">{t("impact")}</div>
             {preview.impact.sections.length > 0 && (
               <div>
-                Mục:{" "}
+                {t("impactSections")}{" "}
                 {preview.impact.sections.map((s) => (
                   <span key={s.id} className="mr-1.5" title={s.id}>
                     {sectionName(s.id)}
-                    <span className="text-[#A8A49C]"> ({RELATION_LABELS[s.relation] ?? "liên quan"})</span>
+                    <span className="text-[#A8A49C]"> ({isKnownRelation(s.relation) ? t(`relation.${s.relation}`) : t("relation.other")})</span>
                   </span>
                 ))}
               </div>
             )}
             {preview.impact.diagrams.length > 0 && (
-              <div>Sơ đồ sẽ vẽ lại: {preview.impact.diagrams.length}</div>
+              <div>{t("impactDiagrams", { count: preview.impact.diagrams.length })}</div>
             )}
             {preview.impact.referrers.length > 0 && (
               <div className="text-[#8A6D1F]">
-                Đang được nhắc tới ở: {preview.impact.referrers.map((r) => pathLabel(r.path)).join(", ")}
+                {t("impactReferrers", { refs: preview.impact.referrers.map((r) => pathLabel(r.path)).join(", ") })}
               </div>
             )}
           </div>
@@ -210,25 +206,25 @@ export default function DiffPreviewModal({
         {needsReason && !empty && (
           <div className="flex flex-col gap-1.5">
             <p className="text-body text-[#554DB0] bg-[#F2F1FB] rounded-[10px] px-3 py-2">
-              Tài liệu đã có baseline — thay đổi này sẽ được ghi thành một change request (mã CR cấp khi áp dụng).
+              {t("baselineNote")}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
                 <label htmlFor="cr-requester" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
-                  Người yêu cầu
+                  {t("requester")}
                 </label>
                 <input
                   id="cr-requester"
                   value={requester}
                   onChange={(e) => setRequester(e.target.value)}
                   maxLength={120}
-                  placeholder="Ví dụ: Chị Lan (phòng Đào tạo)"
+                  placeholder={t("requesterPlaceholder")}
                   className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none focus:border-[#6A62C4]"
                 />
               </div>
               <div className="flex flex-col gap-1">
                 <label htmlFor="cr-source" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
-                  Nguồn
+                  {t("source")}
                 </label>
                 <select
                   id="cr-source"
@@ -236,38 +232,38 @@ export default function DiffPreviewModal({
                   onChange={(e) => setSourceKind(e.target.value as ChangeRequestInfo["source"]["kind"] | "")}
                   className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none focus:border-[#6A62C4]"
                 >
-                  <option value="">Chọn nguồn…</option>
+                  <option value="">{t("sourcePick")}</option>
                   {CR_SOURCE_KINDS.map((kind) => (
                     <option key={kind} value={kind}>
-                      {CR_SOURCE_LABELS[kind]}
+                      {crSource(kind)}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
             <label htmlFor="cr-source-ref" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
-              Tham chiếu nguồn (tuỳ chọn)
+              {t("sourceRef")}
             </label>
             <input
               id="cr-source-ref"
               value={sourceRef}
               onChange={(e) => setSourceRef(e.target.value)}
               maxLength={300}
-              placeholder="Ví dụ: Biên bản họp 15/10, email ngày 12/10"
+              placeholder={t("sourceRefPlaceholder")}
               className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none focus:border-[#6A62C4]"
             />
             <label htmlFor="change-reason" className="text-caption font-extrabold text-[#8A867E] tracking-wider uppercase">
-              Lý do thay đổi
+              {t("reason")}
             </label>
             <textarea
               id="change-reason"
               rows={2}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Ví dụ: Stakeholder đổi yêu cầu ở họp 20/09"
+              placeholder={t("reasonPlaceholder")}
               className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body outline-none resize-none focus:border-[#6A62C4]"
             />
-            <span className="text-caption text-[#8A867E]">Câu này đi vào §I Record of Changes của tài liệu.</span>
+            <span className="text-caption text-[#8A867E]">{t("reasonNote")}</span>
           </div>
         )}
 
@@ -280,7 +276,7 @@ export default function DiffPreviewModal({
             disabled={busy}
             className="px-3.5 py-1.5 rounded-full text-body font-bold border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7] cursor-pointer disabled:opacity-50"
           >
-            Huỷ
+            {t("cancel")}
           </button>
           {!empty && (
             <button
@@ -289,7 +285,7 @@ export default function DiffPreviewModal({
               onClick={() => onConfirm(needsReason ? reason.trim() : undefined, changeRequest())}
               className="px-3.5 py-1.5 rounded-full text-body font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {busy ? busyLabel : preview.no_change && !confirmWhenInvalid ? "Xác nhận không đổi" : confirmLabel}
+              {busy ? (busyLabel ?? t("applying")) : preview.no_change && !confirmWhenInvalid ? t("confirmNoChange") : (confirmLabel ?? t("confirm"))}
             </button>
           )}
         </div>

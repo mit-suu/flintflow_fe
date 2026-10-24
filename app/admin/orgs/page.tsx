@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   fetchAdminOrgs,
   formatNumber,
@@ -28,22 +29,26 @@ const PAGE_SIZE = 20;
 
 /** UC-90 — danh sách tổ chức; mở một org để điều chỉnh credit (UC-68). */
 export default function AdminOrgsPage() {
+  const t = useTranslations("admin");
+  const locale = useLocale();
   const [items, setItems] = useState<AdminOrg[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** Lỗi tải gần nhất: giữ nguyên lỗi, dịch lúc render — đổi ngôn ngữ không phải tải lại. */
+  const [error, setError] = useState<{ cause: unknown } | null>(null);
   /** Bộ tham số đã tải xong (kể cả khi lỗi). Khác bộ đang cần ⇒ đang tải — không cần state `loading` riêng,
    *  vốn phải set ngay trong effect (eslint `react-hooks/set-state-in-effect` chặn). */
   const [loadedParams, setLoadedParams] = useState<object | null>(null);
   const [adjusting, setAdjusting] = useState<AdminOrg | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  /** Kết quả điều chỉnh gần nhất — dựng câu lúc render để đổi ngôn ngữ thì câu đổi theo. */
+  const [notice, setNotice] = useState<AdjustOrgCreditsResult | null>(null);
 
   const columns = useMemo(
     () =>
       orgsColumns((org) => {
         setNotice(null);
         setAdjusting(org);
-      }),
-    []
+      }, t, locale),
+    [t, locale]
   );
 
   const { table, pagination, globalFilter, columnFilters } = useServerDataTable({
@@ -78,7 +83,7 @@ export default function AdminOrgsPage() {
         setMeta(res.meta);
         setError(null);
       } catch (err) {
-        if (!cancelled) setError(userErrorMessage(err, "Không thể tải danh sách tổ chức"));
+        if (!cancelled) setError({ cause: err });
       } finally {
         if (!cancelled) setLoadedParams(params);
       }
@@ -100,39 +105,44 @@ export default function AdminOrgsPage() {
           : o
       )
     );
-    const sign = result.amount > 0 ? "+" : "";
-    setNotice(
-      `${sign}${formatNumber(result.amount)} credit cho ${result.organizationName}. Số dư mới: ${formatNumber(result.balance)}.`
-    );
+    setNotice(result);
   };
+
+  const noticeText = notice
+    ? t("orgs.adjusted", {
+        amount: `${notice.amount > 0 ? "+" : ""}${formatNumber(notice.amount, locale)}`,
+        name: notice.organizationName,
+        balance: formatNumber(notice.balance, locale),
+      })
+    : null;
 
   return (
     <>
       <AdminHeader />
       <AdminMain>
         <AdminPageHeader
-          title="Tổ chức"
+          title={t("orgs.title")}
           description={
-            meta ? `${formatNumber(meta.total)} tổ chức, kèm ví credit của từng tổ chức.` : "Tổ chức và ví credit."
+            meta ? t("orgs.descriptionCount", { count: meta.total }) : t("orgs.descriptionFallback")
           }
         />
 
-        {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
-        {notice && <SuccessBanner message={notice} onClose={() => setNotice(null)} />}
+        {error && <ErrorBanner message={userErrorMessage(error.cause, t("orgs.loadFailed"))} onClose={() => setError(null)} />}
+        {noticeText && <SuccessBanner message={noticeText} onClose={() => setNotice(null)} />}
 
         {loading && items.length === 0 ? (
-          <LoadingBlock label="Đang tải tổ chức…" />
+          <LoadingBlock label={t("orgs.loading")} />
         ) : (
           <DataTable
             table={table}
             columns={columns}
-            emptyMessage="Không có tổ chức phù hợp"
+            emptyMessage={t("orgs.empty")}
             className={loading ? "opacity-60 transition-opacity" : undefined}
             toolbar={
               <DataTableToolbar
                 table={table}
-                searchPlaceholder="Tìm theo tên hoặc email người tạo"
-                filters={[{ columnId: "plan", title: "Gói", options: ORG_PLAN_OPTIONS }]}
+                searchPlaceholder={t("orgs.searchPlaceholder")}
+                filters={[{ columnId: "plan", title: t("orgs.plan"), options: ORG_PLAN_OPTIONS }]}
               />
             }
           />

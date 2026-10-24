@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type ReactNode
 } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { ChatMessage, DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
 import { workspaceStepLabel as stepLabelOf } from "./phase-labels";
@@ -16,6 +17,7 @@ import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput, { formatAnswers } from "./QuestionStepperInput";
 import { parseChatQuestion } from "@/lib/question-options";
+import type { Locale } from "@/lib/i18n";
 
 interface ChatPaneProps {
   width?: number;
@@ -155,7 +157,7 @@ export default function ChatPane({
   onEditInstruction,
   onGoToPipeline,
   readOnlyNotice,
-  title = "Trò chuyện và duyệt",
+  title,
   emptyState,
   inputPlaceholder,
   editPlaceholder,
@@ -172,6 +174,9 @@ export default function ChatPane({
   inputTools,
   onStop
 }: ChatPaneProps) {
+  const t = useTranslations("workspace.chatPane");
+  const locale = useLocale() as Locale;
+  const dividerLabel = (step: string) => stepLabelOf(step, locale);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Ô nhập nổi đè lên đáy danh sách tin nhắn ⇒ đo chiều cao của nó để chừa chỗ cho tin nhắn cuối
   const footerRef = useRef<HTMLDivElement>(null);
@@ -234,7 +239,7 @@ export default function ChatPane({
           {/* Nhãn tĩnh không mang màu thương hiệu — tím để dành cho trạng thái (chip bước) và hành động.
               Dải mờ của vùng cuộn đã đặc trước khi chạm hàng này nên chữ trần vẫn đọc rõ. */}
           <h2 className="font-bold text-on-surface text-body truncate">
-            {title}
+            {title ?? t("title")}
           </h2>
         </div>
         {stepLabel && (
@@ -268,11 +273,10 @@ export default function ChatPane({
                     />
                   </div>
                   <h3 className="font-bold text-on-surface text-heading">
-                    Bắt đầu bước hiện tại
+                    {t("emptyTitle")}
                   </h3>
                   <p className="text-on-surface-muted text-body leading-relaxed">
-                    Gõ vào ô chat để AI bắt đầu: AI hỏi phần còn thiếu rồi soạn
-                    nháp. Có thể đính kèm tài liệu tham khảo.
+                    {t("emptyBody")}
                   </p>
                 </div>
               ))}
@@ -285,10 +289,10 @@ export default function ChatPane({
                   <div
                     className="flex items-center gap-2 pt-1"
                     title={msg.step}
-                    aria-label={`Bắt đầu bước ${stepLabelOf(msg.step)}`}>
+                    aria-label={t("stepDivider", { step: dividerLabel(msg.step) })}>
                     <span className="h-px flex-1 bg-outline-variant" />
                     <span className="text-caption font-bold uppercase tracking-wider text-on-surface-muted shrink-0">
-                      {stepLabelOf(msg.step)}
+                      {dividerLabel(msg.step)}
                     </span>
                     <span className="h-px flex-1 bg-outline-variant" />
                   </div>
@@ -307,7 +311,7 @@ export default function ChatPane({
             {knowledgePending ? (
               <div className="flex items-center gap-2 text-body text-on-surface-muted px-1" role="status">
                 <span aria-hidden className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
-                Đang tra kho tri thức…
+                {t("knowledgePending")}
               </div>
             ) : (
               isStreaming && (
@@ -324,16 +328,13 @@ export default function ChatPane({
 
             {isNonPipelineSession && (
               <div className="bg-primary-soft rounded-card p-3 text-body text-primary-hover flex flex-wrap items-center gap-2">
-                <span className="flex-1 min-w-0">
-                  Phiên hỏi đáp — hỏi AI về dự án, hoặc bật &quot;Sửa tài
-                  liệu&quot; để sửa. Quy trình soạn tài liệu chạy ở phiên chính.
-                </span>
+                <span className="flex-1 min-w-0">{t("sideSession")}</span>
                 {onGoToPipeline && (
                   <button
                     type="button"
                     onClick={onGoToPipeline}
                     className="px-2.5 py-1 rounded-full text-body font-bold bg-primary text-on-primary hover:bg-primary-hover transition-colors cursor-pointer">
-                    Về phiên chính
+                    {t("goToPipeline")}
                   </button>
                 )}
               </div>
@@ -403,12 +404,11 @@ export default function ChatPane({
                     // Chế độ tri thức xét trước cả thẻ hỏi: khi có thẻ hỏi, ô nhập thu gọn và chip chỉ
                     // còn icon, nên placeholder là tín hiệu rõ nhất cho biết câu gõ ra sẽ đi đâu.
                     knowledgeMode
-                      ? "Hỏi một câu về nghiệp vụ BA, vd: Khi nào thì dùng include thay vì extend?"
+                      ? t("knowledgePlaceholder")
                       : questionCard || showQuestions
-                        ? "Hoặc trả lời trực tiếp…"
+                        ? t("answerDirectly")
                         : sendAsEdit
-                          ? (editPlaceholder ??
-                            "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
+                          ? (editPlaceholder ?? t("editPlaceholder"))
                           : inputPlaceholder
                   }
                 />

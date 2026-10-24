@@ -7,6 +7,7 @@ import {
   type Table as TanstackTable,
   flexRender,
 } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import {
   Table,
@@ -34,11 +35,12 @@ export function DataTable<TData, TValue>({
   columns,
   toolbar,
   bulkActions,
-  emptyMessage = 'Không có dữ liệu.',
+  emptyMessage,
   className,
   showPagination = true,
   renderSubComponent,
 }: DataTableProps<TData, TValue>) {
+  const t = useTranslations('common.dataTable')
   return (
     <div
       className={cn(
@@ -118,7 +120,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className='h-24 text-center'
                 >
-                  {emptyMessage}
+                  {emptyMessage ?? t('empty')}
                 </TableCell>
               </TableRow>
             )}

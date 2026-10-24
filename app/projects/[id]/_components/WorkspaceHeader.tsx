@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import Logo from "@/components/Logo";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
@@ -36,6 +37,8 @@ interface WorkspaceHeaderProps {
   onToolsClick?: () => void;
   toolsActive?: boolean;
   toolsLabel?: string;
+  /** Chữ ngắn trên nút (màn rộng) — mặc định "Công cụ". */
+  toolsShortLabel?: string;
   /** Số mục trong panel đang chờ user quyết — hiện thành badge trên nút, 0 thì không hiện. */
   toolsCount?: number;
   /**
@@ -68,29 +71,32 @@ export default function WorkspaceHeader({
   onEnterFocus,
   onToolsClick,
   toolsActive = false,
-  toolsLabel = "Công cụ",
+  toolsLabel,
+  toolsShortLabel,
   toolsCount = 0,
   onVerifyClick,
   verifyActive = false,
   verifyCount = 0,
   onLogout,
 }: WorkspaceHeaderProps) {
+  const t = useTranslations("workspace.header");
+  const tools = toolsLabel ?? t("tools");
   return (
     <header className="shrink-0 bg-surface-container-lowest h-[58px] px-4 flex items-center gap-3">
       {progressHidden && (
         <div className="shrink-0 flex items-center gap-2">
-          <IconButton icon="sidebar" label="Hiện tiến độ" onClick={onShowProgress} aria-controls="workspace-progress" aria-expanded={false} />
+          <IconButton icon="sidebar" label={t("showProgress")} onClick={onShowProgress} aria-controls="workspace-progress" aria-expanded={false} />
           <Logo variant="icon" sizeClassName="w-5 h-5" theme="light" href="/home" />
         </div>
       )}
-      <nav aria-label="Breadcrumb" className="flex-1 min-w-0 flex items-center gap-1 text-body">
+      <nav aria-label={t("breadcrumb")} className="flex-1 min-w-0 flex items-center gap-1 text-body">
         <Link href="/home" className="hidden sm:inline text-on-surface-muted hover:text-on-surface font-medium transition-colors">
-          Dự án
+          {t("projects")}
         </Link>
         <span aria-hidden className="hidden sm:inline text-on-surface-subtle px-0.5">
           /
         </span>
-        <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || "Dự án SRS"}</span>
+        <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || t("untitled")}</span>
         {baselineStatus && (
           // Trạng thái chốt bản là thứ cả Lead lẫn Analyst cần thấy MỌI LÚC (có bản chờ mình duyệt không,
           // bản mình gửi bị từ chối chưa), nên nó ở ngay breadcrumb. Hành động thì nằm trong panel — bấm
@@ -99,7 +105,7 @@ export default function WorkspaceHeader({
             type="button"
             onClick={onVerifyClick}
             disabled={!onVerifyClick}
-            title={onVerifyClick ? "Mở Kiểm & chốt" : undefined}
+            title={onVerifyClick ? t("openVerify") : undefined}
             className="hidden md:inline-flex ml-1.5 shrink-0 rounded-full enabled:cursor-pointer enabled:hover:opacity-80 transition-opacity"
           >
             <Badge tone={baselineStatus.tone} dot>
@@ -116,11 +122,11 @@ export default function WorkspaceHeader({
             variant="ghost"
             icon="caret-left"
             onClick={onBackToCurrent}
-            title={`Quay lại bước hiện tại (${currentStep})`}
-            aria-label={`Về bước ${currentStep}`}
+            title={t("backTitle", { step: currentStep })}
+            aria-label={t("backAria", { step: currentStep })}
             className="shrink-0"
           >
-            <span className="hidden sm:inline">Về {currentStep}</span>
+            <span className="hidden sm:inline">{t("back", { step: currentStep })}</span>
           </Button>
         )}
         {actions}
@@ -131,10 +137,10 @@ export default function WorkspaceHeader({
             icon="shield-check"
             onClick={onVerifyClick}
             aria-pressed={verifyActive}
-            title={verifyCount > 0 ? `Kiểm & chốt — ${verifyCount} vấn đề cần xử lý` : "Kiểm tra tài liệu và chốt baseline"}
+            title={verifyCount > 0 ? t("verifyIssues", { count: verifyCount }) : t("verifyHint")}
             className={`shrink-0 ${verifyActive ? "bg-primary-soft text-primary-hover" : ""}`}
           >
-            <span className="hidden md:inline">Kiểm &amp; chốt</span>
+            <span className="hidden md:inline">{t("verify")}</span>
             {verifyCount > 0 && <CountBadge count={verifyCount} tone="alert" />}
           </Button>
         )}
@@ -142,12 +148,12 @@ export default function WorkspaceHeader({
         {project && (
           <Link
             href={`/projects/${project._id}/view`}
-            title="Xem tài liệu chỉ đọc và comment"
-            aria-label="Xem & comment"
+            title={t("viewHint")}
+            aria-label={t("view")}
             className="shrink-0 inline-flex items-center justify-center h-8 px-3.5 gap-1.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             <Icon name="eye" size={14} />
-            <span className="hidden md:inline">Xem & comment</span>
+            <span className="hidden md:inline">{t("view")}</span>
           </Link>
         )}
         {onToolsClick && (
@@ -157,25 +163,25 @@ export default function WorkspaceHeader({
             icon="folder"
             onClick={onToolsClick}
             aria-pressed={toolsActive}
-            title={toolsCount > 0 ? `${toolsLabel} — ${toolsCount} mục chờ bạn quyết` : toolsLabel}
+            title={toolsCount > 0 ? t("toolsPending", { label: tools, count: toolsCount }) : tools}
             className={`shrink-0 ${toolsActive ? "bg-primary-soft text-primary-hover" : ""}`}
           >
-            <span className="hidden md:inline">{toolsLabel === "Hồ sơ dự án" ? "Hồ sơ" : "Công cụ"}</span>
+            <span className="hidden md:inline">{toolsShortLabel ?? t("tools")}</span>
             {/* Có mục chờ quyết mà nút im lặng thì user không biết để mở — badge nói số, không chỉ một chấm màu */}
             {toolsCount > 0 && <CountBadge count={toolsCount} tone="alert" />}
           </Button>
         )}
-        <Button size="sm" variant="ghost" icon="export" onClick={onExportClick} title="Hoàn tất và xuất tài liệu SRS" className="shrink-0">
-          <span className="hidden md:inline">Export</span>
+        <Button size="sm" variant="ghost" icon="export" onClick={onExportClick} title={t("exportHint")} className="shrink-0">
+          <span className="hidden md:inline">{t("export")}</span>
         </Button>
-        {onEnterFocus && <IconButton icon="expand" label="Mở rộng trang (ẩn thanh trên)" onClick={onEnterFocus} />}
+        {onEnterFocus && <IconButton icon="expand" label={t("enterFocus")} onClick={onEnterFocus} />}
         <DropdownMenu
           trigger={(props) => (
             <button
               type="button"
               {...props}
-              aria-label="Tài khoản"
-              title="Tài khoản"
+              aria-label={t("account")}
+              title={t("account")}
               className="w-9 h-9 grid place-items-center rounded-control hover:bg-surface-container-high transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <span className="w-7 h-7 rounded-full grid place-items-center text-body font-semibold bg-primary-fixed text-primary">
@@ -193,12 +199,12 @@ export default function WorkspaceHeader({
                 <span className="inline-flex items-center gap-1.5 text-body font-semibold text-on-surface">
                   <Icon name="wallet" size={14} className="text-primary" />
                   <span className="tabular-nums">{user.balance ?? 0}</span>
-                  <span className="text-on-surface-muted font-medium">credits</span>
+                  <span className="text-on-surface-muted font-medium">{t("credits")}</span>
                 </span>
               </div>
             ) : undefined
           }
-          items={[{ label: "Đăng xuất", icon: "logout", tone: "danger", onSelect: onLogout }]}
+          items={[{ label: t("logout"), icon: "logout", tone: "danger", onSelect: onLogout }]}
         />
       </div>
     </header>

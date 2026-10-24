@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { createTranslator } from "next-intl";
+import { MESSAGES } from "@/test/intl";
 import type { Flag } from "@/types/flags";
 import { actionOf, actionOfFlag, flagGroupTitle, groupByAction, issueCounts, readableMessage } from "../flag-rules";
 
@@ -22,7 +24,10 @@ describe("flag-rules", () => {
     expect(actionOf("section_empty")).toBe("run_step");
     expect(actionOf("diagram_stale")).toBe("redraw");
     expect(actionOf("luat_moi_cua_be")).toBe("fix");
-    expect(flagGroupTitle("luat_moi_cua_be")).toBeNull();
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.flagRules" });
+    expect(flagGroupTitle("luat_moi_cua_be", t)).toBeNull();
+    expect(flagGroupTitle("section_empty", t)).toBe("Mục còn trống");
+    expect(flagGroupTitle("goal_not_covered", t)).toBe("Mục tiêu chưa được đáp ứng");
 
     const groups = groupByAction([
       flag({ id: "A", rule_id: "section_empty" }),

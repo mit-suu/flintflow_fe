@@ -3,7 +3,9 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewField } from "@/types/import";
 import FieldsReview, { textToValue, valueToText } from "./FieldsReview";
-import { pathLabel } from "./spine-labels";
+import { labelsFor } from "./test-labels";
+
+const { pathLabel } = labelsFor();
 
 const field = (path: string, value: unknown, over: Partial<ReviewField> = {}): ReviewField => ({
   section_id: "fixed:2.1",

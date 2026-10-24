@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithIntl } from "@/test/intl";
+import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import AppShell from "@/components/layout/AppShell";
 import BillingPage from "./page";
 
@@ -53,5 +53,19 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
   it("chưa biết vai trò thì vẫn hiện nút — BE vẫn chặn, Lead không bị mất nút", async () => {
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
     expect(await screen.findByRole("button", { name: "Mua ngay" })).toBeInTheDocument();
+  });
+});
+
+describe("trang thanh toán — tiếng Anh", () => {
+  it("thẻ gói credit không còn chữ tiếng Việt: tên gói, đơn vị, giá", async () => {
+    activeOrg.value = { id: "org-1", name: "Team A", role: "lead" };
+    const { container } = renderWithIntl(
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>,
+      "en"
+    );
+
+    expect(await screen.findByText("100-credit pack")).toBeInTheDocument();
+    expect(screen.getByText("40,000 ₫")).toBeInTheDocument();
+    expect(vietnameseLeftovers(container)).toEqual([]);
   });
 });

@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { listCrs } from "@/lib/api/change-requests";
 import { CR_TERMINAL_STATUSES, type Cr } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import ChangeRequestForm from "./ChangeRequestForm";
-import { errorText } from "./errors";
-import { CR_SOURCE_LABELS, CR_STATUS_LABELS, formatDateTime } from "./labels";
+import { useErrorText, useMode1Labels } from "./i18n";
 import { crHref, type CrPrefill } from "./prefill";
-import { sourceRefLabel } from "./spine-labels";
 
 interface ChangeRequestListProps {
   projectId: string;
@@ -33,6 +32,10 @@ export const statusTone = (status: Cr["status"]): string =>
 
 /** Danh sách change request + tạo mới (UC-48). */
 export default function ChangeRequestList({ projectId, prefill, readOnly = false }: ChangeRequestListProps) {
+  const t = useTranslations("mode1.crList");
+  const L = useMode1Labels();
+  // Hàm ổn định (đọc nhãn qua ref) — đổi ngôn ngữ không tải lại danh sách
+  const errorText = useErrorText();
   const router = useRouter();
   const [crs, setCrs] = useState<Cr[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +46,8 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
     () =>
       listCrs(projectId)
         .then((res) => setCrs(res.data ?? []))
-        .catch((err: unknown) => setError(errorText(err, "Không tải được danh sách change request"))),
-    [projectId]
+        .catch((err: unknown) => setError(errorText(err, "loadCrList"))),
+    [projectId, errorText]
   );
 
   useEffect(() => {
@@ -59,12 +62,12 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
     <div className="flex flex-col gap-4 max-w-[920px] w-full mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-title font-extrabold text-[#191817]">Change request</h2>
-          <p className="text-body text-[#8A867E]">Tài liệu đã có baseline — mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.</p>
+          <h2 className="text-title font-extrabold text-[#191817]">{t("title")}</h2>
+          <p className="text-body text-[#8A867E]">{t("intro")}</p>
         </div>
         {!formOpen && !readOnly && (
           <button type="button" onClick={() => setFormOpen(true)} className="px-4 py-2 rounded-full btn-gradient-primary text-white text-body font-bold cursor-pointer">
-            + Tạo change request
+            {t("create")}
           </button>
         )}
       </div>
@@ -84,7 +87,7 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
         </p>
       )}
 
-      <div className="flex gap-1.5" role="group" aria-label="Lọc change request">
+      <div className="flex gap-1.5" role="group" aria-label={t("filterAria")}>
         {(["open", "closed", "all"] as const).map((f) => (
           <button
             key={f}
@@ -93,15 +96,15 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
             onClick={() => setFilter(f)}
             className={`px-3 py-1 rounded-full text-body font-bold ${filter === f ? "bg-[#191817] text-white" : "bg-white border border-[#ECEAE5] text-[#6B6862]"}`}
           >
-            {f === "open" ? "Đang mở" : f === "closed" ? "Đã xong / đóng" : "Tất cả"}
+            {t(`filters.${f}`)}
           </button>
         ))}
       </div>
 
       {crs === null ? (
-        <PageSkeleton variant="list" rows={3} label="Đang tải change request" />
+        <PageSkeleton variant="list" rows={3} label={t("loading")} />
       ) : shown.length === 0 ? (
-        <p className="text-body text-[#8A867E] bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-6 text-center">Chưa có change request nào ở mục này.</p>
+        <p className="text-body text-[#8A867E] bg-white border border-[#ECEAE5] rounded-[14px] px-4 py-6 text-center">{t("empty")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {shown.map((c) => (
@@ -113,12 +116,12 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
               >
                 <code className="text-body font-bold text-[#6A62C4]">{c.cr_id}</code>
                 <span className="flex-1 min-w-[200px] font-bold text-[#191817] text-body truncate">{c.title}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-caption font-bold ${statusTone(c.status)}`}>{CR_STATUS_LABELS[c.status]}</span>
-                {c.paused && <span className="px-2 py-0.5 rounded-full text-caption font-bold bg-[#FDEDED] text-[#B03030]">Tạm dừng</span>}
+                <span className={`px-2.5 py-0.5 rounded-full text-caption font-bold ${statusTone(c.status)}`}>{L.crStatus(c.status)}</span>
+                {c.paused && <span className="px-2 py-0.5 rounded-full text-caption font-bold bg-[#FDEDED] text-[#B03030]">{t("paused")}</span>}
                 <span className="w-full text-body text-[#8A867E]">
-                  {CR_SOURCE_LABELS[c.source.kind]}
-                  {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · {c.requester} · {formatDateTime(c.created_at)}
-                  {c.result_doc_version ? ` · ghi vào bản ${c.result_doc_version}` : ""}
+                  {L.crSource(c.source.kind)}
+                  {L.sourceRefLabel(c.source.ref) ? ` · ${L.sourceRefLabel(c.source.ref)}` : ""} · {c.requester} · {L.formatDateTime(c.created_at)}
+                  {c.result_doc_version ? t("writtenTo", { version: c.result_doc_version }) : ""}
                 </span>
               </Link>
             </li>

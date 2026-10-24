@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Check, CirclePlus } from 'lucide-react'
 import { type Column } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/shadcn/badge'
 import { Button } from '@/components/shadcn/button'
@@ -37,6 +38,7 @@ export function DataTableFacetedFilter<TData, TValue>({
   title,
   options,
 }: DataTableFacetedFilterProps<TData, TValue>) {
+  const t = useTranslations('common.dataTable')
   const facets = column?.getFacetedUniqueValues()
   const selectedValues = new Set(column?.getFilterValue() as string[])
 
@@ -61,7 +63,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     variant='secondary'
                     className='rounded-[6px] px-1 font-normal'
                   >
-                    {selectedValues.size} lựa chọn
+                    {t('selectedCount', { count: selectedValues.size })}
                   </Badge>
                 ) : (
                   options
@@ -85,7 +87,7 @@ export function DataTableFacetedFilter<TData, TValue>({
         <Command>
           <CommandInput placeholder={title} />
           <CommandList>
-            <CommandEmpty>Không có lựa chọn phù hợp.</CommandEmpty>
+            <CommandEmpty>{t('noOptions')}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value)
@@ -135,7 +137,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     onSelect={() => column?.setFilterValue(undefined)}
                     className='justify-center text-center'
                   >
-                    Bỏ lọc
+                    {t('clearFilters')}
                   </CommandItem>
                 </CommandGroup>
               </>

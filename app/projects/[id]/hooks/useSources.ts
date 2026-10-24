@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listRequirementSources } from "@/lib/api/sources";
 import type { RequirementSource } from "@/types/sources";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export interface UseSourcesResult {
   sources: RequirementSource[];
@@ -29,7 +30,7 @@ export function useSources(projectId: string, spineVersion: number | null): UseS
         setError(null);
       })
       .catch((err: unknown) => {
-        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được nguồn tài liệu"));
+        if (request === requestRef.current) setError(userErrorMessage(err, HOOK_ERROR.sourcesLoadFailed));
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);

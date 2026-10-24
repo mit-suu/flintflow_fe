@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getProgress, listSteps } from "@/lib/api/pipeline";
 import type { ProgressResponse, StepsResponse } from "@/types/pipeline";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export interface UseProgressResult {
   progress: ProgressResponse | null;
@@ -26,7 +27,7 @@ export function useProgress(projectId: string, spineVersion: number | null): Use
           setSteps(stepsRes.data);
           setError(null);
         })
-        .catch((err: unknown) => setError(userErrorMessage(err, "Không tải được tiến độ"))),
+        .catch((err: unknown) => setError(userErrorMessage(err, HOOK_ERROR.progressLoadFailed))),
     [projectId]
   );
 

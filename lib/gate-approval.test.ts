@@ -13,7 +13,7 @@ describe("isGateApproval", () => {
   });
 
   it("nhận cả phiên tiếng Anh", () => {
-    for (const text of ["yes", "Sure", "approved", "lgtm", "looks good", "ok!"]) expect(isGateApproval(text), text).toBe(true);
+    for (const text of ["yes", "Sure", "approved", "lgtm", "looks good", "ok!", "Looks good, continue"]) expect(isGateApproval(text), text).toBe(true);
   });
 
   it("KHÔNG nhận khi tin nhắn còn mang nội dung — đây là lời nhắn sửa", () => {

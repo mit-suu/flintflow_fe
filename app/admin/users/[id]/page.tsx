@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import BackLink from "@/components/ui/BackLink";
 import { useParams } from "next/navigation";
 import {
@@ -11,7 +12,6 @@ import {
   type AdminUserDetail,
   type AdminUserStatus,
 } from "@/lib/api/admin";
-import type { CreditTransaction } from "@/lib/api/billing";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/shadcn/card";
@@ -29,30 +29,23 @@ import AdminHeader from "../../_components/AdminHeader";
 import { AdminMain, AdminScroll, ErrorBanner, LoadingBlock, StatCard } from "../../_components/AdminPage";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
-const TX_LABELS: Record<CreditTransaction["type"], string> = {
-  reserve: "Giữ credit",
-  deduct: "Trừ credit",
-  release: "Hoàn credit",
-  purchase: "Nạp credit",
-  monthly_reset: "Reset hằng tháng",
-  refund: "Hoàn credit",
-  admin_adjust: "Điều chỉnh credit",
-};
-
-/** Nhãn thay cho enum thô (FLF-247) — admin chỉ tiếng Việt. */
-const USER_ROLE_LABELS: Record<string, string> = { admin: "Quản trị viên", user: "Người dùng" };
-const ORG_ROLE_LABELS: Record<string, string> = { lead: "Lead", analyst: "Analyst", viewer: "Viewer" };
-const TX_STATE_LABELS: Record<string, string> = {
-  reserved: "đang giữ",
-  deducted: "đã trừ",
-  refunded: "đã hoàn",
-  expired: "hết hạn",
-};
+/**
+ * Nhãn thay cho enum thô (FLF-247), dịch qua `admin.userDetail.*`. Giá trị lạ (BE thêm loại mới): loại giao dịch
+ * hiện câu chung, còn lại hiện nguyên văn.
+ */
+const TX_TYPES = ["reserve", "deduct", "release", "purchase", "monthly_reset", "refund", "admin_adjust"] as const;
+const TX_STATES = ["reserved", "deducted", "refunded", "expired"] as const;
+const ORG_ROLES = ["lead", "analyst", "viewer"] as const;
+const USER_ROLES = ["admin", "user"] as const;
+const isOneOf = <T extends string>(list: readonly T[], value: string | null | undefined): value is T =>
+  (list as readonly string[]).includes(value ?? "");
 
 const REASON_MIN_LENGTH = 3;
 
 /** UC-60 khoá / UC-61 mở khoá tài khoản — cả hai bắt buộc lý do. */
 function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChanged: (status: AdminUserStatus) => void }) {
+  const t = useTranslations("admin");
+  const locale = useLocale();
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -69,7 +62,7 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
       setConfirming(false);
       setReason("");
     } catch (err) {
-      setError(userErrorMessage(err, "Không thể cập nhật trạng thái tài khoản"));
+      setError(userErrorMessage(err, t("userDetail.status.failed")));
     } finally {
       setSaving(false);
     }
@@ -84,14 +77,14 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
   return (
     <Card className="gap-3">
       <CardHeader>
-        <CardTitle className="text-heading">Trạng thái tài khoản</CardTitle>
+        <CardTitle className="text-heading">{t("userDetail.status.title")}</CardTitle>
         <CardDescription className={user.isActive ? undefined : "text-on-error-container"}>
           {user.isActive ? (
-            "Khoá tài khoản sẽ đăng xuất người này khỏi mọi thiết bị và chặn đăng nhập cho tới khi được mở khoá."
+            t("userDetail.status.activeHint")
           ) : (
             <>
-              Đã khoá lúc {formatDateTime(user.suspendedAt)}
-              {user.suspendReason && <> · Lý do: {user.suspendReason}</>}
+              {t("userDetail.status.suspendedAt", { time: formatDateTime(user.suspendedAt, locale) })}
+              {user.suspendReason && <> · {t("userDetail.status.reason", { reason: user.suspendReason })}</>}
             </>
           )}
         </CardDescription>
@@ -106,14 +99,14 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
             onClick={() => setConfirming(true)}
             className={user.isActive ? "text-destructive hover:bg-error-container" : "text-success hover:bg-success-soft"}
           >
-            {user.isActive ? "Khoá tài khoản" : "Mở khoá tài khoản"}
+            {user.isActive ? t("userDetail.status.suspend") : t("userDetail.status.unsuspend")}
           </Button>
         ) : (
           <div className="flex max-w-[520px] flex-col gap-3">
-            {!user.isActive && <p className="text-body">Mở khoá để người này đăng nhập lại được?</p>}
+            {!user.isActive && <p className="text-body">{t("userDetail.status.unsuspendPrompt")}</p>}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="status-reason">
-                {user.isActive ? "Lý do khoá (bắt buộc)" : "Lý do mở khoá (bắt buộc)"}
+                {user.isActive ? t("userDetail.status.suspendReason") : t("userDetail.status.unsuspendReason")}
               </Label>
               <Textarea
                 id="status-reason"
@@ -130,10 +123,10 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
                 onClick={() => void submit()}
                 disabled={saving || reasonTooShort}
               >
-                {saving ? "Đang lưu…" : user.isActive ? "Xác nhận khoá" : "Xác nhận mở khoá"}
+                {saving ? t("common.saving") : user.isActive ? t("userDetail.status.confirmSuspend") : t("userDetail.status.confirmUnsuspend")}
               </Button>
               <Button variant="outline" onClick={cancel} disabled={saving}>
-                Huỷ
+                {t("common.cancel")}
               </Button>
             </div>
           </div>
@@ -144,10 +137,15 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
 }
 
 export default function AdminUserDetailPage() {
+  const t = useTranslations("admin");
+  const locale = useLocale();
+  const num = (value: number) => formatNumber(value, locale);
+  const dateTime = (value: string | null) => formatDateTime(value, locale);
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** Lỗi tải gần nhất: giữ nguyên lỗi, dịch lúc render — đổi ngôn ngữ không phải tải lại. */
+  const [error, setError] = useState<{ cause: unknown } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +154,7 @@ export default function AdminUserDetailPage() {
         const next = await fetchAdminUser(id);
         if (!cancelled) setUser(next);
       } catch (err) {
-        if (!cancelled) setError(userErrorMessage(err, "Không thể tải người dùng"));
+        if (!cancelled) setError({ cause: err });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -171,13 +169,13 @@ export default function AdminUserDetailPage() {
     <>
       <AdminHeader />
       <AdminMain>
-        <BackLink href="/admin/users">Danh sách người dùng</BackLink>
+        <BackLink href="/admin/users">{t("userDetail.back")}</BackLink>
 
-        {error && <ErrorBanner message={error} />}
+        {error && <ErrorBanner message={userErrorMessage(error.cause, t("userDetail.loadFailed"))} />}
 
         <AdminScroll>
         {loading ? (
-          <LoadingBlock label="Đang tải người dùng…" variant="page" />
+          <LoadingBlock label={t("userDetail.loading")} variant="page" />
         ) : (
           user && (
             <>
@@ -186,8 +184,8 @@ export default function AdminUserDetailPage() {
                   <div className="min-w-0 flex-1">
                     <h1 className="truncate text-subtitle font-extrabold">{user.email}</h1>
                     <div className="text-muted-foreground mt-0.5 text-body">
-                      {user.name || "Chưa đặt tên"} · {user.authProvider} ·{" "}
-                      {user.emailVerified ? "đã xác minh email" : "chưa xác minh email"}
+                      {user.name || t("userDetail.unnamed")} · {user.authProvider} ·{" "}
+                      {user.emailVerified ? t("userDetail.emailVerified") : t("userDetail.emailUnverified")}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -195,7 +193,7 @@ export default function AdminUserDetailPage() {
                       variant="outline"
                       className={user.role === "admin" ? "border-primary/40 text-primary" : "text-muted-foreground"}
                     >
-                      {USER_ROLE_LABELS[user.role] ?? user.role}
+                      {isOneOf(USER_ROLES, user.role) ? t(`common.userRoles.${user.role}`) : user.role}
                     </Badge>
                     <Badge
                       variant="outline"
@@ -203,7 +201,7 @@ export default function AdminUserDetailPage() {
                         user.isActive ? "border-success-border text-success" : "border-error-border text-destructive"
                       }
                     >
-                      {user.isActive ? "Hoạt động" : "Đã khoá"}
+                      {user.isActive ? t("common.active") : t("common.suspended")}
                     </Badge>
                   </div>
                 </CardContent>
@@ -212,50 +210,50 @@ export default function AdminUserDetailPage() {
               <AccountStatusCard user={user} onChanged={(status) => setUser({ ...user, ...status })} />
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="Tổ chức" value={formatNumber(user.organizations.length)} />
-                <StatCard label="Dự án" value={formatNumber(user.projectsCount)} />
+                <StatCard label={t("userDetail.organizations")} value={num(user.organizations.length)} />
+                <StatCard label={t("common.projects")} value={num(user.projectsCount)} />
                 <StatCard
-                  label="Đăng nhập gần nhất"
-                  value={<span className="text-heading">{formatDateTime(user.lastLoginAt)}</span>}
+                  label={t("common.lastLogin")}
+                  value={<span className="text-heading">{dateTime(user.lastLoginAt)}</span>}
                 />
                 <StatCard
-                  label="Ngày tạo"
-                  value={<span className="text-heading">{formatDateTime(user.createdAt)}</span>}
+                  label={t("common.createdAt")}
+                  value={<span className="text-heading">{dateTime(user.createdAt)}</span>}
                 />
               </div>
 
               <Card className="gap-0 overflow-hidden pb-0">
                 <CardHeader>
-                  <CardTitle className="text-heading">Tổ chức tham gia</CardTitle>
+                  <CardTitle className="text-heading">{t("userDetail.orgsTitle")}</CardTitle>
                 </CardHeader>
                 <Table className="mt-4">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tổ chức</TableHead>
-                      <TableHead>Vai trò</TableHead>
-                      <TableHead>Tham gia</TableHead>
-                      <TableHead className="text-end">Số dư ví</TableHead>
-                      <TableHead className="text-end">Đang giữ</TableHead>
+                      <TableHead>{t("common.organization")}</TableHead>
+                      <TableHead>{t("common.role")}</TableHead>
+                      <TableHead>{t("userDetail.joined")}</TableHead>
+                      <TableHead className="text-end">{t("common.walletBalance")}</TableHead>
+                      <TableHead className="text-end">{t("userDetail.reserved")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {user.organizations.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-muted-foreground h-24 text-center">
-                          Chưa tham gia tổ chức nào
+                          {t("userDetail.noOrgs")}
                         </TableCell>
                       </TableRow>
                     ) : (
                       user.organizations.map((org) => (
                         <TableRow key={org.id}>
                           <TableCell className="font-semibold">{org.name}</TableCell>
-                          <TableCell>{ORG_ROLE_LABELS[org.role] ?? org.role}</TableCell>
-                          <TableCell>{formatDateTime(org.joinedAt)}</TableCell>
+                          <TableCell>{isOneOf(ORG_ROLES, org.role) ? t(`userDetail.orgRoles.${org.role}`) : org.role}</TableCell>
+                          <TableCell>{dateTime(org.joinedAt)}</TableCell>
                           <TableCell className="text-end">
-                            {org.wallet ? formatNumber(org.wallet.balance) : "Chưa có ví"}
+                            {org.wallet ? num(org.wallet.balance) : t("common.noWallet")}
                           </TableCell>
                           <TableCell className="text-end">
-                            {org.wallet ? formatNumber(org.wallet.reserved) : "—"}
+                            {org.wallet ? num(org.wallet.reserved) : "—"}
                           </TableCell>
                         </TableRow>
                       ))
@@ -266,41 +264,41 @@ export default function AdminUserDetailPage() {
 
               <Card className="gap-0 overflow-hidden pb-0">
                 <CardHeader>
-                  <CardTitle className="text-heading">20 giao dịch credit gần nhất</CardTitle>
+                  <CardTitle className="text-heading">{t("userDetail.txTitle")}</CardTitle>
                 </CardHeader>
                 <Table className="mt-4">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Thời gian</TableHead>
-                      <TableHead>Loại</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead className="text-end">Số credit</TableHead>
-                      <TableHead className="text-end">Số dư sau</TableHead>
+                      <TableHead>{t("userDetail.time")}</TableHead>
+                      <TableHead>{t("userDetail.type")}</TableHead>
+                      <TableHead>{t("userDetail.action")}</TableHead>
+                      <TableHead className="text-end">{t("userDetail.amount")}</TableHead>
+                      <TableHead className="text-end">{t("userDetail.balanceAfter")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {user.recentTransactions.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-muted-foreground h-24 text-center">
-                          Chưa có giao dịch
+                          {t("userDetail.noTx")}
                         </TableCell>
                       </TableRow>
                     ) : (
                       user.recentTransactions.map((tx) => (
                         <TableRow key={tx._id}>
-                          <TableCell>{formatDateTime(tx.createdAt)}</TableCell>
+                          <TableCell>{dateTime(tx.createdAt)}</TableCell>
                           <TableCell>
-                            {TX_LABELS[tx.type] ?? "Giao dịch credit"}
+                            {isOneOf(TX_TYPES, tx.type) ? t(`userDetail.txTypes.${tx.type}`) : t("userDetail.txFallback")}
                             {tx.state && (
                               <span className="text-muted-foreground text-caption">
                                 {" "}
-                                · {TX_STATE_LABELS[tx.state] ?? tx.state}
+                                · {isOneOf(TX_STATES, tx.state) ? t(`userDetail.txStates.${tx.state}`) : tx.state}
                               </span>
                             )}
                           </TableCell>
                           <TableCell className="font-mono text-caption">{tx.actionType}</TableCell>
-                          <TableCell className="text-end">{formatNumber(tx.amount)}</TableCell>
-                          <TableCell className="text-end">{formatNumber(tx.balanceAfter)}</TableCell>
+                          <TableCell className="text-end">{num(tx.amount)}</TableCell>
+                          <TableCell className="text-end">{num(tx.balanceAfter)}</TableCell>
                         </TableRow>
                       ))
                     )}

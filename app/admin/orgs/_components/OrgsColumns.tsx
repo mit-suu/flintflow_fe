@@ -4,26 +4,30 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { formatDateTime, formatNumber, type AdminOrg } from "@/lib/api/admin";
+import type { Locale } from "@/lib/i18n";
+import type { AdminT } from "../../_components/admin-nav";
 
+/** Tên gói là tên sản phẩm — giống nhau ở mọi ngôn ngữ. */
 export const ORG_PLAN_OPTIONS = [
   { label: "Free", value: "free" },
   { label: "Pro", value: "pro" },
 ];
 
 /** Cột của bảng tổ chức; `onAdjust` mở hộp thoại điều chỉnh credit của đúng tổ chức ở hàng đó. */
-export function orgsColumns(onAdjust: (org: AdminOrg) => void): ColumnDef<AdminOrg, unknown>[] {
+export function orgsColumns(onAdjust: (org: AdminOrg) => void, t: AdminT, locale: Locale): ColumnDef<AdminOrg, unknown>[] {
+  const num = (value: number) => formatNumber(value, locale);
   return [
     {
       id: "name",
       accessorKey: "name",
-      header: "Tổ chức",
+      header: t("common.organization"),
       enableHiding: false,
-      meta: { label: "Tổ chức" },
+      meta: { label: t("common.organization") },
       cell: ({ row }) => (
         <div className="min-w-0">
           <div className="font-semibold">{row.original.name}</div>
           <div className="text-muted-foreground text-caption">
-            {row.original.owner?.email ?? "Người tạo đã xoá"}
+            {row.original.owner?.email ?? t("orgs.ownerDeleted")}
           </div>
         </div>
       ),
@@ -31,8 +35,8 @@ export function orgsColumns(onAdjust: (org: AdminOrg) => void): ColumnDef<AdminO
     {
       id: "plan",
       accessorKey: "plan",
-      header: "Gói",
-      meta: { label: "Gói" },
+      header: t("orgs.plan"),
+      meta: { label: t("orgs.plan") },
       cell: ({ row }) => (
         <Badge
           variant="outline"
@@ -44,16 +48,16 @@ export function orgsColumns(onAdjust: (org: AdminOrg) => void): ColumnDef<AdminO
     },
     {
       id: "wallet",
-      header: "Số dư ví",
-      meta: { label: "Số dư ví", className: "text-end" },
+      header: t("common.walletBalance"),
+      meta: { label: t("common.walletBalance"), className: "text-end" },
       cell: ({ row }) => {
         const wallet = row.original.wallet;
-        if (!wallet) return <span className="text-muted-foreground">Chưa có ví</span>;
+        if (!wallet) return <span className="text-muted-foreground">{t("common.noWallet")}</span>;
         return (
           <>
-            <div className="font-semibold">{formatNumber(wallet.balance)}</div>
+            <div className="font-semibold">{num(wallet.balance)}</div>
             {wallet.reserved > 0 && (
-              <div className="text-muted-foreground text-caption">đang giữ {formatNumber(wallet.reserved)}</div>
+              <div className="text-muted-foreground text-caption">{t("orgs.reserved", { amount: num(wallet.reserved) })}</div>
             )}
           </>
         );
@@ -62,27 +66,27 @@ export function orgsColumns(onAdjust: (org: AdminOrg) => void): ColumnDef<AdminO
     {
       id: "membersCount",
       accessorKey: "membersCount",
-      header: "Thành viên",
-      meta: { label: "Thành viên", className: "text-end" },
-      cell: ({ row }) => formatNumber(row.original.membersCount),
+      header: t("orgs.members"),
+      meta: { label: t("orgs.members"), className: "text-end" },
+      cell: ({ row }) => num(row.original.membersCount),
     },
     {
       id: "projectsCount",
       accessorKey: "projectsCount",
-      header: "Dự án",
-      meta: { label: "Dự án", className: "text-end" },
-      cell: ({ row }) => formatNumber(row.original.projectsCount),
+      header: t("common.projects"),
+      meta: { label: t("common.projects"), className: "text-end" },
+      cell: ({ row }) => num(row.original.projectsCount),
     },
     {
       id: "createdAt",
       accessorKey: "createdAt",
-      header: "Ngày tạo",
-      meta: { label: "Ngày tạo" },
-      cell: ({ row }) => formatDateTime(row.original.createdAt),
+      header: t("common.createdAt"),
+      meta: { label: t("common.createdAt") },
+      cell: ({ row }) => formatDateTime(row.original.createdAt, locale),
     },
     {
       id: "actions",
-      header: () => <span className="sr-only">Thao tác</span>,
+      header: () => <span className="sr-only">{t("orgs.actions")}</span>,
       enableHiding: false,
       meta: { className: "text-end" },
       cell: ({ row }) => (
@@ -90,10 +94,10 @@ export function orgsColumns(onAdjust: (org: AdminOrg) => void): ColumnDef<AdminO
           variant="outline"
           size="sm"
           onClick={() => onAdjust(row.original)}
-          aria-label={`Điều chỉnh credit của ${row.original.name}`}
+          aria-label={t("orgs.adjustFor", { name: row.original.name })}
           className="text-accent-foreground whitespace-nowrap"
         >
-          Điều chỉnh credit
+          {t("orgs.adjust")}
         </Button>
       ),
     },

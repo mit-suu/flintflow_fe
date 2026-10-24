@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
@@ -58,6 +58,9 @@ export default function BillingPage() {
     return t.has(key) ? t(key) : t("actionType.other");
   };
   const format = useFormatter();
+  const locale = useLocale();
+  // Đơn vị đứng riêng dưới con số nên không dùng ICU plural (bản vi không có số nhiều)
+  const creditUnit = (count: number) => t(new Intl.PluralRules(locale).select(count) === "one" ? "creditUnit.one" : "creditUnit.other");
   const router = useRouter();
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
   const [packages, setPackages] = useState<CreditPackage[]>([]);
@@ -152,12 +155,12 @@ export default function BillingPage() {
 
   const lowCredit = balance ? balance.available < balance.lowCreditThreshold : false;
 
-  // Bốn thẻ cùng một khuôn: ba con số của ví và gói hiện tại. "credit" là đơn vị, không dịch.
+  // Bốn thẻ cùng một khuôn: ba con số của ví và gói hiện tại. Đơn vị "credit" giữ nguyên chữ, bản en có số nhiều.
   const statCards: { key: string; label: string; value: ReactNode; hint: string; tone: StatTone }[] = balance
     ? [
-        { key: "available", label: t("available"), value: format.number(balance.available), hint: "credit", tone: lowCredit ? "error" : "primary" },
-        { key: "balance", label: t("balance"), value: format.number(balance.balance), hint: "credit", tone: "plain" },
-        { key: "reserved", label: t("reserved"), value: format.number(balance.reserved), hint: "credit", tone: "muted" },
+        { key: "available", label: t("available"), value: format.number(balance.available), hint: creditUnit(balance.available), tone: lowCredit ? "error" : "primary" },
+        { key: "balance", label: t("balance"), value: format.number(balance.balance), hint: creditUnit(balance.balance), tone: "plain" },
+        { key: "reserved", label: t("reserved"), value: format.number(balance.reserved), hint: creditUnit(balance.reserved), tone: "muted" },
         {
           key: "currentPlan",
           label: t("currentPlan"),
@@ -224,12 +227,15 @@ export default function BillingPage() {
                 {packages.map((pkg) => (
                   <div key={pkg.id} className="rounded-card bg-surface-container-low p-5 flex flex-col gap-3">
                     <div>
-                      <div className="text-body font-bold text-on-surface-medium">{pkg.label}</div>
+                      {/* Tên gói BE gửi là tiếng Việt ("Gói 100 credit") ⇒ dựng lại từ số credit theo ngôn ngữ giao diện. */}
+                      <div className="text-body font-bold text-on-surface-medium">
+                        {t("packageLabel", { credits: format.number(pkg.credits) })}
+                      </div>
                       <div className="text-metric font-bold leading-tight tracking-tight text-on-surface">
                         {format.number(pkg.credits)}{" "}
-                        <span className="text-body font-semibold text-on-surface-muted">credit</span>
+                        <span className="text-body font-semibold text-on-surface-muted">{creditUnit(pkg.credits)}</span>
                       </div>
-                      <div className="text-body text-on-surface-variant">{formatVnd(pkg.amount)}</div>
+                      <div className="text-body text-on-surface-variant">{formatVnd(pkg.amount, locale)}</div>
                     </div>
                     {canPurchase ? (
                       // `loading` giữ nguyên nhãn và tự khoá nút ⇒ bố cục không nhảy khi đang tạo giao dịch
@@ -264,7 +270,7 @@ export default function BillingPage() {
                         <div className="text-heading font-bold text-on-surface">{plan.label}</div>
                         <div className="text-body text-on-surface-variant">
                           {t("creditsPerMonth", { credits: format.number(plan.monthlyCredits) })} ·{" "}
-                          {plan.priceVnd === 0 ? t("free") : t("pricePerMonth", { price: formatVnd(plan.priceVnd) })}
+                          {plan.priceVnd === 0 ? t("free") : t("pricePerMonth", { price: formatVnd(plan.priceVnd, locale) })}
                         </div>
                       </div>
                       {isCurrent ? (

@@ -75,7 +75,7 @@ describe("useWorkspace — phiên chính và phiên phụ (FLF-244)", () => {
     await act(() => result.current.deleteSession(MOCK_SESSION_ID));
 
     expect(result.current.sessions.map((s) => s._id)).toContain(MOCK_SESSION_ID);
-    expect(result.current.notice).toMatch(/Không thể xoá cuộc trò chuyện/);
+    expect(result.current.notice).toMatchObject({ key: "deleteFailed" });
     expect(alertSpy).not.toHaveBeenCalled();
     act(() => result.current.clearNotice());
     expect(result.current.notice).toBeNull();
@@ -153,7 +153,7 @@ describe("useWorkspace — lượt hỏi tri thức (FLF-279)", () => {
     await ask(result);
 
     expect(result.current.knowledgeDisabled).toBe(true);
-    expect(result.current.notice).toMatch(/đang tắt/);
+    expect(result.current.notice).toEqual({ key: "knowledgeDisabled" });
     expect(result.current.inputMessage).toBe("Trần lượt gọi model là bao nhiêu?");
     expect(result.current.activeSession!.messages).toHaveLength(before);
     expect(result.current.knowledgePending).toBe(false);
@@ -225,7 +225,7 @@ describe("useWorkspace — dừng lượt chat (stopMessage)", () => {
     expect(aborted).toBe(true);
     expect(result.current.streamingMessage).toBeNull();
     expect(result.current.sending).toBe(false);
-    expect(result.current.notice).toBe("Đã dừng AI.");
+    expect(result.current.notice).toEqual({ key: "stopped" });
     const messages = result.current.activeSession!.messages;
     expect(messages).toHaveLength(before + 1);
     expect(messages.at(-1)).toMatchObject({ role: "user", content: "Giải thích luồng đặt lịch" });

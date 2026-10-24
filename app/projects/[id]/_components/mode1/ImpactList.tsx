@@ -1,7 +1,7 @@
 "use client";
 
-import type { CrLocation, PatchLocationRequest } from "@/types/change-request";
-import { CONCLUSION_LABELS } from "./labels";
+import { useTranslations } from "next-intl";
+import type { CrLocation, LocationConclusion, PatchLocationRequest } from "@/types/change-request";
 import ProposalCard, { isVectorOnlyLocation } from "./ProposalCard";
 
 interface ImpactListProps {
@@ -13,11 +13,15 @@ interface ImpactListProps {
   busy?: boolean;
 }
 
+/** Thứ tự đếm trong dòng tóm tắt — cùng thứ tự kết luận ở `CONCLUSION_LABELS`. */
+const CONCLUSIONS: readonly LocationConclusion[] = ["edit", "comment", "not_related"];
+
 /**
  * 3.4–3.6 Vị trí ảnh hưởng (C-3, UC-50) — phần tử Spine tìm tất định qua liên kết, mã/tên được nhắc và từ khoá; phần tử đã
  * khoá cho CR này. Khi AI đã đề xuất, mỗi vị trí mang kết luận sửa / chỉ comment / không liên quan.
  */
 export default function ImpactList({ locations, editable, onPatch, onOwnerDraft, busy = false }: ImpactListProps) {
+  const t = useTranslations("mode1.impactList");
   if (locations.length === 0) return null;
   const counts = locations.reduce<Record<string, number>>((acc, l) => {
     const key = l.conclusion ?? "pending";
@@ -29,13 +33,12 @@ export default function ImpactList({ locations, editable, onPatch, onOwnerDraft,
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="font-extrabold text-[#191817] text-heading">Vị trí ảnh hưởng ({locations.length})</h3>
+        <h3 className="font-extrabold text-[#191817] text-heading">{t("title", { count: locations.length })}</h3>
         <span className="text-body text-[#8A867E]">
-          {(Object.keys(CONCLUSION_LABELS) as (keyof typeof CONCLUSION_LABELS)[])
-            .filter((k) => counts[k])
-            .map((k) => `${counts[k]} ${CONCLUSION_LABELS[k].toLowerCase()}`)
-            .concat(counts.pending ? [`${counts.pending} chưa kết luận`] : [])
-            .concat(vectorOnly ? [`${vectorOnly} tìm theo nghĩa`] : [])
+          {CONCLUSIONS.filter((k) => counts[k])
+            .map((k) => t(`counts.${k}`, { count: counts[k] }))
+            .concat(counts.pending ? [t("counts.pending", { count: counts.pending })] : [])
+            .concat(vectorOnly ? [t("counts.vector", { count: vectorOnly })] : [])
             .join(" · ")}
         </span>
       </div>

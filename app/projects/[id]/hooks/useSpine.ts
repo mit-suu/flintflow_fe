@@ -5,6 +5,7 @@ import { resumeProject } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
 import type { Spine } from "@/types/spine";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export interface UseSpineResult {
   spine: Spine | null;
@@ -44,7 +45,7 @@ export function useSpine(projectId: string, enabled = true, canEdit = true): Use
         return next?.spine_version ?? null;
       })
       .catch((err: unknown): null => {
-        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được dữ liệu tài liệu"));
+        if (request === requestRef.current) setError(userErrorMessage(err, HOOK_ERROR.spineLoadFailed));
         return null;
       })
       .finally(() => {

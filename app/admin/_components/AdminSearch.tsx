@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowRight, Search } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import {
@@ -19,6 +20,7 @@ const SearchContext = createContext<{ setOpen: (open: boolean) => void } | null>
 
 /** Bảng lệnh ⌘K/Ctrl+K để nhảy nhanh giữa các trang admin; bọc quanh toàn khối admin ở layout. */
 export function AdminSearchProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("admin");
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -47,21 +49,21 @@ export function AdminSearchProvider({ children }: { children: React.ReactNode })
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
-        title="Tìm trang quản trị"
-        description="Gõ tên trang để chuyển tới."
+        title={t("search.title")}
+        description={t("search.description")}
       >
-        <CommandInput placeholder="Gõ tên trang cần tới…" />
+        <CommandInput placeholder={t("search.placeholder")} />
         <CommandList>
           <ScrollArea type="hover" className="h-64 pe-1">
-            <CommandEmpty>Không có trang nào khớp.</CommandEmpty>
+            <CommandEmpty>{t("search.empty")}</CommandEmpty>
             {ADMIN_NAV.map((group) => (
-              <CommandGroup key={group.title} heading={group.title}>
+              <CommandGroup key={group.titleKey} heading={t(`nav.groups.${group.titleKey}`)}>
                 {group.items.map((item) => (
-                  <CommandItem key={item.href} value={item.label} onSelect={() => go(item.href)}>
+                  <CommandItem key={item.href} value={t(`nav.items.${item.labelKey}`)} onSelect={() => go(item.href)}>
                     <div className="flex size-4 items-center justify-center">
                       <ArrowRight className="text-muted-foreground/80 size-2" />
                     </div>
-                    {item.label}
+                    {t(`nav.items.${item.labelKey}`)}
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -81,6 +83,7 @@ function useAdminSearch() {
 
 /** Ô "Tìm trang" trên thanh đầu — bấm hoặc ⌘K đều mở cùng một bảng lệnh. */
 export function AdminSearchButton() {
+  const t = useTranslations("admin.search");
   const { setOpen } = useAdminSearch();
 
   return (
@@ -90,7 +93,7 @@ export function AdminSearchButton() {
       className="bg-muted/25 text-muted-foreground hover:bg-accent group relative h-8 w-full justify-start text-body font-normal shadow-none sm:w-44 sm:pe-12 lg:w-56"
     >
       <Search aria-hidden size={16} className="absolute start-2 top-1/2 -translate-y-1/2" />
-      <span className="ms-4">Tìm trang</span>
+      <span className="ms-4">{t("button")}</span>
       <kbd className="bg-muted group-hover:bg-accent pointer-events-none absolute end-[0.3rem] top-[0.3rem] hidden h-5 items-center gap-1 rounded-inner border px-1.5 font-mono text-[10px] font-medium select-none sm:flex">
         <span className="text-caption">⌘</span>K
       </kbd>

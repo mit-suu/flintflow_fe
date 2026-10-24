@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createComment, listComments, resolveComment } from "@/lib/api/comments";
 import type { SrsComment, CommentResolutionInput, CreateCommentRequest } from "@/types/comment";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export interface UseCommentsResult {
   /** Luôn là danh sách `status=all` — panel tự lọc, khỏi gọi lại BE mỗi lần đổi tab. */
@@ -42,7 +43,7 @@ export function useComments(projectId: string, spineVersion: number | null): Use
         setError(null);
       })
       .catch((err: unknown) => {
-        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được danh sách góp ý"));
+        if (request === requestRef.current) setError(userErrorMessage(err, HOOK_ERROR.commentsLoadFailed));
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);
@@ -69,7 +70,7 @@ export function useComments(projectId: string, spineVersion: number | null): Use
         // không tự thử lại vào một chỗ khác. Đọc lại TRƯỚC khi set error: `reload()` xoá error khi
         // thành công, gọi sau sẽ nuốt mất câu báo cho người dùng.
         await reload();
-        setError(userErrorMessage(err, "Chưa ghim được góp ý. Vui lòng thử lại."));
+        setError(userErrorMessage(err, HOOK_ERROR.commentCreateFailed));
         throw err;
       } finally {
         setBusy(false);
@@ -92,7 +93,7 @@ export function useComments(projectId: string, spineVersion: number | null): Use
         // 409 COMMENT_NOT_OPEN: người khác vừa xử lý ⇒ đọc lại để thấy trạng thái thật (trước khi set
         // error, xem `create`).
         await reload();
-        setError(userErrorMessage(err, "Chưa xử lý được góp ý này. Vui lòng thử lại."));
+        setError(userErrorMessage(err, HOOK_ERROR.commentResolveFailed));
         throw err;
       } finally {
         setBusy(false);

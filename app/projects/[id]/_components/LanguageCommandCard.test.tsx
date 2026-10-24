@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { renderWithIntl } from "@/test/intl";
 import LanguageCommandCard from "./LanguageCommandCard";
 
 const handlers = () => ({ onConfirm: vi.fn(), onTranslate: vi.fn(), onSendAsMessage: vi.fn(), onCancel: vi.fn() });
@@ -7,7 +8,7 @@ const handlers = () => ({ onConfirm: vi.fn(), onTranslate: vi.fn(), onSendAsMess
 describe("LanguageCommandCard (FLF-265 §3.7)", () => {
   it("switch sang ngôn ngữ cần dịch: hỏi xác nhận, ước tính ở bước sau; Đồng ý / Không, gửi như tin nhắn / đóng", () => {
     const h = handlers();
-    render(<LanguageCommandCard kind="switch" text="dịch sang tiếng Việt" target="vi" sourceLanguage="en" {...h} />);
+    renderWithIntl(<LanguageCommandCard kind="switch" text="dịch sang tiếng Việt" target="vi" sourceLanguage="en" {...h} />);
 
     expect(screen.getByText("Đổi tài liệu sang tiếng Việt?")).toBeInTheDocument();
     expect(screen.getByText(/cần dịch sang tiếng Việt.*bước tiếp theo/)).toBeInTheDocument();
@@ -21,14 +22,14 @@ describe("LanguageCommandCard (FLF-265 §3.7)", () => {
   });
 
   it("switch về ngôn ngữ gốc: nói rõ không cần dịch, không tốn credit", () => {
-    render(<LanguageCommandCard kind="switch" text="translate the document to English" target="en" sourceLanguage="en" {...handlers()} />);
+    renderWithIntl(<LanguageCommandCard kind="switch" text="translate the document to English" target="en" sourceLanguage="en" {...handlers()} />);
 
     expect(screen.getByText("Đổi tài liệu sang tiếng Anh?")).toBeInTheDocument();
     expect(screen.getByText(/không cần dịch, không tốn credit/)).toBeInTheDocument();
   });
 
   it("đang đổi: khoá nút, ẩn nút đóng; lỗi hiện trong thẻ", () => {
-    render(<LanguageCommandCard kind="switch" text="dịch sang tiếng Việt" target="vi" sourceLanguage="en" busy error="Không đổi được" {...handlers()} />);
+    renderWithIntl(<LanguageCommandCard kind="switch" text="dịch sang tiếng Việt" target="vi" sourceLanguage="en" busy error="Không đổi được" {...handlers()} />);
 
     expect(screen.getByRole("button", { name: "Đang đổi…" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Không, gửi như tin nhắn" })).toBeDisabled();
@@ -38,7 +39,7 @@ describe("LanguageCommandCard (FLF-265 §3.7)", () => {
 
   it("same còn mục thiếu: mời dịch nốt; không có nút Đồng ý", () => {
     const h = handlers();
-    render(<LanguageCommandCard kind="same" text="dịch sang tiếng Việt" target="vi" sourceLanguage="en" missing={12} {...h} />);
+    renderWithIntl(<LanguageCommandCard kind="same" text="dịch sang tiếng Việt" target="vi" sourceLanguage="en" missing={12} {...h} />);
 
     expect(screen.getByText("Tài liệu đang là tiếng Việt")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dịch 12 mục còn thiếu" }));
@@ -48,7 +49,7 @@ describe("LanguageCommandCard (FLF-265 §3.7)", () => {
   });
 
   it("same không thiếu gì / chưa biết: chỉ còn Gửi như tin nhắn", () => {
-    render(<LanguageCommandCard kind="same" text="translate to English" target="en" sourceLanguage="en" {...handlers()} />);
+    renderWithIntl(<LanguageCommandCard kind="same" text="translate to English" target="en" sourceLanguage="en" {...handlers()} />);
 
     expect(screen.getByText("Tài liệu đang là tiếng Anh")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /mục còn thiếu/ })).toBeNull();
@@ -56,7 +57,7 @@ describe("LanguageCommandCard (FLF-265 §3.7)", () => {
 
   it("locked (mode 1, D3): dự án upload giữ ngôn ngữ file; chỉ Gửi như tin nhắn", () => {
     const h = handlers();
-    render(<LanguageCommandCard kind="locked" text="dịch sang tiếng Anh" target="en" sourceLanguage="en" {...h} />);
+    renderWithIntl(<LanguageCommandCard kind="locked" text="dịch sang tiếng Anh" target="en" sourceLanguage="en" {...h} />);
 
     expect(screen.getByText("Dự án upload giữ ngôn ngữ của file tải lên")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Đồng ý" })).toBeNull();

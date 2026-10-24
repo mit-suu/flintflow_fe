@@ -13,6 +13,7 @@ import ReuploadDiffView from "./ReuploadDiffView";
 import VersionCompare from "./VersionCompare";
 import VersionsPanel from "./VersionsPanel";
 import { readCrPrefill } from "./prefill";
+import { labelsFor } from "./test-labels";
 
 const P = MODE1_PROJECT_ID;
 
@@ -73,7 +74,7 @@ describe("GapReportView (UC-23)", () => {
         { section_id: "fixed:3.1.1", title: "Screens Flow", flags: [{ id: "F2", level: "red", rule_id: "section_empty", message: "Mục trống" } as never] },
       ],
       low_confidence_fields: [],
-    }).description;
+    }, labelsFor()).description;
     expect(text).toContain("4.2.3 Performance: Thiếu ngưỡng");
     expect(text).not.toContain("Mục trống");
   });

@@ -18,7 +18,7 @@ import { moveProjectsToFolder } from "@/lib/api/folders";
 import { getProgress } from "@/lib/api/pipeline";
 import { moveProjectToFolder } from "@/lib/api/projects";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
-import { useProjects } from "@/lib/hooks/use-projects";
+import { projectsErrorText, useProjects } from "@/lib/hooks/use-projects";
 import { SOURCE_MODE_OPTIONS, getProjectStartRoute } from "@/lib/project-source-mode";
 import { CR_TERMINAL_STATUSES } from "@/types/change-request";
 import type { Folder } from "@/types/folder";
@@ -75,6 +75,7 @@ export default function HomePage() {
   const t = useTranslations("app.home");
   const tc = useTranslations("app.common");
   const tMode = useTranslations("app.sourceMode");
+  const tLoad = useTranslations("app.home.loadErrors");
   const router = useRouter();
   const { projects, folders, loading, error, foldersError, reload } = useProjects();
   // "Dịch tài liệu" sau khi đổi ngôn ngữ dự án (FLF-265) trừ credit ngay trên trang ⇒ chip số dư phải tải lại
@@ -400,7 +401,7 @@ export default function HomePage() {
             {(error || dropError) && (
               <div role="alert" className="flex items-center gap-3 bg-error-container border border-error-border text-on-error-container px-4 py-3 rounded-control text-body font-medium">
                 <Icon name="error-circle" size={18} />
-                <span className="flex-1">{error ?? dropError}</span>
+                <span className="flex-1">{error ? projectsErrorText(error, tLoad) : dropError}</span>
                 <Button size="sm" variant="secondary" onClick={() => (error ? void reload() : setDropError(null))}>
                   {error ? tc("retry") : tc("close")}
                 </Button>
@@ -424,7 +425,7 @@ export default function HomePage() {
                   />
                   {foldersError && (
                     <p role="alert" className="text-body text-on-error-container">
-                      {t("foldersError", { message: foldersError })}
+                      {t("foldersError", { message: projectsErrorText(foldersError, tLoad) })}
                     </p>
                   )}
                   <div className={CARD_GRID}>

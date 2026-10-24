@@ -1,4 +1,9 @@
+import { createTranslator } from "next-intl";
+import en from "@/messages/en.json";
+import vi from "@/messages/vi.json";
+import type { Locale } from "@/lib/i18n";
 import { apiCall } from "./client";
+import { currentLocale } from "./error-messages";
 
 export type PlanId = "free" | "pro";
 export type CreditTransactionType = "reserve" | "deduct" | "release" | "refund" | "monthly_reset" | "purchase" | "admin_adjust";
@@ -72,19 +77,26 @@ export interface TransactionsMeta {
   totalPages: number;
 }
 
-const unwrap = <T>(data: T | null, what: string): T => {
-  if (data === null) throw new Error(`Không nhận được dữ liệu ${what}`);
+type BillingData = "balance" | "packages" | "checkout" | "transaction" | "plan";
+
+/** BE trả `data: null` ⇒ câu lỗi theo ngôn ngữ UI (`common.billingData`). */
+const unwrap = <T>(data: T | null, what: BillingData): T => {
+  if (data === null) {
+    const locale = currentLocale();
+    const t = createTranslator({ locale, messages: { vi, en }[locale], namespace: "common.billingData" });
+    throw new Error(t("missing", { what: t(`what.${what}`) }));
+  }
   return data;
 };
 
 export async function fetchBalance(): Promise<BalanceResponse> {
   const res = await apiCall<BalanceResponse>("/billing/balance");
-  return unwrap(res.data, "số dư");
+  return unwrap(res.data, "balance");
 }
 
 export async function fetchPackages(): Promise<{ packages: CreditPackage[]; plans: PlanDefinition[] }> {
   const res = await apiCall<{ packages: CreditPackage[]; plans: PlanDefinition[] }>("/billing/packages");
-  return unwrap(res.data, "gói credit");
+  return unwrap(res.data, "packages");
 }
 
 /** Tạo order thanh toán (BE gọi payment_service; API key không bao giờ ra trình duyệt). */
@@ -93,13 +105,13 @@ export async function createCheckout(packageId: string): Promise<PaymentIntentDT
     method: "POST",
     body: JSON.stringify({ packageId }),
   });
-  return unwrap(res.data, "thanh toán");
+  return unwrap(res.data, "checkout");
 }
 
 /** Trạng thái giao dịch — dùng để polling trên trang QR. */
 export async function fetchCheckout(intentId: string): Promise<PaymentIntentDTO> {
   const res = await apiCall<PaymentIntentDTO>(`/billing/checkout/${intentId}`);
-  return unwrap(res.data, "giao dịch");
+  return unwrap(res.data, "transaction");
 }
 
 export async function upgradePlan(plan: PlanId) {
@@ -107,7 +119,7 @@ export async function upgradePlan(plan: PlanId) {
     method: "POST",
     body: JSON.stringify({ plan }),
   });
-  return unwrap(res.data, "gói");
+  return unwrap(res.data, "plan");
 }
 
 export async function fetchTransactions(page = 1, limit = 20) {
@@ -118,4 +130,6 @@ export async function fetchTransactions(page = 1, limit = 20) {
   };
 }
 
-export const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")} ₫`;
+/** Giá VND theo ngôn ngữ giao diện: `40.000 ₫` (vi) / `40,000 ₫` (en). */
+export const formatVnd = (amount: number, locale: Locale = "vi") =>
+  `${amount.toLocaleString(locale === "en" ? "en-US" : "vi-VN")} ₫`;

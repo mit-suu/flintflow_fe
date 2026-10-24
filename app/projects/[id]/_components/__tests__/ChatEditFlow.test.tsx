@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
+import { fireEvent, screen } from "@testing-library/react";
 import ChatEditCard from "../ChatEditCard";
 import EditHistory from "../EditHistory";
 import ChatInput from "../ChatInput";
@@ -50,7 +51,7 @@ describe("describe-change", () => {
 
 describe("ChatEditCard", () => {
   it("đang xem trước ⇒ báo đang tìm, không có nút áp dụng", () => {
-    render(<ChatEditCard {...cardProps} previewing />);
+    renderWithIntl(<ChatEditCard {...cardProps} previewing />);
     expect(screen.getByText("Đang tìm những chỗ cần sửa…")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Áp dụng" })).toBeNull();
   });
@@ -58,7 +59,7 @@ describe("ChatEditCard", () => {
   it("có bản xem trước ⇒ tóm tắt số chỗ đổi + câu dễ đọc; Áp dụng / Xem chi tiết / Huỷ", () => {
     const onApply = vi.fn();
     const onShowDetail = vi.fn();
-    render(<ChatEditCard {...cardProps} preview={preview()} onApply={onApply} onShowDetail={onShowDetail} />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview()} onApply={onApply} onShowDetail={onShowDetail} />);
 
     expect(screen.getByText(/Sẽ thay đổi 2 chỗ · ảnh hưởng 1 mục/)).toBeInTheDocument();
     expect(screen.getByText(/Sửa Actor A03 · Tên: Admin → Administrator/)).toBeInTheDocument();
@@ -69,14 +70,14 @@ describe("ChatEditCard", () => {
   });
 
   it("bản xem trước vi phạm ⇒ nói lý do, không cho áp dụng", () => {
-    render(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "dead_reference", message: "UC01 còn trỏ tới A03" }] })} />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "dead_reference", message: "UC01 còn trỏ tới A03" }] })} />);
     expect(screen.getByText(/UC01 còn trỏ tới A03/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Áp dụng" })).toBeNull();
   });
 
   it("lỗi sai schema ⇒ nói bằng lời, không lộ tên field / thông báo Zod (câu gốc chỉ nằm ở title)", () => {
     const raw = 'Sai schema tại "screens.0": Unrecognized key: "authorized_role_ids"';
-    render(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "schema_invalid", message: raw }] })} />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "schema_invalid", message: raw }] })} />);
     const line = screen.getByText(/Không áp được lệnh này/);
     expect(line).toHaveTextContent("AI đề xuất sửa vào một chỗ không có trong tài liệu.");
     expect(line).not.toHaveTextContent("authorized_role_ids");
@@ -84,26 +85,26 @@ describe("ChatEditCard", () => {
   });
 
   it("mode 1 ⇒ nút chính là Tạo change request", () => {
-    render(<ChatEditCard {...cardProps} preview={preview()} requiresCr />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview()} requiresCr />);
     expect(screen.getByRole("button", { name: "Tạo change request" })).toBeInTheDocument();
   });
 
   it("đã áp dụng ⇒ báo số thay đổi + Hoàn tác", () => {
     const onUndo = vi.fn();
-    render(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={onUndo} />);
+    renderWithIntl(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={onUndo} />);
     expect(screen.getByText("Đã áp dụng 3 thay đổi")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Hoàn tác" }));
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
   it("FLF-294: không truyền onUndo (sau baseline) ⇒ không có nút Hoàn tác", () => {
-    render(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={undefined} />);
+    renderWithIntl(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={undefined} />);
     expect(screen.getByText("Đã áp dụng 3 thay đổi")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hoàn tác" })).not.toBeInTheDocument();
   });
 
   it("lệnh mơ hồ ⇒ hiện câu hỏi làm rõ", () => {
-    render(<ChatEditCard {...cardProps} clarification="Bạn muốn đổi actor nào?" />);
+    renderWithIntl(<ChatEditCard {...cardProps} clarification="Bạn muốn đổi actor nào?" />);
     expect(screen.getByText("Bạn muốn đổi actor nào?")).toBeInTheDocument();
   });
 });
@@ -124,7 +125,7 @@ describe("EditHistory", () => {
       by: "u1",
       step_id: step,
     });
-    render(<EditHistory history={[change(1, "actors[id=A01].name", "S-3.1"), change(2, "actors[id=A02].name", null)]} loading={false} onLoad={onLoad} />);
+    renderWithIntl(<EditHistory history={[change(1, "actors[id=A01].name", "S-3.1"), change(2, "actors[id=A02].name", null)]} loading={false} onLoad={onLoad} />);
 
     expect(onLoad).toHaveBeenCalledTimes(1);
     const items = screen.getAllByRole("listitem");
@@ -148,7 +149,7 @@ describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
 
   it("chip bật/tắt chế độ sửa; bị khoá kèm lý do khi step đang chạy", () => {
     const onToggle = vi.fn();
-    const { rerender } = render(<ChatInput {...inputProps} onToggleEditMode={onToggle} />);
+    const { rerender } = renderWithIntl(<ChatInput {...inputProps} onToggleEditMode={onToggle} />);
     fireEvent.click(screen.getByRole("button", { name: "Sửa tài liệu" }));
     expect(onToggle).toHaveBeenCalledTimes(1);
 
@@ -159,7 +160,7 @@ describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
   });
 
   it("thu gọn (có thẻ câu hỏi) ⇒ một dòng, không chip sửa, không hiện credit", () => {
-    const { container } = render(<ChatInput {...inputProps} compact onToggleEditMode={vi.fn()} />);
+    const { container } = renderWithIntl(<ChatInput {...inputProps} compact onToggleEditMode={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Sửa tài liệu" })).toBeNull();
     expect(container).not.toHaveTextContent(/credit/);
   });

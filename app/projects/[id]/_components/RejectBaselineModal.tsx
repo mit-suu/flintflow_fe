@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import type { SrsComment } from "@/types/comment";
@@ -27,6 +28,7 @@ interface RejectBaselineModalProps {
  * chọn ít nhất một góp ý, và khi chưa có góp ý nào thì chỉ đường đi ghim thay vì hiện form cụt.
  */
 export default function RejectBaselineModal({ open, onClose, openComments, busy, onReject, onOpenComments }: RejectBaselineModalProps) {
+  const t = useTranslations("workspace.baseline.rejectModal");
   const [reason, setReason] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
 
@@ -44,43 +46,39 @@ export default function RejectBaselineModal({ open, onClose, openComments, busy,
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Từ chối baseline" size="lg">
+    <Modal open={open} onClose={onClose} title={t("title")} size="lg">
       {openComments.length === 0 ? (
         <div className="flex flex-col gap-3">
-          <p className="text-body text-on-surface">
-            Từ chối phải kèm góp ý ghim vào đúng chỗ cần sửa — Analyst mới biết sửa gì, và bước đã duyệt của mục đó mới
-            mở lại được.
-          </p>
+          <p className="text-body text-on-surface">{t("needComment")}</p>
           <p className="text-body text-on-surface-variant">
-            Bấm <span className="font-bold text-on-surface">“Góp ý”</span> trên mục cần sửa trong tài liệu, rồi quay lại
-            đây.
+            {t.rich("howTo", { b: (chunks) => <span className="font-bold text-on-surface">{chunks}</span> })}
           </p>
           <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>
-              Để sau
+              {t("later")}
             </Button>
-            <Button onClick={onOpenComments}>Mở Góp ý</Button>
+            <Button onClick={onOpenComments}>{t("openComments")}</Button>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="reject-reason" className="text-caption font-bold text-on-surface-variant">
-              Lý do từ chối
+              {t("reasonLabel")}
             </label>
             <textarea
               id="reject-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value.slice(0, REASON_MAX))}
               rows={3}
-              placeholder="Vì sao bản này chưa chốt được?"
+              placeholder={t("reasonPlaceholder")}
               className="w-full bg-surface-container-low rounded-inner px-3 py-2 text-body text-on-surface placeholder:text-on-surface-subtle resize-y focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
 
           <fieldset className="flex flex-col gap-1.5">
             <legend className="text-caption font-bold text-on-surface-variant pb-1.5">
-              Góp ý gửi kèm ({picked.length}/{openComments.length})
+              {t("attached", { picked: picked.length, total: openComments.length })}
             </legend>
             <div className="max-h-64 overflow-y-auto ff-scroll flex flex-col gap-1.5">
               {openComments.map((comment) => (
@@ -104,15 +102,15 @@ export default function RejectBaselineModal({ open, onClose, openComments, busy,
           </fieldset>
 
           <p className="text-caption text-on-surface-variant">
-            Khi Analyst xử lý một góp ý, bước đã duyệt sở hữu mục đó sẽ mở lại để soạn theo góp ý.
+            {t("reopenNote")}
           </p>
 
           <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>
-              Huỷ
+              {t("cancel")}
             </Button>
             <Button variant="danger" loading={busy} disabled={!canSend} onClick={() => void send()}>
-              Từ chối
+              {t("reject")}
             </Button>
           </div>
         </div>

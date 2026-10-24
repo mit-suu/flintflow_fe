@@ -9,7 +9,10 @@ import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
 import { importToGapReview } from "@/mocks/mode1/flows";
 import ChangeRequestForm from "./ChangeRequestForm";
-import { CR_SOURCE_KINDS, CR_SOURCE_LABELS } from "./labels";
+import { CR_SOURCE_KINDS } from "./labels";
+import { labelsFor } from "./test-labels";
+
+const L = labelsFor();
 
 const P = MODE1_PROJECT_ID;
 
@@ -50,9 +53,9 @@ describe("ChangeRequestForm — tạo change request (UC-48)", () => {
     expect(field("Mô tả thay đổi")).toHaveValue("");
     expect(field("Nguồn *")).toHaveValue("");
     const options = within(field("Nguồn *")).getAllByRole("option").map((o) => o.textContent);
-    expect(options).toEqual(["— Chọn nguồn —", ...CR_SOURCE_KINDS.map((k) => CR_SOURCE_LABELS[k])]);
+    expect(options).toEqual(["— Chọn nguồn —", ...CR_SOURCE_KINDS.map((k) => L.crSource(k))]);
     // `chat` (FLF-182) chỉ do hệ thống gán khi CR tạo từ chat — không chọn tay
-    expect(options).not.toContain(CR_SOURCE_LABELS.chat);
+    expect(options).not.toContain(L.crSource("chat"));
   });
 
   it("prefill (từ gap report / re-upload / chat) điền sẵn tiêu đề, mô tả, nguồn, tham chiếu; người yêu cầu vẫn phải nhập", async () => {

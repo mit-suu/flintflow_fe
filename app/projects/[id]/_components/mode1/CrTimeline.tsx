@@ -1,28 +1,31 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CrStatus } from "@/types/change-request";
-import { CR_STATUS_LABELS } from "./labels";
+import { useMode1Labels } from "./i18n";
 
-const STAGES: { label: string; statuses: CrStatus[] }[] = [
-  { label: "Nháp", statuses: ["draft"] },
-  { label: "Làm rõ", statuses: ["clarifying", "awaiting_answers"] },
-  { label: "Vị trí ảnh hưởng", statuses: ["impact_review"] },
-  { label: "Đề xuất", statuses: ["proposing"] },
-  { label: "Kiểm", statuses: ["verifying", "manual_fix"] },
-  { label: "Nộp", statuses: ["ready_to_submit"] },
-  { label: "Duyệt", statuses: ["in_review"] },
-  { label: "Ghi Track Changes", statuses: ["written"] },
-];
+const STAGES = [
+  { key: "draft", statuses: ["draft"] },
+  { key: "clarify", statuses: ["clarifying", "awaiting_answers"] },
+  { key: "impact", statuses: ["impact_review"] },
+  { key: "propose", statuses: ["proposing"] },
+  { key: "verify", statuses: ["verifying", "manual_fix"] },
+  { key: "submit", statuses: ["ready_to_submit"] },
+  { key: "review", statuses: ["in_review"] },
+  { key: "written", statuses: ["written"] },
+] as const satisfies readonly { key: string; statuses: readonly CrStatus[] }[];
 
 /** Dòng thời gian trạng thái CR (máy trạng thái ở BE, FE chỉ đặt nhãn). */
 export default function CrTimeline({ status }: { status: CrStatus }) {
+  const t = useTranslations("mode1.crTimeline");
+  const { crStatus } = useMode1Labels();
   const ended = status === "rejected" || status === "cancelled";
-  const current = STAGES.findIndex((s) => s.statuses.includes(status));
+  const current = STAGES.findIndex((s) => (s.statuses as readonly CrStatus[]).includes(status));
   return (
-    <ol className="flex flex-wrap items-center gap-1.5 text-body" aria-label="Tiến trình change request">
+    <ol className="flex flex-wrap items-center gap-1.5 text-body" aria-label={t("aria")}>
       {STAGES.map((s, i) => (
         <li
-          key={s.label}
+          key={s.key}
           aria-current={i === current ? "step" : undefined}
           className={`px-2.5 py-1 rounded-full font-bold ${
             ended
@@ -36,10 +39,10 @@ export default function CrTimeline({ status }: { status: CrStatus }) {
                   : "bg-[#F0EEEA] text-[#A8A49C]"
           }`}
         >
-          {s.label}
+          {t(`stages.${s.key}`)}
         </li>
       ))}
-      {ended && <li className="px-2.5 py-1 rounded-full font-bold bg-[#FDEDED] text-[#B03030]">{CR_STATUS_LABELS[status]}</li>}
+      {ended && <li className="px-2.5 py-1 rounded-full font-bold bg-[#FDEDED] text-[#B03030]">{crStatus(status)}</li>}
     </ol>
   );
 }

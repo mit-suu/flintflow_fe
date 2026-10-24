@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 
 /** Giới hạn contract #2 (40 MB, §4.16) — BE vẫn là nơi quyết định (nhận file theo magic bytes, không theo đuôi). */
@@ -22,9 +23,12 @@ interface UploadStepProps {
 export default function UploadStep({
   onUpload,
   busy = false,
-  title = "Tải lên SRS có sẵn (.docx)",
-  hint = `File Word .docx tối đa ${MAX_IMPORT_MB} MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.`,
+  title: titleProp,
+  hint: hintProp,
 }: UploadStepProps) {
+  const t = useTranslations("mode1.uploadStep");
+  const title = titleProp ?? t("title");
+  const hint = hintProp ?? t("hint", { max: MAX_IMPORT_MB });
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -33,7 +37,7 @@ export default function UploadStep({
     if (!file) return;
     if (file.size > MAX_IMPORT_BYTES) {
       setLocalError(
-        `File ${file.name} nặng ${toMb(file.size)} MB, lớn hơn giới hạn ${MAX_IMPORT_MB} MB — hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.`
+        t("tooLarge", { name: file.name, size: toMb(file.size), max: MAX_IMPORT_MB })
       );
       return;
     }
@@ -66,7 +70,7 @@ export default function UploadStep({
         } ${busy ? "opacity-60 cursor-wait" : ""}`}
       >
         <Icon name="upload" size={34} className="text-[#6A62C4]" />
-        <p className="font-extrabold text-[#191817] text-heading">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
+        <p className="font-extrabold text-[#191817] text-heading">{busy ? t("uploading") : title}</p>
         <p className="text-body text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
         <input
           ref={inputRef}

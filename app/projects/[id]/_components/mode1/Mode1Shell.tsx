@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import AuthGuard from "@/components/AuthGuard";
 import Logo from "@/components/Logo";
 import type { Project } from "@/types/project";
-import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "./labels";
+import { useMode1Labels } from "./i18n";
+import { IMPORT_DONE_STATUSES } from "./labels";
 
 export type Mode1Tab = "document" | "import";
 
@@ -19,10 +21,10 @@ interface Mode1ShellProps {
   children: ReactNode;
 }
 
-const TABS: { id: Mode1Tab; label: string; path: string; needsBaseline: boolean }[] = [
-  { id: "import", label: "Nhập SRS", path: "/import", needsBaseline: false },
+const TABS: { id: Mode1Tab; path: string; needsBaseline: boolean }[] = [
+  { id: "import", path: "/import", needsBaseline: false },
   // Gap report + change request là popup trên màn này (nút ở thanh trên)
-  { id: "document", label: "Tài liệu & version", path: "", needsBaseline: true },
+  { id: "document", path: "", needsBaseline: true },
 ];
 
 /**
@@ -30,6 +32,8 @@ const TABS: { id: Mode1Tab; label: string; path: string; needsBaseline: boolean 
  * tới khi import xong — trạng thái đọc từ `project.import_state` do BE trả, FE không tự suy.
  */
 export default function Mode1Shell({ projectId, project, credits, active, error, children }: Mode1ShellProps) {
+  const t = useTranslations("mode1.shell");
+  const L = useMode1Labels();
   const importState = project?.import_state ?? null;
   const hasBaseline = importState !== null && IMPORT_DONE_STATUSES.includes(importState);
 
@@ -41,23 +45,23 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
             <Logo variant="icon" sizeClassName="w-7 h-7" theme="light" href="/home" />
             <div className="flex items-center text-body text-[#8A867E] gap-1.5 min-w-0">
               <Link href="/home" className="hover:text-[#191817] font-semibold transition-colors">
-                Dự án
+                {t("projects")}
               </Link>
               <span className="text-[#D6D2CB]">/</span>
-              <span className="font-bold text-[#191817] truncate max-w-[260px]">{project?.name ?? "Đang tải…"}</span>
+              <span className="font-bold text-[#191817] truncate max-w-[260px]">{project?.name ?? t("loading")}</span>
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-[#F2F1FB] text-[#554DB0] text-caption font-bold shrink-0">
-              Upload SRS có sẵn
+              {t("modeBadge")}
             </span>
             {importState && (
               <span className="px-2.5 py-0.5 rounded-full bg-[#F0EEEA] text-[#4B4842] text-caption font-semibold shrink-0">
-                {IMPORT_STATUS_LABELS[importState]}
+                {L.importStatus(importState)}
               </span>
             )}
           </div>
           <div className="flex items-center px-3 py-1 rounded-full bg-[#F0EEEA] text-[#191817] text-body font-semibold gap-1.5 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
-            {credits ?? "…"} credits
+            {t("credits", { credits: credits ?? "…" })}
           </div>
         </header>
 
@@ -72,12 +76,12 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
                   : "border-transparent text-[#8A867E] hover:text-[#191817]"
             }`;
             return disabled ? (
-              <span key={tab.id} className={className} title="Cần hoàn tất import (baseline 0.1) trước" aria-disabled="true">
-                {tab.label}
+              <span key={tab.id} className={className} title={t("needsBaseline")} aria-disabled="true">
+                {t(`tabs.${tab.id}`)}
               </span>
             ) : (
               <Link key={tab.id} href={`/projects/${projectId}${tab.path}`} className={className} aria-current={active === tab.id ? "page" : undefined}>
-                {tab.label}
+                {t(`tabs.${tab.id}`)}
               </Link>
             );
           })}

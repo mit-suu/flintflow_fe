@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { RunnerState } from "../hooks/useStepRunner";
+import { useLocale, useTranslations } from "next-intl";
+import { runnerDetailText, type RunnerState } from "../hooks/useStepRunner";
 import { formatDuration } from "./StepProgress";
-import { PHASE_NAV_LABELS, workspaceStepLabel } from "./phase-labels";
-import type { PhaseId } from "@/lib/constants/step-registry";
-
-/** Tên giai đoạn đời thường — pill không hiện mã `S-5@S03` / `S-4.2` (FLF-247). */
-const phaseName = (phase: string): string => PHASE_NAV_LABELS[phase.split("@")[0] as PhaseId] ?? "Giai đoạn hiện tại";
+import { phaseNavLabel, workspaceStepLabel } from "./phase-labels";
 
 /**
  * Lớp 5 "Chạy nền" (`03-live-status-flow.md`): thu tiến trình thành một pill ở góc màn hình để user đi
@@ -24,6 +21,9 @@ interface RunPillProps {
 }
 
 export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
+  const t = useTranslations("workspace.runPill");
+  const tDetail = useTranslations("workspace.runnerDetail");
+  const locale = useLocale();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -33,9 +33,13 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
   if (!state.stepId) return null;
   const needsUser = state.status === "needs_input" || state.status === "gate_ready" || state.status === "error";
   const elapsed = state.startedAt ? now - state.startedAt : 0;
-  const label = state.phase
-    ? `${phaseName(state.phase)}${state.phaseProgress ? ` · bước ${state.phaseProgress.index}/${state.phaseProgress.total}` : ""}`
-    : workspaceStepLabel(state.stepId);
+  // Tên giai đoạn đời thường — pill không hiện mã `S-5@S03` / `S-4.2` (FLF-247)
+  const phase = state.phase ? (phaseNavLabel(state.phase.split("@")[0], locale) ?? t("currentPhase")) : null;
+  const label = phase
+    ? state.phaseProgress
+      ? t("phaseStep", { phase, index: state.phaseProgress.index, total: state.phaseProgress.total })
+      : phase
+    : workspaceStepLabel(state.stepId, locale);
 
   return (
     <button
@@ -48,14 +52,14 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
     >
       <span aria-hidden className={needsUser ? "" : "ff-spinner w-3 h-3 rounded-full border-2 border-white/40 border-t-white"} />
       <span>
-        {label} · {needsUser ? "Đến lượt bạn" : (state.detail ?? "đang chạy")}
+        {label} · {needsUser ? t("yourTurn") : state.detail ? runnerDetailText(state.detail, tDetail) : t("running")}
       </span>
       <span className="font-mono opacity-80">{formatDuration(elapsed)}</span>
       {!needsUser && onCancel && (
         <span
           role="button"
           tabIndex={0}
-          aria-label="Huỷ lượt đang chạy"
+          aria-label={t("cancelAria")}
           onClick={(e) => {
             e.stopPropagation();
             onCancel();
@@ -67,7 +71,7 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
           }}
           className="ml-1 text-caption underline opacity-80 hover:opacity-100"
         >
-          Huỷ
+          {t("cancel")}
         </span>
       )}
     </button>
