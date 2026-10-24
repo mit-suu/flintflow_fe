@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { workspaceStepLabel as stepLabel } from "./phase-labels";
+import { useLocale, useTranslations } from "next-intl";
+import { workspaceStepLabel } from "./phase-labels";
 import type { Op } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
 
@@ -19,37 +20,46 @@ interface DecisionsPanelProps {
   busy?: boolean;
 }
 
-/** Nhãn tiếng Việt cho các chủ đề chuẩn; chủ đề tự do hiện nguyên khoá. */
-const TOPIC_LABELS: Record<string, string> = {
-  system_name: "Tên hệ thống",
-  form_factor: "Nền tảng",
-  stakes: "Mức độ quan trọng",
-  uptime: "Uptime",
-  concurrent_users: "Số người dùng đồng thời",
-  response_time: "Thời gian phản hồi",
-  data_retention: "Lưu dữ liệu bao lâu",
-  slot_hold_minutes: "Giữ chỗ (phút)",
-  deposit_amount: "Tiền cọc",
-  cancel_window: "Hạn huỷ",
-  no_show_policy: "Chính sách no-show",
-  reminder_channel: "Kênh nhắc lịch",
-  notification_channels: "Kênh thông báo",
-  ui_languages: "Ngôn ngữ giao diện",
-  roles: "Vai trò",
-  working_hours: "Giờ làm việc",
-  payment_method: "Cách thanh toán",
-  screen_scope: "Phạm vi màn hình",
-  release_scope: "Phạm vi bản phát hành",
-};
+/** Chủ đề chuẩn có nhãn (`messages → workspace.decisions.topic`); chủ đề tự do hiện nguyên khoá. */
+const TOPIC_KEYS = [
+  "system_name",
+  "form_factor",
+  "stakes",
+  "uptime",
+  "concurrent_users",
+  "response_time",
+  "data_retention",
+  "slot_hold_minutes",
+  "deposit_amount",
+  "cancel_window",
+  "no_show_policy",
+  "reminder_channel",
+  "notification_channels",
+  "ui_languages",
+  "roles",
+  "working_hours",
+  "payment_method",
+  "screen_scope",
+  "release_scope",
+] as const;
 
-export const topicLabel = (topicKey: string): string => TOPIC_LABELS[topicKey] ?? topicKey.replace(/_/g, " ");
+export type DecisionTopicKey = (typeof TOPIC_KEYS)[number];
+
+const isTopicKey = (key: string): key is DecisionTopicKey => (TOPIC_KEYS as readonly string[]).includes(key);
+
+/** `t` = `useTranslations("workspace.decisions")`. */
+export const topicLabel = (topicKey: string, t: (key: `topic.${DecisionTopicKey}`) => string): string =>
+  isTopicKey(topicKey) ? t(`topic.${topicKey}`) : topicKey.replace(/_/g, " ");
 
 export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: DecisionsPanelProps) {
+  const t = useTranslations("workspace.decisions");
+  const locale = useLocale();
+  const stepLabel = (stepId: string) => workspaceStepLabel(stepId, locale);
   const [editing, setEditing] = useState<{ id: string; answer: string } | null>(null);
   const decisions = (spine?.decisions ?? []).filter((d) => d.superseded_by === null);
 
   if (decisions.length === 0) {
-    return <p className="text-body text-on-surface-muted italic">Chưa có quyết định nào được chốt.</p>;
+    return <p className="text-body text-on-surface-muted italic">{t("none")}</p>;
   }
 
   const save = () => {
@@ -61,11 +71,11 @@ export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: Dec
   };
 
   return (
-    <ul className="flex flex-col gap-2" aria-label="Quyết định đã chốt">
+    <ul className="flex flex-col gap-2" aria-label={t("listAria")}>
       {decisions.map((decision) => (
         <li key={decision.id} className="bg-white border border-[#ECEAE5] rounded-[10px] p-2.5 flex flex-col gap-1">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-body font-bold text-[#191817]">{topicLabel(decision.topic_key)}</span>
+            <span className="text-body font-bold text-[#191817]">{topicLabel(decision.topic_key, t)}</span>
             <span className="text-caption text-[#8A867E] shrink-0" title={`${decision.step_id} — ${decision.question}`}>
               {stepLabel(decision.step_id)}
             </span>
@@ -73,7 +83,7 @@ export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: Dec
           {editing?.id === decision.id ? (
             <div className="flex gap-1.5">
               <input
-                aria-label={`Sửa quyết định ${topicLabel(decision.topic_key)}`}
+                aria-label={t("editAria", { topic: topicLabel(decision.topic_key, t) })}
                 value={editing.answer}
                 onChange={(e) => setEditing({ id: decision.id, answer: e.target.value })}
                 className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-body outline-none"
@@ -84,7 +94,7 @@ export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: Dec
                 onClick={save}
                 className="px-2.5 py-1 rounded-full text-body font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
               >
-                Lưu
+                {t("save")}
               </button>
             </div>
           ) : (
@@ -96,7 +106,7 @@ export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: Dec
                 onClick={() => setEditing({ id: decision.id, answer: decision.answer })}
                 className="text-caption font-bold text-[#6A62C4] hover:underline cursor-pointer shrink-0"
               >
-                Sửa
+                {t("edit")}
               </button>
             </div>
           )}

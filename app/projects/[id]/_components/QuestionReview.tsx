@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { DiscoveryQuestion } from "@/types/chat";
 
@@ -13,8 +14,9 @@ interface QuestionReviewProps {
 
 /** Tab "Xem lại" của thẻ hỏi: mỗi câu một dòng kèm đáp án, bấm để sửa. */
 export default function QuestionReview({ questions, values, onEdit }: QuestionReviewProps) {
+  const t = useTranslations("workspace.questionReview");
   return (
-    <ul className="flex flex-col gap-0.5 px-0.5 pt-1" aria-label="Câu trả lời của bạn">
+    <ul className="flex flex-col gap-0.5 px-0.5 pt-1" aria-label={t("aria")}>
       {questions.map((q, i) => {
         const value = values[i];
         const text = Array.isArray(value) ? value.join("; ") : value;
@@ -30,7 +32,7 @@ export default function QuestionReview({ questions, values, onEdit }: QuestionRe
                 {text ? (
                   <span className="text-body font-semibold text-on-surface leading-snug">{text}</span>
                 ) : (
-                  <span className="text-body italic text-on-surface-subtle leading-snug">Chưa trả lời — AI sẽ tự giả định</span>
+                  <span className="text-body italic text-on-surface-subtle leading-snug">{t("unanswered")}</span>
                 )}
               </span>
               <Icon name="pencil" size={12} className="shrink-0 mt-1 text-on-surface-muted" />

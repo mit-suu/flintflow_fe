@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { renderWithIntl } from "@/test/intl";
 import KnowledgeAnswer from "../KnowledgeAnswer";
 import ChatBubble, { writeBadgeOf } from "../ChatBubble";
 import type { ChatMessage, KnowledgeCitation } from "@/types/chat";
@@ -21,7 +22,7 @@ const K2: KnowledgeCitation = {
 
 describe("KnowledgeAnswer — có trích dẫn", () => {
   it("mỗi nhãn thành một nút bấm được; bấm ra source, section và nhãn loại nguồn", () => {
-    render(<KnowledgeAnswer reply="Trần 8 lượt [K1], theo chuẩn [K2]." grounded citations={[K1, K2]} />);
+    renderWithIntl(<KnowledgeAnswer reply="Trần 8 lượt [K1], theo chuẩn [K2]." grounded citations={[K1, K2]} />);
 
     const chip = screen.getByRole("button", { name: /Nguồn K1: gate-check · Caps/ });
     expect(chip).toHaveAttribute("aria-expanded", "false");
@@ -37,14 +38,14 @@ describe("KnowledgeAnswer — có trích dẫn", () => {
   });
 
   it("source_kind standard hiện nhãn chuẩn ngoài", () => {
-    render(<KnowledgeAnswer reply="Theo [K2]." grounded citations={[K2]} />);
+    renderWithIntl(<KnowledgeAnswer reply="Theo [K2]." grounded citations={[K2]} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Nguồn K2/ }));
     expect(screen.getByRole("note")).toHaveTextContent("Chuẩn ngoài");
   });
 
   it("Escape đóng ô chi tiết", () => {
-    render(<KnowledgeAnswer reply="Trần 8 lượt [K1]." grounded citations={[K1]} />);
+    renderWithIntl(<KnowledgeAnswer reply="Trần 8 lượt [K1]." grounded citations={[K1]} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Nguồn K1/ }));
     expect(screen.getByRole("note")).toBeInTheDocument();
@@ -54,7 +55,7 @@ describe("KnowledgeAnswer — có trích dẫn", () => {
   });
 
   it("nhãn không có trích dẫn khớp hiện nguyên chữ, không thành nút", () => {
-    render(<KnowledgeAnswer reply="Có [K1] và [K9]." grounded citations={[K1]} />);
+    renderWithIntl(<KnowledgeAnswer reply="Có [K1] và [K9]." grounded citations={[K1]} />);
 
     expect(screen.getByRole("button", { name: /Nguồn K1/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Nguồn K9/ })).not.toBeInTheDocument();
@@ -62,7 +63,7 @@ describe("KnowledgeAnswer — có trích dẫn", () => {
   });
 
   it("liệt kê nguồn ở dưới để thấy được dù không bấm chip nào", () => {
-    render(<KnowledgeAnswer reply="Không có nhãn nào." grounded citations={[K1]} />);
+    renderWithIntl(<KnowledgeAnswer reply="Không có nhãn nào." grounded citations={[K1]} />);
     expect(screen.getByText(/Nguồn: gate-check · Caps/)).toBeInTheDocument();
   });
 });
@@ -71,7 +72,7 @@ describe("KnowledgeAnswer — không đủ căn cứ", () => {
   const refusal = "Không đủ căn cứ trong kho tri thức của FlintFlow để trả lời câu này.";
 
   it("hiện khối Không đủ căn cứ, không phải tin lỗi hệ thống", () => {
-    const { container } = render(<KnowledgeAnswer reply={refusal} grounded={false} citations={[]} />);
+    const { container } = renderWithIntl(<KnowledgeAnswer reply={refusal} grounded={false} citations={[]} />);
 
     expect(screen.getByText("Không đủ căn cứ")).toBeInTheDocument();
     expect(screen.getByText(refusal)).toBeInTheDocument();
@@ -95,7 +96,7 @@ describe("ChatBubble — tin tri thức", () => {
   const ungrounded = { reply: "Không đủ căn cứ…", questions: [], grounded: false, citations: [] };
 
   it("render nhánh tri thức với chip bấm được (tin lưu dạng JSON ⇒ tải lại trang vẫn đúng)", () => {
-    render(<ChatBubble message={aiMessage(grounded)} />);
+    renderWithIntl(<ChatBubble message={aiMessage(grounded)} />);
 
     expect(screen.getByRole("button", { name: /Nguồn K1: gate-check · Caps/ })).toBeInTheDocument();
   });
@@ -103,20 +104,21 @@ describe("ChatBubble — tin tri thức", () => {
   it("nhãn nói rõ đã tra kho tri thức, và không bao giờ nói là đã ghi", () => {
     // Một nhãn cho cả hai trạng thái: khối trả lời đã tự nói "Không đủ căn cứ", nhãn nhắc lại thì tin
     // hiện câu đó hai lần.
-    expect(writeBadgeOf(aiMessage(grounded))).toEqual({ text: "Trả lời từ kho tri thức", wrote: false });
-    expect(writeBadgeOf(aiMessage(ungrounded))).toEqual({ text: "Trả lời từ kho tri thức", wrote: false });
+    expect(writeBadgeOf(aiMessage(grounded))).toEqual({ key: "knowledge", wrote: false });
+    expect(writeBadgeOf(aiMessage(ungrounded))).toEqual({ key: "knowledge", wrote: false });
   });
 
   it("không đổi hành vi của tin chat thường và tin lượt hỏi của bước", () => {
     // Tin chat thường: vẫn "Chỉ trao đổi"
     expect(writeBadgeOf(aiMessage({ reply: "Chào bạn", questions: [] }))).toEqual(null);
     expect(writeBadgeOf({ role: "ai", content: "chữ thuần", createdAt: "x" })).toEqual({
-      text: "Chỉ trao đổi",
+      key: "chatOnly",
       wrote: false,
     });
     // Tin áp thay đổi: vẫn nói đã ghi
     expect(writeBadgeOf(aiMessage({ kind: "change_applied", count: 3 }))).toEqual({
-      text: "Đã ghi 3 thay đổi",
+      key: "applied",
+      count: 3,
       wrote: true,
     });
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { renderWithIntl } from "@/test/intl";
 import { splitQuestions, toStepAnswers } from "../ElicitPanel";
 import { buildNameOps } from "../NamesGlossaryPanel";
 import { formatDuration, summaryLine, visibleStages } from "../StepProgress";
@@ -72,9 +73,9 @@ describe("câu mở inline (đã hỏi trong lời AI)", () => {
   });
 
   it("ChatBubble: câu inline không có trong reply vẫn hiện trong danh sách câu hỏi", async () => {
-    const { render, screen } = await import("@testing-library/react");
+    const { screen } = await import("@testing-library/react");
     const { default: ChatBubble } = await import("../ChatBubble");
-    render(
+    renderWithIntl(
       <ChatBubble
         message={{
           role: "ai",
@@ -89,9 +90,9 @@ describe("câu mở inline (đã hỏi trong lời AI)", () => {
   it("thẻ hỏi chỉ nhận câu có lựa chọn; ChatBubble không lặp câu inline", async () => {
     const { parseChatQuestion } = await import("@/lib/question-options");
     expect(parseChatQuestion({ question: "Ai duyệt?", inline: true })).toEqual({ question: "Ai duyệt?", options: [], multiple: undefined, inline: true });
-    const { render, screen } = await import("@testing-library/react");
+    const { screen } = await import("@testing-library/react");
     const { default: ChatBubble } = await import("../ChatBubble");
-    render(
+    renderWithIntl(
       <ChatBubble
         message={{
           role: "ai",
@@ -113,10 +114,10 @@ describe("E2E FAP #7: thẻ lẫn trắc nghiệm + tự luận", () => {
   ];
 
   it("câu tự luận để trống ⇒ lần bấm Gửi đầu chỉ nhắc, bấm lần nữa mới gửi; gõ `1)` vẫn tách đúng câu", async () => {
-    const { render, screen, fireEvent } = await import("@testing-library/react");
+    const { screen, fireEvent } = await import("@testing-library/react");
     const { default: ElicitPanel, toStepAnswers: split } = await import("../ElicitPanel");
     const sent: unknown[] = [];
-    render(<ElicitPanel questions={qs} chatDraft="" onSubmit={(a) => sent.push(a)} />);
+    renderWithIntl(<ElicitPanel questions={qs} chatDraft="" onSubmit={(a) => sent.push(a)} />);
     fireEvent.click(screen.getByRole("radio", { name: /Thang 10/ }));
     fireEvent.click(screen.getByRole("button", { name: "Gửi câu trả lời" }));
     expect(sent).toEqual([]);

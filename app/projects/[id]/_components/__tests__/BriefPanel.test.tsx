@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { createTranslator } from "next-intl";
+import { MESSAGES, renderWithIntl as render } from "@/test/intl";
 import BriefPanel, { briefHasData } from "../BriefPanel";
 import { assumptionText, briefVisionGoals, formFactorLabel, isBriefCoreTopic, otherRequirementText, stakesLabel } from "../brief-labels";
 import type { Spine } from "@/types/spine";
@@ -108,13 +110,15 @@ describe("BriefPanel (FLF-221)", () => {
   });
 
   it("helper nhãn dùng chung", () => {
-    expect(formFactorLabel(["web_app", "mobile_app"])).toBe("Web · Mobile");
-    expect(formFactorLabel("web_app")).toBe("Web");
-    expect(formFactorLabel([])).toBeNull();
-    expect(formFactorLabel(null)).toBeNull();
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.briefLabels" });
+    expect(formFactorLabel(["web_app", "mobile_app"], t)).toBe("Web · Mobile");
+    expect(formFactorLabel("web_app", t)).toBe("Web");
+    expect(formFactorLabel([], t)).toBeNull();
+    expect(formFactorLabel(null, t)).toBeNull();
     expect(otherRequirementText({ statement: "Gateway may be down.", statement_vi: "Cổng thanh toán có thể sập." })).toBe("Cổng thanh toán có thể sập.");
     expect(otherRequirementText({ statement: "Gateway may be down." })).toBe("Gateway may be down.");
-    expect(stakesLabel("regulated")).toBe("Có quản lý ngành");
+    expect(otherRequirementText({ statement: "Gateway may be down.", statement_vi: "Cổng thanh toán có thể sập." }, "en")).toBe("Gateway may be down.");
+    expect(stakesLabel("regulated", t)).toBe("Có quản lý ngành");
     expect(assumptionText({ statement: "EN", statement_vi: "  " })).toBe("EN");
   });
 

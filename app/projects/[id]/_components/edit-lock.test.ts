@@ -22,12 +22,12 @@ describe("editLockReason", () => {
   });
 
   it("FLF-293: đang chờ Lead duyệt ⇒ khoá, kể cả khi step không chạy", () => {
-    expect(editLockReason({ ...base, submission: submission("pending") })).toMatch(/chờ Lead duyệt/);
+    expect(editLockReason({ ...base, submission: submission("pending") })).toBe("pendingLead");
   });
 
   it("step đang chạy / chờ trả lời ⇒ khoá với lý do riêng", () => {
-    expect(editLockReason({ ...base, runnerBusy: true })).toMatch(/Bước đang chạy/);
-    expect(editLockReason({ ...base, runnerNeedsInput: true })).toMatch(/Trả lời câu hỏi/);
+    expect(editLockReason({ ...base, runnerBusy: true })).toBe("runnerBusy");
+    expect(editLockReason({ ...base, runnerNeedsInput: true })).toBe("needsInput");
   });
 
   it("mode 1 sửa qua change request ⇒ không khoá ở đây", () => {

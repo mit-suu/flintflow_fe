@@ -1,44 +1,54 @@
 import type { Flag, FlagRuleId } from "@/types/flags";
 
 /**
- * Tên nhóm dễ hiểu cho từng luật cờ — thay mã luật (`unconfirmed_assumption`) trên giao diện.
+ * Luật cờ có tên nhóm dễ hiểu (`messages → workspace.flagRules`) — thay mã luật (`unconfirmed_assumption`) trên giao diện.
  * Khoá theo `FlagRuleId` (TS báo thiếu khi type thêm luật) cộng các luật BE đang phát mà type chưa liệt kê.
  * Luật lạ (BE thêm sau) ⇒ `flagGroupTitle` trả null, panel rơi về câu `message` của chính cờ.
  */
-const RULE_TITLE: Record<FlagRuleId, string> & Record<string, string> = {
-  section_empty: "Mục còn trống",
-  array_empty: "Danh sách bắt buộc còn trống",
-  dead_reference: "Tham chiếu tới phần đã xoá",
-  render_error: "Sơ đồ vẽ bị lỗi",
-  diagram_stale: "Sơ đồ đã cũ",
-  nfr_missing_number: "Yêu cầu phi chức năng thiếu con số đo được",
-  unconfirmed_assumption: "Giả định chưa xác nhận",
-  section_stale_at_baseline: "Mục cần viết lại",
-  section_awaiting_reaccept: "Mục chờ duyệt lại",
-  screen_pending_at_baseline: "Màn hình chưa đặc tả xong",
-  orphan_actor: "Actor không tham gia use case nào",
-  usecase_no_function: "Use case chưa có chức năng",
-  screen_no_function: "Màn hình chưa có chức năng",
-  empty_feature: "Feature chưa có chức năng",
-  role_no_actor: "Vai trò không gắn actor",
-  non_english_content: "Nội dung chưa viết bằng tiếng Anh",
+const EXTRA_RULES = [
   // BE phát nhưng type FE chưa liệt kê
-  derived_from_changed_assumption: "Dựa trên giả định đã bị đổi",
-  screen_placeholder: "Màn hình để trống có chủ đích",
-  orphan_screen_at_baseline: "Màn hình không gắn chức năng",
-  system_name_missing: "Thiếu tên hệ thống",
-  actor_name_shape: "Tên actor chưa đúng dạng",
+  "derived_from_changed_assumption",
+  "screen_placeholder",
+  "orphan_screen_at_baseline",
+  "system_name_missing",
+  "actor_name_shape",
   // Mode 1 §4.13: hình người dùng vẽ sẵn không còn khớp dữ liệu — mở CR để thay bằng sơ đồ vẽ lại
-  original_diagram_stale: "Hình gốc lệch dữ liệu",
-  function_without_uc: "Chức năng không thuộc use case nào",
-  usecase_floating: "Use case không gắn actor",
-  usecase_relation_invalid: "Quan hệ giữa use case không hợp lệ",
-  usecase_auth_relation: "Quan hệ đăng nhập của use case",
-  goal_not_covered: "Mục tiêu chưa được đáp ứng",
-  accepted_as_is: "Đã chấp nhận nguyên trạng",
+  "original_diagram_stale",
+  "function_without_uc",
+  "usecase_floating",
+  "usecase_relation_invalid",
+  "usecase_auth_relation",
+  "goal_not_covered",
+  "accepted_as_is",
+] as const;
+
+export type FlagRuleTitleKey = FlagRuleId | (typeof EXTRA_RULES)[number];
+
+const HAS_TITLE: Record<FlagRuleId, true> = {
+  section_empty: true,
+  array_empty: true,
+  dead_reference: true,
+  render_error: true,
+  diagram_stale: true,
+  nfr_missing_number: true,
+  unconfirmed_assumption: true,
+  section_stale_at_baseline: true,
+  section_awaiting_reaccept: true,
+  screen_pending_at_baseline: true,
+  orphan_actor: true,
+  usecase_no_function: true,
+  screen_no_function: true,
+  empty_feature: true,
+  role_no_actor: true,
+  non_english_content: true,
 };
 
-export const flagGroupTitle = (ruleId: string): string | null => RULE_TITLE[ruleId] ?? null;
+const isTitledRule = (ruleId: string): ruleId is FlagRuleTitleKey =>
+  ruleId in HAS_TITLE || (EXTRA_RULES as readonly string[]).includes(ruleId);
+
+/** `t` = `useTranslations("workspace.flagRules")`. */
+export const flagGroupTitle = (ruleId: string, t: (key: FlagRuleTitleKey) => string): string | null =>
+  isTitledRule(ruleId) ? t(ruleId) : null;
 
 /**
  * Luật mà câu của BE chỉ nhắc lại "mục X có vấn đề" (`Section bắt buộc fixed:3.1.2 chưa có dữ liệu`) — tên nhóm đã
@@ -82,18 +92,7 @@ export const actionOfFlag = (flag: Pick<Flag, "rule_id" | "remediation_step">, a
   return action === "run_step" && acceptedSteps?.has(flag.remediation_step) ? "fill" : action;
 };
 
-/** Thứ tự hiện + tiêu đề + một câu nói rõ vì sao và phải làm gì. */
-export const ACTION_INFO: Record<IssueAction, { title: string; hint: string }> = {
-  confirm: { title: "Cần bạn xác nhận", hint: "AI tự giả định — cho biết đúng hay sai." },
-  fix: { title: "Cần bạn sửa nội dung", hint: "Nội dung còn thiếu hoặc chưa đúng." },
-  fill: {
-    title: "Mục bắt buộc còn trống",
-    hint: "Bước viết mục này đã chốt mà chưa điền gì — mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat.",
-  },
-  reaccept: { title: "Cần bạn duyệt lại", hint: "Bước soạn mục này đã mở lại — chạy lại bước rồi duyệt để gỡ." },
-  redraw: { title: "Vẽ lại sơ đồ", hint: "Sơ đồ chưa khớp nội dung mới." },
-  run_step: { title: "Sẽ điền ở bước sau", hint: "Chưa phải lỗi — AI điền khi chạy tới các bước này." },
-};
+/** Thứ tự hiện các nhóm. Tiêu đề + câu giải thích của mỗi nhóm: `workspace.flags.action.<action>`. */
 export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "reaccept", "redraw", "run_step"];
 
 export interface ActionGroup {

@@ -1,6 +1,7 @@
 "useclient";
 
 import { useState, type ComponentProps } from "react";
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import FlagsPanel from "./FlagsPanel";
@@ -66,15 +67,16 @@ export default function VerificationPane({
   baseline,
   issues,
 }: VerificationPaneProps) {
+  const t = useTranslations("workspace.verification");
   const [showTrace, setShowTrace] = useState(false);
   return (
-    <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label="Kiểm tra tài liệu">
+    <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label={t("title")}>
       <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Icon name="shield-check" size={16} className="text-success" />
-          <h3 className="font-bold text-body text-on-surface truncate">Kiểm tra tài liệu</h3>
+          <h3 className="font-bold text-body text-on-surface truncate">{t("title")}</h3>
         </div>
-        <IconButton icon="close" size="sm" label="Đóng kiểm tra tài liệu" onClick={onClose} />
+        <IconButton icon="close" size="sm" label={t("close")} onClick={onClose} />
       </div>
 
       <div className="flex-1 overflow-y-auto ff-scroll p-4 space-y-3">
@@ -84,7 +86,7 @@ export default function VerificationPane({
         {flagsLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-muted">
             <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs">Đang tải danh sách vấn đề…</span>
+            <span className="text-xs">{t("loadingIssues")}</span>
           </div>
         ) : (
           <FlagsPanel
@@ -109,7 +111,7 @@ export default function VerificationPane({
               // Chỉ bật/tắt hiển thị ⇒ text link, không được nổi hơn nút thật sự chạy việc ở ngay trên
               className="self-start text-body text-primary hover:underline cursor-pointer"
             >
-              {showTrace ? "Ẩn bản đồ truy vết" : "Xem bản đồ truy vết"}
+              {showTrace ? t("hideTrace") : t("showTrace")}
             </button>
             {showTrace && <TraceabilityMap projectId={projectId} spine={spine} />}
           </section>

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { fieldChanges, showValue, valueSummary } from "./value-diff";
+import { labelsFor } from "./test-labels";
+
+const { fieldChanges, showValue, valueSummary } = labelsFor();
 
 const json = (v: Record<string, unknown>) => JSON.stringify(v, null, 2);
 

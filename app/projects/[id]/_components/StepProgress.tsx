@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { ChangeSummary, RunStage, StepEvent } from "@/types/pipeline";
 import type { RunnerState } from "../hooks/useStepRunner";
 import RunActivityLog from "./RunActivityLog";
@@ -17,31 +18,14 @@ import { activityLines } from "./activity-log";
  * nút "Chạy nền"/"Huỷ lượt" chỉ hiện khi rê chuột hoặc khi chạy chậm. Tóm tắt thay đổi nằm ở cổng duyệt.
  */
 
-const STAGE_ORDER: { stage: RunStage; label: string }[] = [
-  { stage: "intake", label: "Đọc dữ liệu" },
-  { stage: "ask", label: "Hỏi bạn" },
-  { stage: "draft", label: "AI soạn" },
-  { stage: "check", label: "Kiểm tra" },
-  { stage: "render", label: "Vẽ hình" },
-  { stage: "gate", label: "Chờ bạn duyệt" },
-];
-
-/** Câu ngắn cho dòng "AI đang làm gì" — lời thường, không lộ tên giai đoạn nội bộ. */
-const WORKING_TEXT: Record<RunStage, string> = {
-  intake: "Đang đọc dữ liệu dự án…",
-  ask: "Đang xem còn thiếu gì…",
-  draft: "Đang soạn nội dung…",
-  check: "Đang kiểm tra…",
-  render: "Đang vẽ sơ đồ…",
-  gate: "Đã xong, chờ bạn duyệt",
-};
+const STAGE_ORDER: RunStage[] = ["intake", "ask", "draft", "check", "render", "gate"];
 
 /** Giai đoạn nào thật sự có trong lượt này: các stage đã đi qua + stage đang chạy + "chờ duyệt". */
 export const visibleStages = (events: StepEvent[], current: RunStage | null): RunStage[] => {
   const seen = new Set<RunStage>(events.flatMap((e) => (e.type === "stage" ? [e.stage] : [])));
   if (current) seen.add(current);
   seen.add("gate");
-  return STAGE_ORDER.filter((s) => seen.has(s.stage)).map((s) => s.stage);
+  return STAGE_ORDER.filter((stage) => seen.has(stage));
 };
 
 export const formatDuration = (ms: number): string => {
@@ -64,6 +48,8 @@ interface StepProgressProps {
 }
 
 export default function StepProgress({ state, onCancel, onBackground }: StepProgressProps) {
+  const t = useTranslations("workspace.runProgress");
+  const locale = useLocale();
   const [now, setNow] = useState(() => Date.now());
   const ticking = state.busy || state.status === "needs_input" || state.status === "reconnecting";
 
@@ -80,7 +66,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
 
   const working = state.busy || state.status === "reconnecting";
   // FLF-221: nhật ký hoạt động thay dòng loading — trừ lúc mất kết nối/gián đoạn, khi câu báo trạng thái quan trọng hơn
-  const showLog = state.status !== "reconnecting" && state.status !== "interrupted" && activityLines(state.events, working).length > 0;
+  const showLog = state.status !== "reconnecting" && state.status !== "interrupted" && activityLines(state.events, working, locale).length > 0;
   // Đang chờ user trả lời: thẻ hỏi đã nói rõ tới lượt ai — chỉ còn nhật ký những việc đã làm, không có dòng nào khác.
   if (state.status === "needs_input" && !showLog) return null;
   // Lỗi / gián đoạn: page đã có khối báo lỗi hoặc dải "Chạy lại" — dòng giai đoạn cũ ("Đang xem còn thiếu gì…") trông như AI
@@ -88,13 +74,14 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
   if ((state.status === "error" || state.status === "interrupted") && !showLog) return null;
   const headline =
     state.status === "reconnecting"
-      ? "Mất kết nối với lượt chạy, đang kết nối lại…"
-      : [WORKING_TEXT[state.stage ?? "intake"], state.batch ? `lô ${state.batch.i}/${state.batch.n}` : null].filter(Boolean).join(" · ");
+      ? t("reconnecting")
+      : // Câu ngắn cho dòng "AI đang làm gì" — lời thường, không lộ tên giai đoạn nội bộ
+        [t(`working.${state.stage ?? "intake"}`), state.batch ? t("batch", { i: state.batch.i, n: state.batch.n }) : null].filter(Boolean).join(" · ");
   // Nút chỉ cần khi user muốn làm gì đó với lượt chạy: rê chuột/focus vào bong bóng, hoặc tự hiện khi chạy chậm
   const actionsClass = slow ? "flex" : "hidden group-hover:flex group-focus-within:flex";
 
   return (
-    <section className="group flex items-start" aria-label="Tiến trình bước">
+    <section className="group flex items-start" aria-label={t("aria")}>
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
         <div className="flex items-start gap-2 min-w-0">
           {showLog ? (
@@ -125,7 +112,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
               onClick={onBackground}
               className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold bg-[#F2F1EE] text-[#191817] hover:bg-[#E9E7E2] cursor-pointer"
             >
-              Chạy nền
+              {t("background")}
             </button>
           )}
           {working && onCancel && (
@@ -134,7 +121,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
               onClick={onCancel}
               className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold bg-[#FDF2F2] text-[#B03030] hover:bg-[#FBE4E4] cursor-pointer"
             >
-              Huỷ lượt
+              {t("cancel")}
             </button>
           )}
           </div>
@@ -142,14 +129,14 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
 
         {slow && state.status !== "reconnecting" && (
           <p className="text-body text-[#6B6862]" role="status">
-            AI phản hồi chậm hơn thường lệ, vẫn đang chạy.
+            {t("slow")}
           </p>
         )}
 
         {state.retry && (
           <p className="text-body text-[#8A6D1F] bg-[#FBF4E4] rounded-[8px] px-2 py-1">
             {/* Lý do (parse hỏng, thiếu trường) và số lần là chuyện của hệ thống — user chỉ cần biết lượt này lâu hơn thường lệ */}
-            AI đang thử lại…
+            {t("retrying")}
           </p>
         )}
 

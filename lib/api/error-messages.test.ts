@@ -70,9 +70,11 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(userErrorMessage(new ApiClientError(500, "X_UNMAPPED", "HTTP 500"), "Không tải được danh sách cờ")).toBe("Không tải được danh sách cờ");
   });
 
-  it("trong /admin luôn tiếng Việt dù <html lang> là en (admin chỉ tiếng Việt)", () => {
+  it("trong /admin cũng theo <html lang> như mọi khu khác (admin song ngữ, FLF-328)", () => {
     setPage("en", "/admin/users");
-    expect(currentLocale()).toBe("vi");
+    expect(currentLocale()).toBe("en");
+    expect(localizeApiError("USER_NOT_FOUND", "Không tìm thấy")).toBe("User not found.");
+    setPage("vi", "/admin/users");
     expect(localizeApiError("USER_NOT_FOUND", "User not found")).toBe("Không tìm thấy người dùng.");
   });
 

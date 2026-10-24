@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listFlags } from "@/lib/api/flags";
 import { listVersions } from "@/lib/api/versions";
 import type { DocVersion } from "@/types/doc-version";
-import { errorText } from "../../_components/mode1/errors";
+import { useErrorText } from "../../_components/mode1/i18n";
 
 interface Options {
   /**
@@ -27,6 +27,7 @@ export function useDocVersions(projectId: string, { redFlags = true }: Options =
   const [redOpen, setRedOpen] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const errText = useErrorText();
 
   // `loading` chỉ hạ một lần, ở lượt tải đầu: không nâng lại đầu mỗi `reload` vì `reload` chạy trong
   // effect, mà đặt state đồng bộ trong effect là cascading render (`react-hooks/set-state-in-effect`).
@@ -39,9 +40,9 @@ export function useDocVersions(projectId: string, { redFlags = true }: Options =
           : Promise.resolve(),
       ])
         .then(() => setError(null))
-        .catch((err: unknown) => setError(errorText(err, "Không tải được danh sách version")))
+        .catch((err: unknown) => setError(errText(err, "loadVersions")))
         .finally(() => setLoading(false)),
-    [projectId, redFlags]
+    [projectId, redFlags, errText]
   );
 
   useEffect(() => {

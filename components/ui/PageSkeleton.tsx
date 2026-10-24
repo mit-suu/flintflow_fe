@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Skeleton from "./Skeleton";
 
 /**
@@ -192,11 +193,12 @@ function Body({ variant, rows, bare, workspacePane }: { variant: PageSkeletonVar
  * Dùng cho phần thân trang; thanh điều hướng/topbar thật nên vẽ luôn (không cần giữ chỗ).
  */
 export default function PageSkeleton({ variant = "page", rows, label, bare = false, className, workspacePane = "document" }: PageSkeletonProps) {
+  const t = useTranslations("common.ui");
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label={label ?? "Đang tải"}
+      aria-label={label ?? t("loading")}
       className={`flex flex-col gap-4 ${className ?? ""}`}
       data-testid="page-skeleton"
       data-variant={variant}

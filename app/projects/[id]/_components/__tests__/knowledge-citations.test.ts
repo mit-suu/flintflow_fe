@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SOURCE_KIND_LABELS, splitCitationRefs } from "../knowledge-citations";
+import { SOURCE_KINDS, splitCitationRefs } from "../knowledge-citations";
+import { MESSAGES } from "@/test/intl";
 import type { KnowledgeCitation } from "@/types/chat";
 
 const cite = (ref: string, over: Partial<KnowledgeCitation> = {}): KnowledgeCitation => ({
@@ -47,9 +48,13 @@ describe("splitCitationRefs", () => {
   });
 });
 
-describe("SOURCE_KIND_LABELS", () => {
-  it("internal_skill nói rõ là hướng dẫn nội bộ FlintFlow", () => {
-    expect(SOURCE_KIND_LABELS.internal_skill).toBe("Hướng dẫn nội bộ FlintFlow");
-    expect(SOURCE_KIND_LABELS.standard).toBe("Chuẩn ngoài");
+describe("nhãn loại nguồn", () => {
+  it("internal_skill nói rõ là hướng dẫn nội bộ FlintFlow; loại nào cũng có nhãn ở cả hai ngôn ngữ", () => {
+    expect(MESSAGES.vi.workspace.knowledge.kind.internal_skill).toBe("Hướng dẫn nội bộ FlintFlow");
+    expect(MESSAGES.vi.workspace.knowledge.kind.standard).toBe("Chuẩn ngoài");
+    for (const kind of SOURCE_KINDS) {
+      expect(MESSAGES.vi.workspace.knowledge.kind[kind]).toBeTruthy();
+      expect(MESSAGES.en.workspace.knowledge.kind[kind]).toBeTruthy();
+    }
   });
 });

@@ -4,6 +4,20 @@
  * của `import/section-catalog.ts`. Section feature/function có id tạm `feature:@B…` do BE sinh — lấy từ profile.
  */
 
+import { createTranslator } from "next-intl";
+import { currentLocale } from "@/lib/api/error-messages";
+import type { Locale } from "@/lib/i18n";
+import en from "@/messages/en.json";
+import vi from "@/messages/vi.json";
+
+const MESSAGES = { vi, en } as const;
+
+/**
+ * Nhãn theo ngôn ngữ UI (`common.fptSections`). Component nên truyền `useLocale()` để nhãn đổi cùng lượt render
+ * khi user đổi ngôn ngữ; không truyền ⇒ lấy ngôn ngữ đang hiển thị (`<html lang>`).
+ */
+const sectionT = (locale: Locale) => createTranslator({ locale, messages: MESSAGES[locale], namespace: "common.fptSections" });
+
 export interface FptSectionOption {
   id: string;
   number: string;
@@ -64,33 +78,38 @@ const KIND = /^(feature|function|custom|group):(.+)$/;
 /** Section tạm `feature:@B…` / `function:@B…` — tính năng / chức năng nhận từ heading của file, chưa có mã. */
 export const isProvisionalSection = (id: string): boolean => PROVISIONAL.test(id);
 
-const provisionalKind = (id: string): string => (id.startsWith("feature:") ? "Tính năng mới" : "Chức năng mới");
+const provisionalKind = (id: string, locale: Locale): string => sectionT(locale)(id.startsWith("feature:") ? "newFeature" : "newFunction");
 
 /** Nhãn section tạm ghi rõ tính năng / chức năng nào: `Tính năng mới — 3.2 Authentication`. */
-export const provisionalLabel = (id: string, heading: string): string => `${provisionalKind(id)} — ${heading.trim()}`;
+export const provisionalLabel = (id: string, heading: string, locale: Locale = currentLocale()): string => `${provisionalKind(id, locale)} — ${heading.trim()}`;
 
 /**
  * Nhãn hiển thị của một section id — không bao giờ trả mã thô cho người dùng: `2.1 Actors`, `Tính năng mới (chưa có mã)`,
  * `Tính năng F2`, `Chức năng FN01`, `Mục riêng`, `Không khớp`. Section tạm có heading thì dùng `sectionLabelIn`.
  */
-export const sectionLabel = (id: string | null): string => {
-  if (!id || id === "unmapped") return "Không khớp (giữ nguyên, không trích)";
+export const sectionLabel = (id: string | null, locale: Locale = currentLocale()): string => {
+  const t = sectionT(locale);
+  if (!id || id === "unmapped") return t("unmapped");
   const known = FPT_SECTIONS.find((s) => s.id === id);
   if (known) return `${known.number} ${known.title}`;
-  if (isProvisionalSection(id)) return `${provisionalKind(id)} (chưa có mã)`;
+  if (isProvisionalSection(id)) return t(id.startsWith("feature:") ? "newFeatureNoCode" : "newFunctionNoCode");
   const kind = KIND.exec(id);
   if (kind) {
-    if (kind[1] === "custom") return "Mục riêng";
-    if (kind[1] === "group") return `Mục ${kind[2]}`;
-    return `${kind[1] === "feature" ? "Tính năng" : "Chức năng"} ${kind[2]}`;
+    if (kind[1] === "custom") return t("custom");
+    if (kind[1] === "group") return t("section", { number: kind[2] });
+    return t(kind[1] === "feature" ? "feature" : "function", { code: kind[2] });
   }
-  if (id.startsWith("fixed:")) return `Mục ${id.slice("fixed:".length)}`;
+  if (id.startsWith("fixed:")) return t("section", { number: id.slice("fixed:".length) });
   return id;
 };
 
 /** Như `sectionLabel`, nhưng section tạm lấy tiêu đề heading sinh ra nó (`heading_map` của profile) để ghi rõ tính năng / chức năng nào. */
-export const sectionLabelIn = (id: string | null, headingMap?: readonly { block_id: string; heading_text: string }[]): string => {
+export const sectionLabelIn = (
+  id: string | null,
+  headingMap?: readonly { block_id: string; heading_text: string }[],
+  locale: Locale = currentLocale()
+): string => {
   const block = id && isProvisionalSection(id) ? id.slice(id.indexOf("@") + 1) : null;
   const heading = block ? headingMap?.find((h) => h.block_id === block)?.heading_text : undefined;
-  return id && heading?.trim() ? provisionalLabel(id, heading) : sectionLabel(id);
+  return id && heading?.trim() ? provisionalLabel(id, heading, locale) : sectionLabel(id, locale);
 };

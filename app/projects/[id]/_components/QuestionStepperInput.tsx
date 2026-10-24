@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import type { DiscoveryQuestion } from "@/types/chat";
 import Icon from "@/components/ui/Icon";
 import { splitRecommended, stripRecommended } from "@/lib/question-options";
@@ -56,6 +57,7 @@ export const formatAnswers = (answers: (string | string[] | null)[]): string => 
  * `preview` monospace cạnh danh sách, tab "Xem lại" trước khi gửi. Câu chọn 1: chọn xong tự sang câu kế.
  */
 export default function QuestionStepperInput({ questions, onSubmit, onChange, allowEmpty = false, onDismiss, sending = false }: QuestionStepperInputProps) {
+  const t = useTranslations("workspace.questionStepper");
   // Bộ câu hỏi mới được mount lại qua `key`, nên state tự reset — không cần effect.
   const [tab, setTab] = useState(0);
   const [answers, setAnswers] = useState<Record<number, CardAnswer>>({});
@@ -149,7 +151,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
   const preview = hasPreview ? options[previewIndex]?.preview : undefined;
 
   const isSubmitTab = current === lastTab;
-  const actionLabel = isSubmitTab ? "Gửi câu trả lời" : isAnswered(current) ? "Tiếp" : "Bỏ qua";
+  const actionLabel = isSubmitTab ? t("submit") : isAnswered(current) ? t("next") : t("skip");
 
   return (
     // Đứng một mình thì chừa đáy; có ô chat ngay sau (ChatPane) thì để ô chat lo khoảng cách
@@ -158,13 +160,13 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
         ref={cardRef}
         tabIndex={-1}
         role="group"
-        aria-label={onReview ? "Xem lại câu trả lời" : `Câu hỏi ${current + 1} trên ${total}`}
+        aria-label={onReview ? t("reviewAria") : t("questionAria", { current: current + 1, total })}
         onKeyDown={handleCardKeyDown}
         className="@container rounded-card bg-surface-container-lowest p-2 flex flex-col gap-0.5 outline-none"
       >
         {/* Hàng tab: mỗi câu một tab theo header, tab cuối "Xem lại" · đóng */}
         <div className="flex items-center gap-1 pl-1 pr-1 pt-0.5">
-          <div role="tablist" aria-label="Các câu hỏi" className="flex-1 min-w-0 flex items-center gap-0.5 overflow-x-auto ff-scroll">
+          <div role="tablist" aria-label={t("tabs")} className="flex-1 min-w-0 flex items-center gap-0.5 overflow-x-auto ff-scroll">
             {total > 1 &&
               questions.map((q, i) => (
                 <button
@@ -178,7 +180,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                   }`}
                 >
                   {isAnswered(i) && <Icon name="check" size={11} weight="bold" />}
-                  {q.header ?? `Câu ${i + 1}`}
+                  {q.header ?? t("questionN", { n: i + 1 })}
                 </button>
               ))}
             {hasReview && (
@@ -191,7 +193,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                   onReview ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container hover:text-on-surface"
                 }`}
               >
-                Xem lại
+                {t("review")}
               </button>
             )}
             {total === 1 && question?.header && (
@@ -209,8 +211,8 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
             type="button"
             onClick={() => setCollapsed((c) => !c)}
             aria-expanded={!collapsed}
-            aria-label={collapsed ? "Mở rộng câu hỏi" : "Thu gọn câu hỏi"}
-            title={collapsed ? "Mở rộng" : "Thu gọn"}
+            aria-label={collapsed ? t("expandLabel") : t("collapseLabel")}
+            title={collapsed ? t("expand") : t("collapse")}
             className="w-6 h-6 shrink-0 grid place-items-center rounded-inner text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors"
           >
             <Icon name={collapsed ? "chevron-up" : "chevron-down"} size={14} />
@@ -219,8 +221,8 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
             <button
               type="button"
               onClick={onDismiss}
-              aria-label="Đóng câu hỏi"
-              title="Đóng (Esc)"
+              aria-label={t("closeLabel")}
+              title={t("close")}
               className="w-6 h-6 shrink-0 grid place-items-center rounded-inner text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors"
             >
               <Icon name="close" size={14} />
@@ -235,14 +237,14 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
             <>
               <div className="flex flex-col gap-0.5 px-2 pt-0.5 pb-0.5">
                 <p className="text-body font-bold text-on-surface leading-snug">{question.question}</p>
-                {isMultiple && <span className="text-caption text-on-surface-muted">Chọn một hoặc nhiều đáp án</span>}
+                {isMultiple && <span className="text-caption text-on-surface-muted">{t("multiHint")}</span>}
               </div>
 
               <div className={`grid gap-2 ${preview !== undefined ? "@[560px]:grid-cols-2" : ""}`}>
                 <div
                   className="flex flex-col gap-0.5 min-w-0"
                   role={isMultiple ? "group" : "radiogroup"}
-                  aria-label="Lựa chọn"
+                  aria-label={t("options")}
                   onMouseLeave={() => setFocusedOption(null)}
                 >
                   {options.map((option, oIdx) => {
@@ -285,8 +287,8 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                           cardRef.current?.focus({ preventScroll: true });
                         }
                       }}
-                      aria-label="Câu trả lời khác"
-                      placeholder="Khác…"
+                      aria-label={t("otherLabel")}
+                      placeholder={t("otherPlaceholder")}
                       className="flex-1 min-w-0 bg-transparent outline-none text-body text-on-surface placeholder:text-on-surface-subtle"
                     />
                   </label>
@@ -294,7 +296,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
 
                 {preview !== undefined && (
                   <pre
-                    aria-label="Xem trước lựa chọn"
+                    aria-label={t("previewAria")}
                     className="m-0 min-w-0 overflow-x-auto ff-scroll rounded-control bg-surface-container px-3 py-2 font-mono text-caption leading-snug text-on-surface whitespace-pre"
                   >
                     {preview}
@@ -313,7 +315,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
               onClick={onDismiss}
               className="h-7 px-3 shrink-0 rounded-control text-body font-bold bg-surface-container text-on-surface hover:bg-surface-container-high cursor-pointer transition-colors"
             >
-              Bỏ qua
+              {t("skip")}
             </button>
           )}
           <button
@@ -327,7 +329,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
             } cursor-pointer disabled:cursor-not-allowed`}
           >
             {sending && isSubmitTab ? (
-              <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" aria-label="Đang gửi" />
+              <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" aria-label={t("sending")} />
             ) : (
               actionLabel
             )}

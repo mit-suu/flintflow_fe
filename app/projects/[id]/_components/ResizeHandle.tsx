@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface ResizeHandleProps {
   /** Đang kéo ⇒ vạch sáng tím. */
   active: boolean;
@@ -15,6 +17,7 @@ interface ResizeHandleProps {
  * (không chạy suốt chiều cao, khỏi đâm qua góc bo của khung bên cạnh).
  */
 export default function ResizeHandle({ active, onStart, onReset, label }: ResizeHandleProps) {
+  const t = useTranslations("workspace.shell");
   return (
     <div
       role="separator"
@@ -26,7 +29,7 @@ export default function ResizeHandle({ active, onStart, onReset, label }: Resize
       }}
       onDoubleClick={onReset}
       className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center"
-      title="Kéo để thay đổi kích thước (nháy đúp để về mặc định)"
+      title={t("resizeHint")}
     >
       <div className={`h-12 w-1 rounded-full transition-colors ${active ? "bg-primary" : "bg-transparent group-hover:bg-primary/60"}`} />
     </div>

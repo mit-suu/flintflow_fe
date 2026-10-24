@@ -13,6 +13,10 @@ export const HOOK_ERROR = {
   actionFailed: "@actionFailed",
   spineLoadFailed: "@spineLoadFailed",
   progressLoadFailed: "@progressLoadFailed",
+  commentsLoadFailed: "@commentsLoadFailed",
+  commentCreateFailed: "@commentCreateFailed",
+  commentResolveFailed: "@commentResolveFailed",
+  sourcesLoadFailed: "@sourcesLoadFailed",
 } as const;
 
 export type HookErrorKey = keyof typeof HOOK_ERROR;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import DropdownMenu from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import { REGENERATE_LIMIT } from "@/lib/constants/step-registry";
@@ -8,11 +9,11 @@ import type { AssumptionBrief, ChangeSummary, GateAction, GateReadyEvent } from 
 import GateFlags, { type GateNewFlag } from "./GateFlags";
 import GateTable from "./GateTable";
 import QuickReplyChips, { QuickReplyChip } from "./QuickReplyChips";
-import { fallbackGateMessage, type BlockingFlag } from "./gate-helpers";
+import { fallbackGateMessage, type BlockingFlag, type GateHelpersT } from "./gate-helpers";
 
 // Các helper thuần nằm ở `gate-helpers.ts`; re-export để nơi khác (page, activity-log, test) giữ nguyên đường import.
 export { PICKABLE_FIELDS, groupSummary, joinSummaryTexts, projectFieldText } from "./gate-helpers";
-export type { AssumptionDecision, BlockingFlag, PickablePath } from "./gate-helpers";
+export type { AssumptionDecision, BlockingFlag, GateHelpersT, PickablePath } from "./gate-helpers";
 export type { GateNewFlag } from "./GateFlags";
 
 /** Bước ký baseline: Accept ở đây chụp bản chốt (BE `SIGN_OFF_STEP`). */
@@ -59,14 +60,16 @@ interface GateCardProps {
   onAction: (action: GateAction, note?: string) => void;
 }
 
+type GateT = ReturnType<typeof useTranslations<"workspace.gate">>;
+
 /** Một câu cảnh báo khi lượt chạy không ghi gì / mục còn trống (L11b) — nói thẳng kèm lối ra. */
-const warningSentence = (warnNoOps: boolean, emptySections: readonly { title: string }[]): string | null => {
-  const base = warnNoOps ? "AI không soạn được nội dung nào ở lượt này" : "Chạy xong nhưng mục vẫn trống";
+const warningSentence = (warnNoOps: boolean, emptySections: readonly { title: string }[], t: GateT): string | null => {
+  const base = warnNoOps ? t("warnNoOps") : t("warnEmpty");
   if (emptySections.length > 0) {
     const titles = emptySections.map((s) => s.title).join(", ");
-    return `${base}. Còn trống: ${titles}. Duyệt vẫn chốt được bước nhưng cờ "mục trống" sẽ còn, bạn bổ sung qua chat hoặc bỏ qua cờ ở panel Kiểm tra nếu mục này không áp dụng.`;
+    return t("warnEmptySections", { base, titles });
   }
-  return warnNoOps ? `${base} — bạn nhắn tôi cần bổ sung gì qua chat, hoặc làm lại ở menu ⋯ nhé.` : null;
+  return warnNoOps ? t("warnNoOpsHint", { base }) : null;
 };
 
 /**
@@ -109,11 +112,14 @@ export default function GateCard({
   emptySections = [],
   onAction,
 }: GateCardProps) {
+  const t = useTranslations("workspace.gate");
+  const tHelpers = useTranslations("workspace.gateHelpers") as unknown as GateHelpersT;
+  const locale = useLocale();
   const [asIs, setAsIs] = useState(false);
   const [note, setNote] = useState("");
 
   const summary = phaseSummary ?? payload?.summary ?? [];
-  const text = (phaseSummary ? message : (message ?? payload?.message_vi))?.trim() || fallbackGateMessage(summary, payload?.no_change_reason);
+  const text = (phaseSummary ? message : (message ?? payload?.message_vi))?.trim() || fallbackGateMessage(summary, payload?.no_change_reason, tHelpers, locale);
   // `gate_ready` khôi phục sau reload vẫn mang giả định đã xác nhận/bỏ trong Spine — không xác nhận lại chúng
   const assumptions = unsettledAssumptions(spokenAssumptions, payload?.new_assumptions, settledAssumptionIds);
 
@@ -142,18 +148,18 @@ export default function GateCard({
 
   // AI không được gọi (bước chỉ chốt một field đã có từ bước trước): ghi 0 op là đúng, không phải lỗi — không cảnh báo
   const nothingToDo = payload?.calls_used === 0 && Boolean(payload.no_change_reason) && emptySections.length === 0;
-  const warning = warningSentence(!wroteOps && !nothingToDo, emptySections);
+  const warning = warningSentence(!wroteOps && !nothingToDo, emptySections, t);
 
   const regenerateLeft = regenerateUsed < regenerateLimit && actions.includes("regenerate");
   const signOffBlocked = stepId === SIGN_OFF_STEP && !canSignOff;
   const showAcceptAsIs = !signOffBlocked && (actions.includes("accept_as_is") || regenerateUsed >= regenerateLimit);
   const menuItems = [
     {
-      label: `↻ Làm lại · còn ${Math.max(0, regenerateLimit - regenerateUsed)} lần`,
+      label: t("regenerate", { count: Math.max(0, regenerateLimit - regenerateUsed) }),
       disabled: locked || !regenerateLeft,
       onSelect: () => void act("regenerate"),
     },
-    ...(showAcceptAsIs ? [{ label: "✓ Duyệt như hiện tại", disabled: locked, onSelect: () => setAsIs((open) => !open) }] : []),
+    ...(showAcceptAsIs ? [{ label: t("acceptAsIs"), disabled: locked, onSelect: () => setAsIs((open) => !open) }] : []),
   ];
 
   const submitAsIs = () => {
@@ -164,7 +170,7 @@ export default function GateCard({
   };
 
   return (
-    <div className="flex flex-col gap-3" aria-label="Cổng chốt">
+    <div className="flex flex-col gap-3" aria-label={t("aria")}>
       <p className="text-heading leading-7 text-on-surface whitespace-pre-line">{text}</p>
 
       {warning && (
@@ -187,7 +193,7 @@ export default function GateCard({
       {asIs && (
         <div className="flex flex-col gap-2">
           <label htmlFor={`gate-note-${stepId}`} className="text-body font-semibold text-on-surface-variant">
-            Lý do chấp nhận bản hiện tại (bắt buộc)
+            {t("acceptAsIsLabel")}
           </label>
           <textarea
             id={`gate-note-${stepId}`}
@@ -198,7 +204,7 @@ export default function GateCard({
           />
           <div className="self-end">
             <QuickReplyChip tone="primary" disabled={note.trim().length === 0 || locked} onClick={submitAsIs}>
-              Xác nhận duyệt như hiện tại
+              {t("confirmAcceptAsIs")}
             </QuickReplyChip>
           </div>
         </div>
@@ -206,7 +212,7 @@ export default function GateCard({
 
       {signOffBlocked && (
         <p role="status" className="bg-surface-container rounded-card px-3.5 py-2.5 text-body leading-6 text-on-surface-muted">
-          Chỉ Lead ký được baseline. Bạn nộp baseline để Lead duyệt ở panel Kiểm tra.
+          {t("leadOnly")}
         </p>
       )}
 
@@ -214,12 +220,12 @@ export default function GateCard({
         {!signOffBlocked && (
           <QuickReplyChip tone="primary" busy={locked} disabled={!actions.includes("accept")} onClick={() => void act("accept")}>
             {/* FLF-248: Accept ở S-9.5 là ký baseline — nhãn chung "đi tiếp" làm người dùng đi tìm nút ký ở chat */}
-            {stepId === SIGN_OFF_STEP ? "Ký baseline" : "Đúng rồi, đi tiếp"}
+            {stepId === SIGN_OFF_STEP ? t("signBaseline") : t("accept")}
           </QuickReplyChip>
         )}
         {actions.includes("revision") && (
           <QuickReplyChip tone="soft" disabled={locked} onClick={() => onWantEdit?.()}>
-            Tôi muốn sửa
+            {t("wantEdit")}
           </QuickReplyChip>
         )}
         <DropdownMenu
@@ -229,7 +235,7 @@ export default function GateCard({
             <button
               type="button"
               {...props}
-              aria-label="Thêm lựa chọn"
+              aria-label={t("more")}
               className="size-9 grid place-items-center rounded-control bg-surface-container text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <Icon name="more-horizontal" size={18} />

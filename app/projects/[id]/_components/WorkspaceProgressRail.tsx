@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Logo from "@/components/Logo";
 import IconButton from "@/components/ui/IconButton";
 import type { PhaseId } from "@/lib/constants/step-registry";
@@ -41,6 +42,7 @@ export default function WorkspaceProgressRail({
   reopenableStepIds,
   readinessPercent,
 }: WorkspaceProgressRailProps) {
+  const t = useTranslations("workspace.progressRail");
   // Giai đoạn đang mở danh sách bước (nhiều cái cùng lúc). `null` = chưa đụng tới ⇒ mở sẵn giai đoạn đang làm.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
   const openPhases: ReadonlySet<string> = picked ?? new Set(currentPhase ? [currentPhase] : []);
@@ -66,20 +68,20 @@ export default function WorkspaceProgressRail({
   };
 
   return (
-    <nav id="workspace-progress" aria-label="Tiến độ" className="w-full h-full bg-surface-container-lowest flex flex-col">
+    <nav id="workspace-progress" aria-label={t("aria")} className="w-full h-full bg-surface-container-lowest flex flex-col">
       <div className="h-[58px] shrink-0 pl-5 pr-3 flex items-center justify-between">
         <Logo variant="wordmark" sizeClassName="h-5 w-auto" theme="light" href="/home" />
-        <IconButton icon="sidebar" size="sm" label="Ẩn tiến độ" onClick={onHide} />
+        <IconButton icon="sidebar" size="sm" label={t("hide")} onClick={onHide} />
       </div>
 
       {/* Nhãn cột: chữ hoa nhỏ, giãn chữ — cố ý khác hẳn tiêu đề nhóm (15px bold) để không thành thêm một bậc nữa */}
       <div className="pl-5 pr-3 pb-1 flex items-center justify-between">
-        <span className="text-caption font-bold uppercase tracking-[0.06em] text-on-surface-muted">Tiến độ</span>
+        <span className="text-caption font-bold uppercase tracking-[0.06em] text-on-surface-muted">{t("title")}</span>
         {/* Một nút bật/tắt như "Collapse All" của VS Code: đang mở giai đoạn nào ⇒ gập hết; gập hết rồi ⇒ mở hết */}
         <IconButton
           icon="caret-up-down"
           size="sm"
-          label={openPhases.size > 0 ? "Thu gọn tất cả bước" : "Mở rộng tất cả bước"}
+          label={openPhases.size > 0 ? t("collapseAll") : t("expandAll")}
           onClick={() => setPicked(openPhases.size > 0 ? new Set() : new Set(allPhases))}
         />
       </div>
@@ -107,9 +109,9 @@ export default function WorkspaceProgressRail({
       {/* Đáy rail: số phần trăm cộng một thanh mảnh màu thương hiệu — rãnh lavender, phần đã chốt tím đặc */}
       <div className="ff-fade-above [--ff-fade:var(--color-surface-container-lowest)] shrink-0 bg-surface-container-lowest px-5 pt-3 pb-4">
         {readinessPercent !== undefined && (
-          <div className="flex flex-col gap-2" title="Phần mục bắt buộc của SRS đã được bạn duyệt xong">
+          <div className="flex flex-col gap-2" title={t("readinessHint")}>
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-body font-medium text-on-surface-variant">Tài liệu đã chốt</span>
+              <span className="text-body font-medium text-on-surface-variant">{t("readiness")}</span>
               <span className="text-body font-bold text-on-surface-dark tabular-nums">{readinessPercent}%</span>
             </div>
             <div

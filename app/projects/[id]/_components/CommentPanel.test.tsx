@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import CommentPanel, { type CommentTab } from "./CommentPanel";
 import { readCrPrefill } from "./mode1/prefill";

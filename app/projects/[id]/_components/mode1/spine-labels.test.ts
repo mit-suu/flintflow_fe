@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { fieldLabel, humanizeText, pathLabel, ruleLabel, sectionName } from "./spine-labels";
+import { labelsFor } from "./test-labels";
+
+const { fieldLabel, humanizeText, pathLabel, ruleLabel, sectionName } = labelsFor();
 
 describe("spine-labels — nhãn thay cho mã kỹ thuật (mode 1)", () => {
   it("path Spine ⇒ tên phần tử + tên field", () => {
@@ -38,5 +40,18 @@ describe("spine-labels — nhãn thay cho mã kỹ thuật (mode 1)", () => {
     expect(ruleLabel("AI-CONSISTENCY")).toBe("");
     expect(sectionName("fixed:5.1")).toBe("5.1 Business Rules");
     expect(sectionName(null)).toBe("");
+  });
+});
+
+describe("spine-labels — tiếng Anh", () => {
+  const en = labelsFor("en");
+  it("path, mã luật, mục và giá trị đều ra tiếng Anh; mã lạ vẫn giữ nguyên", () => {
+    expect(en.pathLabel("use_cases[id=UC-2.4].description")).toBe("Use case UC-2.4 — Description");
+    expect(en.pathLabel("actors[]")).toBe("Actor (new)");
+    expect(en.ruleLabel("section_empty")).toBe("Section is empty");
+    expect(en.humanizeText("section_empty ở custom:CS07")).toBe("Section is empty ở Custom section");
+    expect(en.readableValue({ is_popup: true })).toBe("Is popup: Yes");
+    expect(en.sourceRefLabel("chat:66f1")).toBe("from the chat");
+    expect(en.pathLabel("unknown_array[id=X].name")).toBe("unknown_array[id=X].name");
   });
 });

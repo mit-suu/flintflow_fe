@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CreditEstimate } from "@/types/import";
 import Icon from "@/components/ui/Icon";
 
@@ -16,12 +17,13 @@ interface CreditEstimateNoteProps {
  * (`GET /import` → `credit_estimate`), FE chỉ hiển thị. Số dư nhỏ hơn số credit ước tính ⇒ cảnh báo sẽ dừng giữa chừng.
  */
 export default function CreditEstimateNote({ estimate, fallbackBalance = null, remaining = false }: CreditEstimateNoteProps) {
+  const t = useTranslations("mode1.creditEstimate");
   const balance = estimate.available_credits ?? fallbackBalance;
   const short = balance !== null && balance < estimate.credits;
   if (estimate.ai_calls === 0) {
     return (
       <p className="text-[12px] text-[#4B4842] bg-[#F7F6F3] border border-[#ECEAE5] rounded-[10px] px-3 py-2">
-        Ước tính: không cần lượt AI nào — phần còn lại trích tất định, không tốn credit.
+        {t("none")}
       </p>
     );
   }
@@ -35,18 +37,23 @@ export default function CreditEstimateNote({ estimate, fallbackBalance = null, r
       <Icon name={short ? "warning" : "savings"} size={16} />
       <div className="flex-1">
         <p>
-          {remaining ? "Ước tính phần còn lại" : "Ước tính"}: <strong>~{estimate.ai_calls} lượt AI</strong>, <strong>~{estimate.credits} credit</strong>
-          {balance !== null && <> (số dư: {balance})</>}
+          {t.rich("estimate", {
+            remaining: remaining ? "yes" : "no",
+            calls: estimate.ai_calls,
+            credits: estimate.credits,
+            strong: (c) => <strong>{c}</strong>,
+          })}
+          {balance !== null && <> {t("balance", { balance })}</>}
           {estimate.diagram_images > 0 && (
             <span className="opacity-75">
               {" "}
-              — {estimate.text_batches} lô chữ + {estimate.diagram_images} ảnh sơ đồ
+              — {t("breakdown", { text: estimate.text_batches, images: estimate.diagram_images })}
             </span>
           )}
         </p>
         {short && (
           <p className="font-bold mt-0.5">
-            Số dư chưa đủ: việc trích sẽ tạm dừng khi hết credit. Nạp thêm rồi bấm Tiếp tục — phần đã xong không tính tiền lại.
+            {t("short")}
           </p>
         )}
       </div>

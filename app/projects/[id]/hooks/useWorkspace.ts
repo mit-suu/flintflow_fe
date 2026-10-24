@@ -13,13 +13,39 @@ import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
-const errorMessage = (error: unknown, fallback: string) => userErrorMessage(error, fallback);
+/** Thông báo ở pill toast của trang — có thể là: */
+export type SessionNoticeKey =
+  | "loadFailed"
+  | "createFailed"
+  | "offline"
+  | "deleteFailed"
+  | "uploadFailed"
+  | "knowledgeFailed"
+  | "stopped"
+  | "knowledgeDisabled"
+  | "sendFailed";
+
+/**
+ * Hook không gọi `useTranslations` (lỗi ghi trong callback/effect, test `renderHook` không có provider — xem
+ * `lib/hook-errors.ts`) nên thông báo là MÃ: `{ key }` ⇒ trang dịch `workspace.session.<key>`; `{ text }` ⇒ câu BE đã dịch
+ * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung).
+ */
+export type WorkspaceNotice = { key: SessionNoticeKey; error?: string } | { text: string };
+
+const NO_MESSAGE = "@";
+const errorNotice = (error: unknown, key: SessionNoticeKey): WorkspaceNotice => {
+  const message = userErrorMessage(error, NO_MESSAGE);
+  return message === NO_MESSAGE ? { key } : { text: message };
+};
+
+/** Nội dung tin khi chỉ gửi đính kèm — câu FE gửi thay user, theo ngôn ngữ giao diện (nơi gọi truyền vào). */
+const DEFAULT_ATTACHMENT_ONLY_TEXT = "[Đính kèm tài liệu]";
 
 /**
  * Dữ liệu chung của workspace: project, user, chat session, gửi tin nhắn/đính kèm.
  * Pipeline (step, gate) nằm ở `useStepRunner`; Spine ở `useSpine`.
  */
-export function useWorkspace(projectId: string) {
+export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT }: { attachmentOnlyText?: string } = {}) {
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -42,7 +68,7 @@ export function useWorkspace(projectId: string) {
   /** Lượt chat đang stream — `stopMessage` huỷ fetch, BE thấy luồng đóng thì ngắt model và không ghi tin AI. */
   const streamAbortRef = useRef<AbortController | null>(null);
   /** Thông báo lỗi hiện ở pill toast của trang (thay `alert()` — FLF-244). */
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<WorkspaceNotice | null>(null);
   /** Vai trò trong org đang mở — Viewer chỉ đọc (FLF-244). `null` khi chưa biết: không khoá gì, BE vẫn chặn. */
   const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
 
@@ -67,7 +93,7 @@ export function useWorkspace(projectId: string) {
         const full = await fetchSession(session._id);
         if (full) setActiveSession(full);
       } catch (err) {
-        setNotice(errorMessage(err, "Không thể tải cuộc trò chuyện"));
+        setNotice(errorNotice(err, "loadFailed"));
       }
     },
     [fetchSession]
@@ -90,7 +116,7 @@ export function useWorkspace(projectId: string) {
         }
       } catch (err) {
         if (options.quiet && err instanceof ApiClientError && err.status === 403) return;
-        setNotice(errorMessage(err, "Không thể tạo cuộc trò chuyện mới"));
+        setNotice(errorNotice(err, "createFailed"));
       }
     },
     [projectId, sessions, selectSession]
@@ -146,7 +172,7 @@ export function useWorkspace(projectId: string) {
             await logoutAndRedirect();
           } else {
             // Token hết hạn nhưng refresh chỉ lỗi mạng / 5xx ⇒ giữ phiên
-            setNotice("Không kết nối được máy chủ. Vui lòng tải lại trang.");
+            setNotice({ key: "offline" });
           }
         }
       } finally {
@@ -173,7 +199,8 @@ export function useWorkspace(projectId: string) {
           }
         }
       } catch (err) {
-        setNotice("Không thể xoá cuộc trò chuyện: " + errorMessage(err, "Lỗi"));
+        const message = userErrorMessage(err, NO_MESSAGE);
+        setNotice({ key: "deleteFailed", ...(message === NO_MESSAGE ? {} : { error: message }) });
       }
     },
     [projectId, sessions, activeSession, selectSession, createSession]
@@ -201,7 +228,7 @@ export function useWorkspace(projectId: string) {
       setPendingAttachments([]);
       return true;
     } catch (err) {
-      setNotice(errorMessage(err, "Không thể tải tệp đính kèm lên"));
+      setNotice(errorNotice(err, "uploadFailed"));
       return false;
     }
   }, [pendingAttachments, projectId]);
@@ -259,7 +286,7 @@ export function useWorkspace(projectId: string) {
       setSending(true);
       setInputMessage("");
       setCrPrefill(null);
-      const content = text.trim() || "[Đính kèm tài liệu]";
+      const content = text.trim() || attachmentOnlyText;
       const step = currentStep ?? "chat";
       const optimistic: ChatMessage = { role: "user", content, step, createdAt: new Date().toISOString() };
       setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev));
@@ -304,7 +331,7 @@ export function useWorkspace(projectId: string) {
             if (opts?.knowledge) {
               setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
               setInputMessage(text);
-              setNotice(errorMessage(err, "Không tra được kho tri thức"));
+              setNotice(errorNotice(err, "knowledgeFailed"));
             }
           },
         });
@@ -312,7 +339,7 @@ export function useWorkspace(projectId: string) {
         // vì BE không lưu nó — tải lại trang vẫn thấy đúng như vậy.
         if (abort.signal.aborted) {
           setStreamingMessage(null);
-          setNotice("Đã dừng AI.");
+          setNotice({ key: "stopped" });
         }
       } catch (err) {
         setStreamingMessage(null);
@@ -321,13 +348,13 @@ export function useWorkspace(projectId: string) {
         // thay vì để user bấm lại một thứ chắc chắn không chạy.
         if (err instanceof ApiClientError && err.code === "KNOWLEDGE_DISABLED") {
           setKnowledgeDisabled(true);
-          setNotice("Tính năng hỏi kiến thức đang tắt trên máy chủ.");
+          setNotice({ key: "knowledgeDisabled" });
           setInputMessage(text);
           return undefined;
         }
         const meta = err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR" ? (err.meta as ChangeRequiresCrMeta | undefined) : undefined;
         if (meta?.prefill) setCrPrefill({ ...meta.prefill, instruction: content });
-        else setNotice(errorMessage(err, "Không thể gửi tin nhắn"));
+        else setNotice(errorNotice(err, "sendFailed"));
       } finally {
         streamAbortRef.current = null;
         setSending(false);
@@ -335,7 +362,7 @@ export function useWorkspace(projectId: string) {
       }
       return finishData;
     },
-    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments]
+    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments, attachmentOnlyText]
   );
 
   /** Nút dừng / Esc: huỷ lượt chat đang chạy. Không có lượt nào thì không làm gì. */

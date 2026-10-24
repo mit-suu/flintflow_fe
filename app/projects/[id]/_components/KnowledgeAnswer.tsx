@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { KnowledgeCitation } from "@/types/chat";
-import { SOURCE_KIND_LABELS, splitCitationRefs } from "./knowledge-citations";
+import { splitCitationRefs } from "./knowledge-citations";
 
 interface KnowledgeAnswerProps {
   reply: string;
@@ -18,6 +19,7 @@ interface KnowledgeAnswerProps {
  * sẽ bị mép dưới cắt đúng ở tin người ta vừa đọc.
  */
 function CitationChip({ citation }: { citation: KnowledgeCitation }) {
+  const t = useTranslations("workspace.knowledge");
   const [open, setOpen] = useState(false);
   const noteId = useId();
   const wrapRef = useRef<HTMLSpanElement>(null);
@@ -56,7 +58,7 @@ function CitationChip({ citation }: { citation: KnowledgeCitation }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={open ? noteId : undefined}
-        aria-label={`Nguồn ${citation.ref}: ${citation.source} · ${citation.section}`}
+        aria-label={t("sourceLabel", { ref: citation.ref, source: citation.source, section: citation.section })}
         className={`px-1.5 rounded-inner text-caption font-bold align-baseline transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           open ? "bg-primary text-on-primary" : "bg-primary-soft text-primary-hover hover:bg-primary-fixed"
         }`}
@@ -72,7 +74,7 @@ function CitationChip({ citation }: { citation: KnowledgeCitation }) {
         >
           <span className="text-body font-bold text-on-surface">{citation.source}</span>
           <span className="text-body text-on-surface-variant">{citation.section}</span>
-          <span className="text-caption font-semibold text-primary">{SOURCE_KIND_LABELS[citation.source_kind]}</span>
+          <span className="text-caption font-semibold text-primary">{t(`kind.${citation.source_kind}`)}</span>
         </span>
       )}
     </span>
@@ -87,12 +89,13 @@ function CitationChip({ citation }: { citation: KnowledgeCitation }) {
  * lỗi (đỏ) dành riêng cho sự cố thật.
  */
 export default function KnowledgeAnswer({ reply, grounded, citations }: KnowledgeAnswerProps) {
+  const t = useTranslations("workspace.knowledge");
   if (!grounded) {
     return (
       <div className="flex flex-col gap-1.5 rounded-control bg-accent-gold-soft p-3 text-accent-gold-text">
         <span className="flex items-center gap-1.5 text-body font-bold">
           <Icon name="warning" size={15} />
-          Không đủ căn cứ
+          {t("notGrounded")}
         </span>
         <p className="text-body leading-relaxed whitespace-pre-wrap">{reply}</p>
       </div>
@@ -116,7 +119,7 @@ export default function KnowledgeAnswer({ reply, grounded, citations }: Knowledg
           đường thoát khi `reply` không chứa nhãn nào khớp (tin cũ, hoặc BE đổi dạng nhãn). */}
       {citations.length > 0 && (
         <p className="text-caption text-on-surface-muted">
-          Nguồn: {citations.map((c) => `${c.source} · ${c.section}`).join(" · ")}
+          {t("sources", { list: citations.map((c) => `${c.source} · ${c.section}`).join(" · ") })}
         </p>
       )}
     </div>

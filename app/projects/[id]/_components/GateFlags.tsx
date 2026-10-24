@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import QuickReplyChips, { QuickReplyChip } from "./QuickReplyChips";
 import { WAIVE_REASON_MIN_LENGTH } from "./flag-rules";
 import type { BlockingFlag } from "./gate-helpers";
@@ -30,6 +31,7 @@ interface GateFlagsProps {
  * / "Giữ nguyên"). Màu chỉ phụ trợ — mỗi khối luôn có câu nói rõ mức độ.
  */
 export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [], onFixFlag, onKeepFlag, locked }: GateFlagsProps) {
+  const t = useTranslations("workspace.gateFlags");
   const [keeping, setKeeping] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -48,7 +50,7 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
       await onKeepFlag(flag, reason.trim());
       closeKeep();
     } catch (err) {
-      setError(userErrorMessage(err, "Chưa giữ nguyên được vấn đề này, bạn thử lại nhé."));
+      setError(userErrorMessage(err, t("keepFailed")));
     } finally {
       setSaving(false);
     }
@@ -59,13 +61,13 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
     <div className="flex flex-col gap-3">
       {blockingFlags.length > 0 && (
         <div role="alert" className="bg-error-container rounded-card px-3.5 py-3 flex flex-col gap-2 text-body leading-6 text-on-error-container">
-          <p className="font-semibold">Chưa ký được baseline — còn {blockingFlags.length} cờ đỏ chưa xử lý:</p>
+          <p className="font-semibold">{t("blocking", { count: blockingFlags.length })}</p>
           {blockingFlags.map((flag) => (
             <div key={flag.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <span className="flex-1 min-w-0">{flag.message}</span>
               {flag.remediation_step && onGoToStep && (
-                <QuickReplyChip tone="soft" ariaLabel={`Xem chỗ bị chặn: ${flag.message}`} onClick={() => onGoToStep(flag.remediation_step as string)}>
-                  Xem chỗ bị chặn
+                <QuickReplyChip tone="soft" ariaLabel={t("goToBlockedLabel", { message: flag.message })} onClick={() => onGoToStep(flag.remediation_step as string)}>
+                  {t("goToBlocked")}
                 </QuickReplyChip>
               )}
             </div>
@@ -77,26 +79,26 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
         <div key={flag.id} className="flex flex-col gap-2">
           <p className="text-heading leading-7 text-on-surface">
             <span className={`font-semibold ${flag.level === "red" ? "text-error" : "text-accent-gold-text"}`}>
-              {flag.level === "red" ? "Vấn đề cần xử lý: " : "Điểm nên xem: "}
+              {flag.level === "red" ? t("red") : t("yellow")}
             </span>
             {flag.message}
           </p>
-          <QuickReplyChips label={`Xử lý: ${flag.message}`}>
+          <QuickReplyChips label={t("handle", { message: flag.message })}>
             {onFixFlag && (
               <QuickReplyChip tone="soft" disabled={locked || saving} onClick={() => onFixFlag(flag)}>
-                Sửa theo đề xuất
+                {t("fix")}
               </QuickReplyChip>
             )}
             {onKeepFlag && flag.waivable && (
               <QuickReplyChip tone="soft" disabled={locked || saving} onClick={() => (keeping === flag.id ? closeKeep() : setKeeping(flag.id))}>
-                Giữ nguyên
+                {t("keep")}
               </QuickReplyChip>
             )}
           </QuickReplyChips>
           {keeping === flag.id && (
             <div className="flex flex-col gap-2">
               <label htmlFor={`gate-keep-${flag.id}`} className="text-body font-semibold text-on-surface-variant">
-                Vì sao bạn muốn giữ nguyên? (tối thiểu {WAIVE_REASON_MIN_LENGTH} ký tự, sẽ in kèm trong tài liệu)
+                {t("keepReason", { min: WAIVE_REASON_MIN_LENGTH })}
               </label>
               <textarea
                 id={`gate-keep-${flag.id}`}
@@ -112,10 +114,10 @@ export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [
               )}
               <div className="flex gap-2">
                 <QuickReplyChip tone="primary" busy={saving} disabled={reason.trim().length < WAIVE_REASON_MIN_LENGTH} onClick={() => void submitKeep(flag)}>
-                  Xác nhận giữ nguyên
+                  {t("confirmKeep")}
                 </QuickReplyChip>
                 <QuickReplyChip tone="soft" disabled={saving} onClick={closeKeep}>
-                  Huỷ
+                  {t("cancel")}
                 </QuickReplyChip>
               </div>
             </div>

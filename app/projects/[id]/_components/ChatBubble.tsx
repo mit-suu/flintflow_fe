@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { ChatMessage, KnowledgeCitation } from "@/types/chat";
 import { parseChatQuestion, replyContainsQuestion } from "@/lib/question-options";
 import { displayUserText } from "./user-text";
@@ -28,42 +29,52 @@ interface ChatBubbleProps {
   hideBadge?: boolean;
 }
 
+/** Nhãn của một tin AI — key trong `workspace.chatBubble.badge`, component dịch lúc render. */
+export type WriteBadgeKey = "chatOnly" | "pending" | "nothingWritten" | "applied" | "unchanged" | "knowledge";
+
+export interface WriteBadge {
+  key: WriteBadgeKey;
+  /** Số thay đổi thật (`pending` / `applied`). */
+  count?: number;
+  wrote: boolean;
+}
+
 /**
  * BUG-09: chat từng nói "đã thêm UC18, UC19" trong khi Spine không đổi gì. Mỗi tin nhắn của AI nay mang
  * một nhãn nói rõ nó đã GHI hay chỉ TRAO ĐỔI: chỉ tin nhắn mang bản xem trước thay đổi (`change_preview`)
  * mới được nói là có ghi, và con số là số thay đổi thật trong bản xem trước đó.
  */
-export const writeBadgeOf = (message: ChatMessage): { text: string; wrote: boolean } | null => {
+export const writeBadgeOf = (message: ChatMessage): WriteBadge | null => {
   if (message.role !== "ai") return null;
   const raw = (message.content ?? "").trim();
-  if (!raw.startsWith("{")) return { text: "Chỉ trao đổi", wrote: false };
+  if (!raw.startsWith("{")) return { key: "chatOnly", wrote: false };
   try {
     const data = JSON.parse(raw) as { kind?: unknown; changes?: unknown; change_count?: unknown };
     if (data.kind === "change_preview") {
       // FLF-244: BE chỉ lưu `change_count`; tin cũ còn mảng `changes`
       const count = typeof data.change_count === "number" ? data.change_count : Array.isArray(data.changes) ? data.changes.length : 0;
       // FLF-300: bản xem trước lỗi / rỗng không có gì để xác nhận
-      return count > 0 ? { text: `Chờ bạn xác nhận (${count} thay đổi)`, wrote: false } : { text: "Chưa ghi gì", wrote: false };
+      return count > 0 ? { key: "pending", count, wrote: false } : { key: "nothingWritten", wrote: false };
     }
     if (data.kind === "change_applied") {
       const count = typeof (data as { count?: unknown }).count === "number" ? (data as { count: number }).count : 0;
-      return count > 0 ? { text: `Đã ghi ${count} thay đổi`, wrote: true } : { text: "Không đổi gì", wrote: false };
+      return count > 0 ? { key: "applied", count, wrote: true } : { key: "unchanged", wrote: false };
     }
-    if (data.kind === "change_clarification" || data.kind === "change_error") return { text: "Chưa ghi gì", wrote: false };
+    if (data.kind === "change_clarification" || data.kind === "change_error") return { key: "nothingWritten", wrote: false };
     // FLF-279: lượt tri thức cũng không ghi gì vào Spine, nhưng "Chỉ trao đổi" không nói được nó đã tra
     // kho tri thức. Phải xét TRƯỚC nhánh `questions` bên dưới: tin tri thức mang `questions: []` nên
     // nhánh đó sẽ nuốt nó và trả `null` ⇒ mất nhãn.
     // Cùng một nhãn cho cả hai trạng thái: khối trả lời đã tự nói "Không đủ căn cứ", nhãn nhắc lại thì
     // một tin hiện câu đó hai lần.
     if (typeof (data as { grounded?: unknown }).grounded === "boolean") {
-      return { text: "Trả lời từ kho tri thức", wrote: false };
+      return { key: "knowledge", wrote: false };
     }
     // Lượt hỏi của bước (lời đáp + câu hỏi): không phải hỏi đáp tự do, nhãn "Chỉ trao đổi" không có nghĩa gì
     if (Array.isArray((data as { questions?: unknown }).questions)) return null;
   } catch {
-    return { text: "Chỉ trao đổi", wrote: false };
+    return { key: "chatOnly", wrote: false };
   }
-  return { text: "Chỉ trao đổi", wrote: false };
+  return { key: "chatOnly", wrote: false };
 };
 
 export default function ChatBubble({
@@ -74,6 +85,9 @@ export default function ChatBubble({
   isStreaming = false,
   hideBadge = false,
 }: ChatBubbleProps) {
+  const t = useTranslations("workspace.chatBubble");
+  const locale = useLocale();
+  const format = useFormatter();
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -89,7 +103,7 @@ export default function ChatBubble({
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return "";
-      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      return format.dateTime(d, { hour: "numeric", minute: "2-digit" });
     } catch (_) {
       return "";
     }
@@ -236,7 +250,7 @@ export default function ChatBubble({
     return (
       <div className="flex flex-col items-end group">
         <div className="relative bg-primary-soft text-on-surface px-4 py-2.5 rounded-[20px] max-w-[80%] text-heading leading-6">
-          <p className="whitespace-pre-wrap">{displayUserText(message.content)}</p>
+          <p className="whitespace-pre-wrap">{displayUserText(message.content, locale)}</p>
 
           {/* Action bar: Timestamp, Copy, Rollback — nổi bên trái bong bóng khi hover, không chiếm chiều cao bong bóng */}
           <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 flex items-center gap-1.5 text-caption text-[#8A867E] select-none whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
@@ -249,7 +263,7 @@ export default function ChatBubble({
               type="button"
               onClick={handleCopy}
               className="p-1 hover:bg-[#E8E5F8] text-[#8A867E] hover:text-[#191817] rounded-[5px] transition-colors cursor-pointer flex items-center justify-center"
-              title={copied ? "Đã sao chép!" : "Sao chép tin nhắn"}
+              title={copied ? t("copied") : t("copy")}
             >
               {copied ? (
                 <span className="text-[#15803D] font-bold text-caption leading-none">✓</span>
@@ -276,7 +290,7 @@ export default function ChatBubble({
                 disabled={disabled}
                 onClick={() => onRequestRollback(messageIndex)}
                 className="p-1 hover:bg-[#E8E5F8] text-[#8A867E] hover:text-[#6A62C4] rounded-[5px] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                title="Hoàn tác về câu hỏi này"
+                title={t("rollback")}
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -308,17 +322,17 @@ export default function ChatBubble({
           {isStreaming && (
             <span className="inline-flex items-center gap-1 text-caption font-bold text-[#6A62C4] bg-[#F2F1FB] px-2 py-0.5 rounded-full border border-[#DCD8F0] animate-pulse">
               <span className="w-1.5 h-1.5 rounded-full bg-[#6A62C4]" />
-              Đang phản hồi...
+              {t("responding")}
             </span>
           )}
           {!isStreaming && writeBadge && (
             <span
-              title="Trò chuyện không ghi vào tài liệu; mọi thay đổi đều đi qua bản xem trước rồi mới áp"
+              title={t("badgeHint")}
               className={`text-caption font-bold px-2 py-0.5 rounded-full border ${
                 writeBadge.wrote ? "text-[#1F7A45] bg-[#EAF6EE] border-[#BEE3C8]" : "text-[#6B6862] bg-[#F5F3F0] border-[#ECEAE5]"
               }`}
             >
-              {writeBadge.text}
+              {t(`badge.${writeBadge.key}`, { count: writeBadge.count ?? 0 })}
             </span>
           )}
         </div>
@@ -343,7 +357,7 @@ export default function ChatBubble({
           </div>
 
           {!isStreaming && parsed.openQuestions.length > 0 && (
-            <ol className="flex flex-col gap-1.5" aria-label="Câu hỏi của AI">
+            <ol className="flex flex-col gap-1.5" aria-label={t("openQuestions")}>
               {parsed.openQuestions.map((question, i) => (
                 <li key={i} className="flex items-baseline gap-2.5 text-heading text-on-surface leading-7">
                   <span className="w-5 h-5 shrink-0 inline-grid place-items-center rounded-[6px] bg-primary-soft text-primary-hover text-caption leading-none font-bold tabular-nums">

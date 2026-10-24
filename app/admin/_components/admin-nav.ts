@@ -1,31 +1,37 @@
+import type { useTranslations } from "next-intl";
 import { Building2, ChartColumnIncreasing, Coins, MessageSquareText, Users, type LucideIcon } from "lucide-react";
 
+/** Translator của namespace `admin` — truyền vào các hàm dựng cột/nhãn (không gọi hook được ngoài component). */
+export type AdminT = ReturnType<typeof useTranslations<"admin">>;
+
 export interface AdminNavItem {
-  label: string;
+  /** Key dưới `admin.nav.items` — component dịch lúc render. */
+  labelKey: "metrics" | "users" | "orgs" | "aiCost" | "feedback";
   href: string;
   icon: LucideIcon;
 }
 
 export interface AdminNavGroup {
-  title: string;
+  /** Key dưới `admin.nav.groups`. */
+  titleKey: "operations" | "system";
   items: AdminNavItem[];
 }
 
-/** Một nguồn cho cả sidebar và bảng lệnh ⌘K — thêm trang mới chỉ sửa ở đây. */
+/** Một nguồn cho cả sidebar và bảng lệnh ⌘K — thêm trang mới chỉ sửa ở đây (và thêm nhãn vào `admin.nav`). */
 export const ADMIN_NAV: AdminNavGroup[] = [
   {
-    title: "Vận hành",
+    titleKey: "operations",
     items: [
-      { label: "Số liệu", href: "/admin/metrics", icon: ChartColumnIncreasing },
-      { label: "Người dùng", href: "/admin/users", icon: Users },
-      { label: "Tổ chức", href: "/admin/orgs", icon: Building2 },
+      { labelKey: "metrics", href: "/admin/metrics", icon: ChartColumnIncreasing },
+      { labelKey: "users", href: "/admin/users", icon: Users },
+      { labelKey: "orgs", href: "/admin/orgs", icon: Building2 },
     ],
   },
   {
-    title: "Hệ thống",
+    titleKey: "system",
     items: [
-      { label: "Chi phí AI", href: "/admin/ai-cost", icon: Coins },
-      { label: "Phản hồi", href: "/admin/feedback", icon: MessageSquareText },
+      { labelKey: "aiCost", href: "/admin/ai-cost", icon: Coins },
+      { labelKey: "feedback", href: "/admin/feedback", icon: MessageSquareText },
     ],
   },
 ];

@@ -1,11 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { LanguageCommandOutcome } from "@/lib/document-language-command";
 import type { DocumentLanguage } from "@/types/project";
-
-/** Tên ngôn ngữ đặt giữa câu tiếng Việt ("Đổi tài liệu sang tiếng Anh?") — khác chip, chip ghi tên bằng chính ngôn ngữ đó. */
-const IN_SENTENCE: Record<DocumentLanguage, string> = { vi: "tiếng Việt", en: "tiếng Anh" };
 
 interface LanguageCommandCardProps {
   kind: Exclude<LanguageCommandOutcome, "send">;
@@ -47,25 +45,24 @@ export default function LanguageCommandCard({
   onSendAsMessage,
   onCancel,
 }: LanguageCommandCardProps) {
+  const t = useTranslations("workspace.languageCommand");
+  // Tên ngôn ngữ đặt giữa câu ("Đổi tài liệu sang tiếng Anh?") — khác chip, chip ghi tên bằng chính ngôn ngữ đó
+  const language = t(`inSentence.${target}`);
   const title =
-    kind === "switch"
-      ? `Đổi tài liệu sang ${IN_SENTENCE[target]}?`
-      : kind === "same"
-        ? `Tài liệu đang là ${IN_SENTENCE[target]}`
-        : "Dự án upload giữ ngôn ngữ của file tải lên";
+    kind === "switch" ? t("switchTitle", { language }) : kind === "same" ? t("sameTitle", { language }) : t("lockedTitle");
   const note =
     kind === "switch"
       ? target === sourceLanguage
-        ? `${capitalize(IN_SENTENCE[target])} là ngôn ngữ gốc của tài liệu — chỉ đổi ngôn ngữ hiển thị và bản xuất, không cần dịch, không tốn credit.`
-        : `Nội dung hiện có cần dịch sang ${IN_SENTENCE[target]}. Số mục và credit ước tính hiện ở bước tiếp theo — bạn xác nhận rồi mới dịch.`
+        ? t("switchToSource", { language: t(`inSentenceCap.${target}`) })
+        : t("switchTranslate", { language })
       : kind === "same"
         ? missing !== null && missing > 0
-          ? `Còn ${missing} mục chưa dịch, đang hiện chữ gốc.`
-          : "Không cần đổi gì."
-        : "Ngôn ngữ tài liệu theo đúng file bạn đã tải lên, không đổi hay dịch được.";
+          ? t("sameMissing", { count: missing })
+          : t("sameNothing")
+        : t("lockedNote");
 
   return (
-    <div role="status" aria-label="Ngôn ngữ tài liệu" className="self-stretch rounded-card bg-surface-container-lowest p-3.5 flex flex-col gap-2.5">
+    <div role="status" aria-label={t("aria")} className="self-stretch rounded-card bg-surface-container-lowest p-3.5 flex flex-col gap-2.5">
       <div className="flex items-start gap-2.5">
         <span aria-hidden className="w-7 h-7 shrink-0 grid place-items-center rounded-inner bg-primary-soft text-primary">
           <Icon name="translate" size={14} />
@@ -73,13 +70,13 @@ export default function LanguageCommandCard({
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
           <span className="text-body font-semibold text-on-surface">{title}</span>
           <p className="text-body text-on-surface-muted leading-relaxed">{note}</p>
-          <p className="text-caption text-on-surface-muted break-words">Bạn gõ: “{text}”</p>
+          <p className="text-caption text-on-surface-muted break-words">{t("youTyped", { text })}</p>
         </div>
         {!busy && (
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Đóng thẻ ngôn ngữ"
+            aria-label={t("close")}
             className="w-6 h-6 shrink-0 grid place-items-center rounded-inner text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors"
           >
             <Icon name="close" size={13} />
@@ -100,21 +97,19 @@ export default function LanguageCommandCard({
           disabled={busy}
           className={`${BUTTON} text-on-surface-variant hover:bg-surface-container-high`}
         >
-          {kind === "switch" ? "Không, gửi như tin nhắn" : "Gửi như tin nhắn"}
+          {kind === "switch" ? t("sendAsMessageNo") : t("sendAsMessage")}
         </button>
         {kind === "same" && missing !== null && missing > 0 && (
           <button type="button" onClick={onTranslate} className={`${BUTTON} bg-primary text-on-primary hover:bg-primary-hover`}>
-            Dịch {missing} mục còn thiếu
+            {t("translateMissing", { count: missing })}
           </button>
         )}
         {kind === "switch" && (
           <button type="button" onClick={onConfirm} disabled={busy} className={`${BUTTON} bg-primary text-on-primary hover:bg-primary-hover`}>
-            {busy ? "Đang đổi…" : "Đồng ý"}
+            {busy ? t("switching") : t("agree")}
           </button>
         )}
       </div>
     </div>
   );
 }
-
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

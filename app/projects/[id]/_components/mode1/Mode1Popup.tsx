@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Modal from "@/components/ui/Modal";
 import { useDocVersions } from "../../hooks/mode1/useDocVersions";
 import ChangeRequestList from "./ChangeRequestList";
@@ -28,8 +29,9 @@ interface Mode1PopupProps {
  * Popup không cần đếm cờ đỏ (chỉ panel Release cần) nên tắt để khỏi gọi thừa `GET /flags`.
  */
 function CompareBody({ projectId }: { projectId: string }) {
+  const t = useTranslations("mode1.popup");
   const docs = useDocVersions(projectId, { redFlags: false });
-  if (docs.loading) return <p className="text-body text-on-surface-muted">Đang tải danh sách version…</p>;
+  if (docs.loading) return <p className="text-body text-on-surface-muted">{t("loadingVersions")}</p>;
   return (
     <div className="flex flex-col gap-3">
       {docs.error && (
@@ -48,6 +50,7 @@ function CompareBody({ projectId }: { projectId: string }) {
  * `panel=compare`. Đóng ⇒ bỏ query.
  */
 export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false }: Mode1PopupProps) {
+  const t = useTranslations("mode1.popup");
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -57,7 +60,7 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
   const crId = panel === "cr" ? params?.get("cr") : null;
   const close = () => router.replace(pathname ?? `/projects/${projectId}`, { scroll: false });
   const title =
-    panel === "gap" ? "Gap report" : panel === "compare" ? "So sánh version" : crId ? `Change request ${crId}` : "Change request";
+    panel === "gap" ? t("gapTitle") : panel === "compare" ? t("compareTitle") : crId ? t("crTitleWithId", { id: crId }) : t("crTitle");
 
   return (
     <Modal open onClose={close} title={title} size="xl">
@@ -67,7 +70,7 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
       {panel === "cr" && crId && (
         <div className="flex flex-col gap-3">
           <Link href={crListHref(projectId)} scroll={false} className="self-start text-body font-bold text-primary hover:underline">
-            ← Danh sách change request
+            {t("backToList")}
           </Link>
           <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} readOnly={readOnly} />
         </div>

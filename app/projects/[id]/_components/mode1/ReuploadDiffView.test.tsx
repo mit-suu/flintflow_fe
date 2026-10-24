@@ -11,6 +11,7 @@ import { importToGapReview } from "@/mocks/mode1/flows";
 import type { ReuploadDiff } from "@/types/import";
 import { readCrPrefill } from "./prefill";
 import ReuploadDiffView, { reuploadPrefill } from "./ReuploadDiffView";
+import { labelsFor } from "./test-labels";
 
 const P = MODE1_PROJECT_ID;
 
@@ -138,7 +139,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     expect(screen.getByText("SRS_sua.docx")).toBeInTheDocument();
     expect(screen.getByText(/so với bản 0.2/)).toBeInTheDocument();
     expect(readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams)).toEqual({
-      ...reuploadPrefill(DIFF),
+      ...reuploadPrefill(DIFF, labelsFor()),
       source: "reupload",
       ref: "File tải lại SRS_sua.docx",
     });
@@ -147,7 +148,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
 
 describe("reuploadPrefill", () => {
   it("mỗi loại khác biệt một dòng", () => {
-    const { title, description } = reuploadPrefill(DIFF);
+    const { title, description } = reuploadPrefill(DIFF, labelsFor());
     expect(title).toBe("Cập nhật theo file SRS_sua.docx");
     expect(description.split("\n")).toEqual([
       "Áp các thay đổi trong file tải lại SRS_sua.docx (so với bản 0.2):",
@@ -166,7 +167,7 @@ describe("reuploadPrefill", () => {
         { block_id: "B0001", change: "removed" },
         { block_id: "B0002", change: "modified" },
       ],
-    });
+    }, labelsFor());
     expect(description).not.toContain("undefined");
     expect(description).toContain('- Sửa: "" → ""');
     expect(description).not.toMatch(/B000\d/);

@@ -35,6 +35,15 @@ export const selectRecentProjects = (projects: readonly Project[], limit = RECEN
 const messageOf = (err: unknown, fallback: string) => userErrorMessage(err, fallback);
 
 /**
+ * Lỗi FE tự sinh lưu dạng mã `@<key>` (mẫu `lib/hook-errors.ts`): ghi trong callback của effect nên không gọi
+ * `useTranslations` ở đây; component dịch lúc render với `useTranslations("app.home.loadErrors")`.
+ */
+export type ProjectsLoadErrorKey = "projectsLoadFailed" | "foldersLoadFailed";
+
+export const projectsErrorText = (error: string, t: (key: ProjectsLoadErrorKey) => string): string =>
+  error === "@projectsLoadFailed" || error === "@foldersLoadFailed" ? t(error.slice(1) as ProjectsLoadErrorKey) : error;
+
+/**
  * Tải `GET /projects` + `GET /folders` một lần cho cả khung `/home/*` để sidebar ("Gần đây") và dashboard
  * không gọi lặp.
  */
@@ -52,8 +61,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         .then(([projectsRes, foldersRes]) => {
           if (projectsRes.status === "fulfilled") setProjects(projectsRes.value.data ?? []);
           if (foldersRes.status === "fulfilled") setFolders(foldersRes.value.data ?? []);
-          setError(projectsRes.status === "rejected" ? messageOf(projectsRes.reason, "Không thể tải danh sách dự án") : null);
-          setFoldersError(foldersRes.status === "rejected" ? messageOf(foldersRes.reason, "Không thể tải thư mục") : null);
+          setError(projectsRes.status === "rejected" ? messageOf(projectsRes.reason, "@projectsLoadFailed") : null);
+          setFoldersError(foldersRes.status === "rejected" ? messageOf(foldersRes.reason, "@foldersLoadFailed") : null);
         })
         .finally(() => setLoading(false)),
     []

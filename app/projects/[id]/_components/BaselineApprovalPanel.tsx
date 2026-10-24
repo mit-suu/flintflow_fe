@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
@@ -9,6 +10,7 @@ import type { SrsComment } from "@/types/comment";
 import type { BlockingFlag } from "./gate-helpers";
 import type { BaselineSubmission } from "@/types/spine";
 import type { OrgRole } from "@/types/organization";
+import type { Locale } from "@/lib/i18n";
 
 interface BaselineApprovalPanelProps {
   role: OrgRole | null;
@@ -31,7 +33,7 @@ interface BaselineApprovalPanelProps {
   onOpenComments: (commentIds?: readonly string[]) => void;
 }
 
-const when = (iso: string) => new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const when = (iso: string, locale: Locale) => new Date(iso).toLocaleString(locale === "en" ? "en-US" : "vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 /**
  * Chốt baseline 1.0 (UC-45, UC-46, UC-47) — đặt ngay dưới `ReadinessSummary` trong panel kiểm tra, vì
@@ -59,23 +61,20 @@ function ConfirmApproveModal({
   fromSubmission: boolean;
   onConfirm: () => Promise<void>;
 }) {
+  const t = useTranslations("workspace.baseline");
   return (
-    <Modal open={open} onClose={onClose} title={fromSubmission ? "Duyệt baseline?" : "Chốt baseline?"}>
+    <Modal open={open} onClose={onClose} title={fromSubmission ? t("confirmApproveTitle") : t("confirmLockTitle")}>
       <div className="flex flex-col gap-3">
         <p className="text-body text-on-surface">
-          Bản SRS hiện tại sẽ được đóng dấu version và <span className="font-bold">khoá vĩnh viễn</span>. Đây là bản gửi
-          ra ngoài được.
+          {t.rich("confirmBody", { b: (chunks) => <span className="font-bold">{chunks}</span> })}
         </p>
-        <p className="text-body text-on-surface-variant">
-          Sau khi khoá thì không sửa vào bản này được nữa — mọi thay đổi về sau phải đi qua change request và phát hành
-          version mới.
-        </p>
+        <p className="text-body text-on-surface-variant">{t("confirmNote")}</p>
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
-            Huỷ
+            {t("cancel")}
           </Button>
           <Button loading={busy} onClick={() => void onConfirm()}>
-            {fromSubmission ? "Duyệt và khoá" : "Chốt và khoá"}
+            {fromSubmission ? t("approveAndLock") : t("lockAndLock")}
           </Button>
         </div>
       </div>
@@ -96,6 +95,8 @@ export default function BaselineApprovalPanel({
   onReject,
   onOpenComments,
 }: BaselineApprovalPanelProps) {
+  const t = useTranslations("workspace.baseline");
+  const locale = useLocale();
   const [rejecting, setRejecting] = useState(false);
   const [approving, setApproving] = useState(false);
 
@@ -108,14 +109,15 @@ export default function BaselineApprovalPanel({
   const unresolved = rejectionIds.filter((id) => comments.find((c) => c.comment_id === id)?.status === "open");
 
   const blocked = blocking > 0;
-  const blockedHint = `Còn ${blocking} vấn đề cần xử lý trước khi chốt`;
+  const blockedHint = t("blockedHint", { count: blocking });
+  const blockedSentence = t("blockedHintSentence", { count: blocking });
 
   return (
     <section className="bg-surface-container-high rounded-card p-3 flex flex-col gap-2">
       {/* Version đã khoá hiện ở chip breadcrumb trên header — không nhắc lại ở đây cho khỏi hai chỗ nói một thứ */}
       <div className="flex items-center gap-2">
         <Icon name="check-circle" size={14} className="text-on-surface-variant" />
-        <h4 className="font-bold text-body text-on-surface">Chốt baseline</h4>
+        <h4 className="font-bold text-body text-on-surface">{t("title")}</h4>
       </div>
 
       {error && <p className="text-body text-error">{error}</p>}
@@ -126,7 +128,7 @@ export default function BaselineApprovalPanel({
             <li key={flag.id} className="bg-surface-container-lowest rounded-inner px-2.5 py-1.5 flex flex-col gap-0.5">
               <span className="text-body text-on-surface">{flag.message}</span>
               {flag.remediation_step && (
-                <span className="text-caption text-on-surface-variant">Xử lý ở bước {flag.remediation_step}</span>
+                <span className="text-caption text-on-surface-variant">{t("fixAtStep", { step: flag.remediation_step })}</span>
               )}
             </li>
           ))}
@@ -136,58 +138,56 @@ export default function BaselineApprovalPanel({
       {submission?.status === "pending" ? (
         isLead ? (
           <>
-            <p className="text-body text-on-surface">
-              Analyst đã gửi bản này lúc {when(submission.submitted_at)} và đang chờ bạn duyệt.
-            </p>
+            <p className="text-body text-on-surface">{t("pendingForLead", { time: when(submission.submitted_at, locale) })}</p>
             <div className="flex items-center gap-2">
               <Button size="sm" loading={busy} disabled={blocked} title={blocked ? blockedHint : undefined} onClick={() => setApproving(true)}>
-                Duyệt
+                {t("approve")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setRejecting(true)}>
-                Từ chối
+                {t("reject")}
               </Button>
             </div>
-            {blocked && <p className="text-caption text-on-surface-variant">{blockedHint}.</p>}
+            {blocked && <p className="text-caption text-on-surface-variant">{blockedSentence}</p>}
           </>
         ) : (
-          <p className="text-body text-on-surface-variant">Đã gửi Lead duyệt lúc {when(submission.submitted_at)}. Chờ Lead quyết.</p>
+          <p className="text-body text-on-surface-variant">{t("pendingForAnalyst", { time: when(submission.submitted_at, locale) })}</p>
         )
       ) : submission?.status === "rejected" ? (
         <>
           <p className="text-body text-on-surface">
-            <span className="font-bold">Lead chưa duyệt:</span> {submission.reason}
+            {t.rich("rejected", { reason: submission.reason ?? "", b: (chunks) => <span className="font-bold">{chunks}</span> })}
           </p>
           <button
             type="button"
             onClick={() => onOpenComments(rejectionIds)}
             className="self-start text-caption font-bold text-primary hover:underline cursor-pointer"
           >
-            {rejectionIds.length - unresolved.length}/{rejectionIds.length} góp ý đã xử lý — xem
+            {t("rejectionProgress", { done: rejectionIds.length - unresolved.length, total: rejectionIds.length })}
           </button>
           {!isLead && (
             <Button size="sm" loading={busy} onClick={() => void onSubmit()}>
-              Gửi lại
+              {t("resubmit")}
             </Button>
           )}
           {isLead && (
             <Button size="sm" loading={busy} disabled={blocked} title={blocked ? blockedHint : undefined} onClick={() => setApproving(true)}>
-              Chốt baseline
+              {t("title")}
             </Button>
           )}
         </>
       ) : isLead ? (
         <>
           <Button size="sm" loading={busy} disabled={blocked} title={blocked ? blockedHint : undefined} onClick={() => setApproving(true)}>
-            Chốt baseline
+            {t("title")}
           </Button>
-          {blocked && <p className="text-caption text-on-surface-variant">{blockedHint}.</p>}
+          {blocked && <p className="text-caption text-on-surface-variant">{blockedSentence}</p>}
         </>
       ) : (
         <>
           <Button size="sm" loading={busy} disabled={blocked} title={blocked ? blockedHint : undefined} onClick={() => void onSubmit()}>
-            Gửi Lead duyệt
+            {t("submitToLead")}
           </Button>
-          {blocked && <p className="text-caption text-on-surface-variant">{blockedHint}.</p>}
+          {blocked && <p className="text-caption text-on-surface-variant">{blockedSentence}</p>}
         </>
       )}
 

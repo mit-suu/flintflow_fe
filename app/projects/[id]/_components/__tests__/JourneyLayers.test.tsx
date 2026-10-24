@@ -1,5 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { renderWithIntl } from "@/test/intl";
+import { createTranslator } from "next-intl";
+import { MESSAGES, renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import DecisionsPanel, { topicLabel } from "../DecisionsPanel";
 import { stepDividers } from "../ChatPane";
@@ -36,7 +37,9 @@ describe("DecisionsPanel — tab Đã chốt (R4)", () => {
   it("chưa chốt gì thì nói thẳng, không hiện bảng rỗng", () => {
     renderWithIntl(<DecisionsPanel spine={spineWith([])} onSubmitOps={vi.fn()} />);
     expect(screen.getByText("Chưa có quyết định nào được chốt.")).toBeInTheDocument();
-    expect(topicLabel("slot_hold_minutes")).toBe("Giữ chỗ (phút)");
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.decisions" });
+    expect(topicLabel("slot_hold_minutes", t)).toBe("Giữ chỗ (phút)");
+    expect(topicLabel("chu_de_tu_do", t)).toBe("chu de tu do");
   });
 });
 
@@ -52,11 +55,11 @@ describe("Chat — phân đoạn theo bước và nhãn ghi (BUG-24, BUG-09)", (
 
   it("tin nhắn AI thường là “Chỉ trao đổi”; bản xem trước nói rõ chờ xác nhận", () => {
     expect(writeBadgeOf({ role: "user", content: "x", createdAt: "" })).toBeNull();
-    expect(writeBadgeOf({ role: "ai", content: "Tôi sẽ bổ sung UC18", createdAt: "" })).toMatchObject({ text: "Chỉ trao đổi", wrote: false });
+    expect(writeBadgeOf({ role: "ai", content: "Tôi sẽ bổ sung UC18", createdAt: "" })).toMatchObject({ key: "chatOnly", wrote: false });
     const preview = JSON.stringify({ kind: "change_preview", changes: [{}, {}] });
-    expect(writeBadgeOf({ role: "ai", content: preview, createdAt: "" })).toMatchObject({ text: "Chờ bạn xác nhận (2 thay đổi)" });
+    expect(writeBadgeOf({ role: "ai", content: preview, createdAt: "" })).toMatchObject({ key: "pending", count: 2 });
     // FLF-300: bản xem trước lỗi (0 thay đổi) không có gì để xác nhận
     const failed = JSON.stringify({ kind: "change_preview", reply: "…", change_count: 0 });
-    expect(writeBadgeOf({ role: "ai", content: failed, createdAt: "" })).toMatchObject({ text: "Chưa ghi gì", wrote: false });
+    expect(writeBadgeOf({ role: "ai", content: failed, createdAt: "" })).toMatchObject({ key: "nothingWritten", wrote: false });
   });
 });

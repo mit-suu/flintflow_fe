@@ -97,6 +97,22 @@ export type RunnerAction =
   | { type: "detached" }
   | { type: "reset" };
 
+/**
+ * Câu trạng thái FE tự sinh cho `RunnerState.detail`. Reducer thuần (không có `t`) nên lưu mã `@<key>` (kèm `:<số>` khi
+ * câu có số); component dịch lúc render bằng `runnerDetailText` với `useTranslations("workspace.runnerDetail")`.
+ * `detail` do BE gửi (`detail_vi` / `label_vi`) đi nguyên văn.
+ */
+const RUNNER_DETAIL_KEYS = ["starting", "startingPhase", "waitingAnswers", "readingAnswers", "readingMessage", "reconnecting", "interrupted"] as const;
+export type RunnerDetailKey = (typeof RUNNER_DETAIL_KEYS)[number];
+
+export const runnerDetail = (key: RunnerDetailKey, count?: number): string => (count === undefined ? `@${key}` : `@${key}:${count}`);
+
+export const runnerDetailText = (detail: string, t: (key: RunnerDetailKey, values: { count: number }) => string): string => {
+  const match = /^@(\w+)(?::(\d+))?$/.exec(detail);
+  const key = match?.[1] as RunnerDetailKey | undefined;
+  return key && RUNNER_DETAIL_KEYS.includes(key) ? t(key, { count: Number(match?.[2] ?? 0) }) : detail;
+};
+
 export const initialRunnerState: RunnerState = {
   status: "idle",
   stepId: null,
@@ -156,7 +172,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
   switch (action.type) {
     case "start": {
       const now = Date.now();
-      return { ...initialRunnerState, status: "intake", stepId: action.stepId, busy: true, startedAt: now, lastEventAt: now, detail: "Đang khởi động…" };
+      return { ...initialRunnerState, status: "intake", stepId: action.stepId, busy: true, startedAt: now, lastEventAt: now, detail: runnerDetail("starting") };
     }
     case "startPhase": {
       const now = Date.now();
@@ -167,7 +183,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         busy: true,
         startedAt: now,
         lastEventAt: now,
-        detail: "Đang khởi động giai đoạn…",
+        detail: runnerDetail("startingPhase"),
       };
     }
     case "event": {
@@ -195,9 +211,9 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         case "elicit":
           return { ...next, elicitText: state.elicitText + event.delta };
         case "answer_needed":
-          return { ...next, questions: event.questions, busy: false, detail: `Chờ bạn trả lời ${event.questions.length} câu hỏi` };
+          return { ...next, questions: event.questions, busy: false, detail: runnerDetail("waitingAnswers", event.questions.length) };
         case "answer_received":
-          return { ...next, questions: [], busy: true, detail: event.count > 0 ? "Đang đọc câu trả lời của bạn…" : "Đang đọc tin nhắn của bạn…" };
+          return { ...next, questions: [], busy: true, detail: runnerDetail(event.count > 0 ? "readingAnswers" : "readingMessage") };
         case "draft_retry":
           return { ...next, status: "drafting", retry: { attempt: event.attempt, max: event.max, reason: event.reason_vi } };
         case "ops_applied":
@@ -236,7 +252,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         elicitText: "",
         status: "drafting",
         busy: true,
-        detail: action.count ? "Đang đọc câu trả lời của bạn…" : "Đang đọc tin nhắn của bạn…",
+        detail: runnerDetail(action.count ? "readingAnswers" : "readingMessage"),
         lastEventAt: Date.now()
       };
     case "busy":
@@ -244,9 +260,9 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
     case "failed":
       return { ...state, status: "error", error: { code: action.code, message: action.message, ...(action.meta ? { meta: action.meta } : {}) }, busy: false };
     case "reconnecting":
-      return { ...state, status: "reconnecting", detail: "Mất kết nối với lượt chạy, đang kết nối lại…" };
+      return { ...state, status: "reconnecting", detail: runnerDetail("reconnecting") };
     case "interrupted":
-      return { ...state, status: "interrupted", busy: false, detail: "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ." };
+      return { ...state, status: "interrupted", busy: false, detail: runnerDetail("interrupted") };
     case "restored": {
       const { state: run } = action;
       const at = action.at ?? Date.now();
@@ -269,7 +285,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       if (run.status === "running" && run.alive) return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true };
       if (run.status === "interrupted" || (run.status === "running" && !run.alive)) {
         // Lỗi của lượt (vd lượt chạy tiếp ở nền sau khi trả lời) hiện ở khối lỗi kèm nút làm lại
-        return { ...base, status: "interrupted", detail: "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.", error: run.error ?? null };
+        return { ...base, status: "interrupted", detail: runnerDetail("interrupted"), error: run.error ?? null };
       }
       return initialRunnerState;
     }

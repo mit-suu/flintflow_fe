@@ -14,12 +14,10 @@ const ERRORS: Record<Locale, Record<string, string>> = { vi: vi.errors, en: en.e
 
 /**
  * Ngôn ngữ đang hiển thị: `<html lang>` do root layout gắn theo locale của request (đổi theo `router.refresh()`).
- * Admin chỉ tiếng Việt dù cookie là `en` (`app/admin/layout.tsx`) ⇒ trong `/admin` luôn `vi`.
- * Ngoài trình duyệt (SSR, test node) ⇒ `vi`.
+ * Áp dụng cả trong `/admin` (song ngữ từ FLF-328). Ngoài trình duyệt (SSR, test node) ⇒ `vi`.
  */
 export const currentLocale = (): Locale => {
   if (typeof document === "undefined") return DEFAULT_LOCALE;
-  if (window.location.pathname.startsWith("/admin")) return "vi";
   const lang = document.documentElement.lang;
   return isLocale(lang) ? lang : DEFAULT_LOCALE;
 };

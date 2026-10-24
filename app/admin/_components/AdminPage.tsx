@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { X, type LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import PageSkeleton, { type PageSkeletonVariant } from "@/components/ui/PageSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/shadcn/card";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,7 @@ export function AdminPageHeader({
 }
 
 export function ErrorBanner({ message, onClose }: { message: string; onClose?: () => void }) {
+  const t = useTranslations("admin.common");
   return (
     <div
       role="alert"
@@ -69,7 +71,7 @@ export function ErrorBanner({ message, onClose }: { message: string; onClose?: (
     >
       <span className="flex-1">{message}</span>
       {onClose && (
-        <button type="button" onClick={onClose} aria-label="Đóng thông báo" className="cursor-pointer hover:opacity-75">
+        <button type="button" onClick={onClose} aria-label={t("closeNotice")} className="cursor-pointer hover:opacity-75">
           <X className="size-4" />
         </button>
       )}
@@ -79,6 +81,7 @@ export function ErrorBanner({ message, onClose }: { message: string; onClose?: (
 
 /** Thông báo thành công (đổi credit, đổi trạng thái…) — cùng khuôn với `ErrorBanner`. */
 export function SuccessBanner({ message, onClose }: { message: string; onClose?: () => void }) {
+  const t = useTranslations("admin.common");
   return (
     <div
       role="status"
@@ -86,7 +89,7 @@ export function SuccessBanner({ message, onClose }: { message: string; onClose?:
     >
       <span className="flex-1">{message}</span>
       {onClose && (
-        <button type="button" onClick={onClose} aria-label="Đóng thông báo" className="cursor-pointer hover:opacity-75">
+        <button type="button" onClick={onClose} aria-label={t("closeNotice")} className="cursor-pointer hover:opacity-75">
           <X className="size-4" />
         </button>
       )}

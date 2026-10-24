@@ -7,6 +7,7 @@ import {
   ChevronsRight,
 } from 'lucide-react'
 import { type Table } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
 import { cn, getPageNumbers } from '@/lib/utils'
 import { Button } from '@/components/shadcn/button'
 import {
@@ -26,6 +27,7 @@ export function DataTablePagination<TData>({
   table,
   className,
 }: DataTablePaginationProps<TData>) {
+  const t = useTranslations('common.dataTable')
   const currentPage = table.getState().pagination.pageIndex + 1
   const totalPages = table.getPageCount()
   const pageNumbers = getPageNumbers(currentPage, totalPages)
@@ -41,7 +43,7 @@ export function DataTablePagination<TData>({
     >
       <div className='flex w-full items-center justify-between'>
         <div className='flex w-[100px] items-center justify-center text-body font-medium @2xl/content:hidden'>
-          Trang {currentPage}/{totalPages}
+          {t('pageOf', { page: currentPage, total: totalPages })}
         </div>
         <div className='flex items-center gap-2 @max-2xl/content:flex-row-reverse'>
           <Select
@@ -61,13 +63,13 @@ export function DataTablePagination<TData>({
               ))}
             </SelectContent>
           </Select>
-          <p className='hidden text-body font-medium sm:block'>Dòng mỗi trang</p>
+          <p className='hidden text-body font-medium sm:block'>{t('rowsPerPage')}</p>
         </div>
       </div>
 
       <div className='flex items-center sm:space-x-6 lg:space-x-8'>
         <div className='flex w-[100px] items-center justify-center text-body font-medium @max-3xl/content:hidden'>
-          Trang {currentPage}/{totalPages}
+          {t('pageOf', { page: currentPage, total: totalPages })}
         </div>
         <div className='flex items-center space-x-2'>
           <Button
@@ -76,7 +78,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className='sr-only'>Về trang đầu</span>
+            <span className='sr-only'>{t('firstPage')}</span>
             <ChevronsLeft className='h-4 w-4' />
           </Button>
           <Button
@@ -85,7 +87,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className='sr-only'>Trang trước</span>
+            <span className='sr-only'>{t('previousPage')}</span>
             <ChevronLeft className='h-4 w-4' />
           </Button>
 
@@ -100,7 +102,7 @@ export function DataTablePagination<TData>({
                   className='h-8 min-w-8 px-2'
                   onClick={() => table.setPageIndex((pageNumber as number) - 1)}
                 >
-                  <span className='sr-only'>Tới trang {pageNumber}</span>
+                  <span className='sr-only'>{t('goToPage', { page: pageNumber })}</span>
                   {pageNumber}
                 </Button>
               )}
@@ -113,7 +115,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            <span className='sr-only'>Trang sau</span>
+            <span className='sr-only'>{t('nextPage')}</span>
             <ChevronRight className='h-4 w-4' />
           </Button>
           <Button
@@ -122,7 +124,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >
-            <span className='sr-only'>Tới trang cuối</span>
+            <span className='sr-only'>{t('lastPage')}</span>
             <ChevronsRight className='h-4 w-4' />
           </Button>
         </div>

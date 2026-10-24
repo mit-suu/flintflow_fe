@@ -15,7 +15,7 @@ import {
 import { getSpine } from "@/lib/api/spine";
 import type { RocRow } from "@/types/document";
 import type { FieldsPatchRequest, FinalizeResponse, GetImportResponse, MappingPatchRequest } from "@/types/import";
-import { errorText } from "../../_components/mode1/errors";
+import { useErrorText } from "../../_components/mode1/i18n";
 import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 
 /** Nhịp poll `GET /import` khi I-4 chạy nền (#6/#10 trả ngay). */
@@ -38,6 +38,7 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
   /** Đã bấm tạo baseline / tiếp tục bước baseline–kiểm trong phiên này (BE không báo `baselining` nào đang có job). */
   const [finalizeStarted, setFinalizeStarted] = useState(false);
   const alive = useRef(true);
+  const errText = useErrorText();
 
   useEffect(() => {
     alive.current = true;
@@ -54,9 +55,9 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
           setData(res.data);
           setError(null);
         })
-        .catch((err: unknown) => alive.current && setError(errorText(err, "Không tải được trạng thái import")))
+        .catch((err: unknown) => alive.current && setError(errText(err, "loadImport")))
         .finally(() => alive.current && setLoading(false)),
-    [projectId]
+    [projectId, errText]
   );
 
   useEffect(() => {
@@ -89,14 +90,14 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
       } catch (err) {
         // Preflight từ chối vẫn tạo bản ghi import (`preflight_rejected` + issues) ⇒ đọc lại để hiện danh sách lỗi
         if (err instanceof ApiClientError && err.code === "IMPORT_FILE_REJECTED") await reload();
-        else setError(errorText(err));
+        else setError(errText(err));
         if (err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT") await reload();
         return null;
       } finally {
         if (alive.current) setBusy(null);
       }
     },
-    [reload]
+    [reload, errText]
   );
 
   const importId = doc?.id ?? "";

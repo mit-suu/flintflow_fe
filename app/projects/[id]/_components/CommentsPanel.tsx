@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
+import type { Locale } from "@/lib/i18n";
 import { COMMENT_TEXT_MAX, KEEP_REASON_MIN_LENGTH, type SrsComment, type CommentResolutionInput, type PendingCommentAnchor } from "@/types/comment";
 
 type Filter = "open" | "all";
@@ -29,15 +31,17 @@ interface CommentsPanelProps {
   onClose: () => void;
 }
 
-const ROLE_LABEL: Record<string, string> = { lead: "Lead", analyst: "Analyst", viewer: "Viewer" };
+const ROLES = ["lead", "analyst", "viewer"] as const;
+const isRole = (role: string): role is (typeof ROLES)[number] => (ROLES as readonly string[]).includes(role);
 
-const STATUS_CHIP: Record<SrsComment["status"], { text: string; style: string } | null> = {
+/** Chữ của chip: `workspace.comments.status.<status>`. */
+const STATUS_CHIP: Record<SrsComment["status"], { key: "resolved" | "converted"; style: string } | null> = {
   open: null,
-  resolved: { text: "Đã xử lý", style: "bg-success-container text-success" },
-  converted: { text: "Đã thành CR", style: "bg-primary-soft text-primary" },
+  resolved: { key: "resolved", style: "bg-success-container text-success" },
+  converted: { key: "converted", style: "bg-primary-soft text-primary" },
 };
 
-const when = (iso: string) => new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const when = (iso: string, locale: Locale) => new Date(iso).toLocaleString(locale === "en" ? "en-US" : "vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 /** Ô soạn một góp ý cho chỗ vừa chọn. Không đổi nội dung tài liệu (BR-05) — chỉ ghim lời nhắn. */
 function CommentComposer({
@@ -51,6 +55,7 @@ function CommentComposer({
   onCancel: () => void;
   onSubmit: (text: string) => Promise<void>;
 }) {
+  const t = useTranslations("workspace.comments");
   const [text, setText] = useState("");
   const trimmed = text.trim();
 
@@ -58,18 +63,18 @@ function CommentComposer({
     <section className="bg-surface-container-high rounded-card p-3 flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2">
         <p className="text-caption text-on-surface-variant min-w-0">
-          Góp ý vào <span className="font-bold text-on-surface">{anchor.label}</span>
-          {anchor.blockIndex !== undefined && <span> › đoạn {anchor.blockIndex + 1}</span>}
+          {t.rich("composeTo", { label: anchor.label, b: (chunks) => <span className="font-bold text-on-surface">{chunks}</span> })}
+          {anchor.blockIndex !== undefined && <span>{t("paragraph", { n: anchor.blockIndex + 1 })}</span>}
         </p>
-        <IconButton icon="close" size="sm" label="Bỏ góp ý đang soạn" onClick={onCancel} />
+        <IconButton icon="close" size="sm" label={t("cancelCompose")} onClick={onCancel} />
       </div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, COMMENT_TEXT_MAX))}
         rows={3}
         autoFocus
-        placeholder="Chỗ này cần sửa gì?"
-        aria-label="Nội dung góp ý"
+        placeholder={t("placeholder")}
+        aria-label={t("textAria")}
         className="w-full bg-surface-container-lowest rounded-inner px-3 py-2 text-body text-on-surface placeholder:text-on-surface-subtle resize-y focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       />
       <div className="flex items-center justify-between gap-2">
@@ -77,7 +82,7 @@ function CommentComposer({
           {text.length}/{COMMENT_TEXT_MAX}
         </span>
         <Button size="sm" loading={busy} disabled={trimmed.length === 0} onClick={() => void onSubmit(trimmed)}>
-          Ghim góp ý
+          {t("pin")}
         </Button>
       </div>
     </section>
@@ -97,10 +102,12 @@ function CommentCard({
   onResolve: (commentId: string, resolution: CommentResolutionInput) => Promise<void>;
   onShowSection?: (sectionId: string) => void;
 }) {
+  const t = useTranslations("workspace.comments");
+  const locale = useLocale();
   const [keeping, setKeeping] = useState(false);
   const [reason, setReason] = useState("");
   const chip = STATUS_CHIP[comment.status];
-  const author = comment.author?.name || comment.author?.email || "Người dùng";
+  const author = comment.author?.name || comment.author?.email || t("defaultAuthor");
 
   return (
     <article className="bg-surface-container-low rounded-card p-3 flex flex-col gap-1.5">
@@ -113,7 +120,7 @@ function CommentCard({
         >
           {comment.anchor.label}
         </button>
-        {chip && <span className={`shrink-0 text-caption font-extrabold px-2 py-0.5 rounded-full ${chip.style}`}>{chip.text}</span>}
+        {chip && <span className={`shrink-0 text-caption font-extrabold px-2 py-0.5 rounded-full ${chip.style}`}>{t(`status.${chip.key}`)}</span>}
       </div>
 
       {comment.anchor.excerpt && (
@@ -124,7 +131,7 @@ function CommentCard({
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-caption text-on-surface-variant">
-          {comment.comment_id} · {author} ({ROLE_LABEL[comment.author_role] ?? comment.author_role}) · {when(comment.created_at)}
+          {comment.comment_id} · {author} ({isRole(comment.author_role) ? t(`role.${comment.author_role}`) : comment.author_role}) · {when(comment.created_at, locale)}
         </span>
         {comment.status === "open" && canResolve && (
           <span className="flex items-center gap-1">
@@ -135,12 +142,12 @@ function CommentCard({
               onClick={() => void onResolve(comment.comment_id, { kind: "fixed" })}
               // Hệ quả thật: bước đã Accept sở hữu mục này sẽ mở lại (UC-47) — nói trước để người dùng
               // không ngạc nhiên khi tiến độ lùi một nấc.
-              title="Đã nhờ AI sửa theo góp ý này. Mục có bước đã duyệt thì bước đó mở lại để soạn lại."
+              title={t("fixedTitle")}
             >
-              Đã sửa
+              {t("fixed")}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setKeeping(true)} title="Không sửa — nêu lý do để Lead đọc khi duyệt lại">
-              Giữ nguyên
+            <Button size="sm" variant="ghost" onClick={() => setKeeping(true)} title={t("keepTitle")}>
+              {t("keep")}
             </Button>
           </span>
         )}
@@ -153,7 +160,7 @@ function CommentCard({
       {keeping && (
         <div className="flex flex-col gap-1.5 bg-surface-container-high rounded-inner p-2.5">
           <label htmlFor={`keep-${comment.comment_id}`} className="text-caption font-bold text-on-surface-variant">
-            Vì sao giữ nguyên?
+            {t("keepQuestion")}
           </label>
           <textarea
             id={`keep-${comment.comment_id}`}
@@ -161,7 +168,7 @@ function CommentCard({
             onChange={(e) => setReason(e.target.value.slice(0, COMMENT_TEXT_MAX))}
             rows={2}
             autoFocus
-            placeholder="vd: Khách đã xác nhận giữ cách gọi này trong hợp đồng."
+            placeholder={t("keepPlaceholder")}
             className="w-full bg-surface-container-lowest rounded-inner px-2.5 py-1.5 text-body text-on-surface placeholder:text-on-surface-subtle resize-y focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           />
           <div className="flex items-center justify-end gap-1.5">
@@ -173,7 +180,7 @@ function CommentCard({
                 setReason("");
               }}
             >
-              Huỷ
+              {t("cancel")}
             </Button>
             <Button
               size="sm"
@@ -181,7 +188,7 @@ function CommentCard({
               disabled={reason.trim().length < KEEP_REASON_MIN_LENGTH}
               onClick={() => void onResolve(comment.comment_id, { kind: "kept", reason: reason.trim() })}
             >
-              Lưu lý do
+              {t("saveReason")}
             </Button>
           </div>
         </div>
@@ -190,7 +197,7 @@ function CommentCard({
       {/* Đã xử lý rồi thì Lead phải đọc được kết luận — đây là lý do tách hai nhánh ngay từ đầu */}
       {comment.resolution && (
         <p className="text-caption text-on-surface-variant">
-          {comment.resolution.kind === "fixed" ? "Đã sửa theo góp ý." : `Giữ nguyên — ${comment.resolution.reason}`}
+          {comment.resolution.kind === "fixed" ? t("resolvedFixed") : t("resolvedKept", { reason: comment.resolution.reason ?? "" })}
         </p>
       )}
     </article>
@@ -218,6 +225,7 @@ export default function CommentsPanel({
   onClearFocus,
   onClose,
 }: CommentsPanelProps) {
+  const t = useTranslations("workspace.comments");
   const [filter, setFilter] = useState<Filter>("open");
 
   const shown = useMemo(() => {
@@ -230,18 +238,18 @@ export default function CommentsPanel({
   const openCount = comments.filter((c) => c.status === "open").length;
 
   return (
-    <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label="Góp ý">
+    <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label={t("title")}>
       <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <Icon name="feedback" size={16} className="text-primary" />
-          <h3 className="font-bold text-body text-on-surface truncate">Góp ý</h3>
+          <h3 className="font-bold text-body text-on-surface truncate">{t("title")}</h3>
           {openCount > 0 && (
             <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">
               {openCount}
             </span>
           )}
         </div>
-        <IconButton icon="close" size="sm" label="Đóng góp ý" onClick={onClose} />
+        <IconButton icon="close" size="sm" label={t("close")} onClick={onClose} />
       </div>
 
       <div className="flex-1 overflow-y-auto ff-scroll p-4 space-y-3">
@@ -251,10 +259,10 @@ export default function CommentsPanel({
 
         {focusCommentIds ? (
           <div className="flex items-center justify-between gap-2">
-            <p className="text-caption text-on-surface-variant">Góp ý của lượt Lead từ chối baseline</p>
+            <p className="text-caption text-on-surface-variant">{t("rejectionFocus")}</p>
             {onClearFocus && (
               <button type="button" onClick={onClearFocus} className="text-caption font-bold text-primary hover:underline cursor-pointer">
-                Xem tất cả
+                {t("showAll")}
               </button>
             )}
           </div>
@@ -270,7 +278,7 @@ export default function CommentsPanel({
                   filter === value ? "bg-primary-soft text-primary" : "text-on-surface-variant hover:bg-surface-container-high"
                 }`}
               >
-                {value === "open" ? "Đang mở" : "Tất cả"}
+                {t(`filter.${value}`)}
               </button>
             ))}
           </div>
@@ -279,13 +287,13 @@ export default function CommentsPanel({
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-muted">
             <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-caption">Đang tải góp ý…</span>
+            <span className="text-caption">{t("loading")}</span>
           </div>
         ) : shown.length === 0 ? (
           <EmptyState
             icon="feedback"
-            title={filter === "open" && !focusCommentIds ? "Chưa có góp ý nào đang mở" : "Chưa có góp ý nào"}
-            description="Bấm “Góp ý” trên một mục của tài liệu để ghim lời nhắn vào đúng chỗ cần sửa."
+            title={filter === "open" && !focusCommentIds ? t("emptyOpen") : t("empty")}
+            description={t("emptyHint")}
           />
         ) : (
           shown.map((comment) => (

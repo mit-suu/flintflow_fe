@@ -1,13 +1,15 @@
+import { useTranslations } from "next-intl";
 import type { GateTable as GateTableData } from "@/types/pipeline";
 
 /** Bảng thu gọn dưới tin gate (MoSCoW, ma trận quyền…): mở khi bấm, ô phân tách bằng khoảng trắng và nền fill, không kẻ viền. */
 /** `defaultOpen`: bảng là nội dung cần soát (S-1.1 song ngữ) nên mở sẵn thay vì thu gọn. */
 export default function GateTable({ table, defaultOpen = false }: { table: GateTableData; defaultOpen?: boolean }) {
+  const t = useTranslations("workspace.gate");
   if (table.rows.length === 0) return null;
   return (
     <details open={defaultOpen || undefined} className="bg-surface-container-low rounded-card px-3.5 py-2.5">
       <summary className="text-body font-semibold text-on-surface cursor-pointer focus-visible:outline-2 focus-visible:outline-primary">
-        Xem bảng: {table.title_vi} ({table.rows.length + table.truncated} dòng)
+        {t("tableSummary", { title: table.title_vi, count: table.rows.length + table.truncated })}
       </summary>
       <div className="ff-scroll overflow-x-auto mt-2">
         <table className="w-full border-separate border-spacing-0.5 text-body">
@@ -33,7 +35,7 @@ export default function GateTable({ table, defaultOpen = false }: { table: GateT
           </tbody>
         </table>
       </div>
-      {table.truncated > 0 && <p className="text-body text-on-surface-muted mt-1.5">và {table.truncated} dòng nữa — xem đủ trong tài liệu.</p>}
+      {table.truncated > 0 && <p className="text-body text-on-surface-muted mt-1.5">{t("tableTruncated", { count: table.truncated })}</p>}
     </details>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import { fetchDiagramPng } from "@/lib/api/spine";
-import { stepLabel } from "@/lib/constants/step-registry";
+import { tStep } from "@/lib/i18n";
+import { hookErrorText } from "@/lib/hook-errors";
 import { shownDocumentLanguage } from "@/lib/document-language";
 import { useDocument } from "../hooks/useDocument";
 import DocumentLanguageChip from "./DocumentLanguageChip";
@@ -77,6 +79,7 @@ interface DocumentPaneProps {
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
 function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
+  const t = useTranslations("workspace.document");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const redraw = async () => {
@@ -85,7 +88,7 @@ function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
     try {
       await onRedraw();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
+      setError(err instanceof Error ? err.message : t("redrawFailed"));
     } finally {
       setBusy(false);
     }
@@ -96,11 +99,11 @@ function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
         type="button"
         onClick={() => void redraw()}
         disabled={busy}
-        title="Vẽ lại sơ đồ của mục này từ dữ liệu hiện tại"
+        title={t("redrawTitle")}
         className="inline-flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Icon name="refresh" size={11} />
-        {busy ? "Đang vẽ…" : "Vẽ lại sơ đồ"}
+        {busy ? t("redrawing") : t("redraw")}
       </button>
       {error && <span className="text-caption text-error">{error}</span>}
     </div>
@@ -115,12 +118,13 @@ export interface EmptyHint {
   stepId: string;
 }
 
-const STATUS_BADGE: Record<SectionStatus, { text: string; style: string } | null> = {
-  accepted: { text: "Accepted", style: "bg-success-soft text-success" },
+/** Chữ của nhãn: `workspace.document.status.<status>`. */
+const STATUS_BADGE: Record<SectionStatus, { style: string } | null> = {
+  accepted: { style: "bg-success-soft text-success" },
   // `draft` là trạng thái mặc định của mọi mục chưa chốt: gắn nhãn cho tất cả thì nhãn thành nhiễu, không thành tin
   draft: null,
-  stale: { text: "Cũ", style: "bg-accent-gold-soft text-accent-gold-text" },
-  derived: { text: "Dẫn xuất", style: "bg-surface-container-high text-on-surface-variant" },
+  stale: { style: "bg-accent-gold-soft text-accent-gold-text" },
+  derived: { style: "bg-surface-container-high text-on-surface-variant" },
 };
 
 const runClass = (run: InlineRun): string =>
@@ -142,6 +146,8 @@ const Cell = ({ cell }: { cell: TableCell }) => <Runs runs={cell} />;
 
 /** Ảnh trong tài liệu: base64 thật hoặc tham chiếu `diagram-ref:<id>` (cache nội bộ BE lộ ra). */
 function DocumentImage({ projectId, png, caption }: { projectId: string; png: string; caption?: string }) {
+  const t = useTranslations("workspace.document");
+  const loadFailed = t("diagramLoadFailed");
   const isDiagramRef = png.startsWith("diagram-ref:");
   const directSrc = isDiagramRef ? null : `data:image/png;base64,${png}`;
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
@@ -163,18 +169,20 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
         objectUrl = url;
         setResolvedSrc(url);
       })
-      .catch((err: unknown) => !cancelled && setError(userErrorMessage(err, "Không tải được hình sơ đồ.")));
+      .catch((err: unknown) => !cancelled && setError(userErrorMessage(err, loadFailed)));
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
+    // `loadFailed` chỉ là câu dự phòng — đổi ngôn ngữ không cần tải lại ảnh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, png, isDiagramRef]);
 
   const src = directSrc ?? resolvedSrc;
   if (error) return <div className="text-caption text-error italic">{error}</div>;
-  if (!src) return <div className="text-caption text-on-surface-subtle italic">Đang tải ảnh…</div>;
+  if (!src) return <div className="text-caption text-on-surface-subtle italic">{t("imageLoading")}</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
-  return <img src={src} alt={caption ?? "Diagram"} className="max-w-full rounded-inner" />;
+  return <img src={src} alt={caption ?? t("imageAlt")} className="max-w-full rounded-inner" />;
 }
 
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
@@ -283,16 +291,16 @@ function GroupHeading({ section }: { section: RenderedSection }) {
  * lúc đầu gần như toàn mục rỗng — để mỗi mục chiếm hai dòng thì cả trang thành bức tường chữ nghiêng lặp lại.
  */
 function EmptySection({ hint, onSelectStep, mode1 = false }: { hint?: EmptyHint; onSelectStep?: (stepId: string) => void; mode1?: boolean }) {
-  if (mode1) return <span className="text-body text-on-surface-muted italic">Mục còn trống — tạo change request (nguồn gap report) để bổ sung.</span>;
-  if (!hint) return <span className="text-body text-on-surface-muted italic">Chưa hoàn thiện</span>;
+  const t = useTranslations("workspace.document");
+  const locale = useLocale();
+  if (mode1) return <span className="text-body text-on-surface-muted italic">{t("emptyMode1")}</span>;
+  if (!hint) return <span className="text-body text-on-surface-muted italic">{t("incompleteShort")}</span>;
   return (
     <span className="text-body italic inline-flex items-baseline gap-1.5 flex-wrap text-on-surface-muted">
-      <span>
-        Chưa có nội dung — chạy step {hint.stepId} · {stepLabel(hint.stepId)}
-      </span>
+      <span>{t("emptyRunStep", { stepId: hint.stepId, label: tStep(hint.stepId, locale) })}</span>
       {onSelectStep && (
         <button type="button" onClick={() => onSelectStep(hint.stepId)} className="not-italic text-caption font-bold text-primary hover:underline cursor-pointer">
-          Mở step
+          {t("openStep")}
         </button>
       )}
     </span>
@@ -330,6 +338,8 @@ function SectionView({
   emptyHint?: EmptyHint;
   mode1?: boolean;
 }) {
+  // Hook gọi trước mọi `return` sớm (rules-of-hooks)
+  const t = useTranslations("workspace.document");
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
   const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
   // `feature:*` (§3.2…) chỉ là tiêu đề nhóm, Spine feature không có thân — nội dung nằm ở các function con (FLF-248)
@@ -356,21 +366,23 @@ function SectionView({
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {custom && (
-            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant" title="Mục ngoài mẫu FPT — giữ nguyên văn từ file upload, sửa qua chat">
-              Mục riêng
+            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant" title={t("customTitle")}>
+              {t("custom")}
             </span>
           )}
           {section.awaiting_reaccept && (
-            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">Chờ duyệt lại</span>
+            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{t("awaitingReaccept")}</span>
           )}
-          {badge && <span className={`text-caption font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{badge.text}</span>}
+          {badge && section.status && (
+            <span className={`text-caption font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{t(`status.${section.status}`)}</span>
+          )}
           {issues && issues.count > 0 && (
             // Chỉ một chấm + số: nội dung vấn đề nằm trong panel, tài liệu giữ để đọc
             <button
               type="button"
               onClick={onOpenIssues}
-              title="Xem vấn đề của mục này"
-              aria-label={`Xem ${issues.count} vấn đề của mục này`}
+              title={t("issuesTitle")}
+              aria-label={t("issuesAria", { count: issues.count })}
               className={`flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full cursor-pointer ${
                 issues.blocking ? "bg-error-container text-error" : "bg-accent-gold-soft text-accent-gold-text"
               }`}
@@ -385,7 +397,7 @@ function SectionView({
               type="button"
               onClick={onOpenComments}
               disabled={!onOpenComments}
-              title="Xem góp ý của mục này"
+              title={t("commentsTitle")}
               className="flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant enabled:cursor-pointer disabled:cursor-default"
             >
               <Icon name="feedback" size={11} />
@@ -399,7 +411,7 @@ function SectionView({
               onClick={() => onComment(sectionLabel(section))}
               className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
             >
-              Góp ý
+              {t("comment")}
             </button>
           )}
           {onEdit && (
@@ -409,7 +421,7 @@ function SectionView({
               onClick={() => onEdit(sectionLabel(section))}
               className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
             >
-              Sửa mục này
+              {t("editSection")}
             </button>
           )}
         </div>
@@ -429,7 +441,7 @@ function SectionView({
 /** Document pane thật (T16): render `GET /document` (RenderedDocument, T15) — chỉ đọc. */
 export default function DocumentPane({
   projectId,
-  projectName = "Dự án",
+  projectName,
   flags = [],
   changedSectionIds,
   onSelectStep,
@@ -451,6 +463,9 @@ export default function DocumentPane({
   documentLanguage = null,
   onTranslate,
 }: DocumentPaneProps) {
+  const t = useTranslations("workspace.document");
+  const tHook = useTranslations("workspace.hookErrors");
+  const name = projectName ?? t("untitled");
   const { document, translation, loading, refreshing, empty, error, reload } = useDocument(projectId, "draft", undefined, refreshToken, documentLanguage);
   const language = shownDocumentLanguage(translation, documentLanguage);
   // Mode 1 không dịch (D3) — dù có truyền nhầm thì cũng không hiện nút
@@ -472,8 +487,8 @@ export default function DocumentPane({
         {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng. Pane hẹp ⇒ cắt cả nhãn phiên bản, không tràn đè lên nhóm nút
             bên phải (FLF-265: chip ngôn ngữ làm nhóm phải rộng thêm) */}
         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-          <h3 className="font-bold text-body text-on-surface truncate" title={`SRS — ${projectName}`}>
-            SRS — {projectName}
+          <h3 className="font-bold text-body text-on-surface truncate" title={t("heading", { name })}>
+            {t("heading", { name })}
           </h3>
           {document && (
             <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
@@ -487,7 +502,7 @@ export default function DocumentPane({
             <button
               type="button"
               onClick={onOpenIssues}
-              title="Mở danh sách vấn đề của tài liệu"
+              title={t("openIssuesTitle")}
               className={`h-8 px-3 flex items-center gap-1.5 whitespace-nowrap rounded-control text-body font-bold cursor-pointer transition-colors ${
                 issues.blocking > 0
                   ? "bg-error-container text-error hover:opacity-90"
@@ -498,10 +513,10 @@ export default function DocumentPane({
             >
               <Icon name={issues.blocking > 0 || issues.suggestions > 0 ? "warning" : "check-circle"} size={14} />
               {issues.blocking > 0
-                ? `${issues.blocking} vấn đề cần xử lý`
+                ? t("blockingCount", { count: issues.blocking })
                 : issues.suggestions > 0
-                  ? `${issues.suggestions} gợi ý nên xem`
-                  : "Không có vấn đề"}
+                  ? t("suggestionCount", { count: issues.suggestions })
+                  : t("noIssues")}
             </button>
           )}
           {language && <DocumentLanguageChip language={language} compact />}
@@ -513,10 +528,10 @@ export default function DocumentPane({
             type="button"
             onClick={() => void reload()}
             disabled={refreshing}
-            title="Tải lại tài liệu"
+            title={t("reloadTitle")}
             className="h-8 px-3 whitespace-nowrap rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-body font-bold cursor-pointer transition-colors disabled:opacity-60"
           >
-            {refreshing ? "Đang làm mới…" : "Làm mới"}
+            {refreshing ? t("refreshing") : t("refresh")}
           </button>
           {headerEnd}
         </div>
@@ -526,7 +541,7 @@ export default function DocumentPane({
         {/* Lỗi nằm trong vùng cuộn: đặt ngay dưới header thì bị lớp mờ của header che */}
         {rewriteError && (
           <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-error">
-            Không viết lại được các mục cũ: {rewriteError}
+            {t("rewriteFailed", { error: rewriteError })}
           </p>
         )}
         {/*
@@ -536,25 +551,25 @@ export default function DocumentPane({
         {translation && translation.missing > 0 && (
           <div role="status" className="rounded-control bg-accent-gold-soft border border-accent-gold-border px-3 py-2 text-body text-accent-gold-text flex items-center gap-1.5 flex-wrap">
             <Icon name="translate" size={14} />
-            <span title="Các mục này đang hiện chữ gốc cho tới khi được dịch">{translation.missing} mục chưa dịch</span>
+            <span title={t("untranslatedTitle")}>{t("untranslated", { count: translation.missing })}</span>
             {translate && (
               <>
                 <span aria-hidden>·</span>
                 <button type="button" onClick={translate} className="font-bold hover:underline cursor-pointer">
-                  Dịch tài liệu
+                  {t("translate")}
                 </button>
               </>
             )}
           </div>
         )}
-        {loading && <div className="text-body text-on-surface-muted italic">Đang tải tài liệu…</div>}
+        {loading && <div className="text-body text-on-surface-muted italic">{t("loading")}</div>}
 
         {/* Dự án chưa chạy bước nào: nói tài liệu sẽ tự hiện, không mời bấm gì — không có việc nào cho người dùng ở đây */}
-        {empty && <div className="text-body text-on-surface-muted italic">Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.</div>}
+        {empty && <div className="text-body text-on-surface-muted italic">{t("emptyDocument")}</div>}
 
         {!empty && error && (
           <div className="bg-error-container rounded-card p-3.5 text-body text-on-error-container">
-            Không tải được tài liệu: {error}
+            {t("loadFailedWith", { error: hookErrorText(error, tHook) })}
           </div>
         )}
 

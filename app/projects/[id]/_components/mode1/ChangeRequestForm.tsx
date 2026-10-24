@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useTranslations } from "next-intl";
 import { addCrMaterialFile, createCr } from "@/lib/api/change-requests";
 import { CR_MAX_MATERIALS, type CrDetail, type NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { MaterialAdder, MaterialList } from "./CrMaterials";
-import { errorText } from "./errors";
-import { CR_SOURCE_KINDS, CR_SOURCE_LABELS } from "./labels";
+import { useMode1Labels } from "./i18n";
+import { CR_SOURCE_KINDS } from "./labels";
 import type { CrPrefill } from "./prefill";
 
 interface ChangeRequestFormProps {
@@ -32,6 +33,8 @@ const inputClass =
  * file upload lần lượt ngay sau khi tạo; file lỗi không làm mất CR (báo lại, người dùng đính kèm lại trong CR).
  */
 export default function ChangeRequestForm({ projectId, prefill, onCreated, onCancel }: ChangeRequestFormProps) {
+  const t = useTranslations("mode1.crForm");
+  const L = useMode1Labels();
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [description, setDescription] = useState(prefill?.description ?? "");
   const [source, setSource] = useState<SourceKind | "">(prefill?.source ?? "");
@@ -48,9 +51,9 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) return setError("Cần tiêu đề và mô tả thay đổi.");
-    if (!source) return setError("Chọn nguồn của yêu cầu thay đổi.");
-    if (!requester.trim()) return setError("Nhập người yêu cầu thay đổi.");
+    if (!title.trim() || !description.trim()) return setError(t("emptyFields"));
+    if (!source) return setError(t("noSource"));
+    if (!requester.trim()) return setError(t("noRequester"));
     setSubmitting(true);
     setError(null);
     try {
@@ -71,49 +74,47 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
           const up = await addCrMaterialFile(projectId, latest.change_request.cr_id, file);
           if (up.data) latest = up.data;
         } catch (err) {
-          failed.push(`${file.name}: ${errorText(err, "không đọc được")}`);
+          failed.push(`${file.name}: ${L.errorText(err, t("unreadable"))}`);
         }
       }
       if (failed.length) {
         setCreated(latest);
-        setError(`Đã tạo ${latest.change_request.cr_id} nhưng chưa đính kèm được: ${failed.join("; ")}. Mở change request để đính kèm lại.`);
+        setError(t("partial", { crId: latest.change_request.cr_id, failed: failed.join("; ") }));
         return;
       }
       onCreated(latest);
     } catch (err) {
-      setError(errorText(err, "Không tạo được change request"));
+      setError(L.errorText(err, t("createFailed")));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="bg-white border border-[#ECEAE5] rounded-[16px] p-5 flex flex-col gap-3" aria-label="Tạo change request">
-      <h3 className="font-extrabold text-[#191817] text-heading">Tạo change request</h3>
+    <form onSubmit={(e) => void submit(e)} className="bg-white border border-[#ECEAE5] rounded-[16px] p-5 flex flex-col gap-3" aria-label={t("title")}>
+      <h3 className="font-extrabold text-[#191817] text-heading">{t("title")}</h3>
       <label className="flex flex-col gap-1 text-body font-bold text-[#4B4842]">
-        Tiêu đề
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder="Ví dụ: Đăng xuất mọi thiết bị" />
+        {t("titleLabel")}
+        <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder={t("titlePlaceholder")} />
       </label>
       <label className="flex flex-col gap-1 text-body font-bold text-[#4B4842]">
-        Mô tả thay đổi
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={inputClass} placeholder="Cần đổi gì, vì sao…" />
+        {t("descriptionLabel")}
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={inputClass} placeholder={t("descriptionPlaceholder")} />
       </label>
       {prefill?.preview_id && (
-        <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] px-3 py-2" aria-label="Bản xem trước đính kèm">
-          Đính kèm bản xem trước từ panel “Sửa tài liệu có xem trước” — AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất. Tài
-          liệu chỉ đổi sau khi CR được duyệt.
+        <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] px-3 py-2" aria-label={t("previewAria")}>
+          {t("preview")}
         </p>
       )}
       {prefill?.comment_id && (
-        <p className="text-body text-primary-hover bg-primary-soft border border-outline-purple rounded-control px-3 py-2" aria-label="Comment nguồn">
-          Tạo từ comment {prefill.comment_id} — tạo xong, comment chuyển sang “Đã thành CR” và người viết comment được báo.
+        <p className="text-body text-primary-hover bg-primary-soft border border-outline-purple rounded-control px-3 py-2" aria-label={t("commentAria")}>
+          {t("fromComment", { id: prefill.comment_id })}
         </p>
       )}
-      <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3" aria-label="Tài liệu bổ sung">
-        <p className="text-body font-bold text-[#4B4842]">Tài liệu bổ sung (không bắt buộc)</p>
+      <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3" aria-label={t("materialsAria")}>
+        <p className="text-body font-bold text-[#4B4842]">{t("materialsTitle")}</p>
         <p className="text-body text-[#6B6862]">
-          Email, biên bản họp, đặc tả… có dữ kiện cho thay đổi (con số, luật, luồng, trường dữ liệu). AI viết theo tài liệu; thiếu
-          dữ kiện thì AI sẽ hỏi thêm sau khi tạo.
+          {t("materialsHint")}
         </p>
         <MaterialList
           items={[
@@ -130,7 +131,7 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
           busy={submitting}
           onAddText={(name, text) => {
             if (pasted.length >= MAX_PASTED) {
-              setError(`Dán tối đa ${MAX_PASTED} đoạn văn bản khi tạo — đính kèm file, hoặc thêm sau trong change request.`);
+              setError(t("maxPasted", { max: MAX_PASTED }));
               return false;
             }
             setPasted((prev) => [...prev, { name, text }]);
@@ -140,26 +141,26 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
       </section>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-body font-bold text-[#4B4842]">
-          Nguồn *
+          {t("source")}
           <select value={source} onChange={(e) => setSource(e.target.value as SourceKind | "")} className={inputClass}>
-            <option value="">— Chọn nguồn —</option>
+            <option value="">{t("sourcePick")}</option>
             {CR_SOURCE_KINDS.map((k) => (
               <option key={k} value={k}>
-                {CR_SOURCE_LABELS[k]}
+                {L.crSource(k)}
               </option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-body font-bold text-[#4B4842]">
-          Người yêu cầu *
-          <input value={requester} onChange={(e) => setRequester(e.target.value)} className={inputClass} placeholder="Ví dụ: PM Lan" />
+          {t("requester")}
+          <input value={requester} onChange={(e) => setRequester(e.target.value)} className={inputClass} placeholder={t("requesterPlaceholder")} />
         </label>
         <label className="flex flex-col gap-1 text-body font-bold text-[#4B4842]">
-          Tham chiếu nguồn
-          <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputClass} placeholder="Ví dụ: Email PM 17/09, biên bản họp số 3" />
+          {t("ref")}
+          <input value={ref} onChange={(e) => setRef(e.target.value)} className={inputClass} placeholder={t("refPlaceholder")} />
         </label>
         <label className="flex flex-col gap-1 text-body font-bold text-[#4B4842]">
-          Ghi chú
+          {t("note")}
           <input value={note} onChange={(e) => setNote(e.target.value)} className={inputClass} />
         </label>
       </div>
@@ -170,15 +171,15 @@ export default function ChangeRequestForm({ projectId, prefill, onCreated, onCan
       )}
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-body font-semibold text-[#4B4842]">
-          Huỷ
+          {t("cancel")}
         </button>
         {created ? (
           <button type="button" onClick={() => onCreated(created)} className="px-4 py-2 rounded-[8px] btn-gradient-primary text-white text-body font-bold cursor-pointer">
-            Mở {created.change_request.cr_id}
+            {t("open", { crId: created.change_request.cr_id })}
           </button>
         ) : (
           <button type="submit" disabled={submitting} className="px-4 py-2 rounded-[8px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer">
-            {submitting ? (files.length ? "Đang tạo và đính kèm…" : "Đang tạo…") : "Tạo change request"}
+            {submitting ? (files.length ? t("creatingAttach") : t("creating")) : t("submit")}
           </button>
         )}
       </div>

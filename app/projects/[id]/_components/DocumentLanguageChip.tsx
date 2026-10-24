@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Badge from "@/components/ui/Badge";
 import Icon from "@/components/ui/Icon";
 import { DOCUMENT_LANGUAGE_NAME } from "@/lib/document-language";
@@ -14,17 +15,21 @@ import type { DocumentLanguage } from "@/types/project";
  * 320px) đã chật với nút vấn đề + "Làm mới", tên đầy đủ đẩy nút ra ngoài mép.
  */
 export default function DocumentLanguageChip({ language, compact = false }: { language: DocumentLanguage; compact?: boolean }) {
-  const name = DOCUMENT_LANGUAGE_NAME[language];
+  const t = useTranslations("workspace.languageChip");
+  const tLanguage = useTranslations("common.documentLanguage");
+  const name = tLanguage(language);
+  // `lang` chỉ khi tên viết bằng chính ngôn ngữ đó ("Tiếng Việt" giữa giao diện tiếng Việt, "English" ở mọi nơi)
+  const lang = name === DOCUMENT_LANGUAGE_NAME[language] ? language : undefined;
   return (
-    <span title={`Ngôn ngữ tài liệu: ${name}`} className="shrink-0 inline-flex">
+    <span title={t("title", { name })} className="shrink-0 inline-flex">
       <Badge tone="neutral">
         <Icon name="translate" size={12} />
         {compact ? (
-          <span aria-label={name} lang={language}>
+          <span aria-label={name} lang={lang}>
             {language.toUpperCase()}
           </span>
         ) : (
-          <span lang={language}>{name}</span>
+          <span lang={lang}>{name}</span>
         )}
       </Badge>
     </span>

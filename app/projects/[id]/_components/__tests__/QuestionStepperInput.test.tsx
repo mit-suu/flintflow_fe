@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
+import { fireEvent, screen } from "@testing-library/react";
 import QuestionStepperInput, { answerValue, formatAnswers } from "../QuestionStepperInput";
 import { directReplyAnswers, mergeAnswers, splitQuestions, toStepAnswers } from "../ElicitPanel";
 import { parseChatQuestion, splitRecommended, toDiscoveryQuestion } from "@/lib/question-options";
@@ -24,7 +25,7 @@ const questions: DiscoveryQuestion[] = [
 describe("QuestionStepperInput", () => {
   it("tab theo header, khuyến nghị thành badge; chọn 1 tự sang câu kế; Xem lại rồi gửi (nhãn không kèm đuôi khuyến nghị)", () => {
     const onSubmit = vi.fn();
-    render(<QuestionStepperInput questions={questions} onSubmit={onSubmit} onDismiss={() => undefined} />);
+    renderWithIntl(<QuestionStepperInput questions={questions} onSubmit={onSubmit} onDismiss={() => undefined} />);
 
     expect(screen.getByRole("tab", { name: "Mô hình" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Xem lại" })).toBeInTheDocument();
@@ -46,7 +47,7 @@ describe("QuestionStepperInput", () => {
   });
 
   it("phím số chọn đáp án; dòng Khác… luôn có; không truyền onDismiss ⇒ không có nút đóng", () => {
-    render(<QuestionStepperInput questions={questions} onSubmit={vi.fn()} />);
+    renderWithIntl(<QuestionStepperInput questions={questions} onSubmit={vi.fn()} />);
     const card = screen.getByRole("group", { name: "Câu hỏi 1 trên 2" });
     expect(screen.getByPlaceholderText("Khác…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Bỏ qua" })).toBeInTheDocument();
@@ -57,7 +58,7 @@ describe("QuestionStepperInput", () => {
 
   it("một câu: không có tab Xem lại; chưa trả lời thì khoá Gửi, gõ Khác… thì gửi được chữ tự gõ", () => {
     const onSubmit = vi.fn();
-    render(<QuestionStepperInput questions={[questions[0]]} onSubmit={onSubmit} />);
+    renderWithIntl(<QuestionStepperInput questions={[questions[0]]} onSubmit={onSubmit} />);
     expect(screen.queryByRole("tab", { name: "Xem lại" })).toBeNull();
     expect(screen.getByRole("button", { name: "Gửi câu trả lời" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Câu trả lời khác"), { target: { value: "Bán phụ tùng" } });
@@ -69,7 +70,7 @@ describe("QuestionStepperInput", () => {
     const withPreview: DiscoveryQuestion[] = [
       { question: "Bố cục?", options: [{ label: "Lưới", preview: "[ ][ ]" }, { label: "Danh sách", preview: "----" }] },
     ];
-    render(<QuestionStepperInput questions={withPreview} onSubmit={vi.fn()} />);
+    renderWithIntl(<QuestionStepperInput questions={withPreview} onSubmit={vi.fn()} />);
     expect(screen.getByLabelText("Xem trước lựa chọn")).toHaveTextContent("[ ][ ]");
     fireEvent.mouseEnter(screen.getByRole("radio", { name: /Danh sách/ }));
     expect(screen.getByLabelText("Xem trước lựa chọn")).toHaveTextContent("----");
@@ -77,7 +78,7 @@ describe("QuestionStepperInput", () => {
 
   it("chưa trả lời gì ⇒ Bỏ qua đóng thẻ (nếu đóng được)", () => {
     const onDismiss = vi.fn();
-    render(<QuestionStepperInput questions={[questions[0]]} onSubmit={vi.fn()} onDismiss={onDismiss} />);
+    renderWithIntl(<QuestionStepperInput questions={[questions[0]]} onSubmit={vi.fn()} onDismiss={onDismiss} />);
     fireEvent.click(screen.getByRole("button", { name: "Bỏ qua" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
@@ -139,7 +140,7 @@ describe("ElicitPanel — câu mở và câu có lựa chọn", () => {
 
 describe("QuestionStepperInput — thu gọn", () => {
   it("thu gọn còn một dòng câu hỏi, ẩn lựa chọn và nút gửi; mở lại giữ nguyên lựa chọn", () => {
-    render(<QuestionStepperInput questions={[questions[0]]} onSubmit={vi.fn()} />);
+    renderWithIntl(<QuestionStepperInput questions={[questions[0]]} onSubmit={vi.fn()} />);
     fireEvent.click(screen.getByRole("radio", { name: /Xe cũ/ }));
 
     fireEvent.click(screen.getByRole("button", { name: "Thu gọn câu hỏi" }));

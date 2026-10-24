@@ -2,10 +2,12 @@
  * Nhãn và phép đọc dữ liệu Brief dùng chung cho `BriefSummaryCard` (Hồ sơ dự án) và `BriefPanel` (khung phải ở pha
  * B-0…B-2). Một bộ nhãn duy nhất — hai nơi hiển thị không được gọi cùng một giá trị bằng hai tên khác nhau.
  */
-import type { Addendum, Assumption, AssumptionStatus, OtherRequirement, Spine } from "@/types/spine";
+import type { Locale } from "@/lib/i18n";
+import type { Addendum, Assumption, OtherRequirement, Spine } from "@/types/spine";
 
 /**
- * Nhãn tiếng Việt cho section đích của addendum — khớp mục của tài liệu, không phải khoá thô.
+ * Section đích của addendum ⇒ khoá nhãn trong `messages → workspace.briefLabels.section` (khoá message không chứa được
+ * `:`/`.` nên không dùng thẳng id section) — khớp mục của tài liệu, không phải khoá thô.
  *
  * Phủ hết các section cố định mà BE ghi addendum vào (xem bảng step của srs-orchestrator): thiếu nhãn
  * nào thì ghi chú của section đó rơi vào nhóm gộp "Mục khác" và user mất luôn thông tin nó thuộc mục nào.
@@ -13,28 +15,51 @@ import type { Addendum, Assumption, AssumptionStatus, OtherRequirement, Spine } 
  * **Thứ tự khai báo chính là thứ tự nhóm hiển thị** (`groupByTarget`), nên giữ đúng thứ tự mục trong
  * tài liệu.
  */
-export const SECTION_LABEL: Record<string, string> = {
-  "fixed:1": "Tổng quan sản phẩm",
-  "fixed:2.1": "Actor",
-  "fixed:2.2.1": "Sơ đồ use case",
-  "fixed:2.2.2": "Use case",
-  "fixed:3.1.1": "Luồng màn hình",
-  "fixed:3.1.2": "Mô tả màn",
-  "fixed:3.1.3": "Phân quyền màn hình",
-  "fixed:3.1.4": "Chức năng không có màn",
-  "fixed:3.1.5": "Sơ đồ thực thể",
-  "fixed:4.1": "Giao tiếp ngoài",
-  "fixed:4.2.1": "Tính dễ dùng",
-  "fixed:4.2.2": "Độ tin cậy",
-  "fixed:4.2.3": "Hiệu năng",
-  "fixed:4.2.4": "Thuộc tính theo lĩnh vực",
-  "fixed:5.1": "Quy tắc nghiệp vụ",
-  "fixed:5.2": "Yêu cầu dùng chung",
-  "fixed:5.3": "Thông báo ứng dụng",
-  "fixed:5.4": "Yêu cầu khác (để dành)",
-  "fixed:5.5": "Thuật ngữ",
+const SECTION_KEY = {
+  "fixed:1": "s1",
+  "fixed:2.1": "s2_1",
+  "fixed:2.2.1": "s2_2_1",
+  "fixed:2.2.2": "s2_2_2",
+  "fixed:3.1.1": "s3_1_1",
+  "fixed:3.1.2": "s3_1_2",
+  "fixed:3.1.3": "s3_1_3",
+  "fixed:3.1.4": "s3_1_4",
+  "fixed:3.1.5": "s3_1_5",
+  "fixed:4.1": "s4_1",
+  "fixed:4.2.1": "s4_2_1",
+  "fixed:4.2.2": "s4_2_2",
+  "fixed:4.2.3": "s4_2_3",
+  "fixed:4.2.4": "s4_2_4",
+  "fixed:5.1": "s5_1",
+  "fixed:5.2": "s5_2",
+  "fixed:5.3": "s5_3",
+  "fixed:5.4": "s5_4",
+  "fixed:5.5": "s5_5",
+} as const;
+
+type SectionKey = (typeof SECTION_KEY)[keyof typeof SECTION_KEY];
+
+const sectionKeyOf = (sectionId: string): SectionKey | undefined =>
+  Object.prototype.hasOwnProperty.call(SECTION_KEY, sectionId) ? SECTION_KEY[sectionId as keyof typeof SECTION_KEY] : undefined;
+
+/**
+ * Translator của `workspace.briefLabels` — truyền thẳng `useTranslations("workspace.briefLabels")`. Chỉ khai các khoá
+ * helper dùng, để helper `.ts` thuần không phải biết kiểu đầy đủ của next-intl.
+ */
+export type BriefLabelsTranslator = (
+  key: `section.${SectionKey}` | `formFactor.${FormFactorKey}` | `stakes.${StakesKey}` | `otherKind.${OtherKindKey}` | "otherSection"
+) => string;
+
+/** Nhãn mục tài liệu của section đích (`fixed:2.1` ⇒ "Actor"); section chưa có nhãn ⇒ null. */
+export const sectionLabel = (sectionId: string, t: BriefLabelsTranslator): string | null => {
+  const key = sectionKeyOf(sectionId);
+  return key ? t(`section.${key}`) : null;
 };
 
+/**
+ * Bảng tiếng Việt giữ lại cho `gate-helpers.ts` (nhóm khác sở hữu); phần hiển thị của nhóm Brief đi qua
+ * `formFactorLabel` / `stakesLabel` (theo ngôn ngữ giao diện).
+ */
 export const FORM_FACTOR_LABEL: Record<string, string> = {
   web_app: "Web",
   mobile_app: "Mobile",
@@ -50,38 +75,42 @@ export const STAKES_LABEL: Record<string, string> = {
   regulated: "Có quản lý ngành",
 };
 
-export const OTHER_KIND_LABEL: Record<string, string> = {
-  risk: "Rủi ro",
-  assumption: "Giả định",
-  open_question: "Câu hỏi mở",
-  technical_risk: "Rủi ro kỹ thuật",
-};
+const FORM_FACTOR_KEYS = ["web_app", "mobile_app", "desktop_app", "api_service", "cli", "embedded"] as const;
+type FormFactorKey = (typeof FORM_FACTOR_KEYS)[number];
+const STAKES_KEYS = ["internal", "production", "regulated"] as const;
+type StakesKey = (typeof STAKES_KEYS)[number];
+const OTHER_KIND_KEYS = ["risk", "assumption", "open_question", "technical_risk"] as const;
+type OtherKindKey = (typeof OTHER_KIND_KEYS)[number];
 
-export const ASSUMPTION_STATUS_LABEL: Record<AssumptionStatus, string> = {
-  unconfirmed: "Chưa xác nhận",
-  confirmed: "Đã xác nhận",
-  rejected: "Đã bỏ",
-};
+const isOneOf = <K extends string>(keys: readonly K[], value: string): value is K => (keys as readonly string[]).includes(value);
+
+/** Loại rủi ro / câu hỏi mở (`other_requirements[].kind`); loại lạ ⇒ nguyên khoá. */
+export const otherKindLabel = (kind: string, t: BriefLabelsTranslator): string =>
+  isOneOf(OTHER_KIND_KEYS, kind) ? t(`otherKind.${kind}`) : kind;
 
 /** Danh sách nền tảng (FLF-237); dữ liệu cũ / cache còn là một chuỗi ⇒ coi như mảng một phần tử; rỗng ⇒ null. */
 export const formFactorList = (value: string[] | string | null | undefined): string[] =>
   Array.isArray(value) ? value.filter((v) => v.trim() !== "") : value ? [value] : [];
 
 /** "Web · Mobile" — nền tảng chính đứng đầu; không có nền tảng nào ⇒ null. */
-export const formFactorLabel = (value: string[] | string | null | undefined): string | null => {
-  const labels = formFactorList(value).map((v) => FORM_FACTOR_LABEL[v] ?? v);
+export const formFactorLabel = (value: string[] | string | null | undefined, t: BriefLabelsTranslator): string | null => {
+  const labels = formFactorList(value).map((v) => (isOneOf(FORM_FACTOR_KEYS, v) ? t(`formFactor.${v}`) : v));
   return labels.length === 0 ? null : labels.join(" · ");
 };
 
-export const stakesLabel = (value: string | null | undefined): string | null => (value ? (STAKES_LABEL[value] ?? value) : null);
+export const stakesLabel = (value: string | null | undefined, t: BriefLabelsTranslator): string | null =>
+  value ? (isOneOf(STAKES_KEYS, value) ? t(`stakes.${value}`) : value) : null;
 
-/** Câu giả định bằng ngôn ngữ user (FLF-221); dữ liệu cũ chưa có `statement_vi` ⇒ bản EN. */
-export const assumptionText = (assumption: Pick<Assumption, "statement" | "statement_vi">): string =>
-  assumption.statement_vi?.trim() || assumption.statement;
+/**
+ * Câu giả định theo ngôn ngữ giao diện: `vi` ⇒ `statement_vi` (FLF-221, dữ liệu cũ chưa có thì bản EN); `en` ⇒ bản EN
+ * (`statement`) — BE luôn ghi bản này.
+ */
+export const assumptionText = (assumption: Pick<Assumption, "statement" | "statement_vi">, locale: Locale = "vi"): string =>
+  (locale === "vi" && assumption.statement_vi?.trim()) || assumption.statement;
 
-/** Rủi ro / câu hỏi mở bằng ngôn ngữ user (FLF-237); dữ liệu cũ chưa có `statement_vi` ⇒ bản EN. */
-export const otherRequirementText = (item: Pick<OtherRequirement, "statement" | "statement_vi">): string =>
-  item.statement_vi?.trim() || item.statement;
+/** Rủi ro / câu hỏi mở theo ngôn ngữ giao diện (FLF-237) — như `assumptionText`. */
+export const otherRequirementText = (item: Pick<OtherRequirement, "statement" | "statement_vi">, locale: Locale = "vi"): string =>
+  (locale === "vi" && item.statement_vi?.trim()) || item.statement;
 
 /** Khoá gộp của mọi section chưa có nhãn — một nhóm "Mục khác" duy nhất, luôn đứng cuối. */
 export const OTHER_SECTION_KEY = "__other__";
@@ -97,10 +126,10 @@ export const OTHER_SECTION_KEY = "__other__";
  *   `fixed:10` trước `fixed:2`.
  */
 export const groupByTarget = (addendum: Addendum[]): [string, Addendum[]][] => {
-  const order = Object.keys(SECTION_LABEL);
+  const order = Object.keys(SECTION_KEY);
   const groups = new Map<string, Addendum[]>();
   for (const entry of addendum) {
-    const key = SECTION_LABEL[entry.target_section] ? entry.target_section : OTHER_SECTION_KEY;
+    const key = sectionKeyOf(entry.target_section) ? entry.target_section : OTHER_SECTION_KEY;
     const list = groups.get(key);
     if (list) list.push(entry);
     else groups.set(key, [entry]);
