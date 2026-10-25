@@ -1167,7 +1167,7 @@
       "editHint": "Gõ lệnh sửa tài liệu, xem trước rồi mới áp dụng",
       "knowledgeMode": "Hỏi kiến thức BA",
       "knowledgeOff": "Tắt để quay lại trò chuyện",
-      "knowledgeHint": "Hỏi kiến thức nghiệp vụ BA — câu trả lời có trích dẫn nguồn, tốn credit",
+      "knowledgeHint": "Hỏi kiến thức nghiệp vụ BA / ISO 29148 — câu trả lời có trích dẫn nguồn, không tốn credit",
       "attachLabel": "Đính kèm tài liệu tham khảo",
       "stopLabel": "Dừng AI",
       "stop": "Dừng AI (Esc)",

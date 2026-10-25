@@ -1167,7 +1167,7 @@
       "editHint": "Type an edit command, preview it, then apply",
       "knowledgeMode": "Ask BA knowledge",
       "knowledgeOff": "Turn off to go back to chatting",
-      "knowledgeHint": "Ask about BA practice — answers cite their sources and use credits",
+      "knowledgeHint": "Ask about BA practice / ISO 29148 — answers cite their sources and cost no credits",
       "attachLabel": "Attach reference documents",
       "stopLabel": "Stop AI",
       "stop": "Stop AI (Esc)",
