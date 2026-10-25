@@ -55,6 +55,18 @@ describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I
     expect(screen.getByText(/Cách sửa: Nén ảnh/)).toBeInTheDocument();
   });
 
+  it("FLF-331: NOT_SRS hiện nhãn, lý do của BE và gợi ý đính kèm trong chat làm tài liệu tham khảo", () => {
+    renderWithIntl(
+      <PreflightIssues
+        issues={[{ code: "NOT_SRS", message: "Không thấy dấu hiệu tài liệu yêu cầu: không có mục Use Case, Requirements, Actor hay mã yêu cầu (UC-01, FR-01); nội dung giống hồ sơ / CV.", location: null }]}
+        fileName="cv.docx"
+      />
+    );
+    expect(screen.getByText("Không phải tài liệu yêu cầu (SRS)")).toBeInTheDocument();
+    expect(screen.getByText(/nội dung giống hồ sơ \/ CV/)).toBeInTheDocument();
+    expect(screen.getByText(/đính kèm trong chat làm tài liệu tham khảo/)).toBeInTheDocument();
+  });
+
   it("mã không có hướng dẫn sửa (NOT_DOCX, CORRUPT_ZIP, EMPTY_DOCUMENT) chỉ hiện nhãn + thông điệp", () => {
     renderWithIntl(
       <PreflightIssues

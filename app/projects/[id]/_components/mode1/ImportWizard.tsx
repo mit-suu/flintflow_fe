@@ -117,6 +117,13 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
         </p>
       )}
 
+      {/* FLF-331: Code chưa chắc file là SRS — vẫn cho đi tiếp, nhắc người dùng xem kỹ kết quả đọc file (bước 1.5) */}
+      {!showUpload && doc?.preflight.document_kind?.kind === "unknown" && (
+        <p role="status" className="text-body text-accent-gold-text bg-accent-gold-soft border border-accent-gold-border rounded-[10px] px-3 py-2 leading-relaxed">
+          {t("unknownKindNote")}
+        </p>
+      )}
+
       {showUpload && (
         <>
           {status === "preflight_rejected" && doc && <PreflightIssues issues={doc.preflight.issues} fileName={doc.original_name} />}

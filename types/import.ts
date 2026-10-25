@@ -37,7 +37,17 @@ export type PreflightIssueCode =
   | "FILE_TOO_LARGE"
   | "EMPTY_DOCUMENT"
   | "FOREIGN_TRACK_CHANGE"
-  | "FOREIGN_COMMENT";
+  | "FOREIGN_COMMENT"
+  /** FLF-331: Code không thấy dấu hiệu SRS / mẫu SRS (CV, hoá đơn, test plan…). */
+  | "NOT_SRS";
+
+/** FLF-331: loại tài liệu Code nhận ra ở I-1 (0 credit); `unknown` ⇒ vẫn nhận nhưng cảnh báo ở bước xác nhận. */
+export interface DocumentKind {
+  kind: "srs" | "srs_template" | "not_srs" | "unknown";
+  confidence: number;
+  signals: string[];
+  reasons: string[];
+}
 
 export interface PreflightIssue {
   code: PreflightIssueCode;
@@ -58,7 +68,7 @@ export interface ImportedDocument {
   size: number;
   sha256: string;
   status: ImportStatus;
-  preflight: { status: "accepted" | "rejected"; issues: PreflightIssue[] };
+  preflight: { status: "accepted" | "rejected"; issues: PreflightIssue[]; document_kind?: DocumentKind | null };
   stamp: DocStamp | null;
   confirmed_latest_at: IsoDateTime | null;
   paused: Paused | null;
