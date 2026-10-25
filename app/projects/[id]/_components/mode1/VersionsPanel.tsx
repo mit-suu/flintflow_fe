@@ -6,7 +6,7 @@ import { ApiClientError } from "@/lib/api/client";
 import { saveBlob } from "@/lib/api/files";
 import { getSpine } from "@/lib/api/spine";
 import { downloadVersion, releaseDocument } from "@/lib/api/versions";
-import { isReleaseVersion, type DocVersion, type DownloadVariant } from "@/types/doc-version";
+import { isReleaseVersion, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
 import type { Flag } from "@/types/spine";
 import { errorText } from "./errors";
 import { VERSION_KIND_LABELS, formatDateTime } from "./labels";
@@ -50,13 +50,13 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
           ? "Chưa có tài liệu."
           : null;
 
-  const download = async (version: string, variant: DownloadVariant) => {
-    setBusy(`download:${version}:${variant}`);
+  const download = async (version: string, variant: DownloadVariant, format: DownloadFormat = "docx") => {
+    setBusy(`download:${version}:${variant}:${format}`);
     setError(null);
     try {
-      const { blob, filename } = await downloadVersion(projectId, version, variant);
+      const { blob, filename } = await downloadVersion(projectId, version, variant, format);
       const suffix = variant === "original" ? "_original" : variant === "tracked" ? "_tracked_DRAFT" : isReleaseVersion(version) ? "" : "_DRAFT";
-      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.docx`);
+      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.${format}`);
     } catch (err) {
       setError(errorText(err, "Không tải được file"));
     } finally {
@@ -179,7 +179,17 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                     disabled={busy !== null}
                     className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50"
                   >
-                    {busy === `download:${v.version}:auto` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản nháp (DRAFT)"}
+                    {busy === `download:${v.version}:auto:docx` ? "Đang tải…" : release ? "Tải bản sạch" : v.kind === "imported" ? (v.has_original_file ? "Tải bản render (DRAFT)" : "Tải bản gốc") : "Tải bản nháp (DRAFT)"}
+                  </button>
+                  {/* FLF-316: cùng file ở trên, chuyển sang PDF ở BE — bố cục y hệt bản Word */}
+                  <button
+                    type="button"
+                    onClick={() => void download(v.version, "auto", "pdf")}
+                    disabled={busy !== null}
+                    title="Chính bản Word này chuyển sang PDF"
+                    className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
+                  >
+                    {busy === `download:${v.version}:auto:pdf` ? "Đang tạo PDF…" : "Tải PDF"}
                   </button>
                   {v.has_original_file && (
                     <button
@@ -189,7 +199,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       title="File .docx người dùng upload lúc import"
                       className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
                     >
-                      {busy === `download:${v.version}:original` ? "Đang tải…" : "Tải file gốc"}
+                      {busy === `download:${v.version}:original:docx` ? "Đang tải…" : "Tải file gốc"}
                     </button>
                   )}
                   {/* BPMN 3.14 (mode 1 v3): bản có đánh dấu của CR — Track Changes + comment, tác giả là mã CR */}
@@ -201,7 +211,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       title={`Track Changes + comment so với bản ${v.based_on ?? "trước"}, tác giả ${v.cr_ids.join(", ")}`}
                       className="px-2.5 py-1 rounded-[8px] border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] disabled:opacity-50"
                     >
-                      {busy === `download:${v.version}:tracked` ? "Đang tải…" : "Tải bản có đánh dấu"}
+                      {busy === `download:${v.version}:tracked:docx` ? "Đang tải…" : "Tải bản có đánh dấu"}
                     </button>
                   )}
                 </div>
