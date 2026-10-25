@@ -70,6 +70,39 @@ const nextMinor = (v: string) => {
 };
 const nextMajor = (v: string) => `${Number(v.split(".")[0]) + 1}.0`;
 const latestVersion = (): string | null => S().versions.map((v) => v.version).sort(compareDocVersions).at(-1) ?? null;
+
+/** FLF-330: CR đã ghi kể từ lần phát hành trước (thứ tự ghi). */
+const pendingCrIds = (): string[] => {
+  const lastRelease = S().versions.filter((v) => v.kind === "release").map((v) => v.version).sort(compareDocVersions).at(-1);
+  return [...S().crs.values()]
+    .map((d) => d.change_request)
+    .filter((c) => c.status === "written" && c.result_doc_version && (!lastRelease || compareDocVersions(c.result_doc_version, lastRelease) > 0))
+    .sort((a, b) => compareDocVersions(a.result_doc_version!, b.result_doc_version!))
+    .map((c) => c.cr_id);
+};
+
+/** FLF-330: gói duyệt (`reviewPackageSchema`). */
+const reviewPackage = () => {
+  const lastRelease = S().versions.filter((v) => v.kind === "release").map((v) => v.version).sort(compareDocVersions).at(-1) ?? null;
+  const base = lastRelease ?? (S().versions.length ? "v0" : null);
+  const ids = pendingCrIds();
+  const latest = latestVersion();
+  const sub = S().submission;
+  return {
+    status: sub?.status === "pending" ? "pending" : sub?.status === "rejected" ? "changes_requested" : "drafting",
+    base_version: base,
+    latest_version: latest,
+    next_version: latest ? nextMajor(latest) : null,
+    draft_label: ids.length ? `${base ?? "v0"} · ${ids.length} thay đổi chưa duyệt` : (base ?? "v0"),
+    change_requests: ids.map((id) => {
+      const c = S().crs.get(id)!.change_request;
+      return { cr_id: c.cr_id, title: c.title, requester: c.requester, source: { kind: c.source.kind, ref: c.source.ref ?? null }, result_doc_version: c.result_doc_version, written_at: now() };
+    }),
+    red_open: S().redFlags,
+    submission: sub,
+    spine_version: S().spineVersion,
+  };
+};
 const latestBlocks = (): DocBlock[] => S().blocks.get(latestVersion() ?? "") ?? [];
 
 // ─── import ──────────────────────────────────────────────────────
@@ -1078,9 +1111,12 @@ export const mode1Handlers = [
       const cr = d.change_request;
       const open = d.locations.filter((l) => !l.conclusion).map((l) => l.location_id);
       if (open.length) return fail(409, "CR_LOCATION_UNCONCLUDED", "Còn vị trí chưa có kết luận", { location_ids: open });
-      if (cr.status !== "ready_to_submit") return invalidTransition(cr, "in_review");
+      if (cr.status !== "ready_to_submit") return invalidTransition(cr, "written");
+      // FLF-330 C-6: BA xác nhận ⇒ ghi ngay; gói đang chờ Lead ⇒ bản nháp khoá
+      if (S().submission?.status === "pending") return fail(409, "PACKAGE_PENDING", "Gói thay đổi đang chờ Lead duyệt nên bản nháp tạm khoá.");
       cr.submitted_at = now();
-      setCrStatus(d, "in_review");
+      for (const g of d.groups) Object.assign(g, { decision: "approved", reason: "BA xác nhận, ghi vào bản nháp", decided_by: MODE1_USER_ID, decided_at: now() });
+      writeCr(d);
       return okCr(d);
     }),
   ),
@@ -1178,7 +1214,35 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #31 Release
+  // FLF-330: gói duyệt
+  http.get(api("/projects/:projectId/review-package"), mode1(() => ok(reviewPackage()))),
+  http.post(
+    api("/projects/:projectId/review-package/submit"),
+    mode1(async ({ request }) => {
+      const conflict = versionConflict((await readJson(request)).base_version);
+      if (conflict) return conflict;
+      if (S().submission?.status === "pending") return fail(409, "PACKAGE_ALREADY_SUBMITTED", "Gói thay đổi đang chờ Lead duyệt — không gửi lại được.");
+      if (pendingCrIds().length === 0) return fail(409, "PACKAGE_EMPTY", "Chưa có thay đổi nào được ghi vào bản nháp.");
+      if (S().redFlags > 0) return fail(422, "RELEASE_RED_FLAGS_OPEN", `Còn ${S().redFlags} cờ đỏ — xử lý qua change request rồi gửi duyệt`, { flags: [redFlag()] });
+      S().spineVersion += 1;
+      S().submission = { status: "pending", submitted_by: MODE1_USER_ID, submitted_at: now(), spine_version: S().spineVersion, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] };
+      return ok(reviewPackage());
+    }),
+  ),
+  http.post(
+    api("/projects/:projectId/review-package/request-changes"),
+    mode1(async ({ request }) => {
+      const body = await readJson(request);
+      const conflict = versionConflict(body.base_version);
+      if (conflict) return conflict;
+      if (S().submission?.status !== "pending") return fail(422, "NO_PENDING_SUBMISSION", "Không có gói nào đang chờ duyệt.");
+      S().spineVersion += 1;
+      S().submission = { ...S().submission!, status: "rejected", decided_by: MODE1_USER_ID, decided_at: now(), reason: String(body.reason ?? "") };
+      return ok(reviewPackage());
+    }),
+  ),
+
+  // #31 Release — FLF-330: Lead duyệt cả gói = phát hành; xoá trạng thái chờ
   http.post(
     api("/projects/:projectId/release"),
     mode1(async ({ request }) => {
@@ -1198,6 +1262,7 @@ export const mode1Handlers = [
       S().baselines.push(baseline);
       S().blocks.set(to, latestBlocks().map((b) => ({ ...b, doc_version: to, revisions: undefined })));
       const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_tracked_file: false, has_original_file: false });
+      S().submission = null;
       return ok({ version, baseline, cr_ids: crIds, spine_version: S().spineVersion });
     }),
   ),

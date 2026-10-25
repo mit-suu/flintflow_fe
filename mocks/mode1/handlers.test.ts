@@ -74,15 +74,24 @@ const importToGapReview = async (): Promise<string> => {
 const createCr = async (title: string, description = "Logging out must sign the user out of all devices.") =>
   (await call<CrDetail>("POST", `/projects/${P}/change-requests`, { title, description, source: { kind: "stakeholder_email" }, requester: "PM Lan" })).body.data!;
 
-/** CR từ draft tới in_review. */
-const crToReview = async (title: string): Promise<CrDetail> => {
+/** CR từ draft tới `ready_to_submit` (đã kiểm, chưa xác nhận). */
+const crToReady = async (title: string): Promise<CrDetail> => {
   const { cr_id } = (await createCr(title)).change_request;
   const base = `/projects/${P}/change-requests/${cr_id}`;
-  for (const step of ["clarify", "impact", "propose", "verify", "submit"]) {
+  for (const step of ["clarify", "impact", "propose", "verify"]) {
     const res = await call<CrDetail>("POST", `${base}/${step}`, {});
     expect(res.status, `${step}: ${JSON.stringify(res.body.error)}`).toBe(200);
   }
   return (await call<CrDetail>("GET", base)).body.data!;
+};
+
+/** CR từ draft tới written (FLF-330: BA xác nhận là ghi ngay). */
+const crToReview = async (title: string): Promise<CrDetail> => {
+  const ready = await crToReady(title);
+  const base = `/projects/${P}/change-requests/${ready.change_request.cr_id}`;
+  const res = await call<CrDetail>("POST", `${base}/submit`, {});
+  expect(res.status, `submit: ${JSON.stringify(res.body.error)}`).toBe(200);
+  return res.body.data!;
 };
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
@@ -284,9 +293,9 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(detail.locations[0].vector_score).toBeCloseTo(0.91);
   });
 
-  it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; duyệt ⇒ phần tử đổi, 0.2, mở khoá", async () => {
-    const detail = await crToReview("Log out of all devices");
-    expect(detail.change_request.status).toBe("in_review");
+  it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; BA xác nhận ⇒ phần tử đổi, 0.2, mở khoá (FLF-330)", async () => {
+    const detail = await crToReady("Log out of all devices");
+    expect(detail.change_request.status).toBe("ready_to_submit");
     const locked = detail.locations.map((l) => l.path);
     expect(locked.length).toBeGreaterThan(0);
     expect(locked.every((p) => state().locks.get(p) === detail.change_request.cr_id)).toBe(true);
@@ -300,9 +309,11 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(conflict.body.meta?.locked).toEqual(expect.arrayContaining([expect.objectContaining({ cr_id: detail.change_request.cr_id })]));
 
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
-    expect((await call("POST", `${base}/groups/G01/decision`, { decision: "rejected", reason: "ngắn", base_version: state().spineVersion })).status).toBe(400);
-    const written = (await call<CrDetail>("POST", `${base}/groups/G01/decision`, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: state().spineVersion })).body.data!;
+    // FLF-330 C-6: xác nhận là ghi ngay — không còn duyệt từng group
+    const written = (await call<CrDetail>("POST", `${base}/submit`, {})).body.data!;
     expect(written.change_request).toMatchObject({ status: "written", result_doc_version: "0.2" });
+    expect(written.groups.every((g) => g.decision === "approved")).toBe(true);
+    expect((await call("POST", `${base}/groups/G01/decision`, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: state().spineVersion })).status).toBe(409);
 
     // giá trị phần tử đã đổi theo đề xuất; khoá của CR mở hết
     const edited = written.locations.find((l) => l.conclusion === "edit")!;
@@ -340,8 +351,9 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect((await call<CrDetail>("POST", `${base}/verify`, {})).body.data!.change_request.status).toBe("ready_to_submit");
   });
 
-  it("mọi group bị từ chối ⇒ đóng (rejected) và mở khoá; huỷ CR khác cũng mở khoá", async () => {
-    const detail = await crToReview("Log out of all devices");
+  it("luồng cũ (CR in_review trước FLF-330): mọi group bị từ chối ⇒ đóng (rejected) và mở khoá; huỷ CR khác cũng mở khoá", async () => {
+    const detail = await crToReady("Log out of all devices");
+    state().crs.get(detail.change_request.cr_id)!.change_request.status = "in_review";
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
     const groupPaths = detail.locations.filter((l) => l.group_id === "G01").map((l) => l.path);
     await call("POST", `${base}/groups/G01/decision`, { decision: "rejected", reason: "Ngoài phạm vi bản 1.0", base_version: state().spineVersion });
@@ -351,7 +363,7 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(closed.change_request.status).toBe("rejected");
     expect(state().locks.size).toBe(0);
 
-    const second = await crToReview("Log out of all devices v2");
+    const second = await crToReady("Log out of all devices v2");
     const cancelled = (await call<CrDetail>("POST", `/projects/${P}/change-requests/${second.change_request.cr_id}/cancel`, { reason: "Tạo nhầm change request" })).body.data!;
     expect(cancelled.change_request.status).toBe("cancelled");
     expect(state().locks.size).toBe(0);

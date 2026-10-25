@@ -82,10 +82,12 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     // 3.6 ⇒ đồng ý đề xuất sửa ⇒ 3.7 tự chạy ⇒ sẵn sàng
     const proposals = await screen.findByLabelText("Đề xuất sửa");
     fireEvent.click(within(proposals).getAllByRole("button", { name: "Đồng ý" })[0]);
-    await click("Gửi cho Lead");
+    await click("Xác nhận & ghi vào bản nháp");
 
-    expect(await screen.findByLabelText("Đã gửi cho Lead")).toHaveTextContent("Đã gửi CR-001 cho Lead duyệt");
-    expect(cr().status).toBe("in_review");
+    // FLF-330 C-6: xác nhận là ghi ngay vào bản nháp, không còn chờ Lead duyệt từng CR
+    expect(await screen.findByLabelText("Đã ghi vào bản nháp")).toHaveTextContent("CR-001 đã ghi vào bản nháp chung");
+    expect(cr().status).toBe("written");
+    expect(cr().result_doc_version).toBe("0.2");
     expect(screen.getByPlaceholderText(/Gõ yêu cầu sửa tài liệu/)).toBeInTheDocument();
   });
 
@@ -164,7 +166,7 @@ describe("Mode1CrThread — CR trong khung chat", () => {
 
     // đồng ý bản soạn lại ⇒ tự kiểm lại ⇒ sẵn sàng gửi
     fireEvent.click(within(screen.getByRole("article", { name: `Đề xuất ${failing.location_id}` })).getByRole("button", { name: "Đồng ý" }));
-    expect(await screen.findByRole("button", { name: "Gửi cho Lead" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
     expect(cr().status).toBe("ready_to_submit");
   });
 
@@ -201,7 +203,7 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     fireEvent.change(within(card).getByLabelText("Đoạn 1"), { target: { value: "Họp mỗi thứ Hai lúc 9 giờ" } });
     fireEvent.click(within(card).getByRole("button", { name: "Lưu bản tự sửa" }));
 
-    expect(await screen.findByRole("button", { name: "Gửi cho Lead" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
     const saved = S().crs.get("CR-001")!.locations[0];
     expect(saved.manual).toBe(true);
     expect(saved.proposal?.new_text).toContain("Họp mỗi thứ Hai lúc 9 giờ");

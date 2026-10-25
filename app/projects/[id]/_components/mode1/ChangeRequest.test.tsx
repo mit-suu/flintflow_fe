@@ -48,7 +48,7 @@ describe("ChangeRequestForm (UC-48)", () => {
 });
 
 describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
-  it("làm rõ (hỏi lại) → trả lời → tìm vị trí + khoá → đề xuất → kiểm → nộp → duyệt ⇒ ghi bản 0.2", async () => {
+  it("làm rõ (hỏi lại) → trả lời → tìm vị trí + khoá → đề xuất → kiểm → BA xác nhận ⇒ ghi ngay bản 0.2 (FLF-330, không chờ Lead duyệt)", async () => {
     const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
@@ -65,13 +65,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
 
     await click("AI đề xuất sửa");
     await click("Kiểm đề xuất");
-    await click("Nộp để duyệt");
-    // BPMN 3.12 (mode 1 v3): duyệt cũng phải ghi lý do
-    await click("Duyệt");
-    fireEvent.change(await screen.findByLabelText(/^Lý do duyệt /), { target: { value: "Đúng yêu cầu của khách" } });
-    await click("Xác nhận duyệt");
+    await click("Xác nhận & ghi vào bản nháp");
 
-    expect(await screen.findByText(/vào bản 0.2/)).toBeInTheDocument();
+    expect(await screen.findByText(/bản 0.2/)).toBeInTheDocument();
+    expect(S().crs.get("CR-001")!.groups.every((g) => g.decision === "approved")).toBe(true);
     expect(S().crs.get("CR-001")!.change_request.status).toBe("written");
     expect(S().locks.size).toBe(0);
   });
@@ -99,7 +96,7 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     setStatement(again, "The user is signed out of every device.");
     fireEvent.click(within(again).getByRole("button", { name: "Lưu sửa tay" }));
     await click("Kiểm lại");
-    expect(await screen.findByRole("button", { name: "Nộp để duyệt" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
   });
 
   it("từ chối group cần lý do ≥ 10 ký tự; mọi group bị từ chối ⇒ đóng CR có lý do", async () => {
