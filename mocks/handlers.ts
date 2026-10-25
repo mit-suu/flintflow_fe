@@ -1026,6 +1026,23 @@ export const handlers = [
     });
   }),
 
+  // FLF-316 #34: cùng query/header với Word, file là bản Word chuyển sang PDF ở BE
+  http.get(api("/projects/:projectId/export/pdf"), ({ request }) => {
+    const url = new URL(request.url);
+    const source = url.searchParams.get("source") ?? "draft";
+    if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
+    mockAssembledAtVersion = mockState.spine.spine_version;
+    return new HttpResponse("%PDF-1.7\n% mock pdf — nội dung thật do Gotenberg chuyển từ .docx\n%%EOF\n", {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${mockState.project.name}${source === "draft" ? "-draft" : ""}.pdf"`,
+        "X-Assembled-At-Version": String(mockAssembledAtVersion),
+        "X-Spine-Version": String(mockState.spine.spine_version),
+        "X-Document-Language": mockDocumentLanguages().locale,
+      },
+    });
+  }),
+
   http.patch(api("/users/me"), async ({ request }) => patchMockUser(await request.json().catch(() => null))),
 
   // Mock chưa có baseline (T19 chưa nối) — trang đọc chỉ có bản nháp.

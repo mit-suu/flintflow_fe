@@ -1327,6 +1327,7 @@
     "CALL_LIMIT": "Bước này đã dùng hết 8 lượt gọi AI — chỉ còn Accept hoặc Accept as-is.",
     "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
     "NO_WORKING_DRAFT": "Dự án chưa có nội dung nào để dựng tài liệu.",
+    "PDF_EXPORT_UNAVAILABLE": "Chưa xuất được PDF lúc này. Bạn hãy thử lại sau ít phút, hoặc tải bản Word.",
     "NOTHING_TO_UNDO": "Không còn thay đổi nào để hoàn tác.",
     "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa thể ghi baseline.",
     "BASELINE_ALREADY_SUBMITTED": "Tài liệu đang chờ Lead duyệt — không gửi lại được.",

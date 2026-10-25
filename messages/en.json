@@ -1327,6 +1327,7 @@
     "CALL_LIMIT": "This step has used all 8 AI calls — only Accept or Accept as-is remain.",
     "STEP_NOT_RUNNABLE": "This step isn't ready to run or review yet.",
     "NO_WORKING_DRAFT": "This project has no content to build a document from yet.",
+    "PDF_EXPORT_UNAVAILABLE": "PDF export is unavailable right now. Please try again in a few minutes, or download the Word file.",
     "NOTHING_TO_UNDO": "Nothing left to undo.",
     "BASELINE_BLOCKED": "There are unresolved red flags — the baseline can't be recorded yet.",
     "BASELINE_ALREADY_SUBMITTED": "The document is already waiting for the Lead to approve it.",

@@ -1,5 +1,5 @@
 /**
- * Dựng tài liệu, export Word và baseline — theo danh sách endpoint T08; chốt payload ở T16.
+ * Dựng tài liệu, export Word / PDF và baseline — theo danh sách endpoint T08; chốt payload ở T16.
  */
 import type { DocumentSource, RenderedDocument } from "@/types/document";
 import type { Baseline, BaselineSubmission } from "@/types/spine";
@@ -85,18 +85,20 @@ export interface WordExportResult {
   filename: string | null;
 }
 
-/**
- * Tải file `.docx`; lỗi (vd `NO_WORKING_DRAFT`) ném `ApiClientError` với đúng `code`/`message` đọc
- * từ envelope lỗi (không hard-code `EXPORT_FAILED` cho mọi lỗi). `baselineId` tuỳ chọn khi
- * `source === "baseline"` — chọn đúng bản baseline muốn xuất.
- */
-export const downloadWordExport = async (
+/** File PDF (FLF-316) tải cùng cách với Word — chỉ khác định dạng. */
+export type PdfExportResult = WordExportResult;
+
+/** Định dạng file xuất: `word` (#18) hoặc `pdf` (#34, chính file Word chuyển sang PDF ở BE). */
+export type ExportFormat = "word" | "pdf";
+
+const downloadExport = async (
+  format: ExportFormat,
   projectId: string,
-  source: DocumentSource = "draft",
+  source: DocumentSource,
   baselineId?: string
 ): Promise<WordExportResult> => {
   const query = `source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}`;
-  const res = await authFetch(`/projects/${projectId}/export/word?${query}`);
+  const res = await authFetch(`/projects/${projectId}/export/${format}?${query}`);
   if (!res.ok) {
     throw await readErrorAsApiClientError(res, `HTTP ${res.status}`);
   }
@@ -104,6 +106,21 @@ export const downloadWordExport = async (
   const filename = parseFilename(res.headers.get("Content-Disposition"));
   return { blob, filename };
 };
+
+/**
+ * Tải file `.docx`; lỗi (vd `NO_WORKING_DRAFT`) ném `ApiClientError` với đúng `code`/`message` đọc
+ * từ envelope lỗi (không hard-code `EXPORT_FAILED` cho mọi lỗi). `baselineId` tuỳ chọn khi
+ * `source === "baseline"` — chọn đúng bản baseline muốn xuất.
+ */
+export const downloadWordExport = (projectId: string, source: DocumentSource = "draft", baselineId?: string) =>
+  downloadExport("word", projectId, source, baselineId);
+
+/**
+ * Tải file `.pdf` (FLF-316) — cùng query, lỗi và header với `downloadWordExport`. Thêm một lỗi riêng:
+ * `503 PDF_EXPORT_UNAVAILABLE` khi bộ chuyển PDF của BE không sẵn sàng; tải Word vẫn được.
+ */
+export const downloadPdfExport = (projectId: string, source: DocumentSource = "draft", baselineId?: string): Promise<PdfExportResult> =>
+  downloadExport("pdf", projectId, source, baselineId);
 
 export const listBaselines = (projectId: string) =>
   apiCall<Baseline[]>(`/projects/${projectId}/baselines`);

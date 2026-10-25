@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { downloadWordExport, listBaselines } from "@/lib/api/export";
+import { downloadPdfExport, downloadWordExport, listBaselines, type ExportFormat } from "@/lib/api/export";
 import { DOCUMENT_LANGUAGE_NAME, shownDocumentLanguage } from "@/lib/document-language";
 import { useDocument } from "../hooks/useDocument";
 import type { DocumentSource } from "@/types/document";
@@ -36,9 +36,18 @@ const triggerDownload = (blob: Blob, fileName: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
-/** Export UI (Phases §6.5): Word draft (watermark DRAFT) / Word baseline. */
+const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string; extension: string }> = [
+  { value: "word", label: "Word", extension: ".docx" },
+  { value: "pdf", label: "PDF", extension: ".pdf" },
+];
+
+/**
+ * Export UI (Phases §6.5): bản nháp (watermark DRAFT) / baseline, mỗi nguồn ra Word hoặc PDF (FLF-316 — PDF là
+ * chính file Word chuyển ở BE nên bố cục y hệt).
+ */
 export default function ExportPanel({ projectId, projectName = "Dự án", onClose, flags, documentLanguage = null, onTranslate }: ExportPanelProps) {
   const [source, setSource] = useState<DocumentSource>("draft");
+  const [format, setFormat] = useState<ExportFormat>("word");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
   const hasBaseline = baselines.length > 0;
@@ -54,6 +63,13 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
     setSource(next);
     setDownloadError(null);
   };
+
+  const selectFormat = (next: ExportFormat) => {
+    setFormat(next);
+    setDownloadError(null);
+  };
+
+  const extension = format === "pdf" ? ".pdf" : ".docx";
 
   useEffect(() => {
     let cancelled = false;
@@ -82,9 +98,10 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
     setDownloading(true);
     setDownloadError(null);
     try {
-      const { blob, filename } = await downloadWordExport(projectId, source, baselineId);
+      const download = format === "pdf" ? downloadPdfExport : downloadWordExport;
+      const { blob, filename } = await download(projectId, source, baselineId);
       const suffix = source === "draft" ? "-draft" : "";
-      const fallbackName = `${projectName}-${document?.version ?? "v0"}${suffix}.docx`;
+      const fallbackName = `${projectName}-${document?.version ?? "v0"}${suffix}${extension}`;
       triggerDownload(blob, filename ?? fallbackName);
     } catch (err) {
       setDownloadError(
@@ -120,7 +137,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
               source === "draft" ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"
             }`}
           >
-            Word nháp (DRAFT)
+            Bản nháp (DRAFT)
           </button>
           <button
             type="button"
@@ -133,8 +150,30 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
               source === "baseline" ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"
             }`}
           >
-            Word baseline
+            Bản baseline
           </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span id="export-format-label" className="text-body text-[#4B4842]">
+            Định dạng
+          </span>
+          <div role="radiogroup" aria-labelledby="export-format-label" className="flex gap-1 p-1 rounded-full bg-[#F0EEEA]">
+            {FORMAT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={format === option.value}
+                onClick={() => selectFormat(option.value)}
+                className={`px-3 py-1 rounded-full text-body font-bold cursor-pointer ${
+                  format === option.value ? "bg-white text-[#191817] shadow-sm" : "text-[#6B6862]"
+                }`}
+              >
+                {option.label} <span className="font-mono font-normal text-caption">{option.extension}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {baselineCheckError && (
@@ -195,7 +234,11 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
           onClick={() => void handleDownload()}
           className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
         >
-          {downloading ? "Đang tải…" : `Tải ${source === "draft" ? "bản nháp" : "bản baseline"} (.docx)`}
+          {downloading
+            ? format === "pdf"
+              ? "Đang tạo PDF…"
+              : "Đang tải…"
+            : `Tải ${source === "draft" ? "bản nháp" : "bản baseline"} (${extension})`}
         </button>
       </div>
     </div>

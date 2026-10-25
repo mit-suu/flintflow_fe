@@ -442,6 +442,29 @@ describe("lib/api wrappers", () => {
     await expect(promise).rejects.toMatchObject({ status: 500, code: "EXPORT_FAILED" });
   });
 
+  it("downloadPdfExport gọi /export/pdf cùng query với Word, filename từ Content-Disposition (FLF-316)", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response("%PDF-1.7", {
+        status: 200,
+        headers: { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="du-an-v1.0.pdf"' },
+      })
+    );
+
+    const result = await exportApi.downloadPdfExport("p1", "baseline", "BL001");
+
+    expect(authFetch).toHaveBeenCalledWith("/projects/p1/export/pdf?source=baseline&baseline_id=BL001");
+    expect(await result.blob.text()).toBe("%PDF-1.7");
+    expect(result.filename).toBe("du-an-v1.0.pdf");
+  });
+
+  it("downloadPdfExport ném PDF_EXPORT_UNAVAILABLE khi BE không chuyển được PDF", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: "PDF_EXPORT_UNAVAILABLE", message: "Chưa xuất được PDF lúc này." } }), { status: 503 })
+    );
+
+    await expect(exportApi.downloadPdfExport("p1")).rejects.toMatchObject({ status: 503, code: "PDF_EXPORT_UNAVAILABLE" });
+  });
+
   it("fetchDiagramSvg trả nội dung SVG", async () => {
     vi.mocked(authFetch).mockResolvedValueOnce(new Response("<svg/>", { status: 200 }));
 
@@ -497,10 +520,12 @@ describe("lib/api wrappers", () => {
 
     await versions.downloadVersion("p1", "0.3");
     await versions.downloadVersion("p1", "1.0", "tracked");
+    await versions.downloadVersion("p1", "1.0", "auto", "pdf");
 
     expect(vi.mocked(authFetch).mock.calls.map((c) => c[0])).toEqual([
       "/projects/p1/versions/0.3/download?variant=auto",
       "/projects/p1/versions/1.0/download?variant=tracked",
+      "/projects/p1/versions/1.0/download?variant=auto&format=pdf",
     ]);
   });
 
