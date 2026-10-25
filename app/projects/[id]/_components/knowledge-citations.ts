@@ -4,10 +4,8 @@
  */
 import type { KnowledgeCitation, KnowledgeSourceKind } from "@/types/chat";
 
-export const SOURCE_KIND_LABELS: Record<KnowledgeSourceKind, string> = {
-  internal_skill: "Hướng dẫn nội bộ FlintFlow",
-  standard: "Chuẩn ngoài",
-};
+/** Loại nguồn trích dẫn — nhãn ở `workspace.knowledge.kind.<loại>` (theo ngôn ngữ giao diện). */
+export const SOURCE_KINDS: readonly KnowledgeSourceKind[] = ["internal_skill", "standard"];
 
 /** Nhãn trích dẫn: đúng `K` + số, để chữ thường như `[Key]` hay `[K]` không bị nhận lầm. */
 const REF_PATTERN = /\[(K\d+)\]/g;

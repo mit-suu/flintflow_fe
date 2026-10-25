@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { Paused } from "@/types/import";
-import { formatDateTime } from "./labels";
+import { useMode1Labels } from "./i18n";
 import Icon from "@/components/ui/Icon";
 
 interface PausedBannerProps {
@@ -24,6 +25,8 @@ interface PausedBannerProps {
  * phần đã xong không chạy lại. Dùng chung cho import (I-4) và change request (C-2/C-4/C-5).
  */
 export default function PausedBanner({ paused, onResume, busy = false, what, interrupted }: PausedBannerProps) {
+  const t = useTranslations("mode1.paused");
+  const L = useMode1Labels();
   const credits = paused.reason === "credits";
   const custom = !credits && interrupted;
   return (
@@ -36,18 +39,18 @@ export default function PausedBanner({ paused, onResume, busy = false, what, int
       <Icon name={credits ? "savings" : "cloud-off"} size={18} />
       <div className="flex-1 min-w-[220px]">
         <p className="font-bold">
-          {what} đang tạm dừng — {credits ? "hết credit" : custom ? "bị gián đoạn" : "AI lỗi, đã thử lại 2 lần"}
+          {t("title", { what, reason: credits ? "credits" : custom ? "interrupted" : "ai" })}
         </p>
         <p className="opacity-90">
           {credits
-            ? "Nạp thêm credit rồi bấm Tiếp tục. Phần đã xong được giữ, không tính tiền lại."
-            : custom || "Credit đã giữ được hoàn lại. Bấm Tiếp tục để chạy lại từ chỗ dừng, hoặc để sau."}{" "}
-          <span className="opacity-70">({formatDateTime(paused.at)})</span>
+            ? t("creditsBody")
+            : custom || t("aiBody")}{" "}
+          <span className="opacity-70">({L.formatDateTime(paused.at)})</span>
         </p>
       </div>
       {credits && (
         <Link href="/home/billing" className="px-3 py-1.5 rounded-[8px] border border-current font-bold hover:opacity-80">
-          Nạp credit
+          {t("topUp")}
         </Link>
       )}
       <button
@@ -56,7 +59,7 @@ export default function PausedBanner({ paused, onResume, busy = false, what, int
         disabled={busy}
         className="px-3 py-1.5 rounded-[8px] bg-[#191817] text-white font-bold disabled:opacity-50 cursor-pointer"
       >
-        {busy ? "Đang chạy…" : "Tiếp tục"}
+        {busy ? t("running") : t("resume")}
       </button>
     </div>
   );

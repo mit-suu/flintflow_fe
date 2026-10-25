@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
 import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { ApiClientError } from "@/lib/api/client";
@@ -11,6 +11,7 @@ import type { BadgeTone } from "@/components/ui/Badge";
 import { createBaseline, rejectBaseline, submitBaseline } from "@/lib/api/export";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { friendlyError, type ErrorAction } from "@/lib/errors";
+import { hookErrorText } from "@/lib/hook-errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
@@ -43,7 +44,7 @@ import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import ExportPanel from "./_components/ExportPanel";
 import TranslateDialog from "@/components/project/TranslateDialog";
-import { DOCUMENT_LANGUAGE_NAME, knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
 import { submitGate } from "@/lib/api/pipeline";
@@ -66,7 +67,9 @@ import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
 import { compareHref, crListHref, gapReportHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
-import { useWorkspace } from "./hooks/useWorkspace";
+import { fetchOrganization } from "@/lib/api/orgs";
+import { getActiveOrgId } from "@/lib/api/token-store";
+import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
 import { issueCounts, readableMessage } from "./_components/flag-rules";
@@ -114,13 +117,6 @@ interface LanguageCommandState {
 
 /** Cổng chốt nêu tối đa chừng này cờ mới — nhiều hơn thì user xem tiếp ở panel Kiểm tra. */
 const MAX_GATE_FLAGS = 3;
-/** Thao tác ở cổng duyệt như một lượt của user trong lịch sử — cùng câu chữ BE ghi transcript. */
-const GATE_ACTION_TEXT: Record<GateAction, (note?: string) => string> = {
-  accept: () => ACCEPT_USER_TEXT,
-  regenerate: () => REGENERATE_USER_TEXT,
-  revision: (note) => (note ?? "").trim() || "Tôi muốn sửa",
-  accept_as_is: (note) => `Duyệt như hiện tại: ${note ?? ""}`.trim(),
-};
 
 /**
  * Lời đáp của lượt hỏi, lấy từ tin AI trong transcript. `null` ⇒ tin này KHÔNG phải lời đáp của lượt hỏi.
@@ -196,6 +192,7 @@ const subscribeNothing = () => () => {};
 const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
   // Server snapshot `none` ⇒ lần render hydrate khớp HTML server; ngay sau đó client đọc khung phải đã lưu
   const workspacePane = useSyncExternalStore(subscribeNothing, () => readWorkspacePane(projectId), () => "none" as const);
+  const t = useTranslations("workspace.page");
   return (
   <div className="h-screen flex overflow-hidden bg-surface-container-lowest">
     {/* Giữ chỗ rail tiến độ trái — cùng bề rộng/chiều cao hàng với WorkspaceProgressRail */}
@@ -233,7 +230,7 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
         variant="workspace"
         workspacePane={workspacePane}
         bare
-        label="Đang tải không gian làm việc SRS"
+        label={t("loading")}
         className="flex-1 min-h-0"
       />
     </div>
@@ -261,13 +258,28 @@ export default function WorkspacePage() {
     };
   }, [projectId]);
 
+  // UC-47: Viewer không vào workspace (Spine, cờ, CR là dữ liệu làm việc — BE trả 403) ⇒ sang trang đọc tài liệu.
+  // Lỗi đọc vai trò ⇒ coi như không phải Viewer (BE vẫn chặn).
+  const [isViewer, setIsViewer] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const orgId = getActiveOrgId();
+    (orgId ? fetchOrganization(orgId).then((org) => org.role === "viewer") : Promise.resolve(false))
+      .catch(() => false)
+      .then((viewer) => !cancelled && setIsViewer(viewer));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const mode1 = project?.mode === "import";
   const importDone = !!project?.import_state && IMPORT_DONE_STATUSES.includes(project.import_state);
   useEffect(() => {
-    if (mode1 && !importDone) router.replace(`/projects/${projectId}/import`);
-  }, [mode1, importDone, projectId, router]);
+    if (isViewer) router.replace(`/projects/${projectId}/view`);
+    else if (isViewer === false && mode1 && !importDone) router.replace(`/projects/${projectId}/import`);
+  }, [isViewer, mode1, importDone, projectId, router]);
 
-  if (project === null || (mode1 && !importDone)) return <WorkspaceLoading projectId={projectId} />;
+  if (project === null || isViewer !== false || (mode1 && !importDone)) return <WorkspaceLoading projectId={projectId} />;
   return <FptWorkspace mode1={mode1} />;
 }
 
@@ -282,10 +294,15 @@ const MODE1_ACTION =
 function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const params = useParams();
   const projectId = params?.id as string;
-  // Workspace chưa i18n hoá — chỉ câu FE gửi thay user theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
+  // Câu FE gửi thay user cũng theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
   const t = useTranslations("workspace");
+  const tHook = useTranslations("workspace.hookErrors");
+  const tLanguage = useTranslations("common.documentLanguage");
+  const locale = useLocale();
+  /** Lỗi hook lưu mã `@key` khi BE không kèm câu (`lib/hook-errors.ts`) — dịch lúc render. */
+  const hookError = (error: string | null) => (error ? hookErrorText(error, tHook) : null);
 
-  const ws = useWorkspace(projectId);
+  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly") });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   const crChat = useCrChat(projectId, mode1);
   const spineState = useSpine(projectId, ws.ready, ws.canEdit);
@@ -501,21 +518,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    */
   const redrawDiagrams = useCallback(
     async (diagrams: readonly Diagram[]) => {
-      if (diagrams.length === 0) throw new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại.");
+      if (diagrams.length === 0) throw new Error(t("page.redrawNotFound"));
       const targets = [...new Map(diagrams.map((d) => [`${d.kind}:${d.owner_id ?? ""}`, d])).values()];
       try {
         for (const d of targets) await renderDiagram(projectId, d.kind, d.owner_id);
       } catch (err) {
         const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-        throw new Error(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message);
+        throw new Error(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message);
       }
       await recomputeFlagsFn();
       void reloadSpine();
       void reloadProgress();
       setDocumentRefreshToken((v) => v + 1);
-      setToast("Đã vẽ lại sơ đồ");
+      setToast(t("toasts.redrawn"));
     },
-    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress]
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, t, locale]
   );
 
   const diagramsOfSection = useCallback(
@@ -529,10 +546,10 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       try {
         await redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === flag.target_id) ?? []);
       } catch (err) {
-        setSaveError(err instanceof Error ? err.message : "Không vẽ lại được sơ đồ");
+        setSaveError(err instanceof Error ? err.message : t("page.redrawFailed"));
       }
     },
-    [redrawDiagrams, spineState.spine]
+    [redrawDiagrams, spineState.spine, t]
   );
   const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
@@ -574,10 +591,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   });
 
   // Lớp 5: tới lượt user mà tab đang ẩn thì đổi tiêu đề tab (và báo, nếu user đã cho phép)
-  useTurnNotice(
-    runner.state.status === "needs_input" || runner.state.status === "gate_ready",
-    runner.state.status === "needs_input" ? "AI đang chờ bạn trả lời" : "Có nội dung mới chờ bạn duyệt"
-  );
+  useTurnNotice(runner.state.status === "needs_input" || runner.state.status === "gate_ready", {
+    detail: runner.state.status === "needs_input" ? t("page.turnNeedsInput") : t("page.turnGateReady"),
+    title: t("turnNotice.title"),
+    notification: t("turnNotice.notification"),
+  });
 
   // Thời gian và credit THẬT của bước vừa xong — dùng lại làm ước lượng cho lần sau (03 §6)
   useEffect(() => {
@@ -631,14 +649,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       } catch (err) {
         const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
         const raw = err instanceof ApiClientError ? err.rawMessage : err instanceof Error ? err.message : "";
-        setSaveError(friendlyError(code, raw).message);
+        setSaveError(friendlyError(code, raw, locale).message);
         if (code === "SPINE_VERSION_CONFLICT") void reloadSpine();
         return false;
       } finally {
         setSavingChange(false);
       }
     },
-    [projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine]
+    [projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine, locale]
   );
 
   const writeQueueRef = useRef<Promise<unknown>>(Promise.resolve());
@@ -703,11 +721,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           }
           void reloadProgress();
           refreshUser();
-          setToast("Đã sửa giả định — AI đã cập nhật bản tiếng Anh trong tài liệu");
+          setToast(t("toasts.assumptionEdited"));
           return true;
         } catch (err) {
           const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-          setToast(`Chưa sửa được giả định: ${friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "").message}`);
+          setToast(t("toasts.assumptionEditFailed", { error: friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message }));
           if (code === "SPINE_VERSION_CONFLICT") void reloadSpine();
           return false;
         } finally {
@@ -717,7 +735,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       writeQueueRef.current = run;
       return run;
     },
-    [submitOps, projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine, refreshUser]
+    [submitOps, projectId, bumpVersion, replaceSpine, reloadProgress, reloadSpine, refreshUser, t, locale]
   );
 
   /**
@@ -810,7 +828,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
-      setToast(result.changes.length > 0 ? `Đã áp dụng ${result.changes.length} thay đổi` : "Đã xác nhận: nội dung không đổi");
+      setToast(result.changes.length > 0 ? t("toasts.changesApplied", { count: result.changes.length }) : t("toasts.noChange"));
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
@@ -820,7 +838,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
       changedSectionTimerRef.current = setTimeout(() => setChangedSectionIds(new Set()), CHANGED_SECTION_HIGHLIGHT_MS);
     },
-    [bumpVersion, replaceSpine, reloadProgress]
+    [bumpVersion, replaceSpine, reloadProgress, t]
   );
   useEffect(() => () => {
     if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
@@ -850,7 +868,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       const action = editActionRef.current;
       editActionRef.current = null;
       if (action === "undo") {
-        setToast("Đã hoàn tác lần sửa gần nhất");
+        setToast(t("toasts.undone"));
         setAppliedEdit(null);
         setEditCardOpen(false);
       } else if (action === "instruction") {
@@ -865,7 +883,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         setAppliedEdit(null);
       }
     },
-    [handleChangeApplied, activeSessionId, reloadActiveSession, mode1]
+    [handleChangeApplied, activeSessionId, reloadActiveSession, mode1, t]
   );
   const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
@@ -919,16 +937,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     const submission = spine?.baseline_submission ?? null;
     const isLead = ws.orgRole === "lead";
     if (submission?.status === "pending") {
-      return isLead ? { label: "1 bản chờ bạn duyệt", tone: "warning" } : { label: "Chờ Lead duyệt", tone: "info" };
+      return isLead ? { label: t("page.baselinePendingLead"), tone: "warning" } : { label: t("page.baselinePending"), tone: "info" };
     }
     if (submission?.status === "rejected") {
       const open = submission.rejection_comment_ids.filter(
         (id) => comments.comments.find((c) => c.comment_id === id)?.status === "open"
       ).length;
-      return { label: open > 0 ? `Lead chưa duyệt — ${open} góp ý` : "Lead chưa duyệt", tone: "danger" };
+      return { label: open > 0 ? t("page.baselineRejectedComments", { count: open }) : t("page.baselineRejected"), tone: "danger" };
     }
     const version = spine?.baselines.at(-1)?.version;
-    return version ? { label: `Baseline ${version}`, tone: "success" } : null;
+    return version ? { label: t("page.baselineVersion", { version }), tone: "success" } : null;
   })();
   /**
    * Mọi điều kiện thật do BE kiểm. Lỗi `BASELINE_BLOCKED` / `REJECTION_COMMENTS_OPEN` mang `meta` chỉ
@@ -937,7 +955,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const runBaselineAction = async (action: (baseVersion: number) => Promise<unknown>) => {
     const baseVersion = getBaseVersion();
     if (baseVersion === null) {
-      setBaselineError("Chưa đọc được tài liệu. Vui lòng tải lại trang.");
+      setBaselineError(t("page.baselineNotLoaded"));
       return;
     }
     setBaselineBusy(true);
@@ -947,7 +965,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       await action(baseVersion);
       await Promise.all([spineState.reload(), comments.reload()]);
     } catch (err) {
-      setBaselineError(userErrorMessage(err, "Chưa thực hiện được. Vui lòng thử lại."));
+      setBaselineError(userErrorMessage(err, t("page.baselineFailed")));
       if (err instanceof ApiClientError && err.code === "BASELINE_BLOCKED") {
         // Lượt quét ở mức ký (`at_baseline`) của BE vừa MỞ RA cờ mới và ghi vào Spine. Không tải lại thì
         // panel vẫn hiện danh sách cờ cũ (thường là rỗng) trong khi câu lỗi nói "còn cờ đỏ" — nhìn như app
@@ -963,12 +981,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       setBaselineBusy(false);
     }
   };
-  const editDisabledReason = editLockReason({
+  const editLockKey = editLockReason({
     mode1,
     submission: spine?.baseline_submission,
     runnerBusy: runner.state.busy,
     runnerNeedsInput: runner.state.status === "needs_input",
   });
+  const editDisabledReason = editLockKey ? t(`editLock.${editLockKey}`) : null;
   const { requestPreview, cancelPreview } = changes;
   const submitEditInstruction = useCallback(
     (instruction: string) => {
@@ -1120,6 +1139,24 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const settledAssumptionIds = new Set((spine?.assumptions ?? []).filter((a) => a.status !== "unconfirmed").map((a) => a.id));
 
   /**
+   * Thao tác ở cổng duyệt như một lượt của user trong lịch sử. Đồng ý / làm lại giữ đúng câu BE ghi transcript (hiện ra
+   * theo ngôn ngữ giao diện qua `displayUserText`); câu thay cho ghi chú trống theo ngôn ngữ giao diện.
+   */
+  const gateActionText = (action: GateAction, note?: string): string => {
+    const text = (note ?? "").trim();
+    switch (action) {
+      case "accept":
+        return ACCEPT_USER_TEXT;
+      case "regenerate":
+        return REGENERATE_USER_TEXT;
+      case "revision":
+        return text || t("userText.wantEdit");
+      case "accept_as_is":
+        return text ? t("userText.acceptAsIs", { note: text }) : t("userText.acceptAsIsEmpty");
+    }
+  };
+
+  /**
    * Gửi một lệnh của cổng chốt. Dùng chung cho chip trên thẻ cổng và cho một tiếng "ừ" gõ ở ô chat — hai lối
    * phải ghi cùng một dấu vết vào khung chat, nếu không đọc lại lịch sử sẽ thấy hai kiểu khác nhau cho cùng
    * một hành động.
@@ -1130,7 +1167,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    */
   const submitGateAction = (action: GateAction, note?: string): void => {
     const spoken = runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate?.payload?.message_vi;
-    const said = GATE_ACTION_TEXT[action](note);
+    const said = gateActionText(action, note);
     if (spoken) ws.appendLocalMessage(spoken, runnerStep, "ai");
     ws.appendLocalMessage(said, runnerStep);
     void runner.gate(action, note).then((outcome) => {
@@ -1234,7 +1271,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Chip "Sửa theo đề xuất" của một cờ mới: gửi yêu cầu sửa nêu đúng vấn đề đó, như user tự gõ ở ô chat. */
   const fixFlagByChat = (flag: GateNewFlag) => {
     if (!runnerStep) return;
-    const said = `Sửa giúp tôi theo đề xuất cho vấn đề này: ${flag.message}`;
+    const said = t("userText.fixFlag", { message: flag.message });
     ws.appendLocalMessage(said, runnerStep);
     void runner.gate("revision", said).then((outcome) => {
       if (outcome !== "ok") ws.dropLocalMessage(said);
@@ -1309,13 +1346,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       if (next) ws.replaceProject(next);
     } catch (err) {
       setLanguageCommand((prev) =>
-        prev?.id === command.id ? { ...prev, busy: false, error: userErrorMessage(err, "Không đổi được ngôn ngữ tài liệu") } : prev
+        prev?.id === command.id ? { ...prev, busy: false, error: userErrorMessage(err, t("page.languageSwitchFailed")) } : prev
       );
       return;
     }
     setLanguageCommand((prev) => (prev?.id === command.id ? null : prev));
     setDocumentRefreshToken((v) => v + 1);
-    setToast(`Đã đổi tài liệu sang ${DOCUMENT_LANGUAGE_NAME[command.target]}`);
+    setToast(t("toasts.languageSwitched", { language: tLanguage(command.target) }));
     if (command.target === MODE2_SOURCE_LANGUAGE) return;
     const status = await getTranslationStatus(projectId).then(
       (res) => res.data,
@@ -1354,7 +1391,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       // chạy. Gửi lúc đó thì `onFinish` thay cả session bằng bản BE và các tin runner vừa chèn tại chỗ
       // biến mất khỏi khung chat.
       if (aiWorking) {
-        setToast("AI đang làm — đợi xong lượt này rồi hỏi tiếp nhé");
+        setToast(t("toasts.aiBusyAsk"));
         return;
       }
       // Chip tự tắt sau một lượt: mỗi lượt BE chỉ nhận một câu hỏi và không đọc lịch sử chat.
@@ -1365,7 +1402,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
     if (!onPipelineSession) return sendChat(custom);
     if (aiWorking) {
-      setToast("AI đang làm — đợi xong lượt này rồi nhắn tiếp nhé");
+      setToast(t("toasts.aiBusyChat"));
       return;
     }
     const raw = (custom ?? ws.inputMessage).trim();
@@ -1373,7 +1410,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     const toRun = stepNotStarted || (reopenable && status === "idle");
     if (status !== "needs_input" && status !== "gate_ready" && !toRun) return sendChat(custom);
     if (!(await ws.uploadPendingAttachments())) return;
-    const text = raw || "[Đính kèm tài liệu]";
+    const text = raw || t("session.attachmentOnly");
 
     if (status === "needs_input") {
       const onCard = cardAnswers.key === questionSetKey ? cardAnswers.answers : [];
@@ -1391,7 +1428,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       // nhận lại tốn một lượt gọi model và mở ra đúng cái cổng vừa rồi — vòng lặp không lối ra.
       if (isGateApproval(text)) {
         if (!gate?.actions.includes("accept")) {
-          setToast("Chưa chốt được bước này — xử lý nốt phần đang chặn ở thẻ duyệt rồi quay lại nhé");
+          setToast(t("toasts.gateBlocked"));
           return;
         }
         // Đúng đường của chip Duyệt: xác nhận giả định tin cổng đã nói trước, rồi mới chốt
@@ -1437,14 +1474,21 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     try {
       const res = await submitGate(projectId, stepId, { session_id: sessionId, action: "accept", base_version: baseVersion });
       onSpineChanged(res.data?.spine_version);
-      setToast(`Đã duyệt lại ${stepLabel(stepId)} giữ nguyên nội dung`);
+      setToast(t("toasts.stepKept", { step: stepLabel(stepId, locale) }));
     } catch (err) {
       onSpineChanged();
-      setToast(userErrorMessage(err, "Chưa duyệt lại được bước này. Vui lòng thử lại."));
+      setToast(userErrorMessage(err, t("page.keepStepFailed")));
     } finally {
       setKeepingStep(false);
     }
   };
+
+  const noticeText = (notice: WorkspaceNotice): string => {
+    if ("text" in notice) return notice.text;
+    if (notice.key === "deleteFailed") return t("session.deleteFailed", { error: notice.error ?? t("session.error") });
+    return t(`session.${notice.key}`);
+  };
+  const shownToast = toast ?? (ws.notice ? noticeText(ws.notice) : null);
 
   const rerunStaleStep = async (stepId: string) => {
     const text = t("rerunStep.message");
@@ -1468,7 +1512,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           readinessPercent={progress?.readiness.accepted_pct}
         />
         </div>
-        <ResizeHandle active={rail.resizing} onStart={rail.startResize} onReset={rail.reset} label="Đổi cỡ rail tiến độ" />
+        <ResizeHandle active={rail.resizing} onStart={rail.startResize} onReset={rail.reset} label={t("page.resizeRail")} />
       </Collapse>
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -1490,13 +1534,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             mode1 ? (
               <>
                 <Link href={gapReportHref(projectId)} scroll={false} className={MODE1_ACTION}>
-                  Gap report
+                  {t("page.gapReport")}
                 </Link>
                 <Link href={crListHref(projectId)} scroll={false} className={MODE1_ACTION}>
-                  Change request
+                  {t("page.changeRequest")}
                 </Link>
                 <Link href={compareHref(projectId)} scroll={false} className={MODE1_ACTION}>
-                  So sánh version
+                  {t("page.compareVersions")}
                 </Link>
               </>
             ) : undefined
@@ -1508,7 +1552,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           verifyCount={documentIssues.blocking}
           onToolsClick={() => togglePanel("tools")}
           toolsActive={rightPanel === "tools"}
-          toolsLabel={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}
+          toolsLabel={mode1 ? t("page.toolsMode1") : t("page.toolsRecord")}
+          toolsShortLabel={mode1 ? undefined : t("page.toolsRecordShort")}
           toolsCount={pendingCount}
           onLogout={ws.logout}
         />
@@ -1522,25 +1567,28 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           // Rail tiến độ ẩn (hoặc đang mở rộng trang) ⇒ khung chat sát mép trái màn hình, chỉ bo bên phải
           flushLeft={mode1 || focusMode || !railShown}
           hideTrailingAiMessage={trailingAskReply !== null}
-          title={mode1 ? "Hỏi đáp & lệnh sửa" : undefined}
+          title={mode1 ? t("page.chatTitleMode1") : undefined}
           width={chat.width}
           fill={briefHidden || briefPane}
           session={ws.activeSession}
-          stepLabel={!mode1 && viewedStep ? stepLabel(viewedStep) : null}
+          stepLabel={!mode1 && viewedStep ? stepLabel(viewedStep, locale) : null}
           stepCode={!mode1 ? viewedStep : null}
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
           onSendMessage={(custom) => void sendFromChat(custom)}
           sending={ws.sending || (!mode1 && aiWorking)}
+          // Nút dừng / Esc: lượt chat đang stream ⇒ huỷ nó; không thì lượt chạy step của tab này ⇒ huỷ như "Huỷ lượt".
+          // Step chạy ở tab khác (`stepRunningElsewhere`) không dừng từ đây — vẫn qua thanh tiến độ.
+          onStop={ws.sending ? ws.stopMessage : !mode1 && runner.state.busy ? () => void runner.cancel() : undefined}
           inputPlaceholder={
             !mode1 && !onPipelineSession
-              ? "Hỏi AI về dự án, hoặc bật Sửa tài liệu để sửa…"
+              ? t("page.placeholderSide")
               : !mode1 && aiWorking
-              ? "AI đang làm…"
+              ? t("page.placeholderWorking")
               : !mode1 && gate
-                ? "Muốn sửa gì thì bạn nhắn tôi nhé…"
+                ? t("page.placeholderGate")
                 : !mode1 && stepNotStarted
-                  ? "Kể ý tưởng hoặc điều bạn muốn AI làm…"
+                  ? t("page.placeholderStart")
                   : undefined
           }
           pendingAttachments={ws.pendingAttachments}
@@ -1562,7 +1610,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           isStreaming={ws.streamingMessage !== null}
           onEditInstruction={sendEditInstruction}
           onGoToPipeline={ws.pipelineSession ? () => void ws.selectSession(ws.pipelineSession!) : undefined}
-          readOnlyNotice={canEdit ? undefined : "Bạn đang xem với vai trò Viewer — chỉ đọc được tài liệu, không gửi tin hay chạy bước AI."}
+          readOnlyNotice={canEdit ? undefined : t("page.viewerNotice")}
           editPlaceholder={mode1 ? crChat.inputHint : undefined}
           editMode={editMode}
           onToggleEditMode={() => (editMode ? setEditMode(false) : startEditing())}
@@ -1623,9 +1671,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               onAnimationEnd={(e) => e.currentTarget.classList.remove("ff-flash")}
               className="bg-accent-gold-soft rounded-control p-3 flex flex-col gap-2 text-body text-accent-gold-text">
               <p className="leading-relaxed">
-                Bước <strong>{stepLabel(viewedStep)}</strong> đã chốt, nhưng{" "}
-                <strong>{staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", ")}</strong> đã cũ so với dữ liệu
-                bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.
+                {t.rich("page.staleNotice", {
+                  step: stepLabel(viewedStep, locale),
+                  sections: staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", "),
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -1633,7 +1683,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                   onClick={() => void rerunStaleStep(viewedStep)}
                   className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
                 >
-                  Cập nhật lại bước này
+                  {t("page.rerunStep")}
                 </button>
                 {viewedSummary?.status === "revision_requested" && (
                   <button
@@ -1642,7 +1692,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                     onClick={() => void keepStepAsIs(viewedStep)}
                     className="h-8 px-3.5 rounded-control text-body font-bold bg-surface text-on-surface hover:bg-surface-container-low cursor-pointer disabled:opacity-50"
                   >
-                    {keepingStep ? "Đang duyệt…" : "Giữ nguyên, duyệt lại"}
+                    {keepingStep ? t("page.keeping") : t("page.keepAsIs")}
                   </button>
                 )}
               </div>
@@ -1675,6 +1725,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               settledAssumptionIds={settledAssumptionIds}
               onConfirmAssumptions={(ids) => confirmAllAssumptions(ids)}
               blockingFlags={blockingFlags}
+              canSignOff={ws.orgRole === "lead"}
               newFlags={newGateFlags}
               onFixFlag={fixFlagByChat}
               onKeepFlag={(flag, reason) => handleFlagWaive(flag.id, reason)}
@@ -1689,20 +1740,20 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex items-center justify-between gap-2">
               <span>{saveError}</span>
               <button type="button" onClick={() => setSaveError(null)} className="text-body font-bold underline cursor-pointer">
-                Đóng
+                {t("page.close")}
               </button>
             </div>
           )}
           {!mode1 && canEdit && onPipelineSession && runner.state.status === "interrupted" && !runner.state.error && runner.state.stepId && (
             // Lượt chết giữa chừng (reload, mất mạng): nút "Chạy lại" là lối duy nhất còn lại để chạy bước này (FLF-221)
             <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-wrap items-center gap-2">
-              <span className="flex-1 min-w-0">Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.</span>
+              <span className="flex-1 min-w-0">{t("page.interrupted")}</span>
               <button
                 type="button"
-                onClick={() => void handleErrorAction({ kind: "retry", label: "Chạy lại" })}
+                onClick={() => void handleErrorAction({ kind: "retry", label: t("page.rerun") })}
                 className="px-2.5 py-1 rounded-full text-body font-bold bg-error text-on-error cursor-pointer"
               >
-                Chạy lại
+                {t("page.rerun")}
               </button>
             </div>
           )}
@@ -1710,9 +1761,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được. Đây là NƠI DUY NHẤT nói câu lỗi — nhật ký
             // lượt chạy phía trên cố ý im, vì BE trả câu đã viết cho người nên nhắc lại chỉ thành tiếng vọng.
             <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-col gap-2">
-              <span>{friendlyError(runner.state.error.code, runner.state.error.message).message}</span>
+              <span>{friendlyError(runner.state.error.code, runner.state.error.message, locale).message}</span>
               <div className="flex flex-wrap items-center gap-2">
-                {friendlyError(runner.state.error.code, runner.state.error.message).actions.map((action) => (
+                {friendlyError(runner.state.error.code, runner.state.error.message, locale).actions.map((action) => (
                   <button
                     key={action.kind}
                     type="button"
@@ -1723,7 +1774,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                   </button>
                 ))}
                 <button type="button" onClick={runner.reset} className="text-body font-bold underline cursor-pointer">
-                  Đóng
+                  {t("page.close")}
                 </button>
               </div>
             </div>
@@ -1734,7 +1785,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               previewing={changes.previewing}
               applying={changes.applying}
               clarification={changes.clarification}
-              error={changes.error}
+              error={hookError(changes.error)}
               preview={changes.previewSource === "instruction" ? changes.preview : null}
               applied={appliedEdit}
               requiresCr={mode1}
@@ -1789,9 +1840,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         </ChatPane>
 
         {briefHidden ? null : briefPane ? (
-          <ResizeHandle active={brief.resizing} onStart={brief.startResize} onReset={brief.reset} label="Đổi cỡ cột tóm tắt" />
+          <ResizeHandle active={brief.resizing} onStart={brief.startResize} onReset={brief.reset} label={t("page.resizeBrief")} />
         ) : (
-          <ResizeHandle active={chat.resizing} onStart={chat.startResize} onReset={chat.reset} label="Đổi cỡ khung chat" />
+          <ResizeHandle active={chat.resizing} onStart={chat.startResize} onReset={chat.reset} label={t("page.resizeChat")} />
         )}
 
         {briefHidden ? null : briefPane ? (
@@ -1806,7 +1857,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onSelectStep={mode1 ? undefined : setSelectedStepId}
           refreshToken={documentRefreshToken}
           mode1={mode1}
-          onEditSection={canEdit ? (label) => startEditing(`Trong ${label}: `) : undefined}
+          onEditSection={canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined}
           issues={documentIssues}
           onOpenIssues={() => (rightPanel === "verification" && !issueSectionId ? setRightPanel(null) : openIssues())}
           onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
@@ -1815,14 +1866,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           onCommentSection={canEdit ? startComment : undefined}
           commentCountOf={(sectionId) => comments.openCountBySection.get(sectionId) ?? 0}
           onOpenSectionComments={() => openComments()}
-          rewriteError={!editCardOpen ? changes.error : null}
+          rewriteError={!editCardOpen ? hookError(changes.error) : null}
           onSectionsLoaded={handleSectionsLoaded}
           // Mode 1 v3: tài liệu chỉ đổi qua change request — không vẽ lại thẳng.
           // Tạm ẩn nút "Vẽ lại sơ đồ" dưới hình: bật lại bằng REDRAW_SECTION_ENABLED.
           onRedrawSection={mode1 || !REDRAW_SECTION_ENABLED ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
-          headerEnd={focusMode ? <IconButton icon="collapse" label="Thoát mở rộng (Esc)" onClick={() => setFocusMode(false)} /> : undefined}
+          headerEnd={focusMode ? <IconButton icon="collapse" label={t("page.exitFocus")} onClick={() => setFocusMode(false)} /> : undefined}
           documentLanguage={documentLanguage}
           // Dịch tốn credit ⇒ chỉ Lead/Analyst; mode 1 giữ ngôn ngữ file, không dịch (D3)
           onTranslate={!mode1 && canEdit ? () => setTranslateOpen(true) : undefined}
@@ -1830,16 +1881,16 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         )}
 
         <Collapse axis="x" open={rightPanel !== null}>
-        <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label="Đổi cỡ panel bên phải" />
+        <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label={t("page.resizePanel")} />
         <div id="workspace-right-panel" style={{ width: panel.width }} className="h-full shrink-0">
         {shownPanel === "tools" && spine && (
-          <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label={mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}>
+          <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label={mode1 ? t("page.toolsMode1") : t("page.toolsRecord")}>
             <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Icon name="folder" size={16} className="text-primary" />
-                <h3 className="font-bold text-body text-on-surface truncate">{mode1 ? "Cờ, change request & version" : "Hồ sơ dự án"}</h3>
+                <h3 className="font-bold text-body text-on-surface truncate">{mode1 ? t("page.toolsMode1") : t("page.toolsRecord")}</h3>
               </div>
-              <IconButton icon="close" size="sm" label="Đóng hồ sơ dự án" onClick={() => setRightPanel(null)} />
+              <IconButton icon="close" size="sm" label={t("page.closeRecord")} onClick={() => setRightPanel(null)} />
             </div>
             <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-3">
             {mode1 && (
@@ -1849,6 +1900,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 flags={flags}
                 onSpineChanged={() => onSpineChanged()}
                 readOnly={!canEdit}
+                canRelease={ws.orgRole === "lead"}
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
@@ -1888,13 +1940,13 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                   }
                 : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
-              onEditSection: canEdit ? (label) => startEditing(`Trong ${label}: `) : undefined,
+              onEditSection: canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined,
               acceptedSteps,
             }}
             readiness={progress?.readiness ?? null}
             flags={flags}
             flagsLoading={flagsLoading}
-            flagsError={flagsError}
+            flagsError={hookError(flagsError)}
             flagsBusy={flagsBusy}
             onClose={() => setRightPanel(null)}
             // Mode 1 v3: không có step, không sửa thẳng giả định — cờ chỉ đóng bằng change request
@@ -1929,7 +1981,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           <CommentsPanel
             comments={comments.comments}
             loading={comments.loading}
-            error={comments.error}
+            error={hookError(comments.error)}
             busy={comments.busy}
             canResolve={canEdit}
             pendingAnchor={pendingComment}
@@ -1960,12 +2012,12 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         />
       )}
 
-      {(toast ?? ws.notice) && (
+      {shownToast && (
         <div
           role="status"
           className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#191817] text-white text-body font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex items-center gap-3"
         >
-          <span>{toast ?? ws.notice}</span>
+          <span>{shownToast}</span>
           <button
             type="button"
             onClick={() => {
@@ -1974,7 +2026,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             }}
             className="text-caption underline cursor-pointer"
           >
-            Đóng
+            {t("page.close")}
           </button>
         </div>
       )}
@@ -1994,7 +2046,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
           preview={changes.preview}
           spine={spineState.spine}
           busy={changes.applying}
-          confirmLabel={changes.previewSource === "reconcile" ? "Cập nhật" : "Áp dụng"}
+          confirmLabel={changes.previewSource === "reconcile" ? t("page.confirmUpdate") : t("page.confirmApply")}
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
           onConfirm={(reason, changeRequest) => {
             editActionRef.current = changes.previewSource === "reconcile" ? "outdated" : "instruction";

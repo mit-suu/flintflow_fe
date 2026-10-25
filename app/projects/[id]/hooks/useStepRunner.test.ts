@@ -1,5 +1,7 @@
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
-import { initialRunnerState, isTerminalEvent, stepRunnerReducer, type RunnerAction, type RunnerState } from "./useStepRunner";
+import { MESSAGES } from "@/test/intl";
+import { initialRunnerState, isTerminalEvent, runnerDetail, runnerDetailText, stepRunnerReducer, type RunnerAction, type RunnerState } from "./useStepRunner";
 
 const apply = (actions: RunnerAction[], state: RunnerState = initialRunnerState) => actions.reduce(stepRunnerReducer, state);
 
@@ -58,7 +60,11 @@ describe("stepRunnerReducer", () => {
       { type: "answered", count: 3 },
     ]);
     expect(answered).toMatchObject({ status: "drafting", busy: true, questions: [] });
-    expect(answered.detail).toBe("Đang đọc câu trả lời của bạn…");
+    expect(answered.detail).toBe("@readingAnswers");
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.runnerDetail" });
+    expect(runnerDetailText(answered.detail ?? "", t)).toBe("Đang đọc câu trả lời của bạn…");
+    expect(runnerDetailText(runnerDetail("waitingAnswers", 2), t)).toBe("Chờ bạn trả lời 2 câu hỏi");
+    expect(runnerDetailText("lô 1/2", t)).toBe("lô 1/2");
   });
 
   it("draft_retry nói bằng lời thường; stage mới xoá thông báo thử lại", () => {

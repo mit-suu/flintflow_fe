@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/shadcn/separator";
 import { SidebarTrigger } from "@/components/shadcn/sidebar";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import AdminProfileMenu from "./AdminProfileMenu";
 import { AdminSearchButton } from "./AdminSearch";
 
 /**
- * Thanh đầu dùng chung cho mọi trang admin: nút thu/mở sidebar, ô tìm trang (⌘K) và menu tài khoản.
+ * Thanh đầu dùng chung cho mọi trang admin: nút thu/mở sidebar, ô tìm trang (⌘K), nút đổi VI/EN và menu tài khoản.
  * Dính trên đỉnh; cuộn xuống thì nền mờ để chữ của trang không đè lên.
  */
 export default function AdminHeader() {
@@ -32,6 +33,7 @@ export default function AdminHeader() {
         <Separator orientation="vertical" className="h-6" />
         <AdminSearchButton />
         <div className="ms-auto flex items-center gap-3">
+          <LocaleSwitcher />
           <AdminProfileMenu />
         </div>
       </div>

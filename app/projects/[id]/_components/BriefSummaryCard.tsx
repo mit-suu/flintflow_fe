@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Spine } from "@/types/spine";
-import { SECTION_LABEL, briefVisionGoals, formFactorLabel, groupByTarget, isBriefCoreTopic, stakesLabel } from "./brief-labels";
+import { briefVisionGoals, formFactorLabel, groupByTarget, isBriefCoreTopic, sectionLabel, stakesLabel } from "./brief-labels";
 
 interface BriefSummaryCardProps {
   spine: Pick<Spine, "project" | "addendum" | "assumptions" | "other_requirements">;
 }
 
-export { OTHER_KIND_LABEL, groupByTarget } from "./brief-labels";
+export { groupByTarget } from "./brief-labels";
 
 /**
  * Thẻ tóm tắt Brief — thay `SummaryReviewCard` cũ (đọc `discoverySummaryData` map cứng, dựng lại từ nội
@@ -21,6 +22,8 @@ export { OTHER_KIND_LABEL, groupByTarget } from "./brief-labels";
 const GOALS_PREVIEW = 3;
 
 export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
+  const t = useTranslations("workspace.brief.summary");
+  const tLabel = useTranslations("workspace.briefLabels");
   const groups = useMemo(() => groupByTarget(spine.addendum.filter((entry) => !isBriefCoreTopic(entry.topic))), [spine.addendum]);
   const [full, setFull] = useState(false);
   const { project } = spine;
@@ -33,28 +36,28 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
       {text}
     </span>
   );
-  const missing = (label: string) => <p className="text-body text-on-surface-variant italic">Chưa có {label}.</p>;
+  const missing = (text: string) => <p className="text-body text-on-surface-variant italic">{text}</p>;
   const label = (text: string) => <h6 className="text-caption font-semibold text-on-surface-variant">{text}</h6>;
 
   // Rủi ro & câu hỏi mở nằm ở tab "Chờ bạn quyết" — đây chỉ là những gì đã thống nhất
   return (
     <div className="flex flex-col gap-2.5 text-on-surface">
       <div className="flex flex-wrap gap-1.5">
-        {formFactorLabel(project.form_factor) && chip(formFactorLabel(project.form_factor) as string)}
-        {project.stakes && chip(stakesLabel(project.stakes) as string)}
+        {formFactorLabel(project.form_factor, tLabel) && chip(formFactorLabel(project.form_factor, tLabel) as string)}
+        {project.stakes && chip(stakesLabel(project.stakes, tLabel) as string)}
       </div>
 
       <section className="flex flex-col gap-0.5">
-        {label("Tầm nhìn")}
+        {label(t("vision"))}
         {vision ? (
           <p className={`text-body leading-relaxed ${full ? "" : "line-clamp-3"}`}>{vision}</p>
         ) : (
-          missing("tầm nhìn")
+          missing(t("missingVision"))
         )}
       </section>
 
       <section className="flex flex-col gap-0.5">
-        {label(`Mục tiêu (${allGoals.length})`)}
+        {label(t("goalsCount", { count: allGoals.length }))}
         {allGoals.length > 0 ? (
           <ul className="list-disc pl-4 text-body leading-relaxed space-y-0.5">
             {goals.map((goal) => (
@@ -62,16 +65,16 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
             ))}
           </ul>
         ) : (
-          missing("mục tiêu")
+          missing(t("missingGoals"))
         )}
       </section>
 
       {full && groups.length > 0 && (
         <section className="flex flex-col gap-1.5">
-          {label("Ghi chú theo mục tài liệu")}
+          {label(t("notesBySection"))}
           {groups.map(([target, entries]) => (
             <div key={target} className="flex flex-col gap-0.5">
-              <span className="text-caption font-semibold text-on-surface-variant">{SECTION_LABEL[target] ?? "Mục khác"}</span>
+              <span className="text-caption font-semibold text-on-surface-variant">{sectionLabel(target, tLabel) ?? tLabel("otherSection")}</span>
               <ul className="list-disc pl-4 text-body leading-relaxed space-y-0.5">
                 {entries.map((entry) => (
                   <li key={entry.id}>
@@ -86,7 +89,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
 
       {(allGoals.length > GOALS_PREVIEW || groups.length > 0 || (vision?.length ?? 0) > 180) && (
         <button type="button" onClick={() => setFull((v) => !v)} className="self-start text-body font-semibold text-primary hover:underline cursor-pointer">
-          {full ? "Thu gọn" : "Xem đầy đủ"}
+          {full ? t("collapse") : t("expand")}
         </button>
       )}
     </div>

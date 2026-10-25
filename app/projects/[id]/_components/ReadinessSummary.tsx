@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { IssueCounts } from "./flag-rules";
 
@@ -13,22 +14,21 @@ interface ReadinessSummaryProps {
  * thành "N mục chờ bước sau". Chỉ mô tả tình trạng; điều kiện chốt thật kiểm ở `POST /baseline`.
  */
 export default function ReadinessSummary({ counts }: ReadinessSummaryProps) {
+  const t = useTranslations("workspace.readiness");
   if (!counts) {
-    return <div className="text-body text-on-surface-subtle italic">Đang kiểm tra tài liệu…</div>;
+    return <div className="text-body text-on-surface-subtle italic">{t("checking")}</div>;
   }
   const { blocking, later } = counts;
   return (
-    <p className="flex items-center gap-2 px-1 text-body text-on-surface" aria-label="Tóm tắt kiểm tra tài liệu">
+    <p className="flex items-center gap-2 px-1 text-body text-on-surface" aria-label={t("summaryAria")}>
       <Icon name={blocking > 0 ? "warning" : "check-circle"} size={16} className={blocking > 0 ? "text-error" : "text-success"} />
       <span>
         {blocking > 0 ? (
-          <>
-            <span className="font-bold">{blocking} vấn đề</span> cần bạn xử lý
-          </>
+          t.rich("blocking", { count: blocking, b: (chunks) => <span className="font-bold">{chunks}</span> })
         ) : (
-          <span className="font-semibold">Không có vấn đề cần xử lý</span>
+          <span className="font-semibold">{t("none")}</span>
         )}
-        {later > 0 && <span className="text-on-surface-muted"> · {later} mục chờ bước sau</span>}
+        {later > 0 && <span className="text-on-surface-muted"> · {t("later", { count: later })}</span>}
       </span>
     </p>
   );

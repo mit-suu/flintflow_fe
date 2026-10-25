@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { crPrefillHref, titleFromInstruction } from "./mode1/prefill";
 import { COMMENT_TEXT_MAX, type CommentPerson, type CommentStatus, type SrsComment } from "@/types/comment";
 import type { OrgRole } from "@/types/organization";
+import type { Locale } from "@/lib/i18n";
 
 /** Chỗ đang soạn comment mới — section, hoặc một block trong section. */
 export interface CommentTarget {
@@ -38,10 +40,11 @@ interface CommentPanelProps {
   onResolve: (commentId: string) => Promise<void>;
 }
 
-const STATUS_BADGE: Record<CommentStatus, { text: string; style: string }> = {
-  open: { text: "Đang mở", style: "bg-accent-gold-soft text-accent-gold-text" },
-  resolved: { text: "Đã xử lý", style: "bg-success-soft text-success" },
-  converted: { text: "Đã thành CR", style: "bg-primary-soft text-primary-hover" },
+/** Chữ của nhãn: `workspace.comments.thread.status.<status>`. */
+const STATUS_STYLE: Record<CommentStatus, string> = {
+  open: "bg-accent-gold-soft text-accent-gold-text",
+  resolved: "bg-success-soft text-success",
+  converted: "bg-primary-soft text-primary-hover",
 };
 
 /** Hai tab của panel: việc còn phải làm, và lịch sử (đã xử lý hoặc đã thành CR). */
@@ -49,22 +52,19 @@ export type CommentTab = "open" | "closed";
 
 export const commentTab = (c: SrsComment): CommentTab => (c.status === "open" ? "open" : "closed");
 
-const TAB_LABEL: Record<CommentTab, string> = { open: "Đang mở", closed: "Đã đóng" };
+/** `formerMember`: tên thay cho thành viên đã rời dự án. */
+const personName = (p: CommentPerson | null, formerMember: string): string => p?.name || p?.email || formerMember;
 
-const ROLE_LABEL: Record<OrgRole, string> = { lead: "Lead", analyst: "Analyst", viewer: "Viewer" };
-
-const personName = (p: CommentPerson | null): string => p?.name || p?.email || "Thành viên đã rời";
-
-const formatTime = (iso: string): string =>
-  new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const formatTime = (iso: string, locale: Locale): string =>
+  new Date(iso).toLocaleString(locale === "en" ? "en-US" : "vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 const inputClass =
   "w-full px-3 py-2 rounded-control border-[1.5px] border-outline focus:border-primary outline-none text-body text-on-surface bg-surface-container-low";
 
-/** Kiểm như BE (`createCommentSchema`) để khỏi tốn một lượt gọi; thông báo theo đặc tả UC-49. */
-const validate = (text: string): string | null => {
-  if (!text.trim()) return "Comment không được để trống.";
-  if (text.trim().length > COMMENT_TEXT_MAX) return `Comment dài quá ${COMMENT_TEXT_MAX} ký tự.`;
+/** Kiểm như BE (`createCommentSchema`) để khỏi tốn một lượt gọi; thông báo theo đặc tả UC-49 (trả key để component dịch). */
+const validate = (text: string): "emptyText" | "tooLong" | null => {
+  if (!text.trim()) return "emptyText";
+  if (text.trim().length > COMMENT_TEXT_MAX) return "tooLong";
   return null;
 };
 
@@ -81,6 +81,7 @@ function Composer({
   onCancel?: () => void;
   autoFocus?: boolean;
 }) {
+  const t = useTranslations("workspace.comments.thread");
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,14 +89,14 @@ function Composer({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const invalid = validate(text);
-    if (invalid) return setError(invalid);
+    if (invalid) return setError(invalid === "tooLong" ? t("tooLong", { max: COMMENT_TEXT_MAX }) : t("emptyText"));
     setBusy(true);
     setError(null);
     try {
       await onSubmit(text.trim());
       setText("");
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : "Không gửi được comment. Vui lòng thử lại.");
+      setError(err instanceof Error && err.message ? err.message : t("sendFailed"));
     } finally {
       setBusy(false);
     }
@@ -120,11 +121,11 @@ function Composer({
         <div className="flex gap-1.5">
           {onCancel && (
             <button type="button" onClick={onCancel} className="px-2.5 py-1 rounded-control border border-outline bg-white text-body font-semibold text-on-surface-medium">
-              Huỷ
+              {t("cancel")}
             </button>
           )}
           <button type="submit" disabled={busy} className="px-2.5 py-1 rounded-control bg-on-surface text-white text-body font-bold disabled:opacity-50 cursor-pointer">
-            {busy ? "Đang gửi…" : submitLabel}
+            {busy ? t("sending") : submitLabel}
           </button>
         </div>
       </div>
@@ -156,51 +157,54 @@ function CommentCard({
   onReply: (commentId: string, text: string) => Promise<void>;
   onResolve: (commentId: string) => Promise<void>;
 }) {
+  const t = useTranslations("workspace.comments.thread");
+  const tRole = useTranslations("workspace.comments.role");
+  const locale = useLocale();
+  const formerMember = t("formerMember");
   const [replying, setReplying] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const handler = role === "lead" || role === "analyst";
   const open = comment.status === "open";
-  const badge = STATUS_BADGE[comment.status];
 
   const crHref = crPrefillHref(projectId, {
     title: titleFromInstruction(`${comment.comment_id}: ${comment.anchor.label}`),
-    description: `${comment.text}\n\nVị trí ghim: ${comment.anchor.label} (bản ${comment.version.label}).`,
+    description: t("crDescription", { text: comment.text, label: comment.anchor.label, version: comment.version.label }),
     source: "viewer_comment",
     ref: comment.comment_id,
-    requester: personName(comment.author),
+    requester: personName(comment.author, formerMember),
     comment_id: comment.comment_id,
   });
 
   return (
     <li
       id={`comment-${comment.comment_id}`}
-      aria-label={`Comment ${comment.comment_id}`}
+      aria-label={t("cardAria", { id: comment.comment_id })}
       className={`p-3 rounded-card border bg-white flex flex-col gap-1.5 ${highlighted ? "border-primary ring-2 ring-outline-purple" : "border-outline-variant"}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-caption font-bold text-on-surface-variant">
-          {comment.comment_id} · Ghim vào: {comment.anchor.label} · bản {comment.version.label}
+          {t("pinnedHeader", { id: comment.comment_id, label: comment.anchor.label, version: comment.version.label })}
         </span>
-        <span className={`text-caption font-bold px-2 py-0.5 rounded-full shrink-0 ${badge.style}`}>
-          {comment.status === "converted" && comment.cr_id ? `Đã thành ${comment.cr_id}` : badge.text}
+        <span className={`text-caption font-bold px-2 py-0.5 rounded-full shrink-0 ${STATUS_STYLE[comment.status]}`}>
+          {comment.status === "converted" && comment.cr_id ? t("convertedTo", { cr: comment.cr_id }) : t(`status.${comment.status}`)}
         </span>
       </div>
-      {anchorMissing && <p className="text-caption text-accent-gold-text italic">Nội dung được ghim không còn trong phiên bản này.</p>}
+      {anchorMissing && <p className="text-caption text-accent-gold-text italic">{t("anchorMissing")}</p>}
       {comment.anchor.excerpt && (
         <blockquote className="text-caption text-on-surface-variant border-l-2 border-outline pl-2 line-clamp-2">{comment.anchor.excerpt}</blockquote>
       )}
       <p className="text-body text-on-surface whitespace-pre-wrap break-words">{comment.text}</p>
       <span className="text-caption text-on-surface-subtle">
-        {personName(comment.author)} ({ROLE_LABEL[comment.author_role]}) · {formatTime(comment.created_at)}
+        {personName(comment.author, formerMember)} ({tRole(comment.author_role)}) · {formatTime(comment.created_at, locale)}
       </span>
 
       {comment.replies.length > 0 && (
-        <ul className="flex flex-col gap-1.5 border-l-2 border-outline-subtle pl-2.5 mt-1" aria-label="Trả lời">
+        <ul className="flex flex-col gap-1.5 border-l-2 border-outline-subtle pl-2.5 mt-1" aria-label={t("repliesAria")}>
           {comment.replies.map((r, i) => (
             <li key={i} className="flex flex-col">
               <p className="text-body text-on-surface-dark whitespace-pre-wrap break-words">{r.text}</p>
               <span className="text-caption text-on-surface-subtle">
-                {personName(r.author)} ({ROLE_LABEL[r.author_role]}) · {formatTime(r.at)}
+                {personName(r.author, formerMember)} ({tRole(r.author_role)}) · {formatTime(r.at, locale)}
               </span>
             </li>
           ))}
@@ -209,8 +213,8 @@ function CommentCard({
 
       {replying ? (
         <Composer
-          placeholder="Trả lời comment"
-          submitLabel="Trả lời"
+          placeholder={t("replyPlaceholder")}
+          submitLabel={t("reply")}
           autoFocus
           onSubmit={async (text) => {
             await onReply(comment.comment_id, text);
@@ -221,7 +225,7 @@ function CommentCard({
       ) : (
         <div className="flex flex-wrap gap-1.5 mt-0.5">
           <button type="button" onClick={() => setReplying(true)} className="px-2 py-0.5 rounded-control border border-outline bg-white text-caption font-semibold text-on-surface-medium">
-            Trả lời
+            {t("reply")}
           </button>
           {open && handler && (
             <button
@@ -229,17 +233,17 @@ function CommentCard({
               onClick={() => {
                 setResolveError(null);
                 onResolve(comment.comment_id).catch((err: unknown) =>
-                  setResolveError(err instanceof Error && err.message ? err.message : "Không đánh dấu được. Vui lòng thử lại.")
+                  setResolveError(err instanceof Error && err.message ? err.message : t("resolveFailed"))
                 );
               }}
               className="px-2 py-0.5 rounded-control border border-outline bg-white text-caption font-semibold text-success"
             >
-              Đánh dấu đã xử lý
+              {t("markResolved")}
             </button>
           )}
           {open && handler && canCreateCr && (
             <Link href={crHref} className="px-2 py-0.5 rounded-control bg-primary-soft text-caption font-bold text-primary-hover">
-              Tạo CR từ comment
+              {t("createCr")}
             </Link>
           )}
         </div>
@@ -277,6 +281,7 @@ export default function CommentPanel({
   onReply,
   onResolve,
 }: CommentPanelProps) {
+  const t = useTranslations("workspace.comments.thread");
   const counts: Record<CommentTab, number> = { open: 0, closed: 0 };
   for (const c of comments) counts[commentTab(c)] += 1;
   const visible = comments.filter(
@@ -286,48 +291,48 @@ export default function CommentPanel({
   );
 
   return (
-    <aside aria-label="Comment" className="flex flex-col gap-3 bg-surface-container-low border border-outline-variant rounded-card p-3.5">
+    <aside aria-label={t("title")} className="flex flex-col gap-3 bg-surface-container-low border border-outline-variant rounded-card p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-extrabold text-body text-on-surface">Comment</h2>
-        <div role="tablist" aria-label="Lọc comment" className="flex p-0.5 rounded-control bg-surface-container-high">
-          {(["open", "closed"] as const).map((t) => (
+        <h2 className="font-extrabold text-body text-on-surface">{t("title")}</h2>
+        <div role="tablist" aria-label={t("filterAria")} className="flex p-0.5 rounded-control bg-surface-container-high">
+          {(["open", "closed"] as const).map((value) => (
             <button
-              key={t}
+              key={value}
               type="button"
               role="tab"
-              aria-selected={tab === t}
-              onClick={() => onTabChange(t)}
+              aria-selected={tab === value}
+              onClick={() => onTabChange(value)}
               className={`px-2.5 py-1 rounded-inner text-caption font-bold cursor-pointer transition-colors ${
-                tab === t ? "bg-white text-on-surface shadow-sm" : "text-on-surface-muted hover:text-on-surface"
+                tab === value ? "bg-white text-on-surface shadow-sm" : "text-on-surface-muted hover:text-on-surface"
               }`}
             >
-              {TAB_LABEL[t]} ({counts[t]})
+              {t("tabCount", { label: t(`tab.${value}`), count: counts[value] })}
             </button>
           ))}
         </div>
       </div>
 
       {target ? (
-        <div className="flex flex-col gap-1.5 bg-white border border-outline-purple rounded-card p-3" aria-label="Comment mới">
+        <div className="flex flex-col gap-1.5 bg-white border border-outline-purple rounded-card p-3" aria-label={t("newAria")}>
           <span className="text-caption font-bold text-primary-hover">
-            Ghim vào: {target.label} · bản {versionLabel}
+            {t("pinTarget", { label: target.label, version: versionLabel })}
           </span>
-          <Composer placeholder="Viết comment" submitLabel="Đăng comment" autoFocus onSubmit={onPost} onCancel={onCancelTarget} />
+          <Composer placeholder={t("writePlaceholder")} submitLabel={t("post")} autoFocus onSubmit={onPost} onCancel={onCancelTarget} />
         </div>
       ) : commentBlockedReason ? (
         <p className="text-body text-accent-gold-text bg-accent-gold-soft border border-accent-gold-border rounded-control px-3 py-2">{commentBlockedReason}</p>
       ) : (
-        <p className="text-body text-on-surface-variant">Rê chuột lên một mục hoặc đoạn trong tài liệu rồi bấm 💬 để ghim comment.</p>
+        <p className="text-body text-on-surface-variant">{t("hint")}</p>
       )}
 
       {focus && (
         <button type="button" onClick={onClearFocus} className="self-start text-caption font-semibold text-primary-hover underline">
-          Đang lọc theo chỗ ghim — xem tất cả comment
+          {t("clearFocus")}
         </button>
       )}
 
       {visible.length === 0 ? (
-        <p className="text-body text-on-surface-subtle italic">{tab === "open" ? "Không có comment nào đang mở." : "Chưa có comment nào được xử lý hay chuyển thành CR."}</p>
+        <p className="text-body text-on-surface-subtle italic">{tab === "open" ? t("emptyOpen") : t("emptyClosed")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {visible.map((c) => (

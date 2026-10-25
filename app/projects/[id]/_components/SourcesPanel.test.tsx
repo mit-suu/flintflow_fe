@@ -1,6 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { renderWithIntl } from "@/test/intl";
+import { createTranslator } from "next-intl";
+import { MESSAGES, renderWithIntl } from "@/test/intl";
 import type { Spine } from "@/types/spine";
 import type { RequirementSource } from "@/types/sources";
 import SourcesPanel from "./SourcesPanel";
@@ -65,15 +66,18 @@ describe("SourcesPanel — nguồn tài liệu của yêu cầu (FLF-292)", () =
 });
 
 describe("source-labels", () => {
+  const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.sources" });
+  const tEn = createTranslator({ locale: "en", messages: MESSAGES.en, namespace: "workspace.sources" });
   it("path ⇒ loại + mã + chữ người đọc được; field của project ⇒ tên field", () => {
-    expect(sourceEntityLabel(spine, "use_cases[id=UC03]")).toEqual({ kind: "use_cases", kindLabel: "Use case", id: "UC03", title: "Place order" });
-    expect(sourceEntityLabel(spine, "project.vision")).toEqual({ kind: "project", kindLabel: "Thông tin dự án", id: "", title: "Tầm nhìn" });
-    expect(sourceEntityLabel(spine, "functions[id=FN9]").title).toBe("");
+    expect(sourceEntityLabel(spine, "use_cases[id=UC03]", t)).toEqual({ kind: "use_cases", kindLabel: "Use case", id: "UC03", title: "Place order" });
+    expect(sourceEntityLabel(spine, "project.vision", t)).toEqual({ kind: "project", kindLabel: "Thông tin dự án", id: "", title: "Tầm nhìn" });
+    expect(sourceEntityLabel(spine, "functions[id=FN9]", t).title).toBe("");
   });
 
   it("mã đoạn ⇒ 'đoạn n'; sai khuôn ⇒ giữ nguyên", () => {
-    expect(paragraphLabel("D1-P03")).toBe("đoạn 3");
-    expect(paragraphLabel("D12-P105")).toBe("đoạn 105");
-    expect(paragraphLabel("K1")).toBe("K1");
+    expect(paragraphLabel("D1-P03", t)).toBe("đoạn 3");
+    expect(paragraphLabel("D12-P105", t)).toBe("đoạn 105");
+    expect(paragraphLabel("K1", t)).toBe("K1");
+    expect(paragraphLabel("D1-P03", tEn)).toBe("paragraph 3");
   });
 });

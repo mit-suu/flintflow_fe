@@ -10,9 +10,17 @@ import { useEffect, useRef } from "react";
  * Browser Notification **nếu user đã cho phép** — không bao giờ tự đi xin quyền giữa chừng, đó là kiểu
  * làm phiền khiến người ta chặn luôn.
  */
-export const TURN_TITLE = "(1) Đến lượt bạn — FlintFlow";
+export interface TurnNoticeText {
+  /** Câu báo (thân notification). */
+  detail: string;
+  /** Tiêu đề tab khi tới lượt user — vd "(1) Đến lượt bạn — FlintFlow". */
+  title: string;
+  /** Tiêu đề notification. */
+  notification: string;
+}
 
-export function useTurnNotice(needsUser: boolean, detail: string): void {
+/** Chữ do nơi gọi dịch sẵn (`workspace.turnNotice`) — hook không tự gọi `useTranslations`. */
+export function useTurnNotice(needsUser: boolean, { detail, title, notification }: TurnNoticeText): void {
   const originalTitle = useRef<string | null>(null);
   const notified = useRef(false);
 
@@ -27,12 +35,12 @@ export function useTurnNotice(needsUser: boolean, detail: string): void {
     }
 
     const hidden = document.visibilityState === "hidden";
-    if (hidden) document.title = TURN_TITLE;
+    if (hidden) document.title = title;
 
     if (hidden && !notified.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
       notified.current = true;
       try {
-        new Notification("FlintFlow — đến lượt bạn", { body: detail, tag: "flintflow-turn" });
+        new Notification(notification, { body: detail, tag: "flintflow-turn" });
       } catch {
         // Trình duyệt chặn: tiêu đề tab đã đủ để biết
       }
@@ -45,5 +53,5 @@ export function useTurnNotice(needsUser: boolean, detail: string): void {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [needsUser, detail]);
+  }, [needsUser, detail, title, notification]);
 }

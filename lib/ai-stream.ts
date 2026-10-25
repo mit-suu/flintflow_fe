@@ -54,6 +54,9 @@ export const streamSse = async <T>(
     }
 
     const reader = res.body.getReader();
+    // Huỷ giữa luồng (nút dừng): không trông vào fetch tự cắt body — có môi trường để `read()` treo mãi.
+    // Huỷ reader thì `read()` đang chờ trả `done` và vòng dưới thoát.
+    signal?.addEventListener("abort", () => void reader.cancel().catch(() => undefined), { once: true });
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
 

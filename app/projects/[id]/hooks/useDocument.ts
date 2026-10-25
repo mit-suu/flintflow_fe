@@ -6,6 +6,7 @@ import { translationMetaOf } from "@/lib/document-language";
 import type { DocumentSource, DocumentTranslationMeta, DraftMeta, RenderedDocument } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export interface UseDocumentResult {
   document: RenderedDocument | null;
@@ -88,7 +89,7 @@ export function useDocument(
         setMeta(null);
         setTranslation(null);
         setEmpty(false);
-        setError(userErrorMessage(err, "Không tải được tài liệu"));
+        setError(userErrorMessage(err, HOOK_ERROR.docLoadFailed));
       })
       .finally(() => {
         if (request === requestRef.current) setPending(false);

@@ -134,7 +134,7 @@ export const groupTrace = (response: TraceabilityResponse, rootId: string): Trac
 
 /**
  * Loại node ↔ collection Spine. Chỉ 8 loại này có mặt trong `traceabilityEntitySchema`.
- * Export để chỗ gọi lấy nhãn qua `ENTITY_LABELS[TRACE_COLLECTION[kind]]` thay vì khai bảng thứ hai.
+ * Export để chỗ gọi lấy nhãn qua `L.entityLabel(TRACE_COLLECTION[kind])` (`useMode1Labels`) thay vì khai bảng thứ hai.
  */
 export const TRACE_COLLECTION: Readonly<Record<TraceabilityEntity, keyof Spine>> = {
   actor: "actors",

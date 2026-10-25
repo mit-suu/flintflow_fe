@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { sectionLabelIn } from "@/lib/constants/fpt-sections";
+import { useTranslations } from "next-intl";
 import type { FieldsPatchRequest, HeadingMapEntry, ReviewField } from "@/types/import";
+import { useMode1Labels } from "./i18n";
 import { formatPercent } from "./labels";
-import { pathLabel } from "./spine-labels";
 
 interface FieldsReviewProps {
   fields: ReviewField[];
@@ -29,18 +29,16 @@ export const textToValue = (text: string, original: unknown): unknown => {
   }
 };
 
+/** Cách trích của field (BE `ReviewField.origin`) có nhãn. `vision` = Gemini đọc từ ảnh diagram (mode 1 v3 phase 5). */
+const ORIGINS: readonly string[] = ["ai", "deterministic", "vision"];
+
 /**
  * 1.9 Xác nhận field độ tin thấp (UC-22): xem giá trị AI trích, block nguồn, sửa nếu sai. Nội dung field là
  * dữ liệu SRS (tiếng Anh) — FE không dịch.
  */
-/** Cách trích của field (BE `ReviewField.origin`). `vision` = Gemini đọc từ ảnh diagram (mode 1 v3 phase 5). */
-export const ORIGIN_LABEL: Record<ReviewField["origin"], string> = {
-  ai: "AI trích",
-  deterministic: "trích tất định",
-  vision: "AI đọc từ ảnh",
-};
-
 export default function FieldsReview({ fields, onSubmit, busy = false, headingMap }: FieldsReviewProps) {
+  const t = useTranslations("mode1.fieldsReview");
+  const L = useMode1Labels();
   const [edits, setEdits] = useState<Record<string, string>>({});
 
   const submit = () =>
@@ -54,37 +52,34 @@ export default function FieldsReview({ fields, onSubmit, busy = false, headingMa
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h3 className="font-extrabold text-[#191817] text-heading">Xem lại field độ tin thấp</h3>
-        <p className="text-body text-[#8A867E]">
-          {fields.length} field AI chưa chắc. Sửa giá trị nếu sai; bấm xác nhận để chốt tất cả (field không sửa giữ nguyên như AI trích).
-        </p>
-        <p className="text-body text-[#8A6D1F]">
-          Đây là chỗ sửa duy nhất trước khi chốt baseline v0 — sau đó mọi thay đổi đi qua change request.
-        </p>
+        <h3 className="font-extrabold text-[#191817] text-heading">{t("title")}</h3>
+        <p className="text-body text-[#8A867E]">{t("summary", { count: fields.length })}</p>
+        <p className="text-body text-[#8A6D1F]">{t("onlyChance")}</p>
       </div>
       <ul className="flex flex-col gap-3">
         {fields.map((f) => {
           const key = fieldKey(f);
           const text = edits[key] ?? valueToText(f.value);
           const changed = key in edits && edits[key] !== valueToText(f.value);
+          const label = L.pathLabel(f.path, f.entity_name);
           return (
             <li key={key} className={`bg-white border rounded-[14px] p-3 flex flex-col gap-2 ${changed ? "border-[#6A62C4]" : "border-[#ECEAE5]"}`}>
               <div className="flex flex-wrap items-center gap-2 text-body">
                 <span className="font-bold text-[#191817]" title={f.path}>
-                  {pathLabel(f.path, f.entity_name)}
+                  {label}
                 </span>
-                <span className="text-[#8A867E]">· {sectionLabelIn(f.section_id, headingMap)}</span>
+                <span className="text-[#8A867E]">· {L.sectionLabelIn(f.section_id, headingMap)}</span>
                 {f.origin === "vision" && (
-                  <span className="ml-auto px-2 py-0.5 rounded-full bg-[#EEEBFA] text-[#6A62C4] font-bold text-caption" title="Đọc từ ảnh diagram trong tài liệu — luôn cần bạn xác nhận">
-                    từ ảnh
+                  <span className="ml-auto px-2 py-0.5 rounded-full bg-[#EEEBFA] text-[#6A62C4] font-bold text-caption" title={t("fromImageTitle")}>
+                    {t("fromImage")}
                   </span>
                 )}
                 <span className={`${f.origin === "vision" ? "" : "ml-auto "}px-2 py-0.5 rounded-full bg-[#FBF4E4] text-[#8A6D1F] font-bold text-caption`}>
-                  độ tin {formatPercent(f.confidence)}
+                  {t("confidence", { value: formatPercent(f.confidence) })}
                 </span>
               </div>
               <textarea
-                aria-label={`Giá trị ${pathLabel(f.path, f.entity_name)}`}
+                aria-label={t("valueAria", { label })}
                 value={text}
                 rows={Math.min(4, Math.max(1, Math.ceil(text.length / 80)))}
                 onChange={(e) => setEdits((prev) => ({ ...prev, [key]: e.target.value }))}
@@ -92,10 +87,10 @@ export default function FieldsReview({ fields, onSubmit, busy = false, headingMa
               />
               <div className="text-caption text-[#A8A49C]">
                 <span title={f.source_block_ids.join(", ")}>
-                  Nguồn: {f.source_block_ids.length ? `${f.source_block_ids.length} đoạn trong tài liệu` : "—"}
+                  {f.source_block_ids.length ? t("source", { count: f.source_block_ids.length }) : t("sourceNone")}
                 </span>{" "}
-                · {ORIGIN_LABEL[f.origin] ?? f.origin}
-                {changed && <strong className="text-[#6A62C4]"> · đã sửa</strong>}
+                · {ORIGINS.includes(f.origin) ? t(`origin.${f.origin}`) : f.origin}
+                {changed && <strong className="text-[#6A62C4]"> · {t("edited")}</strong>}
               </div>
             </li>
           );
@@ -108,7 +103,7 @@ export default function FieldsReview({ fields, onSubmit, busy = false, headingMa
           disabled={busy}
           className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
         >
-          {busy ? "Đang lưu…" : "Xác nhận tất cả field"}
+          {busy ? t("saving") : t("submit")}
         </button>
       </div>
     </div>

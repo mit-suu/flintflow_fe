@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { ReviewMode } from "@/types/spine";
-import ReviewModeSelect, { REVIEW_OPTIONS, displayReviewMode } from "./ReviewModeSelect";
+import ReviewModeSelect, { displayReviewMode } from "./ReviewModeSelect";
 
 interface AiSettingsMenuProps {
   reviewMode: ReviewMode;
@@ -16,6 +17,7 @@ interface AiSettingsMenuProps {
  * Chip hiện chế độ duyệt đang chọn; bấm mở ô nổi lên trên. AI tự quyết hỏi nhiều hay ít (FLF-220).
  */
 export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disabled = false }: AiSettingsMenuProps) {
+  const t = useTranslations("workspace.aiSettings");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -37,7 +39,8 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
     };
   }, [open]);
 
-  const review = REVIEW_OPTIONS.find((o) => o.value === displayReviewMode(reviewMode)) ?? REVIEW_OPTIONS[1];
+  const review = displayReviewMode(reviewMode);
+  const reviewLabel = t(`modes.${review}`);
 
   return (
     <div ref={rootRef} className="relative">
@@ -47,15 +50,15 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={`Cách AI làm việc với bạn — ${review.label}`}
-        title="Cách AI làm việc với bạn"
+        aria-label={t("aria", { mode: reviewLabel })}
+        title={t("title")}
         // Thanh công cụ rất hẹp ⇒ bỏ nhãn chế độ, giữ icon + mũi tên để vẫn thấy đây là menu
         className={`h-8 pl-2 pr-1.5 shrink-0 rounded-control flex items-center gap-1 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
           open ? "bg-surface-container-high text-on-surface" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
         }`}
       >
         <Icon name="sparkle" size={14} />
-        <span className="@max-[256px]:hidden">{review.label}</span>
+        <span className="@max-[256px]:hidden">{reviewLabel}</span>
         <Icon name="chevron-down" size={12} />
       </button>
 
@@ -63,13 +66,13 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
         <div
           id={panelId}
           role="dialog"
-          aria-label="Cách AI làm việc với bạn"
+          aria-label={t("title")}
           className="absolute bottom-full left-0 mb-2 z-40 w-[300px] bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-3 flex flex-col gap-3"
         >
           <div className="flex flex-col gap-1.5">
-            <span className="text-body font-bold text-on-surface">AI dừng chờ duyệt</span>
+            <span className="text-body font-bold text-on-surface">{t("heading")}</span>
             <ReviewModeSelect value={reviewMode} onChange={onChangeReviewMode} disabled={disabled} />
-            <p className="text-caption text-on-surface-muted">{review.hint}</p>
+            <p className="text-caption text-on-surface-muted">{t(`hints.${review}`)}</p>
           </div>
         </div>
       )}

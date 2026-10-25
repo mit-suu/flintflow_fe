@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react'
 import { type Table } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/shadcn/button'
 import { Input } from '@/components/shadcn/input'
 import { DataTableFacetedFilter } from './faceted-filter'
@@ -25,11 +26,12 @@ type DataTableToolbarProps<TData> = {
 
 export function DataTableToolbar<TData>({
   table,
-  searchPlaceholder = 'Tìm…',
+  searchPlaceholder,
   searchKey,
   filters = [],
   extraFilters,
 }: DataTableToolbarProps<TData>) {
+  const t = useTranslations('common.dataTable')
   const isFiltered =
     table.getState().columnFilters.length > 0 || table.getState().globalFilter
 
@@ -38,7 +40,7 @@ export function DataTableToolbar<TData>({
       <div className='flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2'>
         {searchKey ? (
           <Input
-            placeholder={searchPlaceholder}
+            placeholder={searchPlaceholder ?? t('search')}
             value={
               (table.getColumn(searchKey)?.getFilterValue() as string) ?? ''
             }
@@ -49,7 +51,7 @@ export function DataTableToolbar<TData>({
           />
         ) : (
           <Input
-            placeholder={searchPlaceholder}
+            placeholder={searchPlaceholder ?? t('search')}
             value={table.getState().globalFilter ?? ''}
             onChange={(event) => table.setGlobalFilter(event.target.value)}
             className='h-8 w-[150px] lg:w-[250px]'
@@ -79,7 +81,7 @@ export function DataTableToolbar<TData>({
             }}
             className='h-8 px-2 lg:px-3'
           >
-            Bỏ lọc
+            {t('clearFilters')}
             <X className='ms-2 h-4 w-4' />
           </Button>
         )}

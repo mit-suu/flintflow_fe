@@ -6,6 +6,7 @@ import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } 
 import type { ApplyResult, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export type PreviewSource = "instruction" | "reconcile";
 /** `skipped`: chưa gửi gì (chưa biết version, lệnh rỗng). */
@@ -62,7 +63,7 @@ export function useChanges(
   const [history, setHistory] = useState<Change[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  const failureMessage = (err: unknown) => userErrorMessage(err, "Thao tác chưa thực hiện được. Vui lòng thử lại.");
+  const failureMessage = (err: unknown) => userErrorMessage(err, HOOK_ERROR.actionFailed);
 
   const requestPreview = useCallback(
     async (instruction: string): Promise<PreviewOutcome> => {

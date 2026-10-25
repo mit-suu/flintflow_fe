@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import BackLink from "@/components/ui/BackLink";
-import { getDocument, listBaselines } from "@/lib/api/export";
+import { downloadWordExport, getDocument, listBaselines } from "@/lib/api/export";
+import { saveBlob } from "@/lib/api/files";
 import { getProgress } from "@/lib/api/pipeline";
 import { getProject } from "@/lib/api/projects";
 import { fetchOrganization } from "@/lib/api/orgs";
@@ -27,8 +29,15 @@ const COMMENT_POLL_MS = 15_000;
 /** Bản đang đọc: `draft` hoặc `id` của một baseline (`BLnnn`). */
 type VersionKey = "draft" | string;
 
-/** Lỗi API ⇒ `Error` mang câu tiếng Việt cho người dùng (panel comment hiện `message`). */
+/** Lỗi API ⇒ `Error` mang câu cho người dùng (panel comment hiện `message`). */
 const asUserError = (err: unknown, fallback: string): Error => new Error(userErrorMessage(err, fallback));
+
+/**
+ * Lỗi đọc trong effect/callback không có câu của BE ⇒ lưu mã, dịch lúc render (đưa `t` vào dependency sẽ tải lại tài liệu
+ * và comment mỗi lần đổi ngôn ngữ).
+ */
+const DOC_LOAD_FAILED = "@loadFailed";
+const COMMENTS_LOAD_FAILED = "@commentsLoadFailed";
 
 /**
  * Read-only projection (UC 1.14): section bắt buộc chưa `accepted` chỉ hiện tiêu đề +
@@ -45,6 +54,7 @@ const asUserError = (err: unknown, fallback: string): Error => new Error(userErr
  * comment đó.
  */
 export default function ReadOnlyDocumentPage() {
+  const t = useTranslations("workspace.view");
   const params = useParams();
   const searchParams = useSearchParams();
   const projectId = params?.id as string;
@@ -107,7 +117,7 @@ export default function ReadOnlyDocumentPage() {
         } else {
           setDoc(null);
           setTranslation(null);
-          setError(docResult.reason instanceof Error ? docResult.reason.message : "Không tải được tài liệu");
+          setError(docResult.reason instanceof Error ? docResult.reason.message : DOC_LOAD_FAILED);
         }
         setProgress(progressResult.status === "fulfilled" ? progressResult.value.data : null);
         setLoading(false);
@@ -128,7 +138,7 @@ export default function ReadOnlyDocumentPage() {
       setCommentError(null);
     } catch (err) {
       if (seq !== commentLoadSeq.current) return;
-      setCommentError(userErrorMessage(err, "Không tải được comment"));
+      setCommentError(userErrorMessage(err, COMMENTS_LOAD_FAILED));
     }
   }, [projectId]);
 
@@ -166,14 +176,28 @@ export default function ReadOnlyDocumentPage() {
   const language = shownDocumentLanguage(translation, projectLanguage);
 
   const baseline = version && version !== "draft" ? baselines.find((b) => b.id === version) : undefined;
-  const versionLabel = baseline ? baseline.version : "nháp";
+  const versionLabel = baseline ? baseline.version : t("draftLabel");
   const commentBlockedReason =
     role === "viewer" && !baseline
       ? baselines.length
-        ? "Viewer chỉ comment được trên phiên bản đã phát hành — chọn một bản baseline ở trên."
-        : "Viewer chỉ comment được trên phiên bản đã phát hành — dự án chưa có bản nào."
+        ? t("viewerPickBaseline")
+        : t("viewerNoBaseline")
       : null;
   const canComment = commentBlockedReason === null && !!doc;
+
+  // UC-50: tải bản đã phát hành (Viewer chỉ tải được bản này — bản nháp BE trả 403)
+  const [downloading, setDownloading] = useState(false);
+  const download = async (baselineId: string) => {
+    setDownloading(true);
+    try {
+      const { blob, filename } = await downloadWordExport(projectId, "baseline", baselineId);
+      saveBlob(blob, filename ?? `${doc?.projectName ?? "SRS"}_v${versionLabel}.docx`);
+    } catch (err) {
+      setError(userErrorMessage(err, t("downloadFailed")));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const highlighted = highlightId ? comments.find((c) => c.comment_id === highlightId) : undefined;
   const tab: CommentTab = tabChoice ?? (highlighted ? commentTab(highlighted) : "open");
@@ -209,7 +233,7 @@ export default function ReadOnlyDocumentPage() {
         text,
       });
     } catch (err) {
-      throw asUserError(err, "Không đăng được comment. Vui lòng thử lại.");
+      throw asUserError(err, t("postFailed"));
     }
     setTarget(null);
     // Comment mới luôn "Đang mở" — đang ở tab "Đã đóng" thì chuyển về để thấy nó
@@ -221,7 +245,7 @@ export default function ReadOnlyDocumentPage() {
     try {
       await replyComment(projectId, commentId, text);
     } catch (err) {
-      throw asUserError(err, "Không gửi được trả lời. Vui lòng thử lại.");
+      throw asUserError(err, t("replyFailed"));
     }
     await refreshComments();
   };
@@ -230,7 +254,7 @@ export default function ReadOnlyDocumentPage() {
     try {
       await resolveComment(projectId, commentId, { kind: "fixed" });
     } catch (err) {
-      throw asUserError(err, "Không đánh dấu được. Vui lòng thử lại.");
+      throw asUserError(err, t("resolveFailed"));
     }
     await refreshComments();
   };
@@ -245,7 +269,7 @@ export default function ReadOnlyDocumentPage() {
           <button
             type="button"
             onClick={() => setFocus({ section_id: section.id, block_index: blockIndex })}
-            aria-label={`Xem ${count} comment`}
+            aria-label={t("viewComments", { count })}
             className="text-caption font-bold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary-hover cursor-pointer"
           >
             💬 {count}
@@ -255,8 +279,12 @@ export default function ReadOnlyDocumentPage() {
           <button
             type="button"
             onClick={() => startComment(section, blockIndex)}
-            aria-label={blockIndex === null ? `Comment mục ${sectionLabel(section)}` : `Comment đoạn ${blockIndex + 1} của ${sectionLabel(section)}`}
-            title="Ghim comment"
+            aria-label={
+              blockIndex === null
+                ? t("commentSection", { section: sectionLabel(section) })
+                : t("commentBlock", { index: blockIndex + 1, section: sectionLabel(section) })
+            }
+            title={t("pinTitle")}
             className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-body px-1 rounded hover:bg-surface-container-high cursor-pointer"
           >
             💬
@@ -270,14 +298,14 @@ export default function ReadOnlyDocumentPage() {
     <div className="min-h-screen bg-[#F5F3F0] flex flex-col">
       <header className="bg-white border-b border-outline-variant px-6 py-3 flex items-center justify-between gap-3 shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-body font-extrabold text-[#191817]">{doc?.projectName ?? "Dự án"}</span>
-          <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">Chỉ đọc</span>
+          <span className="text-body font-extrabold text-[#191817]">{doc?.projectName ?? t("untitled")}</span>
+          <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-[#F0EEEA] text-[#6B6862]">{t("readOnly")}</span>
           {language && <DocumentLanguageChip language={language} />}
         </div>
         <div className="flex items-center gap-3">
           {version !== null && (
             <label className="flex items-center gap-1.5 text-body text-on-surface-variant">
-              Phiên bản
+              {t("version")}
               <select
                 value={version}
                 onChange={(e) => {
@@ -287,26 +315,41 @@ export default function ReadOnlyDocumentPage() {
                 }}
                 className="px-2 py-1 rounded-control border border-outline bg-white text-body text-on-surface"
               >
-                <option value="draft">Bản nháp</option>
+                <option value="draft">{t("draft")}</option>
                 {baselines.map((b) => (
                   <option key={b.id} value={b.id}>
-                    Bản {b.version}
+                    {t("baselineOption", { version: b.version })}
                   </option>
                 ))}
               </select>
             </label>
           )}
-          <BackLink href={`/projects/${projectId}`}>Về không gian làm việc</BackLink>
+          {baseline && (
+            <button
+              type="button"
+              onClick={() => void download(baseline.id)}
+              disabled={downloading}
+              className="px-3 py-1.5 rounded-control border border-outline bg-white text-body font-bold text-on-surface hover:bg-surface-container cursor-pointer disabled:opacity-60"
+            >
+              {downloading ? t("downloading") : t("download", { version: baseline.version })}
+            </button>
+          )}
+          {/* Viewer không có workspace (bị chuyển về đây) ⇒ quay về danh sách dự án */}
+          {role === "viewer" ? (
+            <BackLink href="/home">{t("backToProjects")}</BackLink>
+          ) : (
+            <BackLink href={`/projects/${projectId}`}>{t("backToWorkspace")}</BackLink>
+          )}
         </div>
       </header>
 
       <main className="flex-1 ff-scroll overflow-y-auto p-6">
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-5 items-start">
           <div className="flex-1 min-w-0 max-w-3xl w-full mx-auto flex flex-col gap-3">
-            {loading && <div className="text-body text-on-surface-subtle italic">Đang tải tài liệu…</div>}
+            {loading && <div className="text-body text-on-surface-subtle italic">{t("loading")}</div>}
             {!loading && error && (
               <div className="bg-error-container border border-error-border rounded-control p-3.5 text-body text-on-error-container">
-                Không tải được tài liệu: {error}
+                {t("loadFailedWith", { error: error === DOC_LOAD_FAILED ? t("loadFailed") : error })}
               </div>
             )}
             {!loading &&
@@ -319,7 +362,7 @@ export default function ReadOnlyDocumentPage() {
                     {pinControls(section, null)}
                   </div>
                   {isIncomplete(section) ? (
-                    <div className="text-body text-on-surface-subtle italic">chưa hoàn thiện</div>
+                    <div className="text-body text-on-surface-subtle italic">{t("incomplete")}</div>
                   ) : section.blocks.length > 0 ? (
                     section.blocks.map((block, i) => {
                       const pinned = (pinCounts.get(`${section.id}#${i}`) ?? 0) > 0;
@@ -333,7 +376,7 @@ export default function ReadOnlyDocumentPage() {
                       );
                     })
                   ) : (
-                    <div className="text-body text-on-surface-subtle italic">chưa hoàn thiện</div>
+                    <div className="text-body text-on-surface-subtle italic">{t("incomplete")}</div>
                   )}
                 </article>
               ))}
@@ -342,7 +385,7 @@ export default function ReadOnlyDocumentPage() {
           <div className="w-full lg:w-[340px] lg:sticky lg:top-0 shrink-0 flex flex-col gap-2">
             {commentError && (
               <p role="alert" className="text-body text-error">
-                {commentError}
+                {commentError === COMMENTS_LOAD_FAILED ? t("commentsLoadFailed") : commentError}
               </p>
             )}
             <CommentPanel

@@ -75,7 +75,7 @@ describe("useWorkspace — phiên chính và phiên phụ (FLF-244)", () => {
     await act(() => result.current.deleteSession(MOCK_SESSION_ID));
 
     expect(result.current.sessions.map((s) => s._id)).toContain(MOCK_SESSION_ID);
-    expect(result.current.notice).toMatch(/Không thể xoá cuộc trò chuyện/);
+    expect(result.current.notice).toMatchObject({ key: "deleteFailed" });
     expect(alertSpy).not.toHaveBeenCalled();
     act(() => result.current.clearNotice());
     expect(result.current.notice).toBeNull();
@@ -153,7 +153,7 @@ describe("useWorkspace — lượt hỏi tri thức (FLF-279)", () => {
     await ask(result);
 
     expect(result.current.knowledgeDisabled).toBe(true);
-    expect(result.current.notice).toMatch(/đang tắt/);
+    expect(result.current.notice).toEqual({ key: "knowledgeDisabled" });
     expect(result.current.inputMessage).toBe("Trần lượt gọi model là bao nhiêu?");
     expect(result.current.activeSession!.messages).toHaveLength(before);
     expect(result.current.knowledgePending).toBe(false);
@@ -187,5 +187,47 @@ describe("useWorkspace — lượt hỏi tri thức (FLF-279)", () => {
     expect(JSON.parse(last.content).grounded).toBe(true);
     expect(result.current.knowledgePending).toBe(false);
     expect(result.current.knowledgeDisabled).toBe(false);
+  });
+});
+
+describe("useWorkspace — dừng lượt chat (stopMessage)", () => {
+  it("dừng giữa stream ⇒ huỷ fetch, bỏ chữ dở, giữ tin user, báo đã dừng, hết trạng thái gửi", async () => {
+    let aborted = false;
+    mockServer.use(
+      http.post(`*/projects/${MOCK_PROJECT_ID}/chats/${MOCK_SESSION_ID}/messages/stream`, ({ request }) => {
+        request.signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+        // Phát một mẩu chữ rồi treo — như model đang sinh dở
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "text-delta", delta: "Đang tr" })}\n\n`));
+          },
+        });
+        return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+      })
+    );
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    let sent!: Promise<unknown>;
+    act(() => {
+      sent = result.current.sendMessage("chat", "Giải thích luồng đặt lịch");
+    });
+    await waitFor(() => expect(result.current.streamingMessage).toBe("Đang tr"));
+    expect(result.current.sending).toBe(true);
+
+    await act(async () => {
+      result.current.stopMessage();
+      await sent;
+    });
+
+    expect(aborted).toBe(true);
+    expect(result.current.streamingMessage).toBeNull();
+    expect(result.current.sending).toBe(false);
+    expect(result.current.notice).toEqual({ key: "stopped" });
+    const messages = result.current.activeSession!.messages;
+    expect(messages).toHaveLength(before + 1);
+    expect(messages.at(-1)).toMatchObject({ role: "user", content: "Giải thích luồng đặt lịch" });
   });
 });

@@ -8,12 +8,13 @@ import DropdownMenu, {
 } from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[id]/_components/mode1/labels";
+import { IMPORT_DONE_STATUSES } from "@/app/projects/[id]/_components/mode1/labels";
 import { tStep, type Locale } from "@/lib/i18n";
 import { timeAgo, type TimeTranslator } from "@/lib/time-ago";
 import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
 import { tPhase } from "@/lib/i18n";
 import { getSourceModeOption } from "@/lib/project-source-mode";
+import type { ImportStatus } from "@/types/import";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project, ProjectMode } from "@/types/project";
 
@@ -98,12 +99,15 @@ export type Mode1Translator = (
   values?: { state?: string; count?: number }
 ) => string;
 
-export function mode1NextLabel(project: Project, t: Mode1Translator, openCrs?: number): string {
+/** Nhãn trạng thái import theo ngôn ngữ (`mode1.labels.importStatus.*`); mã lạ ⇒ giữ mã. */
+export type ImportStatusLabel = (state: ImportStatus) => string;
+
+export function mode1NextLabel(project: Project, t: Mode1Translator, statusLabel: ImportStatusLabel, openCrs?: number): string {
   const state = project.import_state;
   if (!state) return t("notUploaded");
-  if (!IMPORT_DONE_STATUSES.includes(state)) return t("importing", { state: IMPORT_STATUS_LABELS[state] });
-  if (openCrs === undefined) return IMPORT_STATUS_LABELS[state];
-  return openCrs > 0 ? t("openCrs", { count: openCrs }) : IMPORT_STATUS_LABELS[state];
+  if (!IMPORT_DONE_STATUSES.includes(state)) return t("importing", { state: statusLabel(state) });
+  if (openCrs === undefined) return statusLabel(state);
+  return openCrs > 0 ? t("openCrs", { count: openCrs }) : statusLabel(state);
 }
 
 /** Nguồn mặc định (gần như mọi dự án) — không ghi nhãn trên card; chỉ nguồn khác mới hiện tên. */
@@ -220,6 +224,8 @@ export default function ProjectCard({
   const tMode = useTranslations("app.sourceMode");
   const tNext = useTranslations("app.projectCard.next");
   const tMode1 = useTranslations("app.projectCard.mode1");
+  const tImport = useTranslations("mode1.labels.importStatus");
+  const importStatusLabel: ImportStatusLabel = (state) => (tImport.has(state) ? tImport(state) : state);
   const status = getStatusBadge(progress);
   const mode = getSourceModeOption(project.mode);
   const archived = project.status === "archived";
@@ -328,7 +334,7 @@ export default function ProjectCard({
             <Icon name="arrow-right" size={13} className="shrink-0 text-primary" />
             <span className="truncate">
               {project.mode === "import"
-                ? mode1NextLabel(project, tMode1 as Mode1Translator, openCrs)
+                ? mode1NextLabel(project, tMode1 as Mode1Translator, importStatusLabel, openCrs)
                 : nextStepLabel(progress, tNext as NextTranslator, locale)}
             </span>
           </span>

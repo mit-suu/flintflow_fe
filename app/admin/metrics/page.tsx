@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { FileCheck, FolderKanban, Sparkles, Users } from "lucide-react";
 import {
@@ -20,10 +21,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const toDateInput = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(date);
 
 export default function AdminMetricsPage() {
+  const t = useTranslations("admin.metrics");
+  const locale = useLocale();
+  const num = (value: number) => formatNumber(value, locale);
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [cost7d, setCost7d] = useState<AiCostReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** Lỗi tải gần nhất: giữ nguyên lỗi, dịch lúc render — đổi ngôn ngữ không phải tải lại. */
+  const [error, setError] = useState<{ cause: unknown } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +43,7 @@ export default function AdminMetricsPage() {
         setMetrics(nextMetrics);
         setCost7d(nextCost);
       } catch (err) {
-        if (!cancelled) setError(userErrorMessage(err, "Không thể tải số liệu"));
+        if (!cancelled) setError({ cause: err });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -53,61 +58,63 @@ export default function AdminMetricsPage() {
     <>
       <AdminHeader />
       <AdminMain>
-        <AdminPageHeader title="Số liệu hệ thống" description="Tình hình chung của FlintFlow trong 7 ngày gần nhất." />
+        <AdminPageHeader title={t("title")} description={t("description")} />
 
-        {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
+        {error && <ErrorBanner message={userErrorMessage(error.cause, t("loadFailed"))} onClose={() => setError(null)} />}
 
         <AdminScroll>
           {loading ? (
-            <LoadingBlock label="Đang tải số liệu…" variant="cards" />
+            <LoadingBlock label={t("loading")} variant="cards" />
           ) : (
             metrics && (
               <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
-                  label="Người dùng"
+                  label={t("users")}
                   icon={Users}
                   href="/admin/users"
-                  value={formatNumber(metrics.usersTotal)}
-                  hint={`+${formatNumber(metrics.usersNew7d)} trong 7 ngày`}
+                  value={num(metrics.usersTotal)}
+                  hint={t("usersHint", { count: num(metrics.usersNew7d) })}
                 />
                 <StatCard
-                  label="Dự án"
+                  label={t("projects")}
                   icon={FolderKanban}
-                  value={formatNumber(metrics.projectsTotal)}
-                  hint={`${formatNumber(metrics.projectsActive7d)} hoạt động trong 7 ngày`}
+                  value={num(metrics.projectsTotal)}
+                  hint={t("projectsHint", { count: num(metrics.projectsActive7d) })}
                 />
                 <StatCard
-                  label="Baseline"
+                  label={t("baseline")}
                   icon={FileCheck}
-                  value={formatNumber(metrics.baselinesTotal)}
-                  hint="Có từ khi bật S-9 baseline"
+                  value={num(metrics.baselinesTotal)}
+                  hint={t("baselineHint")}
                 />
                 <StatCard
-                  label="Lượt gọi AI hôm nay"
+                  label={t("aiCallsToday")}
                   icon={Sparkles}
                   href="/admin/ai-cost"
-                  value={formatNumber(metrics.aiCallsToday)}
-                  hint={`Lỗi 7 ngày: ${(metrics.aiFailRate7d * 100).toFixed(1)}% / ${formatNumber(metrics.aiCalls7d)} lượt`}
+                  value={num(metrics.aiCallsToday)}
+                  hint={t("aiCallsHint", { rate: (metrics.aiFailRate7d * 100).toFixed(1), calls: num(metrics.aiCalls7d) })}
                 />
               </div>
 
               {cost7d && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Lượt gọi AI theo ngày</CardTitle>
+                    <CardTitle>{t("chartTitle")}</CardTitle>
                     <CardDescription>
-                      Cột tím là tổng lượt gọi, cột đỏ là lượt lỗi. Số tiền và token xem ở{" "}
-                      <Link href="/admin/ai-cost" className="font-medium underline underline-offset-4">
-                        Chi phí AI
-                      </Link>
-                      .
+                      {t.rich("chartDescription", {
+                        link: (chunks) => (
+                          <Link href="/admin/ai-cost" className="font-medium underline underline-offset-4">
+                            {chunks}
+                          </Link>
+                        ),
+                      })}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {cost7d.rows.length === 0 ? (
                       <p className="text-muted-foreground py-12 text-center text-body">
-                        Chưa có lượt gọi AI nào trong 7 ngày
+                        {t("chartEmpty")}
                       </p>
                     ) : (
                       <AiCallsChart rows={cost7d.rows} />

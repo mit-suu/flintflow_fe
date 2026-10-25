@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FPT_SECTIONS, isProvisionalSection, sectionLabel, sectionLabelIn } from "@/lib/constants/fpt-sections";
-import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateFamily, type TemplateProfile } from "@/types/import";
+import { useTranslations } from "next-intl";
+import { FPT_SECTIONS, isProvisionalSection } from "@/lib/constants/fpt-sections";
+import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateProfile } from "@/types/import";
+import { useMode1Labels } from "./i18n";
 import { formatPercent } from "./labels";
-import { COLUMN_ROLE_LABELS, TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldLabel, tableFieldPath, tableGroupLabel } from "./table-fields";
+import { TABLE_FIELD_GROUPS, entityOfPath, isKnownTableField, tableFieldPath } from "./table-fields";
 
 interface MappingReviewTableProps {
   profile: TemplateProfile;
@@ -12,21 +14,7 @@ interface MappingReviewTableProps {
   busy?: boolean;
 }
 
-const DETECTOR_LABELS = {
-  style: "kiểu chữ tiêu đề",
-  outline_level: "cấp đề mục",
-  numbering_pattern: "số mục",
-  user: "bạn chọn",
-} as const;
-
 const tableKey = (blockId: string, column: number) => `${blockId}:${column}`;
-
-/** Họ mẫu nhận được (FLF-252). */
-const TEMPLATE_FAMILY_LABELS: Readonly<Record<TemplateFamily, string>> = {
-  fpt: "mẫu FPT",
-  ieee830: "mẫu IEEE 830",
-  ieee_features: "mẫu IEEE (dạng System Features)",
-};
 
 const ConfidenceBadge = ({ value }: { value: number }) => (
   <span
@@ -43,6 +31,8 @@ const ConfidenceBadge = ({ value }: { value: number }) => (
  * dòng độ tin < 80%; gửi các dòng đã đổi kèm `confirm_all` để chốt cả phần còn lại như BE đề xuất.
  */
 export default function MappingReviewTable({ profile, onSubmit, busy = false }: MappingReviewTableProps) {
+  const t = useTranslations("mode1.mappingReview");
+  const L = useMode1Labels();
   const lowCount = profile.heading_map.filter((h) => h.confidence < MAPPING_CONFIDENCE_THRESHOLD).length;
   const [lowOnly, setLowOnly] = useState(lowCount > 0);
   const [headings, setHeadings] = useState<Record<string, string>>({});
@@ -64,13 +54,13 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
 
   // BE trích mỗi bảng theo thực thể của cột đầu tiên được gán (extract.service `deterministicTableItems`)
   const tableEntity: Record<string, string> = {};
-  for (const t of profile.table_map) {
-    const entity = entityOfPath(columnValue(t.block_id, t.column_index, t.field_path));
-    if (entity && !(t.block_id in tableEntity)) tableEntity[t.block_id] = entity;
+  for (const col of profile.table_map) {
+    const entity = entityOfPath(columnValue(col.block_id, col.column_index, col.field_path));
+    if (entity && !(col.block_id in tableEntity)) tableEntity[col.block_id] = entity;
   }
 
   // Section tạm (`feature:@B0007`) ⇒ ghi rõ tính năng / chức năng nào: lấy tiêu đề heading sinh ra nó
-  const optionLabel = (id: string) => sectionLabelIn(id, profile.heading_map);
+  const optionLabel = (id: string) => L.sectionLabelIn(id, profile.heading_map);
 
   // Nhiều heading cùng trích vào một mục FPT (mẫu IEEE: Reliability + Availability) ⇒ báo cho người dùng biết
   const sectionOf = (blockId: string, suggested: string) => headings[blockId] ?? suggested;
@@ -95,27 +85,20 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-extrabold text-[#191817] text-heading">Xác nhận mapping heading → section</h3>
+          <h3 className="font-extrabold text-[#191817] text-heading">{t("title")}</h3>
           <p className="text-body text-[#8A867E]">
-            {profile.heading_map.length} heading, {lowCount} dòng độ tin dưới {formatPercent(MAPPING_CONFIDENCE_THRESHOLD)}. Heading
-            “không khớp” được giữ nguyên văn và không trích field.
+            {t("summary", { headings: profile.heading_map.length, low: lowCount, threshold: formatPercent(MAPPING_CONFIDENCE_THRESHOLD) })}
           </p>
-          {hasProvisional && (
-            <p className="text-body text-[#8A867E]">
-              “Tính năng mới” / “Chức năng mới”: tính năng, chức năng lấy từ chính tiêu đề trong file (ghi kèm sau dấu “—”); mã
-              tính năng, chức năng được cấp sau khi nhập xong.
-            </p>
-          )}
+          {hasProvisional && <p className="text-body text-[#8A867E]">{t("provisionalHint")}</p>}
           <p className="text-body text-[#4B4842]">
-            Nhận dạng: <strong>{TEMPLATE_FAMILY_LABELS[profile.template_family ?? "fpt"]}</strong>
-            {profile.template_family && profile.template_family !== "fpt"
-              ? " — mỗi mục được trích vào mục FPT tương ứng; tài liệu vẫn giữ đúng bố cục của file."
-              : ""}
+            {/* Họ mẫu nhận được (FLF-252) */}
+            {t.rich("family", { family: profile.template_family ?? "fpt", strong: (c) => <strong>{c}</strong> })}
+            {profile.template_family && profile.template_family !== "fpt" ? ` — ${t("familyNote")}` : ""}
           </p>
         </div>
         <label className="flex items-center gap-2 text-body font-semibold text-[#4B4842] cursor-pointer">
           <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
-          Chỉ hiện dòng độ tin thấp
+          {t("lowOnly")}
         </label>
       </div>
 
@@ -123,16 +106,16 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
         <table className="w-full text-body">
           <thead className="bg-[#FAF9F7] text-[#8A867E] text-left">
             <tr>
-              <th className="px-3 py-2 font-bold">Heading trong tài liệu</th>
-              <th className="px-3 py-2 font-bold w-[90px]">Độ tin</th>
-              <th className="px-3 py-2 font-bold w-[300px]">Section</th>
+              <th className="px-3 py-2 font-bold">{t("colHeading")}</th>
+              <th className="px-3 py-2 font-bold w-[90px]">{t("colConfidence")}</th>
+              <th className="px-3 py-2 font-bold w-[300px]">{t("colSection")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td colSpan={3} className="px-3 py-4 text-center text-[#8A867E]">
-                  Không có dòng độ tin thấp — kiểm nhanh rồi bấm xác nhận.
+                  {t("noLowRows")}
                 </td>
               </tr>
             )}
@@ -144,12 +127,12 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                   <td className="px-3 py-2">
                     <div className="font-semibold text-[#191817]">{h.heading_text}</div>
                     <div className="text-caption text-[#A8A49C]">
-                      Nhận theo {DETECTOR_LABELS[h.detected_by]}
-                      {h.template_section && value === UNMAPPED_SECTION ? " · mục riêng của mẫu, giữ nguyên văn" : ""}
+                      {t("detectedBy", { by: h.detected_by })}
+                      {h.template_section && value === UNMAPPED_SECTION ? ` · ${t("templateOwnSection")}` : ""}
                     </div>
                     {shared.length > 0 && (
                       <div className="text-caption text-[#8A6D1F]">
-                        Cùng trích vào “{sectionLabel(value)}” với: {shared.join(", ")} — nội dung của heading này vẫn in dưới chính nó.
+                        {t("sharedSection", { section: L.sectionLabel(value), others: shared.join(", ") })}
                       </div>
                     )}
                   </td>
@@ -158,7 +141,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                   </td>
                   <td className="px-3 py-2">
                     <select
-                      aria-label={`Section cho ${h.heading_text}`}
+                      aria-label={t("sectionAria", { heading: h.heading_text })}
                       value={value}
                       onChange={(e) => setHeadings((prev) => ({ ...prev, [h.block_id]: e.target.value }))}
                       className={`w-full px-2 py-1.5 rounded-[8px] border bg-[#FAF9F7] text-body ${
@@ -182,19 +165,16 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
       {profile.table_map.length > 0 && (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] overflow-hidden">
           <div className="px-3 py-2 bg-[#FAF9F7]">
-            <div className="text-body font-bold text-[#4B4842]">Cột trong bảng → dữ liệu SRS</div>
-            <p className="text-body text-[#8A867E]">
-              Bảng có đủ cột cần thiết được lấy tự động, không tốn credit. Mỗi bảng chỉ lấy một loại dữ liệu — chọn “Không lấy cột
-              này” nếu cột không chứa dữ liệu cần trích.
-            </p>
+            <div className="text-body font-bold text-[#4B4842]">{t("tablesTitle")}</div>
+            <p className="text-body text-[#8A867E]">{t("tablesHint")}</p>
           </div>
           <table className="w-full text-body">
             <tbody>
-              {profile.table_map.map((t) => {
-                const key = tableKey(t.block_id, t.column_index);
-                const value = columnValue(t.block_id, t.column_index, t.field_path);
-                const header = t.header.trim() || `Cột ${t.column_index + 1} (không có tiêu đề)`;
-                const entity = tableEntity[t.block_id];
+              {profile.table_map.map((col) => {
+                const key = tableKey(col.block_id, col.column_index);
+                const value = columnValue(col.block_id, col.column_index, col.field_path);
+                const header = col.header.trim() || t("untitledColumn", { n: col.column_index + 1 });
+                const entity = tableEntity[col.block_id];
                 const valueEntity = entityOfPath(value);
                 const known = !value || isKnownTableField(value);
                 // Nhóm cùng loại với bảng lên đầu
@@ -204,46 +184,44 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                     <td className="px-3 py-2">
                       <div className="font-semibold text-[#191817]">{header}</div>
                       <div className="text-caption text-[#A8A49C]">
-                        {entity ? `Bảng ${tableGroupLabel(entity)}` : "Bảng chưa rõ loại"} · cột {t.column_index + 1}
+                        {entity ? t("tableOf", { group: L.tableGroupLabel(entity) }) : t("tableUnknown")} · {t("columnN", { n: col.column_index + 1 })}
                       </div>
-                      {t.samples?.length ? (
-                        <div className="text-caption text-[#8A867E] truncate max-w-[340px]" title={t.samples.join(" · ")}>
-                          Dữ liệu: {t.samples.join(" · ")}
-                          {t.role ? ` — ${COLUMN_ROLE_LABELS[t.role] ?? ""}` : ""}
+                      {col.samples?.length ? (
+                        <div className="text-caption text-[#8A867E] truncate max-w-[340px]" title={col.samples.join(" · ")}>
+                          {t("samples", { samples: col.samples.join(" · ") })}
+                          {col.role ? ` — ${L.columnRoleLabel(col.role)}` : ""}
                         </div>
                       ) : null}
-                      {valueEntity && entity && valueEntity !== entity && (
-                        <div className="text-caption text-[#8A6D1F]">Khác loại với các cột khác của bảng — cột này sẽ không được lấy.</div>
-                      )}
+                      {valueEntity && entity && valueEntity !== entity && <div className="text-caption text-[#8A6D1F]">{t("mixedEntity")}</div>}
                     </td>
                     <td className="px-3 py-2 w-[90px]">
-                      <ConfidenceBadge value={t.confidence} />
+                      <ConfidenceBadge value={col.confidence} />
                     </td>
                     <td className="px-3 py-2 w-[300px]">
                       <select
-                        aria-label={`Dữ liệu cho cột ${header}`}
+                        aria-label={t("columnAria", { header })}
                         value={value ?? ""}
                         onChange={(e) => setTables((prev) => ({ ...prev, [key]: e.target.value || null }))}
                         className={`w-full px-2 py-1.5 rounded-[8px] border bg-[#FAF9F7] text-body ${
                           key in tables ? "border-[#6A62C4]" : "border-[#E4E1DC]"
                         }`}
                       >
-                        <option value="">Không lấy cột này</option>
+                        <option value="">{t("skipColumn")}</option>
                         {groups.map((g) => (
-                          <optgroup key={g.entity} label={g.label}>
+                          <optgroup key={g.entity} label={L.tableGroupLabel(g.entity)}>
                             {g.fields.map((f) => {
-                              const path = tableFieldPath(g.entity, f.field);
+                              const path = tableFieldPath(g.entity, f);
                               return (
                                 <option key={path} value={path}>
-                                  {tableFieldLabel(path)}
+                                  {L.tableFieldLabel(path)}
                                 </option>
                               );
                             })}
                           </optgroup>
                         ))}
                         {!known && value && (
-                          <optgroup label="Khác">
-                            <option value={value}>{tableFieldLabel(value)}</option>
+                          <optgroup label={t("otherGroup")}>
+                            <option value={value}>{L.tableFieldLabel(value)}</option>
                           </optgroup>
                         )}
                       </select>
@@ -263,7 +241,7 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
           disabled={busy}
           className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
         >
-          {busy ? "Đang lưu…" : "Xác nhận mapping"}
+          {busy ? t("saving") : t("submit")}
         </button>
       </div>
     </div>

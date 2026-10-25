@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { BackLink as UiBackLink, Skeleton } from "@/components/ui";
@@ -37,6 +37,7 @@ function BackLink() {
 function Checkout({ intentId }: { intentId: string }) {
   const t = useTranslations("app.checkout");
   const format = useFormatter();
+  const locale = useLocale();
   const [detail, setDetail] = useState<PaymentIntentDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +125,7 @@ function Checkout({ intentId }: { intentId: string }) {
     <CenteredCard>
       <div>
         <div className="text-body text-on-surface-muted">{t("amountToPay")}</div>
-        <div className="text-metric font-bold text-on-surface">{formatVnd(detail.amount)}</div>
+        <div className="text-metric font-bold text-on-surface">{formatVnd(detail.amount, locale)}</div>
         <div className="text-body text-on-surface-variant">{t("receive", { credits: format.number(detail.credits) })}</div>
       </div>
 

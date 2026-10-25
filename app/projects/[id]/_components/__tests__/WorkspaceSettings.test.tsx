@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithIntl as render } from "@/test/intl";
 import AiSettingsMenu from "../AiSettingsMenu";
 import NamesGlossaryPanel from "../NamesGlossaryPanel";
 import type { Spine } from "@/types/spine";

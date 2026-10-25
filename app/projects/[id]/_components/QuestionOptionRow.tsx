@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 
 interface QuestionOptionRowProps {
@@ -17,6 +18,7 @@ interface QuestionOptionRowProps {
 
 /** Một lựa chọn của thẻ hỏi: số thứ tự (phím tắt), nhãn đậm, badge khuyến nghị, mô tả mờ bên dưới. */
 export default function QuestionOptionRow({ index, label, description, recommended, selected, multiple, onToggle, onFocus }: QuestionOptionRowProps) {
+  const t = useTranslations("workspace.questionStepper");
   return (
     <button
       type="button"
@@ -41,7 +43,7 @@ export default function QuestionOptionRow({ index, label, description, recommend
         <span className="flex flex-wrap items-center gap-1.5">
           <span className={`text-body font-semibold leading-snug ${selected ? "text-primary-hover" : "text-on-surface"}`}>{label}</span>
           {recommended && (
-            <span className="px-1.5 py-px rounded-full bg-success-soft text-success text-caption font-bold leading-4">Khuyến nghị</span>
+            <span className="px-1.5 py-px rounded-full bg-success-soft text-success text-caption font-bold leading-4">{t("recommended")}</span>
           )}
         </span>
         {description && <span className="text-caption text-on-surface-muted leading-snug">{description}</span>}

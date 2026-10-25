@@ -11,6 +11,7 @@ import type { GapReport } from "@/types/import";
 import type { Flag } from "@/types/spine";
 import GapReportView, { gapReportPrefill } from "./GapReportView";
 import { readCrPrefill } from "./prefill";
+import { labelsFor } from "./test-labels";
 
 const P = MODE1_PROJECT_ID;
 
@@ -183,7 +184,7 @@ describe("gapReportPrefill", () => {
     const { title, description } = gapReportPrefill({
       ...REPORT,
       sections: [...REPORT.sections, { section_id: "fixed:3.1.1", title: "Screens Flow", flags: [flag("F9", "red", "fixed:3.1.1", "Mục trống", "section_empty")] }],
-    });
+    }, labelsFor());
     expect(title).toBe("Sửa theo gap report");
     // mục thiếu / mục trống đi đường step (D6) — CR chỉ sửa phần tử đang có, kẻo C-3 ra 0 vị trí
     expect(description.split("\n")).toEqual(["Xử lý các vấn đề trong gap report của bản 0.1:", "- 4.2.3 Performance: NFR-P02 thiếu ngưỡng đo được"]);

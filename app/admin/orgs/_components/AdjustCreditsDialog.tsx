@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { ApiClientError } from "@/lib/api/client";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import {
@@ -39,6 +40,9 @@ interface AdjustCreditsDialogProps {
  * (số dư − đang giữ); BE vẫn là nơi kiểm cuối (409 `INSUFFICIENT_CREDIT`).
  */
 export default function AdjustCreditsDialog({ org, onClose, onAdjusted }: AdjustCreditsDialogProps) {
+  const t = useTranslations("admin");
+  const locale = useLocale();
+  const num = (value: number) => formatNumber(value, locale);
   const [direction, setDirection] = useState<Direction>("add");
   const [amountInput, setAmountInput] = useState("");
   const [reason, setReason] = useState("");
@@ -81,9 +85,9 @@ export default function AdjustCreditsDialog({ org, onClose, onAdjusted }: Adjust
     } catch (err) {
       // Câu chung của INSUFFICIENT_CREDIT bảo "hãy nạp thêm" — không hợp với admin đang trừ ví người khác
       if (err instanceof ApiClientError && err.code === "INSUFFICIENT_CREDIT") {
-        setError("Số dư khả dụng của tổ chức không đủ để trừ. Tải lại danh sách để xem số dư mới nhất.");
+        setError(t("adjust.insufficient"));
       } else {
-        setError(userErrorMessage(err, "Không thể điều chỉnh credit"));
+        setError(userErrorMessage(err, t("adjust.failed")));
       }
     } finally {
       setSaving(false);
@@ -94,17 +98,18 @@ export default function AdjustCreditsDialog({ org, onClose, onAdjusted }: Adjust
     <Dialog open={org !== null} onOpenChange={(open) => !open && close()}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Điều chỉnh credit</DialogTitle>
+          <DialogTitle>{t("adjust.title")}</DialogTitle>
           {org && (
             <DialogDescription>
-              {org.wallet ? (
-                <>
-                  {org.name} — số dư {formatNumber(balance)} · đang giữ {formatNumber(reserved)} · khả dụng{" "}
-                  <span className="text-foreground font-semibold">{formatNumber(available)}</span>
-                </>
-              ) : (
-                <>{org.name} — chưa có ví; ví sẽ được tạo khi điều chỉnh lần đầu.</>
-              )}
+              {org.wallet
+                ? t.rich("adjust.walletSummary", {
+                    name: org.name,
+                    balance: num(balance),
+                    reserved: num(reserved),
+                    available: num(available),
+                    b: (chunks) => <span className="text-foreground font-semibold">{chunks}</span>,
+                  })
+                : t("adjust.noWallet", { name: org.name })}
             </DialogDescription>
           )}
         </DialogHeader>
@@ -112,11 +117,11 @@ export default function AdjustCreditsDialog({ org, onClose, onAdjusted }: Adjust
         {org && (
           <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
             {/* Nút chọn chiều điều chỉnh, không phải tab: cùng một form, chỉ đổi dấu của số credit. */}
-            <div className="flex gap-2" role="group" aria-label="Loại điều chỉnh">
+            <div className="flex gap-2" role="group" aria-label={t("adjust.direction")}>
               {(
                 [
-                  ["add", "Cộng credit"],
-                  ["subtract", "Trừ credit"],
+                  ["add", t("adjust.add")],
+                  ["subtract", t("adjust.subtract")],
                 ] as const
               ).map(([value, label]) => (
                 <Button
@@ -133,44 +138,47 @@ export default function AdjustCreditsDialog({ org, onClose, onAdjusted }: Adjust
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="adjust-amount">Số credit</Label>
+              <Label htmlFor="adjust-amount">{t("adjust.amount")}</Label>
               <Input
                 id="adjust-amount"
                 inputMode="numeric"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                placeholder="Ví dụ: 100"
+                placeholder={t("adjust.amountPlaceholder")}
                 aria-invalid={amountInput.trim() !== "" && (!amountValid || exceedsAvailable)}
                 autoFocus
               />
               {amountInput.trim() !== "" && !amountValid && (
-                <span className="text-destructive text-caption">Nhập số nguyên dương.</span>
+                <span className="text-destructive text-caption">{t("adjust.amountInvalid")}</span>
               )}
               {exceedsAvailable && (
                 <span className="text-destructive text-caption">
-                  Chỉ trừ được tối đa {formatNumber(Math.max(available, 0))} credit (phần khả dụng).
+                  {t("adjust.exceeds", { max: num(Math.max(available, 0)) })}
                 </span>
               )}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="adjust-reason">Lý do (bắt buộc)</Label>
+              <Label htmlFor="adjust-reason">{t("adjust.reason")}</Label>
               <Textarea
                 id="adjust-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 maxLength={REASON_MAX_LENGTH}
                 rows={3}
-                placeholder="Ví dụ: Bù credit do sự cố hệ thống ngày 20/09"
+                placeholder={t("adjust.reasonPlaceholder")}
               />
               <span className="text-muted-foreground text-caption">
-                Lý do được lưu vào lịch sử giao dịch và gửi kèm thông báo cho Lead của tổ chức.
+                {t("adjust.reasonHint")}
               </span>
             </div>
 
             {amountValid && !exceedsAvailable && (
               <p className="text-body">
-                Số dư sau điều chỉnh: <span className="font-bold">{formatNumber(balance + signed)}</span>
+                {t.rich("adjust.balanceAfter", {
+                  balance: num(balance + signed),
+                  b: (chunks) => <span className="font-bold">{chunks}</span>,
+                })}
               </p>
             )}
 
@@ -178,14 +186,14 @@ export default function AdjustCreditsDialog({ org, onClose, onAdjusted }: Adjust
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close} disabled={saving}>
-                Huỷ
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
                 variant={direction === "add" ? "default" : "destructive"}
                 disabled={saving || !amountValid || exceedsAvailable || reasonTooShort}
               >
-                {saving ? "Đang lưu…" : direction === "add" ? "Xác nhận cộng" : "Xác nhận trừ"}
+                {saving ? t("common.saving") : direction === "add" ? t("adjust.confirmAdd") : t("adjust.confirmSubtract")}
               </Button>
             </DialogFooter>
           </form>

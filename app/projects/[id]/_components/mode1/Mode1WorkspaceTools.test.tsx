@@ -2,7 +2,8 @@
  * Cột công cụ mode 1 — chủ yếu là chỗ nối: ba link điều hướng, cờ + lối tạo CR, bảng version. Mode 1 v3 (bám BPMN):
  * không còn kế hoạch step / ký baseline v1.
  */
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
@@ -46,12 +47,13 @@ const VERSION_00 = {
 };
 
 const renderTools = (over: Partial<Parameters<typeof Mode1WorkspaceTools>[0]> = {}) =>
-  render(
+  renderWithIntl(
     <Mode1WorkspaceTools
       projectId={P}
       projectName="Lumen LMS"
       flags={[]}
       onSpineChanged={vi.fn()}
+      canRelease
       {...over}
     />
   );
@@ -110,6 +112,17 @@ describe("Mode1WorkspaceTools — Viewer (readOnly)", () => {
     expect(within(nav).getByRole("link", { name: "Gap report" })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Change request" })).toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Nhập SRS" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Mode1WorkspaceTools — Analyst (không phải Lead)", () => {
+  it("vẫn có Nhập SRS nhưng không có Release (chỉ Lead release)", async () => {
+    serveVersions([VERSION_00]);
+    renderTools({ canRelease: false });
+    const nav = screen.getByRole("navigation", { name: "Import & change request" });
+    expect(within(nav).getByRole("link", { name: "Nhập SRS" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
   });

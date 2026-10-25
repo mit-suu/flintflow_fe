@@ -3,7 +3,8 @@
  * Điểm đáng kiểm: hai lời gọi độc lập nhau, credit hỏng KHÔNG được kéo cả trang xuống, và `reload` lấy lại
  * `import_state` mới (khung trang mở khoá tab theo field này).
  */
-import { renderHook, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
+import { renderHookWithIntl as renderHook } from "@/test/intl";
 import { act } from "react";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";

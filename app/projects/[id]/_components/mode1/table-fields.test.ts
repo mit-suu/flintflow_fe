@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isKnownTableField, tableFieldLabel, tableGroupLabel } from "./table-fields";
+import { isKnownTableField } from "./table-fields";
+import { labelsFor } from "./test-labels";
+
+const { tableFieldLabel, tableGroupLabel } = labelsFor();
 
 describe("table-fields", () => {
   it("cột FlintFlow xuất ra (FLF-251) có nhãn tiếng Việt", () => {

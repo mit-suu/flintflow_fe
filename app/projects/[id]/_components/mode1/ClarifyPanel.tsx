@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { MAX_CLARIFY_ROUNDS, type Cr } from "@/types/change-request";
 import QuestionStepperInput, { answerLabel } from "../QuestionStepperInput";
 
@@ -21,6 +22,7 @@ interface ClarifyPanelProps {
  * chọn, dòng cuối tự gõ; câu chưa biết thì "Bỏ qua" ⇒ AI giả định. Đính kèm tài liệu có câu trả lời được ở ngay dưới.
  */
 export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = false, materials }: ClarifyPanelProps) {
+  const t = useTranslations("mode1.clarify");
   const answered = cr.clarifications.filter((c) => c.answers.length > 0);
   const suggestions = cr.clarifications.at(-1)?.suggestions ?? [];
 
@@ -28,24 +30,20 @@ export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = fa
     <div className="flex flex-col gap-3">
       {answered.map((round) => (
         <div key={round.round} className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 text-body flex flex-col gap-1.5">
-          <p className="text-caption font-bold text-[#8A867E]">Vòng {round.round}</p>
+          <p className="text-caption font-bold text-[#8A867E]">{t("round", { round: round.round })}</p>
           {round.questions.map((q, i) => (
             <div key={i}>
               <p className="font-semibold text-[#191817]">❓ {q}</p>
-              <p className={`pl-5 ${round.answers[i]?.trim() ? "text-[#4B4842]" : "text-[#8A867E] italic"}`}>↳ {round.answers[i]?.trim() || "Chưa biết — AI sẽ giả định"}</p>
+              <p className={`pl-5 ${round.answers[i]?.trim() ? "text-[#4B4842]" : "text-[#8A867E] italic"}`}>↳ {round.answers[i]?.trim() || t("unknown")}</p>
             </div>
           ))}
         </div>
       ))}
 
       {pendingQuestions.length > 0 && (
-        <section className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] pt-3 pb-2 flex flex-col gap-1" aria-label="Trả lời câu hỏi làm rõ">
-          <p className="px-3 text-body font-bold text-[#8A6D1F]">
-            AI cần thêm thông tin trước khi tìm vị trí và viết nội dung (vòng {cr.clarifications.length}/{MAX_CLARIFY_ROUNDS}):
-          </p>
-          <p className="px-3 text-body text-[#8A6D1F]">
-            Chọn một gợi ý hoặc tự nhập câu trả lời. Câu chưa biết thì “Bỏ qua” — AI sẽ tự giả định và đánh dấu để người duyệt xác nhận.
-          </p>
+        <section className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] pt-3 pb-2 flex flex-col gap-1" aria-label={t("aria")}>
+          <p className="px-3 text-body font-bold text-[#8A6D1F]">{t("need", { round: cr.clarifications.length, max: MAX_CLARIFY_ROUNDS })}</p>
+          <p className="px-3 text-body text-[#8A6D1F]">{t("hint")}</p>
           <QuestionStepperInput
             key={`${cr.cr_id}:${cr.clarifications.length}`}
             questions={pendingQuestions.map((question, i) => ({ question, options: (suggestions[i] ?? []).map((label) => ({ label })), multiple: false }))}

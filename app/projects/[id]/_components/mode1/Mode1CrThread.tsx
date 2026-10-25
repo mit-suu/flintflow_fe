@@ -2,33 +2,16 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrLocation, type CrStatus } from "@/types/change-request";
-import { isFailing, type CrChat, type CrChatBusy, type CrChatSource } from "../../hooks/mode1/useCrChat";
+import { isFailing, type CrChat, type CrChatSource } from "../../hooks/mode1/useCrChat";
 import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import FieldChanges from "./FieldChanges";
 import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
-import { CR_SOURCE_LABELS, CR_STATUS_LABELS } from "./labels";
+import { useMode1Labels } from "./i18n";
 import PausedBanner from "./PausedBanner";
 import ValueEditor from "./ValueEditor";
-import { humanizeText, pathLabel, sectionTitle } from "./spine-labels";
-
-const BUSY_TEXT: Record<CrChatBusy, string> = {
-  create: "Đang mở change request…",
-  clarify: "AI đang đọc yêu cầu và kiểm xem còn thiếu gì…",
-  impact: "Đang tìm các phần liên quan trong tài liệu…",
-  propose: "AI đang soạn đề xuất sửa…",
-  verify: "Đang kiểm tra đề xuất…",
-  submit: "Đang gửi cho Lead…",
-  revise: "Đang khoá lại để sửa…",
-  resume: "Đang chạy tiếp…",
-  amend: "Đang gộp lệnh sửa vào change request…",
-  answers: "Đang gửi câu trả lời…",
-  material: "Đang đọc tài liệu…",
-  reject: "Đang bỏ đề xuất…",
-  redraft: "AI đang soạn lại đề xuất…",
-  manual: "Đang lưu bản bạn tự sửa…",
-};
 
 function UserBubble({ children }: { children: ReactNode }) {
   return <div className="self-end max-w-[85%] bg-primary-soft text-on-surface rounded-[14px] rounded-br-[4px] px-3 py-2 text-body whitespace-pre-wrap">{children}</div>;
@@ -47,23 +30,25 @@ const btn = "px-3 py-1 rounded-[8px] text-body font-bold disabled:opacity-50 cur
 
 /** 3.1 trong chat: chọn nguồn + người yêu cầu cho lệnh sửa đầu tiên. */
 function RequesterCard({ me, busy, onStart, onCancel }: { me: string; busy: boolean; onStart: (s: CrChatSource) => void; onCancel: () => void }) {
+  const t = useTranslations("mode1.crThread.requester");
+  const { crSource } = useMode1Labels();
   const [other, setOther] = useState(false);
   const [kind, setKind] = useState<CrChatSource["kind"]>("stakeholder_email");
   const [requester, setRequester] = useState("");
   const [ref, setRef] = useState("");
   return (
-    <AiBubble step="Mở change request" label="Chọn người yêu cầu">
-      <p>Mọi thay đổi sau khi import đi qua change request. Ai yêu cầu thay đổi này, từ nguồn nào?</p>
+    <AiBubble step={t("step")} label={t("label")}>
+      <p>{t("intro")}</p>
       {!other ? (
         <div className="flex flex-wrap gap-1.5">
           <button type="button" disabled={busy || !me} onClick={() => onStart({ kind: "verbal", requester: me })} className={`${btn} bg-on-surface text-surface`}>
-            {me ? `${me} · yêu cầu miệng` : "Tôi · yêu cầu miệng"}
+            {me ? t("meVerbal", { me }) : t("selfVerbal")}
           </button>
           <button type="button" disabled={busy} onClick={() => setOther(true)} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
-            Người / nguồn khác…
+            {t("other")}
           </button>
           <button type="button" disabled={busy} onClick={onCancel} className={`${btn} text-on-surface-muted`}>
-            Huỷ
+            {t("cancel")}
           </button>
         </div>
       ) : (
@@ -74,21 +59,21 @@ function RequesterCard({ me, busy, onStart, onCancel }: { me: string; busy: bool
             if (requester.trim()) onStart({ kind, requester, ref });
           }}
         >
-          <select aria-label="Nguồn" value={kind} onChange={(e) => setKind(e.target.value as CrChatSource["kind"])} className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body">
+          <select aria-label={t("sourceAria")} value={kind} onChange={(e) => setKind(e.target.value as CrChatSource["kind"])} className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body">
             {NEW_CR_SOURCE_KINDS.map((k) => (
               <option key={k} value={k}>
-                {CR_SOURCE_LABELS[k]}
+                {crSource(k)}
               </option>
             ))}
           </select>
-          <input aria-label="Người yêu cầu" value={requester} onChange={(e) => setRequester(e.target.value)} placeholder="Người yêu cầu, vd: PM Lan" className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body" />
-          <input aria-label="Tham chiếu nguồn" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Tham chiếu (không bắt buộc), vd: Email 23/09" className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body" />
+          <input aria-label={t("requesterAria")} value={requester} onChange={(e) => setRequester(e.target.value)} placeholder={t("requesterPlaceholder")} className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body" />
+          <input aria-label={t("refAria")} value={ref} onChange={(e) => setRef(e.target.value)} placeholder={t("refPlaceholder")} className="px-2 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body" />
           <div className="flex gap-1.5 justify-end">
             <button type="button" onClick={() => setOther(false)} className={`${btn} text-on-surface-muted`}>
-              Quay lại
+              {t("back")}
             </button>
             <button type="submit" disabled={busy || !requester.trim()} className={`${btn} bg-on-surface text-surface`}>
-              Mở change request
+              {t("open")}
             </button>
           </div>
         </form>
@@ -98,7 +83,7 @@ function RequesterCard({ me, busy, onStart, onCancel }: { me: string; busy: bool
 }
 
 /** Thanh tiến độ 5 bước của change request trong chat — bước đang ở tô đậm, bước đã qua có dấu ✓. */
-const STEPS = ["Làm rõ", "Phần liên quan", "Đề xuất", "Kiểm tra", "Gửi Lead"] as const;
+const STEPS = ["clarify", "impact", "propose", "verify", "submit"] as const;
 const stepIndex = (status: CrStatus): number =>
   status === "draft" || status === "clarifying" || status === "awaiting_answers"
     ? 0
@@ -111,11 +96,12 @@ const stepIndex = (status: CrStatus): number =>
           : 4;
 
 function StepTracker({ status }: { status: CrStatus }) {
+  const t = useTranslations("mode1.crThread.steps");
   const current = stepIndex(status);
   return (
-    <ol className="flex items-center gap-1 text-caption font-bold" aria-label="Tiến độ change request">
-      {STEPS.map((label, i) => (
-        <li key={label} className="flex items-center gap-1 min-w-0" aria-current={i === current ? "step" : undefined}>
+    <ol className="flex items-center gap-1 text-caption font-bold" aria-label={t("aria")}>
+      {STEPS.map((step, i) => (
+        <li key={step} className="flex items-center gap-1 min-w-0" aria-current={i === current ? "step" : undefined}>
           <span
             className={`shrink-0 w-4 h-4 grid place-items-center rounded-full text-caption ${
               i < current ? "bg-[#1F7A45] text-white" : i === current ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-muted"
@@ -123,7 +109,7 @@ function StepTracker({ status }: { status: CrStatus }) {
           >
             {i < current ? "✓" : i + 1}
           </span>
-          <span className={`truncate ${i === current ? "text-on-surface" : "text-on-surface-muted"}`}>{label}</span>
+          <span className={`truncate ${i === current ? "text-on-surface" : "text-on-surface-muted"}`}>{t(step)}</span>
           {i < STEPS.length - 1 && <span aria-hidden className="w-2 h-px bg-outline-variant shrink-0" />}
         </li>
       ))}
@@ -133,12 +119,14 @@ function StepTracker({ status }: { status: CrStatus }) {
 
 /** Ô gõ hướng sửa ngay trong thẻ (3.9) — AI soạn lại đúng phần đó. */
 function RedraftBox({ loc, chat, onClose, autoFocus = true }: { loc: CrLocation; chat: CrChat; onClose?: () => void; autoFocus?: boolean }) {
+  const t = useTranslations("mode1.crThread.redraft");
+  const { pathLabel } = useMode1Labels();
   const [text, setText] = useState("");
   const busy = chat.busy !== null;
   return (
     <form
       className="flex flex-col gap-1.5"
-      aria-label={`Hướng sửa lại ${loc.location_id}`}
+      aria-label={t("formAria", { id: loc.location_id })}
       onSubmit={async (e) => {
         e.preventDefault();
         if (!text.trim()) return;
@@ -150,18 +138,18 @@ function RedraftBox({ loc, chat, onClose, autoFocus = true }: { loc: CrLocation;
         rows={2}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        aria-label={`Hướng sửa cho ${pathLabel(loc.path)}`}
-        placeholder="Muốn sửa thế nào? vd: Giữ nguyên tên, chỉ đổi ngưỡng thành 1 giây"
+        aria-label={t("inputAria", { path: pathLabel(loc.path) })}
+        placeholder={t("placeholder")}
         className="w-full px-2.5 py-1.5 rounded-[8px] border border-outline-variant bg-white text-body"
       />
       <div className="flex gap-1.5 justify-end">
         {onClose && (
           <button type="button" onClick={onClose} className={`${btn} text-on-surface-muted`}>
-            Huỷ
+            {t("cancel")}
           </button>
         )}
         <button type="submit" disabled={busy || !text.trim()} className={`${btn} bg-on-surface text-surface`}>
-          {chat.busy === "redraft" ? "AI đang soạn lại…" : "AI soạn lại"}
+          {chat.busy === "redraft" ? t("busy") : t("submit")}
         </button>
       </div>
     </form>
@@ -173,6 +161,7 @@ function RedraftBox({ loc, chat, onClose, autoFocus = true }: { loc: CrLocation;
  * / đoạn). Bản tự sửa tính luôn là đã đồng ý.
  */
 function EditPanel({ loc, chat, editing }: { loc: CrLocation; chat: CrChat; editing: boolean }) {
+  const t = useTranslations("mode1.crThread.edit");
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const oldText = loc.proposal?.old_text ?? loc.current_text;
   const tab = (value: "ai" | "manual", label: string) => (
@@ -188,9 +177,9 @@ function EditPanel({ loc, chat, editing }: { loc: CrLocation; chat: CrChat; edit
   );
   return (
     <div className="flex flex-col gap-1.5 rounded-[10px] bg-surface-container-lowest border border-outline-variant p-2">
-      <div role="tablist" aria-label={`Cách sửa ${loc.location_id}`} className="flex gap-1">
-        {tab("ai", "✨ Nhờ AI soạn lại")}
-        {tab("manual", "✎ Tự sửa")}
+      <div role="tablist" aria-label={t("tablistAria", { id: loc.location_id })} className="flex gap-1">
+        {tab("ai", t("tabAi"))}
+        {tab("manual", t("tabManual"))}
       </div>
       {mode === "ai" ? (
         <RedraftBox loc={loc} chat={chat} autoFocus={editing} onClose={editing ? chat.cancelRedraft : undefined} />
@@ -212,6 +201,9 @@ function EditPanel({ loc, chat, editing }: { loc: CrLocation; chat: CrChat; edit
  * (viền đỏ + lý do + ô sửa lại mở sẵn), **chờ bạn quyết** (Đồng ý / Sửa lại / Bỏ), **đã đồng ý** (✓).
  */
 function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
+  const t = useTranslations("mode1.crThread.loc");
+  const tDiagram = useTranslations("mode1.originalDiagram");
+  const { pathLabel, sectionTitle, humanizeText } = useMode1Labels();
   const p = loc.proposal;
   const failed = isFailing(loc);
   const missing = loc.conclusion === null;
@@ -224,32 +216,32 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   const tone = failed ? "border-[#E8A5A5] bg-[#FDF4F4]" : missing ? "border-[#EFD9A6] bg-[#FBF4E4]" : accepted ? "border-[#BFE6CE] bg-[#F3FAF6]" : "border-outline-variant bg-white";
 
   return (
-    <article id={`cr-loc-${loc.location_id}`} className={`scroll-mt-4 rounded-[12px] border ${tone} p-2.5 flex flex-col gap-1.5`} aria-label={`Đề xuất ${loc.location_id}`}>
+    <article id={`cr-loc-${loc.location_id}`} className={`scroll-mt-4 rounded-[12px] border ${tone} p-2.5 flex flex-col gap-1.5`} aria-label={t("aria", { id: loc.location_id })}>
       <header className="flex items-start gap-2">
         <p className="flex-1 min-w-0 text-body font-bold text-on-surface" title={loc.path}>
-          {diagram ? diagramLocationTitle(loc) : pathLabel(loc.path)}
+          {diagram ? diagramLocationTitle(loc, tDiagram) : pathLabel(loc.path)}
           <span className="block text-caption font-medium text-on-surface-muted">{sectionTitle(loc.section_id, loc.section_title)}</span>
         </p>
         {failed ? (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#B03030] text-white text-caption font-bold">Chưa đạt</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#B03030] text-white text-caption font-bold">{t("failed")}</span>
         ) : missing ? (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#8A6D1F] text-white text-caption font-bold">Chưa có đề xuất</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#8A6D1F] text-white text-caption font-bold">{t("missing")}</span>
         ) : accepted ? (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#1F7A45] text-white text-caption font-bold">✓ Đã đồng ý</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#1F7A45] text-white text-caption font-bold">{t("accepted")}</span>
         ) : (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-primary-soft text-primary-hover text-caption font-bold">Chờ bạn quyết</span>
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-primary-soft text-primary-hover text-caption font-bold">{t("waiting")}</span>
         )}
       </header>
 
-      {missing && <p className="text-[#8A6D1F]">AI chưa đưa ra đề xuất cho phần này. Nhờ AI soạn, tự viết nội dung, hoặc bỏ qua nếu phần này không cần đổi.</p>}
+      {missing && <p className="text-[#8A6D1F]">{t("missingHint")}</p>}
       {loc.conclusion === "edit" && p && (diagram ? <OriginalDiagramChange loc={loc} /> : <FieldChanges oldText={p.old_text} newText={p.new_text} />)}
       {loc.conclusion === "comment" && p?.comment_text && <p className="text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {humanizeText(p.comment_text)}</p>}
-      {loc.reason && !missing && !diagram && <p className="text-on-surface-muted">Lý do: {humanizeText(loc.reason)}</p>}
+      {loc.reason && !missing && !diagram && <p className="text-on-surface-muted">{t("reason", { reason: humanizeText(loc.reason) })}</p>}
       <AssumptionsNote assumptions={p?.assumptions} />
 
       {failed && (
-        <div className="rounded-[8px] bg-white border border-[#F2CACA] px-2.5 py-1.5" aria-label="Lý do chưa đạt">
-          <p className="font-bold text-[#B03030]">Vì sao chưa đạt:</p>
+        <div className="rounded-[8px] bg-white border border-[#F2CACA] px-2.5 py-1.5" aria-label={t("failedAria")}>
+          <p className="font-bold text-[#B03030]">{t("failedTitle")}</p>
           <ul className="list-disc pl-5 text-[#8A4141]">
             {loc.verify!.violations.map((v, i) => (
               <li key={i}>{humanizeText(v.message)}</li>
@@ -258,8 +250,8 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
         </div>
       )}
       {!failed && (loc.verify?.ai_flags.length ?? 0) > 0 && (
-        <div className="rounded-[8px] bg-[#FBF4E4] px-2.5 py-1.5 text-[#8A6D1F]" aria-label="Lưu ý của AI">
-          <p className="font-bold">Lưu ý (không chặn):</p>
+        <div className="rounded-[8px] bg-[#FBF4E4] px-2.5 py-1.5 text-[#8A6D1F]" aria-label={t("aiFlagsAria")}>
+          <p className="font-bold">{t("aiFlagsTitle")}</p>
           <ul className="list-disc pl-5">
             {loc.verify!.ai_flags.map((f, i) => (
               <li key={i}>{humanizeText(f.message)}</li>
@@ -274,22 +266,22 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
           <EditPanel loc={loc} chat={chat} editing={editing} />
           <div>
             <button type="button" disabled={busy} onClick={() => chat.reject(loc)} className={`${btn} text-[#B03030] px-0`}>
-              {missing ? "Bỏ qua phần này (không cần đổi)" : "Bỏ phần này — không sửa nữa"}
+              {missing ? t("skipMissing") : t("dropThis")}
             </button>
           </div>
         </>
       ) : !accepted && !missing ? (
         <div className="flex flex-wrap gap-1.5">
           <button type="button" disabled={busy} onClick={() => chat.accept(loc)} className={`${btn} bg-[#1F7A45] text-white`}>
-            Đồng ý
+            {t("accept")}
           </button>
           {chat.canRedraft && !diagram && (
             <button type="button" disabled={busy} onClick={openEdit} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
-              Sửa lại
+              {t("redo")}
             </button>
           )}
           <button type="button" disabled={busy} onClick={() => chat.reject(loc)} className={`${btn} border border-[#F2CACA] bg-white text-[#B03030]`}>
-            {diagram ? "Giữ hình gốc" : "Bỏ"}
+            {diagram ? t("keepDiagram") : t("reject")}
           </button>
         </div>
       ) : null}
@@ -299,22 +291,25 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
 
 /** Phần không sửa (AI thấy không liên quan / bạn đã bỏ) — thu gọn, đưa lại được. */
 function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrChat }) {
+  const t = useTranslations("mode1.crThread.dropped");
+  const tDiagram = useTranslations("mode1.originalDiagram");
+  const { pathLabel, humanizeText } = useMode1Labels();
   if (!locations.length) return null;
   return (
     <details className="text-body text-on-surface-muted">
-      <summary className="cursor-pointer font-semibold">Không sửa {locations.length} phần (không liên quan hoặc bạn đã bỏ)</summary>
+      <summary className="cursor-pointer font-semibold">{t("summary", { count: locations.length })}</summary>
       <ul className="mt-1.5 flex flex-col gap-1.5">
         {locations.map((l) => (
           <li key={l.location_id} className="flex flex-col gap-1">
             <span>
-              <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l) : pathLabel(l.path)}</strong>
+              <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : pathLabel(l.path)}</strong>
               {l.reason ? ` — ${humanizeText(l.reason)}` : ""}
             </span>
             {isDiagramLocation(l) ? (
               // BE tính lại ngay (không AI): dữ liệu hình thể hiện đã đổi thì đề xuất thay hình quay lại
               chat.canRedraft && (
                 <button type="button" disabled={chat.busy !== null} onClick={() => void chat.redraft(l.location_id, "Tính lại đề xuất vẽ lại hình gốc")} className="self-start underline">
-                  Xét lại — thay bằng sơ đồ vẽ lại nếu hình đã lệch
+                  {t("recheckDiagram")}
                 </button>
               )
             ) : chat.redraftFor === l.location_id ? (
@@ -322,7 +317,7 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
             ) : (
               chat.canRedraft && (
                 <button type="button" disabled={chat.busy !== null} onClick={() => chat.startRedraft(l.location_id)} className="self-start underline">
-                  Đưa lại — nhờ AI soạn đề xuất
+                  {t("bringBack")}
                 </button>
               )
             )}
@@ -339,44 +334,47 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
  * phần cần quyết, kể cả phần AI bỏ sót và phần trượt kiểm (Đồng ý / Sửa lại / Bỏ) ⇒ ④ kiểm ⇒ Gửi cho Lead.
  */
 export default function Mode1CrThread({ projectId, chat, me }: { projectId: string; chat: CrChat; me: string }) {
+  const t = useTranslations("mode1.crThread");
+  const { pathLabel, sectionTitle, humanizeText, crStatus } = useMode1Labels();
   const d = chat.detail;
   const busy = chat.busy !== null;
 
   const errorBox = chat.error && (
     <div role="alert" className="bg-error-container text-error rounded-control px-3 py-2 text-body flex items-start gap-2">
       <span className="flex-1">{chat.error}</span>
-      <button type="button" onClick={chat.clearError} aria-label="Đóng thông báo lỗi" className="font-bold">
+      <button type="button" onClick={chat.clearError} aria-label={t("errorClose")} className="font-bold">
         ✕
       </button>
     </div>
   );
   const busyLine = chat.busy && (
     <p className="self-start text-body text-on-surface-muted italic" role="status">
-      {BUSY_TEXT[chat.busy]}
+      {t(`busy.${chat.busy}`)}
     </p>
   );
 
   if (!d) {
     return (
-      <div className="flex flex-col gap-3" aria-label="Sửa tài liệu qua chat">
+      <div className="flex flex-col gap-3" aria-label={t("rootAria")}>
         {chat.sent && (
-          <AiBubble step="Đã gửi" label="Đã gửi cho Lead">
+          <AiBubble step={t("sentStep")} label={t("sentLabel")}>
             <p>
-              ✅ Đã gửi <strong>{chat.sent}</strong> cho Lead duyệt. Lead duyệt từng nhóm thay đổi ở{" "}
-              <Link href={`/projects/${projectId}/change-requests/${chat.sent}`} className="underline font-semibold">
-                trang change request
-              </Link>
-              ; tài liệu chỉ đổi sau khi được duyệt.
+              {t.rich("sentText", {
+                crId: chat.sent,
+                strong: (c) => <strong>{c}</strong>,
+                link: (c) => (
+                  <Link href={`/projects/${projectId}/change-requests/${chat.sent}`} className="underline font-semibold">
+                    {c}
+                  </Link>
+                ),
+              })}
             </p>
-            <p className="text-on-surface-muted">Gõ lệnh sửa mới để mở change request khác.</p>
+            <p className="text-on-surface-muted">{t("sentNext")}</p>
           </AiBubble>
         )}
         {!chat.sent && !chat.pending && !chat.loading && (
-          <AiBubble label="Hướng dẫn sửa tài liệu">
-            <p>
-              Gõ yêu cầu sửa tài liệu bên dưới, vd <em>“Thêm yêu cầu hiệu năng cho màn tra cứu”</em>. AI dẫn bạn từng bước: hỏi lại chỗ
-              còn thiếu, chỉ ra phần liên quan, đề xuất sửa để bạn đồng ý — rồi gửi cho Lead duyệt.
-            </p>
+          <AiBubble label={t("guideLabel")}>
+            <p>{t.rich("guide", { em: (c) => <em>{c}</em> })}</p>
           </AiBubble>
         )}
         {chat.pending && (
@@ -402,13 +400,13 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
   const materialsEditable = (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
 
   return (
-    <div className="flex flex-col gap-3" aria-label={`Change request ${c.cr_id} trong chat`}>
+    <div className="flex flex-col gap-3" aria-label={t("crAria", { crId: c.cr_id })}>
       <div className="flex items-center gap-2 text-body text-on-surface-muted">
         <span className="font-bold text-primary-hover">{c.cr_id}</span>
-        <span>· {CR_STATUS_LABELS[c.status]}</span>
+        <span>· {crStatus(c.status)}</span>
         <span className="truncate">· {c.requester}</span>
         <Link href={`/projects/${projectId}/change-requests/${c.cr_id}`} className="ml-auto underline shrink-0">
-          Mở trang CR
+          {t("openCr")}
         </Link>
       </div>
       <StepTracker status={c.status} />
@@ -419,7 +417,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
       ))}
 
       {(c.clarifications.length > 0 || d.pending_questions.length > 0) && (
-        <AiBubble step="① Làm rõ" label="Làm rõ">
+        <AiBubble step={t("clarifyStep")} label={t("clarifyLabel")}>
           <ClarifyPanel
             key={`${c.clarifications.length}:${d.pending_questions.join("|")}`}
             cr={c}
@@ -447,8 +445,8 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
         />
       )}
       {c.missing_info.length > 0 && (
-        <AiBubble label="Dữ kiện còn thiếu">
-          <p className="text-[#8A6D1F] font-semibold">Còn thiếu dữ kiện — AI sẽ tự giả định và đánh dấu ở từng đề xuất:</p>
+        <AiBubble label={t("missingInfoLabel")}>
+          <p className="text-[#8A6D1F] font-semibold">{t("missingInfoTitle")}</p>
           <ul className="list-disc pl-5 text-[#8A6D1F]">
             {c.missing_info.map((f, i) => (
               <li key={i}>{f}</li>
@@ -458,7 +456,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
       )}
 
       {d.locations.length > 0 && (
-        <AiBubble step={`② Phần liên quan (${d.locations.length})`} label="Phần liên quan">
+        <AiBubble step={t("impactStep", { count: d.locations.length })} label={t("impactLabel")}>
           <ul className="list-disc pl-5">
             {d.locations.map((l) => (
               <li key={l.location_id} title={l.path}>
@@ -469,7 +467,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
           {c.status === "impact_review" && !c.paused && (
             <div>
               <button type="button" disabled={busy} onClick={chat.proposeNow} className={`${btn} bg-on-surface text-surface`}>
-                Tiếp tục — AI đề xuất sửa
+                {t("proposeNow")}
               </button>
             </div>
           )}
@@ -477,11 +475,11 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
       )}
 
       {proposed && (toReview.length > 0 || dropped.length > 0) && (
-        <AiBubble step={`③ Đề xuất sửa — đã chốt ${settled}/${toReview.length}`} label="Đề xuất sửa">
+        <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")}>
           {toReview.length > 0 ? (
-            <p className="text-on-surface-muted">Xem từng phần: đồng ý, sửa lại theo ý bạn, hoặc bỏ. Chốt hết thì hệ thống tự kiểm tra.</p>
+            <p className="text-on-surface-muted">{t("proposeHint")}</p>
           ) : (
-            <p className="text-on-surface-muted">AI thấy không phần nào cần sửa. Mở danh sách bên dưới để đưa lại phần nào bạn vẫn muốn sửa.</p>
+            <p className="text-on-surface-muted">{t("proposeNone")}</p>
           )}
           <div className="flex flex-col gap-2">
             {toReview.map((l) => (
@@ -493,13 +491,10 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
       )}
 
       {c.status === "manual_fix" && !c.paused && (
-        <AiBubble step="④ Kiểm tra — cần bạn xử lý" label="Cần sửa">
+        <AiBubble step={t("manualStep")} label={t("manualLabel")}>
           {blockers.length > 0 ? (
             <>
-              <p>
-                AI đã thử 2 lần mà <strong>{blockers.length} phần</strong> vẫn chưa đạt. Sửa lại (gõ hướng sửa ngay trong thẻ) hoặc bỏ từng phần
-                — xong là hệ thống tự kiểm lại:
-              </p>
+              <p>{t.rich("manualBlockers", { count: blockers.length, strong: (c) => <strong>{c}</strong> })}</p>
               <ul className="flex flex-col gap-1">
                 {blockers.map((l) => (
                   <li key={l.location_id}>
@@ -508,39 +503,39 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
                     </button>
                     <span className="text-on-surface-muted">
                       {" "}
-                      — {l.conclusion === null ? "chưa có đề xuất" : humanizeText(l.verify?.violations[0]?.message ?? "chưa đạt")}
+                      — {l.conclusion === null ? t("blockerMissing") : l.verify?.violations[0]?.message ? humanizeText(l.verify.violations[0].message) : t("blockerFailed")}
                     </span>
                   </li>
                 ))}
               </ul>
             </>
           ) : (
-            <p>Các phần chưa đạt đã được sửa lại hoặc bỏ. Đồng ý các đề xuất mới rồi kiểm lại.</p>
+            <p>{t("manualCleared")}</p>
           )}
           <div>
             <button type="button" disabled={busy} onClick={chat.verifyNow} className={`${btn} bg-on-surface text-surface`}>
-              {chat.busy === "verify" ? "Đang kiểm…" : "Kiểm lại ngay"}
+              {chat.busy === "verify" ? t("verifying") : t("verifyNow")}
             </button>
           </div>
         </AiBubble>
       )}
       {c.status === "ready_to_submit" && (
-        <AiBubble step="④ Kiểm tra đạt" label="Sẵn sàng gửi">
-          <p>✓ Mọi đề xuất đã đạt kiểm tra. Gửi cho Lead duyệt — tài liệu chỉ đổi sau khi Lead duyệt.</p>
+        <AiBubble step={t("readyStep")} label={t("readyLabel")}>
+          <p>{t("readyText")}</p>
           <div className="flex gap-1.5">
             <button type="button" disabled={busy} onClick={chat.submit} className={`${btn} btn-gradient-primary text-white`}>
-              Gửi cho Lead
+              {t("submit")}
             </button>
           </div>
-          <p className="text-on-surface-muted text-body">Còn muốn sửa thêm? Gõ tiếp ở ô chat — lệnh mới được gộp vào {c.cr_id}.</p>
+          <p className="text-on-surface-muted text-body">{t("readyMore", { crId: c.cr_id })}</p>
         </AiBubble>
       )}
 
-      {c.paused && <PausedBanner paused={c.paused} what="Bước AI" busy={chat.busy === "resume"} onResume={chat.resume} />}
+      {c.paused && <PausedBanner paused={c.paused} what={t("pausedWhat")} busy={chat.busy === "resume"} onResume={chat.resume} />}
       {!busy && !c.paused && c.status !== "manual_fix" && chat.canContinue && (
         <div>
           <button type="button" onClick={chat.continueFlow} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
-            Tiếp tục
+            {t("continue")}
           </button>
         </div>
       )}

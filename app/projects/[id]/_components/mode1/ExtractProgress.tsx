@@ -1,10 +1,10 @@
 "use client";
 
-import { sectionLabelIn } from "@/lib/constants/fpt-sections";
+import { useTranslations } from "next-intl";
 import type { CreditEstimate, ExtractionSection, HeadingMapEntry, ImportedDocument } from "@/types/import";
 import CreditEstimateNote from "./CreditEstimateNote";
 import PausedBanner from "./PausedBanner";
-import { humanizeText } from "./spine-labels";
+import { useMode1Labels } from "./i18n";
 import Icon, { type IconName } from "@/components/ui/Icon";
 
 interface ExtractProgressProps {
@@ -22,10 +22,10 @@ interface ExtractProgressProps {
   headingMap?: HeadingMapEntry[];
 }
 
-const STATUS_ICON: Record<ExtractionSection["status"], { icon: IconName; color: string; label: string }> = {
-  pending: { icon: "clock", color: "#A8A49C", label: "Chờ" },
-  done: { icon: "check-circle", color: "#1F7A45", label: "Xong" },
-  failed: { icon: "warning", color: "#B03030", label: "Lỗi" },
+const STATUS_ICON: Record<ExtractionSection["status"], { icon: IconName; color: string }> = {
+  pending: { icon: "clock", color: "#A8A49C" },
+  done: { icon: "check-circle", color: "#1F7A45" },
+  failed: { icon: "warning", color: "#B03030" },
 };
 
 /**
@@ -33,6 +33,8 @@ const STATUS_ICON: Record<ExtractionSection["status"], { icon: IconName; color: 
  * paused (UC-61, UC-75). Số liệu do BE trả; FE chỉ đếm section theo trạng thái để vẽ thanh tiến độ.
  */
 export default function ExtractProgress({ doc, sections, running, credits, estimate = null, onStart, onResume, busy = false, headingMap }: ExtractProgressProps) {
+  const t = useTranslations("mode1.extractProgress");
+  const L = useMode1Labels();
   const done = sections.filter((s) => s.status === "done").length;
   const total = sections.length;
   const notStarted = !running && !doc.paused && doc.extract_cursor === null && done === 0;
@@ -41,25 +43,22 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-extrabold text-[#191817] text-heading">Trích field theo section</h3>
-          <p className="text-body text-[#8A867E]">
-            Bảng khớp đủ cột được trích tất định (không tốn credit); phần văn xuôi do AI trích, mỗi lượt giữ credit trước và quyết
-            toán sau. Có thể rời trang — việc trích vẫn chạy trên máy chủ.
-          </p>
+          <h3 className="font-extrabold text-[#191817] text-heading">{t("title")}</h3>
+          <p className="text-body text-[#8A867E]">{t("hint")}</p>
         </div>
         <div className="px-3 py-1 rounded-full bg-[#F0EEEA] text-body font-semibold text-[#191817]">
-          Credit khả dụng: {credits ?? "…"}
+          {t("credits", { credits: credits ?? "…" })}
         </div>
       </div>
 
-      {doc.paused && <PausedBanner paused={doc.paused} onResume={onResume} busy={busy} what="Trích field" />}
+      {doc.paused && <PausedBanner paused={doc.paused} onResume={onResume} busy={busy} what={t("pausedWhat")} />}
 
       {estimate && !running && (notStarted || doc.paused) && <CreditEstimateNote estimate={estimate} fallbackBalance={credits} remaining={!notStarted} />}
 
       {notStarted ? (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] p-5 flex flex-wrap items-center justify-between gap-3">
           <p className="text-body text-[#4B4842]">
-            Mapping đã chốt — {total > 0 ? `${total} section` : "các section"} sẵn sàng để trích.
+            {t("ready", { total })}
           </p>
           <button
             type="button"
@@ -67,7 +66,7 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
             disabled={busy}
             className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
           >
-            {busy ? "Đang bắt đầu…" : "Bắt đầu trích (AI)"}
+            {busy ? t("starting") : t("start")}
           </button>
         </div>
       ) : (
@@ -75,10 +74,10 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
           <div className="flex items-center justify-between text-body font-semibold text-[#4B4842]">
             <span>
               {running && <span className="inline-block w-3 h-3 mr-1.5 align-middle rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />}
-              {running ? `Đang trích${doc.extract_cursor ? ` ${sectionLabelIn(doc.extract_cursor, headingMap)}` : ""}…` : "Đã dừng"}
+              {running ? (doc.extract_cursor ? t("runningSection", { section: L.sectionLabelIn(doc.extract_cursor, headingMap) }) : t("running")) : t("stopped")}
             </span>
             <span>
-              {done}/{total} section
+              {t("progress", { done, total })}
             </span>
           </div>
           <div className="h-2 rounded-full bg-[#ECEAE5] overflow-hidden" role="progressbar" aria-valuenow={done} aria-valuemin={0} aria-valuemax={total}>
@@ -94,14 +93,15 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
             const current = running && s.section_id === doc.extract_cursor;
             return (
               <li key={s.section_id} className={`px-3 py-2 flex items-center gap-3 text-body ${current ? "bg-[#F2F1FB]" : ""}`}>
-                <Icon name={st.icon} size={18} style={{ color: st.color }} label={st.label} />
-                <span className="flex-1 font-semibold text-[#191817]">{sectionLabelIn(s.section_id, headingMap)}</span>
+                <Icon name={st.icon} size={18} style={{ color: st.color }} label={t(`status.${s.status}`)} />
+                <span className="flex-1 font-semibold text-[#191817]">{L.sectionLabelIn(s.section_id, headingMap)}</span>
                 {s.status === "done" && (
                   <span className="text-body text-[#8A867E]">
-                    {s.fields_total} field{s.fields_needing_review > 0 && <strong className="text-[#8A6D1F]"> · {s.fields_needing_review} cần xem</strong>}
+                    {t("fields", { count: s.fields_total })}
+                    {s.fields_needing_review > 0 && <strong className="text-[#8A6D1F]"> · {t("needsReview", { count: s.fields_needing_review })}</strong>}
                   </span>
                 )}
-                {s.error && <span className="text-body text-[#B03030]">{humanizeText(s.error)}</span>}
+                {s.error && <span className="text-body text-[#B03030]">{L.humanizeText(s.error)}</span>}
               </li>
             );
           })}

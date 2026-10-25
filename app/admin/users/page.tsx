@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   fetchAdminUsers,
-  formatNumber,
   type AdminUser,
   type AdminUserRole,
   type PageMeta,
@@ -13,22 +13,26 @@ import { useDebounce } from "@/lib/hooks/use-debounce";
 import { singleFilterValue, useServerDataTable } from "@/lib/hooks/use-server-data-table";
 import AdminHeader from "../_components/AdminHeader";
 import { AdminMain, AdminPageHeader, ErrorBanner, LoadingBlock } from "../_components/AdminPage";
-import { USER_ROLE_OPTIONS, USER_STATUS_OPTIONS, usersColumns } from "./_components/UsersColumns";
+import { userRoleOptions, userStatusOptions, usersColumns } from "./_components/UsersColumns";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 const PAGE_SIZE = 20;
 
 export default function AdminUsersPage() {
+  const t = useTranslations("admin");
+  const locale = useLocale();
+  const columns = useMemo(() => usersColumns(t, locale), [t, locale]);
   const [items, setItems] = useState<AdminUser[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** Lỗi tải gần nhất: giữ nguyên lỗi, dịch lúc render — đổi ngôn ngữ không phải tải lại. */
+  const [error, setError] = useState<{ cause: unknown } | null>(null);
   /** Bộ tham số đã tải xong (kể cả khi lỗi). Khác bộ đang cần ⇒ đang tải — không cần state `loading` riêng,
    *  vốn phải set ngay trong effect (eslint `react-hooks/set-state-in-effect` chặn). */
   const [loadedParams, setLoadedParams] = useState<object | null>(null);
 
   const { table, pagination, globalFilter, columnFilters } = useServerDataTable({
     data: items,
-    columns: usersColumns,
+    columns,
     pageCount: meta?.totalPages ?? -1,
     pageSize: PAGE_SIZE,
   });
@@ -60,7 +64,7 @@ export default function AdminUsersPage() {
         setMeta(res.meta);
         setError(null);
       } catch (err) {
-        if (!cancelled) setError(userErrorMessage(err, "Không thể tải danh sách người dùng"));
+        if (!cancelled) setError({ cause: err });
       } finally {
         if (!cancelled) setLoadedParams(params);
       }
@@ -76,29 +80,29 @@ export default function AdminUsersPage() {
       <AdminHeader />
       <AdminMain>
         <AdminPageHeader
-          title="Người dùng"
+          title={t("users.title")}
           description={
-            meta ? `${formatNumber(meta.total)} tài khoản trong hệ thống.` : "Tài khoản trong hệ thống."
+            meta ? t("users.descriptionCount", { count: meta.total }) : t("users.descriptionFallback")
           }
         />
 
-        {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
+        {error && <ErrorBanner message={userErrorMessage(error.cause, t("users.loadFailed"))} onClose={() => setError(null)} />}
 
         {loading && items.length === 0 ? (
-          <LoadingBlock label="Đang tải người dùng…" />
+          <LoadingBlock label={t("users.loading")} />
         ) : (
           <DataTable
             table={table}
-            columns={usersColumns}
-            emptyMessage="Không có người dùng phù hợp"
+            columns={columns}
+            emptyMessage={t("users.empty")}
             className={loading ? "opacity-60 transition-opacity" : undefined}
             toolbar={
               <DataTableToolbar
                 table={table}
-                searchPlaceholder="Tìm theo email hoặc tên"
+                searchPlaceholder={t("users.searchPlaceholder")}
                 filters={[
-                  { columnId: "role", title: "Vai trò", options: USER_ROLE_OPTIONS },
-                  { columnId: "isActive", title: "Trạng thái", options: USER_STATUS_OPTIONS },
+                  { columnId: "role", title: t("common.role"), options: userRoleOptions(t) },
+                  { columnId: "isActive", title: t("common.status"), options: userStatusOptions(t) },
                 ]}
               />
             }

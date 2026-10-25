@@ -7,6 +7,7 @@ import {
   EyeOff,
 } from 'lucide-react'
 import { type Column } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/shadcn/button'
 import {
@@ -28,6 +29,7 @@ export function DataTableColumnHeader<TData, TValue>({
   title,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
+  const t = useTranslations('common.dataTable')
   if (!column.getCanSort()) {
     return <div className={cn(className)}>{title}</div>
   }
@@ -54,18 +56,18 @@ export function DataTableColumnHeader<TData, TValue>({
         <DropdownMenuContent align='start'>
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
             <ArrowUp className='size-3.5 text-muted-foreground/70' />
-            Tăng dần
+            {t('sortAsc')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
             <ArrowDown className='size-3.5 text-muted-foreground/70' />
-            Giảm dần
+            {t('sortDesc')}
           </DropdownMenuItem>
           {column.getCanHide() && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
                 <EyeOff className='size-3.5 text-muted-foreground/70' />
-                Ẩn cột
+                {t('hideColumn')}
               </DropdownMenuItem>
             </>
           )}

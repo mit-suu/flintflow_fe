@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { gapReportHref } from "../_components/mode1/prefill";
 
@@ -9,6 +10,7 @@ import { gapReportHref } from "../_components/mode1/prefill";
 export default function GapReportPage() {
   const projectId = useParams()?.id as string;
   const router = useRouter();
+  const t = useTranslations("mode1.gapReportPage");
   useEffect(() => router.replace(gapReportHref(projectId)), [projectId, router]);
-  return <PageSkeleton rows={2} label="Đang mở gap report" />;
+  return <PageSkeleton rows={2} label={t("opening")} />;
 }

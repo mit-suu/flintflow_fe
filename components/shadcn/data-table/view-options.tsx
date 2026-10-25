@@ -3,6 +3,7 @@
 import { DropdownMenuTrigger } from '@radix-ui/react-dropdown-menu'
 import { SlidersHorizontal } from 'lucide-react'
 import { type Table } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/shadcn/button'
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ type DataTableViewOptionsProps<TData> = {
 export function DataTableViewOptions<TData>({
   table,
 }: DataTableViewOptionsProps<TData>) {
+  const t = useTranslations('common.dataTable')
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -28,11 +30,11 @@ export function DataTableViewOptions<TData>({
           className='ms-auto hidden h-8 lg:flex'
         >
           <SlidersHorizontal className='size-4' />
-          Cột
+          {t('columns')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end' className='w-[150px]'>
-        <DropdownMenuLabel>Ẩn/hiện cột</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('toggleColumns')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {table
           .getAllColumns()

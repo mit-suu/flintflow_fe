@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
-import { localizeApiError } from "@/lib/api/error-messages";
-import { tStep } from "@/lib/i18n";
+import { createTranslator } from "next-intl";
+import { currentLocale, localizeApiError } from "@/lib/api/error-messages";
+import { tStep, type Locale } from "@/lib/i18n";
+import en from "@/messages/en.json";
+import vi from "@/messages/vi.json";
 
 /**
  * Lỗi nói cho NGƯỜI, không nói cho máy (FLF-206 / BUG-25).
@@ -33,7 +36,10 @@ export interface FriendlyError {
   detail?: ReactNode;
 }
 
-const RETRY: ErrorAction = { kind: "retry", label: "Thử lại" };
+const MESSAGES = { vi, en } as const;
+
+/** Câu theo ngôn ngữ đang hiển thị (`common.friendlyErrors`) — helper này chạy cả ngoài React (callback, throw). */
+const translatorFor = (locale: Locale) => createTranslator({ locale, messages: MESSAGES[locale], namespace: "common.friendlyErrors" });
 
 /** "Bước này đang chạy ở lượt trước (bắt đầu 14:02)" — BE đã kèm giờ trong message. */
 const startedAtOf = (rawMessage: string): string | null => /bắt đầu (\d{1,2}:\d{2})/.exec(rawMessage)?.[1] ?? null;
@@ -43,77 +49,65 @@ const stepIdOf = (rawMessage: string): string | null => /\b([BS]-\d+\.\d+(?:@[\w
 
 /**
  * Mã lỗi + câu gốc của BE → thông điệp và hành động. `rawMessage` là câu BE trả (có thể tiếng Việt), chỉ
- * dùng để rút chi tiết (giờ bắt đầu, id step), không hiện thẳng.
+ * dùng để rút chi tiết (giờ bắt đầu, id step), không hiện thẳng. Regex dưới đây khớp **câu BE**, không phải chữ UI.
  */
-export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
+export const friendlyError = (code: string, rawMessage = "", locale: Locale = currentLocale()): FriendlyError => {
+  const t = translatorFor(locale);
+  const RETRY: ErrorAction = { kind: "retry", label: t("actions.retry") };
+  const DISMISS: ErrorAction = { kind: "dismiss", label: t("actions.understood") };
   switch (code) {
     case "STEP_NOT_RUNNABLE": {
       const startedAt = startedAtOf(rawMessage);
       if (startedAt || /đang chạy|đang được xử lý/i.test(rawMessage)) {
         return {
-          message: startedAt ? `Bước này đang chạy ở lượt trước (bắt đầu ${startedAt}).` : "Bước này đang chạy ở một lượt trước.",
-          actions: [{ kind: "cancel_and_rerun", label: "Huỷ lượt cũ và chạy lại" }]
+          message: startedAt ? t("stepRunningSince", { startedAt }) : t("stepRunning"),
+          actions: [{ kind: "cancel_and_rerun", label: t("actions.cancelAndRerun") }]
         };
       }
       const step = stepIdOf(rawMessage);
       if (/chưa tới lượt/i.test(rawMessage) && step) {
         // Tên bước, không phải mã `S-4.2` (FLF-247)
-        return { message: `Cần xong bước “${tStep(step)}” trước.`, actions: [{ kind: "goto_step", label: `Đi tới “${tStep(step)}”`, stepId: step }] };
+        const name = tStep(step, locale);
+        return { message: t("stepPrerequisite", { step: name }), actions: [{ kind: "goto_step", label: t("actions.gotoStep", { step: name }), stepId: step }] };
       }
       if (/đã accepted/i.test(rawMessage)) {
-        return { message: "Bước này đã chốt. Muốn đổi nội dung thì gửi yêu cầu sửa ở cổng chốt của bước.", actions: [{ kind: "dismiss", label: "Đã hiểu" }] };
+        return { message: t("stepAccepted"), actions: [DISMISS] };
       }
-      return { message: "Chưa chạy được bước này lúc này.", actions: [RETRY] };
+      return { message: t("stepNotRunnable"), actions: [RETRY] };
     }
 
     case "SPINE_VERSION_CONFLICT":
-      return {
-        message: "Tài liệu vừa được cập nhật ở một bước khác. Đã tải bản mới nhất.",
-        actions: [RETRY],
-        selfHealing: true
-      };
+      return { message: t("spineVersionConflict"), actions: [RETRY], selfHealing: true };
 
     case "CALL_LIMIT":
-      return {
-        message: "Bước này đã dùng hết 8 lượt gọi AI. Hãy chốt phần đã có, hoặc mở lại bước sau khi sửa yêu cầu.",
-        actions: [{ kind: "dismiss", label: "Đã hiểu" }]
-      };
+      return { message: t("callLimit"), actions: [DISMISS] };
 
     case "REGENERATE_LIMIT":
-      return {
-        message: "Đã hết 3 lượt soạn lại cho bước này. Nhắn tôi ở ô chat để nói rõ cần đổi gì.",
-        actions: [{ kind: "dismiss", label: "Đã hiểu" }]
-      };
+      return { message: t("regenerateLimit"), actions: [DISMISS] };
 
     case "INSUFFICIENT_CREDIT":
-      return { message: "Không đủ credit để chạy tiếp. Nạp thêm rồi chạy lại bước này.", actions: [RETRY] };
+      return { message: t("insufficientCredit"), actions: [RETRY] };
 
     case "NEEDS_USER_INPUT":
-      return {
-        message: "AI trả kết quả không hợp lệ sau 3 lần thử. Bạn có thể chạy lại, hoặc nói rõ hơn yêu cầu ở ô chat.",
-        actions: [RETRY]
-      };
+      return { message: t("needsUserInput"), actions: [RETRY] };
 
     case "NOT_IMPLEMENTED":
     case "STREAM_FAILED":
     case "UNKNOWN_ERROR":
-      return { message: "Hệ thống gặp lỗi khi xử lý bước này. Nội dung đã ghi trước đó vẫn được giữ.", actions: [RETRY] };
+      return { message: t("systemError"), actions: [RETRY] };
 
     case "BASELINE_BLOCKED":
-      return {
-        message: "Chưa ký được baseline: còn cờ đỏ chưa xử lý. Xử lý hoặc bỏ qua có lý do từng cờ rồi Accept lại.",
-        actions: [{ kind: "dismiss", label: "Xem danh sách cờ" }]
-      };
+      return { message: t("baselineBlocked"), actions: [{ kind: "dismiss", label: t("actions.viewFlags") }] };
 
     case "NO_WORKING_DRAFT":
       // FLF-264: tài liệu tự dựng khi đọc ⇒ mã này chỉ còn nghĩa "dự án chưa chạy bước nào", không có việc gì để mời làm
-      return { message: "Dự án chưa có nội dung nào để dựng tài liệu.", actions: [] };
+      return { message: t("noWorkingDraft"), actions: [] };
 
     case "NOT_PIPELINE_SESSION":
-      return { message: "Phiên chat này chỉ để hỏi đáp — quy trình soạn tài liệu chạy ở phiên chính. Bấm \"Về phiên chính\" để tiếp tục.", actions: [RETRY] };
+      return { message: t("notPipelineSession"), actions: [RETRY] };
 
     case "ORG_ROLE_FORBIDDEN":
-      return { message: "Vai trò Viewer chỉ xem được tài liệu — không chạy bước AI hay sửa nội dung. Nhờ Lead đổi vai trò nếu cần.", actions: [] };
+      return { message: t("orgRoleForbidden"), actions: [] };
 
     case "OP_INVALID":
     case "INVARIANT_VIOLATION":
@@ -121,17 +115,13 @@ export const friendlyError = (code: string, rawMessage = ""): FriendlyError => {
     case "duplicate_id":
     case "op_not_allowed":
     case "op_out_of_scope":
-      return {
-        message: "Không tìm thấy mục cần sửa, hoặc mục đó đã tồn tại. Hãy nói rõ tên mục (ví dụ: màn “Đặt lịch”, chức năng “Huỷ lịch”).",
-        actions: [{ kind: "edit_command", label: "Sửa lệnh" }]
-      };
+      return { message: t("opInvalid"), actions: [{ kind: "edit_command", label: t("actions.editCommand") }] };
 
     case "STREAM_CLOSED":
-      return { message: "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.", actions: [RETRY] };
+      return { message: t("streamClosed"), actions: [RETRY] };
 
     default:
       // Mã có bản dịch, hoặc câu BE đã là câu cho người ⇒ dùng; text kỹ thuật ⇒ câu chung (FLF-247)
-      return { message: localizeApiError(code, rawMessage), actions: [RETRY] };
+      return { message: localizeApiError(code, rawMessage, locale), actions: [RETRY] };
   }
 };
-

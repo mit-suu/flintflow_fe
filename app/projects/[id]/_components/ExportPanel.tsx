@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ApiClientError } from "@/lib/api/client";
 import { downloadPdfExport, downloadWordExport, listBaselines, type ExportFormat } from "@/lib/api/export";
-import { DOCUMENT_LANGUAGE_NAME, shownDocumentLanguage } from "@/lib/document-language";
+import { shownDocumentLanguage } from "@/lib/document-language";
 import { useDocument } from "../hooks/useDocument";
 import type { DocumentSource } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import type { Baseline } from "@/types/spine";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { hookErrorText } from "@/lib/hook-errors";
 
 interface ExportPanelProps {
   projectId: string;
@@ -45,7 +47,11 @@ const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string; extens
  * Export UI (Phases §6.5): bản nháp (watermark DRAFT) / baseline, mỗi nguồn ra Word hoặc PDF (FLF-316 — PDF là
  * chính file Word chuyển ở BE nên bố cục y hệt).
  */
-export default function ExportPanel({ projectId, projectName = "Dự án", onClose, flags, documentLanguage = null, onTranslate }: ExportPanelProps) {
+export default function ExportPanel({ projectId, projectName, onClose, flags, documentLanguage = null, onTranslate }: ExportPanelProps) {
+  const t = useTranslations("workspace.export");
+  const tHook = useTranslations("workspace.hookErrors");
+  const tLanguage = useTranslations("common.documentLanguage");
+  const baselineCheckFailed = t("baselineCheckFailed");
   const [source, setSource] = useState<DocumentSource>("draft");
   const [format, setFormat] = useState<ExportFormat>("word");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
@@ -82,11 +88,13 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
       .catch((err: unknown) => {
         if (cancelled) return;
         setBaselines([]);
-        setBaselineCheckError(userErrorMessage(err, "Không kiểm tra được baseline"));
+        setBaselineCheckError(userErrorMessage(err, baselineCheckFailed));
       });
     return () => {
       cancelled = true;
     };
+    // `baselineCheckFailed` chỉ là câu dự phòng — đổi ngôn ngữ không cần gọi lại BE
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   // BUG-26: bản xuất báo "2 cờ đỏ" trong khi Verification panel đếm 10 — hai nguồn khác nhau. Ưu tiên
@@ -101,13 +109,13 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
       const download = format === "pdf" ? downloadPdfExport : downloadWordExport;
       const { blob, filename } = await download(projectId, source, baselineId);
       const suffix = source === "draft" ? "-draft" : "";
-      const fallbackName = `${projectName}-${document?.version ?? "v0"}${suffix}${extension}`;
+      const fallbackName = `${projectName ?? t("untitled")}-${document?.version ?? "v0"}${suffix}${extension}`;
       triggerDownload(blob, filename ?? fallbackName);
     } catch (err) {
       setDownloadError(
         err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
-          ? "Dự án chưa có nội dung nào để xuất ra tài liệu."
-          : userErrorMessage(err, "Tải file thất bại")
+          ? t("noWorkingDraft")
+          : userErrorMessage(err, t("downloadFailed"))
       );
     } finally {
       setDownloading(false);
@@ -121,8 +129,8 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-extrabold text-heading text-[#191817]">Xuất tài liệu SRS</h3>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
+          <h3 className="font-extrabold text-heading text-[#191817]">{t("title")}</h3>
+          <button type="button" onClick={onClose} aria-label={t("close")} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
             ✕
           </button>
         </div>
@@ -137,7 +145,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
               source === "draft" ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"
             }`}
           >
-            Bản nháp (DRAFT)
+            {t("draftTab")}
           </button>
           <button
             type="button"
@@ -145,18 +153,18 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
             aria-selected={source === "baseline"}
             disabled={!hasBaseline}
             onClick={() => selectSource("baseline")}
-            title={hasBaseline ? undefined : "Chưa có baseline nào"}
+            title={hasBaseline ? undefined : t("noBaseline")}
             className={`px-3 py-1.5 rounded-full text-body font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               source === "baseline" ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"
             }`}
           >
-            Bản baseline
+            {t("baselineTab")}
           </button>
         </div>
 
         <div className="flex items-center justify-between gap-3">
           <span id="export-format-label" className="text-body text-[#4B4842]">
-            Định dạng
+            {t("format")}
           </span>
           <div role="radiogroup" aria-labelledby="export-format-label" className="flex gap-1 p-1 rounded-full bg-[#F0EEEA]">
             {FORMAT_OPTIONS.map((option) => (
@@ -177,37 +185,37 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
         </div>
 
         {baselineCheckError && (
-          <div className="text-caption text-[#B03030]">Không kiểm tra được baseline: {baselineCheckError}</div>
+          <div className="text-caption text-[#B03030]">{t("baselineCheckFailedWith", { error: baselineCheckError })}</div>
         )}
 
-        {loading && <div className="text-body text-[#A8A49C] italic">Đang tải thông tin tài liệu…</div>}
+        {loading && <div className="text-body text-[#A8A49C] italic">{t("loading")}</div>}
 
         {empty && (
           <div className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] p-3.5 text-body text-[#6B5A2A]">
-            Dự án chưa có nội dung nào để xuất ở nguồn này.
+            {t("emptySource")}
           </div>
         )}
 
-        {!empty && error && <div className="text-caption text-[#B03030]">{error}</div>}
+        {!empty && error && <div className="text-caption text-[#B03030]">{hookErrorText(error, tHook)}</div>}
 
         {!empty && document && (
           <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3.5 flex flex-col gap-1.5 text-body text-[#4B4842]">
             <div className="flex items-center justify-between">
-              <span>Phiên bản</span>
+              <span>{t("version")}</span>
               <span className="font-mono font-bold">
                 {document.version}
                 {source === "draft" ? "-draft" : ""}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Số cờ đỏ sẽ in vào §I</span>
+              <span>{t("redCount")}</span>
               <span className={`font-bold ${redCount > 0 ? "text-[#B03030]" : "text-[#1F7A45]"}`}>{redCount}</span>
             </div>
             {language && (
               <div className="flex items-center justify-between">
-                <span>Ngôn ngữ</span>
-                <span lang={language} className="font-bold">
-                  {DOCUMENT_LANGUAGE_NAME[language]}
+                <span>{t("language")}</span>
+                <span className="font-bold">
+                  {tLanguage(language)}
                 </span>
               </div>
             )}
@@ -217,10 +225,10 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
         {/* FLF-265: chỉ báo, KHÔNG chặn tải — mục chưa dịch in chữ gốc trong file (BE không bao giờ dịch lúc xuất) */}
         {!empty && document && translation && translation.missing > 0 && (
           <div role="status" className="bg-accent-gold-soft border border-accent-gold-border rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex flex-col items-start gap-1.5">
-            <span>Còn {translation.missing} mục chưa dịch — file sẽ in chữ gốc ở các mục này. Vẫn tải được.</span>
+            <span>{t("untranslated", { count: translation.missing })}</span>
             {onTranslate && (
               <button type="button" onClick={onTranslate} className="font-bold hover:underline cursor-pointer">
-                Dịch tài liệu trước
+                {t("translateFirst")}
               </button>
             )}
           </div>
@@ -236,9 +244,11 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
         >
           {downloading
             ? format === "pdf"
-              ? "Đang tạo PDF…"
-              : "Đang tải…"
-            : `Tải ${source === "draft" ? "bản nháp" : "bản baseline"} (${extension})`}
+              ? t("creatingPdf")
+              : t("downloading")
+            : source === "draft"
+              ? t("downloadDraft", { extension })
+              : t("downloadBaseline", { extension })}
         </button>
       </div>
     </div>

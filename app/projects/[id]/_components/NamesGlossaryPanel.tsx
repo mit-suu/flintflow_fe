@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Tabs from "@/components/ui/Tabs";
 import type { Op } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
@@ -13,7 +14,8 @@ interface NamesGlossaryPanelProps {
 
 type Tab = "actors" | "entities" | "screens" | "glossary";
 
-const TAB_LABEL: Record<Tab, string> = { actors: "Actor", entities: "Thực thể", screens: "Màn hình", glossary: "Thuật ngữ" };
+/** Thứ tự tab; nhãn: `workspace.names.tab.<tab>`. */
+const TABS: readonly Tab[] = ["actors", "entities", "screens", "glossary"];
 /** Danh sách dài hơn mức này chỉ hiện chừng ấy dòng + "Xem thêm" — không cuộn lồng trong panel đã cuộn. */
 const PREVIEW_ROWS = 8;
 
@@ -37,6 +39,7 @@ const inputClass =
  * bắt phần đó).
  */
 export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }: NamesGlossaryPanelProps) {
+  const t = useTranslations("workspace.names");
   const [tab, setTab] = useState<Tab>("actors");
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -79,28 +82,28 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
   };
 
   return (
-    <div className="flex flex-col gap-2" aria-label="Tên riêng và thuật ngữ">
+    <div className="flex flex-col gap-2" aria-label={t("aria")}>
       <Tabs
-        label="Loại tên"
+        label={t("tabsLabel")}
         idBase="names"
         value={tab}
         onChange={switchTab}
         className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body [&>button]:h-7"
-        options={(Object.keys(TAB_LABEL) as Tab[]).map((id) => ({
+        options={TABS.map((id) => ({
           value: id,
-          label: TAB_LABEL[id],
+          label: t(`tab.${id}`),
           count: id === "glossary" ? spine.glossary.length : spine[id].length,
         }))}
       />
 
       <ul role="tabpanel" id="names-panel" aria-labelledby={`names-tab-${tab}`} className="flex flex-col">
-        {rows.length === 0 && <li className="py-1.5 text-body text-on-surface-muted">Chưa có mục nào.</li>}
+        {rows.length === 0 && <li className="py-1.5 text-body text-on-surface-muted">{t("empty")}</li>}
         {shown.map((row) =>
           editing?.id === row.id ? (
             <li key={row.id} className="py-1">
               <input
                 autoFocus
-                aria-label={`Tên mới cho ${row.value}`}
+                aria-label={t("newNameAria", { name: row.value })}
                 value={editing.value}
                 disabled={busy}
                 onChange={(e) => setEditing({ id: row.id, value: e.target.value })}
@@ -117,7 +120,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
               <button
                 type="button"
                 onClick={() => setEditing({ id: row.id, value: row.value })}
-                title="Bấm để sửa tên"
+                title={t("editTitle")}
                 className="group/name w-full -mx-2 px-2 py-1.5 rounded-control flex items-center justify-between gap-2 text-left hover:bg-surface-container-low cursor-pointer"
               >
                 <span className="min-w-0 flex flex-col">
@@ -125,7 +128,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
                   {row.hint && <span className="text-caption text-on-surface-muted line-clamp-2">{row.hint}</span>}
                 </span>
                 <span className="shrink-0 text-caption font-semibold text-primary opacity-0 group-hover/name:opacity-100 group-focus-visible/name:opacity-100">
-                  Sửa
+                  {t("edit")}
                 </span>
               </button>
             </li>
@@ -135,7 +138,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
 
       {rows.length > PREVIEW_ROWS && (
         <button type="button" onClick={() => setShowAll((v) => !v)} className="self-start text-body font-semibold text-primary hover:underline cursor-pointer">
-          {showAll ? "Thu gọn" : `Xem thêm ${rows.length - PREVIEW_ROWS}`}
+          {showAll ? t("collapse") : t("showMore", { count: rows.length - PREVIEW_ROWS })}
         </button>
       )}
 
@@ -144,13 +147,13 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
           <div className="flex flex-col gap-1.5">
             <input
               autoFocus
-              placeholder="Thuật ngữ mới"
+              placeholder={t("newTerm")}
               value={adding.term}
               onChange={(e) => setAdding({ ...adding, term: e.target.value })}
               className={inputClass}
             />
             <input
-              placeholder="Định nghĩa (tiếng Anh)"
+              placeholder={t("definition")}
               value={adding.definition}
               onChange={(e) => setAdding({ ...adding, definition: e.target.value })}
               onKeyDown={(e) => e.key === "Enter" && void saveNewTerm()}
@@ -158,7 +161,7 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
             />
             <div className="flex justify-end gap-1.5">
               <button type="button" onClick={() => setAdding(null)} className="h-7 px-2.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer">
-                Huỷ
+                {t("cancel")}
               </button>
               <button
                 type="button"
@@ -166,13 +169,13 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
                 onClick={() => void saveNewTerm()}
                 className="h-7 px-2.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
-                Thêm
+                {t("add")}
               </button>
             </div>
           </div>
         ) : (
           <button type="button" onClick={() => setAdding({ term: "", definition: "" })} className="self-start text-body font-semibold text-primary hover:underline cursor-pointer">
-            + Thêm thuật ngữ
+            {t("addTerm")}
           </button>
         ))}
     </div>

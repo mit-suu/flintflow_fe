@@ -3,7 +3,8 @@ import { buildDecisionOps, needsSingleReview } from "../AssumptionSweepPanel";
 import { PARKED_SECTION, buildDropOp, buildRetargetOp } from "../AddendumTriagePanel";
 import AddendumTriagePanel from "../AddendumTriagePanel";
 import BriefSummaryCard, { groupByTarget } from "../BriefSummaryCard";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithIntl as render } from "@/test/intl";
 import type { Addendum } from "@/types/spine";
 
 const AT = "2026-09-16T00:00:00.000Z";

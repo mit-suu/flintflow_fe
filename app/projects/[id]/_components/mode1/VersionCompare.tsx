@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import FilterSelect from "@/components/ui/FilterSelect";
 import { compareVersions } from "@/lib/api/versions";
 import type { CompareResponse, DocVersion } from "@/types/doc-version";
-import BlockDiffList, { summaryText } from "./BlockDiffList";
-import { errorText } from "./errors";
+import BlockDiffList, { DiffSummary } from "./BlockDiffList";
+import { useMode1Labels } from "./i18n";
 
 interface VersionCompareProps {
   projectId: string;
@@ -16,13 +17,15 @@ interface VersionCompareProps {
 
 /** So sánh 2 version theo block (UC-55). Mặc định: bản ngay trước ↔ bản mới nhất. */
 export default function VersionCompare({ projectId, versions }: VersionCompareProps) {
+  const t = useTranslations("mode1.versionCompare");
+  const L = useMode1Labels();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [result, setResult] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (versions.length < 2) return <p className="text-body text-on-surface-muted">Cần ít nhất 2 version để so sánh.</p>;
+  if (versions.length < 2) return <p className="text-body text-on-surface-muted">{t("needTwo")}</p>;
 
   /**
    * Mặc định suy từ `versions` mỗi lần render, không chốt trong `useState`: component có thể mount lúc
@@ -41,7 +44,7 @@ export default function VersionCompare({ projectId, versions }: VersionComparePr
     try {
       setResult((await compareVersions(projectId, effectiveFrom, effectiveTo)).data);
     } catch (err) {
-      setError(errorText(err, "Không so sánh được"));
+      setError(L.errorText(err, t("failed")));
     } finally {
       setBusy(false);
     }
@@ -52,12 +55,12 @@ export default function VersionCompare({ projectId, versions }: VersionComparePr
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect label="Từ" value={effectiveFrom} options={options} onChange={setFrom} align="start" />
-        <FilterSelect label="Đến" value={effectiveTo} options={options} onChange={setTo} align="start" />
+        <FilterSelect label={t("from")} value={effectiveFrom} options={options} onChange={setFrom} align="start" />
+        <FilterSelect label={t("to")} value={effectiveTo} options={options} onChange={setTo} align="start" />
         <Button size="sm" onClick={() => void run()} disabled={same} loading={busy}>
-          So sánh
+          {t("compare")}
         </Button>
-        {same && <span className="text-body text-on-surface-muted">Chọn hai version khác nhau.</span>}
+        {same && <span className="text-body text-on-surface-muted">{t("pickDifferent")}</span>}
       </div>
       {error && (
         <p role="alert" className="text-body text-error">
@@ -67,7 +70,7 @@ export default function VersionCompare({ projectId, versions }: VersionComparePr
       {result && (
         <>
           <p className="text-body font-semibold text-on-surface-medium tabular-nums">
-            {result.from} → {result.to}: {summaryText(result.summary)}
+            {result.from} → {result.to}: <DiffSummary summary={result.summary} />
           </p>
           <BlockDiffList entries={result.blocks} />
         </>

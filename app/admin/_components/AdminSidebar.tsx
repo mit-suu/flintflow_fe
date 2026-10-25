@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Logo from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +20,7 @@ import {
 import { ADMIN_NAV } from "./admin-nav";
 
 export default function AdminSidebar() {
+  const t = useTranslations("admin.nav");
   const pathname = usePathname();
   const { setOpenMobile, state } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -43,7 +45,7 @@ export default function AdminSidebar() {
                 ) : (
                   <div className="grid gap-0.5">
                     <Logo variant="wordmark" theme="light" sizeClassName="h-5 w-auto" />
-                    <span className="text-on-surface-muted text-caption font-semibold">Quản trị</span>
+                    <span className="text-on-surface-muted text-caption font-semibold">{t("subtitle")}</span>
                   </div>
                 )}
               </Link>
@@ -54,8 +56,8 @@ export default function AdminSidebar() {
 
       <SidebarContent>
         {ADMIN_NAV.map((group) => (
-          <SidebarGroup key={group.title}>
-            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+          <SidebarGroup key={group.titleKey}>
+            <SidebarGroupLabel>{t(`groups.${group.titleKey}`)}</SidebarGroupLabel>
             <SidebarMenu>
               {group.items.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -64,7 +66,7 @@ export default function AdminSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      tooltip={item.label}
+                      tooltip={t(`items.${item.labelKey}`)}
                       // Cùng nhịp với sidebar khu người dùng: hàng 40px, bo `control`, icon 20px.
                       // Hover là xám nhạt, chỉ mục đang chọn mới là ô tím — để hai trạng thái không lẫn nhau.
                       className={cn(
@@ -75,7 +77,7 @@ export default function AdminSidebar() {
                     >
                       <Link href={item.href} onClick={closeOnMobile}>
                         <item.icon />
-                        <span>{item.label}</span>
+                        <span>{t(`items.${item.labelKey}`)}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

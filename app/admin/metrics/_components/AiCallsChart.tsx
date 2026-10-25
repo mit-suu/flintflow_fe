@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { AiCostRow } from "@/lib/api/admin";
 
@@ -10,6 +11,7 @@ import type { AiCostRow } from "@/lib/api/admin";
  * chết trông như ngày bình thường.
  */
 export default function AiCallsChart({ rows }: { rows: AiCostRow[] }) {
+  const t = useTranslations("admin.metrics.chart");
   const points = rows.map((row) => ({ label: row.label, calls: row.calls, failed: row.failedCalls }));
 
   return (
@@ -28,8 +30,8 @@ export default function AiCallsChart({ rows }: { rows: AiCostRow[] }) {
         />
         <Tooltip
           cursor={{ fillOpacity: 0.1 }}
-          formatter={(value, name) => [`${value as number} lượt`, name === "failed" ? "Lỗi" : "Gọi AI"]}
-          labelFormatter={(label: unknown) => `Ngày ${String(label)}`}
+          formatter={(value, name) => [t("value", { value: Number(value) }), name === "failed" ? t("failed") : t("calls")]}
+          labelFormatter={(label: unknown) => t("day", { label: String(label) })}
           contentStyle={{
             background: "var(--popover)",
             color: "var(--popover-foreground)",

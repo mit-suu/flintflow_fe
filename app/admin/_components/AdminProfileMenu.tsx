@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { House, LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { fetchMe } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
 import type { User } from "@/types/user";
@@ -39,6 +40,7 @@ function initialsOf(name: string): string {
 }
 
 export default function AdminProfileMenu() {
+  const t = useTranslations("admin");
   const [me, setMe] = useState<User | null>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
@@ -55,14 +57,14 @@ export default function AdminProfileMenu() {
     };
   }, []);
 
-  const displayName = me?.name || me?.email || "Quản trị viên";
+  const displayName = me?.name || me?.email || t("profile.fallbackName");
   const email = me?.email ?? "";
 
   return (
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" aria-label="Tài khoản" className="relative size-8 rounded-full p-0">
+          <Button variant="ghost" aria-label={t("profile.account")} className="relative size-8 rounded-full p-0">
             <Avatar className="size-8">
               <AvatarFallback className="bg-accent text-accent-foreground text-caption font-bold">
                 {initialsOf(displayName)}
@@ -81,13 +83,13 @@ export default function AdminProfileMenu() {
           <DropdownMenuItem asChild>
             <Link href="/home">
               <House />
-              Về Dashboard
+              {t("profile.backToDashboard")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => setConfirmingSignOut(true)}>
             <LogOut />
-            Đăng xuất
+            {t("profile.signOut")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -95,14 +97,14 @@ export default function AdminProfileMenu() {
       <AlertDialog open={confirmingSignOut} onOpenChange={setConfirmingSignOut}>
         <AlertDialogContent className="sm:max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Đăng xuất</AlertDialogTitle>
+            <AlertDialogTitle>{t("profile.signOut")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Đăng xuất khỏi trang quản trị? Lần sau vào lại phải đăng nhập.
+              {t("profile.signOutConfirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void logoutAndRedirect()}>Đăng xuất</AlertDialogAction>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void logoutAndRedirect()}>{t("profile.signOut")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
