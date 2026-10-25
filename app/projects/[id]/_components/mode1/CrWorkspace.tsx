@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { CR_MAX_MATERIALS, CR_TERMINAL_STATUSES, type CrDetail, type CrLocation } from "@/types/change-request";
+import { CR_MAX_MATERIALS, CR_TERMINAL_STATUSES, MAX_REDO_PER_LOCATION, type CrDetail, type CrLocation } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useChangeRequest } from "../../hooks/mode1/useChangeRequest";
 import ChangeGroupPanel from "./ChangeGroupPanel";
@@ -99,17 +99,20 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
       </Step>
     );
   } else if (c.status === "impact_review" || (c.status === "proposing" && locations.some(needsProposal))) {
-    const redo = locations.some((l) => l.verify && !l.verify.code_ok);
+    const failing = locations.filter((l) => l.verify && !l.verify.code_ok);
+    const redo = failing.length > 0;
+    // FLF-332 (C-5): "AI đang tự sửa lần n/2" — n = lượt làm lại sắp chạy của vị trí trượt nhiều nhất
+    const attempt = Math.min(MAX_REDO_PER_LOCATION, Math.max(0, ...failing.map((l) => l.redo_count)) + 1);
     // AI đã chạy mà còn vị trí chưa kết luận (model bỏ sót) ⇒ nói rõ, cho chọn chạy lại hoặc sửa tay
     const missed = c.status === "proposing" && !redo ? locations.filter((l) => l.conclusion === null).length : 0;
     const text = redo
-      ? t("proposeRedoText")
+      ? t("proposeRedoText", { attempt, max: MAX_REDO_PER_LOCATION })
       : missed > 0 && missed < locations.length
         ? t("proposeMissedText", { count: missed })
         : t("proposeText");
     next = (
       <Step text={text}>
-        {primary(redo ? t("proposeRedoButton") : t("proposeButton"), () => after(cr.action("propose")), t("proposeBusy"))}
+        {primary(redo ? t("proposeRedoButton", { attempt, max: MAX_REDO_PER_LOCATION }) : t("proposeButton"), () => after(cr.action("propose")), redo ? t("proposeRedoBusy", { attempt, max: MAX_REDO_PER_LOCATION }) : t("proposeBusy"))}
       </Step>
     );
   } else if (c.status === "proposing" || c.status === "verifying") {

@@ -17,6 +17,7 @@ import {
   type CreditTransaction,
   type PlanDefinition,
   type PlanId,
+  requestCreditTopup,
 } from "@/lib/api/billing";
 import { emitNotificationsChanged } from "@/lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
@@ -76,6 +77,19 @@ export default function BillingPage() {
   const activeOrg = useActiveOrganization();
   const canPurchase = activeOrg === null || activeOrg.role === "lead";
   const [error, setError] = useState<string | null>(null);
+  /** FLF-332: Analyst báo Lead nạp — `sent` giữ số Lead đã được báo để nói rõ ai nhận. */
+  const [topup, setTopup] = useState<{ busy: boolean; sent: number | null }>({ busy: false, sent: null });
+  const requestTopup = async () => {
+    setTopup({ busy: true, sent: null });
+    try {
+      const res = await requestCreditTopup({});
+      setTopup({ busy: false, sent: res.data?.notified_leads ?? 0 });
+      emitNotificationsChanged();
+    } catch (err) {
+      setTopup({ busy: false, sent: null });
+      setError(userErrorMessage(err, t("topupRequestFailed")));
+    }
+  };
 
   const loadBalance = useCallback(async () => {
     const [nextBalance, firstPage] = await Promise.all([fetchBalance(), fetchTransactions(1)]);
@@ -219,9 +233,17 @@ export default function BillingPage() {
             <section className="flex flex-col gap-3">
               <h2 className="text-heading font-bold text-on-surface">{t("buyCredits")}</h2>
               {canPurchase ? null : (
-                <p role="note" className="rounded-control bg-primary-soft px-3 py-2 text-body text-on-surface-medium">
-                  {t("leadOnlyPurchase")}
-                </p>
+                <div role="note" className="rounded-control bg-primary-soft px-3 py-2 text-body text-on-surface-medium flex flex-wrap items-center gap-3">
+                  <span className="flex-1 min-w-[240px]">{t("leadOnlyPurchase")}</span>
+                  {/* FLF-332 (BR-08): báo mọi Lead của tổ chức bằng thông báo in-app; nạp xong người báo được báo lại */}
+                  {topup.sent === null ? (
+                    <Button variant="primary" size="sm" disabled={topup.busy} onClick={() => void requestTopup()}>
+                      {topup.busy ? t("topupRequesting") : t("topupRequest")}
+                    </Button>
+                  ) : (
+                    <span className="font-semibold text-on-surface">{t("topupRequested", { count: topup.sent })}</span>
+                  )}
+                </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {packages.map((pkg) => (

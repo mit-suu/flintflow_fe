@@ -40,6 +40,22 @@ export const useNotificationText = () => {
       }
       case "payment_failed":
         return { title: t("payment_failed.title"), body: t("payment_failed.body") };
+      // FLF-332 (BR-08): Analyst báo Lead nạp / Lead đã nạp
+      case "credit_topup_requested": {
+        const available = num(meta.available);
+        if (available === undefined) return stored;
+        const needed = num(meta.needed);
+        return {
+          title: t("credit_topup_requested.title"),
+          body: needed === undefined ? t("credit_topup_requested.body", { available: format.number(available) }) : t("credit_topup_requested.bodyNeeded", { available: format.number(available), needed: format.number(needed) }),
+        };
+      }
+      case "credit_topped_up": {
+        const credits = num(meta.credits);
+        const available = num(meta.available);
+        if (credits === undefined || available === undefined) return stored;
+        return { title: t("credit_topped_up.title", { credits: format.number(credits) }), body: t("credit_topped_up.body", { available: format.number(available) }) };
+      }
       case "low_credit": {
         const balance = num(meta.balance);
         if (balance === undefined) return stored;
