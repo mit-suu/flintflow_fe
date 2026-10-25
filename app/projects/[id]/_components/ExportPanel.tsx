@@ -83,7 +83,8 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
 
   // BUG-26: bản xuất báo "2 cờ đỏ" trong khi Verification panel đếm 10 — hai nguồn khác nhau. Ưu tiên
   // danh sách cờ đang mở mà panel đang dùng; chỉ rơi về phụ lục của bản đã ghép khi chưa có nó.
-  const openRedFlags = flags?.filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user).length;
+  // FLF-329: cờ đỏ đã waive (dữ liệu cũ) / giữ nguyên vẫn chặn ⇒ vẫn đếm
+  const openRedFlags = flags?.filter((f) => f.level === "red" && !f.resolved_at).length;
   const redCount = openRedFlags ?? document?.flagsAppendix?.redOpen.length ?? 0;
 
   const handleDownload = async () => {

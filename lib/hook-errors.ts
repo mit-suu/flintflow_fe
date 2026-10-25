@@ -9,6 +9,7 @@ export const HOOK_ERROR = {
   spineNotReady: "@spineNotReady",
   flagsLoadFailed: "@flagsLoadFailed",
   waiveFailed: "@waiveFailed",
+  keepFailed: "@keepFailed",
   recomputeFailed: "@recomputeFailed",
   actionFailed: "@actionFailed",
   spineLoadFailed: "@spineLoadFailed",

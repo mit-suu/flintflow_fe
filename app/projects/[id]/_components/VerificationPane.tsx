@@ -31,6 +31,8 @@ interface VerificationPaneProps {
   onConfirmAllAssumptions?: (ids: string[]) => void;
   /** Không truyền ⇒ không có nút waive (mode 1 v3). */
   onWaive?: (flagId: string, reason: string) => Promise<void>;
+  /** FLF-329: giữ nguyên + lý do cho cờ đỏ. */
+  onKeep?: (flagId: string, reason: string) => Promise<void>;
   onRecompute?: () => Promise<void> | void;
   /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
   onRedraw?: (flag: Flag) => Promise<void> | void;
@@ -60,6 +62,7 @@ export default function VerificationPane({
   onClose,
   onSelectStep,
   onWaive,
+  onKeep,
   onRecompute,
   onRedraw,
   onAssumptionDecision,
@@ -94,6 +97,7 @@ export default function VerificationPane({
             busy={flagsBusy}
             error={flagsError}
             onWaive={onWaive}
+            onKeep={onKeep}
             onRedraw={onRedraw}
             onAssumptionDecision={onAssumptionDecision}
             {...(onConfirmAllAssumptions ? { onConfirmAllAssumptions } : {})}

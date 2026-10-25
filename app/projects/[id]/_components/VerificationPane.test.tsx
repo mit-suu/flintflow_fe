@@ -28,6 +28,7 @@ const baseProps = {
   readiness,
   onClose: () => {},
   onWaive: vi.fn(),
+  onKeep: vi.fn(),
   onRecompute: vi.fn(),
 };
 
