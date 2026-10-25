@@ -6,7 +6,9 @@ import type { Flag } from "@/types/spine";
 import { useDocVersions } from "../../hooks/mode1/useDocVersions";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
 import { crListHref, gapReportHref } from "./prefill";
+import ReviewPackagePanel from "./ReviewPackagePanel";
 import VersionsPanel from "./VersionsPanel";
+import type { OrgRole } from "@/types/organization";
 
 interface Mode1WorkspaceToolsProps {
   projectId: string;
@@ -18,13 +20,15 @@ interface Mode1WorkspaceToolsProps {
   readOnly?: boolean;
   /** Release = khoá baseline mới (UC-45): chỉ Lead — Analyst không thấy mục Release (BE cũng chặn 403). */
   canRelease?: boolean;
+  /** FLF-330: vai trò trong org cho gói duyệt (Analyst gửi, Lead duyệt cả gói / yêu cầu sửa / phát hành). */
+  orgRole?: OrgRole | null;
 }
 
 /**
  * Cột công cụ của workspace mode 1 v3 (bám BPMN — plan `mode1-v3/phase-3-fe-mode1.md` 3.1): cờ đỏ + lối tạo CR, gap
  * report + change request, version & release (Flow 6). Không còn kế hoạch step / ký baseline v1 / waive.
  */
-export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false, canRelease = false }: Mode1WorkspaceToolsProps) {
+export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false, canRelease: _canRelease = false, orgRole = null }: Mode1WorkspaceToolsProps) {
   const t = useTranslations("mode1.workspaceTools");
   const docs = useDocVersions(projectId);
   const link = "px-2.5 py-1 rounded-full text-body font-bold bg-white border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7]";
@@ -50,6 +54,16 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
         )}
       </nav>
 
+      {/* FLF-330: gói duyệt kiểu pull request — gửi Lead / duyệt cả gói / yêu cầu sửa; mục Release cũ của VersionsPanel ẩn đi */}
+      <ReviewPackagePanel
+        projectId={projectId}
+        role={readOnly ? "viewer" : orgRole}
+        onChanged={() => {
+          void docs.reload();
+          onSpineChanged();
+        }}
+      />
+
       <section className="flex flex-col gap-2">
         {docs.error && <p role="alert" className="text-body text-[#B03030]">{docs.error}</p>}
         <VersionsPanel
@@ -57,7 +71,7 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
           projectName={projectName}
           versions={docs.versions}
           redOpen={docs.redOpen}
-          readOnly={readOnly || !canRelease}
+          readOnly={true}
           onReleased={() => {
             void docs.reload();
             onSpineChanged();

@@ -1901,6 +1901,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
                 onSpineChanged={() => onSpineChanged()}
                 readOnly={!canEdit}
                 canRelease={ws.orgRole === "lead"}
+                orgRole={ws.orgRole}
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
