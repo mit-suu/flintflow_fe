@@ -37,6 +37,43 @@ export interface CompareResponse {
   blocks: BlockDiffEntry[];
 }
 
+/** FLF-330 (C-7): gói duyệt — mọi CR đã ghi kể từ lần phát hành trước; bám `doc-version.dto.ts reviewPackageSchema`. */
+export type ReviewPackageStatus = "drafting" | "pending" | "changes_requested";
+
+export interface ReviewPackageCr {
+  cr_id: string;
+  title: string;
+  requester: string;
+  source: { kind: string; ref: string | null };
+  result_doc_version: string | null;
+  written_at: IsoDateTime;
+}
+
+export interface ReviewPackageSubmission {
+  status: "pending" | "rejected";
+  submitted_by: string;
+  submitted_at: IsoDateTime;
+  spine_version: number;
+  decided_by: string | null;
+  decided_at: IsoDateTime | null;
+  reason: string | null;
+  rejection_comment_ids: string[];
+}
+
+export interface ReviewPackage {
+  status: ReviewPackageStatus;
+  /** "v0" (chưa phát hành) hoặc số chính gần nhất "1.0". */
+  base_version: string | null;
+  latest_version: string | null;
+  next_version: string | null;
+  /** "1.0 · 3 thay đổi chưa duyệt" — chỉ số chính, không số phụ (business-flow §2). */
+  draft_label: string;
+  change_requests: ReviewPackageCr[];
+  red_open: number;
+  submission: ReviewPackageSubmission | null;
+  spine_version: number;
+}
+
 export interface ReleaseRequest {
   base_version: number;
 }

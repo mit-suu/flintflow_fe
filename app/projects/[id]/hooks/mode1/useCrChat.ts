@@ -369,11 +369,11 @@ export function useCrChat(projectId: string, enabled = true) {
     canRedraft: detail ? CR_REDRAFT_STATUSES.includes(detail.change_request.status) && !detail.change_request.paused : false,
     startRedraft: (locId: string) => setRedraftFor(locId),
     cancelRedraft: () => setRedraftFor(null),
-    /** 3.11: gửi cho Lead duyệt ⇒ CR `in_review`; lệnh sửa tiếp theo mở CR mới. */
+    /** C-6 (FLF-330): BA xác nhận ⇒ ghi ngay vào bản nháp (`written`); lệnh sửa tiếp theo mở CR mới. */
     submit: () =>
       void withCr(async (id) => {
         const d = await call("submit", () => runCrAction(projectId, id, "submit"));
-        if (d && d.change_request.status === "in_review") {
+        if (d && (d.change_request.status === "written" || d.change_request.status === "in_review")) {
           writeStore(storageKey(projectId, id, "accepted"), null);
           writeStore(storageKey(projectId, id, "impact"), null);
           setSent(id);

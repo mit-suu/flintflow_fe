@@ -54,6 +54,8 @@ export interface Mode1MockState {
    * (`EMBEDDING_PROVIDER=off`); bật lên trong test nào cần đường vector.
    */
   vectorEnabled: boolean;
+  /** FLF-330: gói đang chờ Lead (`pending`) hoặc vừa bị yêu cầu sửa (`rejected`) — mô phỏng `Spine.baseline_submission`. */
+  submission: { status: "pending" | "rejected"; submitted_by: string; submitted_at: string; spine_version: number; decided_by: string | null; decided_at: string | null; reason: string | null; rejection_comment_ids: string[] } | null;
 }
 
 export interface MockElement {
@@ -141,6 +143,7 @@ export const createMode1MockState = (): Mode1MockState => ({
   elements: initialElements(),
   locks: new Map(),
   vectorEnabled: false,
+  submission: null,
 });
 
 export let mode1State: Mode1MockState = createMode1MockState();
