@@ -28,6 +28,8 @@ export interface ChangeRequest {
   session_id?: string;
   /** FLF-294 (BR-03): sau baseline lượt áp là một change request — bắt buộc người yêu cầu + nguồn (400 `CR_FIELDS_REQUIRED`). */
   change_request?: ChangeRequestInfo;
+  /** FLF-271 (UC-40): lượt sửa để xử lý góp ý Lead ghim khi từ chối baseline — áp xong BE tự đóng comment `fixed`. */
+  comment_id?: string;
 }
 
 /** FLF-294: người yêu cầu + nguồn của change request sau baseline — 6 nguồn của C-1 như CR mode 1. */

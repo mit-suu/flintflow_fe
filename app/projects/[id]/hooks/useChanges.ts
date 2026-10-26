@@ -30,7 +30,8 @@ export interface UseChangesResult {
    * Xác nhận `preview` đang hiển thị — tự chọn `applyChanges` hay `reconcile` theo nguồn gốc.
    * `reason` + `changeRequest` bắt buộc khi `preview.branch === "post_baseline"` (BE trả 400 nếu thiếu — FLF-294).
    */
-  confirmPreview: (reason?: string, changeRequest?: ChangeRequestInfo) => Promise<void>;
+  /** `commentId` (FLF-271): lượt sửa theo góp ý Lead ghim — BE tự đóng comment `fixed` sau khi áp. */
+  confirmPreview: (reason?: string, changeRequest?: ChangeRequestInfo, commentId?: string | null) => Promise<void>;
   cancelPreview: () => void;
   /** Nhận bản xem trước BE đã dựng từ tin chat thường (tin bị nhận là lệnh sửa) — để thẻ sửa có nút Áp dụng. */
   adoptPreview: (preview: PreviewResult, instruction: string) => void;
@@ -138,7 +139,7 @@ export function useChanges(
   }, [projectId, getBaseVersion, onApplied]);
 
   const confirmPreview = useCallback(
-    async (reason?: string, changeRequest?: ChangeRequestInfo) => {
+    async (reason?: string, changeRequest?: ChangeRequestInfo, commentId?: string | null) => {
       const baseVersion = getBaseVersion();
       if (baseVersion === null || !preview?.preview_id || !previewSource) return;
       setApplying(true);
@@ -156,6 +157,8 @@ export function useChanges(
                 ...(reason?.trim() ? { reason: reason.trim() } : {}),
                 // FLF-294: sau baseline lượt áp là một change request (người yêu cầu + nguồn)
                 ...(changeRequest ? { change_request: changeRequest } : {}),
+                // FLF-271: sửa theo góp ý ⇒ BE đóng comment `fixed` khi có thay đổi thật
+                ...(commentId ? { comment_id: commentId } : {}),
               })
             : await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
         if (res.data && !isPreviewResult(res.data)) {
