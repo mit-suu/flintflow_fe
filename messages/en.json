@@ -171,12 +171,12 @@
       "title": "Start from whatever you already have.",
       "items": {
         "fpt": {
-          "title": "New, on the FPT template",
-          "body": "You only have an idea and a few notes. FlintFlow takes you from the Brief to a full SRS on the FPT template.",
+          "title": "New, on the FlintFlow standard template",
+          "body": "You only have an idea and a few notes. FlintFlow takes you from the Brief to a full SRS on the FlintFlow standard template.",
           "tags": {
             "brief": "Brief",
             "phases": "12 phases",
-            "template": "FPT template"
+            "template": "FlintFlow standard template"
           }
         },
         "client": {
@@ -642,14 +642,14 @@
         "description": "You have a .docx — FlintFlow finds the gaps and helps you fix them"
       },
       "customerTemplate": {
-        "label": "Client template",
-        "shortLabel": "Client template",
-        "description": "Upload the client's template and write a new SRS on it"
+        "label": "Customer's required template",
+        "shortLabel": "Required template",
+        "description": "Upload the customer's template and write a new SRS on it"
       },
       "fpt": {
-        "label": "No template yet",
+        "label": "New project on the FlintFlow standard template",
         "shortLabel": "FlintFlow template",
-        "description": "Use the FlintFlow SRS template, starting from your idea or notes"
+        "description": "Use the FlintFlow standard SRS template, starting from an idea / notes"
       }
     },
     "projectCard": {
@@ -713,7 +713,8 @@
       "submitting": "Creating…",
       "submit": "Start",
       "missingProject": "The new project was not returned",
-      "failed": "Could not create the project"
+      "failed": "Could not create the project",
+      "answerTemplate": "Tell us whether the customer requires a template to continue."
     },
     "projectDialogs": {
       "archive": {
@@ -1022,6 +1023,26 @@
         },
         "soleLeadHint": "You are the only Lead — make another member a Lead before you leave.",
         "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
+      }
+    },
+    "projectStart": {
+      "groupLabel": "Where are you starting from?",
+      "new": {
+        "label": "New project",
+        "description": "No SRS yet. FlintFlow takes you from the idea to a complete SRS on the FlintFlow standard template — or on a template the customer requires."
+      },
+      "existing": {
+        "label": "Existing project",
+        "description": "You already have an SRS file in use (.docx). FlintFlow reads it, finds the gaps, helps complete it and tracks edits as change requests.",
+        "hint": "When you upload the file, FlintFlow asks whether it follows a fixed template or a free structure, then picks the right way of working."
+      },
+      "requiredTemplate": {
+        "question": "Does the customer require a specific template?",
+        "yes": "Yes",
+        "no": "No",
+        "hint": "Pick one to continue.",
+        "yesHint": "You will upload the template file (blank or partly filled); FlintFlow drafts only the sections the template has, in its order.",
+        "noHint": "Drafted on the FlintFlow standard template, starting from an idea / notes."
       }
     }
   },
@@ -1358,7 +1379,7 @@
       "incompleteShort": "Not complete yet",
       "emptyRunStep": "No content yet — run step {stepId} · {label}",
       "openStep": "Open step",
-      "customTitle": "Section outside the FPT template — kept verbatim from the uploaded file, edit via chat",
+      "customTitle": "Section outside the FlintFlow standard template — kept verbatim from the uploaded file, edit via chat",
       "custom": "Custom section",
       "issuesTitle": "See this section's issues",
       "issuesAria": "See {count, plural, one {# issue} other {# issues}} in this section",
@@ -3557,8 +3578,8 @@
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
       "uploadFixed": "Upload the corrected file",
-      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements\u2026). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
-      "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FPT template sections are added. The original file can always be downloaded again.",
+      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements…). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
+      "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FlintFlow standard template sections are added. The original file can always be downloaded again.",
       "parsing": "Splitting the document into blocks…",
       "reload": "Reload",
       "baseline": {
@@ -3580,14 +3601,27 @@
         "openDocument": "Open document & versions"
       },
       "languageVi": "Vietnamese",
-      "languageEn": "English"
+      "languageEn": "English",
+      "intent": {
+        "question": "Which structure does this file follow?",
+        "free": {
+          "label": "Free structure",
+          "description": "No particular template. FlintFlow compares it with the FlintFlow standard template: complete ⇒ edit via change requests, incomplete ⇒ fill the gaps and reorder."
+        },
+        "fixed": {
+          "label": "A fixed template",
+          "description": "The customer's or your company's template. FlintFlow drafts only the sections the template has, adds nothing and keeps the order."
+        }
+      },
+      "uploadTemplate": "Upload the required template (.docx, blank or partly filled)",
+      "uploadTemplateHint": "The Word .docx template the customer requires. FlintFlow reads its structure, drafts only the sections it has and keeps their order."
     },
     "mappingReview": {
       "title": "Confirm heading → section mapping",
       "summary": "{headings} headings, {low} rows with confidence below {threshold}. “Unmatched” headings are kept verbatim and no fields are extracted from them.",
       "provisionalHint": "“New feature” / “New function”: features and functions taken from the file's own headings (shown after the “—”); feature and function codes are assigned after the import finishes.",
-      "family": "Detected: <strong>{family, select, ieee830 {IEEE 830 template} ieee_features {IEEE template (System Features style)} other {FPT template}}</strong>",
-      "familyNote": "each section is extracted into the matching FPT section; the document keeps the file's own layout.",
+      "family": "Detected: <strong>{family, select, ieee830 {IEEE 830 template} ieee_features {IEEE template (System Features style)} other {FlintFlow standard template}}</strong>",
+      "familyNote": "each section is extracted into the matching section of the FlintFlow standard template; the document keeps the file's own layout.",
       "lowOnly": "Show low-confidence rows only",
       "colHeading": "Heading in the document",
       "colConfidence": "Confidence",
@@ -3648,34 +3682,34 @@
       "importSrs": "Import SRS"
     },
     "reviewPackage": {
-          "aria": "Change package awaiting review",
-          "title": "Change package",
-          "status": {
-                "drafting": "Drafting",
-                "pending": "Awaiting Lead review",
-                "changes_requested": "Lead requested changes"
-          },
-          "loading": "Loading change package…",
-          "loadFailed": "Could not load the change package",
-          "actionFailed": "The action did not succeed",
-          "lockedNote": "The package is awaiting the Lead — the draft is locked: no new change request can be created or confirmed until the Lead approves the whole package or requests changes.",
-          "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
-          "listAria": "Change requests in the package",
-          "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
-          "blockedEmpty": "No change request to submit yet.",
-          "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open — resolve via change requests before submitting to the Lead.",
-          "submit": "Submit whole package to Lead",
-          "resubmit": "Resubmit to Lead",
-          "sending": "Sending…",
-          "approveAll": "Approve all & release",
-          "requestChanges": "Request changes",
-          "releaseDirect": "Release directly (Lead)",
-          "reasonLabel": "Reason for requesting changes (at least {min} characters) — the BA will read this",
-          "cancel": "Cancel",
-          "confirmChanges": "Send change request",
-          "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable — if something is wrong, release a new version.",
-          "releasing": "Releasing…",
-          "confirmRelease": "Confirm release"
+      "aria": "Change package awaiting review",
+      "title": "Change package",
+      "status": {
+        "drafting": "Drafting",
+        "pending": "Awaiting Lead review",
+        "changes_requested": "Lead requested changes"
+      },
+      "loading": "Loading change package…",
+      "loadFailed": "Could not load the change package",
+      "actionFailed": "The action did not succeed",
+      "lockedNote": "The package is awaiting the Lead — the draft is locked: no new change request can be created or confirmed until the Lead approves the whole package or requests changes.",
+      "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
+      "listAria": "Change requests in the package",
+      "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
+      "blockedEmpty": "No change request to submit yet.",
+      "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open — resolve via change requests before submitting to the Lead.",
+      "submit": "Submit whole package to Lead",
+      "resubmit": "Resubmit to Lead",
+      "sending": "Sending…",
+      "approveAll": "Approve all & release",
+      "requestChanges": "Request changes",
+      "releaseDirect": "Release directly (Lead)",
+      "reasonLabel": "Reason for requesting changes (at least {min} characters) — the BA will read this",
+      "cancel": "Cancel",
+      "confirmChanges": "Send change request",
+      "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable — if something is wrong, release a new version.",
+      "releasing": "Releasing…",
+      "confirmRelease": "Confirm release"
     },
     "creditEstimate": {
       "none": "Estimate: no AI runs needed — the rest is extracted deterministically at no credit cost.",

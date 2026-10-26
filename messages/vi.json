@@ -171,12 +171,12 @@
       "title": "Bắt đầu từ chỗ bạn đang có.",
       "items": {
         "fpt": {
-          "title": "Tạo mới theo mẫu FPT",
-          "body": "Bạn chỉ có ý tưởng và vài ghi chú. FlintFlow dẫn bạn từ Brief đến bản SRS đầy đủ theo mẫu FPT.",
+          "title": "Tạo mới theo mẫu chuẩn FlintFlow",
+          "body": "Bạn chỉ có ý tưởng và vài ghi chú. FlintFlow dẫn bạn từ Brief đến bản SRS đầy đủ theo mẫu chuẩn FlintFlow.",
           "tags": {
             "brief": "Brief",
             "phases": "12 giai đoạn",
-            "template": "Mẫu FPT"
+            "template": "Mẫu chuẩn FlintFlow"
           }
         },
         "client": {
@@ -642,14 +642,14 @@
         "description": "Có file .docx — FlintFlow kiểm tra lỗ hổng và giúp sửa"
       },
       "customerTemplate": {
-        "label": "Có template của khách",
-        "shortLabel": "Template khách",
-        "description": "Upload mẫu của khách, viết SRS mới theo mẫu đó"
+        "label": "Mẫu bắt buộc của khách",
+        "shortLabel": "Mẫu bắt buộc",
+        "description": "Tải mẫu của khách, viết SRS mới theo mẫu đó"
       },
       "fpt": {
-        "label": "Chưa có template",
-        "shortLabel": "Template FlintFlow",
-        "description": "Dùng template SRS của FlintFlow, bắt đầu từ ý tưởng / ghi chú"
+        "label": "Dự án mới theo mẫu chuẩn FlintFlow",
+        "shortLabel": "Mẫu chuẩn FlintFlow",
+        "description": "Dùng mẫu SRS chuẩn FlintFlow, bắt đầu từ ý tưởng / ghi chú"
       }
     },
     "projectCard": {
@@ -713,7 +713,8 @@
       "submitting": "Đang tạo…",
       "submit": "Bắt đầu",
       "missingProject": "Không nhận được dự án vừa tạo",
-      "failed": "Không thể tạo dự án"
+      "failed": "Không thể tạo dự án",
+      "answerTemplate": "Cho biết khách có bắt buộc theo mẫu không để tiếp tục."
     },
     "projectDialogs": {
       "archive": {
@@ -1022,6 +1023,26 @@
         },
         "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
         "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
+      }
+    },
+    "projectStart": {
+      "groupLabel": "Bạn bắt đầu từ đâu?",
+      "new": {
+        "label": "Dự án mới",
+        "description": "Chưa có SRS. FlintFlow dẫn từ ý tưởng tới bản SRS đầy đủ theo mẫu chuẩn FlintFlow — hoặc theo mẫu khách bắt buộc."
+      },
+      "existing": {
+        "label": "Dự án có sẵn",
+        "description": "Đã có file SRS đang dùng (.docx). FlintFlow đọc file, tìm chỗ thiếu và giúp hoàn thiện, sửa qua change request.",
+        "hint": "Khi tải file lên, FlintFlow hỏi file theo một mẫu cố định hay cấu trúc tự do rồi tự chọn cách làm phù hợp."
+      },
+      "requiredTemplate": {
+        "question": "Khách có bắt buộc theo một mẫu không?",
+        "yes": "Có",
+        "no": "Không",
+        "hint": "Chọn một trong hai để tiếp tục.",
+        "yesHint": "Bạn sẽ tải file mẫu (trống hoặc điền dở) lên; FlintFlow chỉ soạn những mục mẫu có, giữ nguyên thứ tự.",
+        "noHint": "Soạn theo mẫu chuẩn FlintFlow, bắt đầu từ ý tưởng / ghi chú."
       }
     }
   },
@@ -1358,7 +1379,7 @@
       "incompleteShort": "Chưa hoàn thiện",
       "emptyRunStep": "Chưa có nội dung — chạy step {stepId} · {label}",
       "openStep": "Mở step",
-      "customTitle": "Mục ngoài mẫu FPT — giữ nguyên văn từ file upload, sửa qua chat",
+      "customTitle": "Mục ngoài mẫu chuẩn FlintFlow — giữ nguyên văn từ file upload, sửa qua chat",
       "custom": "Mục riêng",
       "issuesTitle": "Xem vấn đề của mục này",
       "issuesAria": "Xem {count} vấn đề của mục này",
@@ -3558,7 +3579,7 @@
       "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
       "uploadFixed": "Tải lên file đã sửa",
       "unknownKindNote": "FlintFlow chưa chắc file này là SRS: ít đầu mục quen thuộc (Use Case, Requirements…). Vẫn đọc được, nhưng hãy xem kỹ kết quả đọc file ở bước xác nhận trước khi đi tiếp.",
-      "formatNote": "FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu FPT còn thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.",
+      "formatNote": "FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu chuẩn FlintFlow còn thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.",
       "parsing": "Đang tách tài liệu thành block…",
       "reload": "Tải lại",
       "baseline": {
@@ -3580,14 +3601,27 @@
         "openDocument": "Mở tài liệu & version"
       },
       "languageVi": "Tiếng Việt",
-      "languageEn": "Tiếng Anh"
+      "languageEn": "Tiếng Anh",
+      "intent": {
+        "question": "File này theo cấu trúc nào?",
+        "free": {
+          "label": "Cấu trúc tự do",
+          "description": "Không theo mẫu nào cụ thể. FlintFlow so với mẫu chuẩn FlintFlow: đủ thì sửa qua change request, thiếu thì bổ sung và sắp lại bố cục."
+        },
+        "fixed": {
+          "label": "Theo một mẫu cố định",
+          "description": "Mẫu của khách hoặc của công ty. FlintFlow chỉ soạn những mục mẫu có, không thêm mục, không đổi thứ tự."
+        }
+      },
+      "uploadTemplate": "Tải lên mẫu bắt buộc (.docx, trống hoặc điền dở)",
+      "uploadTemplateHint": "File Word .docx của mẫu khách yêu cầu. FlintFlow đọc cấu trúc mẫu, chỉ soạn những mục mẫu có và giữ nguyên thứ tự."
     },
     "mappingReview": {
       "title": "Xác nhận mapping heading → section",
       "summary": "{headings} heading, {low} dòng độ tin dưới {threshold}. Heading “không khớp” được giữ nguyên văn và không trích field.",
       "provisionalHint": "“Tính năng mới” / “Chức năng mới”: tính năng, chức năng lấy từ chính tiêu đề trong file (ghi kèm sau dấu “—”); mã tính năng, chức năng được cấp sau khi nhập xong.",
-      "family": "Nhận dạng: <strong>{family, select, ieee830 {mẫu IEEE 830} ieee_features {mẫu IEEE (dạng System Features)} other {mẫu FPT}}</strong>",
-      "familyNote": "mỗi mục được trích vào mục FPT tương ứng; tài liệu vẫn giữ đúng bố cục của file.",
+      "family": "Nhận dạng: <strong>{family, select, ieee830 {mẫu IEEE 830} ieee_features {mẫu IEEE (dạng System Features)} other {mẫu chuẩn FlintFlow}}</strong>",
+      "familyNote": "mỗi mục được trích vào mục tương ứng của mẫu chuẩn FlintFlow; tài liệu vẫn giữ đúng bố cục của file.",
       "lowOnly": "Chỉ hiện dòng độ tin thấp",
       "colHeading": "Heading trong tài liệu",
       "colConfidence": "Độ tin",
@@ -3648,34 +3682,34 @@
       "importSrs": "Nhập SRS"
     },
     "reviewPackage": {
-          "aria": "Gói thay đổi chờ duyệt",
-          "title": "Gói thay đổi",
-          "status": {
-                "drafting": "Đang soạn",
-                "pending": "Chờ Lead duyệt",
-                "changes_requested": "Lead yêu cầu sửa"
-          },
-          "loading": "Đang tải gói thay đổi…",
-          "loadFailed": "Không tải được gói thay đổi",
-          "actionFailed": "Thao tác không thành công",
-          "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
-          "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
-          "listAria": "Change request trong gói",
-          "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
-          "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
-          "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
-          "submit": "Gửi Lead duyệt cả gói",
-          "resubmit": "Gửi lại cho Lead",
-          "sending": "Đang gửi…",
-          "approveAll": "Duyệt cả gói & phát hành",
-          "requestChanges": "Yêu cầu sửa",
-          "releaseDirect": "Phát hành thẳng (Lead)",
-          "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
-          "cancel": "Huỷ",
-          "confirmChanges": "Gửi yêu cầu sửa",
-          "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
-          "releasing": "Đang phát hành…",
-          "confirmRelease": "Xác nhận phát hành"
+      "aria": "Gói thay đổi chờ duyệt",
+      "title": "Gói thay đổi",
+      "status": {
+        "drafting": "Đang soạn",
+        "pending": "Chờ Lead duyệt",
+        "changes_requested": "Lead yêu cầu sửa"
+      },
+      "loading": "Đang tải gói thay đổi…",
+      "loadFailed": "Không tải được gói thay đổi",
+      "actionFailed": "Thao tác không thành công",
+      "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
+      "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
+      "listAria": "Change request trong gói",
+      "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
+      "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
+      "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
+      "submit": "Gửi Lead duyệt cả gói",
+      "resubmit": "Gửi lại cho Lead",
+      "sending": "Đang gửi…",
+      "approveAll": "Duyệt cả gói & phát hành",
+      "requestChanges": "Yêu cầu sửa",
+      "releaseDirect": "Phát hành thẳng (Lead)",
+      "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
+      "cancel": "Huỷ",
+      "confirmChanges": "Gửi yêu cầu sửa",
+      "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
+      "releasing": "Đang phát hành…",
+      "confirmRelease": "Xác nhận phát hành"
     },
     "creditEstimate": {
       "none": "Ước tính: không cần lượt AI nào — phần còn lại trích tất định, không tốn credit.",
