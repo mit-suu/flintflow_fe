@@ -3537,6 +3537,7 @@
       "closeError": "Đóng thông báo lỗi",
       "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
       "uploadFixed": "Tải lên file đã sửa",
+      "unknownKindNote": "FlintFlow chưa chắc file này là SRS: ít đầu mục quen thuộc (Use Case, Requirements…). Vẫn đọc được, nhưng hãy xem kỹ kết quả đọc file ở bước xác nhận trước khi đi tiếp.",
       "formatNote": "FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu FPT còn thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.",
       "parsing": "Đang tách tài liệu thành block…",
       "reload": "Tải lại",
@@ -3655,7 +3656,8 @@
         "FILE_TOO_LARGE": "File quá lớn",
         "EMPTY_DOCUMENT": "Tài liệu rỗng",
         "FOREIGN_TRACK_CHANGE": "Track Changes chưa xử lý",
-        "FOREIGN_COMMENT": "Comment chưa xử lý"
+        "FOREIGN_COMMENT": "Comment chưa xử lý",
+        "NOT_SRS": "Không phải tài liệu yêu cầu (SRS)"
       },
       "otherIssue": "Vấn đề khác",
       "location": "Vị trí: đoạn thứ {ord} — “{text}”",
@@ -3665,7 +3667,8 @@
         "FILE_ENCRYPTED": "Bỏ mật khẩu (File → Info → Protect Document) rồi lưu lại.",
         "FOREIGN_TRACK_CHANGE": "Vào Review → Accept/Reject tất cả thay đổi rồi lưu lại.",
         "FOREIGN_COMMENT": "Vào Review → Delete All Comments (hoặc xử lý từng comment) rồi lưu lại.",
-        "FILE_TOO_LARGE": "Nén ảnh (File → Compress Pictures) hoặc tách phụ lục."
+        "FILE_TOO_LARGE": "Nén ảnh (File → Compress Pictures) hoặc tách phụ lục.",
+        "NOT_SRS": "Luồng này chỉ nhận SRS hoặc mẫu SRS (.docx). Nếu đây là biên bản họp, email hay ghi chú, hãy đính kèm trong chat làm tài liệu tham khảo; nếu đúng là SRS, kiểm tra file có các mục Use Case / Requirements rồi tải lại."
       }
     },
     "reupload": {

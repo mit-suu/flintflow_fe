@@ -3537,6 +3537,7 @@
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
       "uploadFixed": "Upload the corrected file",
+      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements\u2026). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
       "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FPT template sections are added. The original file can always be downloaded again.",
       "parsing": "Splitting the document into blocks…",
       "reload": "Reload",
@@ -3655,7 +3656,8 @@
         "FILE_TOO_LARGE": "File too large",
         "EMPTY_DOCUMENT": "Empty document",
         "FOREIGN_TRACK_CHANGE": "Unresolved Track Changes",
-        "FOREIGN_COMMENT": "Unresolved comments"
+        "FOREIGN_COMMENT": "Unresolved comments",
+        "NOT_SRS": "Not a requirements document (SRS)"
       },
       "otherIssue": "Other issue",
       "location": "Location: paragraph {ord} — “{text}”",
@@ -3665,7 +3667,8 @@
         "FILE_ENCRYPTED": "Remove the password (File → Info → Protect Document), then save.",
         "FOREIGN_TRACK_CHANGE": "Go to Review → Accept/Reject all changes, then save.",
         "FOREIGN_COMMENT": "Go to Review → Delete All Comments (or resolve each comment), then save.",
-        "FILE_TOO_LARGE": "Compress the images (File → Compress Pictures) or split off appendices."
+        "FILE_TOO_LARGE": "Compress the images (File → Compress Pictures) or split off appendices.",
+        "NOT_SRS": "This flow only accepts an SRS or an SRS template (.docx). If this is meeting minutes, an email or notes, attach it in chat as a reference document; if it really is an SRS, make sure it has Use Case / Requirements sections, then upload again."
       }
     },
     "reupload": {
