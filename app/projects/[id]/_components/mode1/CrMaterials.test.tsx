@@ -104,7 +104,7 @@ describe("CrWorkspace — tài liệu, câu trả lời trống, giả định",
     await waitFor(() => expect(S().crs.get("CR-001")!.change_request.materials).toHaveLength(0));
   });
 
-  it("3.3 để trống + đính kèm file ⇒ đi tiếp kèm dữ kiện thiếu ⇒ đề xuất và nhóm duyệt hiện giả định", async () => {
+  it("3.3 để trống + đính kèm file ⇒ đi tiếp kèm dữ kiện thiếu ⇒ đề xuất và vị trí đã ghi hiện giả định", async () => {
     const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
@@ -128,9 +128,11 @@ describe("CrWorkspace — tài liệu, câu trả lời trống, giả định",
     expect((await screen.findAllByLabelText("Giả định cần xác nhận"))[0]).toHaveTextContent("Giả định: Thay đổi áp cho cả ứng dụng mobile không?");
 
     await click("Kiểm đề xuất");
-    await click("Nộp để duyệt");
-    expect(await screen.findByText(/Nhóm này có 2 giả định AI tự đặt/)).toBeInTheDocument();
-  });
+    // FLF-330: BA xác nhận là ghi ngay vào bản nháp; không còn bước duyệt nhóm; vị trí đã ghi vẫn hiện giả định
+    await click("Xác nhận & ghi vào bản nháp");
+    await waitFor(() => expect(S().crs.get("CR-001")!.change_request.status).toBe("written"));
+    expect((await screen.findAllByLabelText("Giả định cần xác nhận"))[0]).toHaveTextContent("Giả định: Thay đổi áp cho cả ứng dụng mobile không?");
+  }, 30_000);
 
   it("câu hỏi như mode tạo SRS: từng câu, gợi ý AI hoặc tự nhập, câu chưa biết bỏ qua ⇒ gửi theo đúng từng câu", async () => {
     const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");

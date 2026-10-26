@@ -6,7 +6,6 @@ import { resetMockState } from "@/mocks/state";
 import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
 import { crToReview, importToGapReview } from "@/mocks/mode1/flows";
-import { decideGroup } from "@/lib/api/change-requests";
 import { listVersions } from "@/lib/api/versions";
 import GapReportView, { gapReportPrefill } from "./GapReportView";
 import ReuploadDiffView from "./ReuploadDiffView";
@@ -33,11 +32,10 @@ beforeEach(() => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-/** Import xong + một CR ghi vào tài liệu ⇒ có 0.1 và 0.1. */
+/** Import xong + một CR ghi vào tài liệu ⇒ có 0.1 và 0.2 (FLF-330: BA xác nhận là ghi ngay). */
 const withRevision = async () => {
   await importToGapReview();
-  const detail = await crToReview();
-  await decideGroup(P, detail.change_request.cr_id, detail.groups[0].group_id, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: mode1State.mode1State.spineVersion });
+  await crToReview();
   return (await listVersions(P)).data!;
 };
 

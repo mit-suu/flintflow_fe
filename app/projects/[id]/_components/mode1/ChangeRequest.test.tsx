@@ -99,9 +99,11 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
   });
 
-  it("từ chối group cần lý do ≥ 10 ký tự; mọi group bị từ chối ⇒ đóng CR có lý do", async () => {
+  it("CR cũ in_review (nộp trước FLF-330): từ chối group cần lý do ≥ 10 ký tự; mọi group bị từ chối ⇒ đóng CR có lý do", async () => {
     const { change_request } = await newCr();
-    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
+    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify"]);
+    // FLF-330: xác nhận là ghi ngay ⇒ trạng thái in_review chỉ còn ở CR nộp theo luồng cũ
+    S().crs.get(change_request.cr_id)!.change_request.status = "in_review";
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Từ chối");
@@ -120,8 +122,9 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
 
   it("in_review mà không có nhóm nào để duyệt ⇒ vẫn có lối ra: Đóng CR / Sửa lại CR", async () => {
     const { change_request } = await newCr();
-    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
+    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify"]);
     // CR nộp trước khi BE chặn (mọi vị trí "không liên quan"): in_review nhưng 0 nhóm
+    S().crs.get(change_request.cr_id)!.change_request.status = "in_review";
     S().crs.get(change_request.cr_id)!.groups = [];
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
