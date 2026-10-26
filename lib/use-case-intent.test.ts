@@ -9,6 +9,11 @@ describe("editUseCaseIntent (FLF-318) — cùng luật BE", () => {
     expect(editUseCaseIntent("bổ sung use case xem trạng thái")).toBe("add");
     expect(editUseCaseIntent("Thêm yêu cầu hiệu năng cho màn tra cứu")).toBeNull();
     expect(editUseCaseIntent("xoá màn Login")).toBeNull();
+    // sửa use case (luật 3h): động từ sửa đứng trước thắng
+    expect(editUseCaseIntent("sửa UC phúc khảo điểm: thêm bước phòng đào tạo duyệt")).toBe("edit");
+    expect(editUseCaseIntent("đổi actor của use case Request Grade Review sang Lecturer")).toBe("edit");
+    expect(editUseCaseIntent("rename use case UC26 to Submit Grade Appeal")).toBe("edit");
+    expect(editUseCaseIntent("thêm use case X, sửa màn Y")).toBe("add");
   });
 });
 
