@@ -1997,6 +1997,7 @@
     },
     "page": {
       "loading": "Đang tải không gian làm việc SRS",
+      "convertedNotice": "Baseline đã chốt — dự án chuyển sang chế độ quản lý thay đổi, mọi chỉnh sửa đi qua Change Request",
       "redrawNotFound": "Không tìm thấy sơ đồ này — tải lại trang rồi thử lại.",
       "redrawFailed": "Không vẽ lại được sơ đồ",
       "turnNeedsInput": "AI đang chờ bạn trả lời",
@@ -2783,6 +2784,8 @@
       "sentText": "✅ <strong>{crId}</strong> đã ghi vào bản nháp chung (Track Changes, tác giả là mã CR). Xem lại ở <link>trang change request</link>; muốn phát hành thì gửi Lead duyệt cả gói ở mục Gói thay đổi.",
       "sentNext": "Gõ lệnh sửa mới để mở change request khác.",
       "guideLabel": "Hướng dẫn sửa tài liệu",
+      "fromPreviewLabel": "Tạo change request từ bản xem trước",
+      "fromPreview": "Change request sẽ mang đúng các thay đổi bạn vừa xem trước. Chọn nguồn và người yêu cầu để tạo; tài liệu chỉ đổi khi Lead duyệt.",
       "guide": "Gõ yêu cầu sửa tài liệu bên dưới, vd <em>“Thêm yêu cầu hiệu năng cho màn tra cứu”</em>. AI dẫn bạn từng bước: hỏi lại chỗ còn thiếu, chỉ ra phần liên quan, đề xuất sửa để bạn đồng ý — rồi gửi cho Lead duyệt.",
       "crAria": "Change request {crId} trong chat",
       "openCr": "Mở trang CR",
@@ -3236,7 +3239,8 @@
       "versionKind": {
         "imported": "Bản import",
         "cr_revision": "Bản nháp sau CR",
-        "release": "Bản release"
+        "release": "Bản release",
+        "signed_baseline": "Bản baseline đã ký"
       },
       "blockKind": {
         "heading": "Tiêu đề",

@@ -380,6 +380,11 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
         {chat.pending && (
           <>
             <UserBubble>{chat.pending}</UserBubble>
+            {chat.pendingFromPreview && (
+              <AiBubble label={t("fromPreviewLabel")}>
+                <p>{t("fromPreview")}</p>
+              </AiBubble>
+            )}
             <RequesterCard me={me} busy={busy} onStart={(s) => void chat.startCr(s)} onCancel={chat.cancelPending} />
           </>
         )}

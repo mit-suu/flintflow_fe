@@ -1997,6 +1997,7 @@
     },
     "page": {
       "loading": "Loading the SRS workspace",
+      "convertedNotice": "Baseline signed — the project switched to change management; every edit now goes through a Change Request",
       "redrawNotFound": "This diagram was not found — reload the page and try again.",
       "redrawFailed": "Could not redraw the diagram",
       "turnNeedsInput": "The AI is waiting for your answer",
@@ -2783,6 +2784,8 @@
       "sentText": "✅ <strong>{crId}</strong> has been written to the shared draft (Track Changes authored by the CR id). Review it on the <link>change request page</link>; to release, submit the whole package to the Lead under Change package.",
       "sentNext": "Type a new edit to open another change request.",
       "guideLabel": "How to edit the document",
+      "fromPreviewLabel": "Create a change request from the preview",
+      "fromPreview": "The change request will carry exactly the changes you just previewed. Pick the source and requester to create it; the document changes only after the Lead approves.",
       "guide": "Type an edit request below, e.g. <em>“Add a performance requirement for the search screen”</em>. AI walks you through it step by step: asks about anything missing, points out the related parts, proposes edits for you to accept — then sends them to the Lead for review.",
       "crAria": "Change request {crId} in chat",
       "openCr": "Open CR page",
@@ -3236,7 +3239,8 @@
       "versionKind": {
         "imported": "Imported version",
         "cr_revision": "Draft after CR",
-        "release": "Release version"
+        "release": "Release version",
+        "signed_baseline": "Signed baseline"
       },
       "blockKind": {
         "heading": "Heading",

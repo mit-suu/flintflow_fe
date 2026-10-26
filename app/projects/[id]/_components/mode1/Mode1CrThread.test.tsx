@@ -210,3 +210,39 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     expect(cr().status).toBe("ready_to_submit");
   });
 });
+
+const PREVIEW_DESCRIPTION = ["thêm UC phúc khảo điểm", "", "Trả lời làm rõ:", "- Màn hình riêng"].join("\n");
+
+/** FLF-318: lệnh thêm / xoá use case đi vòng hỏi đáp + bản xem trước như trước baseline rồi mới tạo CR kèm bản xem trước. */
+function PreviewHarness() {
+  const chat = useCrChat(P);
+  return (
+    <>
+      <Mode1CrThread projectId={P} chat={chat} me="Lan" />
+      <button
+        type="button"
+        onClick={() => chat.startFromPreview("thêm UC phúc khảo điểm", PREVIEW_DESCRIPTION, "pv-1")}
+      >
+        Tạo CR từ bản xem trước
+      </button>
+    </>
+  );
+}
+
+describe("Mode1CrThread — CR từ bản xem trước (FLF-318)", () => {
+  it("Tạo change request từ bản xem trước ⇒ thẻ nói rõ CR mang đúng thay đổi đã xem; chọn người yêu cầu ⇒ CR kèm preview_id + đoạn hỏi đáp", async () => {
+    renderWithIntl(<PreviewHarness />);
+    await click("Tạo CR từ bản xem trước");
+    expect(await screen.findByLabelText("Tạo change request từ bản xem trước")).toBeInTheDocument();
+    expect(screen.getByText("thêm UC phúc khảo điểm")).toBeInTheDocument();
+
+    await click("Lan · yêu cầu miệng");
+    await waitFor(() => expect(S().crs.get("CR-001")).toBeDefined());
+    const created = cr();
+    expect(created.title).toBe("thêm UC phúc khảo điểm");
+    expect(created.description).toBe(PREVIEW_DESCRIPTION);
+    expect(created.seed).not.toBeNull();
+    expect(created.source.note).toBe("Tạo từ bản xem trước trong khung chat");
+  });
+});
+
