@@ -1979,7 +1979,8 @@
       "acceptAsIs": "Duyệt như hiện tại: {note}",
       "acceptAsIsEmpty": "Duyệt như hiện tại:",
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
-      "editSection": "Trong {label}: "
+      "editSection": "Trong {label}: ",
+      "fixComment": "Trong {label}, sửa theo góp ý: {text}"
     },
     "aiSettings": {
       "aria": "Cách AI làm việc với bạn — {mode}",
@@ -2165,7 +2166,10 @@
         "clearFocus": "Đang lọc theo chỗ ghim — xem tất cả comment",
         "emptyOpen": "Không có comment nào đang mở.",
         "emptyClosed": "Chưa có comment nào được xử lý hay chuyển thành CR."
-      }
+      },
+      "fixByChat": "Nhờ AI sửa",
+      "fixByChatTitle": "Mở ô chat sửa với nội dung góp ý điền sẵn; áp xong góp ý tự thành Đã sửa",
+      "ownerStep": "Thuộc bước {steps} — xử lý “đã sửa” sẽ mở lại bước này"
     },
     "decisions": {
       "topic": {
@@ -2227,7 +2231,8 @@
         "reopenNote": "Khi Analyst xử lý một góp ý, bước đã duyệt sở hữu mục đó sẽ mở lại để soạn theo góp ý.",
         "cancel": "Huỷ",
         "reject": "Từ chối"
-      }
+      },
+      "resubmitBlockedComments": "{count, plural, =1 {Còn 1 góp ý} other {Còn # góp ý}} chưa có kết luận — nhờ AI sửa hoặc giữ nguyên + lý do rồi gửi lại."
     },
     "projectRecord": {
       "tabsLabel": "Hồ sơ dự án",
@@ -3648,34 +3653,34 @@
       "importSrs": "Nhập SRS"
     },
     "reviewPackage": {
-          "aria": "Gói thay đổi chờ duyệt",
-          "title": "Gói thay đổi",
-          "status": {
-                "drafting": "Đang soạn",
-                "pending": "Chờ Lead duyệt",
-                "changes_requested": "Lead yêu cầu sửa"
-          },
-          "loading": "Đang tải gói thay đổi…",
-          "loadFailed": "Không tải được gói thay đổi",
-          "actionFailed": "Thao tác không thành công",
-          "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
-          "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
-          "listAria": "Change request trong gói",
-          "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
-          "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
-          "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
-          "submit": "Gửi Lead duyệt cả gói",
-          "resubmit": "Gửi lại cho Lead",
-          "sending": "Đang gửi…",
-          "approveAll": "Duyệt cả gói & phát hành",
-          "requestChanges": "Yêu cầu sửa",
-          "releaseDirect": "Phát hành thẳng (Lead)",
-          "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
-          "cancel": "Huỷ",
-          "confirmChanges": "Gửi yêu cầu sửa",
-          "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
-          "releasing": "Đang phát hành…",
-          "confirmRelease": "Xác nhận phát hành"
+      "aria": "Gói thay đổi chờ duyệt",
+      "title": "Gói thay đổi",
+      "status": {
+        "drafting": "Đang soạn",
+        "pending": "Chờ Lead duyệt",
+        "changes_requested": "Lead yêu cầu sửa"
+      },
+      "loading": "Đang tải gói thay đổi…",
+      "loadFailed": "Không tải được gói thay đổi",
+      "actionFailed": "Thao tác không thành công",
+      "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
+      "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
+      "listAria": "Change request trong gói",
+      "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
+      "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
+      "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
+      "submit": "Gửi Lead duyệt cả gói",
+      "resubmit": "Gửi lại cho Lead",
+      "sending": "Đang gửi…",
+      "approveAll": "Duyệt cả gói & phát hành",
+      "requestChanges": "Yêu cầu sửa",
+      "releaseDirect": "Phát hành thẳng (Lead)",
+      "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
+      "cancel": "Huỷ",
+      "confirmChanges": "Gửi yêu cầu sửa",
+      "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
+      "releasing": "Đang phát hành…",
+      "confirmRelease": "Xác nhận phát hành"
     },
     "creditEstimate": {
       "none": "Ước tính: không cần lượt AI nào — phần còn lại trích tất định, không tốn credit.",

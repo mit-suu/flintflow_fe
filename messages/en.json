@@ -1979,7 +1979,8 @@
       "acceptAsIs": "Approve as is: {note}",
       "acceptAsIsEmpty": "Approve as is:",
       "fixFlag": "Please fix this issue as suggested: {message}",
-      "editSection": "In {label}: "
+      "editSection": "In {label}: ",
+      "fixComment": "In {label}, fix per this comment: {text}"
     },
     "aiSettings": {
       "aria": "How the AI works with you — {mode}",
@@ -2165,7 +2166,10 @@
         "clearFocus": "Filtering by pin location — show all comments",
         "emptyOpen": "No open comments.",
         "emptyClosed": "No comments have been resolved or turned into a CR yet."
-      }
+      },
+      "fixByChat": "Ask AI to fix",
+      "fixByChatTitle": "Opens the edit chat with the comment prefilled; once applied the comment is marked Fixed",
+      "ownerStep": "Belongs to step {steps} — marking it fixed reopens that step"
     },
     "decisions": {
       "topic": {
@@ -2227,7 +2231,8 @@
         "reopenNote": "When the Analyst resolves a comment, the approved step owning that section reopens to redraft per the comment.",
         "cancel": "Cancel",
         "reject": "Reject"
-      }
+      },
+      "resubmitBlockedComments": "{count, plural, =1 {1 comment} other {# comments}} still without a conclusion — ask AI to fix or keep with a reason, then resubmit."
     },
     "projectRecord": {
       "tabsLabel": "Project record",
@@ -3557,7 +3562,7 @@
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
       "uploadFixed": "Upload the corrected file",
-      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements\u2026). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
+      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements…). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
       "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FPT template sections are added. The original file can always be downloaded again.",
       "parsing": "Splitting the document into blocks…",
       "reload": "Reload",
@@ -3648,34 +3653,34 @@
       "importSrs": "Import SRS"
     },
     "reviewPackage": {
-          "aria": "Change package awaiting review",
-          "title": "Change package",
-          "status": {
-                "drafting": "Drafting",
-                "pending": "Awaiting Lead review",
-                "changes_requested": "Lead requested changes"
-          },
-          "loading": "Loading change package…",
-          "loadFailed": "Could not load the change package",
-          "actionFailed": "The action did not succeed",
-          "lockedNote": "The package is awaiting the Lead — the draft is locked: no new change request can be created or confirmed until the Lead approves the whole package or requests changes.",
-          "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
-          "listAria": "Change requests in the package",
-          "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
-          "blockedEmpty": "No change request to submit yet.",
-          "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open — resolve via change requests before submitting to the Lead.",
-          "submit": "Submit whole package to Lead",
-          "resubmit": "Resubmit to Lead",
-          "sending": "Sending…",
-          "approveAll": "Approve all & release",
-          "requestChanges": "Request changes",
-          "releaseDirect": "Release directly (Lead)",
-          "reasonLabel": "Reason for requesting changes (at least {min} characters) — the BA will read this",
-          "cancel": "Cancel",
-          "confirmChanges": "Send change request",
-          "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable — if something is wrong, release a new version.",
-          "releasing": "Releasing…",
-          "confirmRelease": "Confirm release"
+      "aria": "Change package awaiting review",
+      "title": "Change package",
+      "status": {
+        "drafting": "Drafting",
+        "pending": "Awaiting Lead review",
+        "changes_requested": "Lead requested changes"
+      },
+      "loading": "Loading change package…",
+      "loadFailed": "Could not load the change package",
+      "actionFailed": "The action did not succeed",
+      "lockedNote": "The package is awaiting the Lead — the draft is locked: no new change request can be created or confirmed until the Lead approves the whole package or requests changes.",
+      "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
+      "listAria": "Change requests in the package",
+      "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
+      "blockedEmpty": "No change request to submit yet.",
+      "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open — resolve via change requests before submitting to the Lead.",
+      "submit": "Submit whole package to Lead",
+      "resubmit": "Resubmit to Lead",
+      "sending": "Sending…",
+      "approveAll": "Approve all & release",
+      "requestChanges": "Request changes",
+      "releaseDirect": "Release directly (Lead)",
+      "reasonLabel": "Reason for requesting changes (at least {min} characters) — the BA will read this",
+      "cancel": "Cancel",
+      "confirmChanges": "Send change request",
+      "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable — if something is wrong, release a new version.",
+      "releasing": "Releasing…",
+      "confirmRelease": "Confirm release"
     },
     "creditEstimate": {
       "none": "Estimate: no AI runs needed — the rest is extracted deterministically at no credit cost.",
