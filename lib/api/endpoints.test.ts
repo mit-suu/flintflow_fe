@@ -382,6 +382,13 @@ describe("lib/api wrappers", () => {
     expect((init?.body as FormData).get("file")).toBe(file);
   });
 
+  it("getRunEstimate gọi /run-estimate với scope + from (FLF-332)", async () => {
+    await pipeline.getRunEstimate("p1", { scope: "all", from: "S-1" });
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate?scope=all&from=S-1");
+    await pipeline.getRunEstimate("p1");
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate");
+  });
+
   it("runStep mở luồng SSE của step", async () => {
     const handlers = { onEvent: vi.fn() };
 
