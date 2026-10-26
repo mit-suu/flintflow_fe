@@ -7,7 +7,7 @@ import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
 import SearchInput from "@/components/ui/SearchInput";
 import { addProjectsToFolder } from "@/lib/api/folders";
-import { getSourceModeOption } from "@/lib/project-source-mode";
+import { getSourceModeOption, projectSourceMode } from "@/lib/project-source-mode";
 import type { Folder } from "@/types/folder";
 import type { Project } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
@@ -87,7 +87,7 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDi
               <legend className="sr-only">{t("legend")}</legend>
               {visible.map((p) => {
                 const checked = selected.has(p._id);
-                const mode = getSourceModeOption(p.mode);
+                const mode = getSourceModeOption(projectSourceMode(p));
                 return (
                   <label
                     key={p._id}

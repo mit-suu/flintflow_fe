@@ -243,3 +243,12 @@ describe("VersionsPanel — Viewer (readOnly)", () => {
     expect(screen.getByRole("heading", { name: "Các version" })).toBeInTheDocument();
   });
 });
+
+describe("VersionsPanel — dự án tạo SRS đã chốt baseline (FLF-318)", () => {
+  it("bản 1.0 là bản Lead ký: nhãn baseline đã ký, tải bản sạch, không có nút tải file gốc", () => {
+    renderPanel({ versions: [{ ...version("1.0", "imported"), has_original_file: false, baseline_id: "BL001" }], selected: "1.0" });
+    expect(screen.getByText("Bản baseline đã ký")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tải bản sạch" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tải file gốc" })).not.toBeInTheDocument();
+  });
+});

@@ -78,6 +78,11 @@ export function useCrChat(projectId: string, enabled = true) {
   const [loading, setLoading] = useState(enabled);
   /** Lệnh sửa đầu tiên đang chờ chọn nguồn + người yêu cầu. */
   const [pending, setPending] = useState<string | null>(null);
+  /**
+   * FLF-318: lệnh thêm / xoá use case đã đi xong vòng hỏi đáp + bản xem trước như trước baseline ⇒ CR mang bản xem trước đó
+   * (`preview_id`, BE dùng đúng lô người dùng đã duyệt) và cả đoạn hỏi đáp làm mô tả.
+   */
+  const [pendingSeed, setPendingSeed] = useState<{ previewId: string; description: string } | null>(null);
   /** CR vừa gửi cho Lead — hiện thẻ xác nhận cho tới lệnh sửa kế tiếp. */
   const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState<CrChatBusy | null>(null);
@@ -214,20 +219,23 @@ export function useCrChat(projectId: string, enabled = true) {
     async (source: CrChatSource) => {
       if (!pending) return;
       const instruction = pending;
+      const seed = pendingSeed;
       const created = await call("create", () =>
         createCr(projectId, {
           title: titleFromInstruction(instruction),
-          description: instruction.slice(0, 5000),
-          source: { kind: source.kind, ref: source.ref?.trim() || null, note: "Tạo từ khung chat" },
+          description: (seed?.description ?? instruction).slice(0, 5000),
+          source: { kind: source.kind, ref: source.ref?.trim() || null, note: seed ? "Tạo từ bản xem trước trong khung chat" : "Tạo từ khung chat" },
           requester: source.requester.trim(),
+          ...(seed ? { preview_id: seed.previewId } : {}),
         })
       );
       if (!created) return;
       setPending(null);
+      setPendingSeed(null);
       setSent(null);
       await advance(created, new Set());
     },
-    [advance, call, pending, projectId]
+    [advance, call, pending, pendingSeed, projectId]
   );
 
   /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
@@ -286,7 +294,22 @@ export function useCrChat(projectId: string, enabled = true) {
           ? t("hintAnswer")
           : t("hintAmend", { crId: detail.change_request.cr_id }),
     clearError: () => setError(null),
-    cancelPending: () => setPending(null),
+    cancelPending: () => {
+      setPending(null);
+      setPendingSeed(null);
+    },
+    /**
+     * FLF-318: bản xem trước thêm / xoá use case (vòng hỏi đáp như trước baseline) ⇒ "Tạo change request" mở thẻ chọn nguồn
+     * + người yêu cầu ngay trong chat, CR tạo ra kèm bản xem trước đó.
+     */
+    startFromPreview: (instruction: string, description: string, previewId: string) => {
+      setSent(null);
+      setError(null);
+      setPending(instruction.trim());
+      setPendingSeed({ previewId, description });
+    },
+    /** Đang chờ chọn nguồn cho một bản xem trước (thẻ trong chat nói rõ CR mang đúng các thay đổi đã xem). */
+    pendingFromPreview: pendingSeed !== null,
     isAccepted,
     /** Có bước AI chạy tiếp được (vd mở lại trang giữa chừng) ⇒ nút "Tiếp tục". */
     canContinue: detail ? nextAuto(detail) !== null : false,

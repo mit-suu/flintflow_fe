@@ -1,5 +1,5 @@
 import type { IconName } from "@/components/ui/Icon";
-import type { ProjectMode } from "@/types/project";
+import type { Project, ProjectMode } from "@/types/project";
 
 /** Tone màu của mode — trùng tên với `BadgeTone` để truyền thẳng vào `Badge`. */
 export type SourceModeTone = "info" | "warning" | "primary";
@@ -42,6 +42,13 @@ export const SOURCE_MODE_OPTIONS = [
     status: "ready",
   },
 ] as const satisfies readonly SourceModeOption[];
+
+/**
+ * Nguồn của dự án để hiển thị: dự án tạo SRS đã chốt baseline chạy ở `mode = import` (FLF-318) nhưng vẫn là "Tạo SRS",
+ * không phải "Upload SRS".
+ */
+export const projectSourceMode = (project: Pick<Project, "mode" | "converted_from">): ProjectMode =>
+  project.converted_from === "fpt" ? "fpt" : project.mode;
 
 export const getSourceModeOption = (mode: ProjectMode): SourceModeOption =>
   SOURCE_MODE_OPTIONS.find((o) => o.value === mode) ?? SOURCE_MODE_OPTIONS[2];

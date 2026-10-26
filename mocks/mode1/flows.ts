@@ -35,7 +35,7 @@ export const crSteps = async (crId: string, steps: CrAction[]): Promise<CrDetail
   return (await getCr(P, crId)).data!;
 };
 
-/** CR mới đi tới `in_review` (1 group chờ duyệt). */
+/** CR mới đi hết tới bước xác nhận ⇒ `written` (FLF-330: BA xác nhận là ghi ngay vào bản nháp). */
 export const crToReview = async (title?: string): Promise<CrDetail> => {
   const cr = await newCr(title);
   return crSteps(cr.change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);

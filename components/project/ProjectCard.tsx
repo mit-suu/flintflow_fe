@@ -13,7 +13,7 @@ import { tStep, type Locale } from "@/lib/i18n";
 import { timeAgo, type TimeTranslator } from "@/lib/time-ago";
 import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
 import { tPhase } from "@/lib/i18n";
-import { getSourceModeOption } from "@/lib/project-source-mode";
+import { getSourceModeOption, projectSourceMode } from "@/lib/project-source-mode";
 import type { ImportStatus } from "@/types/import";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project, ProjectMode } from "@/types/project";
@@ -227,7 +227,9 @@ export default function ProjectCard({
   const tImport = useTranslations("mode1.labels.importStatus");
   const importStatusLabel: ImportStatusLabel = (state) => (tImport.has(state) ? tImport(state) : state);
   const status = getStatusBadge(progress);
-  const mode = getSourceModeOption(project.mode);
+  const mode = getSourceModeOption(projectSourceMode(project));
+  // FLF-318: tạo SRS đã chốt baseline ⇒ quản lý thay đổi qua CR, 12 giai đoạn đã xong — không hiện thanh giai đoạn
+  const converted = project.converted_from === "fpt";
   const archived = project.status === "archived";
 
   const menuItems: DropdownMenuItem[] = [
@@ -241,8 +243,9 @@ export default function ProjectCard({
           } as const
         ]
       : []),
-    // Mode 1: ngôn ngữ tài liệu theo file tải lên, không đổi được (D3)
-    ...(onChangeDocumentLanguage && project.mode !== "import"
+    // Mode 1: ngôn ngữ tài liệu theo file tải lên, không đổi được (D3). Dự án tạo SRS đã chốt baseline (FLF-318) không
+    // phải dự án tải file lên ⇒ vẫn đổi được (business-flow nguyên tắc 7)
+    ...(onChangeDocumentLanguage && (project.mode !== "import" || converted)
       ? [
           {
             label: t("menu.documentLanguage"),
@@ -338,16 +341,18 @@ export default function ProjectCard({
                 : nextStepLabel(progress, tNext as NextTranslator, locale)}
             </span>
           </span>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <PhaseBar progress={progress} locale={locale} />
+          {!converted && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <PhaseBar progress={progress} locale={locale} />
+              </div>
+              {progress && progress.progress.total > 0 && (
+                <span className="shrink-0 tabular-nums text-body font-semibold text-on-card-strong">
+                  {progress.progress.done}/{progress.progress.total}
+                </span>
+              )}
             </div>
-            {progress && progress.progress.total > 0 && (
-              <span className="shrink-0 tabular-nums text-body font-semibold text-on-card-strong">
-                {progress.progress.done}/{progress.progress.total}
-              </span>
-            )}
-          </div>
+          )}
         </div>
       </Link>
 

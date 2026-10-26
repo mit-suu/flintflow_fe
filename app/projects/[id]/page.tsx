@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
 import { getProject, setDocumentLanguage } from "@/lib/api/projects";
+import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
+import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
 import { ApiClientError } from "@/lib/api/client";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { createBaseline, rejectBaseline, submitBaseline } from "@/lib/api/export";
@@ -246,17 +248,30 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
 export default function WorkspacePage() {
   const projectId = useParams()?.id as string;
   const router = useRouter();
-  const [project, setProject] = useState<Pick<Project, "mode" | "import_state"> | null>(null);
+  const t = useTranslations("workspace.page");
+  const [project, setProject] = useState<Pick<Project, "mode" | "import_state" | "converted_from"> | null>(null);
+  // FLF-318: duyệt baseline / lỗi chỉ mode 1 có ⇒ đọc lại project (dự án tạo SRS vừa chuyển sang mode 1)
+  const [reloadKey, setReloadKey] = useState(0);
+  const [convertedNotice, setConvertedNotice] = useState<string | null>(null);
+  useEffect(() => onProjectModeMaybeChanged(() => setReloadKey((k) => k + 1)), []);
 
   useEffect(() => {
     let cancelled = false;
     getProject(projectId)
-      .then((res) => !cancelled && setProject(res.data ?? { mode: "fpt", import_state: null }))
-      .catch(() => !cancelled && setProject({ mode: "fpt", import_state: null }));
+      .then((res) => {
+        if (cancelled) return;
+        const next = res.data ?? { mode: "fpt" as const, import_state: null };
+        setProject((prev) => {
+          if (prev && prev.mode !== "import" && next.mode === "import" && next.converted_from === "fpt") setConvertedNotice(t("convertedNotice"));
+          return next;
+        });
+      })
+      // Lần đọc lại lỗi giữ nguyên project đang có; lần đầu lỗi ⇒ workspace mode 2 tự xử lý lỗi/đăng nhập
+      .catch(() => !cancelled && setProject((prev) => prev ?? { mode: "fpt", import_state: null }));
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, reloadKey]);
 
   // UC-47: Viewer không vào workspace (Spine, cờ, CR là dữ liệu làm việc — BE trả 403) ⇒ sang trang đọc tài liệu.
   // Lỗi đọc vai trò ⇒ coi như không phải Viewer (BE vẫn chặn).
@@ -280,8 +295,10 @@ export default function WorkspacePage() {
   }, [isViewer, mode1, importDone, projectId, router]);
 
   if (project === null || isViewer !== false || (mode1 && !importDone)) return <WorkspaceLoading projectId={projectId} />;
-  return <FptWorkspace mode1={mode1} />;
+  // Đổi mode ⇒ dựng lại workspace từ đầu (hook của mode 2 — step, gate — không mang sang mode 1)
+  return <FptWorkspace key={mode1 ? "mode1" : "fpt"} mode1={mode1} initialNotice={mode1 ? convertedNotice : null} />;
 }
+
 
 const MODE1_ACTION =
   "shrink-0 px-3 py-1.5 rounded-full border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] transition-colors";
@@ -291,7 +308,7 @@ const MODE1_ACTION =
  * chạy step / gate / ký v1 / waive, không ghi Spine thẳng — chỉ xem tài liệu, chat, panel "Sửa tài liệu có xem trước"
  * (⇒ tạo CR), cờ + change request + version & release.
  */
-function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
+function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean; initialNotice?: string | null }) {
   const params = useParams();
   const projectId = params?.id as string;
   // Câu FE gửi thay user cũng theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
@@ -460,7 +477,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Lỗi của lượt ghi op thuần (panel Tên riêng, hàng đợi màn, quyết định giả định) — nói bằng tiếng Việt. */
   const [saveError, setSaveError] = useState<string | null>(null);
   /** Thông báo ngắn sau một việc đã xong ("Đã áp dụng 3 thay đổi") — BUG-27. */
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(initialNotice);
   /** "Giữ nguyên, duyệt lại" đang gửi (E2E FAP #20). */
   const [keepingStep, setKeepingStep] = useState(false);
   useEffect(() => {
@@ -863,6 +880,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Việc vừa gửi lên `/changes` — để biết kết quả trả về là của lệnh sửa, lượt cập nhật mục cũ hay hoàn tác. */
   const editActionRef = useRef<"instruction" | "outdated" | "undo" | null>(null);
   const pendingInstructionRef = useRef("");
+  /** FLF-318 (mode 1): lệnh thêm / xoá use case + các câu trả lời làm rõ của nó, theo thứ tự — `null` khi không ở vòng đó. */
+  const useCaseTurnsRef = useRef<string[] | null>(null);
   /**
    * Lệnh sửa là một lượt hội thoại của phiên đang mở: BE đọc các tin trước (trả lời câu hỏi làm rõ không mất yêu cầu
    * gốc) và ghi lệnh + kết quả vào phiên. FE hiện tạm tin user, xong lượt thì tải lại phiên để thấy đúng transcript.
@@ -973,6 +992,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     try {
       await action(baseVersion);
       await Promise.all([spineState.reload(), comments.reload()]);
+      // FLF-318: duyệt baseline ⇒ dự án có thể đã sang mode 1
+      signalProjectModeMaybeChanged();
     } catch (err) {
       setBaselineError(userErrorMessage(err, t("page.baselineFailed")));
       if (err instanceof ApiClientError && err.code === "BASELINE_BLOCKED") {
@@ -1022,6 +1043,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     [requestPreview, cancelPreview, activeSessionId, lastMessageStep, appendLocalMessage, dropLocalMessage, reloadActiveSession]
   );
   const closeEditCard = () => {
+    // Bỏ bản xem trước ⇒ kết thúc vòng hỏi đáp thêm / xoá use case (lệnh sau mở lại từ đầu)
+    useCaseTurnsRef.current = null;
     cancelPreview();
     setEditCardOpen(false);
     setEditDetailOpen(false);
@@ -1179,7 +1202,11 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     if (spoken) ws.appendLocalMessage(spoken, runnerStep, "ai");
     ws.appendLocalMessage(said, runnerStep);
     void runner.gate(action, note).then((outcome) => {
-      if (outcome === "ok") return;
+      if (outcome === "ok") {
+        // FLF-318: Accept S-9.5 là ký baseline ⇒ dự án có thể đã sang mode 1
+        if (runnerStep?.startsWith("S-9.5")) signalProjectModeMaybeChanged();
+        return;
+      }
       ws.dropLocalMessage(said);
       if (spoken) ws.dropLocalMessage(spoken, "ai");
     });
@@ -1301,7 +1328,9 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
    */
   const interceptLanguageCommand = (text: string, via: LanguageCommandState["via"], intent?: RunIntent): boolean => {
     const target = parseLanguageCommand(text);
-    const kind = languageCommandOutcome({ target, canEdit, mode1, current: documentLanguage });
+    // FLF-318: dự án tạo SRS đã chốt baseline chạy ở mode 1 nhưng không phải dự án tải file lên ⇒ vẫn đổi được ngôn ngữ
+    const languageLocked = mode1 && ws.project?.converted_from !== "fpt";
+    const kind = languageCommandOutcome({ target, canEdit, mode1: languageLocked, current: documentLanguage });
     if (target === null || kind === "send") return false;
     const id = ++languageCommandSeq.current;
     ws.setInputMessage("");
@@ -1319,8 +1348,15 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   /** Lệnh sửa (chip "Sửa tài liệu") cũng đi qua bước chặn — lệnh dịch không được thành một lệnh sửa gửi cho AI. */
   const sendEditInstruction = (text: string) => {
     if (interceptLanguageCommand(text, "edit")) return;
-    if (mode1) void crChat.send(text);
-    else submitEditInstruction(text);
+    if (!mode1) return submitEditInstruction(text);
+    // FLF-318: chưa có CR đang mở mà lệnh là thêm / xoá use case (hoặc đang trả lời câu hỏi của lệnh đó) ⇒ đi đúng vòng hỏi
+    // đáp + bản xem trước như trước baseline (màn riêng / popup, ai xử lý, giữ / bỏ use case đề xuất, xoá cả luồng); xong
+    // thì "Tạo change request" mang bản xem trước đó. Lệnh khác vẫn mở CR thẳng trong chat như cũ.
+    if (!crChat.detail && !crChat.pending && (useCaseTurnsRef.current || editUseCaseIntent(text))) {
+      useCaseTurnsRef.current = [...(useCaseTurnsRef.current ?? []), text.trim()];
+      return submitEditInstruction(text);
+    }
+    void crChat.send(text);
   };
 
   /** "Gửi như tin nhắn": đúng câu đã gõ, đúng đường ban đầu, bỏ qua bước chặn. */
@@ -1800,6 +1836,17 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               requiresCr={mode1}
               onShowDetail={() => setEditDetailOpen(true)}
               onApply={() => {
+                // FLF-318: bản xem trước của lệnh thêm / xoá use case ⇒ tạo CR ngay trong chat, kèm đúng bản xem trước
+                // và cả đoạn hỏi đáp làm mô tả
+                const turns = useCaseTurnsRef.current;
+                const previewId = changes.preview?.ok ? changes.preview.preview_id : undefined;
+                if (mode1 && turns && previewId) {
+                  crChat.startFromPreview(turns[0], describeConversation(turns), previewId);
+                  useCaseTurnsRef.current = null;
+                  cancelPreview();
+                  setEditCardOpen(false);
+                  return;
+                }
                 // Mode 1: không áp thẳng — mở form tạo change request điền sẵn
                 if (mode1) {
                   setEditDetailOpen(true);

@@ -30,12 +30,14 @@ interface ChatBubbleProps {
 }
 
 /** Nhãn của một tin AI — key trong `workspace.chatBubble.badge`, component dịch lúc render. */
-export type WriteBadgeKey = "chatOnly" | "pending" | "nothingWritten" | "applied" | "unchanged" | "knowledge";
+export type WriteBadgeKey = "chatOnly" | "pending" | "nothingWritten" | "applied" | "unchanged" | "knowledge" | "crCreated";
 
 export interface WriteBadge {
   key: WriteBadgeKey;
   /** Số thay đổi thật (`pending` / `applied`). */
   count?: number;
+  /** FLF-318: mã change request đã tạo từ bản xem trước (`crCreated`). */
+  crId?: string;
   wrote: boolean;
 }
 
@@ -55,6 +57,12 @@ export const writeBadgeOf = (message: ChatMessage): WriteBadge | null => {
       const count = typeof data.change_count === "number" ? data.change_count : Array.isArray(data.changes) ? data.changes.length : 0;
       // FLF-300: bản xem trước lỗi / rỗng không có gì để xác nhận
       return count > 0 ? { key: "pending", count, wrote: false } : { key: "nothingWritten", wrote: false };
+    }
+    // FLF-318: bản xem trước đã thành change request — không còn chờ xác nhận (tài liệu đổi khi CR được ghi)
+    if (data.kind === "change_cr") {
+      const crId = (data as { cr_id?: unknown }).cr_id;
+      const count = typeof data.change_count === "number" ? data.change_count : 0;
+      return { key: "crCreated", count, crId: typeof crId === "string" ? crId : "CR", wrote: false };
     }
     if (data.kind === "change_applied") {
       const count = typeof (data as { count?: unknown }).count === "number" ? (data as { count: number }).count : 0;
@@ -332,7 +340,7 @@ export default function ChatBubble({
                 writeBadge.wrote ? "text-[#1F7A45] bg-[#EAF6EE] border-[#BEE3C8]" : "text-[#6B6862] bg-[#F5F3F0] border-[#ECEAE5]"
               }`}
             >
-              {t(`badge.${writeBadge.key}`, { count: writeBadge.count ?? 0 })}
+              {t(`badge.${writeBadge.key}`, { count: writeBadge.count ?? 0, crId: writeBadge.crId ?? "" })}
             </span>
           )}
         </div>

@@ -151,7 +151,8 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       release ? "bg-[#E9F7EE] text-[#1F7A45]" : v.kind === "imported" ? "bg-[#F0EEEA] text-[#4B4842]" : "bg-[#FBF4E4] text-[#8A6D1F]"
                     }`}
                   >
-                    {L.versionKind(v.kind)}
+                    {/* FLF-318: dự án tạo SRS đã chốt — bản gốc 1.0 là bản Lead ký, không có file upload */}
+                    {v.kind === "imported" && release && !v.has_original_file ? L.signedBaseline() : L.versionKind(v.kind)}
                   </span>
                   <span className="ml-auto text-caption text-[#A8A49C]">{L.formatDateTime(v.created_at)}</span>
                 </div>

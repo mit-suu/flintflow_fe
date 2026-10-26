@@ -38,7 +38,10 @@ export const moveProjectToFolder = (projectId: string, folderId: string | null) 
     body: JSON.stringify({ folderId }),
   });
 
-/** Đổi ngôn ngữ tài liệu (FLF-265) — chỉ Lead/Analyst; dự án mode `import` ⇒ `409 DOCUMENT_LANGUAGE_LOCKED`. */
+/**
+ * Đổi ngôn ngữ tài liệu (FLF-265) — chỉ Lead/Analyst; dự án tải file lên (mode `import`) ⇒ `409 DOCUMENT_LANGUAGE_LOCKED`.
+ * Dự án tạo SRS đã chốt baseline (`converted_from = fpt`, FLF-318) vẫn đổi được.
+ */
 export const setDocumentLanguage = (projectId: string, documentLanguage: DocumentLanguage) =>
   apiCall<Project>(`/projects/${projectId}/document-language`, {
     method: "PATCH",

@@ -23,10 +23,11 @@ export const DOCUMENT_LANGUAGE_NAME: Record<DocumentLanguage, string> = { vi: "T
  * sẵn ở client ⇒ không hiện chip, cũng không gọi thêm BE chỉ để biết.
  */
 export const knownDocumentLanguage = (
-  project: Pick<Project, "mode" | "documentLanguage"> | null | undefined
+  project: Pick<Project, "mode" | "documentLanguage" | "converted_from"> | null | undefined
 ): DocumentLanguage | null => {
   if (!project) return null;
-  return project.documentLanguage ?? (project.mode === "import" ? null : "en");
+  // FLF-318: dự án tạo SRS đã chuyển sang mode 1 đọc như mode 2
+  return project.documentLanguage ?? (project.mode === "import" && project.converted_from !== "fpt" ? null : "en");
 };
 
 /**
