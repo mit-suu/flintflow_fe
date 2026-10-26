@@ -1492,8 +1492,8 @@
     },
     "export": {
       "title": "Xuất tài liệu SRS",
-      "draftTab": "Word nháp (DRAFT)",
-      "baselineTab": "Word baseline",
+      "draftTab": "Bản nháp (DRAFT)",
+      "baselineTab": "Bản baseline",
       "noBaseline": "Chưa có baseline nào",
       "baselineCheckFailed": "Không kiểm tra được baseline",
       "baselineCheckFailedWith": "Không kiểm tra được baseline: {error}",
@@ -1502,8 +1502,10 @@
       "redCount": "Số cờ đỏ sẽ in vào §I",
       "downloadFailed": "Tải file thất bại",
       "downloading": "Đang tải…",
-      "downloadDraft": "Tải bản nháp (.docx)",
-      "downloadBaseline": "Tải bản baseline (.docx)",
+      "downloadDraft": "Tải bản nháp ({extension})",
+      "downloadBaseline": "Tải bản baseline ({extension})",
+      "format": "Định dạng",
+      "creatingPdf": "Đang tạo PDF…",
       "untitled": "Dự án",
       "noWorkingDraft": "Dự án chưa có nội dung nào để xuất ra tài liệu.",
       "emptySource": "Dự án chưa có nội dung nào để xuất ở nguồn này.",
@@ -2360,6 +2362,7 @@
     "CALL_LIMIT": "Bước này đã dùng hết 8 lượt gọi AI — chỉ còn Accept hoặc Accept as-is.",
     "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
     "NO_WORKING_DRAFT": "Dự án chưa có nội dung nào để dựng tài liệu.",
+    "PDF_EXPORT_UNAVAILABLE": "Chưa xuất được PDF lúc này. Bạn hãy thử lại sau ít phút, hoặc tải bản Word.",
     "NOTHING_TO_UNDO": "Không còn thay đổi nào để hoàn tác.",
     "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa thể ghi baseline.",
     "BASELINE_ALREADY_SUBMITTED": "Tài liệu đang chờ Lead duyệt — không gửi lại được.",
@@ -3737,7 +3740,10 @@
       "downloadOriginalFile": "Tải file gốc",
       "trackedTitle": "Track Changes + comment so với bản {base}, tác giả {authors}",
       "trackedTitlePrevious": "Track Changes + comment so với bản trước, tác giả {authors}",
-      "downloadTracked": "Tải bản có đánh dấu"
+      "downloadTracked": "Tải bản có đánh dấu",
+      "downloadPdf": "Tải PDF",
+      "creatingPdf": "Đang tạo PDF…",
+      "downloadPdfTitle": "Chính bản Word này chuyển sang PDF"
     },
     "versionCompare": {
       "needTwo": "Cần ít nhất 2 version để so sánh.",
