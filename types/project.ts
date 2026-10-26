@@ -28,6 +28,12 @@ export interface Project {
   mode: ProjectMode;
   /** Mode 1: trạng thái import rút gọn cho danh sách (UC-14, UC-19); mode khác `null`. */
   import_state: ImportStatus | null;
+  /**
+   * FLF-318: dự án tạo SRS (`fpt`) đã được Lead chốt baseline và tự chuyển sang `mode = import` (sửa qua change request).
+   * Nguồn hiển thị vẫn là "Tạo SRS". Thiếu / `null` = không chuyển.
+   */
+  converted_from?: "fpt" | null;
+  converted_at?: string | null;
   /** Dự án cũ không có field: mode 2 đọc `en`, mode 1 theo ngôn ngữ file (BE suy ra). */
   documentLanguage?: DocumentLanguage;
   /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */

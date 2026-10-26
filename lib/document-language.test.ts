@@ -15,6 +15,8 @@ describe("document-language (FLF-265)", () => {
     expect(knownDocumentLanguage({ mode: "fpt" })).toBe("en");
     expect(knownDocumentLanguage({ mode: "import" })).toBeNull();
     expect(knownDocumentLanguage({ mode: "import", documentLanguage: "vi" })).toBe("vi");
+    // FLF-318: tạo SRS đã chuyển sang mode 1 đọc như mode 2
+    expect(knownDocumentLanguage({ mode: "import", converted_from: "fpt" })).toBe("en");
     expect(knownDocumentLanguage(null)).toBeNull();
     expect(knownDocumentLanguage(undefined)).toBeNull();
   });

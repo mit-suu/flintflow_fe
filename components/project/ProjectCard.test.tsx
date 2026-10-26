@@ -86,6 +86,21 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(screen.queryByText("Template FlintFlow")).toBeNull();
   });
 
+  it("FLF-318: tạo SRS đã chốt baseline (mode import, converted_from fpt) ⇒ nguồn vẫn là Tạo SRS, không thanh giai đoạn", () => {
+    renderWithIntl(
+      <ProjectCard
+        project={{ ...baseProject, mode: "import", import_state: "delivered", converted_from: "fpt" }}
+        progress={progress({ done: 51, total: 51 })}
+        onRename={noop}
+        onDelete={noop}
+        onHardDelete={noop}
+      />
+    );
+    expect(screen.queryByTitle(tMode()(`${getSourceModeOption("import").key}.label`))).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.queryByText("51/51")).toBeNull();
+  });
+
   it("thanh 12 giai đoạn: phase đã qua tô đậm, phase đang làm tô nhạt, kèm số bước từ BE", () => {
     renderWithIntl(
       <ProjectCard
@@ -134,6 +149,15 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
     expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Đổi tên", "Xoá vĩnh viễn"]);
+  });
+
+  it("FLF-318 (business-flow nguyên tắc 7): tạo SRS đã chốt baseline chạy ở mode import nhưng không phải dự án tải file ⇒ vẫn đổi được ngôn ngữ", () => {
+    const onChangeDocumentLanguage = vi.fn();
+    const converted = { ...baseProject, mode: "import" as const, import_state: "delivered" as const, converted_from: "fpt" as const };
+    renderWithIntl(<ProjectCard project={converted} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} onChangeDocumentLanguage={onChangeDocumentLanguage} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ngôn ngữ tài liệu" }));
+    expect(onChangeDocumentLanguage).toHaveBeenCalledWith(converted);
   });
 
   it("FLF-265: menu có 'Ngôn ngữ tài liệu' cho dự án mode 2; ẩn với mode import và với Viewer", () => {

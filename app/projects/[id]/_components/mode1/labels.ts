@@ -36,6 +36,8 @@ export const statusLabels = (t: Mode1T, locale: string) => {
     foundBy: (f: LocationFoundBy) => label("foundBy", f),
     conclusion: (c: LocationConclusion) => label("conclusion", c),
     versionKind: (k: DocVersionKind) => label("versionKind", k),
+    /** FLF-318: bản 1.0 của dự án tạo SRS đã chốt baseline (kind `imported`, không có file upload). */
+    signedBaseline: () => label("versionKind", "signed_baseline"),
     blockKind: (k: DocBlockKind) => label("blockKind", k),
     formatDateTime: (iso: string | null | undefined) => formatDateTime(iso, locale),
   };

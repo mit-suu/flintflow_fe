@@ -1,5 +1,6 @@
 import { clearAuthToken } from "../auth";
 import { localizeApiError } from "./error-messages";
+import { MODE_SWITCH_ERROR_CODES, signalProjectModeMaybeChanged } from "../project-mode-signal";
 import {
   decodeJwt,
   getAccessToken,
@@ -33,6 +34,8 @@ export class ApiClientError extends Error {
     this.code = code;
     this.rawMessage = message;
     this.meta = meta;
+    // FLF-318: lỗi chỉ dự án mode 1 có ⇒ dự án có thể vừa được chuyển sang mode 1, workspace đọc lại project
+    if (MODE_SWITCH_ERROR_CODES.has(code)) signalProjectModeMaybeChanged();
   }
 }
 
