@@ -63,6 +63,26 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
+  it("FLF-318: có nhiều baseline (1.0 rồi release 2.0) ⇒ tab Bản baseline tải bản MỚI NHẤT, nút ghi rõ số version", async () => {
+    const baseline = (id: string, version: string, type: Baseline["type"]): Baseline =>
+      ({ id, version, type, doc_version: type === "release" ? version : null, at: "2026-10-26T00:00:00.000Z", snapshot_ref: id, checked_at_version: 1, waived_count: 0 }) as Baseline;
+    listBaselines.mockResolvedValue({ data: [baseline("BL001", "v1.0", "generated"), baseline("BL002", "2.0", "release")], error: null });
+    getDocument.mockResolvedValue({ data: { ...fixture, source: "baseline", version: "2.0" }, error: null, meta: {} });
+    downloadWordExport.mockResolvedValue({ blob: new Blob(["x"]), filename: "FlintFlow-v2.0.docx" });
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
+    const tab = await screen.findByRole("tab", { name: "Bản baseline" });
+    await waitFor(() => expect(tab).not.toBeDisabled());
+    fireEvent.click(tab);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline 2\.0/ }));
+    await waitFor(() => expect(downloadWordExport).toHaveBeenCalledWith("p1", "baseline", "BL002"));
+
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
   it("dự án chưa có nội dung: báo lý do, không mời bấm sang bước nào", async () => {
     getDocument.mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
 

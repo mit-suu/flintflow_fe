@@ -1199,7 +1199,8 @@
         "nothingWritten": "Nothing written",
         "applied": "Wrote {count, plural, one {# change} other {# changes}}",
         "unchanged": "No changes",
-        "knowledge": "Answered from the knowledge base"
+        "knowledge": "Answered from the knowledge base",
+        "crCreated": "Sent as {crId} ({count, plural, one {# change} other {# changes}})"
       }
     },
     "chatSessions": {
@@ -1525,6 +1526,7 @@
       "downloading": "Downloading…",
       "downloadDraft": "Download draft ({extension})",
       "downloadBaseline": "Download baseline ({extension})",
+      "downloadBaselineVersion": "Download baseline {version} ({extension})",
       "format": "Format",
       "creatingPdf": "Creating PDF…",
       "untitled": "Project",

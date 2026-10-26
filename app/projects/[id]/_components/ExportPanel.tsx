@@ -57,8 +57,11 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
   const hasBaseline = baselines.length > 0;
-  // Baseline mới nhất — ExportPanel chưa có bộ chọn version cụ thể (ngoài phạm vi T16).
-  const baselineId = source === "baseline" ? baselines[0]?.id : undefined;
+  // Baseline mới nhất — ExportPanel chưa có bộ chọn version cụ thể (ngoài phạm vi T16). `GET /baselines` trả theo thứ tự
+  // ghi, mới nhất ở CUỐI (FLF-318: dự án chuyển đổi release 2.0 sau 1.0 — trước đây lấy nhầm phần tử đầu = 1.0).
+  const latestBaseline = baselines.at(-1);
+  const baselineId = source === "baseline" ? latestBaseline?.id : undefined;
+  const baselineVersion = typeof latestBaseline?.version === "string" ? latestBaseline.version.replace(/^v/, "") : undefined;
   const { document, translation, loading, empty, error } = useDocument(projectId, source, baselineId, 0, documentLanguage);
   // FLF-265: `meta.translation` của chính nguồn đang xem thắng giá trị client tự suy
   const language = shownDocumentLanguage(translation, documentLanguage);
@@ -249,7 +252,9 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
               : t("downloading")
             : source === "draft"
               ? t("downloadDraft", { extension })
-              : t("downloadBaseline", { extension })}
+              : baselineVersion
+                ? t("downloadBaselineVersion", { extension, version: baselineVersion })
+                : t("downloadBaseline", { extension })}
         </button>
       </div>
     </div>

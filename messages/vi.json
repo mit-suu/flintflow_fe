@@ -1199,7 +1199,8 @@
         "nothingWritten": "Chưa ghi gì",
         "applied": "Đã ghi {count} thay đổi",
         "unchanged": "Không đổi gì",
-        "knowledge": "Trả lời từ kho tri thức"
+        "knowledge": "Trả lời từ kho tri thức",
+        "crCreated": "Đã tạo {crId} ({count} thay đổi)"
       }
     },
     "chatSessions": {
@@ -1525,6 +1526,7 @@
       "downloading": "Đang tải…",
       "downloadDraft": "Tải bản nháp ({extension})",
       "downloadBaseline": "Tải bản baseline ({extension})",
+      "downloadBaselineVersion": "Tải bản baseline {version} ({extension})",
       "format": "Định dạng",
       "creatingPdf": "Đang tạo PDF…",
       "untitled": "Dự án",
