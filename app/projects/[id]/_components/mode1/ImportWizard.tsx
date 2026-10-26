@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { TEMPLATE_INTENT_OPTIONS } from "@/lib/project-start";
+import type { ProjectStartKind, TemplateIntent } from "@/types/project";
 import type { RocRow } from "@/types/document";
 import type { ImportStatus } from "@/types/import";
 import PageSkeleton from "@/components/ui/PageSkeleton";
@@ -27,6 +29,9 @@ interface ImportWizardProps {
   onChanged?: () => void;
   /** Nhịp poll khi trích — test đặt nhỏ. */
   pollMs?: number;
+  /** FLF-335: lựa chọn lúc tạo dự án — dự án mới có mẫu bắt buộc ⇒ màn tải mẫu, ý định `fixed` cố định. */
+  startKind?: ProjectStartKind | null;
+  templateIntent?: TemplateIntent | null;
 }
 
 const STEPS: { id: "upload" | "mapping" | "extract" | "fields" | "baseline" | "gap"; statuses: ImportStatus[] }[] = [
@@ -46,11 +51,14 @@ const LANGUAGE_STATUSES: ImportStatus[] = ["fields_review", "baselining", "check
 
 
 /** Luồng 1.1–1.12 (UC-19–UC-22): mỗi bước hiện theo `import.status` do BE trả. */
-export default function ImportWizard({ projectId, credits, onChanged, pollMs }: ImportWizardProps) {
+export default function ImportWizard({ projectId, credits, onChanged, pollMs, startKind = null, templateIntent = null }: ImportWizardProps) {
   const router = useRouter();
   const t = useTranslations("mode1.importWizard");
   const imp = useImport(projectId, pollMs ? { pollMs } : undefined);
   const [pickAnother, setPickAnother] = useState(false);
+  /** FLF-335: ý định với file (bước 1.2). Dự án mới có mẫu bắt buộc ⇒ `fixed` cố định; còn lại người dùng chọn, mặc định tự do. */
+  const intentLocked = templateIntent === "fixed" && startKind === "new";
+  const [intent, setIntent] = useState<TemplateIntent>(templateIntent ?? "free");
   /** Record of Changes người dùng đã sửa (FLF-252); `null` = chưa đụng tới. */
   const [recordOfChanges, setRecordOfChanges] = useState<RocRow[] | null>(null);
   const doc = imp.doc;
@@ -127,12 +135,29 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
       {showUpload && (
         <>
           {status === "preflight_rejected" && doc && <PreflightIssues issues={doc.preflight.issues} fileName={doc.original_name} />}
+          {!intentLocked && (
+            <fieldset className="flex flex-col gap-2 rounded-[12px] border border-[#ECEAE5] bg-white p-3">
+              <legend className="px-1 text-body font-bold text-[#191817]">{t("intent.question")}</legend>
+              <div role="radiogroup" aria-label={t("intent.question")} className="flex flex-col gap-2">
+                {TEMPLATE_INTENT_OPTIONS.map((value) => (
+                  <label key={value} className={`flex items-start gap-2 rounded-[10px] px-3 py-2 cursor-pointer ${intent === value ? "bg-[#F2F1FB]" : "hover:bg-[#F6F5F2]"}`}>
+                    <input type="radio" name="template-intent" value={value} checked={intent === value} onChange={() => setIntent(value)} disabled={imp.busy === "upload"} className="mt-1" />
+                    <span className="flex flex-col">
+                      <span className="text-body font-bold text-[#191817]">{t(`intent.${value}.label`)}</span>
+                      <span className="text-caption text-[#8A867E]">{t(`intent.${value}.description`)}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <UploadStep
             busy={imp.busy === "upload"}
             onUpload={(file) =>
-              void after(imp.upload(file)).then(() => setPickAnother(false))
+              void after(imp.upload(file, intentLocked ? "fixed" : intent)).then(() => setPickAnother(false))
             }
-            title={status === "preflight_rejected" ? t("uploadFixed") : undefined}
+            title={status === "preflight_rejected" ? t("uploadFixed") : intentLocked ? t("uploadTemplate") : undefined}
+            {...(intentLocked ? { hint: t("uploadTemplateHint") } : {})}
           />
           <p className="text-body text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">
             {t.rich("formatNote", { b: (c) => <b>{c}</b> })}
