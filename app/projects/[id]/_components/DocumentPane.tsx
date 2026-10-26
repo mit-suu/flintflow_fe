@@ -475,7 +475,7 @@ export default function DocumentPane({
     if (document) onSectionsLoaded?.(document.sections);
   }, [document, onSectionsLoaded]);
 
-  const openFlags = flags.filter((f) => !f.resolved_at && !f.waived_by_user);
+  const openFlags = flags.filter((f) => !f.resolved_at && (f.level === "red" || !f.waived_by_user)); // FLF-329: cờ đỏ giữ nguyên vẫn mở
   const issuesOf = (sectionId: string) => {
     const own = openFlags.filter((f) => f.section_id === sectionId);
     return { count: own.length, blocking: own.some((f) => f.level === "red") };

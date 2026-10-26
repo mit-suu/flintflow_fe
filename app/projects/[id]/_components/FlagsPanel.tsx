@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Tabs from "@/components/ui/Tabs";
 import { workspaceStepLabel } from "./phase-labels";
-import { isFlagWaivable } from "@/types/flags";
+import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
 import { useMode1Labels } from "./mode1/i18n";
@@ -23,11 +23,16 @@ interface WaiveModalProps {
   onSubmit: (reason: string) => void;
 }
 
+/**
+ * Một modal, hai nghĩa (FLF-329, BR-04): cờ đỏ ⇒ "Giữ nguyên + lý do" — ghi lý do, cờ **vẫn chặn** chốt bản;
+ * cờ vàng ⇒ bỏ qua như cũ. Chữ trên modal phải nói đúng điều sẽ xảy ra.
+ */
 function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) {
   const t = useTranslations("workspace.flags");
   const { humanizeText } = useMode1Labels();
   const [reason, setReason] = useState("");
   const canSubmit = reason.trim().length >= WAIVE_REASON_MIN_LENGTH && !busy;
+  const keeping = flag.level === "red";
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onCancel}>
@@ -35,8 +40,9 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
         className="bg-surface-container-lowest rounded-dialog p-5 w-[420px] max-w-[90vw] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <h4 className="font-extrabold text-body text-on-surface">{t("waiveHeading")}</h4>
+        <h4 className="font-extrabold text-body text-on-surface">{keeping ? t("keepHeading") : t("waiveHeading")}</h4>
         <p className="text-body text-on-surface-variant leading-relaxed">{humanizeText(flag.message)}</p>
+        {keeping && <p className="text-caption text-error leading-relaxed">{t("keepStillBlocks")}</p>}
         <label htmlFor="waive-reason" className="text-body font-semibold text-on-surface">
           {t("waiveReasonLabel", { min: WAIVE_REASON_MIN_LENGTH })}
         </label>
@@ -46,7 +52,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className="w-full px-3 py-2 rounded-control bg-surface-container text-body outline-none resize-none focus:ring-2 focus:ring-primary/30"
-          placeholder={t("waivePlaceholder")}
+          placeholder={keeping ? t("keepPlaceholder") : t("waivePlaceholder")}
         />
         <span className="text-caption text-on-surface-subtle tabular-nums">
           {reason.trim().length}/{WAIVE_REASON_MIN_LENGTH}
@@ -67,7 +73,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             onClick={() => onSubmit(reason.trim())}
             className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {busy ? t("saving") : t("waiveSubmit")}
+            {busy ? t("saving") : keeping ? t("keepSubmit") : t("waiveSubmit")}
           </button>
         </div>
       </div>
@@ -79,8 +85,10 @@ interface FlagsPanelProps {
   flags: Flag[];
   busy?: boolean;
   error?: string | null;
-  /** Không truyền ⇒ không có nút bỏ qua (mode 1 v3: cờ chỉ đóng bằng change request). */
+  /** Không truyền ⇒ không có nút bỏ qua (mode 1 v3: cờ chỉ đóng bằng change request). Chỉ cờ vàng (FLF-329). */
   onWaive?: (flagId: string, reason: string) => Promise<void>;
+  /** FLF-329 "Giữ nguyên + lý do" cho cờ đỏ — ghi lý do, cờ vẫn chặn. Không truyền ⇒ cờ đỏ không có nút. */
+  onKeep?: (flagId: string, reason: string) => Promise<void>;
   /** Không truyền ⇒ không có nút kiểm lại (Viewer: kiểm lại là thao tác ghi). */
   onRecompute?: () => void;
   onSelectStep?: (stepId: string) => void;
@@ -112,7 +120,7 @@ interface FlagsPanelProps {
   acceptedSteps?: ReadonlySet<string>;
 }
 
-const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_user;
+const isOpen = (flag: Flag): boolean => isOpenFlag(flag);
 
 /**
  * BUG-34: cờ đỏ luôn đứng trước cờ vàng, rồi tới thứ tự step xử lý. Panel cũ xếp theo thứ tự BE trả về
@@ -146,6 +154,7 @@ export default function FlagsPanel({
   busy = false,
   error,
   onWaive,
+  onKeep,
   onRecompute,
   onSelectStep,
   onRedraw,
@@ -187,7 +196,8 @@ export default function FlagsPanel({
   const openFlags = sortFlags(flags.filter(isOpen));
   const redGroups = groupByAction(openFlags.filter((f) => f.level === "red"), acceptedSteps);
   const yellowGroups = groupByAction(openFlags.filter((f) => f.level === "yellow"), acceptedSteps);
-  const waivedFlags = flags.filter((f) => f.waived_by_user);
+  // FLF-329: cờ đỏ không waive được nữa — tab này chỉ còn cờ vàng đã bỏ qua
+  const waivedFlags = flags.filter((f) => f.waived_by_user && f.level === "yellow");
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
   const showOutdated = outdatedCount > 0 && Boolean(onRewriteOutdated);
   // Tài liệu chưa tải xong ⇒ tên mục theo mẫu FPT, không hiện mã `fixed:3.1.2` (FLF-247)
@@ -204,11 +214,12 @@ export default function FlagsPanel({
   const submitWaive = async (reason: string) => {
     if (!waivingFlag) return;
     setWaiveError(null);
+    const keeping = waivingFlag.level === "red";
     try {
-      await onWaive?.(waivingFlag.id, reason);
+      await (keeping ? onKeep : onWaive)?.(waivingFlag.id, reason);
       setWaivingId(null);
     } catch (err) {
-      setWaiveError(userErrorMessage(err, t("waiveFailed")));
+      setWaiveError(userErrorMessage(err, keeping ? t("keepFailed") : t("waiveFailed")));
     }
   };
 
@@ -275,7 +286,7 @@ export default function FlagsPanel({
    * người dùng bấm xong vẫn không chốt được mà không hiểu vì sao.
    */
   const waiveLink = (flag: Flag) =>
-    onWaive &&
+    (flag.level === "red" ? onKeep : onWaive) &&
     isFlagWaivable(flag.rule_id) && (
       <button
         type="button"
@@ -287,9 +298,15 @@ export default function FlagsPanel({
         title={flag.level === "red" ? t("keepTitle") : undefined}
         className={`${textButton} ${secondary} text-on-surface-muted hover:text-on-surface`}
       >
-        {flag.level === "red" ? t("keepBlocking") : t("waive")}
+        {flag.level === "red" ? (flag.kept_reason ? t("keptEdit") : t("keepBlocking")) : t("waive")}
       </button>
     );
+
+  /** Lý do giữ nguyên đã ghi (FLF-329) — hiện ngay dưới dòng để người duyệt đọc được mà không mở modal. */
+  const keptNote = (flag: Flag) =>
+    flag.level === "red" && flag.kept_reason ? (
+      <span className="text-caption text-on-surface-muted italic">{t("keptReason", { reason: flag.kept_reason })}</span>
+    ) : null;
 
   /** Một dòng vấn đề, trình bày theo việc phải làm của nhóm. */
   const renderRow = (group: ActionGroup, flag: Flag) => {
@@ -368,6 +385,7 @@ export default function FlagsPanel({
                 )}
                 {waiveLink(flag)}
               </span>
+              {keptNote(flag)}
             </div>
             {chevron(flag.remediation_step)}
           </li>

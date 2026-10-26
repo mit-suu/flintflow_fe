@@ -307,6 +307,10 @@ export interface Flag {
   waived_by_user: boolean;
   waive_reason: string | null;
   waived_at_version: number | null;
+  /** FLF-329 "Giữ nguyên + lý do": cờ vẫn mở, cờ đỏ vẫn chặn. Spine cũ ⇒ null / thiếu. */
+  kept_reason?: string | null;
+  kept_by?: string | null;
+  kept_at?: IsoDateTime | null;
 }
 
 /** `sections[]` chỉ lưu `asset_version`; status là hàm tính ở BE (`srs-spine.md` §5). */

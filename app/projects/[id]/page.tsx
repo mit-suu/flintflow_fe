@@ -315,6 +315,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     error: flagsError,
     busy: flagsBusy,
     waive: waiveFlagFn,
+    keep: keepFlagFn,
     recompute: recomputeFlagsFn,
   } = useFlags(projectId, spineState.version);
   // Góp ý ghim vào nội dung (UC-49) — nguồn duy nhất cho cả `DocumentPane` (chấm số) lẫn panel, như `useFlags`
@@ -494,6 +495,14 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
       void reloadProgress();
     },
     [waiveFlagFn, reloadProgress]
+  );
+  /** FLF-329: cờ đỏ chỉ có "Giữ nguyên + lý do" — cờ vẫn chặn nên readiness không đổi, vẫn tải lại cho đồng bộ. */
+  const handleFlagKeep = useCallback(
+    async (flagId: string, reason: string) => {
+      await keepFlagFn(flagId, reason);
+      void reloadProgress();
+    },
+    [keepFlagFn, reloadProgress]
   );
 
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
@@ -1112,7 +1121,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
     // Section đã cũ: cờ chỉ về step sở hữu, và step đó chạy lại được dù đã chốt (BE cho phép). Không mở
     // đường này thì cờ đỏ chặn baseline chỉ còn nước Waive.
     ...flags
-      .filter((f) => !f.resolved_at && !f.waived_by_user && (f.rule_id === "section_stale_at_baseline" || f.rule_id === "section_awaiting_reaccept"))
+      .filter((f) => !f.resolved_at && (f.rule_id === "section_stale_at_baseline" || f.rule_id === "section_awaiting_reaccept"))
       .map((f) => f.remediation_step)
   ]);
   const reopenable = viewedStep !== null && reopenableStepIds.has(viewedStep);
@@ -1127,7 +1136,6 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
         .filter(
           (f) =>
             !f.resolved_at &&
-            !f.waived_by_user &&
             f.remediation_step === viewedStep &&
             (f.rule_id === "section_stale_at_baseline" || f.rule_id === "section_awaiting_reaccept")
         )
@@ -1187,7 +1195,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
   const gateFlagDelta = runner.state.phaseGate?.flags ?? gate?.payload?.flags;
   const newestOpenFlags = (level: "red" | "yellow", count: number) =>
     flags
-      .filter((f) => f.level === level && !f.resolved_at && !f.waived_by_user && f.rule_id !== "unconfirmed_assumption")
+      .filter((f) => f.level === level && !f.resolved_at && (level === "red" || !f.waived_by_user) && f.rule_id !== "unconfirmed_assumption")
       .sort((a, b) => b.opened_at_version - a.opened_at_version)
       .slice(0, Math.max(0, count));
   const newGateFlags: GateNewFlag[] =
@@ -1728,7 +1736,8 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
               canSignOff={ws.orgRole === "lead"}
               newFlags={newGateFlags}
               onFixFlag={fixFlagByChat}
-              onKeepFlag={(flag, reason) => handleFlagWaive(flag.id, reason)}
+              // FLF-329: cờ đỏ ⇒ giữ nguyên + lý do (vẫn chặn); cờ vàng ⇒ bỏ qua
+              onKeepFlag={(flag, reason) => (flag.level === "red" ? handleFlagKeep(flag.id, reason) : handleFlagWaive(flag.id, reason))}
               onWantEdit={focusChatInput}
               onGoToStep={setSelectedStepId}
               wroteOps={gate.wroteOps}
@@ -1952,6 +1961,7 @@ function FptWorkspace({ mode1 = false }: { mode1?: boolean }) {
             // Mode 1 v3: không có step, không sửa thẳng giả định — cờ chỉ đóng bằng change request
             onSelectStep={mode1 ? undefined : setSelectedStepId}
             onWaive={mode1 || !canEdit ? undefined : handleFlagWaive}
+            onKeep={!canEdit ? undefined : handleFlagKeep}
             onRedraw={canEdit ? handleRedrawDiagram : undefined}
             onAssumptionDecision={mode1 || !canEdit ? undefined : (decision) => void applyAssumptionDecision(decision)}
             onConfirmAllAssumptions={mode1 || !canEdit ? undefined : (ids) => void confirmAllAssumptions(ids)}

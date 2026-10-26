@@ -183,6 +183,12 @@ const cases: EndpointCase[] = [
     post({ reason: "Chấp nhận rủi ro vì phạm vi MVP" }),
   ],
   [
+    "keepFlag",
+    () => flags.keepFlag("p1", "f1", "Khách hàng chốt số đo ở bản sau, đã đồng ý"),
+    "/projects/p1/flags/f1/keep",
+    post({ reason: "Khách hàng chốt số đo ở bản sau, đã đồng ý" }),
+  ],
+  [
     "assembleDocument",
     () => exportApi.assembleDocument("p1", 4),
     "/projects/p1/assemble",
