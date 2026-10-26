@@ -133,3 +133,24 @@ export async function fetchTransactions(page = 1, limit = 20) {
 /** Giá VND theo ngôn ngữ giao diện: `40.000 ₫` (vi) / `40,000 ₫` (en). */
 export const formatVnd = (amount: number, locale: Locale = "vi") =>
   `${amount.toLocaleString(locale === "en" ? "en-US" : "vi-VN")} ₫`;
+
+// ─── FLF-332 (BR-08): Analyst báo Lead nạp credit ───
+
+export interface TopupRequest {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  project_id: string | null;
+  step: string | null;
+  needed: number | null;
+  status: "open" | "fulfilled";
+  /** Số Lead vừa được báo (0 khi yêu cầu đã mở từ trước — chỉ cập nhật). */
+  notified_leads: number;
+  available: number;
+  created_at: string;
+  fulfilled_at: string | null;
+}
+
+/** Tạo / cập nhật yêu cầu nạp credit của người gọi trong org đang chọn; BE báo in-app mọi Lead. */
+export const requestCreditTopup = (body: { projectId?: string; step?: string; needed?: number } = {}) =>
+  apiCall<TopupRequest>("/billing/topup-request", { method: "POST", body: JSON.stringify(body) });

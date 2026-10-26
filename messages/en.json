@@ -510,6 +510,10 @@
         "monthly_reset": "Monthly reset",
         "other": "AI action"
       },
+      "topupRequest": "Ask the Lead to top up",
+      "topupRequesting": "Sending…",
+      "topupRequested": "{count, plural, =0 {Request recorded — the Lead will see it under Credits.} one {# Lead notified. You will be notified after the top-up; reopen the project and press Continue.} other {# Leads notified. You will be notified after the top-up; reopen the project and press Continue.}}",
+      "topupRequestFailed": "Could not notify the Lead. Please try again.",
       "leadOnlyPurchase": "Only the organization Lead can buy credits or change the plan. When the organization needs more credits, let your Lead know.",
       "packageLabel": "{credits}-credit pack",
       "creditUnit": {
@@ -545,6 +549,15 @@
       "payment_success": {
         "title": "Payment successful",
         "body": "{credits} credits have been added to your account."
+      },
+      "credit_topup_requested": {
+        "title": "Your organization needs credits",
+        "body": "A member is out of credits for AI runs; the organization wallet has {available} credits available. Top up under Credits & Billing.",
+        "bodyNeeded": "A member is out of credits for AI runs (about {needed} more needed); the organization wallet has {available} credits available. Top up under Credits & Billing."
+      },
+      "credit_topped_up": {
+        "title": "{credits} credits were added to the organization",
+        "body": "{available} credits are now available. Reopen the project and press Continue — the paused step does not resume by itself."
       },
       "payment_failed": {
         "title": "Payment failed",
@@ -2826,10 +2839,11 @@
       "impactText": "Find every place in the document related to the request (via links between parts, referenced IDs, keywords) and hold them for this CR so no one else edits them at the same time — no credits used.",
       "impactButton": "Find affected locations & lock",
       "impactBusy": "Searching…",
-      "proposeRedoText": "Some proposals failed the check — AI re-proposes those locations (at most 2 times).",
+      "proposeRedoText": "Some proposals failed the check — AI is self-correcting those locations, attempt {attempt}/{max} (uses credits); still failing after {max} attempts ⇒ fix manually.",
       "proposeMissedText": "AI has not concluded {count, plural, one {# location} other {# locations}}. Run again, or use \"Edit manually\" on each location below to conclude it yourself.",
       "proposeText": "AI proposes for each location: edit, comment only, or unrelated with a reason (uses credits).",
-      "proposeRedoButton": "AI redoes failed locations",
+      "proposeRedoButton": "AI self-correct {attempt}/{max}",
+      "proposeRedoBusy": "AI self-correcting {attempt}/{max}…",
       "proposeButton": "AI proposes edits",
       "proposeBusy": "AI is proposing…",
       "verifyText": "Automatic checks (original content not edited elsewhere, valid data, no new red issues) plus an AI consistency review (yellow warnings only).",

@@ -510,6 +510,10 @@
         "monthly_reset": "Reset hằng tháng",
         "other": "Thao tác AI"
       },
+      "topupRequest": "Báo Lead nạp credit",
+      "topupRequesting": "Đang báo…",
+      "topupRequested": "{count, plural, =0 {Đã ghi nhận yêu cầu — Lead sẽ thấy ở mục Credits.} one {Đã báo # Lead. Nạp xong bạn sẽ nhận thông báo; mở lại dự án và bấm tiếp tục.} other {Đã báo # Lead. Nạp xong bạn sẽ nhận thông báo; mở lại dự án và bấm tiếp tục.}}",
+      "topupRequestFailed": "Chưa báo được Lead. Vui lòng thử lại.",
       "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead.",
       "packageLabel": "Gói {credits} credit",
       "creditUnit": {
@@ -545,6 +549,15 @@
       "payment_success": {
         "title": "Thanh toán thành công",
         "body": "Đã cộng {credits} credit vào tài khoản của bạn."
+      },
+      "credit_topup_requested": {
+        "title": "Tổ chức cần nạp credit",
+        "body": "Một thành viên đang thiếu credit để chạy AI; ví tổ chức còn {available} credit khả dụng. Nạp thêm ở mục Credits & Thanh toán.",
+        "bodyNeeded": "Một thành viên đang thiếu credit để chạy AI (cần thêm khoảng {needed}); ví tổ chức còn {available} credit khả dụng. Nạp thêm ở mục Credits & Thanh toán."
+      },
+      "credit_topped_up": {
+        "title": "Tổ chức đã được nạp {credits} credit",
+        "body": "Ví còn {available} credit khả dụng. Mở lại dự án và bấm tiếp tục — bước đang dừng không tự chạy."
       },
       "payment_failed": {
         "title": "Thanh toán thất bại",
@@ -2826,10 +2839,11 @@
       "impactText": "Tìm mọi chỗ trong tài liệu liên quan tới yêu cầu (qua liên kết giữa các phần, mã được nhắc tới, từ khoá) và giữ chúng cho CR này để không ai sửa chồng — không tốn credit.",
       "impactButton": "Tìm vị trí ảnh hưởng & khoá",
       "impactBusy": "Đang tìm…",
-      "proposeRedoText": "Một số đề xuất trượt kiểm — AI đề xuất lại các vị trí đó (tối đa 2 lần).",
+      "proposeRedoText": "Một số đề xuất trượt kiểm — AI đang tự sửa lần {attempt}/{max} các vị trí đó (có tính credit); vẫn trượt sau {max} lần thì bạn sửa tay.",
       "proposeMissedText": "AI chưa kết luận {count} vị trí. Bấm chạy lại, hoặc dùng \"Sửa tay\" ở từng vị trí bên dưới để tự kết luận.",
       "proposeText": "AI đề xuất cho từng vị trí: sửa, chỉ comment, hoặc không liên quan kèm lý do (tốn credit).",
-      "proposeRedoButton": "AI làm lại vị trí trượt",
+      "proposeRedoButton": "AI tự sửa lần {attempt}/{max}",
+      "proposeRedoBusy": "AI đang tự sửa lần {attempt}/{max}…",
       "proposeButton": "AI đề xuất sửa",
       "proposeBusy": "AI đang đề xuất…",
       "verifyText": "Kiểm tra tự động (nội dung gốc chưa bị sửa ở chỗ khác, dữ liệu hợp lệ, không phát sinh lỗi đỏ mới) và AI soát tính nhất quán (chỉ cảnh báo vàng).",
