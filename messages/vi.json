@@ -1994,6 +1994,31 @@
         "fast": "Tự duyệt trong giai đoạn; dừng ở cuối giai đoạn, cuối mỗi màn và khi cần bạn quyết."
       }
     },
+    "creditGate": {
+      "aria": "Xác nhận credit trước khi chạy",
+      "intro": "AI sắp chạy nhiều lượt liền. Bấm Chạy để bắt đầu; Huỷ thì không trừ credit, tiến độ giữ nguyên.",
+      "linesAria": "Chi tiết credit ước tính",
+      "credits": "~{credits} credit",
+      "total": "Tổng ước tính: ~{credits} credit",
+      "available": "Khả dụng: {credits} credit",
+      "short": "Số dư chưa đủ cho cả lượt: AI sẽ dừng khi hết credit, phần đã xong không tính lại.",
+      "topUp": "Nạp thêm",
+      "run": "Chạy",
+      "running": "Đang chạy…",
+      "cancel": "Huỷ",
+      "pipelineTitle": "Soạn phần còn lại của SRS",
+      "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
+      "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}"
+    },
+    "aiError": {
+      "title": "{what}: AI lỗi{retried, select, yes {, đã thử lại 2 lần} other {}} — credit đã hoàn",
+      "body": "Nội dung đã duyệt giữ nguyên. Thử lại ngay (kiểm credit lại từ đầu) hoặc để sau — mở lại dự án sẽ chạy tiếp từ đây.",
+      "retry": "Thử lại ngay",
+      "retrying": "Đang thử lại…",
+      "later": "Để sau",
+      "chat": "Trả lời trong chat",
+      "phase": "Lượt chạy giai đoạn"
+    },
     "languageChip": {
       "title": "Ngôn ngữ tài liệu: {name}"
     },
