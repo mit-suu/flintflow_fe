@@ -210,7 +210,7 @@ const progressOf = (state: MockState): ProgressResponse => {
     readiness: {
       accepted_pct: Math.round((done * 100) / steps.length),
       awaiting_reaccept: 0,
-      red_open: state.spine.flags.filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user).length,
+      red_open: state.spine.flags.filter((f) => f.level === "red" && !f.resolved_at).length,
       stale: 0,
     },
     progress: {
@@ -551,7 +551,7 @@ const buildMockDocument = (state: MockState): RenderedDocument => {
     })),
     flagsAppendix: {
       redOpen: state.spine.flags
-        .filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user)
+        .filter((f) => f.level === "red" && !f.resolved_at)
         .map((f) => ({ id: f.id, rule_id: f.rule_id, section: sectionLabelOf(f.section_id), message: f.message })),
       staleCount: 0,
       waived: state.spine.flags
@@ -977,12 +977,26 @@ export const handlers = [
     const flag = mockState.spine.flags.find((f) => f.id === params.flagId);
     if (!flag) return fail(404, "FLAG_NOT_FOUND", "Không tìm thấy cờ");
     if (!body.reason || body.reason.trim().length < 20) return fail(400, "VALIDATION_ERROR", "Lý do cần tối thiểu 20 ký tự");
-    if (FLAG_NOT_WAIVABLE_RULES.includes(flag.rule_id as (typeof FLAG_NOT_WAIVABLE_RULES)[number])) {
-      return fail(400, "FLAG_NOT_WAIVABLE", "Luật này không cho waive");
+    // FLF-329 (BR-04): mọi cờ đỏ không waive được
+    if (flag.level === "red" || FLAG_NOT_WAIVABLE_RULES.includes(flag.rule_id as (typeof FLAG_NOT_WAIVABLE_RULES)[number])) {
+      return fail(400, "FLAG_NOT_WAIVABLE", "Cờ đỏ không bỏ qua được — chọn Giữ nguyên kèm lý do hoặc sửa dữ liệu.");
     }
     flag.waived_by_user = true;
     flag.waive_reason = body.reason.trim();
     flag.waived_at_version = mockState.spine.spine_version;
+    return ok(flag);
+  }),
+
+  // FLF-329 #35: giữ nguyên + lý do — cờ vẫn mở
+  http.post(api("/projects/:projectId/flags/:flagId/keep"), async ({ params, request }) => {
+    const body = (await request.json()) as { reason: string };
+    const flag = mockState.spine.flags.find((f) => f.id === params.flagId);
+    if (!flag) return fail(404, "FLAG_NOT_FOUND", "Không tìm thấy cờ");
+    if (flag.resolved_at) return fail(400, "FLAG_NOT_KEEPABLE", "Cờ này đã đóng.");
+    if (!body.reason || body.reason.trim().length < 20) return fail(400, "VALIDATION_ERROR", "Lý do cần tối thiểu 20 ký tự");
+    flag.kept_reason = body.reason.trim();
+    flag.kept_by = "u1";
+    flag.kept_at = new Date().toISOString();
     return ok(flag);
   }),
 
@@ -1021,6 +1035,23 @@ export const handlers = [
         "X-Assembled-At-Version": String(mockAssembledAtVersion),
         "X-Spine-Version": String(mockState.spine.spine_version),
         // FLF-265 #18: file ra theo ngôn ngữ tài liệu của dự án
+        "X-Document-Language": mockDocumentLanguages().locale,
+      },
+    });
+  }),
+
+  // FLF-316 #34: cùng query/header với Word, file là bản Word chuyển sang PDF ở BE
+  http.get(api("/projects/:projectId/export/pdf"), ({ request }) => {
+    const url = new URL(request.url);
+    const source = url.searchParams.get("source") ?? "draft";
+    if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
+    mockAssembledAtVersion = mockState.spine.spine_version;
+    return new HttpResponse("%PDF-1.7\n% mock pdf — nội dung thật do Gotenberg chuyển từ .docx\n%%EOF\n", {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${mockState.project.name}${source === "draft" ? "-draft" : ""}.pdf"`,
+        "X-Assembled-At-Version": String(mockAssembledAtVersion),
+        "X-Spine-Version": String(mockState.spine.spine_version),
         "X-Document-Language": mockDocumentLanguages().locale,
       },
     });

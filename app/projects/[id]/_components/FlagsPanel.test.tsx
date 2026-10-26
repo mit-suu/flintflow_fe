@@ -59,30 +59,58 @@ describe("FlagsPanel", () => {
     expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
   });
 
-  it("bỏ qua hợp lệ (>= 20 ký tự) gọi onWaive rồi đóng modal", async () => {
-    const onWaive = vi.fn().mockResolvedValue(undefined);
-    renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onRecompute={vi.fn()} />);
+  it("FLF-329: cờ đỏ ⇒ 'Giữ nguyên (vẫn chặn)' gọi onKeep (không phải onWaive), modal nói rõ vẫn chặn, rồi đóng", async () => {
+    const onKeep = vi.fn().mockResolvedValue(undefined);
+    const onWaive = vi.fn();
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onKeep={onKeep} onRecompute={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên (vẫn chặn)" }));
-    const textarea = await screen.findByLabelText(/Lý do/);
+    expect(await screen.findByText("Giữ nguyên vấn đề này?")).toBeInTheDocument();
+    expect(screen.getByText(/vẫn chặn gửi duyệt và chốt bản/)).toBeInTheDocument();
+    const textarea = screen.getByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: "Chấp nhận rủi ro vì phạm vi MVP hiện tại" } });
 
-    const confirm = screen.getByRole("button", { name: "Bỏ qua vấn đề" });
+    const confirm = screen.getByRole("button", { name: "Xác nhận giữ nguyên" });
     expect(confirm).not.toBeDisabled();
     fireEvent.click(confirm);
 
-    await waitFor(() => expect(onWaive).toHaveBeenCalledWith("FL01", "Chấp nhận rủi ro vì phạm vi MVP hiện tại"));
+    await waitFor(() => expect(onKeep).toHaveBeenCalledWith("FL01", "Chấp nhận rủi ro vì phạm vi MVP hiện tại"));
+    expect(onWaive).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByLabelText(/Lý do/)).not.toBeInTheDocument());
   });
 
-  it("lý do dưới 20 ký tự thì nút xác nhận bị khoá", async () => {
+  it("FLF-329: cờ đỏ không có onKeep ⇒ không có nút giữ nguyên", () => {
     renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Giữ nguyên (vẫn chặn)" })).toBeNull();
+  });
+
+  it("FLF-329: cờ đỏ đã giữ nguyên vẫn nằm ở tab Cần xử lý kèm lý do, nút đổi thành sửa lý do", () => {
+    const kept: Flag = { ...baseFlag, id: "FLK", rule_id: "nfr_missing_number", message: "Chưa có NFR nào", kept_reason: "Khách chốt số đo ở bản sau", kept_by: "u1", kept_at: "2026-10-26T00:00:00.000Z" };
+    renderWithIntl(<FlagsPanel flags={[kept]} onKeep={vi.fn()} onRecompute={vi.fn()} />);
+    expect(screen.getByRole("tab", { name: /Cần xử lý/ })).toHaveTextContent("1");
+    expect(screen.getByText(/Đã giữ nguyên: Khách chốt số đo ở bản sau/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sửa lý do giữ nguyên" })).toBeInTheDocument();
+  });
+
+  it("cờ vàng: 'Bỏ qua' gọi onWaive như cũ", async () => {
+    const onWaive = vi.fn().mockResolvedValue(undefined);
+    const yellow: Flag = { ...baseFlag, id: "FLY", level: "yellow", rule_id: "orphan_actor", message: "Actor Guest chưa gắn use case nào" };
+    renderWithIntl(<FlagsPanel flags={[yellow]} onWaive={onWaive} onKeep={vi.fn()} onRecompute={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ qua" }));
+    fireEvent.change(await screen.findByLabelText(/Lý do/), { target: { value: "Chấp nhận rủi ro vì phạm vi MVP hiện tại" } });
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ qua vấn đề" }));
+    await waitFor(() => expect(onWaive).toHaveBeenCalledWith("FLY", "Chấp nhận rủi ro vì phạm vi MVP hiện tại"));
+  });
+
+  it("lý do dưới 20 ký tự thì nút xác nhận bị khoá", async () => {
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onKeep={vi.fn()} onRecompute={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên (vẫn chặn)" }));
     const textarea = await screen.findByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: "Quá ngắn" } });
 
-    expect(screen.getByRole("button", { name: "Bỏ qua vấn đề" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Xác nhận giữ nguyên" })).toBeDisabled();
   });
 
   it("bấm Kiểm tra lại gọi onRecompute", () => {
@@ -159,7 +187,8 @@ describe("FlagsPanel", () => {
 
   it("tab Nên xem hiện cờ vàng, tab Đã bỏ qua hiện lý do", () => {
     const yellow: Flag = { ...baseFlag, id: "Y1", level: "yellow", rule_id: "non_english_content", message: "Có câu tiếng Việt trong §2" };
-    const waived: Flag = { ...baseFlag, id: "W1", waived_by_user: true, waive_reason: "MVP chấp nhận để sau" };
+    // FLF-329: chỉ cờ vàng mới waive được ⇒ tab Đã bỏ qua chỉ còn cờ vàng
+    const waived: Flag = { ...baseFlag, id: "W1", level: "yellow", rule_id: "screen_no_function", waived_by_user: true, waive_reason: "MVP chấp nhận để sau" };
     renderWithIntl(<FlagsPanel flags={[yellow, waived]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
 
     // Không còn cờ đỏ mở ⇒ mở sẵn tab Nên xem

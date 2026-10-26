@@ -81,6 +81,21 @@ describe("useFlags", () => {
     expect(result.current.flags.find((f) => f.id === "FLX")?.waived_by_user).toBe(false);
   });
 
+  it("FLF-329: waive cờ đỏ ⇒ FLAG_NOT_WAIVABLE; keep() ghi kept_reason mà cờ vẫn mở", async () => {
+    const spineVersion = await seedFlag({ id: "FLR", level: "red", rule_id: "nfr_missing_number" });
+    const { result } = renderHook(() => useFlags(P, spineVersion));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await expect(result.current.waive("FLR", "Lý do đủ dài để vượt ngưỡng 20 ký tự")).rejects.toMatchObject({ code: "FLAG_NOT_WAIVABLE" });
+
+    await result.current.keep("FLR", "Khách hàng chốt số đo ở bản sau, đã đồng ý");
+    await waitFor(() => expect(result.current.flags.find((f) => f.id === "FLR")?.kept_reason).toBe("Khách hàng chốt số đo ở bản sau, đã đồng ý"));
+    const kept = result.current.flags.find((f) => f.id === "FLR")!;
+    expect(kept.resolved_at).toBeNull();
+    expect(kept.waived_by_user).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
   it("recompute() tải lại danh sách cờ từ BE", async () => {
     const spineVersion = await seedFlag({ id: "FLZ", level: "yellow", rule_id: "orphan_actor" });
     const { result } = renderHook(() => useFlags(P, spineVersion));

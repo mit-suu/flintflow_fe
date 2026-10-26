@@ -38,7 +38,7 @@ describe("flag-rules", () => {
     expect(groups.map((g) => g.action)).toEqual(["confirm", "fix", "run_step"]);
   });
 
-  it("đếm: mục 'sẽ điền ở bước sau' không tính là vấn đề; cờ đã bỏ qua/đã đóng không tính", () => {
+  it("đếm: mục 'sẽ điền ở bước sau' không tính là vấn đề; cờ vàng đã bỏ qua / cờ đã đóng không tính, cờ đỏ đã waive vẫn chặn (FLF-329)", () => {
     const counts = issueCounts(
       [
         flag({ id: "1", rule_id: "nfr_missing_number" }),
@@ -47,10 +47,11 @@ describe("flag-rules", () => {
         flag({ id: "4", rule_id: "orphan_actor", level: "yellow" }),
         flag({ id: "5", rule_id: "nfr_missing_number", waived_by_user: true }),
         flag({ id: "6", rule_id: "dead_reference", resolved_at: "2026-09-23T00:00:00Z" }),
+        flag({ id: "7", rule_id: "screen_no_function", level: "yellow", waived_by_user: true }),
       ],
       2
     );
-    expect(counts).toEqual({ blocking: 1 + 2, suggestions: 1, later: 1 });
+    expect(counts).toEqual({ blocking: 1 + 3, suggestions: 1, later: 1 });
   });
 
   it("FLF-248: cờ 'rỗng' của bước đã chốt chuyển sang 'fill' và tính là chặn", () => {

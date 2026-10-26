@@ -7,7 +7,7 @@ import { ApiClientError } from "@/lib/api/client";
 import { saveBlob } from "@/lib/api/files";
 import { getSpine } from "@/lib/api/spine";
 import { downloadVersion, releaseDocument } from "@/lib/api/versions";
-import { isReleaseVersion, type DocVersion, type DownloadVariant } from "@/types/doc-version";
+import { isReleaseVersion, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
 import type { Flag } from "@/types/spine";
 import { useMode1Labels } from "./i18n";
 import { crHref } from "./prefill";
@@ -45,13 +45,13 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
   const releaseBlockedReason =
     redOpen === null ? t("checkingFlags") : redOpen > 0 ? t("redFlagsOpen", { count: redOpen }) : !latest ? t("noDocument") : null;
 
-  const download = async (version: string, variant: DownloadVariant) => {
-    setBusy(`download:${version}:${variant}`);
+  const download = async (version: string, variant: DownloadVariant, format: DownloadFormat = "docx") => {
+    setBusy(`download:${version}:${variant}:${format}`);
     setError(null);
     try {
-      const { blob, filename } = await downloadVersion(projectId, version, variant);
+      const { blob, filename } = await downloadVersion(projectId, version, variant, format);
       const suffix = variant === "original" ? "_original" : variant === "tracked" ? "_tracked_DRAFT" : isReleaseVersion(version) ? "" : "_DRAFT";
-      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.docx`);
+      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.${format}`);
     } catch (err) {
       setError(L.errorText(err, t("downloadFailed")));
     } finally {
@@ -171,7 +171,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                     disabled={busy !== null}
                     className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-bold text-[#191817] hover:bg-[#FAF9F7] disabled:opacity-50"
                   >
-                    {busy === `download:${v.version}:auto`
+                    {busy === `download:${v.version}:auto:docx`
                       ? t("downloading")
                       : release
                         ? t("downloadClean")
@@ -181,6 +181,16 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                             : t("downloadOriginalVersion")
                           : t("downloadDraft")}
                   </button>
+                  {/* FLF-316: cùng file ở trên, chuyển sang PDF ở BE — bố cục y hệt bản Word */}
+                  <button
+                    type="button"
+                    onClick={() => void download(v.version, "auto", "pdf")}
+                    disabled={busy !== null}
+                    title={t("downloadPdfTitle")}
+                    className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
+                  >
+                    {busy === `download:${v.version}:auto:pdf` ? t("creatingPdf") : t("downloadPdf")}
+                  </button>
                   {v.has_original_file && (
                     <button
                       type="button"
@@ -189,7 +199,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       title={t("originalFileTitle")}
                       className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
                     >
-                      {busy === `download:${v.version}:original` ? t("downloading") : t("downloadOriginalFile")}
+                      {busy === `download:${v.version}:original:docx` ? t("downloading") : t("downloadOriginalFile")}
                     </button>
                   )}
                   {/* BPMN 3.14 (mode 1 v3): bản có đánh dấu của CR — Track Changes + comment, tác giả là mã CR */}
@@ -205,7 +215,7 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                       }
                       className="px-2.5 py-1 rounded-[8px] border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] disabled:opacity-50"
                     >
-                      {busy === `download:${v.version}:tracked` ? t("downloading") : t("downloadTracked")}
+                      {busy === `download:${v.version}:tracked:docx` ? t("downloading") : t("downloadTracked")}
                     </button>
                   )}
                 </div>

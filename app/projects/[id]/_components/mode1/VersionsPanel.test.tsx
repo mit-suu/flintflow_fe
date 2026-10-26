@@ -210,9 +210,12 @@ describe("VersionsPanel — danh sách version và tải file", () => {
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(2));
     fireEvent.click(within(items[1]).getByRole("button", { name: "Tải bản có đánh dấu" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(3));
+    // FLF-316: nút PDF gửi format=pdf, tên mặc định đổi đuôi
+    fireEvent.click(within(items[0]).getByRole("button", { name: "Tải PDF" }));
+    await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(4));
 
-    expect(seen).toEqual(["1.0?variant=auto", "0.3?variant=auto", "0.3?variant=tracked"]);
-    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v0.3_DRAFT.docx", "Lumen_v0.3_tracked_DRAFT.docx"]);
+    expect(seen).toEqual(["1.0?variant=auto", "0.3?variant=auto", "0.3?variant=tracked", "1.0?variant=auto&format=pdf"]);
+    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v0.3_DRAFT.docx", "Lumen_v0.3_tracked_DRAFT.docx", "Lumen_v1.0.pdf"]);
   });
 
   it("tải dùng tên BE trả nếu có; lỗi tải ⇒ hiện thông báo", async () => {

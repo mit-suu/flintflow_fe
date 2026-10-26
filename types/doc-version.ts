@@ -27,6 +27,8 @@ export interface DocVersion {
  * `tracked`: luôn bản có Track Changes. `original`: file người dùng upload (chỉ bản 0.1).
  */
 export type DownloadVariant = "auto" | "tracked" | "original";
+/** `pdf` (FLF-316): chính file .docx của variant đó chuyển ở BE; `original` chỉ có `docx`. */
+export type DownloadFormat = "docx" | "pdf";
 
 export interface CompareResponse {
   from: string;

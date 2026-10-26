@@ -7,10 +7,12 @@ import ExportPanel from "./ExportPanel";
 import * as exportApi from "@/lib/api/export";
 import { ApiClientError } from "@/lib/api/client";
 import type { RenderedDocument } from "@/types/document";
+import type { Baseline } from "@/types/spine";
 
 vi.mock("@/lib/api/export", () => ({
   getDocument: vi.fn(),
   downloadWordExport: vi.fn(),
+  downloadPdfExport: vi.fn(),
   listBaselines: vi.fn(),
 }));
 
@@ -89,7 +91,7 @@ describe("ExportPanel", () => {
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
 
     expect(await screen.findByText(/Không kiểm tra được baseline/)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Word baseline" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Bản baseline" })).toBeDisabled();
   });
 
   it("hiện số cờ đỏ sẽ in vào §I từ flagsAppendix", async () => {
@@ -99,6 +101,76 @@ describe("ExportPanel", () => {
 
     expect(await screen.findByText("Số cờ đỏ sẽ in vào §I")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
+  });
+});
+
+describe("ExportPanel — chọn định dạng Word / PDF (FLF-316)", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const downloadWordExport = vi.mocked(exportApi.downloadWordExport);
+  const downloadPdfExport = vi.mocked(exportApi.downloadPdfExport);
+  const listBaselines = vi.mocked(exportApi.listBaselines);
+  const draftMeta = { assembled_at_version: 3, spine_version: 3, stale: false };
+
+  beforeEach(() => {
+    getDocument.mockReset().mockResolvedValue({ data: fixture, error: null, meta: draftMeta });
+    downloadWordExport.mockReset();
+    downloadPdfExport.mockReset();
+    listBaselines.mockReset();
+    listBaselines.mockResolvedValue({ data: [], error: null });
+  });
+
+  it("mặc định Word; chọn PDF ⇒ nút đổi đuôi và tải qua downloadPdfExport, giữ nguồn đang chọn", async () => {
+    listBaselines.mockResolvedValue({ data: [{ id: "BL001" } as Baseline], error: null });
+    downloadPdfExport.mockResolvedValue({ blob: new Blob(["%PDF"]), filename: "FlintFlow-v1.0.pdf" });
+    const createObjectURL = vi.fn(() => "blob:mock-url");
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
+
+    expect(await screen.findByRole("radio", { name: /Word/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Tải bản nháp (.docx)" })).toBeInTheDocument();
+
+    const baselineTab = screen.getByRole("tab", { name: "Bản baseline" });
+    await waitFor(() => expect(baselineTab).toBeEnabled());
+    fireEvent.click(baselineTab);
+    fireEvent.click(screen.getByRole("radio", { name: /PDF/ }));
+    expect(screen.getByRole("radio", { name: /PDF/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("tab", { name: "Bản baseline" })).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Tải bản baseline (.pdf)" }));
+
+    await waitFor(() => expect(downloadPdfExport).toHaveBeenCalledWith("p1", "baseline", "BL001"));
+    expect(downloadWordExport).not.toHaveBeenCalled();
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("503 PDF_EXPORT_UNAVAILABLE ⇒ câu cho user, gợi ý tải Word", async () => {
+    downloadPdfExport.mockRejectedValue(
+      new ApiClientError(503, "PDF_EXPORT_UNAVAILABLE", "Chưa xuất được PDF lúc này. Bạn hãy thử lại sau ít phút, hoặc tải bản Word.")
+    );
+
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("radio", { name: /PDF/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản nháp (.pdf)" }));
+
+    expect(await screen.findByText(/Chưa xuất được PDF lúc này/)).toBeInTheDocument();
+    expect(screen.queryByText(/PDF_EXPORT_UNAVAILABLE/)).not.toBeInTheDocument();
+  });
+
+  it("đổi định dạng xoá lỗi tải của lượt trước", async () => {
+    downloadPdfExport.mockRejectedValue(new ApiClientError(503, "PDF_EXPORT_UNAVAILABLE", "Chưa xuất được PDF lúc này."));
+
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("radio", { name: /PDF/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản nháp (.pdf)" }));
+    expect(await screen.findByText(/Chưa xuất được PDF lúc này/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Word/ }));
+    expect(screen.queryByText(/Chưa xuất được PDF lúc này/)).not.toBeInTheDocument();
   });
 });
 

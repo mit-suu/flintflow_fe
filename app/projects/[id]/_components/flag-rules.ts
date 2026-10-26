@@ -115,7 +115,8 @@ export interface IssueCounts {
   later: number;
 }
 
-const isOpenFlag = (f: Flag) => !f.resolved_at && !f.waived_by_user;
+// FLF-329 (BR-04): cờ đỏ đã waive / giữ nguyên vẫn mở, vẫn chặn
+const isOpenFlag = (f: Flag) => !f.resolved_at && (f.level === "red" || !f.waived_by_user);
 
 /**
  * Đếm cho chip trạng thái, câu tóm tắt và số trên tab — cùng một định nghĩa ở mọi chỗ. `acceptedSteps`: các bước

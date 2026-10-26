@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
+import { keepFlag, listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { HOOK_ERROR } from "@/lib/hook-errors";
@@ -13,6 +13,8 @@ export interface UseFlagsResult {
   busy: boolean;
   reload: () => Promise<void>;
   waive: (flagId: string, reason: string) => Promise<void>;
+  /** FLF-329: giữ nguyên + lý do — cờ vẫn mở. */
+  keep: (flagId: string, reason: string) => Promise<void>;
   recompute: () => Promise<void>;
 }
 
@@ -70,6 +72,26 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
     [projectId]
   );
 
+  const keep = useCallback(
+    async (flagId: string, reason: string) => {
+      setBusy(true);
+      try {
+        const res = await keepFlag(projectId, flagId, reason);
+        if (res.data) {
+          const updated = res.data;
+          setFlags((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+        }
+        setError(null);
+      } catch (err) {
+        setError(userErrorMessage(err, HOOK_ERROR.keepFailed));
+        throw err;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [projectId]
+  );
+
   const recompute = useCallback(async () => {
     setBusy(true);
     try {
@@ -83,5 +105,5 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
     }
   }, [projectId]);
 
-  return { flags, loading, error, busy, reload, waive, recompute };
+  return { flags, loading, error, busy, reload, waive, keep, recompute };
 }
