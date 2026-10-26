@@ -17,6 +17,7 @@ import { hookErrorText } from "@/lib/hook-errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
+import type { SrsComment } from "@/types/comment";
 import { isGateApproval } from "@/lib/gate-approval";
 import type { Diagram, ReviewMode } from "@/types/spine";
 import { chatChangePreview } from "@/lib/chat-change-preview";
@@ -950,6 +951,13 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     await comments.resolve(commentId, resolution);
     await spineState.reload();
   };
+  /** FLF-271 (UC-40): comment đang được nhờ AI sửa — lượt áp kế tiếp gửi `comment_id` để BE tự đóng. */
+  const [fixingCommentId, setFixingCommentId] = useState<string | null>(null);
+  const fixCommentByChat = (comment: SrsComment) => {
+    setFixingCommentId(comment.comment_id);
+    setRightPanel(null);
+    startEditing(t("userText.fixComment", { label: comment.anchor.label, text: comment.text }));
+  };
 
   const [baselineBusy, setBaselineBusy] = useState(false);
   const [baselineError, setBaselineError] = useState<string | null>(null);
@@ -1859,7 +1867,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   return;
                 }
                 editActionRef.current = "instruction";
-                void changes.confirmPreview();
+                void changes.confirmPreview(undefined, undefined, fixingCommentId).finally(() => setFixingCommentId(null));
               }}
               onCancel={closeEditCard}
               // BR-03 (FLF-294): sau baseline không hoàn tác — gỡ thay đổi là một change request mới
@@ -2047,6 +2055,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onSubmit={submitComment}
             onResolve={resolveComment}
             onShowSection={showSection}
+            onFixByChat={canEdit && !mode1 ? fixCommentByChat : undefined}
             focusCommentIds={focusCommentIds}
             onClearFocus={() => setFocusCommentIds(null)}
             onClose={() => setRightPanel(null)}
@@ -2108,7 +2117,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
           onConfirm={(reason, changeRequest) => {
             editActionRef.current = changes.previewSource === "reconcile" ? "outdated" : "instruction";
-            void changes.confirmPreview(reason, changeRequest);
+            void changes.confirmPreview(reason, changeRequest, fixingCommentId).finally(() => setFixingCommentId(null));
           }}
         />
       )}
