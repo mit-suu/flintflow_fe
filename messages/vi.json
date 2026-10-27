@@ -3223,7 +3223,8 @@
         "reupload": "File tải lại (khác biệt)",
         "viewer_comment": "Góp ý của người xem",
         "verbal": "Yêu cầu miệng (ghi rõ người yêu cầu)",
-        "chat": "Lệnh sửa trong chat (CR cũ)"
+        "chat": "Lệnh sửa trong chat (CR cũ)",
+        "reference_document": "Tài liệu tham khảo (rút yêu cầu)"
       },
       "foundBy": {
         "spine_link": "Liên kết field",
@@ -3648,34 +3649,34 @@
       "importSrs": "Nhập SRS"
     },
     "reviewPackage": {
-          "aria": "Gói thay đổi chờ duyệt",
-          "title": "Gói thay đổi",
-          "status": {
-                "drafting": "Đang soạn",
-                "pending": "Chờ Lead duyệt",
-                "changes_requested": "Lead yêu cầu sửa"
-          },
-          "loading": "Đang tải gói thay đổi…",
-          "loadFailed": "Không tải được gói thay đổi",
-          "actionFailed": "Thao tác không thành công",
-          "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
-          "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
-          "listAria": "Change request trong gói",
-          "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
-          "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
-          "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
-          "submit": "Gửi Lead duyệt cả gói",
-          "resubmit": "Gửi lại cho Lead",
-          "sending": "Đang gửi…",
-          "approveAll": "Duyệt cả gói & phát hành",
-          "requestChanges": "Yêu cầu sửa",
-          "releaseDirect": "Phát hành thẳng (Lead)",
-          "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
-          "cancel": "Huỷ",
-          "confirmChanges": "Gửi yêu cầu sửa",
-          "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
-          "releasing": "Đang phát hành…",
-          "confirmRelease": "Xác nhận phát hành"
+      "aria": "Gói thay đổi chờ duyệt",
+      "title": "Gói thay đổi",
+      "status": {
+        "drafting": "Đang soạn",
+        "pending": "Chờ Lead duyệt",
+        "changes_requested": "Lead yêu cầu sửa"
+      },
+      "loading": "Đang tải gói thay đổi…",
+      "loadFailed": "Không tải được gói thay đổi",
+      "actionFailed": "Thao tác không thành công",
+      "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
+      "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
+      "listAria": "Change request trong gói",
+      "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
+      "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
+      "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
+      "submit": "Gửi Lead duyệt cả gói",
+      "resubmit": "Gửi lại cho Lead",
+      "sending": "Đang gửi…",
+      "approveAll": "Duyệt cả gói & phát hành",
+      "requestChanges": "Yêu cầu sửa",
+      "releaseDirect": "Phát hành thẳng (Lead)",
+      "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
+      "cancel": "Huỷ",
+      "confirmChanges": "Gửi yêu cầu sửa",
+      "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
+      "releasing": "Đang phát hành…",
+      "confirmRelease": "Xác nhận phát hành"
     },
     "creditEstimate": {
       "none": "Ước tính: không cần lượt AI nào — phần còn lại trích tất định, không tốn credit.",
@@ -3813,6 +3814,63 @@
       "to": "Đến",
       "compare": "So sánh",
       "pickDifferent": "Chọn hai version khác nhau."
+    },
+    "referenceDocs": {
+      "aria": "Tài liệu tham khảo",
+      "title": "Tài liệu tham khảo",
+      "intro": "Biên bản, email, ghi chú đính kèm trong chat. Rút yêu cầu để AI liệt kê từng yêu cầu kèm đoạn nguồn rồi bạn duyệt thành change request.",
+      "loading": "Đang tải tài liệu tham khảo…",
+      "loadFailed": "Không tải được tài liệu tham khảo",
+      "unreadable": "chưa đọc được chữ",
+      "status": {
+        "extracted": "{count, plural, =1 {1 yêu cầu chờ duyệt} other {# yêu cầu chờ duyệt}}",
+        "approved": "đã duyệt"
+      },
+      "show": "Xem danh sách",
+      "hide": "Ẩn",
+      "extract": "Rút yêu cầu",
+      "reExtract": "Rút lại",
+      "extracting": "Đang rút…",
+      "extractFailed": "Không rút được yêu cầu",
+      "delete": "Xoá",
+      "deleteFailed": "Không xoá được tài liệu",
+      "confirmAria": "Xác nhận credit trước khi rút yêu cầu",
+      "confirm": "AI đọc cả tài liệu một lần, tốn ~{credits} credit. Chạy chứ?",
+      "confirmUnknown": "AI đọc cả tài liệu một lần và tốn credit. Chạy chứ?",
+      "cancel": "Huỷ",
+      "run": "Chạy"
+    },
+    "extraction": {
+      "aria": "Danh sách yêu cầu rút từ {name}",
+      "title": "{name} — {count, plural, =1 {1 yêu cầu} other {# yêu cầu}}",
+      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick — tài liệu thành nguồn của phần tử.",
+      "creditsUsed": "đã dùng {credits} credit",
+      "approvedAt": "danh sách đã duyệt",
+      "labels": {
+        "new": "Mới",
+        "modification": "Sửa đổi",
+        "duplicate": "Trùng",
+        "contradiction": "Mâu thuẫn",
+        "ambiguous": "Mơ hồ"
+      },
+      "group": "Nhóm",
+      "groupAria": "Nhóm của {id}",
+      "includeAria": "Đưa {id} vào",
+      "touches": "Chạm: {paths}",
+      "questionsAria": "Câu hỏi của AI",
+      "questionsTitle": "{count, plural, =1 {1 câu hỏi} other {# câu hỏi}} cần bạn trả lời trước khi tạo change request",
+      "answerAria": "Trả lời cho {id}",
+      "answerPlaceholder": "Trả lời hoặc chọn gợi ý ở trên",
+      "dropReasonAria": "Lý do bỏ {id}",
+      "dropReasonPlaceholder": "Vì sao bỏ mục này?",
+      "dropped": "Đã bỏ: {reason}",
+      "answered": "Trả lời: {answer}",
+      "requester": "Người yêu cầu",
+      "requesterPlaceholder": "Ai đưa ra yêu cầu (vd PM Lan)",
+      "create": "{count, plural, =0 {Duyệt danh sách} =1 {Tạo 1 change request} other {Tạo # change request}}",
+      "creating": "Đang tạo…",
+      "problems": "{count, plural, =1 {Còn 1 mục} other {Còn # mục}} thiếu lý do bỏ hoặc câu trả lời.",
+      "approveFailed": "Không duyệt được danh sách"
     }
   }
 }
