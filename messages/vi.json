@@ -3200,7 +3200,8 @@
         "checking": "Đang kiểm tra",
         "gap_review": "Chờ xem gap report",
         "delivered": "Đã giao gap report",
-        "change_requested": "Đang sửa qua change request"
+        "change_requested": "Đang sửa qua change request",
+        "incomplete": "Chưa hoàn thiện — chờ bạn quyết"
       },
       "crStatus": {
         "draft": "Nháp",
@@ -3552,7 +3553,8 @@
         "extract": "Trích field",
         "fields": "Xác nhận field",
         "baseline": "Baseline & kiểm",
-        "gap": "Gap report"
+        "gap": "Gap report",
+        "result": "Kết quả đọc file"
       },
       "closeError": "Đóng thông báo lỗi",
       "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
@@ -3648,34 +3650,34 @@
       "importSrs": "Nhập SRS"
     },
     "reviewPackage": {
-          "aria": "Gói thay đổi chờ duyệt",
-          "title": "Gói thay đổi",
-          "status": {
-                "drafting": "Đang soạn",
-                "pending": "Chờ Lead duyệt",
-                "changes_requested": "Lead yêu cầu sửa"
-          },
-          "loading": "Đang tải gói thay đổi…",
-          "loadFailed": "Không tải được gói thay đổi",
-          "actionFailed": "Thao tác không thành công",
-          "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
-          "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
-          "listAria": "Change request trong gói",
-          "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
-          "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
-          "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
-          "submit": "Gửi Lead duyệt cả gói",
-          "resubmit": "Gửi lại cho Lead",
-          "sending": "Đang gửi…",
-          "approveAll": "Duyệt cả gói & phát hành",
-          "requestChanges": "Yêu cầu sửa",
-          "releaseDirect": "Phát hành thẳng (Lead)",
-          "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
-          "cancel": "Huỷ",
-          "confirmChanges": "Gửi yêu cầu sửa",
-          "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
-          "releasing": "Đang phát hành…",
-          "confirmRelease": "Xác nhận phát hành"
+      "aria": "Gói thay đổi chờ duyệt",
+      "title": "Gói thay đổi",
+      "status": {
+        "drafting": "Đang soạn",
+        "pending": "Chờ Lead duyệt",
+        "changes_requested": "Lead yêu cầu sửa"
+      },
+      "loading": "Đang tải gói thay đổi…",
+      "loadFailed": "Không tải được gói thay đổi",
+      "actionFailed": "Thao tác không thành công",
+      "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
+      "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
+      "listAria": "Change request trong gói",
+      "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
+      "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
+      "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
+      "submit": "Gửi Lead duyệt cả gói",
+      "resubmit": "Gửi lại cho Lead",
+      "sending": "Đang gửi…",
+      "approveAll": "Duyệt cả gói & phát hành",
+      "requestChanges": "Yêu cầu sửa",
+      "releaseDirect": "Phát hành thẳng (Lead)",
+      "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
+      "cancel": "Huỷ",
+      "confirmChanges": "Gửi yêu cầu sửa",
+      "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
+      "releasing": "Đang phát hành…",
+      "confirmRelease": "Xác nhận phát hành"
     },
     "creditEstimate": {
       "none": "Ước tính: không cần lượt AI nào — phần còn lại trích tất định, không tốn credit.",
@@ -3813,6 +3815,29 @@
       "to": "Đến",
       "compare": "So sánh",
       "pickDifferent": "Chọn hai version khác nhau."
+    },
+    "readingResult": {
+      "aria": "Kết quả đọc file",
+      "title": "Kết quả đọc file",
+      "mapAria": "Bản đồ mục so với cấu trúc đích",
+      "mode": {
+        "1": "File đủ cấu trúc đích — {present} mục có nội dung.",
+        "3": "File theo mẫu cố định còn {missing} mục trống trong {present} mục có nội dung. FlintFlow chỉ soạn đúng mục mẫu có, không thêm, không đổi thứ tự.",
+        "4": "File còn thiếu {missing} mục của mẫu chuẩn FlintFlow ({present} mục đã có). Hoàn thiện sẽ bổ sung mục thiếu và sắp lại bố cục, giữ phần đã có."
+      },
+      "status": {
+        "present": "Có",
+        "missing": "Sẽ soạn",
+        "out_of_scope": "Ngoài phạm vi"
+      },
+      "ownerSteps": "bước {steps}",
+      "outOfScopeNote": "{count, plural, =1 {1 mục} other {# mục}} ngoài phạm vi giữ nguyên văn và chuyển xuống cuối tài liệu.",
+      "stopNote": "Dừng ở đây thì dự án ở trạng thái chưa hoàn thiện: mở lại tiếp được, chỉ xuất bản DRAFT.",
+      "stop": "Dừng, tải gap report",
+      "downloading": "Đang tải…",
+      "downloadFailed": "Không tải được gap report",
+      "complete": "Hoàn thiện",
+      "completing": "Đang chốt bản gốc…"
     }
   }
 }

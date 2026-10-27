@@ -3200,7 +3200,8 @@
         "checking": "Checking",
         "gap_review": "Gap report ready for review",
         "delivered": "Gap report delivered",
-        "change_requested": "Editing via change request"
+        "change_requested": "Editing via change request",
+        "incomplete": "Incomplete — your call"
       },
       "crStatus": {
         "draft": "Draft",
@@ -3552,12 +3553,13 @@
         "extract": "Extract fields",
         "fields": "Confirm fields",
         "baseline": "Baseline & check",
-        "gap": "Gap report"
+        "gap": "Gap report",
+        "result": "Reading result"
       },
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
       "uploadFixed": "Upload the corrected file",
-      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements\u2026). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
+      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements…). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
       "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FPT template sections are added. The original file can always be downloaded again.",
       "parsing": "Splitting the document into blocks…",
       "reload": "Reload",
@@ -3648,34 +3650,34 @@
       "importSrs": "Import SRS"
     },
     "reviewPackage": {
-          "aria": "Change package awaiting review",
-          "title": "Change package",
-          "status": {
-                "drafting": "Drafting",
-                "pending": "Awaiting Lead review",
-                "changes_requested": "Lead requested changes"
-          },
-          "loading": "Loading change package…",
-          "loadFailed": "Could not load the change package",
-          "actionFailed": "The action did not succeed",
-          "lockedNote": "The package is awaiting the Lead — the draft is locked: no new change request can be created or confirmed until the Lead approves the whole package or requests changes.",
-          "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
-          "listAria": "Change requests in the package",
-          "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
-          "blockedEmpty": "No change request to submit yet.",
-          "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open — resolve via change requests before submitting to the Lead.",
-          "submit": "Submit whole package to Lead",
-          "resubmit": "Resubmit to Lead",
-          "sending": "Sending…",
-          "approveAll": "Approve all & release",
-          "requestChanges": "Request changes",
-          "releaseDirect": "Release directly (Lead)",
-          "reasonLabel": "Reason for requesting changes (at least {min} characters) — the BA will read this",
-          "cancel": "Cancel",
-          "confirmChanges": "Send change request",
-          "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable — if something is wrong, release a new version.",
-          "releasing": "Releasing…",
-          "confirmRelease": "Confirm release"
+      "aria": "Change package awaiting review",
+      "title": "Change package",
+      "status": {
+        "drafting": "Drafting",
+        "pending": "Awaiting Lead review",
+        "changes_requested": "Lead requested changes"
+      },
+      "loading": "Loading change package…",
+      "loadFailed": "Could not load the change package",
+      "actionFailed": "The action did not succeed",
+      "lockedNote": "The package is awaiting the Lead — the draft is locked: no new change request can be created or confirmed until the Lead approves the whole package or requests changes.",
+      "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
+      "listAria": "Change requests in the package",
+      "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
+      "blockedEmpty": "No change request to submit yet.",
+      "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open — resolve via change requests before submitting to the Lead.",
+      "submit": "Submit whole package to Lead",
+      "resubmit": "Resubmit to Lead",
+      "sending": "Sending…",
+      "approveAll": "Approve all & release",
+      "requestChanges": "Request changes",
+      "releaseDirect": "Release directly (Lead)",
+      "reasonLabel": "Reason for requesting changes (at least {min} characters) — the BA will read this",
+      "cancel": "Cancel",
+      "confirmChanges": "Send change request",
+      "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable — if something is wrong, release a new version.",
+      "releasing": "Releasing…",
+      "confirmRelease": "Confirm release"
     },
     "creditEstimate": {
       "none": "Estimate: no AI runs needed — the rest is extracted deterministically at no credit cost.",
@@ -3813,6 +3815,29 @@
       "to": "To",
       "compare": "Compare",
       "pickDifferent": "Pick two different versions."
+    },
+    "readingResult": {
+      "aria": "Reading result",
+      "title": "Reading result",
+      "mapAria": "Section map against the target structure",
+      "mode": {
+        "1": "The file covers the target structure — {present} sections with content.",
+        "3": "The fixed template still has {missing} empty sections out of {present} with content. FlintFlow drafts only the sections the template has, adds nothing and keeps the order.",
+        "4": "The file is missing {missing} sections of the FlintFlow standard template ({present} present). Completing adds the missing sections and reorders the layout, keeping what you have."
+      },
+      "status": {
+        "present": "Present",
+        "missing": "To draft",
+        "out_of_scope": "Out of scope"
+      },
+      "ownerSteps": "step {steps}",
+      "outOfScopeNote": "{count, plural, =1 {1 section} other {# sections}} out of scope stay verbatim and move to the end of the document.",
+      "stopNote": "Stopping here leaves the project incomplete: reopen it later; only DRAFT exports.",
+      "stop": "Stop, download the gap report",
+      "downloading": "Downloading…",
+      "downloadFailed": "Could not download the gap report",
+      "complete": "Complete",
+      "completing": "Creating the baseline…"
     }
   }
 }

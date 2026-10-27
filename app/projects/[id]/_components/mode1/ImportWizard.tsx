@@ -11,6 +11,7 @@ import { useImport } from "../../hooks/mode1/useImport";
 import ConfirmLatestModal from "./ConfirmLatestModal";
 import CreditEstimateNote from "./CreditEstimateNote";
 import ExtractProgress from "./ExtractProgress";
+import ReadingResultScreen from "./ReadingResultScreen";
 import FieldsReview from "./FieldsReview";
 import { IMPORT_DONE_STATUSES } from "./labels";
 import MappingReviewTable from "./MappingReviewTable";
@@ -29,11 +30,13 @@ interface ImportWizardProps {
   pollMs?: number;
 }
 
-const STEPS: { id: "upload" | "mapping" | "extract" | "fields" | "baseline" | "gap"; statuses: ImportStatus[] }[] = [
+const STEPS: { id: "upload" | "mapping" | "extract" | "fields" | "result" | "baseline" | "gap"; statuses: ImportStatus[] }[] = [
   { id: "upload", statuses: ["uploaded", "preflight_rejected", "awaiting_latest_confirm", "parsing"] },
   { id: "mapping", statuses: ["mapping_review"] },
   { id: "extract", statuses: ["extracting"] },
   { id: "fields", statuses: ["fields_review"] },
+  // FLF-336 I-5: so cấu trúc đích — thiếu mục ⇒ điểm dừng "Kết quả đọc file"
+  { id: "result", statuses: ["incomplete"] },
   { id: "baseline", statuses: ["baselining", "checking"] },
   { id: "gap", statuses: IMPORT_DONE_STATUSES as ImportStatus[] },
 ];
@@ -238,6 +241,15 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs }: 
             </div>
           )}
         </div>
+      )}
+
+      {status === "incomplete" && imp.data?.target_structure && (
+        <ReadingResultScreen
+          projectId={projectId}
+          structure={imp.data.target_structure}
+          busy={imp.busy === "finalize"}
+          onComplete={() => void after(imp.finalize(undefined, { complete: true }))}
+        />
       )}
 
       {status && IMPORT_DONE_STATUSES.includes(status) && (
