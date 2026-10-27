@@ -5,7 +5,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
 import { mockServer } from "@/mocks/server";
 import type { Cr, CrStatus } from "@/types/change-request";
@@ -19,6 +19,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
+// FLF-338: panel tài liệu tham khảo gọi /documents — không có tài liệu ⇒ panel ẩn
+beforeEach(() => mockServer.use(http.get(`${API_BASE_URL}/projects/:projectId/documents`, () => HttpResponse.json({ data: [], error: null }))));
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
