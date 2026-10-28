@@ -3292,7 +3292,8 @@
         "reupload": "Re-uploaded file (differences)",
         "viewer_comment": "Viewer feedback",
         "verbal": "Verbal request (name the requester)",
-        "chat": "Chat edit command (legacy CR)"
+        "chat": "Chat edit command (legacy CR)",
+        "reference_document": "Reference document (extracted requirements)"
       },
       "foundBy": {
         "spine_link": "Field link",
@@ -3895,6 +3896,63 @@
       "to": "To",
       "compare": "Compare",
       "pickDifferent": "Pick two different versions."
+    },
+    "referenceDocs": {
+      "aria": "Reference documents",
+      "title": "Reference documents",
+      "intro": "Minutes, emails and notes attached in chat. Extract requirements to have the AI list each requirement with its source paragraph, then approve them as change requests.",
+      "loading": "Loading reference documents…",
+      "loadFailed": "Could not load reference documents",
+      "unreadable": "no readable text",
+      "status": {
+        "extracted": "{count, plural, =1 {1 requirement to review} other {# requirements to review}}",
+        "approved": "approved"
+      },
+      "show": "Show list",
+      "hide": "Hide",
+      "extract": "Extract requirements",
+      "reExtract": "Extract again",
+      "extracting": "Extracting…",
+      "extractFailed": "Could not extract requirements",
+      "delete": "Delete",
+      "deleteFailed": "Could not delete the document",
+      "confirmAria": "Confirm credits before extracting",
+      "confirm": "The AI reads the whole document once for ~{credits} credits. Run?",
+      "confirmUnknown": "The AI reads the whole document once and spends credits. Run?",
+      "cancel": "Cancel",
+      "run": "Run"
+    },
+    "extraction": {
+      "aria": "Requirements extracted from {name}",
+      "title": "{name} — {count, plural, =1 {1 requirement} other {# requirements}}",
+      "intro": "Labels are AI suggestions. Tick items to include; give a reason for each dropped item; items in the same group become one change request (rename the group to split). Duplicates only need a tick — the document becomes a source of the element.",
+      "creditsUsed": "{credits} credits used",
+      "approvedAt": "list approved",
+      "labels": {
+        "new": "New",
+        "modification": "Modification",
+        "duplicate": "Duplicate",
+        "contradiction": "Contradiction",
+        "ambiguous": "Ambiguous"
+      },
+      "group": "Group",
+      "groupAria": "Group of {id}",
+      "includeAria": "Include {id}",
+      "touches": "Touches: {paths}",
+      "questionsAria": "AI questions",
+      "questionsTitle": "{count, plural, =1 {1 question} other {# questions}} to answer before creating change requests",
+      "answerAria": "Answer for {id}",
+      "answerPlaceholder": "Answer or pick a suggestion above",
+      "dropReasonAria": "Reason for dropping {id}",
+      "dropReasonPlaceholder": "Why drop this item?",
+      "dropped": "Dropped: {reason}",
+      "answered": "Answer: {answer}",
+      "requester": "Requester",
+      "requesterPlaceholder": "Who asked for this (e.g. PM Lan)",
+      "create": "{count, plural, =0 {Approve list} =1 {Create 1 change request} other {Create # change requests}}",
+      "creating": "Creating…",
+      "problems": "{count, plural, =1 {1 item} other {# items}} still missing a drop reason or an answer.",
+      "approveFailed": "Could not approve the list"
     }
   }
 }

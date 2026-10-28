@@ -3292,7 +3292,8 @@
         "reupload": "File tải lại (khác biệt)",
         "viewer_comment": "Góp ý của người xem",
         "verbal": "Yêu cầu miệng (ghi rõ người yêu cầu)",
-        "chat": "Lệnh sửa trong chat (CR cũ)"
+        "chat": "Lệnh sửa trong chat (CR cũ)",
+        "reference_document": "Tài liệu tham khảo (rút yêu cầu)"
       },
       "foundBy": {
         "spine_link": "Liên kết field",
@@ -3895,6 +3896,63 @@
       "to": "Đến",
       "compare": "So sánh",
       "pickDifferent": "Chọn hai version khác nhau."
+    },
+    "referenceDocs": {
+      "aria": "Tài liệu tham khảo",
+      "title": "Tài liệu tham khảo",
+      "intro": "Biên bản, email, ghi chú đính kèm trong chat. Rút yêu cầu để AI liệt kê từng yêu cầu kèm đoạn nguồn rồi bạn duyệt thành change request.",
+      "loading": "Đang tải tài liệu tham khảo…",
+      "loadFailed": "Không tải được tài liệu tham khảo",
+      "unreadable": "chưa đọc được chữ",
+      "status": {
+        "extracted": "{count, plural, =1 {1 yêu cầu chờ duyệt} other {# yêu cầu chờ duyệt}}",
+        "approved": "đã duyệt"
+      },
+      "show": "Xem danh sách",
+      "hide": "Ẩn",
+      "extract": "Rút yêu cầu",
+      "reExtract": "Rút lại",
+      "extracting": "Đang rút…",
+      "extractFailed": "Không rút được yêu cầu",
+      "delete": "Xoá",
+      "deleteFailed": "Không xoá được tài liệu",
+      "confirmAria": "Xác nhận credit trước khi rút yêu cầu",
+      "confirm": "AI đọc cả tài liệu một lần, tốn ~{credits} credit. Chạy chứ?",
+      "confirmUnknown": "AI đọc cả tài liệu một lần và tốn credit. Chạy chứ?",
+      "cancel": "Huỷ",
+      "run": "Chạy"
+    },
+    "extraction": {
+      "aria": "Danh sách yêu cầu rút từ {name}",
+      "title": "{name} — {count, plural, =1 {1 yêu cầu} other {# yêu cầu}}",
+      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick — tài liệu thành nguồn của phần tử.",
+      "creditsUsed": "đã dùng {credits} credit",
+      "approvedAt": "danh sách đã duyệt",
+      "labels": {
+        "new": "Mới",
+        "modification": "Sửa đổi",
+        "duplicate": "Trùng",
+        "contradiction": "Mâu thuẫn",
+        "ambiguous": "Mơ hồ"
+      },
+      "group": "Nhóm",
+      "groupAria": "Nhóm của {id}",
+      "includeAria": "Đưa {id} vào",
+      "touches": "Chạm: {paths}",
+      "questionsAria": "Câu hỏi của AI",
+      "questionsTitle": "{count, plural, =1 {1 câu hỏi} other {# câu hỏi}} cần bạn trả lời trước khi tạo change request",
+      "answerAria": "Trả lời cho {id}",
+      "answerPlaceholder": "Trả lời hoặc chọn gợi ý ở trên",
+      "dropReasonAria": "Lý do bỏ {id}",
+      "dropReasonPlaceholder": "Vì sao bỏ mục này?",
+      "dropped": "Đã bỏ: {reason}",
+      "answered": "Trả lời: {answer}",
+      "requester": "Người yêu cầu",
+      "requesterPlaceholder": "Ai đưa ra yêu cầu (vd PM Lan)",
+      "create": "{count, plural, =0 {Duyệt danh sách} =1 {Tạo 1 change request} other {Tạo # change request}}",
+      "creating": "Đang tạo…",
+      "problems": "{count, plural, =1 {Còn 1 mục} other {Còn # mục}} thiếu lý do bỏ hoặc câu trả lời.",
+      "approveFailed": "Không duyệt được danh sách"
     }
   }
 }
