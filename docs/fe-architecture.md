@@ -228,16 +228,19 @@ là không hỗ trợ lấy image nhỏ hơn.
 ```
 
 Tạo dự án xong đi tới `getProjectStartRoute(id, mode)` (`lib/project-source-mode.ts`) — chỗ duy nhất
-map mode → route: `import → /projects/:id/import` (wizard mode 1), `customer_template → /projects/:id/template`
-(chưa có, BE trả 501), `fpt → /projects/:id`. Route đổi thì chỉ sửa hàm này.
+map mode → route: `import → /projects/:id/import` (wizard tải file), `customer_template → /projects/:id/import` (giá trị cũ),
+`fpt → /projects/:id`. Route đổi thì chỉ sửa hàm này.
 
 ## Cách làm SRS của dự án (`Project.mode`)
 
-`Project.mode` (`import | fpt | customer_template`, BE `project.model.ts`) chọn khi tạo, không đổi được; không gửi
-⇒ `fpt`, dự án cũ BE đọc ra `fpt`. Khác `WorkingMode` (fast/coaching) của Spine — đừng gọi nó là "working mode".
-Nhãn, mô tả, icon, tone và `status: "ready" | "soon"` của 3 mode chỉ khai báo ở `SOURCE_MODE_OPTIONS`; mode `soon`
-hiện nhưng không chọn được. Card dự án `import` hiện trạng thái import (`import_state`) hoặc số change request đang mở
-thay cho step tiếp theo.
+`Project.mode` (`import | fpt | customer_template`, BE `project.model.ts`) do **BE suy ra** từ lựa chọn lúc tạo (FLF-335,
+business-flow §1): `ProjectStartPicker` chỉ hỏi *Dự án mới* (kèm "khách có bắt buộc theo một mẫu không?") hay *Dự án có
+sẵn* — FE gửi `source` + `has_required_template`, không gửi `mode`. Mới không mẫu ⇒ `fpt`; mới có mẫu bắt buộc hoặc có sẵn ⇒
+`import` (chế độ thật 1 / 3 / 4 quyết định sau khi so cấu trúc đích). `Project.start_kind` / `template_intent` ghi lựa chọn;
+wizard import hỏi ý định (`fixed` / `free`) lúc upload và gửi field `intent`. Dự án cũ BE đọc ra `fpt`, `start_kind: null`.
+Khác `WorkingMode` (fast/coaching) của Spine — đừng gọi nó là "working mode". Nhãn, icon, tone của 3 mode để hiển thị (card,
+bộ lọc) khai báo ở `SOURCE_MODE_OPTIONS`. Card dự án `import` hiện trạng thái import (`import_state`) hoặc số change
+request đang mở thay cho step tiếp theo.
 
 ## Component dùng chung (`components/`)
 
@@ -245,7 +248,7 @@ thay cho step tiếp theo.
 | --- | --- |
 | `ui/` | Primitive không biết domain: `Icon`, `Button`, `IconButton`, `Badge`, `CountBadge`, `SearchInput`, `FilterSelect`, `DropdownMenu`, `Card`, `Skeleton`, `EmptyState`, `Modal`, `Tabs` (import qua `@/components/ui`) |
 | `layout/` | Khung `/home/*`: `AppShell` (drawer mobile, số dư credits, trạng thái thu gọn), `AppSidebar` dựng từ `sidebar-config.ts`, `SidebarNavItem`, `TopBar`, `RecentProjects` |
-| `project/` | Feature dùng ở nhiều trang: `SourceModePicker`, `CreateProjectForm` (một component cho empty state và dialog), `ProjectCard` (kéo được, nền trắng; chip nguồn mang màu theo mode), `ProjectGrid`, `ProjectActionDialogs`, `FolderCard` (nhận thả card), `FolderDialogs` (tạo/sửa/xoá thư mục, chuyển dự án), `AddToFolderDialog`, `ProjectTimeline`, `FeedbackDialog` |
+| `project/` | Feature dùng ở nhiều trang: `ProjectStartPicker`, `CreateProjectForm` (một component cho empty state và dialog), `ProjectCard` (kéo được, nền trắng; chip nguồn mang màu theo mode), `ProjectGrid`, `ProjectActionDialogs`, `FolderCard` (nhận thả card), `FolderDialogs` (tạo/sửa/xoá thư mục, chuyển dự án), `AddToFolderDialog`, `ProjectTimeline`, `FeedbackDialog` |
 
 Quy tắc:
 

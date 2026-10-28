@@ -13,7 +13,7 @@ export default function ImportPage() {
   return (
     <Mode1Shell projectId={projectId} project={project} credits={credits} active="import" error={error}>
       <div className="flex-1 ff-scroll overflow-y-auto p-6">
-        <ImportWizard projectId={projectId} credits={credits} onChanged={() => void reload()} />
+        <ImportWizard projectId={projectId} credits={credits} onChanged={() => void reload()} startKind={project?.start_kind ?? null} templateIntent={project?.template_intent ?? null} />
       </div>
     </Mode1Shell>
   );

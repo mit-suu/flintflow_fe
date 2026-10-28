@@ -1,5 +1,6 @@
 "use client";
 
+import type { TemplateIntent } from "@/types/project";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import {
@@ -113,7 +114,7 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
     finalizeDone,
     reload,
     clearError: () => setError(null),
-    upload: (file: File) => run("upload", () => uploadImport(projectId, file)),
+    upload: (file: File, intent?: TemplateIntent) => run("upload", () => uploadImport(projectId, file, intent)),
     confirm: () => run("confirm", () => confirmLatest(projectId, importId)),
     saveMapping: (body: Omit<MappingPatchRequest, "import_id">) =>
       run("mapping", () => patchMapping(projectId, { ...body, import_id: importId })),

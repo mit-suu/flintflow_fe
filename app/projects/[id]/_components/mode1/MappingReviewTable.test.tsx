@@ -204,9 +204,9 @@ describe("MappingReviewTable — mẫu IEEE (FLF-252)", () => {
     expect(screen.queryByText(/Cùng trích vào/)).not.toBeInTheDocument();
   });
 
-  it("import cũ không có họ mẫu ⇒ coi như mẫu FPT", () => {
+  it("import cũ không có họ mẫu ⇒ coi như mẫu chuẩn FlintFlow", () => {
     renderWithIntl(<MappingReviewTable profile={profile()} onSubmit={vi.fn()} />);
-    expect(screen.getByText("mẫu FPT")).toBeInTheDocument();
+    expect(screen.getByText("mẫu chuẩn FlintFlow")).toBeInTheDocument();
   });
 });
 

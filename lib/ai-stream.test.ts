@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { streamChatMessage, streamSse } from "./ai-stream";
+import { ChatStreamError, streamChatMessage, streamSse } from "./ai-stream";
 import { authFetch } from "./api/client";
 
 vi.mock("./api/client", async (importOriginal) => ({
@@ -118,7 +118,7 @@ describe("streamChatMessage", () => {
       discoveryStep: 1,
     });
     expect(onTextDelta.mock.calls.map(([delta]) => delta)).toEqual(["Xin", " chào"]);
-    expect(onError).toHaveBeenCalledWith(new Error("Quá tải"));
+    expect(onError).toHaveBeenCalledWith(new ChatStreamError("Quá tải", null));
     expect(onFinish).toHaveBeenCalledWith({ session, data: undefined, tokensUsed: undefined, cost: 2 });
   });
 

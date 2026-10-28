@@ -171,12 +171,12 @@
       "title": "Bắt đầu từ chỗ bạn đang có.",
       "items": {
         "fpt": {
-          "title": "Tạo mới theo mẫu FPT",
-          "body": "Bạn chỉ có ý tưởng và vài ghi chú. FlintFlow dẫn bạn từ Brief đến bản SRS đầy đủ theo mẫu FPT.",
+          "title": "Tạo mới theo mẫu chuẩn FlintFlow",
+          "body": "Bạn chỉ có ý tưởng và vài ghi chú. FlintFlow dẫn bạn từ Brief đến bản SRS đầy đủ theo mẫu chuẩn FlintFlow.",
           "tags": {
             "brief": "Brief",
             "phases": "12 giai đoạn",
-            "template": "Mẫu FPT"
+            "template": "Mẫu chuẩn FlintFlow"
           }
         },
         "client": {
@@ -642,14 +642,14 @@
         "description": "Có file .docx — FlintFlow kiểm tra lỗ hổng và giúp sửa"
       },
       "customerTemplate": {
-        "label": "Có template của khách",
-        "shortLabel": "Template khách",
-        "description": "Upload mẫu của khách, viết SRS mới theo mẫu đó"
+        "label": "Mẫu bắt buộc của khách",
+        "shortLabel": "Mẫu bắt buộc",
+        "description": "Tải mẫu của khách, viết SRS mới theo mẫu đó"
       },
       "fpt": {
-        "label": "Chưa có template",
-        "shortLabel": "Template FlintFlow",
-        "description": "Dùng template SRS của FlintFlow, bắt đầu từ ý tưởng / ghi chú"
+        "label": "Dự án mới theo mẫu chuẩn FlintFlow",
+        "shortLabel": "Mẫu chuẩn FlintFlow",
+        "description": "Dùng mẫu SRS chuẩn FlintFlow, bắt đầu từ ý tưởng / ghi chú"
       }
     },
     "projectCard": {
@@ -713,7 +713,8 @@
       "submitting": "Đang tạo…",
       "submit": "Bắt đầu",
       "missingProject": "Không nhận được dự án vừa tạo",
-      "failed": "Không thể tạo dự án"
+      "failed": "Không thể tạo dự án",
+      "answerTemplate": "Cho biết khách có bắt buộc theo mẫu không để tiếp tục."
     },
     "projectDialogs": {
       "archive": {
@@ -1023,6 +1024,26 @@
         "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
         "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
       }
+    },
+    "projectStart": {
+      "groupLabel": "Bạn bắt đầu từ đâu?",
+      "new": {
+        "label": "Dự án mới",
+        "description": "Chưa có SRS. FlintFlow dẫn từ ý tưởng tới bản SRS đầy đủ theo mẫu chuẩn FlintFlow — hoặc theo mẫu khách bắt buộc."
+      },
+      "existing": {
+        "label": "Dự án có sẵn",
+        "description": "Đã có file SRS đang dùng (.docx). FlintFlow đọc file, tìm chỗ thiếu và giúp hoàn thiện, sửa qua change request.",
+        "hint": "Khi tải file lên, FlintFlow hỏi file theo một mẫu cố định hay cấu trúc tự do rồi tự chọn cách làm phù hợp."
+      },
+      "requiredTemplate": {
+        "question": "Khách có bắt buộc theo một mẫu không?",
+        "yes": "Có",
+        "no": "Không",
+        "hint": "Chọn một trong hai để tiếp tục.",
+        "yesHint": "Bạn sẽ tải file mẫu (trống hoặc điền dở) lên; FlintFlow chỉ soạn những mục mẫu có, giữ nguyên thứ tự.",
+        "noHint": "Soạn theo mẫu chuẩn FlintFlow, bắt đầu từ ý tưởng / ghi chú."
+      }
     }
   },
   "workspace": {
@@ -1239,7 +1260,8 @@
       "wantEdit": "Tôi muốn sửa",
       "more": "Thêm lựa chọn",
       "tableSummary": "Xem bảng: {title} ({count} dòng)",
-      "tableTruncated": "và {count} dòng nữa — xem đủ trong tài liệu."
+      "tableTruncated": "và {count} dòng nữa — xem đủ trong tài liệu.",
+      "acceptSkipSections": "Chấp nhận, không hỏi lại {count, plural, =1 {phần này} other {# phần này}}"
     },
     "stepLog": {
       "aria": "Nhật ký bước",
@@ -1358,7 +1380,7 @@
       "incompleteShort": "Chưa hoàn thiện",
       "emptyRunStep": "Chưa có nội dung — chạy step {stepId} · {label}",
       "openStep": "Mở step",
-      "customTitle": "Mục ngoài mẫu FPT — giữ nguyên văn từ file upload, sửa qua chat",
+      "customTitle": "Mục ngoài mẫu chuẩn FlintFlow — giữ nguyên văn từ file upload, sửa qua chat",
       "custom": "Mục riêng",
       "issuesTitle": "Xem vấn đề của mục này",
       "issuesAria": "Xem {count} vấn đề của mục này",
@@ -1988,12 +2010,47 @@
       "heading": "AI dừng chờ duyệt",
       "modes": {
         "strict": "Mọi bước",
-        "fast": "Cuối giai đoạn"
+        "fast": "Cuối giai đoạn",
+        "milestones": "Chỉ ở mốc chốt"
       },
       "hints": {
         "strict": "Dừng chờ bạn duyệt ở mọi bước.",
-        "fast": "Tự duyệt trong giai đoạn; dừng ở cuối giai đoạn, cuối mỗi màn và khi cần bạn quyết."
+        "fast": "Tự duyệt trong giai đoạn; dừng ở cuối giai đoạn, cuối mỗi màn và khi cần bạn quyết.",
+        "milestones": "AI tự qua mọi bước, chỉ dừng ở mốc chốt: chốt ý tưởng, duyệt Brief, tầm nhìn / mục tiêu, danh sách màn, MoSCoW, ký baseline — và khi AI cần hỏi, có cờ đỏ mới, xoá nội dung."
+      },
+      "hardGates": "Mức nào cũng dừng ở cổng cứng và trước khi tài liệu đi ra ngoài. Mức duyệt không phụ thuộc độ tự tin của AI. Sau baseline: ở “Chỉ ở mốc chốt” change request qua kiểm sẽ tự ghi vào bản nháp.",
+      "changeFailed": "Không đổi được mức duyệt",
+      "skipSections": {
+        "title": "Phần đã tắt hỏi",
+        "note": "Bản sửa chỉ chạm các phần này sẽ tự qua (vẫn dừng nếu có cờ đỏ mới hoặc xoá nội dung).",
+        "restore": "Hỏi lại",
+        "failed": "Không cập nhật được danh sách phần không hỏi lại"
       }
+    },
+    "creditGate": {
+      "aria": "Xác nhận credit trước khi chạy",
+      "intro": "AI sắp chạy nhiều lượt liền. Bấm Chạy để bắt đầu; Huỷ thì không trừ credit, tiến độ giữ nguyên.",
+      "linesAria": "Chi tiết credit ước tính",
+      "credits": "~{credits} credit",
+      "total": "Tổng ước tính: ~{credits} credit",
+      "available": "Khả dụng: {credits} credit",
+      "short": "Số dư chưa đủ cho cả lượt: AI sẽ dừng khi hết credit, phần đã xong không tính lại.",
+      "topUp": "Nạp thêm",
+      "run": "Chạy",
+      "running": "Đang chạy…",
+      "cancel": "Huỷ",
+      "pipelineTitle": "Soạn phần còn lại của SRS",
+      "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
+      "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}"
+    },
+    "aiError": {
+      "title": "{what}: AI lỗi{retried, select, yes {, đã thử lại 2 lần} other {}} — credit đã hoàn",
+      "body": "Nội dung đã duyệt giữ nguyên. Thử lại ngay (kiểm credit lại từ đầu) hoặc để sau — mở lại dự án sẽ chạy tiếp từ đây.",
+      "retry": "Thử lại ngay",
+      "retrying": "Đang thử lại…",
+      "later": "Để sau",
+      "chat": "Trả lời trong chat",
+      "phase": "Lượt chạy giai đoạn"
     },
     "languageChip": {
       "title": "Ngôn ngữ tài liệu: {name}"
@@ -2343,6 +2400,13 @@
         "technical_risk": "Rủi ro kỹ thuật"
       },
       "otherSection": "Mục khác"
+    },
+    "autoPassed": {
+      "chip": "{count, plural, =1 {1 thay đổi tự qua chưa xem} other {# thay đổi tự qua chưa xem}}",
+      "listAria": "Thay đổi AI tự qua",
+      "note": "AI đã tự duyệt những bước này. Xem nếu muốn — không bắt buộc xem hết trước khi gửi.",
+      "markSeen": "Đã xem",
+      "markAllSeen": "Đánh dấu đã xem tất cả"
     }
   },
   "errors": {
@@ -3563,7 +3627,7 @@
       "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
       "uploadFixed": "Tải lên file đã sửa",
       "unknownKindNote": "FlintFlow chưa chắc file này là SRS: ít đầu mục quen thuộc (Use Case, Requirements…). Vẫn đọc được, nhưng hãy xem kỹ kết quả đọc file ở bước xác nhận trước khi đi tiếp.",
-      "formatNote": "FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu FPT còn thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.",
+      "formatNote": "FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu chuẩn FlintFlow còn thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.",
       "parsing": "Đang tách tài liệu thành block…",
       "reload": "Tải lại",
       "baseline": {
@@ -3585,14 +3649,27 @@
         "openDocument": "Mở tài liệu & version"
       },
       "languageVi": "Tiếng Việt",
-      "languageEn": "Tiếng Anh"
+      "languageEn": "Tiếng Anh",
+      "intent": {
+        "question": "File này theo cấu trúc nào?",
+        "free": {
+          "label": "Cấu trúc tự do",
+          "description": "Không theo mẫu nào cụ thể. FlintFlow so với mẫu chuẩn FlintFlow: đủ thì sửa qua change request, thiếu thì bổ sung và sắp lại bố cục."
+        },
+        "fixed": {
+          "label": "Theo một mẫu cố định",
+          "description": "Mẫu của khách hoặc của công ty. FlintFlow chỉ soạn những mục mẫu có, không thêm mục, không đổi thứ tự."
+        }
+      },
+      "uploadTemplate": "Tải lên mẫu bắt buộc (.docx, trống hoặc điền dở)",
+      "uploadTemplateHint": "File Word .docx của mẫu khách yêu cầu. FlintFlow đọc cấu trúc mẫu, chỉ soạn những mục mẫu có và giữ nguyên thứ tự."
     },
     "mappingReview": {
       "title": "Xác nhận mapping heading → section",
       "summary": "{headings} heading, {low} dòng độ tin dưới {threshold}. Heading “không khớp” được giữ nguyên văn và không trích field.",
       "provisionalHint": "“Tính năng mới” / “Chức năng mới”: tính năng, chức năng lấy từ chính tiêu đề trong file (ghi kèm sau dấu “—”); mã tính năng, chức năng được cấp sau khi nhập xong.",
-      "family": "Nhận dạng: <strong>{family, select, ieee830 {mẫu IEEE 830} ieee_features {mẫu IEEE (dạng System Features)} other {mẫu FPT}}</strong>",
-      "familyNote": "mỗi mục được trích vào mục FPT tương ứng; tài liệu vẫn giữ đúng bố cục của file.",
+      "family": "Nhận dạng: <strong>{family, select, ieee830 {mẫu IEEE 830} ieee_features {mẫu IEEE (dạng System Features)} other {mẫu chuẩn FlintFlow}}</strong>",
+      "familyNote": "mỗi mục được trích vào mục tương ứng của mẫu chuẩn FlintFlow; tài liệu vẫn giữ đúng bố cục của file.",
       "lowOnly": "Chỉ hiện dòng độ tin thấp",
       "colHeading": "Heading trong tài liệu",
       "colConfidence": "Độ tin",

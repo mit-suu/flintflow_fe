@@ -9,13 +9,16 @@ interface ReviewModeSelectProps {
   disabled?: boolean;
 }
 
-/** Tên nói thẳng lúc nào AI dừng chờ duyệt. Hỏi nhiều hay ít là việc của AI, không phải một chế độ (FLF-220). */
+/**
+ * Mức duyệt 3 tầng (FLF-337, business-flow §1.2): tên nói thẳng lúc nào AI dừng chờ duyệt — Mọi bước · Cuối giai đoạn · Chỉ ở
+ * mốc chốt. Hỏi nhiều hay ít là việc của AI, không phải một chế độ (FLF-220); mức duyệt không bao giờ do độ tự tin của AI.
+ */
 /** Nhãn + gợi ý ở `workspace.aiSettings.modes` / `hints`. */
-export const REVIEW_OPTIONS = ["strict", "fast"] as const satisfies readonly ReviewMode[];
+export const REVIEW_OPTIONS = ["strict", "fast", "milestones"] as const satisfies readonly ReviewMode[];
 export type ReviewOption = (typeof REVIEW_OPTIONS)[number];
 
 /** `balanced` (mặc định của schema, dữ liệu cũ) được BE xử lý như `fast` ⇒ hiển thị là "Cuối giai đoạn". */
-export const displayReviewMode = (mode: ReviewMode): ReviewOption => (mode === "strict" ? "strict" : "fast");
+export const displayReviewMode = (mode: ReviewMode): ReviewOption => (mode === "strict" ? "strict" : mode === "milestones" ? "milestones" : "fast");
 
 /** Cách duyệt (`project.review_mode`) — segmented control trong menu cài đặt AI ở ô chat. */
 export default function ReviewModeSelect({ value: raw, onChange, disabled = false }: ReviewModeSelectProps) {

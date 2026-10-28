@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ApiClientError, apiCall, refreshSession } from "@/lib/api";
-import { streamChatMessage } from "@/lib/ai-stream";
+import { ChatStreamError, streamChatMessage } from "@/lib/ai-stream";
+import { isAiErrorCode } from "@/lib/ai-error-codes";
 import { getStoredAuthToken, isAuthenticated, logoutAndRedirect } from "@/lib/auth";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -45,7 +46,25 @@ const DEFAULT_ATTACHMENT_ONLY_TEXT = "[Đính kèm tài liệu]";
  * Dữ liệu chung của workspace: project, user, chat session, gửi tin nhắn/đính kèm.
  * Pipeline (step, gate) nằm ở `useStepRunner`; Spine ở `useSpine`.
  */
-export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT }: { attachmentOnlyText?: string } = {}) {
+export interface UseWorkspaceOptions {
+  attachmentOnlyText?: string;
+  /**
+   * FLF-332: cổng cứng credit trước khi tải tài liệu đính kèm lên (mỗi tệp một lượt đọc tốn credit). Trả `false` ⇒ không tải,
+   * không gửi; tệp và chữ giữ nguyên trong ô chat.
+   */
+  confirmAttachments?: (files: File[]) => Promise<boolean>;
+}
+
+/** Lượt chat gãy vì AI lỗi (FLF-332): giữ lại để "Thử lại ngay" gửi lại đúng tin đó. */
+export interface ChatAiError {
+  code: string;
+  message: string;
+  step: string | null;
+  text: string;
+  knowledge: boolean;
+}
+
+export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT, confirmAttachments }: UseWorkspaceOptions = {}) {
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -69,6 +88,8 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
   const streamAbortRef = useRef<AbortController | null>(null);
   /** Thông báo lỗi hiện ở pill toast của trang (thay `alert()` — FLF-244). */
   const [notice, setNotice] = useState<WorkspaceNotice | null>(null);
+  /** Banner "AI lỗi — Thử lại ngay / Để sau" của chat chính (FLF-332). */
+  const [aiError, setAiError] = useState<ChatAiError | null>(null);
   /** Vai trò trong org đang mở — Viewer chỉ đọc (FLF-244). `null` khi chưa biết: không khoá gì, BE vẫn chặn. */
   const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
 
@@ -286,12 +307,19 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       setSending(true);
       setInputMessage("");
       setCrPrefill(null);
+      setAiError(null);
       const content = text.trim() || attachmentOnlyText;
       const step = currentStep ?? "chat";
       const optimistic: ChatMessage = { role: "user", content, step, createdAt: new Date().toISOString() };
       setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev));
 
       try {
+        // FLF-332: báo credit đọc tài liệu trước khi tải lên — Huỷ thì không gọi AI, tiến độ giữ nguyên
+        if (pendingAttachments.length > 0 && confirmAttachments && !(await confirmAttachments(pendingAttachments))) {
+          setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+          setInputMessage(text);
+          return undefined;
+        }
         if (!(await uploadPendingAttachments())) {
           // Tệp chưa lên được (đã báo lỗi): gỡ tin tạm, trả chữ về ô chat để user gửi lại
           setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
@@ -332,6 +360,10 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
               setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
               setInputMessage(text);
               setNotice(errorNotice(err, "knowledgeFailed"));
+            } else if (err instanceof ChatStreamError && isAiErrorCode(err.code)) {
+              // FLF-332: AI lỗi ⇒ credit đã hoàn, BE không ghi tin — gỡ tin tạm, banner mời Thử lại ngay / Để sau
+              setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+              setAiError({ code: err.code ?? "AI_EXECUTION_FAILED", message: err.message, step: currentStep, text, knowledge: false });
             }
           },
         });
@@ -362,8 +394,18 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       }
       return finishData;
     },
-    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments, attachmentOnlyText]
+    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments, attachmentOnlyText, confirmAttachments]
   );
+
+  /** "Thử lại ngay" của banner AI lỗi: gửi lại đúng tin đó (BE kiểm credit lại từ đầu). */
+  const retryAiError = useCallback(async () => {
+    const failed = aiError;
+    if (!failed) return undefined;
+    setAiError(null);
+    return sendMessage(failed.step, failed.text, failed.knowledge ? { knowledge: true } : undefined);
+  }, [aiError, sendMessage]);
+
+  const dismissAiError = useCallback(() => setAiError(null), []);
 
   /** Nút dừng / Esc: huỷ lượt chat đang chạy. Không có lượt nào thì không làm gì. */
   const stopMessage = useCallback(() => {
@@ -431,6 +473,9 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       dismissCrPrefill: () => setCrPrefill(null),
       notice,
       clearNotice: () => setNotice(null),
+      aiError,
+      retryAiError,
+      dismissAiError,
     }),
     [
       ready,
@@ -464,6 +509,9 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       logout,
       crPrefill,
       notice,
+      aiError,
+      retryAiError,
+      dismissAiError,
     ]
   );
 }

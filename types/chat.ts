@@ -20,7 +20,8 @@ export interface ChatSession {
 /** ActionType của BE dùng cho chat; quyết định giá credit mỗi tin nhắn. */
 /** `change_instruction`: lệnh sửa tài liệu gõ ở ô chat (chip "Sửa tài liệu"). */
 /** `knowledge_answer`: câu hỏi tri thức (chip "Hỏi kiến thức BA") — 2 credit, trả lời từ Knowledge RAG. */
-export type ChatActionType = "chat" | "change_instruction" | "knowledge_answer";
+/** `summarize_document`: đọc một tài liệu đính kèm (FLF-332 — báo credit trước khi tải lên). */
+export type ChatActionType = "chat" | "change_instruction" | "knowledge_answer" | "summarize_document";
 
 /** `source_kind` của chunk tri thức (BE §1.2): hướng dẫn nội bộ FlintFlow, hay chuẩn ngoài. */
 export type KnowledgeSourceKind = "internal_skill" | "standard";

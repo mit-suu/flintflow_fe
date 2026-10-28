@@ -3,7 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/layout/AppShell";
 import { getProgress } from "@/lib/api/pipeline";
-import { createProject, listProjects, moveProjectToFolder } from "@/lib/api/projects";
+import { createProjectFrom, listProjects, moveProjectToFolder } from "@/lib/api/projects";
 import { listFolders, moveProjectsToFolder } from "@/lib/api/folders";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
@@ -13,7 +13,7 @@ const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/home" }));
 vi.mock("@/lib/api/projects", () => ({
   listProjects: vi.fn(),
-  createProject: vi.fn(),
+  createProjectFrom: vi.fn(),
   renameProject: vi.fn(),
   deleteProject: vi.fn(),
   setDocumentLanguage: vi.fn(),
@@ -59,7 +59,7 @@ describe("Project Dashboard", () => {
     push.mockReset();
     activeOrg.current = null;
     vi.mocked(listProjects).mockReset();
-    vi.mocked(createProject).mockReset();
+    vi.mocked(createProjectFrom).mockReset();
     vi.mocked(listFolders).mockReset().mockResolvedValue(ok([]));
   });
 
@@ -72,22 +72,21 @@ describe("Project Dashboard", () => {
     expect(screen.queryByText("Không có dự án khớp bộ lọc")).toBeNull();
   });
 
-  it("chưa có dự án ⇒ 3 thẻ mode + ô tên ngay trên trang; tạo xong tải lại và vào route theo mode", async () => {
+  it("chưa có dự án ⇒ 2 thẻ Dự án mới / Dự án có sẵn + ô tên ngay trên trang; tạo xong tải lại và vào route theo mode BE trả", async () => {
     vi.mocked(listProjects).mockResolvedValue(ok([]));
-    vi.mocked(createProject).mockResolvedValue(ok(project("p9")));
+    vi.mocked(createProjectFrom).mockResolvedValue(ok(project("p9")));
     renderPage();
 
     expect(await screen.findByText("Bắt đầu dự án SRS đầu tiên")).toBeInTheDocument();
-    expect(within(screen.getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(3);
-
-    // Template khách đang "Sắp có": không chọn được; Upload SRS (mode 1) chọn được
-    expect(screen.getByRole("radio", { name: /Có template của khách/ })).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("radio", { name: /Upload SRS có sẵn/ })).not.toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(screen.getByRole("radio", { name: /Chưa có template/ }));
+    expect(within(screen.getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(2);
+    // FLF-335: không còn thẻ chế độ / "Sắp có"
+    expect(screen.queryByRole("radio", { name: /template của khách/ })).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: /Dự án mới/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Không" }));
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p9"));
-    expect(createProject).toHaveBeenCalledWith("Dự án chưa đặt tên", "fpt", undefined, "vi");
+    expect(createProjectFrom).toHaveBeenCalledWith({ name: "Dự án chưa đặt tên", source: "new", has_required_template: false, documentLanguage: "vi" });
     expect(listProjects).toHaveBeenCalledTimes(2);
   });
 
@@ -242,11 +241,11 @@ describe("Project Dashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Dự án mới|Mới/ }));
     const dialog = screen.getByRole("dialog", { name: "Tạo dự án mới" });
-    expect(within(within(dialog).getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(3);
+    expect(within(within(dialog).getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(2);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Huỷ" }));
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(createProject).not.toHaveBeenCalled();
+    expect(createProjectFrom).not.toHaveBeenCalled();
   });
 });
 

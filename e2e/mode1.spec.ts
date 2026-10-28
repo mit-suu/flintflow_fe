@@ -93,7 +93,8 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
 
   const newProject = page.getByRole("button", { name: /Dự án mới/ }).first();
   if (await visible(newProject)) await newProject.click();
-  await page.getByRole("radio", { name: /Upload SRS có sẵn/ }).click();
+  // FLF-335: chọn "Dự án có sẵn" — chế độ do BE suy ra sau khi tải file
+  await page.getByRole("radio", { name: /Dự án có sẵn/ }).click();
   await page.getByLabel("Tên dự án").fill(PROJECT_NAME);
   await snap(page, "create-project");
   await page.getByRole("button", { name: "Bắt đầu" }).click();

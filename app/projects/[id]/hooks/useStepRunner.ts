@@ -324,6 +324,11 @@ export interface UseStepRunnerOptions {
   onGateDone?: (response: GateResponse) => void;
   /** Sau `revision`: lời AI (`message_vi`) nói đã sửa gì — gọi trước khi bước chạy lại. */
   onRevisionMessage?: (message: string, stepId: string) => void;
+  /**
+   * FLF-332: cổng cứng credit trước khi Accept ở cổng chốt tự kéo sang đơn vị giai đoạn KHÁC (`next` ≠ `from`). Trả `false` ⇒
+   * không chạy tiếp, tiến độ giữ nguyên (người dùng chạy lại từ chat khi muốn). Không hỏi khi chạy tiếp trong cùng đơn vị.
+   */
+  beforePhaseRun?: (next: string, from: string | null) => Promise<boolean>;
 }
 
 /** Luồng SSE của `/run` chỉ được đóng sau hai sự kiện này (contract §2). */
@@ -387,7 +392,7 @@ const trackAwaiting = () => {
   };
 };
 
-export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage }: UseStepRunnerOptions) {
+export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, beforePhaseRun }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -641,6 +646,12 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
    * chuyện của hệ thống, không phải của user: tự đọc lại Spine rồi chạy lại bước đó với đúng lời user vừa nhắn (nếu
    * có), không bắt user gõ lại hay bấm gửi lần nữa.
    */
+  /** FLF-332: sang đơn vị giai đoạn khác mới hỏi cổng credit; cùng đơn vị (chuỗi đang chạy dở) đi tiếp ngay. */
+  const allowPhaseRun = useCallback(
+    async (next: string, from: string | null): Promise<boolean> => (!beforePhaseRun || next === from ? true : beforePhaseRun(next, from)),
+    [beforePhaseRun]
+  );
+
   const gate = useCallback(
     async (action: GateAction, note?: string): Promise<GateOutcome> => {
       const stepId = stepRef.current;
@@ -662,14 +673,15 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         } else if (phaseRef.current) {
           // Đang chạy liền cả giai đoạn: duyệt xong là đi tiếp ngay. Duyệt cổng chốt CUỐI giai đoạn ⇒ tự chạy luôn
           // giai đoạn kế (FLF-221) — trước đây chuỗi chỉ trả "Đã xong giai đoạn" và user phải tự khởi động lại.
-          const nextUnit = res.data?.next_step ? unitOfStep(res.data.next_step) : null;
+          const from = phaseRef.current;
+          const nextUnit = (res.data?.next_step ? unitOfStep(res.data.next_step) : null) ?? from;
           dispatch({ type: "reset" });
-          await runWholePhase(nextUnit ?? phaseRef.current);
+          if (await allowPhaseRun(nextUnit, from)) await runWholePhase(nextUnit);
         } else if (!standaloneRef.current && res.data?.next_step && (action === "accept" || action === "accept_as_is")) {
           // Cổng dựng lại sau reload (không còn chuỗi đang chạy): duyệt xong vẫn tự sang bước/giai đoạn kế (FLF-221)
           const nextUnit = unitOfStep(res.data.next_step);
           dispatch({ type: "reset" });
-          if (nextUnit) await runWholePhase(nextUnit);
+          if (nextUnit && (await allowPhaseRun(nextUnit, unitOfStep(stepId)))) await runWholePhase(nextUnit);
         } else {
           dispatch({ type: "reset" });
         }
@@ -705,7 +717,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         return "failed";
       }
     },
-    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, run, runWholePhase, restore]
+    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, run, runWholePhase, restore, allowPhaseRun]
   );
 
   /** Huỷ lượt đang chạy: BE nhả khoá và abort request tới model; FE đóng stream (BUG-05). */

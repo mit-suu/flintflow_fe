@@ -9,8 +9,11 @@ export type IsoDateTime = string;
 
 export type WorkingMode = "fast" | "coaching";
 
-/** Mức độ dừng lại hỏi ý user (02-reduce-stops-plan R5): Chặt · Cân bằng · Nhanh. */
-export type ReviewMode = "strict" | "balanced" | "fast";
+/**
+ * Mức duyệt (FLF-337, business-flow §1.2): `strict` mọi bước · `fast` cuối giai đoạn · `milestones` chỉ ở mốc chốt (cổng
+ * cứng). `balanced` là giá trị cũ, BE đọc như `fast`. Không bao giờ do độ tự tin của AI.
+ */
+export type ReviewMode = "strict" | "balanced" | "fast" | "milestones";
 
 /** Một quyết định đã chốt trong lúc hỏi đáp — khoá chống hỏi lặp là `topic_key`. */
 export interface Decision {
@@ -42,8 +45,10 @@ export interface SpineProject {
   form_factor: string[];
   stakes: string | null;
   working_mode: WorkingMode | null;
-  /** Mức độ dừng lại hỏi ý (FLF-208 R5). */
+  /** Mức độ dừng lại hỏi ý (FLF-208 R5, FLF-337). */
   review_mode: ReviewMode;
+  /** FLF-337: section đã bấm "Chấp nhận, không hỏi lại" — bản sửa chỉ chạm chúng tự qua. Spine cũ thiếu ⇒ `[]`. */
+  skip_confirm_sections?: string[];
   release_scope: ReleaseScope;
 }
 

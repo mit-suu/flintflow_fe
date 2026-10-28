@@ -94,10 +94,20 @@ export const streamSse = async <T>(
   }
 };
 
+/** Sự kiện `error` giữa luồng chat — `code` cùng bảng với pipeline (FLF-332): FE phân biệt "AI lỗi, credit đã hoàn" với lỗi khác. */
+export class ChatStreamError extends Error {
+  code: string | null;
+  constructor(message: string, code: string | null) {
+    super(message);
+    this.name = "ChatStreamError";
+    this.code = code;
+  }
+}
+
 type ChatStreamEvent =
   | { type: "text-delta"; delta: string }
   | { type: "finish"; session: ChatSession; data?: unknown; tokensUsed?: unknown; cost?: number }
-  | { type: "error"; error?: string };
+  | { type: "error"; error?: string; code?: string };
 
 export interface StreamChatParams {
   projectId: string;
@@ -153,7 +163,7 @@ export const streamChatMessage = ({
           });
         } else if (event.type === "error") {
           // Lỗi trong luồng: báo cho UI nhưng không cắt stream (giữ hành vi cũ)
-          onError?.(new Error(event.error || "Streaming error occurred"));
+          onError?.(new ChatStreamError(event.error || "Streaming error occurred", event.code ?? null));
         }
       },
     }

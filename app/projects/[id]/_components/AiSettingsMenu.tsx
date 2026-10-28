@@ -10,13 +10,16 @@ interface AiSettingsMenuProps {
   reviewMode: ReviewMode;
   onChangeReviewMode: (mode: ReviewMode) => void;
   disabled?: boolean;
+  /** FLF-337: phần đã bấm "Chấp nhận, không hỏi lại" — hiện để bật lại. */
+  skipSections?: { id: string; title: string }[];
+  onRestoreSection?: (sectionId: string) => void;
 }
 
 /**
  * "AI dừng chờ duyệt ở đâu" — đặt ngay ô chat (như nút chọn model ở các app chat) thay vì đáy rail tiến độ.
  * Chip hiện chế độ duyệt đang chọn; bấm mở ô nổi lên trên. AI tự quyết hỏi nhiều hay ít (FLF-220).
  */
-export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disabled = false }: AiSettingsMenuProps) {
+export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disabled = false, skipSections = [], onRestoreSection }: AiSettingsMenuProps) {
   const t = useTranslations("workspace.aiSettings");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -73,7 +76,26 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
             <span className="text-body font-bold text-on-surface">{t("heading")}</span>
             <ReviewModeSelect value={reviewMode} onChange={onChangeReviewMode} disabled={disabled} />
             <p className="text-caption text-on-surface-muted">{t(`hints.${review}`)}</p>
+            <p className="text-caption text-on-surface-muted">{t("hardGates")}</p>
           </div>
+          {skipSections.length > 0 && (
+            <div className="flex flex-col gap-1.5 border-t border-outline-variant pt-2">
+              <span className="text-body font-bold text-on-surface">{t("skipSections.title")}</span>
+              <p className="text-caption text-on-surface-muted">{t("skipSections.note")}</p>
+              <ul className="flex flex-col gap-1" aria-label={t("skipSections.title")}>
+                {skipSections.map((section) => (
+                  <li key={section.id} className="flex items-center justify-between gap-2 text-body">
+                    <span className="truncate">{section.title}</span>
+                    {onRestoreSection && (
+                      <button type="button" disabled={disabled} onClick={() => onRestoreSection(section.id)} className="text-caption font-bold underline cursor-pointer whitespace-nowrap disabled:opacity-50">
+                        {t("skipSections.restore")}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
