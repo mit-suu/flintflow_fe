@@ -52,7 +52,14 @@ import TranslateDialog from "@/components/project/TranslateDialog";
 import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
-import { submitGate } from "@/lib/api/pipeline";
+import { getRunEstimate, submitGate } from "@/lib/api/pipeline";
+import { estimateActionCost } from "@/lib/api/chat";
+import { fetchBalance } from "@/lib/api/billing";
+import { isAiErrorCode } from "@/lib/ai-error-codes";
+import { useCreditGate } from "./hooks/useCreditGate";
+import CreditGateCard from "./_components/CreditGateCard";
+import AiErrorBanner from "./_components/AiErrorBanner";
+import { tStep } from "@/lib/i18n";
 import type { TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
@@ -322,7 +329,28 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   /** Lỗi hook lưu mã `@key` khi BE không kèm câu (`lib/hook-errors.ts`) — dịch lúc render. */
   const hookError = (error: string | null) => (error ? hookErrorText(error, tHook) : null);
 
-  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly") });
+  // FLF-332: cổng cứng credit — thẻ xác nhận treo trong khung chat, người dùng bấm Chạy mới gọi AI
+  const creditGate = useCreditGate();
+  const { confirm: confirmCredits } = creditGate;
+  const confirmAttachments = useCallback(
+    async (files: File[]) => {
+      const [cost, balance] = await Promise.all([
+        estimateActionCost("summarize_document").then((r) => r.data?.cost ?? null).catch(() => null),
+        fetchBalance().then((r) => r.available ?? null).catch(() => null),
+      ]);
+      // Không ước tính được (mạng, quyền) thì không chặn — BE vẫn giữ credit từng lượt như cũ
+      if (cost === null) return true;
+      const total = cost * files.length;
+      return confirmCredits({
+        title: t("creditGate.attachmentsTitle", { count: files.length }),
+        lines: files.map((f) => ({ label: f.name, credits: cost })),
+        total,
+        available: balance,
+      });
+    },
+    [confirmCredits, t]
+  );
+  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   const crChat = useCrChat(projectId, mode1);
   const spineState = useSpine(projectId, ws.ready, ws.canEdit);
@@ -616,6 +644,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     // Lời AI xác nhận việc vừa sửa hiện ngay như một tin của AI, trước khi bước chạy lại
     onRevisionMessage: (message, stepId) => {
       if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
+    },
+    // FLF-332: sau Approve Brief (B-2 → S-1) là lượt soạn hàng loạt cả SRS ⇒ chốt con số trước khi soạn (cổng cứng §1.2)
+    beforePhaseRun: async (next, from) => {
+      if (!(from?.startsWith("B-") && next.startsWith("S-"))) return true;
+      const est = await getRunEstimate(projectId, { scope: "all", from: next })
+        .then((r) => r.data)
+        .catch(() => null);
+      if (!est || est.credits_total <= 0) return true;
+      return confirmCredits({
+        title: t("creditGate.pipelineTitle"),
+        lines: est.units.map((u) => ({ label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits })),
+        total: est.credits_total,
+        available: est.available_credits,
+      });
     },
   });
 
@@ -1812,6 +1854,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               onAction={(action, note) => submitGateAction(action, note)}
             />
           )}
+          {creditGate.pending && <CreditGateCard {...creditGate.pending} onRun={creditGate.run} onCancel={creditGate.cancel} />}
+          {ws.aiError && (
+            <AiErrorBanner what={t("aiError.chat")} message={ws.aiError.message} retried={false} busy={ws.sending} onRetry={() => void ws.retryAiError()} onLater={ws.dismissAiError} />
+          )}
           {saveError && (
             <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex items-center justify-between gap-2">
               <span>{saveError}</span>
@@ -1833,7 +1879,18 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               </button>
             </div>
           )}
-          {runner.state.error && (
+          {runner.state.error && isAiErrorCode(runner.state.error.code) && (
+            // FLF-332: AI lỗi (đã thử lại 2 lần, credit đã hoàn) ⇒ banner dùng chung "Thử lại ngay / Để sau"; Để sau chỉ đóng
+            // banner — BE giữ `paused_reason` nên mở lại dự án vẫn thấy tại bước này
+            <AiErrorBanner
+              what={runner.state.stepId ? tStep(runner.state.stepId, locale) : t("aiError.phase")}
+              message={runner.state.error.message}
+              busy={runner.state.busy}
+              onRetry={() => void handleErrorAction({ kind: "retry", label: t("aiError.retry") })}
+              onLater={runner.reset}
+            />
+          )}
+          {runner.state.error && !isAiErrorCode(runner.state.error.code) && (
             // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được. Đây là NƠI DUY NHẤT nói câu lỗi — nhật ký
             // lượt chạy phía trên cố ý im, vì BE trả câu đã viết cho người nên nhắc lại chỉ thành tiếng vọng.
             <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-col gap-2">

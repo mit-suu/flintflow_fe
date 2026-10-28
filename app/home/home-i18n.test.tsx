@@ -14,6 +14,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePat
 vi.mock("@/lib/api/projects", () => ({
   listProjects: vi.fn(),
   createProject: vi.fn(),
+  createProjectFrom: vi.fn(),
   renameProject: vi.fn(),
   deleteProject: vi.fn(),
   setDocumentLanguage: vi.fn(),

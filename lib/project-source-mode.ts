@@ -12,34 +12,32 @@ export interface SourceModeOption {
   key: SourceModeKey;
   icon: IconName;
   tone: SourceModeTone;
-  /** `soon`: màn của nhánh này chưa có — hiện nhưng không chọn được, kèm `Badge tone="soon"`. */
-  status: "ready" | "soon";
 }
 
-/** Nguồn sự thật duy nhất ở FE cho 3 `ProjectMode` của BE (thứ tự = thứ tự hiện thẻ). */
+/**
+ * Nhãn / icon / tone để **hiển thị** 3 `ProjectMode` của BE (card dự án, bộ lọc). Từ FLF-335 người dùng không chọn mode —
+ * thẻ tạo dự án là `ProjectStartPicker` (`lib/project-start.ts`); mode do BE suy ra.
+ */
 export const SOURCE_MODE_OPTIONS = [
   {
     value: "import",
     key: "import",
     icon: "upload",
     tone: "info",
-    // Mode 1: tạo xong vào wizard /projects/:id/import
-    status: "ready",
   },
   {
+    // Giá trị cũ, không còn được tạo (dự án mới có mẫu bắt buộc nay là `import`) — giữ để hiển thị dữ liệu cũ
     value: "customer_template",
     key: "customerTemplate",
     icon: "file-template",
     tone: "warning",
-    status: "soon",
   },
   {
-    // BE vẫn là `fpt` (mẫu SRS gốc của FPT); với người dùng đây là template của chính FlintFlow
+    // BE vẫn là `fpt` (mẫu SRS gốc của FPT); với người dùng đây là mẫu chuẩn FlintFlow
     value: "fpt",
     key: "fpt",
     icon: "sparkle",
     tone: "primary",
-    status: "ready",
   },
 ] as const satisfies readonly SourceModeOption[];
 
@@ -55,7 +53,8 @@ export const getSourceModeOption = (mode: ProjectMode): SourceModeOption =>
 
 const START_SEGMENT: Record<ProjectMode, string> = {
   import: "/import",
-  customer_template: "/template",
+  // Dự án cũ mang giá trị này đi cùng wizard tải file (FLF-335)
+  customer_template: "/import",
   fpt: "",
 };
 

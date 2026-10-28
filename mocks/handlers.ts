@@ -645,13 +645,26 @@ export const handlers = [
     return ok([mockState.project].filter((p) => !status || p.status === status));
   }),
   http.post(api("/projects"), async ({ request }) => {
-    const body = (await request.json()) as { name: string; mode?: ProjectMode; documentLanguage?: DocumentLanguage };
+    const body = (await request.json()) as { name: string; mode?: ProjectMode; source?: "new" | "existing"; has_required_template?: boolean; documentLanguage?: DocumentLanguage };
     if (body.documentLanguage !== undefined && !isLocale(body.documentLanguage)) {
       return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
     }
     const now = new Date().toISOString();
-    const mode = body.mode ?? "fpt";
-    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode, import_state: null, createdAt: now, updatedAt: now };
+    // FLF-335: BE suy ra mode từ `source` — mới không mẫu ⇒ fpt; mới có mẫu bắt buộc / có sẵn ⇒ import
+    const mode: ProjectMode = body.source ? (body.source === "new" && !body.has_required_template ? "fpt" : "import") : (body.mode ?? "fpt");
+    const project: Project = {
+      _id: "650000000000000000000099",
+      name: body.name,
+      domain: null,
+      status: "active",
+      mode,
+      import_state: null,
+      start_kind: body.source ?? null,
+      has_required_template: body.source === "new" ? Boolean(body.has_required_template) : null,
+      template_intent: body.source === "new" && body.has_required_template ? "fixed" : null,
+      createdAt: now,
+      updatedAt: now,
+    };
     // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en` (tài khoản mock không có ngôn ngữ riêng)
     if (mode !== "import") project.documentLanguage = body.documentLanguage ?? "en";
     return ok(project, { status: 201 });
@@ -793,6 +806,18 @@ export const handlers = [
 
   http.get(api("/projects/:projectId/spine"), () => ok(mockState.spine)),
   http.get(api("/projects/:projectId/progress"), () => ok(progressOf(mockState))),
+  // FLF-332: ước tính credit lượt chạy liền — số tròn cho thẻ xác nhận
+  http.get(api("/projects/:projectId/run-estimate"), ({ request }) => {
+    const url = new URL(request.url);
+    const scope = (url.searchParams.get("scope") ?? "all") as "unit" | "all";
+    const from = url.searchParams.get("from") ?? "S-1.1";
+    const units = scope === "unit" ? [{ unit: from.replace(/\.\d+$/, ""), steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 }] : [
+      { unit: "S-1", steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 },
+      { unit: "S-2", steps: 5, ai_steps: 5, interview_credits: 1, credits: 21 },
+    ];
+    const credits_total = units.reduce((n, u) => n + u.credits, 0);
+    return ok({ scope, from_step: from, units, steps_total: units.reduce((n, u) => n + u.steps, 0), ai_steps_total: units.reduce((n, u) => n + u.ai_steps, 0), credits_total, available_credits: (mockState.user as { balance?: number }).balance ?? 120 });
+  }),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
   // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
   http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),
