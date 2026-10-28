@@ -15,7 +15,7 @@ import { http, HttpResponse, type DefaultBodyType, type PathParams, type StrictR
 import { API_BASE_URL } from "@/lib/api/client";
 import type { ProjectDocument } from "@/types/document";
 import type { Extraction } from "@/types/extraction";
-import type { DocumentLanguage, Project, ProjectMode } from "@/types/project";
+import type { DocumentLanguage, Project, ProjectMode, TemplateIntent } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
 import type { CreditEstimate, DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
@@ -611,10 +611,13 @@ export const mode1Handlers = [
   // #1 Project theo mode
   http.post(api("/projects"), async ({ request }) => {
     const body = await readJson(request);
-    const mode = (body.mode ?? "fpt") as ProjectMode;
-    if (!["import", "fpt", "customer_template"].includes(mode)) return fail(400, "VALIDATION_ERROR", "mode phải là import, fpt hoặc customer_template");
+    const source = body.source as "new" | "existing" | undefined;
+    if (source !== undefined && !["new", "existing"].includes(source)) return fail(400, "VALIDATION_ERROR", "source phải là new hoặc existing");
+    // FLF-335: có `source` ⇒ BE suy ra mode (mới không mẫu ⇒ fpt; mới có mẫu bắt buộc / có sẵn ⇒ import); client cũ gửi mode
+    const legacy = (body.mode ?? "fpt") as ProjectMode;
+    if (!source && !["import", "fpt", "customer_template"].includes(legacy)) return fail(400, "VALIDATION_ERROR", "mode phải là import, fpt hoặc customer_template");
+    const mode: ProjectMode = source ? (source === "new" && !body.has_required_template ? "fpt" : "import") : legacy === "customer_template" ? "import" : legacy;
     if (!body.name) return fail(400, "NAME_REQUIRED", "Project name is required");
-    if (mode === "customer_template") return fail(501, "NOT_IMPLEMENTED", "Mode template khách hàng chưa hỗ trợ");
     if (body.documentLanguage !== undefined && !isDocumentLanguage(body.documentLanguage)) {
       return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
     }
@@ -625,6 +628,9 @@ export const mode1Handlers = [
       status: "active",
       mode,
       import_state: null,
+      start_kind: source ?? null,
+      has_required_template: source === "new" ? Boolean(body.has_required_template) : null,
+      template_intent: (source === "new" && body.has_required_template) || legacy === "customer_template" ? "fixed" : null,
       // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en`
       ...(mode === "import" ? {} : { documentLanguage: isDocumentLanguage(body.documentLanguage) ? body.documentLanguage : "en" }),
       createdAt: now(),
@@ -662,6 +668,11 @@ export const mode1Handlers = [
       const form = await request.formData();
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
+      // FLF-335: ý định lúc upload (fixed / free); thiếu ⇒ free; dự án có mẫu bắt buộc luôn fixed
+      const intentRaw = form.get("intent");
+      if (intentRaw !== null && intentRaw !== "fixed" && intentRaw !== "free") return fail(400, "VALIDATION_ERROR", "intent phải là fixed hoặc free");
+      const intent: TemplateIntent = S().project.template_intent === "fixed" ? "fixed" : intentRaw === "fixed" ? "fixed" : "free";
+      S().project.template_intent = intent;
       const name = file.name;
       if (/other-project/i.test(name)) {
         return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
@@ -686,6 +697,7 @@ export const mode1Handlers = [
         confirmed_latest_at: null,
         paused: null,
         extract_cursor: null,
+        intent,
         created_at: now(),
         updated_at: now(),
       };

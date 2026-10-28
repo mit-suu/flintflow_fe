@@ -382,6 +382,13 @@ describe("lib/api wrappers", () => {
     expect((init?.body as FormData).get("file")).toBe(file);
   });
 
+  it("getRunEstimate gọi /run-estimate với scope + from (FLF-332)", async () => {
+    await pipeline.getRunEstimate("p1", { scope: "all", from: "S-1" });
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate?scope=all&from=S-1");
+    await pipeline.getRunEstimate("p1");
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate");
+  });
+
   it("runStep mở luồng SSE của step", async () => {
     const handlers = { onEvent: vi.fn() };
 
@@ -500,13 +507,15 @@ describe("lib/api wrappers", () => {
   it("uploadImport / reuploadDocument gửi file .docx qua FormData field `file`", async () => {
     const file = new File(["PK"], "SRS.docx");
 
-    await importApi.uploadImport("p1", file);
+    await importApi.uploadImport("p1", file, "fixed");
     await importApi.reuploadDocument("p1", file);
 
     const [[uploadPath, uploadInit], [reuploadPath, reuploadInit]] = vi.mocked(apiCall).mock.calls;
     expect(uploadPath).toBe("/projects/p1/import");
     expect(uploadInit?.method).toBe("POST");
     expect((uploadInit?.body as FormData).get("file")).toBe(file);
+    // FLF-335: ý định lúc upload đi cùng file
+    expect((uploadInit?.body as FormData).get("intent")).toBe("fixed");
     expect(reuploadPath).toBe("/projects/p1/reupload");
     expect(reuploadInit?.method).toBe("POST");
     expect((reuploadInit?.body as FormData).get("file")).toBe(file);

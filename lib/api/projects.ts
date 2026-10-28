@@ -1,4 +1,4 @@
-import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { CreateProjectRequest, DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
 import { apiCall } from "./client";
 
 export const listProjects = (status?: ProjectStatus) =>
@@ -20,6 +20,13 @@ export const createProject = (name: string, mode?: ProjectMode, folderId?: strin
       ...(documentLanguage ? { documentLanguage } : {}),
     }),
   });
+
+/**
+ * FLF-335: tạo theo lựa chọn "Dự án mới / Dự án có sẵn" — BE suy ra `mode` (mới không mẫu ⇒ `fpt`; mới có mẫu bắt buộc hoặc
+ * có sẵn ⇒ `import`). `documentLanguage` chỉ với dự án mới; dự án có sẵn theo file.
+ */
+export const createProjectFrom = (request: CreateProjectRequest) =>
+  apiCall<Project>("/projects", { method: "POST", body: JSON.stringify(request) });
 
 export const renameProject = (projectId: string, name: string) =>
   apiCall<Project>(`/projects/${projectId}/name`, {

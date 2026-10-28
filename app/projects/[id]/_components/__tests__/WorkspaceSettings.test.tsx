@@ -6,7 +6,7 @@ import NamesGlossaryPanel from "../NamesGlossaryPanel";
 import type { Spine } from "@/types/spine";
 
 describe("AiSettingsMenu (ô chat)", () => {
-  it("chip hiện chế độ duyệt; chỉ còn 2 lựa chọn, balanced cũ hiện là Cuối giai đoạn", () => {
+  it("chip hiện chế độ duyệt; 3 mức (FLF-337), balanced cũ hiện là Cuối giai đoạn; chọn Chỉ ở mốc chốt", () => {
     const onReview = vi.fn();
     render(<AiSettingsMenu reviewMode="balanced" onChangeReviewMode={onReview} />);
 
@@ -16,14 +16,27 @@ describe("AiSettingsMenu (ô chat)", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Cách AI làm việc với bạn" });
     expect(dialog).not.toHaveTextContent("Kèm cặp");
-    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
     expect(screen.getByRole("radio", { name: "Cuối giai đoạn" })).toHaveAttribute("aria-checked", "true");
+    expect(dialog).toHaveTextContent(/không phụ thuộc độ tự tin của AI/);
     fireEvent.click(screen.getByRole("radio", { name: "Mọi bước" }));
     expect(onReview).toHaveBeenCalledWith("strict");
+    fireEvent.click(screen.getByRole("radio", { name: "Chỉ ở mốc chốt" }));
+    expect(onReview).toHaveBeenCalledWith("milestones");
 
     // Esc đóng
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("FLF-337: mức Chỉ ở mốc chốt hiện đúng chip; danh sách phần đã tắt hỏi có nút Hỏi lại", () => {
+    const onRestore = vi.fn();
+    render(<AiSettingsMenu reviewMode="milestones" onChangeReviewMode={vi.fn()} skipSections={[{ id: "fixed:5", title: "5 Glossary" }]} onRestoreSection={onRestore} />);
+    fireEvent.click(screen.getByRole("button", { name: /Chỉ ở mốc chốt/ }));
+    expect(screen.getByRole("radio", { name: "Chỉ ở mốc chốt" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("5 Glossary")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hỏi lại" }));
+    expect(onRestore).toHaveBeenCalledWith("fixed:5");
   });
 });
 

@@ -165,10 +165,18 @@ export default function BaselineApprovalPanel({
             {t("rejectionProgress", { done: rejectionIds.length - unresolved.length, total: rejectionIds.length })}
           </button>
           {!isLead && (
-            <Button size="sm" loading={busy} onClick={() => void onSubmit()}>
+            // FLF-271 (UC-40): gửi lại chỉ khi mọi góp ý đã có kết luận và hết cờ đỏ — BE cũng chặn (REJECTION_COMMENTS_OPEN / BASELINE_BLOCKED)
+            <Button
+              size="sm"
+              loading={busy}
+              disabled={unresolved.length > 0 || blocked}
+              title={unresolved.length > 0 ? t("resubmitBlockedComments", { count: unresolved.length }) : blocked ? blockedHint : undefined}
+              onClick={() => void onSubmit()}
+            >
               {t("resubmit")}
             </Button>
           )}
+          {!isLead && unresolved.length > 0 && <p className="text-caption text-on-surface-variant">{t("resubmitBlockedComments", { count: unresolved.length })}</p>}
           {isLead && (
             <Button size="sm" loading={busy} disabled={blocked} title={blocked ? blockedHint : undefined} onClick={() => setApproving(true)}>
               {t("title")}

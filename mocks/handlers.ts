@@ -34,7 +34,8 @@ import type {
   StepSummary,
   StepsResponse,
 } from "@/types/pipeline";
-import type { Change, Spine } from "@/types/spine";
+import type { Change, ReviewMode, Spine } from "@/types/spine";
+import type { AutoPassedItem } from "@/types/review-level";
 import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
@@ -60,6 +61,12 @@ const withPipelineFlag = (session: ChatSession): ChatSession => ({
   ...session,
   is_pipeline: session._id === MOCK_SESSION_ID,
 });
+
+/** FLF-337: thay đổi AI tự qua (mock) — test đặt qua `setMockAutoPassed`. */
+let autoPassedItems: AutoPassedItem[] = [];
+export const setMockAutoPassed = (items: AutoPassedItem[]): void => {
+  autoPassedItems = items.map((i) => ({ ...i }));
+};
 
 const ok = <T>(data: T, init?: ResponseInit) => HttpResponse.json({ data, error: null }, init);
 
@@ -638,16 +645,55 @@ export const handlers = [
     return ok([mockState.project].filter((p) => !status || p.status === status));
   }),
   http.post(api("/projects"), async ({ request }) => {
-    const body = (await request.json()) as { name: string; mode?: ProjectMode; documentLanguage?: DocumentLanguage };
+    const body = (await request.json()) as { name: string; mode?: ProjectMode; source?: "new" | "existing"; has_required_template?: boolean; documentLanguage?: DocumentLanguage };
     if (body.documentLanguage !== undefined && !isLocale(body.documentLanguage)) {
       return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
     }
     const now = new Date().toISOString();
-    const mode = body.mode ?? "fpt";
-    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode, import_state: null, createdAt: now, updatedAt: now };
+    // FLF-335: BE suy ra mode từ `source` — mới không mẫu ⇒ fpt; mới có mẫu bắt buộc / có sẵn ⇒ import
+    const mode: ProjectMode = body.source ? (body.source === "new" && !body.has_required_template ? "fpt" : "import") : (body.mode ?? "fpt");
+    const project: Project = {
+      _id: "650000000000000000000099",
+      name: body.name,
+      domain: null,
+      status: "active",
+      mode,
+      import_state: null,
+      start_kind: body.source ?? null,
+      has_required_template: body.source === "new" ? Boolean(body.has_required_template) : null,
+      template_intent: body.source === "new" && body.has_required_template ? "fixed" : null,
+      createdAt: now,
+      updatedAt: now,
+    };
     // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en` (tài khoản mock không có ngôn ngữ riêng)
     if (mode !== "import") project.documentLanguage = body.documentLanguage ?? "en";
     return ok(project, { status: 201 });
+  }),
+  // FLF-337: mức duyệt / phần không hỏi lại / thay đổi tự qua chưa xem
+  http.patch(api("/projects/:projectId/review-mode"), async ({ request }) => {
+    const body = ((await request.json()) ?? {}) as { review_mode?: string };
+    if (!["strict", "balanced", "fast", "milestones"].includes(body.review_mode ?? "")) return fail(400, "VALIDATION_ERROR", "review_mode không hợp lệ");
+    mockState.spine.project.review_mode = body.review_mode as ReviewMode;
+    mockState.spine.spine_version += 1;
+    return ok({ review_mode: body.review_mode, spine_version: mockState.spine.spine_version });
+  }),
+  http.patch(api("/projects/:projectId/skip-confirm-sections"), async ({ request }) => {
+    const body = ((await request.json()) ?? {}) as { add?: string[]; remove?: string[] };
+    const current = new Set(mockState.spine.project.skip_confirm_sections ?? []);
+    for (const id of body.add ?? []) current.add(id);
+    for (const id of body.remove ?? []) current.delete(id);
+    mockState.spine.project.skip_confirm_sections = [...current];
+    mockState.spine.spine_version += 1;
+    return ok({ skip_confirm_sections: [...current], spine_version: mockState.spine.spine_version });
+  }),
+  http.get(api("/projects/:projectId/auto-passed"), () => {
+    const items = autoPassedItems;
+    return ok({ total: items.length, unseen: items.filter((i) => !i.seen).length, items });
+  }),
+  http.post(api("/projects/:projectId/auto-passed/seen"), async ({ request }) => {
+    const body = ((await request.json()) ?? {}) as { ids?: string[] };
+    for (const item of autoPassedItems) if (!body.ids?.length || body.ids.includes(item.id)) item.seen = true;
+    return ok({ unseen: autoPassedItems.filter((i) => !i.seen).length });
   }),
   // FLF-265 #1a: body strict `{ documentLanguage }`; dự án mode import ⇒ 409 DOCUMENT_LANGUAGE_LOCKED
   http.patch(api("/projects/:projectId/document-language"), async ({ params, request }) => {
@@ -760,6 +806,18 @@ export const handlers = [
 
   http.get(api("/projects/:projectId/spine"), () => ok(mockState.spine)),
   http.get(api("/projects/:projectId/progress"), () => ok(progressOf(mockState))),
+  // FLF-332: ước tính credit lượt chạy liền — số tròn cho thẻ xác nhận
+  http.get(api("/projects/:projectId/run-estimate"), ({ request }) => {
+    const url = new URL(request.url);
+    const scope = (url.searchParams.get("scope") ?? "all") as "unit" | "all";
+    const from = url.searchParams.get("from") ?? "S-1.1";
+    const units = scope === "unit" ? [{ unit: from.replace(/\.\d+$/, ""), steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 }] : [
+      { unit: "S-1", steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 },
+      { unit: "S-2", steps: 5, ai_steps: 5, interview_credits: 1, credits: 21 },
+    ];
+    const credits_total = units.reduce((n, u) => n + u.credits, 0);
+    return ok({ scope, from_step: from, units, steps_total: units.reduce((n, u) => n + u.steps, 0), ai_steps_total: units.reduce((n, u) => n + u.ai_steps, 0), credits_total, available_credits: (mockState.user as { balance?: number }).balance ?? 120 });
+  }),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
   // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
   http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),

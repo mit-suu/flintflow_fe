@@ -66,7 +66,7 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
 
   it.each([
     ["import", "SRS có sẵn"],
-    ["customer_template", "Template khách"],
+    ["customer_template", "Mẫu bắt buộc"],
   ] as const)("%s ⇒ ghi tên nguồn %s ở dòng meta; card nền tím nhạt", (mode, label) => {
     const { container } = renderWithIntl(
       <ProjectCard project={{ ...baseProject, mode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
@@ -75,15 +75,15 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(container.querySelector("article")?.className.split(/\s+/)).toContain("bg-surface-card");
   });
 
-  it("nguồn mặc định (Template FlintFlow) không ghi nhãn — gần như mọi dự án đều là nó", () => {
+  it("nguồn mặc định (Mẫu chuẩn FlintFlow) không ghi nhãn — gần như mọi dự án đều là nó", () => {
     renderWithIntl(<ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
-    expect(screen.queryByText("Template FlintFlow")).toBeNull();
+    expect(screen.queryByText("Mẫu chuẩn FlintFlow")).toBeNull();
   });
 
   it("dự án BE trả thiếu mode ⇒ coi là mặc định, không ghi nhãn", () => {
     const missing = { ...baseProject, mode: undefined } as unknown as Project;
     renderWithIntl(<ProjectCard project={missing} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
-    expect(screen.queryByText("Template FlintFlow")).toBeNull();
+    expect(screen.queryByText("Mẫu chuẩn FlintFlow")).toBeNull();
   });
 
   it("FLF-318: tạo SRS đã chốt baseline (mode import, converted_from fpt) ⇒ nguồn vẫn là Tạo SRS, không thanh giai đoạn", () => {

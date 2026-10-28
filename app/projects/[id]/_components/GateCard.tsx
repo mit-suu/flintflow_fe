@@ -55,6 +55,11 @@ interface GateCardProps {
   onWantEdit?: () => void;
   /** Lượt chạy vừa rồi có ghi được op nào vào Spine không (L11b). */
   wroteOps?: boolean;
+  /**
+   * FLF-337 "Chấp nhận, không hỏi lại phần này": các section bước vừa chạm (từ `summary[].section_id`) vào danh sách tự qua,
+   * rồi Accept như thường. Vắng ⇒ không có mục này trong menu.
+   */
+  onAcceptSkipSections?: (sectionIds: string[]) => void;
   /** Mục step này nuôi mà chạy xong vẫn trống — accept cũng không đóng được cờ `section_empty` (L11b). */
   emptySections?: { section_id: string; title: string }[];
   onAction: (action: GateAction, note?: string) => void;
@@ -110,6 +115,7 @@ export default function GateCard({
   onWantEdit,
   wroteOps = true,
   emptySections = [],
+  onAcceptSkipSections,
   onAction,
 }: GateCardProps) {
   const t = useTranslations("workspace.gate");
@@ -153,6 +159,9 @@ export default function GateCard({
   const regenerateLeft = regenerateUsed < regenerateLimit && actions.includes("regenerate");
   const signOffBlocked = stepId === SIGN_OFF_STEP && !canSignOff;
   const showAcceptAsIs = !signOffBlocked && (actions.includes("accept_as_is") || regenerateUsed >= regenerateLimit);
+  // FLF-337: section bước này chạm — "không hỏi lại" chỉ có nghĩa khi bước có chạm ít nhất một section và được Accept
+  const touchedSections = Array.from(new Set((payload?.summary ?? []).map((c) => c.section_id).filter((id): id is string => typeof id === "string" && id.length > 0)));
+  const canSkipSections = Boolean(onAcceptSkipSections) && actions.includes("accept") && touchedSections.length > 0 && stepId !== SIGN_OFF_STEP;
   const menuItems = [
     {
       label: t("regenerate", { count: Math.max(0, regenerateLimit - regenerateUsed) }),
@@ -160,6 +169,18 @@ export default function GateCard({
       onSelect: () => void act("regenerate"),
     },
     ...(showAcceptAsIs ? [{ label: t("acceptAsIs"), disabled: locked, onSelect: () => setAsIs((open) => !open) }] : []),
+    ...(canSkipSections
+      ? [
+          {
+            label: t("acceptSkipSections", { count: touchedSections.length }),
+            disabled: locked,
+            onSelect: () => {
+              onAcceptSkipSections?.(touchedSections);
+              void act("accept");
+            },
+          },
+        ]
+      : []),
   ];
 
   const submitAsIs = () => {

@@ -7,6 +7,7 @@ import { useDocVersions } from "../../hooks/mode1/useDocVersions";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
 import { crListHref, gapReportHref } from "./prefill";
 import ReviewPackagePanel from "./ReviewPackagePanel";
+import AutoPassedChip from "../AutoPassedChip";
 import VersionsPanel from "./VersionsPanel";
 import type { OrgRole } from "@/types/organization";
 
@@ -54,6 +55,8 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
         )}
       </nav>
 
+      {/* FLF-337: thay đổi AI tự qua (CR tự ghi ở mức "Chỉ ở mốc chốt") chưa xem — nhắc trước khi gửi gói / phát hành */}
+      {!readOnly && <AutoPassedChip projectId={projectId} />}
       {/* FLF-330: gói duyệt kiểu pull request — gửi Lead / duyệt cả gói / yêu cầu sửa; mục Release cũ của VersionsPanel ẩn đi */}
       <ReviewPackagePanel
         projectId={projectId}
