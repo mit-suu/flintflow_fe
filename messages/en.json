@@ -1994,6 +1994,31 @@
         "fast": "Auto-approves within a phase; pauses at the end of each phase, after each screen and when your decision is needed."
       }
     },
+    "creditGate": {
+      "aria": "Confirm credits before running",
+      "intro": "The AI is about to run several turns in a row. Run to start; Cancel spends nothing and keeps your progress.",
+      "linesAria": "Estimated credit breakdown",
+      "credits": "~{credits} credits",
+      "total": "Estimated total: ~{credits} credits",
+      "available": "Available: {credits} credits",
+      "short": "The balance does not cover the whole run: the AI stops when credits run out, finished parts are not charged again.",
+      "topUp": "Top up",
+      "run": "Run",
+      "running": "Running…",
+      "cancel": "Cancel",
+      "pipelineTitle": "Draft the rest of the SRS",
+      "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
+      "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}"
+    },
+    "aiError": {
+      "title": "{what}: the AI failed{retried, select, yes {, retried twice} other {}} — credits refunded",
+      "body": "Approved content is kept. Retry now (credits are checked again) or later — reopening the project resumes from here.",
+      "retry": "Retry now",
+      "retrying": "Retrying…",
+      "later": "Later",
+      "chat": "Chat reply",
+      "phase": "Phase run"
+    },
     "languageChip": {
       "title": "Document language: {name}"
     },

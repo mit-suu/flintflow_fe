@@ -11,6 +11,7 @@ import type {
   StepAnswerRequest,
   StepEvent,
   StepsResponse,
+  RunEstimate,
 } from "@/types/pipeline";
 import { streamSse, type SseHandlers } from "../ai-stream";
 import { apiCall } from "./client";
@@ -59,6 +60,18 @@ export const submitGate = (projectId: string, stepId: string, request: GateReque
  */
 export const getRunState = (projectId: string, stepId: string) =>
   apiCall<RunState | null>(`/projects/${projectId}/steps/${stepId}/run-state`);
+
+/**
+ * Ước tính credit cho lượt chạy liền sắp tới (FLF-332): `scope: "all"` từ bước `from` tới hết pipeline (sau Approve Brief),
+ * `"unit"` chỉ đơn vị giai đoạn của bước đó. Không giữ credit, không gọi AI.
+ */
+export const getRunEstimate = (projectId: string, query: { scope?: "unit" | "all"; from?: string } = {}) => {
+  const params = new URLSearchParams();
+  if (query.scope) params.set("scope", query.scope);
+  if (query.from) params.set("from", query.from);
+  const qs = params.toString();
+  return apiCall<RunEstimate>(`/projects/${projectId}/run-estimate${qs ? `?${qs}` : ""}`);
+};
 
 /** Lượt chạy còn sống của dự án — khôi phục pill "đang chạy nền" khi mở lại trang. */
 export const getActiveRunState = (projectId: string) => apiCall<RunState | null>(`/projects/${projectId}/run-state/active`);
