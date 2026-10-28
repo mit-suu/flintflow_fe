@@ -638,13 +638,26 @@ export const handlers = [
     return ok([mockState.project].filter((p) => !status || p.status === status));
   }),
   http.post(api("/projects"), async ({ request }) => {
-    const body = (await request.json()) as { name: string; mode?: ProjectMode; documentLanguage?: DocumentLanguage };
+    const body = (await request.json()) as { name: string; mode?: ProjectMode; source?: "new" | "existing"; has_required_template?: boolean; documentLanguage?: DocumentLanguage };
     if (body.documentLanguage !== undefined && !isLocale(body.documentLanguage)) {
       return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
     }
     const now = new Date().toISOString();
-    const mode = body.mode ?? "fpt";
-    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode, import_state: null, createdAt: now, updatedAt: now };
+    // FLF-335: BE suy ra mode từ `source` — mới không mẫu ⇒ fpt; mới có mẫu bắt buộc / có sẵn ⇒ import
+    const mode: ProjectMode = body.source ? (body.source === "new" && !body.has_required_template ? "fpt" : "import") : (body.mode ?? "fpt");
+    const project: Project = {
+      _id: "650000000000000000000099",
+      name: body.name,
+      domain: null,
+      status: "active",
+      mode,
+      import_state: null,
+      start_kind: body.source ?? null,
+      has_required_template: body.source === "new" ? Boolean(body.has_required_template) : null,
+      template_intent: body.source === "new" && body.has_required_template ? "fixed" : null,
+      createdAt: now,
+      updatedAt: now,
+    };
     // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en` (tài khoản mock không có ngôn ngữ riêng)
     if (mode !== "import") project.documentLanguage = body.documentLanguage ?? "en";
     return ok(project, { status: 201 });

@@ -103,11 +103,14 @@ afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
 describe("mock mode 1 — project theo mode (#1)", () => {
-  it("tạo project import; customer_template ⇒ 501; mode lạ ⇒ 400", async () => {
-    const created = await call<Project>("POST", "/projects", { name: "Lumen", mode: "import" });
+  it("FLF-335: source quyết định mode — có sẵn ⇒ import; mới có mẫu bắt buộc ⇒ import + template_intent fixed; mới không mẫu ⇒ fpt; client cũ gửi mode vẫn chạy, mode lạ ⇒ 400", async () => {
+    const created = await call<Project>("POST", "/projects", { name: "Lumen", source: "existing" });
     expect(created.status).toBe(201);
-    expect(created.body.data).toMatchObject({ mode: "import", import_state: null });
-    expect((await call("POST", "/projects", { name: "X", mode: "customer_template" })).body.error?.code).toBe("NOT_IMPLEMENTED");
+    expect(created.body.data).toMatchObject({ mode: "import", import_state: null, start_kind: "existing", template_intent: null });
+    expect((await call<Project>("POST", "/projects", { name: "X", source: "new", has_required_template: true })).body.data).toMatchObject({ mode: "import", template_intent: "fixed" });
+    expect((await call<Project>("POST", "/projects", { name: "X", source: "new", has_required_template: false })).body.data).toMatchObject({ mode: "fpt", has_required_template: false });
+    expect((await call<Project>("POST", "/projects", { name: "X", mode: "import" })).body.data?.mode).toBe("import");
+    expect((await call("POST", "/projects", { name: "X", source: "later" })).status).toBe(400);
     expect((await call("POST", "/projects", { name: "X", mode: "coaching" })).status).toBe(400);
     expect((await call<Project>("POST", "/projects", { name: "Y" })).body.data?.mode).toBe("fpt");
   });

@@ -3,10 +3,16 @@ import type { ImportStatus } from "./import";
 export type ProjectStatus = "active" | "archived";
 
 /**
- * Cách làm SRS (FLF-171) — khác `spine.project.working_mode` (fast/coaching):
- * `import` = mode 1 upload SRS có sẵn rồi sửa · `fpt` = mode 2 sinh theo template FPT · `customer_template` = chưa hỗ trợ (BE 501).
+ * Cách làm SRS (FLF-171) — khác `spine.project.working_mode` (fast/coaching). Từ FLF-335 **Code suy ra**, FE không gửi:
+ * `import` = tải file lên (SRS có sẵn, hoặc mẫu bắt buộc của dự án mới) rồi so cấu trúc đích · `fpt` = dự án mới không mẫu,
+ * soạn theo mẫu chuẩn FlintFlow · `customer_template` = giá trị cũ, không còn được tạo.
  */
 export type ProjectMode = "import" | "fpt" | "customer_template";
+
+/** FLF-335 (business-flow §1): lựa chọn duy nhất lúc tạo — dự án mới hay dự án có sẵn. */
+export type ProjectStartKind = "new" | "existing";
+/** Ý định với file tải lên (bước 1.2): theo một mẫu cố định (mẫu khách / công ty) hay cấu trúc tự do. */
+export type TemplateIntent = "fixed" | "free";
 
 /**
  * Ngôn ngữ tài liệu SRS (FLF-265) — khác ngôn ngữ giao diện. Mode 2: chọn khi tạo, đổi sau được; mode 1: theo file
@@ -26,6 +32,11 @@ export interface Project {
   status: ProjectStatus;
   /** Project cũ (trước FLF-171) BE trả `fpt`. */
   mode: ProjectMode;
+  /** FLF-335: lựa chọn lúc tạo; dự án cũ `null` / thiếu. */
+  start_kind?: ProjectStartKind | null;
+  /** FLF-335: dự án mới có mẫu bắt buộc ⇒ `fixed` ngay lúc tạo; dự án có sẵn ⇒ ghi lúc upload; dự án cũ `null`. */
+  template_intent?: TemplateIntent | null;
+  has_required_template?: boolean | null;
   /** Mode 1: trạng thái import rút gọn cho danh sách (UC-14, UC-19); mode khác `null`. */
   import_state: ImportStatus | null;
   /**
@@ -47,8 +58,14 @@ export interface Project {
 export interface CreateProjectRequest {
   name: string;
   domain?: string;
-  /** Không gửi ⇒ `fpt`. */
+  /** FLF-335: `new` / `existing` — BE suy ra `mode`. Thiếu cả `source` lẫn `mode` ⇒ `fpt`. */
+  source?: ProjectStartKind;
+  /** Chỉ với `source: "new"`: khách có bắt buộc theo một mẫu không (có ⇒ sang màn tải mẫu). */
+  has_required_template?: boolean;
+  /** Cũ (trước FLF-335): client gửi thẳng mode. Có `source` thì BE bỏ qua. */
   mode?: ProjectMode;
-  /** Không gửi ⇒ BE lấy ngôn ngữ tài khoản, rồi `en`. Mode `import` bỏ qua (ngôn ngữ theo file). */
+  /** Tạo thẳng trong thư mục. */
+  folderId?: string;
+  /** Không gửi ⇒ BE lấy ngôn ngữ tài khoản, rồi `en`. Dự án tải file lên bỏ qua (ngôn ngữ theo file). */
   documentLanguage?: DocumentLanguage;
 }
