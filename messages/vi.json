@@ -2001,7 +2001,8 @@
       "acceptAsIs": "Duyệt như hiện tại: {note}",
       "acceptAsIsEmpty": "Duyệt như hiện tại:",
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
-      "editSection": "Trong {label}: "
+      "editSection": "Trong {label}: ",
+      "fixComment": "Trong {label}, sửa theo góp ý: {text}"
     },
     "aiSettings": {
       "aria": "Cách AI làm việc với bạn — {mode}",
@@ -2222,7 +2223,10 @@
         "clearFocus": "Đang lọc theo chỗ ghim — xem tất cả comment",
         "emptyOpen": "Không có comment nào đang mở.",
         "emptyClosed": "Chưa có comment nào được xử lý hay chuyển thành CR."
-      }
+      },
+      "fixByChat": "Nhờ AI sửa",
+      "fixByChatTitle": "Mở ô chat sửa với nội dung góp ý điền sẵn; áp xong góp ý tự thành Đã sửa",
+      "ownerStep": "Thuộc bước {steps} — xử lý “đã sửa” sẽ mở lại bước này"
     },
     "decisions": {
       "topic": {
@@ -2284,7 +2288,8 @@
         "reopenNote": "Khi Analyst xử lý một góp ý, bước đã duyệt sở hữu mục đó sẽ mở lại để soạn theo góp ý.",
         "cancel": "Huỷ",
         "reject": "Từ chối"
-      }
+      },
+      "resubmitBlockedComments": "{count, plural, =1 {Còn 1 góp ý} other {Còn # góp ý}} chưa có kết luận — nhờ AI sửa hoặc giữ nguyên + lý do rồi gửi lại."
     },
     "projectRecord": {
       "tabsLabel": "Hồ sơ dự án",

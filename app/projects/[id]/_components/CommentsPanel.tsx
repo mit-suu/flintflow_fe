@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { tStep, type Locale } from "@/lib/i18n";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import type { Locale } from "@/lib/i18n";
 import { COMMENT_TEXT_MAX, KEEP_REASON_MIN_LENGTH, type SrsComment, type CommentResolutionInput, type PendingCommentAnchor } from "@/types/comment";
 
 type Filter = "open" | "all";
@@ -25,6 +25,8 @@ interface CommentsPanelProps {
   onResolve: (commentId: string, resolution: CommentResolutionInput) => Promise<void>;
   /** Cuộn tài liệu tới mục được ghim. */
   onShowSection?: (sectionId: string) => void;
+  /** FLF-271 (UC-40): nhờ AI sửa theo góp ý — mở ô chat sửa với câu điền sẵn; áp xong comment tự đóng. */
+  onFixByChat?: (comment: SrsComment) => void;
   /** Chỉ hiện đúng các mã này (lượt từ chối baseline chuyển sang). */
   focusCommentIds?: readonly string[] | null;
   onClearFocus?: () => void;
@@ -95,15 +97,18 @@ function CommentCard({
   busy,
   onResolve,
   onShowSection,
+  onFixByChat,
 }: {
   comment: SrsComment;
   canResolve: boolean;
   busy: boolean;
   onResolve: (commentId: string, resolution: CommentResolutionInput) => Promise<void>;
   onShowSection?: (sectionId: string) => void;
+  onFixByChat?: (comment: SrsComment) => void;
 }) {
   const t = useTranslations("workspace.comments");
   const locale = useLocale();
+  const ownerSteps = comment.step_ids ?? [];
   const [keeping, setKeeping] = useState(false);
   const [reason, setReason] = useState("");
   const chip = STATUS_CHIP[comment.status];
@@ -128,6 +133,10 @@ function CommentCard({
       )}
 
       <p className="text-body text-on-surface whitespace-pre-wrap">{comment.text}</p>
+      {ownerSteps.length > 0 && comment.status === "open" && (
+        // FLF-271: nói trước bước nào sẽ mở lại khi xử lý "đã sửa"
+        <p className="text-caption text-on-surface-variant">{t("ownerStep", { steps: ownerSteps.map((id) => tStep(id, locale as Locale) || id).join(", ") })}</p>
+      )}
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-caption text-on-surface-variant">
@@ -135,6 +144,11 @@ function CommentCard({
         </span>
         {comment.status === "open" && canResolve && (
           <span className="flex items-center gap-1">
+            {onFixByChat && (
+              <Button size="sm" variant="ghost" onClick={() => onFixByChat(comment)} title={t("fixByChatTitle")}>
+                {t("fixByChat")}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -221,6 +235,7 @@ export default function CommentsPanel({
   onSubmit,
   onResolve,
   onShowSection,
+  onFixByChat,
   focusCommentIds,
   onClearFocus,
   onClose,
@@ -304,6 +319,7 @@ export default function CommentsPanel({
               busy={busy}
               onResolve={onResolve}
               onShowSection={onShowSection}
+              onFixByChat={onFixByChat}
             />
           ))
         )}

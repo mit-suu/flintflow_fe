@@ -2001,7 +2001,8 @@
       "acceptAsIs": "Approve as is: {note}",
       "acceptAsIsEmpty": "Approve as is:",
       "fixFlag": "Please fix this issue as suggested: {message}",
-      "editSection": "In {label}: "
+      "editSection": "In {label}: ",
+      "fixComment": "In {label}, fix per this comment: {text}"
     },
     "aiSettings": {
       "aria": "How the AI works with you — {mode}",
@@ -2222,7 +2223,10 @@
         "clearFocus": "Filtering by pin location — show all comments",
         "emptyOpen": "No open comments.",
         "emptyClosed": "No comments have been resolved or turned into a CR yet."
-      }
+      },
+      "fixByChat": "Ask AI to fix",
+      "fixByChatTitle": "Opens the edit chat with the comment prefilled; once applied the comment is marked Fixed",
+      "ownerStep": "Belongs to step {steps} — marking it fixed reopens that step"
     },
     "decisions": {
       "topic": {
@@ -2284,7 +2288,8 @@
         "reopenNote": "When the Analyst resolves a comment, the approved step owning that section reopens to redraft per the comment.",
         "cancel": "Cancel",
         "reject": "Reject"
-      }
+      },
+      "resubmitBlockedComments": "{count, plural, =1 {1 comment} other {# comments}} still without a conclusion — ask AI to fix or keep with a reason, then resubmit."
     },
     "projectRecord": {
       "tabsLabel": "Project record",

@@ -131,6 +131,23 @@ describe("BaselineApprovalPanel", () => {
     );
     expect(container.textContent).toContain("Thiếu luồng huỷ");
     expect(container.textContent).toContain("1/2 góp ý đã xử lý");
+    // FLF-271 (UC-40): còn góp ý chưa kết luận ⇒ chưa gửi lại được, nói rõ còn mấy
+    expect(screen.getByRole("button", { name: "Gửi lại" })).toBeDisabled();
+    expect(container.textContent).toContain("Còn 1 góp ý chưa có kết luận");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("FLF-271: mọi góp ý đã kết luận và hết cờ đỏ ⇒ Analyst gửi lại được", async () => {
+    const onSubmit = vi.fn(async () => {});
+    renderWithIntl(
+      <BaselineApprovalPanel
+        {...props}
+        role="analyst"
+        onSubmit={onSubmit}
+        comments={[comment("CM-001", "resolved"), comment("CM-002", "resolved")]}
+        submission={submission({ status: "rejected", reason: "Thiếu luồng huỷ", rejection_comment_ids: ["CM-001", "CM-002"] })}
+      />
+    );
     fireEvent.click(screen.getByRole("button", { name: "Gửi lại" }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
   });
