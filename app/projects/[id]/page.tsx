@@ -353,7 +353,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   );
   const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
-  const crChat = useCrChat(projectId, mode1);
+  // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
+  const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
+  // CR vừa ghi bản nháp (1.1, 1.2…) ⇒ khung phải tải lại tài liệu, version và gói thay đổi
+  const crChat = useCrChat(projectId, mode1, () => onSpineChangedRef.current());
   const spineState = useSpine(projectId, ws.ready, ws.canEdit);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
   // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
@@ -620,6 +623,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [bumpVersion, reloadSpine, reloadProgress, refreshUser]
   );
+  useEffect(() => {
+    onSpineChangedRef.current = onSpineChanged;
+  }, [onSpineChanged]);
 
   /**
    * Vòng dịch xong / dừng giữa chừng (FLF-265): chữ dịch nằm ở lớp bản dịch, Spine và `spine_version` không đổi ⇒ chỉ
@@ -1518,7 +1524,21 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       setKnowledgeMode(false);
       return void (await ws.sendMessage(currentStep, custom, { knowledge: true }));
     }
-    if (mode1) return void (await ws.sendMessage(currentStep, custom));
+    if (mode1) {
+      const instruction = (custom ?? ws.inputMessage).trim();
+      const preview = chatChangePreview(await ws.sendMessage(currentStep, custom));
+      if (!preview) return;
+      // BE nhận tin chat thường là lệnh sửa (vd trả lời câu hỏi làm rõ của lệnh xoá use case) và trả bản xem trước ⇒
+      // mở thẻ có "Tạo change request" như lối lệnh sửa; không thì chỉ còn tin "bấm Tạo change request" mà không có nút
+      if (useCaseTurnsRef.current) useCaseTurnsRef.current = [...useCaseTurnsRef.current, instruction];
+      else if (editUseCaseIntent(instruction)) useCaseTurnsRef.current = [instruction];
+      pendingInstructionRef.current = instruction;
+      changes.adoptPreview(preview, instruction);
+      setAppliedEdit(null);
+      setEditDetailOpen(false);
+      setEditCardOpen(true);
+      return;
+    }
     // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
     if (!onPipelineSession) return sendChat(custom);
     if (aiWorking) {
@@ -2054,6 +2074,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 readOnly={!canEdit}
                 canRelease={ws.orgRole === "lead"}
                 orgRole={ws.orgRole}
+                refreshToken={documentRefreshToken}
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}

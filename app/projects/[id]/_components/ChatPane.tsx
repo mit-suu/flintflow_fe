@@ -380,7 +380,8 @@ export default function ChatPane({
                   inputMessage={inputMessage}
                   setInputMessage={setInputMessage}
                   onSendMessage={(text) => {
-                    if (sendAsEdit && onEditInstruction) {
+                    // Gõ trả lời câu hỏi làm rõ của lệnh sửa (kể cả khi chip sửa đang tắt) ⇒ đi tiếp lệnh sửa như chọn gợi ý
+                    if ((sendAsEdit || answersChangeQuestion) && onEditInstruction) {
                       onEditInstruction(text);
                       setInputMessage("");
                     } else {

@@ -39,6 +39,12 @@ const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion ===
 /** Vị trí trượt kiểm (3.7) mà người dùng chưa soạn lại / bỏ — soạn lại hoặc bỏ đều xoá kết quả kiểm cũ. */
 export const isFailing = (l: CrLocation): boolean => l.verify !== null && !l.verify.code_ok;
 
+/**
+ * FLF-318: CR mang lô người dùng đã duyệt ở bản xem trước (thêm / xoá / sửa use case), chưa gộp thêm lệnh — BE làm đúng lô
+ * đó, không hỏi / không gọi AI ⇒ không bắt duyệt lại từng phần như trước baseline: đề xuất của lô tính là đã đồng ý.
+ */
+export const fromApprovedPreview = (d: CrDetail): boolean => (d.change_request.seed?.ops.length ?? 0) > 0 && d.change_request.amendments.length === 0;
+
 const storageKey = (projectId: string, crId: string, what: "accepted" | "impact") => `ff-cr-chat:${projectId}:${crId}:${what}`;
 const readStore = (key: string): string | null => {
   try {
@@ -70,7 +76,7 @@ export const titleFromInstruction = (instruction: string): string => {
  * tự chạy tiếp; dừng ở câu hỏi, danh sách phần liên quan, đề xuất chưa được đồng ý, lỗi / hết credit, và "Gửi cho Lead".
  * Mọi trạng thái lấy từ `CrDetail` BE trả — hook chỉ nhớ thêm (localStorage) đề xuất nào người dùng đã đồng ý.
  */
-export function useCrChat(projectId: string, enabled = true) {
+export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: string) => void) {
   // Chỉ dùng trong callback (`send`) và lúc render (`inputHint`) — không nằm trong effect tải dữ liệu
   const t = useTranslations("mode1.crChat");
   const errorText = useErrorText();
@@ -92,6 +98,11 @@ export function useCrChat(projectId: string, enabled = true) {
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
   const alive = useRef(true);
+  // CR vừa ghi bản nháp ⇒ trang tải lại Spine / tài liệu / version (giữ hàm mới nhất, không làm đổi `submit`)
+  const onWrittenRef = useRef(onWritten);
+  useEffect(() => {
+    onWrittenRef.current = onWritten;
+  }, [onWritten]);
 
   useEffect(() => {
     alive.current = true;
@@ -140,12 +151,16 @@ export function useCrChat(projectId: string, enabled = true) {
     };
   }, [projectId, enabled]);
 
-  const isAccepted = useCallback((l: CrLocation) => accepted.has(proposalKey(l)), [accepted]);
+  const isAccepted = useCallback(
+    (l: CrLocation) => accepted.has(proposalKey(l)) || (detail !== null && fromApprovedPreview(detail) && !isFailing(l)),
+    [accepted, detail]
+  );
 
-  /** Mọi vị trí đã có kết luận và mọi đề xuất sửa / comment đã được người dùng đồng ý. */
+  /** Mọi vị trí đã có kết luận và mọi đề xuất sửa / comment đã được người dùng đồng ý (lô đã duyệt ở bản xem trước ⇒ đồng ý sẵn). */
   const allDecided = useCallback(
     (d: CrDetail, set: ReadonlySet<string> = accepted) =>
-      d.locations.length > 0 && d.locations.every((l) => l.conclusion !== null && (l.conclusion === "not_related" || set.has(proposalKey(l)))),
+      d.locations.length > 0 &&
+      d.locations.every((l) => l.conclusion !== null && (l.conclusion === "not_related" || set.has(proposalKey(l)) || (fromApprovedPreview(d) && !isFailing(l)))),
     [accepted]
   );
 
@@ -163,6 +178,8 @@ export function useCrChat(projectId: string, enabled = true) {
       if (c.paused) return null;
       if (c.status === "draft" || c.status === "clarifying") return "clarify";
       if (needImpact(d)) return "impact";
+      // Lô đã duyệt ở bản xem trước: phần liên quan là đúng phần lô chạm tới ⇒ không dừng chờ "AI đề xuất sửa"
+      if (c.status === "impact_review" && d.locations.length > 0 && fromApprovedPreview(d)) return "propose";
       if (c.status === "proposing" && d.locations.some(needsProposal)) return "propose";
       if ((c.status === "proposing" || c.status === "verifying") && allDecided(d, set)) return "verify";
       // 3.9: người dùng đã soạn lại / bỏ hết phần trượt và đồng ý mọi đề xuất ⇒ kiểm lại luôn
@@ -402,6 +419,7 @@ export function useCrChat(projectId: string, enabled = true) {
           setSent(id);
           setDetail(null);
           setRedraftFor(null);
+          onWrittenRef.current?.(id);
         }
       }),
   };

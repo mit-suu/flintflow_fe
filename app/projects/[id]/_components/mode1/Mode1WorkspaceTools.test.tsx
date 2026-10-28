@@ -116,6 +116,15 @@ describe("Mode1WorkspaceTools", () => {
     await waitFor(() => expect(versionCalls.n, "bảng version phải tải lại").toBeGreaterThan(1));
   });
 
+  it("FLF-318: refreshToken đổi (CR vừa ghi bản nháp ở khung chat) ⇒ tải lại danh sách version", async () => {
+    const versionCalls = serveVersions([VERSION_00]);
+    servePackage();
+    const { rerender } = renderTools({ refreshToken: 0 });
+    await waitFor(() => expect(versionCalls.n).toBe(1));
+    rerender(<Mode1WorkspaceTools projectId={P} projectName="Lumen LMS" flags={[]} onSpineChanged={vi.fn()} canRelease refreshToken={1} />);
+    await waitFor(() => expect(versionCalls.n).toBe(2));
+  });
+
   it("lỗi tải version ⇒ báo ra, không nuốt", async () => {
     servePackage();
     mockServer.use(

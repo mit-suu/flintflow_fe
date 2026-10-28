@@ -214,8 +214,8 @@ describe("Mode1CrThread — CR trong khung chat", () => {
 const PREVIEW_DESCRIPTION = ["thêm UC phúc khảo điểm", "", "Trả lời làm rõ:", "- Màn hình riêng"].join("\n");
 
 /** FLF-318: lệnh thêm / xoá use case đi vòng hỏi đáp + bản xem trước như trước baseline rồi mới tạo CR kèm bản xem trước. */
-function PreviewHarness() {
-  const chat = useCrChat(P);
+function PreviewHarness({ onWritten }: { onWritten?: (crId: string) => void }) {
+  const chat = useCrChat(P, true, onWritten);
   return (
     <>
       <Mode1CrThread projectId={P} chat={chat} me="Lan" />
@@ -243,6 +243,27 @@ describe("Mode1CrThread — CR từ bản xem trước (FLF-318)", () => {
     expect(created.description).toBe(PREVIEW_DESCRIPTION);
     expect(created.seed).not.toBeNull();
     expect(created.source.note).toBe("Tạo từ bản xem trước trong khung chat");
+  });
+
+  it("lô đã duyệt ở bản xem trước ⇒ không dừng ở phần liên quan, không bắt Đồng ý từng phần: một khung tóm tắt rồi tới nút xác nhận", async () => {
+    const onWritten = vi.fn();
+    renderWithIntl(<PreviewHarness onWritten={onWritten} />);
+    await click("Tạo CR từ bản xem trước");
+    await click("Lan · yêu cầu miệng");
+
+    expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
+    expect(cr().status).toBe("ready_to_submit");
+    const summary = screen.getByLabelText("Thay đổi đã duyệt ở bản xem trước");
+    expect(within(summary).getByText(/Đúng các thay đổi bạn đã duyệt ở bản xem trước/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tiếp tục — AI đề xuất sửa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Đồng ý" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Phần liên quan")).not.toBeInTheDocument();
+
+    expect(onWritten).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận & ghi vào bản nháp" }));
+    await waitFor(() => expect(cr().status).toBe("written"));
+    // Trang tải lại tài liệu / version ở khung phải khi CR vừa ghi bản nháp
+    await waitFor(() => expect(onWritten).toHaveBeenCalledWith("CR-001"));
   });
 });
 

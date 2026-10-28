@@ -2787,6 +2787,12 @@
         "redraft": "AI đang soạn lại đề xuất…",
         "manual": "Đang lưu bản bạn tự sửa…"
       },
+      "approved": {
+        "step": "Thay đổi đã duyệt ({count} phần)",
+        "label": "Thay đổi đã duyệt ở bản xem trước",
+        "intro": "Đúng các thay đổi bạn đã duyệt ở bản xem trước — không cần duyệt lại từng phần. Mở từng mục để xem chi tiết.",
+        "busy": "Đang chuẩn bị đúng các thay đổi đã duyệt…"
+      },
       "requester": {
         "step": "Mở change request",
         "label": "Chọn người yêu cầu",
