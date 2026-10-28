@@ -8,6 +8,7 @@ import { listCrs } from "@/lib/api/change-requests";
 import { CR_TERMINAL_STATUSES, type Cr } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import ChangeRequestForm from "./ChangeRequestForm";
+import ReferenceDocumentsPanel from "./ReferenceDocumentsPanel";
 import { useErrorText, useMode1Labels } from "./i18n";
 import { crHref, type CrPrefill } from "./prefill";
 
@@ -86,6 +87,9 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
           {error}
         </p>
       )}
+
+      {/* FLF-338 §3.6.1: tài liệu tham khảo ⇒ rút yêu cầu ⇒ nhiều CR một lúc */}
+      <ReferenceDocumentsPanel projectId={projectId} readOnly={readOnly} onCrsCreated={() => void load()} />
 
       <div className="flex gap-1.5" role="group" aria-label={t("filterAria")}>
         {(["open", "closed", "all"] as const).map((f) => (

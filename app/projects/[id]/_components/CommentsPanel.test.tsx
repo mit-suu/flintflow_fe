@@ -55,6 +55,15 @@ describe("CommentsPanel", () => {
     expect(container.textContent).toContain("Đã xử lý");
   });
 
+  it("FLF-271 (UC-40): nhờ AI sửa gọi onFixByChat với comment; nói trước bước sở hữu sẽ mở lại", () => {
+    const onFixByChat = vi.fn();
+    const { container } = renderWithIntl(<CommentsPanel {...props} comments={[comment("CM-001", { step_ids: ["S-2.1"] })]} onFixByChat={onFixByChat} />);
+    expect(container.textContent).toContain("Thuộc bước");
+    fireEvent.click(screen.getByRole("button", { name: "Nhờ AI sửa" }));
+    expect(onFixByChat).toHaveBeenCalledWith(expect.objectContaining({ comment_id: "CM-001" }));
+    expect(screen.getByRole("button", { name: "Đã sửa" })).toBeInTheDocument();
+  });
+
   it("không có quyền ⇒ không có nút xử lý góp ý", () => {
     renderWithIntl(<CommentsPanel {...props} canResolve={false} comments={[comment("CM-001")]} />);
     expect(screen.queryByRole("button", { name: "Đã sửa" })).not.toBeInTheDocument();

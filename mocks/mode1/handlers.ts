@@ -13,7 +13,9 @@
  */
 import { http, HttpResponse, type DefaultBodyType, type PathParams, type StrictRequest } from "msw";
 import { API_BASE_URL } from "@/lib/api/client";
-import type { DocumentLanguage, Project, ProjectMode } from "@/types/project";
+import type { ProjectDocument } from "@/types/document";
+import type { Extraction } from "@/types/extraction";
+import type { DocumentLanguage, Project, ProjectMode, TemplateIntent } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
 import type { CreditEstimate, DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
@@ -29,6 +31,29 @@ const api = (path: string) => `${API_BASE_URL}${path}`;
 const now = () => new Date().toISOString();
 /** Đọc biến live của module — `resetMode1MockState()` thay cả object. */
 const S = () => stateModule.mode1State;
+
+/** FLF-338: tài liệu tham khảo mock + danh sách rút theo tài liệu (reset ở `resetMode1Extraction`). */
+export const MODE1_DOC_ID = "6700000000000000000000d1";
+const docMinutes = (): ProjectDocument => ({
+  _id: MODE1_DOC_ID,
+  projectId: MODE1_PROJECT_ID,
+  uploadedBy: "u1",
+  fileName: "minutes",
+  originalName: "minutes.txt",
+  mimeType: "text/plain",
+  size: 240,
+  url: "https://example.test/minutes.txt",
+  parseStatus: "success",
+  summaryStatus: "success",
+  createdAt: "2026-10-27T01:00:00.000Z",
+  updatedAt: "2026-10-27T01:00:00.000Z",
+});
+let mode1Docs: ProjectDocument[] = [docMinutes()];
+let mode1Extractions: Record<string, Extraction> = {};
+export const resetMode1Extraction = (): void => {
+  mode1Docs = [docMinutes()];
+  mode1Extractions = {};
+};
 
 const ok = <T>(data: T, status = 200) => HttpResponse.json({ data, error: null }, { status });
 const fail = (status: number, code: string, message: string, meta?: Record<string, unknown>) =>
@@ -525,13 +550,74 @@ const requiresCr = (instruction: string, ref: string | null = null) =>
 // ─── handlers ────────────────────────────────────────────────────
 
 export const mode1Handlers = [
+  // FLF-338 §3.6.1: tài liệu tham khảo + rút yêu cầu (trạng thái trong module, reset qua `resetMode1Extraction`)
+  http.get(api("/projects/:projectId/documents"), mode1(() => ok(mode1Docs))),
+  http.delete(api("/projects/:projectId/documents/:documentId"), mode1(({ params }) => {
+    mode1Docs = mode1Docs.filter((d) => d._id !== params.documentId);
+    delete mode1Extractions[String(params.documentId)];
+    return ok({ deleted: true });
+  })),
+  http.get(api("/projects/:projectId/documents/:documentId/extract"), mode1(({ params }) => ok(mode1Extractions[String(params.documentId)] ?? null))),
+  http.post(api("/projects/:projectId/documents/:documentId/extract"), mode1(({ params }) => {
+    const doc = mode1Docs.find((d) => d._id === params.documentId);
+    if (!doc) return fail(404, "DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu tham khảo.");
+    if (doc.parseStatus !== "success") return fail(422, "EXTRACTION_DOCUMENT_UNREADABLE", "Tài liệu chưa đọc được chữ.");
+    if (mode1Extractions[doc._id]?.status === "approved") return fail(409, "EXTRACTION_ALREADY_APPROVED", "Danh sách đã được duyệt.");
+    const extraction: Extraction = {
+      document_id: doc._id,
+      document_name: doc.originalName,
+      doc_code: 1,
+      status: "extracted",
+      credits: 3,
+      approved_at: null,
+      created_at: now(),
+      updated_at: now(),
+      items: [
+        { id: "R1", text: "Every report must be exportable to CSV.", label: "new", para_id: "D1-P02", quote: "every report can be exported to CSV", group: "G1", entity_paths: [], question: null, suggested_answers: [], include: null, drop_reason: null, answer: null, cr_id: null },
+        { id: "R2", text: "Login keeps email and password.", label: "duplicate", para_id: "D1-P03", quote: "Login stays with email and password", group: "G2", entity_paths: ["use_cases[id=UC-01]"], question: null, suggested_answers: [], include: null, drop_reason: null, answer: null, cr_id: null },
+        { id: "R3", text: "The dashboard should feel fast.", label: "ambiguous", para_id: "D1-P04", quote: "The dashboard should feel fast.", group: "G3", entity_paths: [], question: "Fast means what?", suggested_answers: ["Under 2 seconds", "Under 5 seconds"], include: null, drop_reason: null, answer: null, cr_id: null },
+      ],
+    };
+    mode1Extractions[doc._id] = extraction;
+    return ok(extraction, 201);
+  })),
+  http.post(api("/projects/:projectId/documents/:documentId/extract/approve"), mode1(async ({ params, request }) => {
+    const extraction = mode1Extractions[String(params.documentId)];
+    if (!extraction) return fail(404, "EXTRACTION_NOT_FOUND", "Chưa rút yêu cầu từ tài liệu này.");
+    if (extraction.status === "approved") return fail(409, "EXTRACTION_ALREADY_APPROVED", "Danh sách đã được duyệt.");
+    const body = (await request.json()) as { requester?: string; decisions?: { id: string; include: boolean; drop_reason?: string | null; answer?: string | null; group?: string | null }[] };
+    const decisions = body.decisions ?? [];
+    const unanswered = decisions.filter((d) => d.include && ["contradiction", "ambiguous"].includes(extraction.items.find((i) => i.id === d.id)?.label ?? "") && !(d.answer ?? "").trim()).map((d) => d.id);
+    if (unanswered.length) return fail(400, "EXTRACTION_DECISION_INVALID", "Mục mâu thuẫn / mơ hồ cần câu trả lời.", { item_ids: unanswered });
+    const noReason = decisions.filter((d) => !d.include && !(d.drop_reason ?? "").trim()).map((d) => d.id);
+    if (noReason.length) return fail(400, "EXTRACTION_DECISION_INVALID", "Bỏ mục nào phải ghi lý do.", { item_ids: noReason });
+    const groups = new Map<string, string>();
+    let n = S().crs.size;
+    for (const item of extraction.items) {
+      const d = decisions.find((x) => x.id === item.id);
+      item.include = d?.include ?? false;
+      item.drop_reason = d && !d.include ? (d.drop_reason ?? "") : null;
+      item.answer = (d?.answer ?? "").trim() || null;
+      if (!item.include || item.label === "duplicate") continue;
+      const g = (d?.group ?? "").trim() || item.group;
+      if (!groups.has(g)) groups.set(g, `CR-${String(++n).padStart(3, "0")}`);
+      item.cr_id = groups.get(g)!;
+    }
+    extraction.status = "approved";
+    extraction.approved_at = now();
+    return ok(extraction);
+  })),
+
   // #1 Project theo mode
   http.post(api("/projects"), async ({ request }) => {
     const body = await readJson(request);
-    const mode = (body.mode ?? "fpt") as ProjectMode;
-    if (!["import", "fpt", "customer_template"].includes(mode)) return fail(400, "VALIDATION_ERROR", "mode phải là import, fpt hoặc customer_template");
+    const source = body.source as "new" | "existing" | undefined;
+    if (source !== undefined && !["new", "existing"].includes(source)) return fail(400, "VALIDATION_ERROR", "source phải là new hoặc existing");
+    // FLF-335: có `source` ⇒ BE suy ra mode (mới không mẫu ⇒ fpt; mới có mẫu bắt buộc / có sẵn ⇒ import); client cũ gửi mode
+    const legacy = (body.mode ?? "fpt") as ProjectMode;
+    if (!source && !["import", "fpt", "customer_template"].includes(legacy)) return fail(400, "VALIDATION_ERROR", "mode phải là import, fpt hoặc customer_template");
+    const mode: ProjectMode = source ? (source === "new" && !body.has_required_template ? "fpt" : "import") : legacy === "customer_template" ? "import" : legacy;
     if (!body.name) return fail(400, "NAME_REQUIRED", "Project name is required");
-    if (mode === "customer_template") return fail(501, "NOT_IMPLEMENTED", "Mode template khách hàng chưa hỗ trợ");
     if (body.documentLanguage !== undefined && !isDocumentLanguage(body.documentLanguage)) {
       return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
     }
@@ -542,6 +628,9 @@ export const mode1Handlers = [
       status: "active",
       mode,
       import_state: null,
+      start_kind: source ?? null,
+      has_required_template: source === "new" ? Boolean(body.has_required_template) : null,
+      template_intent: (source === "new" && body.has_required_template) || legacy === "customer_template" ? "fixed" : null,
       // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en`
       ...(mode === "import" ? {} : { documentLanguage: isDocumentLanguage(body.documentLanguage) ? body.documentLanguage : "en" }),
       createdAt: now(),
@@ -579,6 +668,11 @@ export const mode1Handlers = [
       const form = await request.formData();
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
+      // FLF-335: ý định lúc upload (fixed / free); thiếu ⇒ free; dự án có mẫu bắt buộc luôn fixed
+      const intentRaw = form.get("intent");
+      if (intentRaw !== null && intentRaw !== "fixed" && intentRaw !== "free") return fail(400, "VALIDATION_ERROR", "intent phải là fixed hoặc free");
+      const intent: TemplateIntent = S().project.template_intent === "fixed" ? "fixed" : intentRaw === "fixed" ? "fixed" : "free";
+      S().project.template_intent = intent;
       const name = file.name;
       if (/other-project/i.test(name)) {
         return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
@@ -603,6 +697,7 @@ export const mode1Handlers = [
         confirmed_latest_at: null,
         paused: null,
         extract_cursor: null,
+        intent,
         created_at: now(),
         updated_at: now(),
       };

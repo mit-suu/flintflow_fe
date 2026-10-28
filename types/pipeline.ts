@@ -28,6 +28,8 @@ export interface ChangeRequest {
   session_id?: string;
   /** FLF-294 (BR-03): sau baseline lượt áp là một change request — bắt buộc người yêu cầu + nguồn (400 `CR_FIELDS_REQUIRED`). */
   change_request?: ChangeRequestInfo;
+  /** FLF-271 (UC-40): lượt sửa để xử lý góp ý Lead ghim khi từ chối baseline — áp xong BE tự đóng comment `fixed`. */
+  comment_id?: string;
 }
 
 /** FLF-294: người yêu cầu + nguồn của change request sau baseline — 6 nguồn của C-1 như CR mode 1. */
@@ -297,6 +299,31 @@ export interface RunState {
   /** Mỗi sự kiện lưu kèm `at` (ISO, FLF-221) — dữ liệu cũ không có. */
   events: (StepEvent & { at?: string })[];
   error: { code: string; message: string } | null;
+  /**
+   * FLF-332: `ai_error` ⇒ lượt gãy vì AI lỗi (đã tự thử lại, credit đã hoàn), bước **tạm dừng** chờ "Thử lại ngay / Để sau";
+   * `/run-state/active` vẫn trả lượt này sau khi mở lại trang. Thiếu/null ⇒ gián đoạn thường.
+   */
+  paused_reason?: "ai_error" | null;
+}
+
+/** GET /projects/:id/run-estimate (FLF-332) — ước tính credit cho lượt chạy liền sắp tới, trước khi gọi AI. */
+export interface RunEstimateUnit {
+  unit: string;
+  steps: number;
+  ai_steps: number;
+  interview_credits: number;
+  credits: number;
+}
+
+export interface RunEstimate {
+  scope: "unit" | "all";
+  from_step: string | null;
+  units: RunEstimateUnit[];
+  steps_total: number;
+  ai_steps_total: number;
+  credits_total: number;
+  /** `balance − reserved` của ví org; null khi không xác định được ví. */
+  available_credits: number | null;
 }
 
 export type StepEventType = StepEvent["type"];

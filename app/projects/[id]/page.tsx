@@ -17,6 +17,7 @@ import { hookErrorText } from "@/lib/hook-errors";
 import { workspaceStepLabel as stepLabel } from "./_components/phase-labels";
 import { ACCEPT_USER_TEXT, REGENERATE_USER_TEXT } from "./_components/user-text";
 import type { ApplyResult, GateAction, Op, RunIntent, StepAnswer } from "@/types/pipeline";
+import type { SrsComment } from "@/types/comment";
 import { isGateApproval } from "@/lib/gate-approval";
 import type { Diagram, ReviewMode } from "@/types/spine";
 import { chatChangePreview } from "@/lib/chat-change-preview";
@@ -44,12 +45,22 @@ import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
+import AutoPassedChip from "./_components/AutoPassedChip";
+import { patchSkipConfirmSections, setReviewMode } from "@/lib/api/review-level";
+import { sectionTitleOf } from "@/lib/section-title";
 import ExportPanel from "./_components/ExportPanel";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
-import { submitGate } from "@/lib/api/pipeline";
+import { getRunEstimate, submitGate } from "@/lib/api/pipeline";
+import { estimateActionCost } from "@/lib/api/chat";
+import { fetchBalance } from "@/lib/api/billing";
+import { isAiErrorCode } from "@/lib/ai-error-codes";
+import { useCreditGate } from "./hooks/useCreditGate";
+import CreditGateCard from "./_components/CreditGateCard";
+import AiErrorBanner from "./_components/AiErrorBanner";
+import { tStep } from "@/lib/i18n";
 import type { TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
@@ -319,7 +330,28 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   /** Lỗi hook lưu mã `@key` khi BE không kèm câu (`lib/hook-errors.ts`) — dịch lúc render. */
   const hookError = (error: string | null) => (error ? hookErrorText(error, tHook) : null);
 
-  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly") });
+  // FLF-332: cổng cứng credit — thẻ xác nhận treo trong khung chat, người dùng bấm Chạy mới gọi AI
+  const creditGate = useCreditGate();
+  const { confirm: confirmCredits } = creditGate;
+  const confirmAttachments = useCallback(
+    async (files: File[]) => {
+      const [cost, balance] = await Promise.all([
+        estimateActionCost("summarize_document").then((r) => r.data?.cost ?? null).catch(() => null),
+        fetchBalance().then((r) => r.available ?? null).catch(() => null),
+      ]);
+      // Không ước tính được (mạng, quyền) thì không chặn — BE vẫn giữ credit từng lượt như cũ
+      if (cost === null) return true;
+      const total = cost * files.length;
+      return confirmCredits({
+        title: t("creditGate.attachmentsTitle", { count: files.length }),
+        lines: files.map((f) => ({ label: f.name, credits: cost })),
+        total,
+        available: balance,
+      });
+    },
+    [confirmCredits, t]
+  );
+  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   const crChat = useCrChat(projectId, mode1);
   const spineState = useSpine(projectId, ws.ready, ws.canEdit);
@@ -614,6 +646,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     onRevisionMessage: (message, stepId) => {
       if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
     },
+    // FLF-332: sau Approve Brief (B-2 → S-1) là lượt soạn hàng loạt cả SRS ⇒ chốt con số trước khi soạn (cổng cứng §1.2)
+    beforePhaseRun: async (next, from) => {
+      if (!(from?.startsWith("B-") && next.startsWith("S-"))) return true;
+      const est = await getRunEstimate(projectId, { scope: "all", from: next })
+        .then((r) => r.data)
+        .catch(() => null);
+      if (!est || est.credits_total <= 0) return true;
+      return confirmCredits({
+        title: t("creditGate.pipelineTitle"),
+        lines: est.units.map((u) => ({ label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits })),
+        total: est.credits_total,
+        available: est.available_credits,
+      });
+    },
   });
 
   // Lớp 5: tới lượt user mà tab đang ẩn thì đổi tiêu đề tab (và báo, nếu user đã cho phép)
@@ -696,9 +742,32 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     [submitOpsNow]
   );
 
-  /** R5: đổi mức độ dừng lại hỏi ý — có hiệu lực ngay ở bước kế tiếp. */
-  const changeReviewMode = (mode: ReviewMode) =>
-    submitOps([{ op: "set", path: "project.review_mode", value: mode, reason: "[C] đổi cách duyệt" }]);
+  /**
+   * R5 / FLF-337: đổi mức duyệt — có hiệu lực ngay ở bước (hoặc CR) kế tiếp. Đi endpoint riêng để mode 1 sau baseline cũng
+   * đổi được (`/changes` bị chặn `CHANGE_REQUIRES_CR`).
+   */
+  const changeReviewMode = async (mode: ReviewMode) => {
+    try {
+      const res = await setReviewMode(projectId, mode);
+      onSpineChanged(res.data?.spine_version);
+    } catch (err) {
+      setToast(userErrorMessage(err, t("aiSettings.changeFailed")));
+    }
+  };
+
+  /** FLF-337: "Chấp nhận, không hỏi lại phần này" / bật lại trong cài đặt. */
+  const patchSkipSections = async (body: { add?: string[]; remove?: string[] }) => {
+    try {
+      const res = await patchSkipConfirmSections(projectId, body);
+      onSpineChanged(res.data?.spine_version);
+    } catch (err) {
+      setToast(userErrorMessage(err, t("aiSettings.skipSections.failed")));
+    }
+  };
+  const skipSections = useMemo(
+    () => (spine?.project.skip_confirm_sections ?? []).map((id) => ({ id, title: sectionTitleOf(id, locale) })),
+    [spine?.project.skip_confirm_sections, locale]
+  );
 
   /**
    * Giả định mới hiện ngay ở gate với ba nút Đúng / Sửa / Bỏ (BUG-13). `confirmed_at` do đây ghi — model
@@ -949,6 +1018,13 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const resolveComment = async (commentId: string, resolution: CommentResolutionInput) => {
     await comments.resolve(commentId, resolution);
     await spineState.reload();
+  };
+  /** FLF-271 (UC-40): comment đang được nhờ AI sửa — lượt áp kế tiếp gửi `comment_id` để BE tự đóng. */
+  const [fixingCommentId, setFixingCommentId] = useState<string | null>(null);
+  const fixCommentByChat = (comment: SrsComment) => {
+    setFixingCommentId(comment.comment_id);
+    setRightPanel(null);
+    startEditing(t("userText.fixComment", { label: comment.anchor.label, text: comment.text }));
   };
 
   const [baselineBusy, setBaselineBusy] = useState(false);
@@ -1678,13 +1754,16 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           knowledgeHidden={ws.knowledgeDisabled}
           knowledgePending={ws.knowledgePending}
           inputTools={
-            mode1 ? undefined : (
+            // FLF-337: mức duyệt áp cả sau baseline (CR tự ghi ở "Chỉ ở mốc chốt") ⇒ menu hiện ở mode 1
+            canEdit ? (
               <AiSettingsMenu
                 reviewMode={reviewMode}
                 onChangeReviewMode={(mode) => void changeReviewMode(mode)}
                 disabled={runner.state.busy || savingChange}
+                skipSections={skipSections}
+                onRestoreSection={(id) => void patchSkipSections({ remove: [id] })}
               />
-            )
+            ) : undefined
           }
           questionCard={
             !mode1 && canEdit && onPipelineSession && runner.state.status === "needs_input" ? (
@@ -1756,8 +1835,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               hideBadge
             />
           )}
+          {gate && runnerStep === "S-9.5" && canEdit && <AutoPassedChip projectId={projectId} refreshKey={spineState.version} />}
           {gate && runnerStep && canEdit && (
             <GateCard
+              onAcceptSkipSections={(ids) => void patchSkipSections({ add: ids })}
               {...(runner.state.phaseGate ? { phaseSummary: runner.state.phaseGate.summary } : {})}
               stepId={runnerStep}
               actions={gate.actions}
@@ -1781,6 +1862,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               onAction={(action, note) => submitGateAction(action, note)}
             />
           )}
+          {creditGate.pending && <CreditGateCard {...creditGate.pending} onRun={creditGate.run} onCancel={creditGate.cancel} />}
+          {ws.aiError && (
+            <AiErrorBanner what={t("aiError.chat")} message={ws.aiError.message} retried={false} busy={ws.sending} onRetry={() => void ws.retryAiError()} onLater={ws.dismissAiError} />
+          )}
           {saveError && (
             <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex items-center justify-between gap-2">
               <span>{saveError}</span>
@@ -1802,7 +1887,18 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               </button>
             </div>
           )}
-          {runner.state.error && (
+          {runner.state.error && isAiErrorCode(runner.state.error.code) && (
+            // FLF-332: AI lỗi (đã thử lại 2 lần, credit đã hoàn) ⇒ banner dùng chung "Thử lại ngay / Để sau"; Để sau chỉ đóng
+            // banner — BE giữ `paused_reason` nên mở lại dự án vẫn thấy tại bước này
+            <AiErrorBanner
+              what={runner.state.stepId ? tStep(runner.state.stepId, locale) : t("aiError.phase")}
+              message={runner.state.error.message}
+              busy={runner.state.busy}
+              onRetry={() => void handleErrorAction({ kind: "retry", label: t("aiError.retry") })}
+              onLater={runner.reset}
+            />
+          )}
+          {runner.state.error && !isAiErrorCode(runner.state.error.code) && (
             // BUG-25: lỗi nói bằng tiếng Việt kèm việc làm được. Đây là NƠI DUY NHẤT nói câu lỗi — nhật ký
             // lượt chạy phía trên cố ý im, vì BE trả câu đã viết cho người nên nhắc lại chỉ thành tiếng vọng.
             <div role="alert" className="bg-error-container rounded-control p-3 text-body text-error flex flex-col gap-2">
@@ -1859,7 +1955,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   return;
                 }
                 editActionRef.current = "instruction";
-                void changes.confirmPreview();
+                void changes.confirmPreview(undefined, undefined, fixingCommentId).finally(() => setFixingCommentId(null));
               }}
               onCancel={closeEditCard}
               // BR-03 (FLF-294): sau baseline không hoàn tác — gỡ thay đổi là một change request mới
@@ -2014,6 +2110,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onAssumptionDecision={mode1 || !canEdit ? undefined : (decision) => void applyAssumptionDecision(decision)}
             onConfirmAllAssumptions={mode1 || !canEdit ? undefined : (ids) => void confirmAllAssumptions(ids)}
             onRecompute={canEdit ? handleFlagRecompute : undefined}
+            autoPassedSlot={!mode1 && canEdit ? <AutoPassedChip projectId={projectId} refreshKey={spineState.version} /> : undefined}
             // Mode 1 chốt bản qua release gói CR (UC-52), không đi đường nộp/duyệt baseline 1.0
             baseline={
               mode1
@@ -2047,6 +2144,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onSubmit={submitComment}
             onResolve={resolveComment}
             onShowSection={showSection}
+            onFixByChat={canEdit && !mode1 ? fixCommentByChat : undefined}
             focusCommentIds={focusCommentIds}
             onClearFocus={() => setFocusCommentIds(null)}
             onClose={() => setRightPanel(null)}
@@ -2108,7 +2206,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onCancel={() => (changes.previewSource === "reconcile" ? changes.cancelPreview() : setEditDetailOpen(false))}
           onConfirm={(reason, changeRequest) => {
             editActionRef.current = changes.previewSource === "reconcile" ? "outdated" : "instruction";
-            void changes.confirmPreview(reason, changeRequest);
+            void changes.confirmPreview(reason, changeRequest, fixingCommentId).finally(() => setFixingCommentId(null));
           }}
         />
       )}

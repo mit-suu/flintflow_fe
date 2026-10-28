@@ -3,6 +3,7 @@
  * và `docs/api/import-change-contract.md` (FLF-171). Đổi ở BE thì đổi ở đây trong cùng PR.
  */
 import type { RocRow } from "./document";
+import type { TemplateIntent } from "./project";
 import type { Baseline, Flag, IsoDateTime } from "./spine";
 
 /** Máy trạng thái import (`import.state.ts` BE). */
@@ -76,6 +77,8 @@ export interface ImportedDocument {
   paused: Paused | null;
   /** Section đang/sắp trích (I-4); resume chạy tiếp từ đây. */
   extract_cursor: string | null;
+  /** FLF-335: ý định lúc upload — file theo mẫu cố định hay cấu trúc tự do; bản ghi cũ `null` / thiếu (coi như `free`). */
+  intent?: TemplateIntent | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }

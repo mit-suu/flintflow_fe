@@ -58,6 +58,8 @@ export interface SrsComment {
   handled_at: string | null;
   /** Kết luận lượt xử lý; `null` khi chưa xử lý hoặc đã chuyển thành CR. */
   resolution: CommentResolution | null;
+  /** FLF-271: bước sở hữu mục được ghim — xử lý "đã sửa" sẽ mở lại bước này; thiếu / rỗng với mục nhóm hoặc ngoài mẫu. */
+  step_ids?: string[];
   replies: CommentReply[];
   created_at: string;
 }
