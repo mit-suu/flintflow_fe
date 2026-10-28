@@ -76,7 +76,7 @@ export const titleFromInstruction = (instruction: string): string => {
  * tự chạy tiếp; dừng ở câu hỏi, danh sách phần liên quan, đề xuất chưa được đồng ý, lỗi / hết credit, và "Gửi cho Lead".
  * Mọi trạng thái lấy từ `CrDetail` BE trả — hook chỉ nhớ thêm (localStorage) đề xuất nào người dùng đã đồng ý.
  */
-export function useCrChat(projectId: string, enabled = true) {
+export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: string) => void) {
   // Chỉ dùng trong callback (`send`) và lúc render (`inputHint`) — không nằm trong effect tải dữ liệu
   const t = useTranslations("mode1.crChat");
   const errorText = useErrorText();
@@ -98,6 +98,11 @@ export function useCrChat(projectId: string, enabled = true) {
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
   const alive = useRef(true);
+  // CR vừa ghi bản nháp ⇒ trang tải lại Spine / tài liệu / version (giữ hàm mới nhất, không làm đổi `submit`)
+  const onWrittenRef = useRef(onWritten);
+  useEffect(() => {
+    onWrittenRef.current = onWritten;
+  }, [onWritten]);
 
   useEffect(() => {
     alive.current = true;
@@ -414,6 +419,7 @@ export function useCrChat(projectId: string, enabled = true) {
           setSent(id);
           setDetail(null);
           setRedraftFor(null);
+          onWrittenRef.current?.(id);
         }
       }),
   };

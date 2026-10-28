@@ -12,6 +12,8 @@ interface Options {
    * không — bật thừa là thêm một `GET /flags` và gộp lỗi của nó vào `error` của danh sách version.
    */
   redFlags?: boolean;
+  /** Đổi giá trị ⇒ tải lại (vd change request vừa ghi bản nháp mới ở khung chat). */
+  refreshToken?: number;
 }
 
 /**
@@ -22,7 +24,7 @@ interface Options {
  * state khởi tạo từ `versions` phải chờ `loading === false`, nếu không nó khởi tạo từ mảng rỗng và giữ
  * nguyên giá trị rỗng đó (`useState` chỉ đọc initializer ở lần render đầu).
  */
-export function useDocVersions(projectId: string, { redFlags = true }: Options = {}) {
+export function useDocVersions(projectId: string, { redFlags = true, refreshToken = 0 }: Options = {}) {
   const [versions, setVersions] = useState<DocVersion[]>([]);
   const [redOpen, setRedOpen] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export function useDocVersions(projectId: string, { redFlags = true }: Options =
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, refreshToken]);
 
   return { versions, redOpen, loading, error, reload };
 }

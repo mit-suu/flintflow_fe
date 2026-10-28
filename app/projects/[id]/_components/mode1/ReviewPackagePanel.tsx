@@ -18,6 +18,8 @@ interface ReviewPackagePanelProps {
   role: OrgRole | null;
   /** Sau khi gửi / yêu cầu sửa / phát hành: tải lại Spine, cờ, version. */
   onChanged: () => void;
+  /** Đổi giá trị ⇒ tải lại gói (vd CR vừa ghi bản nháp ở khung chat). */
+  refreshToken?: number;
 }
 
 const REASON_MIN = 10;
@@ -27,7 +29,7 @@ const REASON_MIN = 10;
  * BA **gửi Lead duyệt cả gói** (cờ đỏ = 0) ⇒ bản nháp khoá; Lead **duyệt cả gói** (= phát hành số chính) hoặc **yêu cầu
  * sửa** kèm lý do ⇒ mở khoá. Lead tự làm thì phát hành thẳng từ đây. Không duyệt từng CR.
  */
-export default function ReviewPackagePanel({ projectId, role, onChanged }: ReviewPackagePanelProps) {
+export default function ReviewPackagePanel({ projectId, role, onChanged, refreshToken = 0 }: ReviewPackagePanelProps) {
   const t = useTranslations("mode1.reviewPackage");
   const L = useMode1Labels();
   const [pkg, setPkg] = useState<ReviewPackage | null>(null);
@@ -54,7 +56,7 @@ export default function ReviewPackagePanel({ projectId, role, onChanged }: Revie
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, refreshToken]);
 
   const run = async (kind: "submit" | "changes" | "release", fn: (baseVersion: number) => Promise<unknown>) => {
     setBusy(kind);

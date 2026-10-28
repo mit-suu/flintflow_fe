@@ -23,15 +23,17 @@ interface Mode1WorkspaceToolsProps {
   canRelease?: boolean;
   /** FLF-330: vai trò trong org cho gói duyệt (Analyst gửi, Lead duyệt cả gói / yêu cầu sửa / phát hành). */
   orgRole?: OrgRole | null;
+  /** Đổi giá trị ⇒ tải lại version + gói thay đổi (vd CR vừa ghi bản nháp mới ở khung chat). */
+  refreshToken?: number;
 }
 
 /**
  * Cột công cụ của workspace mode 1 v3 (bám BPMN — plan `mode1-v3/phase-3-fe-mode1.md` 3.1): cờ đỏ + lối tạo CR, gap
  * report + change request, version & release (Flow 6). Không còn kế hoạch step / ký baseline v1 / waive.
  */
-export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false, canRelease: _canRelease = false, orgRole = null }: Mode1WorkspaceToolsProps) {
+export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false, canRelease: _canRelease = false, orgRole = null, refreshToken = 0 }: Mode1WorkspaceToolsProps) {
   const t = useTranslations("mode1.workspaceTools");
-  const docs = useDocVersions(projectId);
+  const docs = useDocVersions(projectId, { refreshToken });
   const link = "px-2.5 py-1 rounded-full text-body font-bold bg-white border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7]";
 
   return (
@@ -60,6 +62,7 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
       {/* FLF-330: gói duyệt kiểu pull request — gửi Lead / duyệt cả gói / yêu cầu sửa; mục Release cũ của VersionsPanel ẩn đi */}
       <ReviewPackagePanel
         projectId={projectId}
+        refreshToken={refreshToken}
         role={readOnly ? "viewer" : orgRole}
         onChanged={() => {
           void docs.reload();
