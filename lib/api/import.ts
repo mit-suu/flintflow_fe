@@ -54,10 +54,11 @@ export const patchFields = (projectId: string, body: FieldsPatchRequest) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/fields`, { method: "PATCH", body: JSON.stringify(body) });
 
 /** `recordOfChanges` (FLF-252): dòng Record of Changes đã xem/sửa ở wizard; bỏ trống ⇒ BE đọc lại từ file. */
-export const finalizeImport = (projectId: string, importId: string, baseVersion: number, recordOfChanges?: RocRow[]) =>
+export const finalizeImport = (projectId: string, importId: string, baseVersion: number, recordOfChanges?: RocRow[], opts: { complete?: boolean } = {}) =>
   apiCall<FinalizeResponse>(`${base(projectId)}/import/finalize`, {
     method: "POST",
-    body: JSON.stringify({ import_id: importId, base_version: baseVersion, ...(recordOfChanges ? { record_of_changes: recordOfChanges } : {}) }),
+    // FLF-336: `complete: true` từ màn "Kết quả đọc file" (import `incomplete`)
+    body: JSON.stringify({ import_id: importId, base_version: baseVersion, ...(recordOfChanges ? { record_of_changes: recordOfChanges } : {}), ...(opts.complete ? { complete: true } : {}) }),
   });
 
 export const resumeImport = (projectId: string, importId: string) =>

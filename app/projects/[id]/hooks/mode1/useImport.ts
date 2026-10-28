@@ -139,10 +139,10 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
      * dòng Record of Changes người dùng đã sửa ở wizard — bỏ trống ⇒ BE dùng dòng đọc từ file. BE trả ngay (`baselining`),
      * job chạy nền ⇒ poll `GET /import` tới `gap_review` (`finalizeDone`) hoặc `paused`.
      */
-    finalize: (recordOfChanges?: RocRow[]) =>
+    finalize: (recordOfChanges?: RocRow[], opts: { complete?: boolean } = {}) =>
       run("finalize", async (): Promise<FinalizeResponse | null> => {
         const spine = await getSpine(projectId);
-        const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0, recordOfChanges);
+        const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0, recordOfChanges, opts);
         setFinalizeStarted(true);
         return res.data;
       }),

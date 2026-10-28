@@ -3269,7 +3269,8 @@
         "checking": "Checking",
         "gap_review": "Gap report ready for review",
         "delivered": "Gap report delivered",
-        "change_requested": "Editing via change request"
+        "change_requested": "Editing via change request",
+        "incomplete": "Incomplete — your call"
       },
       "crStatus": {
         "draft": "Draft",
@@ -3622,7 +3623,8 @@
         "extract": "Extract fields",
         "fields": "Confirm fields",
         "baseline": "Baseline & check",
-        "gap": "Gap report"
+        "gap": "Gap report",
+        "result": "Reading result"
       },
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
@@ -3896,6 +3898,29 @@
       "to": "To",
       "compare": "Compare",
       "pickDifferent": "Pick two different versions."
+    },
+    "readingResult": {
+      "aria": "Reading result",
+      "title": "Reading result",
+      "mapAria": "Section map against the target structure",
+      "mode": {
+        "1": "The file covers the target structure — {present} sections with content.",
+        "3": "The fixed template still has {missing} empty sections out of {present} with content. FlintFlow drafts only the sections the template has, adds nothing and keeps the order.",
+        "4": "The file is missing {missing} sections of the FlintFlow standard template ({present} present). Completing adds the missing sections and reorders the layout, keeping what you have."
+      },
+      "status": {
+        "present": "Present",
+        "missing": "To draft",
+        "out_of_scope": "Out of scope"
+      },
+      "ownerSteps": "step {steps}",
+      "outOfScopeNote": "{count, plural, =1 {1 section} other {# sections}} out of scope stay verbatim and move to the end of the document.",
+      "stopNote": "Stopping here leaves the project incomplete: reopen it later; only DRAFT exports.",
+      "stop": "Stop, download the gap report",
+      "downloading": "Downloading…",
+      "downloadFailed": "Could not download the gap report",
+      "complete": "Complete",
+      "completing": "Creating the baseline…"
     },
     "referenceDocs": {
       "aria": "Reference documents",

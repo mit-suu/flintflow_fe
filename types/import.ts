@@ -16,6 +16,8 @@ export const IMPORT_STATUSES = [
   "extracting",
   "fields_review",
   "baselining",
+  /** FLF-336 I-5: file thiếu mục của cấu trúc đích ⇒ dừng ở "Kết quả đọc file", không có v0. */
+  "incomplete",
   "checking",
   "gap_review",
   "delivered",
@@ -243,6 +245,8 @@ export interface FinalizeRequest {
   base_version: number;
   /** FLF-252: dòng Record of Changes người dùng đã xem/sửa ở wizard — không gửi ⇒ BE đọc lại từ file. */
   record_of_changes?: RocRow[];
+  /** FLF-336: từ "Kết quả đọc file" bấm Hoàn thiện ⇒ đi tiếp dù còn mục thiếu. */
+  complete?: boolean;
 }
 
 // ─── response ────────────────────────────────────────────────────
@@ -269,6 +273,26 @@ export interface GetImportResponse {
   extraction: { sections: ExtractionSection[]; review_fields: ReviewField[] };
   blocks_count: number;
   credit_estimate?: CreditEstimate | null;
+  /** FLF-336 I-5: có sau lần finalize đầu (kể cả khi dừng ở `incomplete`). */
+  target_structure?: TargetStructure | null;
+}
+
+/** FLF-336 I-5 — bản đồ mục của file ⇒ cấu trúc đích (BE `targetStructureSchema`). */
+export type TargetSectionStatus = "present" | "missing" | "out_of_scope";
+export interface TargetSection {
+  section_id: string;
+  title: string;
+  status: TargetSectionStatus;
+  owner_steps: string[];
+}
+export interface TargetStructure {
+  target: "fpt" | "template";
+  intent: "fixed" | "free";
+  /** Chế độ thật: 1 đủ · 3 mẫu cố định còn thiếu · 4 tự do còn thiếu. */
+  resolved_mode: 1 | 3 | 4;
+  sections: TargetSection[];
+  missing: string[];
+  compared_at: IsoDateTime;
 }
 
 export interface ExtractResponse {
