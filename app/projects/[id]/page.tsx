@@ -1518,7 +1518,21 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       setKnowledgeMode(false);
       return void (await ws.sendMessage(currentStep, custom, { knowledge: true }));
     }
-    if (mode1) return void (await ws.sendMessage(currentStep, custom));
+    if (mode1) {
+      const instruction = (custom ?? ws.inputMessage).trim();
+      const preview = chatChangePreview(await ws.sendMessage(currentStep, custom));
+      if (!preview) return;
+      // BE nhận tin chat thường là lệnh sửa (vd trả lời câu hỏi làm rõ của lệnh xoá use case) và trả bản xem trước ⇒
+      // mở thẻ có "Tạo change request" như lối lệnh sửa; không thì chỉ còn tin "bấm Tạo change request" mà không có nút
+      if (useCaseTurnsRef.current) useCaseTurnsRef.current = [...useCaseTurnsRef.current, instruction];
+      else if (editUseCaseIntent(instruction)) useCaseTurnsRef.current = [instruction];
+      pendingInstructionRef.current = instruction;
+      changes.adoptPreview(preview, instruction);
+      setAppliedEdit(null);
+      setEditDetailOpen(false);
+      setEditCardOpen(true);
+      return;
+    }
     // FLF-244: phiên phụ là phiên hỏi đáp — không đụng step runner (BE chặn run/answer/gate ngoài phiên chính)
     if (!onPipelineSession) return sendChat(custom);
     if (aiWorking) {

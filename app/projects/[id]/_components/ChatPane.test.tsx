@@ -302,6 +302,16 @@ describe("ChatPane — thẻ chọn của câu hỏi làm rõ lệnh sửa (FLF-
     expect(onSendMessage).not.toHaveBeenCalled();
   });
 
+  it("FLF-318: gõ trả lời ở ô chat (chip sửa đang tắt) cho câu hỏi làm rõ của lệnh sửa ⇒ đi tiếp lệnh sửa, không thành chat thường", async () => {
+    const clarification = JSON.stringify({ kind: "change_clarification", reply: "Bạn muốn xoá những use case nào trong luồng phúc khảo điểm?" });
+    const { onEditInstruction, onSendMessage } = renderPane(withLastAi(clarification), vi.fn(), vi.fn(), { editMode: false });
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    await waitFor(() => expect(onEditInstruction).toHaveBeenCalledTimes(1));
+    expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
   it("câu hỏi của bước (không phải lệnh sửa) ⇒ vẫn gửi như tin chat (onSendMessage)", async () => {
     const stepQuestion = JSON.stringify({ reply: "Chọn mô hình", questions: [{ question: "Mô hình", options: [{ label: "B2B" }, { label: "B2C" }] }] });
     const { onEditInstruction, onSendMessage } = renderPane(withLastAi(stepQuestion));
