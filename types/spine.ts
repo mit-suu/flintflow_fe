@@ -243,10 +243,15 @@ export interface CustomSection {
 
 export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "screen_layout";
 
+/** Engine vẽ (BE FLF-339): `puml` = text PlantUML, `svg` = SVG tự dựng. */
+export type DiagramFormat = "puml" | "svg";
+
 export interface Diagram {
   id: string;
   kind: DiagramKind;
-  puml: string;
+  format: DiagramFormat;
+  /** Nguồn hình: text PlantUML (`format = puml`) hoặc markup SVG (`format = svg`). FE hiển thị qua file `.svg`/`.png`. */
+  source: string;
   section: string;
   owner_kind: string | null;
   owner_id: string | null;
