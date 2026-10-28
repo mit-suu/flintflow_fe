@@ -1260,7 +1260,8 @@
       "wantEdit": "I want to edit",
       "more": "More options",
       "tableSummary": "View table: {title} ({count, plural, one {# row} other {# rows}})",
-      "tableTruncated": "and {count, plural, one {# more row} other {# more rows}} — see the full table in the document."
+      "tableTruncated": "and {count, plural, one {# more row} other {# more rows}} — see the full table in the document.",
+      "acceptSkipSections": "Accept, don't ask again about {count, plural, =1 {this section} other {these # sections}}"
     },
     "stepLog": {
       "aria": "Step log",
@@ -2008,11 +2009,21 @@
       "heading": "AI pauses for review",
       "modes": {
         "strict": "Every step",
-        "fast": "End of phase"
+        "fast": "End of phase",
+        "milestones": "Milestones only"
       },
       "hints": {
         "strict": "Pauses for your review at every step.",
-        "fast": "Auto-approves within a phase; pauses at the end of each phase, after each screen and when your decision is needed."
+        "fast": "Auto-approves within a phase; pauses at the end of each phase, after each screen and when your decision is needed.",
+        "milestones": "The AI passes every step on its own and stops only at hard gates: idea, Brief approval, vision / goals, screen list, MoSCoW, baseline sign-off — and whenever it needs to ask, opens a new red flag or deletes content."
+      },
+      "hardGates": "Every level stops at hard gates and before the document leaves. The level never depends on the AI's confidence. After the baseline, “Milestones only” writes verified change requests into the draft automatically.",
+      "changeFailed": "Could not change the review level",
+      "skipSections": {
+        "title": "Sections not asked about",
+        "note": "Edits touching only these sections pass automatically (still stops on a new red flag or deleted content).",
+        "restore": "Ask again",
+        "failed": "Could not update the skipped sections"
       }
     },
     "creditGate": {
@@ -2384,6 +2395,13 @@
         "technical_risk": "Technical risk"
       },
       "otherSection": "Other section"
+    },
+    "autoPassed": {
+      "chip": "{count, plural, =1 {1 auto-passed change unseen} other {# auto-passed changes unseen}}",
+      "listAria": "Changes the AI passed on its own",
+      "note": "The AI approved these steps itself. Review if you like — you don't have to see them all before sending.",
+      "markSeen": "Seen",
+      "markAllSeen": "Mark all as seen"
     }
   },
   "errors": {

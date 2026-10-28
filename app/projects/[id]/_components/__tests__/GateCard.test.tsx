@@ -16,6 +16,26 @@ const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 
 const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
 
+describe("GateCard — FLF-337 Chấp nhận, không hỏi lại phần này", () => {
+  it("bước chạm section ⇒ menu có mục không hỏi lại; chọn ⇒ gửi section rồi Accept; bước không chạm section ⇒ không có mục", () => {
+    const onAction = vi.fn();
+    const onSkip = vi.fn();
+    const payload = { type: "gate_ready", step_id: "S-2.1", actions: ALL, regenerate_used: 0, calls_used: 2, summary: [
+      { kind: "add", collection: "glossary", id: "G01", title_vi: "Thuật ngữ", section_id: "fixed:5" },
+      { kind: "update", collection: "glossary", id: "G02", title_vi: "Thuật ngữ", section_id: "fixed:5" },
+    ] } as GateReadyEvent;
+    renderWithIntl(<GateCard stepId="S-2.1" actions={ALL} regenerateUsed={0} payload={payload} onAcceptSkipSections={onSkip} onAction={onAction} />);
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Chấp nhận, không hỏi lại phần này" }));
+    expect(onSkip).toHaveBeenCalledWith(["fixed:5"]);
+    expect(onAction).toHaveBeenCalledWith("accept");
+
+    renderWithIntl(<GateCard stepId="S-2.2" actions={ALL} regenerateUsed={0} payload={{ ...payload, summary: [] }} onAcceptSkipSections={onSkip} onAction={onAction} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Thêm lựa chọn" })[1]);
+    expect(screen.queryByRole("menuitem", { name: /không hỏi lại/ })).toBeNull();
+  });
+});
+
 describe("GateCard — tin nhắn AI + chip", () => {
   it("hiện lời AI (message_vi), chip Đúng rồi đi tiếp / Tôi muốn sửa, và không còn khung form cũ", () => {
     const payload = { type: "gate_ready", step_id: "B-0.1", actions: ALL, regenerate_used: 0, calls_used: 2, message_vi: "Mình hiểu đây là app đặt lịch khám. Bạn xem giúp nhé." } as GateReadyEvent;

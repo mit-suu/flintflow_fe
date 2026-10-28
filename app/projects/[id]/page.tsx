@@ -44,6 +44,9 @@ import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
+import AutoPassedChip from "./_components/AutoPassedChip";
+import { patchSkipConfirmSections, setReviewMode } from "@/lib/api/review-level";
+import { sectionTitleOf } from "@/lib/section-title";
 import ExportPanel from "./_components/ExportPanel";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
@@ -738,9 +741,32 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     [submitOpsNow]
   );
 
-  /** R5: đổi mức độ dừng lại hỏi ý — có hiệu lực ngay ở bước kế tiếp. */
-  const changeReviewMode = (mode: ReviewMode) =>
-    submitOps([{ op: "set", path: "project.review_mode", value: mode, reason: "[C] đổi cách duyệt" }]);
+  /**
+   * R5 / FLF-337: đổi mức duyệt — có hiệu lực ngay ở bước (hoặc CR) kế tiếp. Đi endpoint riêng để mode 1 sau baseline cũng
+   * đổi được (`/changes` bị chặn `CHANGE_REQUIRES_CR`).
+   */
+  const changeReviewMode = async (mode: ReviewMode) => {
+    try {
+      const res = await setReviewMode(projectId, mode);
+      onSpineChanged(res.data?.spine_version);
+    } catch (err) {
+      setToast(userErrorMessage(err, t("aiSettings.changeFailed")));
+    }
+  };
+
+  /** FLF-337: "Chấp nhận, không hỏi lại phần này" / bật lại trong cài đặt. */
+  const patchSkipSections = async (body: { add?: string[]; remove?: string[] }) => {
+    try {
+      const res = await patchSkipConfirmSections(projectId, body);
+      onSpineChanged(res.data?.spine_version);
+    } catch (err) {
+      setToast(userErrorMessage(err, t("aiSettings.skipSections.failed")));
+    }
+  };
+  const skipSections = useMemo(
+    () => (spine?.project.skip_confirm_sections ?? []).map((id) => ({ id, title: sectionTitleOf(id, locale) })),
+    [spine?.project.skip_confirm_sections, locale]
+  );
 
   /**
    * Giả định mới hiện ngay ở gate với ba nút Đúng / Sửa / Bỏ (BUG-13). `confirmed_at` do đây ghi — model
@@ -1720,13 +1746,16 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           knowledgeHidden={ws.knowledgeDisabled}
           knowledgePending={ws.knowledgePending}
           inputTools={
-            mode1 ? undefined : (
+            // FLF-337: mức duyệt áp cả sau baseline (CR tự ghi ở "Chỉ ở mốc chốt") ⇒ menu hiện ở mode 1
+            canEdit ? (
               <AiSettingsMenu
                 reviewMode={reviewMode}
                 onChangeReviewMode={(mode) => void changeReviewMode(mode)}
                 disabled={runner.state.busy || savingChange}
+                skipSections={skipSections}
+                onRestoreSection={(id) => void patchSkipSections({ remove: [id] })}
               />
-            )
+            ) : undefined
           }
           questionCard={
             !mode1 && canEdit && onPipelineSession && runner.state.status === "needs_input" ? (
@@ -1798,8 +1827,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               hideBadge
             />
           )}
+          {gate && runnerStep === "S-9.5" && canEdit && <AutoPassedChip projectId={projectId} refreshKey={spineState.version} />}
           {gate && runnerStep && canEdit && (
             <GateCard
+              onAcceptSkipSections={(ids) => void patchSkipSections({ add: ids })}
               {...(runner.state.phaseGate ? { phaseSummary: runner.state.phaseGate.summary } : {})}
               stepId={runnerStep}
               actions={gate.actions}
@@ -2071,6 +2102,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onAssumptionDecision={mode1 || !canEdit ? undefined : (decision) => void applyAssumptionDecision(decision)}
             onConfirmAllAssumptions={mode1 || !canEdit ? undefined : (ids) => void confirmAllAssumptions(ids)}
             onRecompute={canEdit ? handleFlagRecompute : undefined}
+            autoPassedSlot={!mode1 && canEdit ? <AutoPassedChip projectId={projectId} refreshKey={spineState.version} /> : undefined}
             // Mode 1 chốt bản qua release gói CR (UC-52), không đi đường nộp/duyệt baseline 1.0
             baseline={
               mode1

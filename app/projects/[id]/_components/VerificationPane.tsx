@@ -1,6 +1,6 @@
 "useclient";
 
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
@@ -43,6 +43,8 @@ interface VerificationPaneProps {
    * trang xem read-only).
    */
   baseline?: ComponentProps<typeof BaselineApprovalPanel>;
+  /** FLF-337: chip "N thay đổi tự qua chưa xem" đặt ngay trên khối nộp / ký baseline. */
+  autoPassedSlot?: ReactNode;
   /** Nhãn mục, cuộn tới mục, lọc theo mục, nhóm "Mục cần viết lại" — chuyển thẳng cho `FlagsPanel`. */
   issues?: Pick<
     ComponentProps<typeof FlagsPanel>,
@@ -68,6 +70,7 @@ export default function VerificationPane({
   onAssumptionDecision,
   onConfirmAllAssumptions,
   baseline,
+  autoPassedSlot,
   issues,
 }: VerificationPaneProps) {
   const t = useTranslations("workspace.verification");
@@ -84,6 +87,7 @@ export default function VerificationPane({
 
       <div className="flex-1 overflow-y-auto ff-scroll p-4 space-y-3">
         <ReadinessSummary counts={readiness ? issueCounts(flags, issues?.outdatedCount ?? 0, issues?.acceptedSteps) : null} />
+        {baseline && autoPassedSlot}
         {baseline && <BaselineApprovalPanel {...baseline} />}
 
         {flagsLoading ? (
