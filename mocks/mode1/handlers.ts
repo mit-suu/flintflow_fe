@@ -948,8 +948,9 @@ export const mode1Handlers = [
       // Mode 1 v3: chỉ 6 nguồn BPMN 3.1 — `chat` chỉ còn ở CR cũ
       if (!(NEW_CR_SOURCE_KINDS as readonly string[]).includes(source.kind)) return fail(400, "VALIDATION_ERROR", `Nguồn "${source.kind}" không hợp lệ`);
       if (!String(body.title ?? "").trim() || !String(body.description ?? "").trim()) return fail(400, "VALIDATION_ERROR", "Cần title và description");
-      // Mock không giữ kho bản xem trước: có `preview_id` ⇒ seed gợi ý từ mô tả (BE: lệnh + op + phần tử bị chạm)
-      const seed = body.preview_id ? { instruction: String(body.description), ops: [], targets: [] } : null;
+      // Mock không giữ kho bản xem trước: có `preview_id` ⇒ seed từ mô tả + một op đại diện cho lô đã duyệt (BE: lệnh + op +
+      // phần tử bị chạm; FLF-318 có op ⇒ CR làm đúng lô, không bắt duyệt lại từng phần)
+      const seed = body.preview_id ? { instruction: String(body.description), ops: [{ op: "add", path: "use_cases[]", value: { name: String(body.title) } }], targets: [] } : null;
       const detail = newCr(String(body.title), String(body.description), { kind: source.kind as Cr["source"]["kind"], ref: source.ref ?? null, note: source.note ?? null }, String(body.requester), seed);
       const pasted = (body.materials as { name: string; text: string }[] | undefined) ?? [];
       if (pasted.length > 5) return fail(400, "VALIDATION_ERROR", "Tối đa 5 đoạn văn bản khi tạo");

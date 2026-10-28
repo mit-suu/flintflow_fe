@@ -2787,6 +2787,12 @@
         "redraft": "AI is redrafting the proposal…",
         "manual": "Saving your own edit…"
       },
+      "approved": {
+        "step": "Approved changes ({count} parts)",
+        "label": "Changes approved in the preview",
+        "intro": "Exactly the changes you approved in the preview — no need to review each part again. Open an item to see the details.",
+        "busy": "Preparing the changes you approved…"
+      },
       "requester": {
         "step": "Open a change request",
         "label": "Choose the requester",

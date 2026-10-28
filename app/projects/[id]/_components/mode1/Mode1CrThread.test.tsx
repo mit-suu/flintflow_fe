@@ -244,5 +244,22 @@ describe("Mode1CrThread — CR từ bản xem trước (FLF-318)", () => {
     expect(created.seed).not.toBeNull();
     expect(created.source.note).toBe("Tạo từ bản xem trước trong khung chat");
   });
+
+  it("lô đã duyệt ở bản xem trước ⇒ không dừng ở phần liên quan, không bắt Đồng ý từng phần: một khung tóm tắt rồi tới nút xác nhận", async () => {
+    renderWithIntl(<PreviewHarness />);
+    await click("Tạo CR từ bản xem trước");
+    await click("Lan · yêu cầu miệng");
+
+    expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
+    expect(cr().status).toBe("ready_to_submit");
+    const summary = screen.getByLabelText("Thay đổi đã duyệt ở bản xem trước");
+    expect(within(summary).getByText(/Đúng các thay đổi bạn đã duyệt ở bản xem trước/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tiếp tục — AI đề xuất sửa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Đồng ý" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Phần liên quan")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận & ghi vào bản nháp" }));
+    await waitFor(() => expect(cr().status).toBe("written"));
+  });
 });
 

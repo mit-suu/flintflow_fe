@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrLocation, type CrStatus } from "@/types/change-request";
-import { isFailing, type CrChat, type CrChatSource } from "../../hooks/mode1/useCrChat";
+import { fromApprovedPreview, isFailing, type CrChat, type CrChatSource } from "../../hooks/mode1/useCrChat";
 import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import FieldChanges from "./FieldChanges";
@@ -289,6 +289,44 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   );
 }
 
+/**
+ * FLF-318: CR mang lô đã duyệt ở bản xem trước — như trước baseline, không bắt duyệt lại từng phần: một khung tóm tắt, mỗi
+ * phần mở ra xem được thay đổi. Phần trượt kiểm (nếu có) vẫn hiện thẻ riêng để sửa / bỏ.
+ */
+function ApprovedBatch({ locations, failing, chat }: { locations: CrLocation[]; failing: CrLocation[]; chat: CrChat }) {
+  const t = useTranslations("mode1.crThread.approved");
+  const tDiagram = useTranslations("mode1.originalDiagram");
+  const { pathLabel, sectionTitle } = useMode1Labels();
+  return (
+    <AiBubble step={t("step", { count: locations.length })} label={t("label")}>
+      <p className="text-on-surface-muted">{t("intro")}</p>
+      <ul className="flex flex-col gap-1">
+        {locations.map((l) => (
+          <li key={l.location_id}>
+            <details>
+              <summary className="cursor-pointer">
+                <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : pathLabel(l.path)}</strong>
+                <span className="text-on-surface-muted"> — {sectionTitle(l.section_id, l.section_title)}</span>
+              </summary>
+              <div className="mt-1.5">
+                {l.proposal && (isDiagramLocation(l) ? <OriginalDiagramChange loc={l} /> : <FieldChanges oldText={l.proposal.old_text} newText={l.proposal.new_text} />)}
+                <AssumptionsNote assumptions={l.proposal?.assumptions} />
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+      {failing.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {failing.map((l) => (
+            <LocationCard key={l.location_id} loc={l} chat={chat} />
+          ))}
+        </div>
+      )}
+    </AiBubble>
+  );
+}
+
 /** Phần không sửa (AI thấy không liên quan / bạn đã bỏ) — thu gọn, đưa lại được. */
 function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrChat }) {
   const t = useTranslations("mode1.crThread.dropped");
@@ -347,9 +385,11 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
       </button>
     </div>
   );
+  // Lô đã duyệt ở bản xem trước: các bước chỉ chia lô về vị trí + kiểm, không có AI soạn
+  const quiet = d !== null && fromApprovedPreview(d) && (chat.busy === "clarify" || chat.busy === "impact" || chat.busy === "propose" || chat.busy === "verify");
   const busyLine = chat.busy && (
     <p className="self-start text-body text-on-surface-muted italic" role="status">
-      {t(`busy.${chat.busy}`)}
+      {quiet ? t("approved.busy") : t(`busy.${chat.busy}`)}
     </p>
   );
 
@@ -403,6 +443,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
   const blockers = [...chat.failing, ...chat.unconcluded.filter((l) => !isFailing(l))];
   const jump = (locId: string) => document.getElementById(`cr-loc-${locId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   const materialsEditable = (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
+  const approved = fromApprovedPreview(d);
 
   return (
     <div className="flex flex-col gap-3" aria-label={t("crAria", { crId: c.cr_id })}>
@@ -460,7 +501,9 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
         </AiBubble>
       )}
 
-      {d.locations.length > 0 && (
+      {approved && proposed && <ApprovedBatch locations={toReview.filter((l) => !isFailing(l))} failing={toReview.filter(isFailing)} chat={chat} />}
+
+      {!approved && d.locations.length > 0 && (
         <AiBubble step={t("impactStep", { count: d.locations.length })} label={t("impactLabel")}>
           <ul className="list-disc pl-5">
             {d.locations.map((l) => (
@@ -479,7 +522,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
         </AiBubble>
       )}
 
-      {proposed && (toReview.length > 0 || dropped.length > 0) && (
+      {!approved && proposed && (toReview.length > 0 || dropped.length > 0) && (
         <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")}>
           {toReview.length > 0 ? (
             <p className="text-on-surface-muted">{t("proposeHint")}</p>
