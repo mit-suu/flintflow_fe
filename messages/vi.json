@@ -1557,6 +1557,11 @@
       "language": "Ngôn ngữ",
       "untranslated": "Còn {count} mục chưa dịch — file sẽ in chữ gốc ở các mục này. Vẫn tải được.",
       "translateFirst": "Dịch tài liệu trước",
+      "fileLanguage": "Ngôn ngữ file",
+      "translationIncomplete": "Còn {count} mục chưa dịch sang {language} nên chưa tải được bản này.",
+      "translateRest": "Dịch nốt",
+      "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.",
+      "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác — hãy tải theo ngôn ngữ tài liệu.",
       "close": "Đóng"
     },
     "change": {
@@ -2456,6 +2461,10 @@
     "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
     "NO_WORKING_DRAFT": "Dự án chưa có nội dung nào để dựng tài liệu.",
     "PDF_EXPORT_UNAVAILABLE": "Chưa xuất được PDF lúc này. Bạn hãy thử lại sau ít phút, hoặc tải bản Word.",
+    "TRANSLATION_INCOMPLETE": "Tài liệu còn mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
+    "TRANSLATION_INCOMPLETE_COUNT_ONE": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
+    "TRANSLATION_INCOMPLETE_COUNT": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
+    "DOCUMENT_LANGUAGE_UNAVAILABLE": "Bản này chưa tải được bằng ngôn ngữ khác — chỉ tải được theo ngôn ngữ tài liệu của dự án.",
     "NOTHING_TO_UNDO": "Không còn thay đổi nào để hoàn tác.",
     "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa thể ghi baseline.",
     "BASELINE_ALREADY_SUBMITTED": "Tài liệu đang chờ Lead duyệt — không gửi lại được.",
@@ -3895,7 +3904,12 @@
       "downloadTracked": "Tải bản có đánh dấu",
       "downloadPdf": "Tải PDF",
       "creatingPdf": "Đang tạo PDF…",
-      "downloadPdfTitle": "Chính bản Word này chuyển sang PDF"
+      "downloadPdfTitle": "Chính bản Word này chuyển sang PDF",
+      "downloadInLanguage": "Tải bản {language}",
+      "downloadInLanguageTitle": "Dựng lại bản đã chốt này bằng {language} (Word)",
+      "translationIncomplete": "Còn {count} mục chưa dịch sang {language} nên chưa tải được bản này.",
+      "translateRest": "Dịch nốt",
+      "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại."
     },
     "versionCompare": {
       "needTwo": "Cần ít nhất 2 version để so sánh.",

@@ -208,7 +208,7 @@ const runFinalizeStep = () => {
     S().spineVersion += 1;
     const baseline = newBaseline("imported", "0.1");
     S().baselines.push(baseline);
-    addVersion({ version: "0.1", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true });
+    addVersion({ version: "0.1", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true, other_language_available: false });
     setImportStatus("checking");
     S().finalizeJob = "check";
     return;
@@ -484,7 +484,7 @@ const writeCr = (detail: CrDetail) => {
   const render = (text: string) => replacements.reduce((t, [a, b]) => t.split(a).join(b), text);
   S().blocks.set(to, latestBlocks().map((b): DocBlock => ({ ...b, text: render(b.text), doc_version: to, locked_by_cr: null, revisions: undefined })));
   unlock(cr.cr_id);
-  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_tracked_file: true, has_original_file: false });
+  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_tracked_file: true, has_original_file: false, other_language_available: false });
   S().spineVersion += 1;
   cr.result_doc_version = to;
   cr.decided_by = MODE1_USER_ID;
@@ -675,7 +675,7 @@ export const mode1Handlers = [
       S().project.template_intent = intent;
       const name = file.name;
       if (/other-project/i.test(name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision", base_version: "0", latest_cr: "CR-004", kind: "draft" } });
       }
       const issues =
         /\.doc$/i.test(name)
@@ -878,7 +878,7 @@ export const mode1Handlers = [
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
       if (/other-project/i.test(file.name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision", base_version: "0", latest_cr: "CR-004", kind: "draft" } });
       }
       const diff = {
         id: `66f00000000000000000r${String(S().reuploads.length + 1).padStart(3, "0")}`,
@@ -1357,7 +1357,7 @@ export const mode1Handlers = [
       const baseline = newBaseline("release", to);
       S().baselines.push(baseline);
       S().blocks.set(to, latestBlocks().map((b) => ({ ...b, doc_version: to, revisions: undefined })));
-      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_tracked_file: false, has_original_file: false });
+      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_tracked_file: false, has_original_file: false, other_language_available: false });
       S().submission = null;
       return ok({ version, baseline, cr_ids: crIds, spine_version: S().spineVersion });
     }),

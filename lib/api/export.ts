@@ -2,6 +2,7 @@
  * Dựng tài liệu, export Word / PDF và baseline — theo danh sách endpoint T08; chốt payload ở T16.
  */
 import type { DocumentSource, RenderedDocument } from "@/types/document";
+import type { DocumentLanguage } from "@/types/project";
 import type { Baseline, BaselineSubmission } from "@/types/spine";
 import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
 
@@ -29,17 +30,29 @@ const readErrorHint = async (res: Response): Promise<string | undefined> => {
   }
 };
 
-/** Dựng `ApiClientError` với đúng `code`/`message` từ envelope lỗi (không hard-code một mã chung). */
+/** `meta` của envelope lỗi (vd `TRANSLATION_INCOMPLETE { locale, missing, total }` — FLF-334 B). */
+const readErrorMeta = async (res: Response): Promise<Record<string, unknown> | undefined> => {
+  try {
+    const json: { meta?: unknown } = await res.json();
+    return json.meta && typeof json.meta === "object" ? (json.meta as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Dựng `ApiClientError` với đúng `code`/`message`/`meta` từ envelope lỗi (không hard-code một mã chung). */
 const readErrorAsApiClientError = async (res: Response, fallbackMessage: string): Promise<ApiClientError> => {
   const forMessage = res.clone();
   const forHint = res.clone();
-  const [message, code, hint] = await Promise.all([
+  const forMeta = res.clone();
+  const [message, code, hint, meta] = await Promise.all([
     readRawErrorMessage(forMessage, fallbackMessage),
     readErrorCode(res, "EXPORT_FAILED"),
     readErrorHint(forHint),
+    readErrorMeta(forMeta),
   ]);
   const finalMessage = hint && !message.includes(hint) ? `${message} (${hint})` : message;
-  return new ApiClientError(res.status, code, finalMessage);
+  return new ApiClientError(res.status, code, finalMessage, meta);
 };
 
 /** `Content-Disposition: attachment; filename="..."` hoặc `filename*=UTF-8''...` — ưu tiên tên từ BE. */
@@ -95,9 +108,10 @@ const downloadExport = async (
   format: ExportFormat,
   projectId: string,
   source: DocumentSource,
-  baselineId?: string
+  baselineId?: string,
+  lang?: DocumentLanguage
 ): Promise<WordExportResult> => {
-  const query = `source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}`;
+  const query = `source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}${lang ? `&lang=${lang}` : ""}`;
   const res = await authFetch(`/projects/${projectId}/export/${format}?${query}`);
   if (!res.ok) {
     throw await readErrorAsApiClientError(res, `HTTP ${res.status}`);
@@ -110,17 +124,23 @@ const downloadExport = async (
 /**
  * Tải file `.docx`; lỗi (vd `NO_WORKING_DRAFT`) ném `ApiClientError` với đúng `code`/`message` đọc
  * từ envelope lỗi (không hard-code `EXPORT_FAILED` cho mọi lỗi). `baselineId` tuỳ chọn khi
- * `source === "baseline"` — chọn đúng bản baseline muốn xuất.
+ * `source === "baseline"` — chọn đúng bản baseline muốn xuất. `lang` (FLF-334 B) tuỳ chọn: bỏ trống ⇒ ngôn ngữ tài liệu;
+ * khác ⇒ file theo ngôn ngữ đó, còn mục chưa dịch ⇒ `409 TRANSLATION_INCOMPLETE` (`meta { locale, missing, total }`),
+ * chỗ chưa hỗ trợ ⇒ `409 DOCUMENT_LANGUAGE_UNAVAILABLE`.
  */
-export const downloadWordExport = (projectId: string, source: DocumentSource = "draft", baselineId?: string) =>
-  downloadExport("word", projectId, source, baselineId);
+export const downloadWordExport = (projectId: string, source: DocumentSource = "draft", baselineId?: string, lang?: DocumentLanguage) =>
+  downloadExport("word", projectId, source, baselineId, lang);
 
 /**
  * Tải file `.pdf` (FLF-316) — cùng query, lỗi và header với `downloadWordExport`. Thêm một lỗi riêng:
  * `503 PDF_EXPORT_UNAVAILABLE` khi bộ chuyển PDF của BE không sẵn sàng; tải Word vẫn được.
  */
-export const downloadPdfExport = (projectId: string, source: DocumentSource = "draft", baselineId?: string): Promise<PdfExportResult> =>
-  downloadExport("pdf", projectId, source, baselineId);
+export const downloadPdfExport = (
+  projectId: string,
+  source: DocumentSource = "draft",
+  baselineId?: string,
+  lang?: DocumentLanguage
+): Promise<PdfExportResult> => downloadExport("pdf", projectId, source, baselineId, lang);
 
 export const listBaselines = (projectId: string) =>
   apiCall<Baseline[]>(`/projects/${projectId}/baselines`);

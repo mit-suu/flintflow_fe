@@ -9,6 +9,8 @@ import { ApiClientError } from "@/lib/api/client";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
 import type { TranslationRunResult, TranslationStatus } from "@/types/document";
+import type { DocumentLanguage } from "@/types/project";
+import type { TranslationScope } from "@/lib/api/translations";
 
 /**
  * Số lô mỗi lượt `POST /translations/run` (BE nhận 1–10, bỏ trống ⇒ 5). Ít lô một lượt ⇒ thanh tiến độ nhích đều,
@@ -37,6 +39,17 @@ interface TranslateDialogProps {
   onDone?: (result: TranslateResult) => void;
   /** Ước tính đã có sẵn (vừa đọc để quyết có mở hộp không) ⇒ lần mở đầu khỏi đọc lại. */
   initialStatus?: TranslationStatus;
+  /**
+   * FLF-334 B: ngôn ngữ đích (tải file theo ngôn ngữ còn lại). Bỏ trống ⇒ ngôn ngữ tài liệu như trước. `initialStatus`
+   * phải là ước tính của chính ngôn ngữ này.
+   */
+  locale?: DocumentLanguage;
+  /**
+   * FLF-334 B: đích snapshot của lượt tải vừa bị 409 — `baselineId` (mode 2) hoặc `version` (mode 1). Có ⇒ ước tính và
+   * dịch đúng snapshot đó (không phải Spine hiện tại). Chỉ dùng cùng `locale`.
+   */
+  baselineId?: string;
+  version?: string;
 }
 
 type Outcome =
@@ -90,7 +103,8 @@ export default function TranslateDialog({ open, ...props }: TranslateDialogProps
   return <TranslateFlow {...props} />;
 }
 
-function TranslateFlow({ projectId, onClose, onDone, initialStatus }: Omit<TranslateDialogProps, "open">) {
+function TranslateFlow({ projectId, onClose, onDone, initialStatus, locale, baselineId, version }: Omit<TranslateDialogProps, "open">) {
+  const scope: TranslationScope = { ...(locale ? { locale } : {}), ...(baselineId ? { baselineId } : version ? { version } : {}) };
   const t = useTranslations("app.translateDialog");
   const tc = useTranslations("app.common");
   // Ước tính truyền vào chỉ dùng cho lần đầu; "Thử lại" / "Dịch tiếp" luôn đọc lại từ BE
@@ -104,7 +118,7 @@ function TranslateFlow({ projectId, onClose, onDone, initialStatus }: Omit<Trans
   useEffect(() => {
     if (seed && statusRequest === 0) return;
     let cancelled = false;
-    getTranslationStatus(projectId)
+    getTranslationStatus(projectId, { locale, baselineId, version })
       .then((res) => {
         if (!cancelled) setPhase(res.data ? { kind: "ready", status: res.data } : { kind: "statusError", error: null });
       })
@@ -114,7 +128,7 @@ function TranslateFlow({ projectId, onClose, onDone, initialStatus }: Omit<Trans
     return () => {
       cancelled = true;
     };
-  }, [projectId, seed, statusRequest]);
+  }, [projectId, seed, statusRequest, locale, baselineId, version]);
 
   // Hộp bị gỡ giữa vòng dịch (đóng, rời trang) ⇒ dừng sau lượt đang chạy; phần đã dịch vẫn giữ và báo qua `onDone`
   useEffect(() => {
@@ -149,7 +163,7 @@ function TranslateFlow({ projectId, onClose, onDone, initialStatus }: Omit<Trans
     while (outcome === null) {
       let step: TranslationRunResult;
       try {
-        step = (await runTranslation(projectId, BATCHES_PER_REQUEST)).data ?? { translated: 0, remaining, credits_used: 0 };
+        step = (await runTranslation(projectId, BATCHES_PER_REQUEST, scope)).data ?? { translated: 0, remaining, credits_used: 0 };
       } catch (err) {
         outcome = outcomeOf(err);
         break;
