@@ -34,6 +34,8 @@ export const gapReportHref = (projectId: string): string => `/projects/${project
 export const crListHref = (projectId: string): string => `/projects/${projectId}?panel=cr`;
 /** So sánh 2 version (UC-55) — cùng khuôn popup với gap report và CR, nên cũng là một query trên màn tài liệu. */
 export const compareHref = (projectId: string): string => `/projects/${projectId}?panel=compare`;
+/** Re-upload file đã sửa ngoài FlintFlow (UC-25) — popup so khác biệt theo block với version mới nhất. */
+export const reuploadHref = (projectId: string): string => `/projects/${projectId}?panel=reupload`;
 export const crHref = (projectId: string, crId: string): string => `/projects/${projectId}?panel=cr&cr=${encodeURIComponent(crId)}`;
 
 export const crPrefillHref = (projectId: string, prefill: CrPrefill): string => {

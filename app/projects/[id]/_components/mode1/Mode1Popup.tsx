@@ -8,6 +8,7 @@ import { useDocVersions } from "../../hooks/mode1/useDocVersions";
 import ChangeRequestList from "./ChangeRequestList";
 import CrWorkspace from "./CrWorkspace";
 import GapReportView from "./GapReportView";
+import ReuploadDiffView from "./ReuploadDiffView";
 import VersionCompare from "./VersionCompare";
 import { crListHref, readCrPrefill } from "./prefill";
 
@@ -47,7 +48,7 @@ function CompareBody({ projectId }: { projectId: string }) {
 /**
  * Mode 1: gap report, change request và so sánh version là popup trên màn "Tài liệu & version" — mở theo query
  * `panel=gap` / `panel=cr` (+ `cr=<id>` ⇒ chi tiết ngay trong popup, `new=1&…` ⇒ form tạo CR điền sẵn) /
- * `panel=compare`. Đóng ⇒ bỏ query.
+ * `panel=compare` / `panel=reupload` (UC-25, chỉ người sửa được). Đóng ⇒ bỏ query.
  */
 export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false }: Mode1PopupProps) {
   const t = useTranslations("mode1.popup");
@@ -55,18 +56,29 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
   const router = useRouter();
   const pathname = usePathname();
   const panel = params?.get("panel");
-  if (panel !== "gap" && panel !== "cr" && panel !== "compare") return null;
+  if (panel !== "gap" && panel !== "cr" && panel !== "compare" && panel !== "reupload") return null;
+  // Re-upload dẫn tới tạo CR từ khác biệt — viewer không làm được, nên không dựng popup
+  if (panel === "reupload" && readOnly) return null;
 
   const crId = panel === "cr" ? params?.get("cr") : null;
   const close = () => router.replace(pathname ?? `/projects/${projectId}`, { scroll: false });
   const title =
-    panel === "gap" ? t("gapTitle") : panel === "compare" ? t("compareTitle") : crId ? t("crTitleWithId", { id: crId }) : t("crTitle");
+    panel === "gap"
+      ? t("gapTitle")
+      : panel === "compare"
+        ? t("compareTitle")
+        : panel === "reupload"
+          ? t("reuploadTitle")
+          : crId
+            ? t("crTitleWithId", { id: crId })
+            : t("crTitle");
 
   return (
     <Modal open onClose={close} title={title} size="xl">
       {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} readOnly={readOnly} />}
       {/* So sánh chỉ đọc nên viewer cũng xem được — không gác theo `readOnly` */}
       {panel === "compare" && <CompareBody projectId={projectId} />}
+      {panel === "reupload" && <ReuploadDiffView projectId={projectId} />}
       {panel === "cr" && crId && (
         <div className="flex flex-col gap-3">
           <Link href={crListHref(projectId)} scroll={false} className="self-start text-body font-bold text-primary hover:underline">

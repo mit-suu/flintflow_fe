@@ -78,7 +78,7 @@ import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
-import { compareHref, crListHref, gapReportHref } from "./_components/mode1/prefill";
+import { compareHref, crListHref, gapReportHref, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -1669,7 +1669,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
           // Mode 1: gap report, change request, so sánh version mở dạng popup ngay trên màn tài liệu
-          // (`?panel=gap|cr|compare`)
+          // (`?panel=gap|cr|compare|reupload`)
           actions={
             mode1 ? (
               <>
@@ -1682,6 +1682,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 <Link href={compareHref(projectId)} scroll={false} className={MODE1_ACTION}>
                   {t("page.compareVersions")}
                 </Link>
+                {/* Re-upload (UC-25) dẫn tới tạo CR ⇒ chỉ người sửa được */}
+                {canEdit && (
+                  <Link href={reuploadHref(projectId)} scroll={false} className={MODE1_ACTION}>
+                    {t("page.reupload")}
+                  </Link>
+                )}
               </>
             ) : undefined
           }

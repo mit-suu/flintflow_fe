@@ -11,6 +11,7 @@ import {
   fetchOrganization,
   leaveOrganization,
   removeMember,
+  renameOrganization,
   switchOrganization,
 } from "@/lib/api/orgs";
 import { decodeJwt, getActiveOrgId } from "@/lib/api/token-store";
@@ -27,6 +28,7 @@ vi.mock("@/lib/api/orgs", () => ({
   fetchOrganization: vi.fn(),
   leaveOrganization: vi.fn(),
   removeMember: vi.fn(),
+  renameOrganization: vi.fn(),
   revokeInvitation: vi.fn(),
   switchOrganization: vi.fn(),
 }));
@@ -318,5 +320,58 @@ describe("góp ý UI tổ chức (kiểm bằng Playwright 2026-10-04)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Xác nhận" }));
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("ít nhất một Lead");
+  });
+});
+
+describe("đổi tên tổ chức (UC-80)", () => {
+  const openRename = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Đổi tên tổ chức" }));
+    return screen.findByRole("dialog", { name: "Đổi tên tổ chức" });
+  };
+
+  it("Lead đổi tên: gửi tên đã cắt khoảng trắng, tiêu đề phụ hiện tên mới", async () => {
+    setup("lead");
+    vi.mocked(renameOrganization).mockResolvedValue({ id: "org-a", name: "Nhóm Mới", role: "lead", joinedAt: "2026-09-01T00:00:00Z" });
+    renderWithIntl(<MembersPage />);
+    const dialog = await openRename();
+    const input = within(dialog).getByRole("textbox", { name: /Tên tổ chức/ });
+    expect(input).toHaveValue("Nhóm A");
+    expect(input).toHaveAttribute("maxLength", "80");
+    fireEvent.change(input, { target: { value: "  Nhóm Mới  " } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+
+    await waitFor(() => expect(renameOrganization).toHaveBeenCalledWith("org-a", "Nhóm Mới"));
+    expect(await screen.findByText("Thành viên của Nhóm Mới")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("tên rỗng hoặc không đổi thì nút Lưu bị khoá", async () => {
+    setup("lead");
+    renderWithIntl(<MembersPage />);
+    const dialog = await openRename();
+    const save = within(dialog).getByRole("button", { name: "Lưu" });
+    expect(save).toBeDisabled();
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Tên tổ chức/ }), { target: { value: "   " } });
+    expect(save).toBeDisabled();
+    expect(renameOrganization).not.toHaveBeenCalled();
+  });
+
+  it("BE từ chối thì lỗi hiện trong hộp thoại", async () => {
+    setup("lead");
+    vi.mocked(renameOrganization).mockRejectedValue(new Error("Tên tổ chức không hợp lệ"));
+    renderWithIntl(<MembersPage />);
+    const dialog = await openRename();
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Tên tổ chức/ }), { target: { value: "Nhóm B" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Tên tổ chức không hợp lệ");
+    // Lỗi chỉ hiện trong hộp thoại, không lặp ở trang phía sau lớp mờ
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("không phải Lead thì không có nút đổi tên", async () => {
+    setup("analyst");
+    renderWithIntl(<MembersPage />);
+    expect(await screen.findByText("Thành viên của Nhóm A")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Đổi tên tổ chức" })).not.toBeInTheDocument();
   });
 });

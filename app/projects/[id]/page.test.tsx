@@ -52,6 +52,8 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     expect(within(tools).queryByRole("button", { name: "Ký baseline v1" })).not.toBeInTheDocument();
     expect(within(tools).queryByRole("button", { name: /Waive|Bật|Tắt/ })).not.toBeInTheDocument();
     expect(within(tools).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
+    // Header: người sửa được có lối re-upload file đã sửa (UC-25)
+    expect(screen.getByRole("link", { name: "Re-upload file đã sửa" })).toHaveAttribute("href", `/projects/${P}?panel=reupload`);
     expect(await within(tools).findByRole("button", { name: "Tải file gốc" })).toBeInTheDocument();
     // panel ghi Spine thẳng (tên riêng, hàng đợi màn) không có ở mode 1; không có nút chạy bước
     expect(within(tools).queryByText("Tên riêng & thuật ngữ")).not.toBeInTheDocument();

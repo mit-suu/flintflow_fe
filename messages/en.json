@@ -1021,6 +1021,14 @@
           "confirmLabel": "Type the organization name to confirm: {org}",
           "confirmCta": "Delete permanently"
         },
+        "rename": {
+          "open": "Rename organization",
+          "title": "Rename organization",
+          "label": "Organization name",
+          "hint": "Up to {max} characters.",
+          "save": "Save",
+          "saving": "Saving…"
+        },
         "soleLeadHint": "You are the only Lead — make another member a Lead before you leave.",
         "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
       }
@@ -2078,6 +2086,7 @@
       "gapReport": "Gap report",
       "changeRequest": "Change request",
       "compareVersions": "Compare versions",
+      "reupload": "Re-upload edited file",
       "toolsMode1": "Flags, change requests & versions",
       "toolsRecord": "Project record",
       "toolsRecordShort": "Record",
@@ -2552,7 +2561,22 @@
     "LOG_NOT_FOUND": "That AI run wasn't found.",
     "ORG_CONTEXT_MISSING": "Couldn't determine your organization. Please reload the page.",
     "METHOD_NOT_ALLOWED": "This action isn't supported.",
-    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported."
+    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported.",
+    "page": {
+      "eyebrow": "System error",
+      "title": "Something went wrong",
+      "body": "FlintFlow ran into a problem showing this page. Your data is safe — try again, or go back to the home page.",
+      "retry": "Try again",
+      "home": "Go to home page",
+      "digest": "Error code: {digest}"
+    }
+  },
+  "maintenance": {
+    "metaTitle": "Under maintenance · FlintFlow",
+    "eyebrow": "Scheduled maintenance",
+    "title": "FlintFlow is under maintenance",
+    "body": "We're upgrading the system to serve you better. Please check back in a few minutes — your projects and documents are not affected.",
+    "home": "Go to home page"
   },
   "admin": {
     "common": {
@@ -3727,6 +3751,7 @@
       "loadingVersions": "Loading versions…",
       "gapTitle": "Gap report",
       "compareTitle": "Compare versions",
+      "reuploadTitle": "Re-upload edited file",
       "crTitleWithId": "Change request {id}",
       "crTitle": "Change request",
       "backToList": "← Change request list"
