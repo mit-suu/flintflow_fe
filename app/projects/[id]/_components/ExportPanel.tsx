@@ -22,8 +22,14 @@ interface ExportPanelProps {
   flags?: Flag[];
   /** Ngôn ngữ tài liệu client đã biết (FLF-265, `knownDocumentLanguage`) — file .docx ra đúng ngôn ngữ này. */
   documentLanguage?: DocumentLanguage | null;
-  /** Mở hộp "Dịch tài liệu" từ cảnh báo mục chưa dịch — chỉ truyền cho Lead/Analyst ở mode 2 (như `DocumentPane`). */
-  onTranslate?: () => void;
+  /**
+   * Mở hộp "Dịch tài liệu" từ cảnh báo mục chưa dịch — chỉ truyền cho Lead/Analyst ở mode 2 (như `DocumentPane`).
+   * `locale` (FLF-334 B): dịch nốt sang ngôn ngữ file vừa chọn (khác ngôn ngữ tài liệu); bỏ trống ⇒ ngôn ngữ tài liệu.
+   * `target.baselineId`: baseline vừa tải bị 409 — hộp dịch đếm / dịch đúng snapshot đó (bỏ trống ⇒ bản nháp).
+   */
+  onTranslate?: (locale?: DocumentLanguage, target?: { baselineId?: string }) => void;
+  /** FLF-334 B: cho chọn tải theo ngôn ngữ còn lại — chỉ mode 2 (mode 1 tải theo version ở VersionsPanel). */
+  otherLanguageAvailable?: boolean;
 }
 
 /** Ghim thẻ `<a download>` vào DOM trước khi click — Safari/Firefox bỏ qua click trên thẻ rời DOM. */
@@ -48,7 +54,15 @@ const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string; extens
  * Export UI (Phases §6.5): bản nháp (watermark DRAFT) / baseline, mỗi nguồn ra Word hoặc PDF (FLF-316 — PDF là
  * chính file Word chuyển ở BE nên bố cục y hệt).
  */
-export default function ExportPanel({ projectId, projectName, onClose, flags, documentLanguage = null, onTranslate }: ExportPanelProps) {
+export default function ExportPanel({
+  projectId,
+  projectName,
+  onClose,
+  flags,
+  documentLanguage = null,
+  onTranslate,
+  otherLanguageAvailable = false,
+}: ExportPanelProps) {
   const t = useTranslations("workspace.export");
   const tHook = useTranslations("workspace.hookErrors");
   const tLanguage = useTranslations("common.documentLanguage");
@@ -68,15 +82,35 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
   const language = shownDocumentLanguage(translation, documentLanguage);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  // FLF-334 B: ngôn ngữ của file — mặc định ngôn ngữ tài liệu (không gửi `lang`, file như trước)
+  const [fileLanguage, setFileLanguage] = useState<DocumentLanguage | null>(null);
+  const languageChoices: DocumentLanguage[] | null =
+    otherLanguageAvailable && documentLanguage ? [documentLanguage, documentLanguage === "vi" ? "en" : "vi"] : null;
+  const requestedLanguage = languageChoices && fileLanguage && fileLanguage !== documentLanguage ? fileLanguage : undefined;
+  /**
+   * 409 `TRANSLATION_INCOMPLETE` của lần tải theo ngôn ngữ khác — số mục còn thiếu (`null` khi BE không gửi số ⇒ câu
+   * chung, không bao giờ "0"), ngôn ngữ + baseline của lần tải đó để "Dịch nốt" dịch đúng snapshot.
+   */
+  const [incomplete, setIncomplete] = useState<{ count: number | null; message: string; locale: DocumentLanguage; baselineId?: string } | null>(null);
+
+  const resetDownloadError = () => {
+    setDownloadError(null);
+    setIncomplete(null);
+  };
 
   const selectSource = (next: DocumentSource) => {
     setSource(next);
-    setDownloadError(null);
+    resetDownloadError();
   };
 
   const selectFormat = (next: ExportFormat) => {
     setFormat(next);
-    setDownloadError(null);
+    resetDownloadError();
+  };
+
+  const selectLanguage = (next: DocumentLanguage) => {
+    setFileLanguage(next);
+    resetDownloadError();
   };
 
   const extension = format === "pdf" ? ".pdf" : ".docx";
@@ -109,10 +143,10 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
 
   const handleDownload = async () => {
     setDownloading(true);
-    setDownloadError(null);
+    resetDownloadError();
     try {
       const download = format === "pdf" ? downloadPdfExport : downloadWordExport;
-      const { blob, filename } = await download(projectId, source, baselineId);
+      const { blob, filename } = await download(projectId, source, baselineId, requestedLanguage);
       // Tên dự phòng khi BE không gửi `Content-Disposition` — cùng quy tắc FLF-334 với BE: baseline ⇒ `_v1.0`, bản nháp ⇒
       // `_v<baseline cuối>_DRAFT` (gốc `0.x` của dự án import ⇒ `v0`), chưa baseline ⇒ `<tên>_DRAFT`
       const draftBase = baselineVersion && /^0(\.\d+)?$/.test(baselineVersion) ? "0" : (baselineVersion ?? null);
@@ -121,13 +155,26 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
         release: source === "baseline",
         base: source === "baseline" ? (baselineVersion ?? null) : draftBase,
         ext: format === "pdf" ? "pdf" : "docx",
+        language: requestedLanguage ?? null,
       });
       triggerDownload(blob, filename ?? fallbackName);
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === "TRANSLATION_INCOMPLETE" && requestedLanguage) {
+        const missing = err.meta?.missing;
+        setIncomplete({
+          count: typeof missing === "number" ? missing : null,
+          message: userErrorMessage(err, t("downloadFailed")),
+          locale: requestedLanguage,
+          ...(baselineId ? { baselineId } : {}),
+        });
+        return;
+      }
       setDownloadError(
-        err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
-          ? t("noWorkingDraft")
-          : userErrorMessage(err, t("downloadFailed"))
+        err instanceof ApiClientError && err.code === "DOCUMENT_LANGUAGE_UNAVAILABLE"
+          ? t("languageUnavailable")
+          : err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
+            ? t("noWorkingDraft")
+            : userErrorMessage(err, t("downloadFailed"))
       );
     } finally {
       setDownloading(false);
@@ -196,6 +243,31 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
           </div>
         </div>
 
+        {languageChoices && (
+          <div className="flex items-center justify-between gap-3">
+            <span id="export-language-label" className="text-body text-[#4B4842]">
+              {t("fileLanguage")}
+            </span>
+            <div role="radiogroup" aria-labelledby="export-language-label" className="flex gap-1 p-1 rounded-full bg-[#F0EEEA]">
+              {languageChoices.map((option) => {
+                const checked = (fileLanguage ?? documentLanguage) === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={checked}
+                    onClick={() => selectLanguage(option)}
+                    className={`px-3 py-1 rounded-full text-body font-bold cursor-pointer ${checked ? "bg-white text-[#191817] shadow-sm" : "text-[#6B6862]"}`}
+                  >
+                    {tLanguage(option)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {baselineCheckError && (
           <div className="text-caption text-[#B03030]">{t("baselineCheckFailedWith", { error: baselineCheckError })}</div>
         )}
@@ -223,11 +295,11 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
               <span>{t("redCount")}</span>
               <span className={`font-bold ${redCount > 0 ? "text-[#B03030]" : "text-[#1F7A45]"}`}>{redCount}</span>
             </div>
-            {language && (
+            {(requestedLanguage ?? language) && (
               <div className="flex items-center justify-between">
                 <span>{t("language")}</span>
                 <span className="font-bold">
-                  {tLanguage(language)}
+                  {tLanguage(requestedLanguage ?? language!)}
                 </span>
               </div>
             )}
@@ -235,13 +307,39 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
         )}
 
         {/* FLF-265: chỉ báo, KHÔNG chặn tải — mục chưa dịch in chữ gốc trong file (BE không bao giờ dịch lúc xuất) */}
-        {!empty && document && translation && translation.missing > 0 && (
+        {!requestedLanguage && !empty && document && translation && translation.missing > 0 && (
           <div role="status" className="bg-accent-gold-soft border border-accent-gold-border rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex flex-col items-start gap-1.5">
             <span>{t("untranslated", { count: translation.missing })}</span>
             {onTranslate && (
-              <button type="button" onClick={onTranslate} className="font-bold hover:underline cursor-pointer">
+              <button type="button" onClick={() => onTranslate()} className="font-bold hover:underline cursor-pointer">
                 {t("translateFirst")}
               </button>
+            )}
+          </div>
+        )}
+
+        {/* FLF-334 B: ngôn ngữ khác KHÔNG in chữ gốc thay chỗ thiếu — BE chặn, mời dịch nốt (hộp dịch báo credit trước khi chạy) */}
+        {incomplete && (
+          <div role="alert" className="bg-accent-gold-soft border border-accent-gold-border rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex flex-col items-start gap-1.5">
+            <span>
+              {incomplete.count === null
+                ? incomplete.message
+                : t("translationIncomplete", { count: incomplete.count, language: tLanguage(incomplete.locale) })}
+            </span>
+            {onTranslate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  // Hộp dịch mở ⇒ cảnh báo cũ không còn đúng sau khi dịch; lần tải sau tự báo lại nếu vẫn thiếu
+                  setIncomplete(null);
+                  onTranslate(incomplete.locale, incomplete.baselineId ? { baselineId: incomplete.baselineId } : undefined);
+                }}
+                className="font-bold hover:underline cursor-pointer"
+              >
+                {t("translateRest")}
+              </button>
+            ) : (
+              <span>{t("translateAskEditor")}</span>
             )}
           </div>
         )}

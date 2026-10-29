@@ -18,6 +18,11 @@ export interface DocVersion {
   has_tracked_file: boolean;
   /** Có file gốc người dùng upload (bản import 0.1 — FLF-184), tải qua `variant=original`. */
   has_original_file: boolean;
+  /**
+   * FLF-334 B: tải được theo ngôn ngữ còn lại (`?lang=`) — version có baseline của dự án chuyển từ mode 2. BE luôn gửi;
+   * `false` ⇒ ẩn lựa chọn ngôn ngữ.
+   */
+  other_language_available: boolean;
   created_by: string;
   created_at: IsoDateTime;
 }
@@ -111,6 +116,8 @@ export interface VersionFileNameParts {
   latestCr?: string | null;
   tracked?: boolean;
   original?: boolean;
+  /** FLF-334 B: chỉ truyền khi khác ngôn ngữ tài liệu ⇒ hậu tố `_EN` / `_VI` cuối tên. */
+  language?: string | null;
   ext?: "docx" | "pdf";
 }
 
@@ -123,7 +130,8 @@ export const versionFileName = (parts: VersionFileNameParts): string => {
   const cr = !parts.release && base && parts.latestCr ? `+${sanitizeFileBase(parts.latestCr)}` : "";
   const label = base ? `_v${base}${cr}` : "";
   const tail = parts.original ? "_original" : parts.release ? "" : "_DRAFT";
-  return `${sanitizeFileBase(parts.name)}${label}${parts.tracked ? "_tracked" : ""}${tail}.${parts.ext ?? "docx"}`;
+  const language = parts.language ? `_${sanitizeFileBase(parts.language).toUpperCase()}` : "";
+  return `${sanitizeFileBase(parts.name)}${label}${parts.tracked ? "_tracked" : ""}${tail}${language}.${parts.ext ?? "docx"}`;
 };
 
 /**

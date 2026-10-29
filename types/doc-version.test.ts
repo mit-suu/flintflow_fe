@@ -14,6 +14,12 @@ describe("versionFileName", () => {
     expect(versionFileName({ name: "A/B:C", release: true, base: "2.0", ext: "pdf" })).toBe("A_B_C_v2.0.pdf");
     expect(versionFileName({ name: "A\\B", release: true, base: "2.0" })).toBe("A_B_v2.0.docx");
   });
+
+  it("FLF-334 B: ngôn ngữ khác ⇒ hậu tố _EN / _VI cuối tên như BE", () => {
+    expect(versionFileName({ name: "Lumen", release: true, base: "2.0", language: "en" })).toBe("Lumen_v2.0_EN.docx");
+    expect(versionFileName({ name: "Lumen", release: false, base: "1.0", language: "vi", ext: "pdf" })).toBe("Lumen_v1.0_DRAFT_VI.pdf");
+    expect(versionFileName({ name: "Lumen", release: true, base: "2.0", language: null })).toBe("Lumen_v2.0.docx");
+  });
 });
 
 describe("versionLineage", () => {

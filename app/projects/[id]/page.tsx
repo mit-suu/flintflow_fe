@@ -474,6 +474,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const [translateOpen, setTranslateOpen] = useState(false);
   /** Ước tính đã đọc sẵn (lệnh chat vừa đổi ngôn ngữ / thẻ "Dịch N mục còn thiếu") ⇒ hộp dịch khỏi đọc lại lần đầu. */
   const [translateStatus, setTranslateStatus] = useState<TranslationStatus | undefined>(undefined);
+  /** FLF-334 B: hộp dịch mở từ lần tải theo ngôn ngữ khác — dịch sang ngôn ngữ đó, không phải ngôn ngữ tài liệu. */
+  const [translateLocale, setTranslateLocale] = useState<DocumentLanguage | undefined>(undefined);
+  /** …và đích snapshot của lần tải đó (`baselineId` mode 2 / `version` mode 1) — hộp dịch đếm / dịch đúng snapshot ấy. */
+  const [translateTarget, setTranslateTarget] = useState<{ baselineId?: string; version?: string } | undefined>(undefined);
   /** Thẻ lệnh đổi ngôn ngữ tài liệu trong chat (§3.7); `languageCommandSeq` bỏ kết quả về trễ của thẻ đã thay. */
   const [languageCommand, setLanguageCommand] = useState<LanguageCommandState | null>(null);
   const languageCommandSeq = useRef(0);
@@ -2075,6 +2079,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 canRelease={ws.orgRole === "lead"}
                 orgRole={ws.orgRole}
                 refreshToken={documentRefreshToken}
+                documentLanguage={documentLanguage}
+                onTranslate={
+                  canEdit && ws.project?.converted_from === "fpt"
+                    ? (locale, version) => {
+                        setTranslateStatus(undefined);
+                        setTranslateLocale(locale);
+                        setTranslateTarget({ version });
+                        setTranslateOpen(true);
+                      }
+                    : undefined
+                }
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
@@ -2239,11 +2254,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           flags={flags}
           onClose={() => setExportOpen(false)}
           documentLanguage={documentLanguage}
+          otherLanguageAvailable={!mode1}
           // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
           onTranslate={
             !mode1 && canEdit
-              ? () => {
+              ? (locale?: DocumentLanguage, target?: { baselineId?: string }) => {
                   setExportOpen(false);
+                  if (locale) {
+                    setTranslateStatus(undefined);
+                    setTranslateLocale(locale);
+                    setTranslateTarget(target);
+                  }
                   setTranslateOpen(true);
                 }
               : undefined
@@ -2251,14 +2272,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         />
       )}
 
-      {!mode1 && canEdit && (
+      {/* FLF-334 B: dự án chuyển từ mode 2 cũng mở được hộp dịch (dịch nốt để tải version bằng ngôn ngữ khác) */}
+      {(!mode1 || ws.project?.converted_from === "fpt") && canEdit && (
         <TranslateDialog
           projectId={projectId}
           open={translateOpen}
           initialStatus={translateStatus}
+          locale={translateLocale}
+          baselineId={translateTarget?.baselineId}
+          version={translateTarget?.version}
           onClose={() => {
             setTranslateOpen(false);
             setTranslateStatus(undefined);
+            setTranslateLocale(undefined);
+            setTranslateTarget(undefined);
           }}
           onDone={handleTranslated}
         />

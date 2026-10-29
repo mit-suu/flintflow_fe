@@ -10,6 +10,7 @@ import ReviewPackagePanel from "./ReviewPackagePanel";
 import AutoPassedChip from "../AutoPassedChip";
 import VersionsPanel from "./VersionsPanel";
 import type { OrgRole } from "@/types/organization";
+import type { DocumentLanguage } from "@/types/project";
 
 interface Mode1WorkspaceToolsProps {
   projectId: string;
@@ -25,13 +26,28 @@ interface Mode1WorkspaceToolsProps {
   orgRole?: OrgRole | null;
   /** Đổi giá trị ⇒ tải lại version + gói thay đổi (vd CR vừa ghi bản nháp mới ở khung chat). */
   refreshToken?: number;
+  /** FLF-334 B: ngôn ngữ tài liệu — version có baseline tải được bằng ngôn ngữ còn lại. */
+  documentLanguage?: DocumentLanguage | null;
+  /** Mở hộp dịch sang `locale` cho snapshot của `version` (tải theo ngôn ngữ khác còn mục chưa dịch); bỏ trống ⇒ không mời dịch. */
+  onTranslate?: (locale: DocumentLanguage, version: string) => void;
 }
 
 /**
  * Cột công cụ của workspace mode 1 v3 (bám BPMN — plan `mode1-v3/phase-3-fe-mode1.md` 3.1): cờ đỏ + lối tạo CR, gap
  * report + change request, version & release (Flow 6). Không còn kế hoạch step / ký baseline v1 / waive.
  */
-export default function Mode1WorkspaceTools({ projectId, projectName, flags, onSpineChanged, readOnly = false, canRelease: _canRelease = false, orgRole = null, refreshToken = 0 }: Mode1WorkspaceToolsProps) {
+export default function Mode1WorkspaceTools({
+  projectId,
+  projectName,
+  flags,
+  onSpineChanged,
+  readOnly = false,
+  canRelease: _canRelease = false,
+  orgRole = null,
+  refreshToken = 0,
+  documentLanguage = null,
+  onTranslate,
+}: Mode1WorkspaceToolsProps) {
   const t = useTranslations("mode1.workspaceTools");
   const docs = useDocVersions(projectId, { refreshToken });
   const link = "px-2.5 py-1 rounded-full text-body font-bold bg-white border border-[#ECEAE5] text-[#4B4842] hover:bg-[#FAF9F7]";
@@ -78,6 +94,8 @@ export default function Mode1WorkspaceTools({ projectId, projectName, flags, onS
           versions={docs.versions}
           redOpen={docs.redOpen}
           readOnly={true}
+          documentLanguage={documentLanguage}
+          onTranslate={onTranslate}
           onReleased={() => {
             void docs.reload();
             onSpineChanged();

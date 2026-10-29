@@ -36,6 +36,7 @@ const version = (v: string, kind: DocVersion["kind"], cr_ids: string[] = []): Do
   has_clean_file: kind === "release",
   has_tracked_file: kind === "cr_revision",
   has_original_file: kind === "imported",
+  other_language_available: false,
   created_by: "u1",
   created_at: "2026-09-19T00:00:00.000Z",
 });
@@ -242,6 +243,19 @@ describe("VersionsPanel — Viewer (readOnly)", () => {
     expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Các version" })).toBeInTheDocument();
   });
+
+  it("tải lỗi (404 DOC_VERSION_NOT_FOUND) ⇒ vẫn thấy lỗi dù mục Release bị ẩn", async () => {
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/versions/:v/download`, () =>
+        HttpResponse.json({ data: null, error: { code: "DOC_VERSION_NOT_FOUND", message: "Không tìm thấy phiên bản tài liệu này." } }, { status: 404 })
+      )
+    );
+    renderPanel({ versions: RELEASED, selected: "1.0", readOnly: true });
+    fireEvent.click(screen.getAllByRole("button", { name: "Tải bản sạch" })[0]);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Không tìm thấy phiên bản tài liệu này.");
+    expect(saveBlob).not.toHaveBeenCalled();
+  });
 });
 
 describe("VersionsPanel — dự án tạo SRS đã chốt baseline (FLF-318)", () => {
@@ -250,5 +264,69 @@ describe("VersionsPanel — dự án tạo SRS đã chốt baseline (FLF-318)", 
     expect(screen.getByText("Bản baseline đã ký")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tải bản sạch" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tải file gốc" })).not.toBeInTheDocument();
+  });
+});
+
+describe("VersionsPanel — tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
+  const signed = { ...version("1.0", "imported"), has_original_file: false, baseline_id: "BL001", other_language_available: true };
+  const draft = { ...version("1.1", "cr_revision", ["CR-001"]), other_language_available: false };
+
+  it("chỉ version other_language_available có nút; tải gửi lang, tên dự phòng có hậu tố", async () => {
+    const seen = serveDownload();
+    renderPanel({ versions: [draft, signed], selected: "1.0", documentLanguage: "en" });
+    const buttons = screen.getAllByRole("button", { name: "Tải bản Tiếng Việt" });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    await waitFor(() => expect(saveBlob).toHaveBeenCalled());
+    expect(seen[0]).toBe("1.0?variant=auto&lang=vi");
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_v1.0_VI.docx");
+  });
+
+  it("không biết ngôn ngữ tài liệu ⇒ không có nút", () => {
+    renderPanel({ versions: [signed], selected: "1.0" });
+    expect(screen.queryByRole("button", { name: /Tải bản Tiếng Việt|Download in/ })).toBeNull();
+  });
+
+  it("409 TRANSLATION_INCOMPLETE ⇒ báo số mục + “Dịch nốt” gọi onTranslate với ngôn ngữ đó (cả khi readOnly ẩn Release)", async () => {
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/versions/:v/download`, () =>
+        HttpResponse.json({ data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "thiếu" }, meta: { locale: "vi", missing: 7, total: 50 } }, { status: 409 })
+      )
+    );
+    const onTranslate = vi.fn();
+    renderPanel({ versions: [signed], selected: "1.0", documentLanguage: "en", onTranslate, readOnly: true });
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản Tiếng Việt" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Còn 7 mục chưa dịch sang Tiếng Việt");
+    fireEvent.click(within(alert).getByRole("button", { name: "Dịch nốt" }));
+    expect(onTranslate).toHaveBeenCalledWith("vi", "1.0");
+    // Mở hộp dịch ⇒ cảnh báo cũ biến mất (sau khi dịch nó không còn đúng)
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("Viewer (không onTranslate) ⇒ 409 báo số mục + nhờ Lead/Analyst dịch nốt, không có nút", async () => {
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/versions/:v/download`, () =>
+        HttpResponse.json({ data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "thiếu" }, meta: { locale: "vi", missing: 2, total: 50 } }, { status: 409 })
+      )
+    );
+    renderPanel({ versions: [signed], selected: "1.0", documentLanguage: "en", readOnly: true });
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản Tiếng Việt" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.");
+    expect(within(alert).queryByRole("button", { name: "Dịch nốt" })).toBeNull();
+  });
+
+  it("409 không có meta.missing dạng số ⇒ câu chung, không “0”", async () => {
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/versions/:v/download`, () =>
+        HttpResponse.json({ data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "thiếu" }, meta: { missing: "?" } }, { status: 409 })
+      )
+    );
+    renderPanel({ versions: [signed], selected: "1.0", documentLanguage: "en", onTranslate: vi.fn(), readOnly: true });
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản Tiếng Việt" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Tài liệu còn mục chưa dịch sang ngôn ngữ này");
+    expect(alert).not.toHaveTextContent(/Còn 0 mục/);
   });
 });
