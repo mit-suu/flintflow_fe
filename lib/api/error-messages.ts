@@ -10,7 +10,11 @@ import vi from "@/messages/vi.json";
  *
  * Gọi ở `ApiClientError` nên mọi chỗ hiện `err.message` (component, hook, runner) tự đúng ngôn ngữ.
  */
-const ERRORS: Record<Locale, Record<string, string>> = { vi: vi.errors, en: en.errors };
+/** `errors.page` là chuỗi của trang lỗi (`app/error.tsx`), không phải mã lỗi BE — chỉ giữ các mục là câu. */
+const codeMessages = (messages: Record<string, unknown>): Record<string, string> =>
+  Object.fromEntries(Object.entries(messages).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+
+const ERRORS: Record<Locale, Record<string, string>> = { vi: codeMessages(vi.errors), en: codeMessages(en.errors) };
 
 /**
  * Ngôn ngữ đang hiển thị: `<html lang>` do root layout gắn theo locale của request (đổi theo `router.refresh()`).

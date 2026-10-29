@@ -14,6 +14,7 @@ import {
   fetchOrganization,
   leaveOrganization,
   removeMember,
+  renameOrganization,
   revokeInvitation,
   switchOrganization,
 } from "@/lib/api/orgs";
@@ -31,6 +32,8 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 
 const ROLES: OrgRole[] = ["lead", "analyst", "viewer"];
 const INVITABLE: InvitableRole[] = ["analyst", "viewer"];
+/** Như BE `ORG_NAME_MAX` (`organization.service.ts`) — ô nhập chặn sẵn, BE vẫn kiểm lại. */
+const ORG_NAME_MAX = 80;
 
 type Pending = { kind: "remove"; member: OrgMember } | { kind: "leave" } | { kind: "delete" } | null;
 
@@ -67,6 +70,8 @@ export default function MembersPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [createdCode, setCreatedCode] = useState<CreatedInvitation | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
 
   const isLead = org?.role === "lead";
 
@@ -168,6 +173,31 @@ export default function MembersPage() {
     setError(null);
   };
 
+  const openRename = () => {
+    setRenameValue(org?.name ?? "");
+    setError(null);
+    setRenameOpen(true);
+  };
+
+  const closeRename = () => {
+    setRenameOpen(false);
+    setError(null);
+  };
+
+  const renameTrimmed = renameValue.trim();
+  const renameValid = renameTrimmed.length > 0 && renameTrimmed.length <= ORG_NAME_MAX && renameTrimmed !== org?.name;
+
+  /** UC-80. `renameOrganization` phát sự kiện đổi tổ chức ⇒ thanh bên tự đọc lại tên. */
+  const handleRename = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orgId || !renameValid) return;
+    void run(async () => {
+      const renamed = await renameOrganization(orgId, renameTrimmed);
+      setOrg((current) => (current ? { ...current, name: renamed.name } : current));
+      setRenameOpen(false);
+    });
+  };
+
   const closePending = () => {
     setPending(null);
     setConfirmText("");
@@ -218,7 +248,12 @@ export default function MembersPage() {
                 <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
                 {members.length > 0 && <CountBadge count={members.length} />}
               </div>
-              {org ? <p className="text-body text-on-surface-muted">{t("subtitle", { org: org.name })}</p> : null}
+              {org ? (
+                <div className="flex items-center gap-1">
+                  <p className="text-body text-on-surface-muted">{t("subtitle", { org: org.name })}</p>
+                  {isLead ? <IconButton icon="pencil" size="sm" label={t("rename.open")} disabled={busy} onClick={openRename} /> : null}
+                </div>
+              ) : null}
               {org && !isLead ? <p className="text-body text-on-surface-muted">{t("leadOnly")}</p> : null}
             </div>
             {isLead ? (
@@ -229,7 +264,7 @@ export default function MembersPage() {
           </div>
 
           {/* Đang mở hộp thoại thì lỗi hiện TRONG hộp thoại — ở đây sẽ nằm sau lớp mờ, người dùng không đọc được */}
-          {error && pending === null && !inviteOpen ? (
+          {error && pending === null && !inviteOpen && !renameOpen ? (
             <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
               {error}
             </p>
@@ -444,6 +479,36 @@ export default function MembersPage() {
                 </Button>
                 <Button type="submit" loading={busy}>
                   {busy ? t("invite.creating") : t("invite.cta")}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+
+          {/* Đang gửi PATCH thì không đóng được (như nút Huỷ) — đóng giữa chừng sẽ mất lỗi BE trả về */}
+          <Modal open={renameOpen} onClose={busy ? () => undefined : closeRename} title={t("rename.title")}>
+            <form onSubmit={handleRename} className="flex flex-col gap-4">
+              <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
+                {t("rename.label")}
+                <input
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  maxLength={ORG_NAME_MAX}
+                  autoComplete="off"
+                  className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-caption font-normal text-on-surface-muted">{t("rename.hint", { max: ORG_NAME_MAX })}</span>
+              </label>
+              {error ? (
+                <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+                  {error}
+                </p>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={closeRename} disabled={busy}>
+                  {t("cancel")}
+                </Button>
+                <Button type="submit" loading={busy} disabled={!renameValid}>
+                  {busy ? t("rename.saving") : t("rename.save")}
                 </Button>
               </div>
             </form>

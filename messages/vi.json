@@ -1021,6 +1021,14 @@
           "confirmLabel": "Gõ lại tên tổ chức để xác nhận: {org}",
           "confirmCta": "Xoá vĩnh viễn"
         },
+        "rename": {
+          "open": "Đổi tên tổ chức",
+          "title": "Đổi tên tổ chức",
+          "label": "Tên tổ chức",
+          "hint": "Tối đa {max} ký tự.",
+          "save": "Lưu",
+          "saving": "Đang lưu…"
+        },
         "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
         "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
       }
@@ -2078,6 +2086,7 @@
       "gapReport": "Gap report",
       "changeRequest": "Change request",
       "compareVersions": "So sánh version",
+      "reupload": "Re-upload file đã sửa",
       "toolsMode1": "Cờ, change request & version",
       "toolsRecord": "Hồ sơ dự án",
       "toolsRecordShort": "Hồ sơ",
@@ -2552,7 +2561,22 @@
     "LOG_NOT_FOUND": "Không tìm thấy lượt chạy AI này.",
     "ORG_CONTEXT_MISSING": "Hệ thống gặp lỗi khi xác định tổ chức. Vui lòng tải lại trang.",
     "METHOD_NOT_ALLOWED": "Thao tác này không được hỗ trợ.",
-    "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ."
+    "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ.",
+    "page": {
+      "eyebrow": "Lỗi hệ thống",
+      "title": "Đã có lỗi xảy ra",
+      "body": "FlintFlow gặp sự cố khi hiển thị trang này. Dữ liệu của bạn vẫn an toàn — hãy thử lại, hoặc về trang chủ.",
+      "retry": "Thử lại",
+      "home": "Về trang chủ",
+      "digest": "Mã lỗi: {digest}"
+    }
+  },
+  "maintenance": {
+    "metaTitle": "Đang bảo trì · FlintFlow",
+    "eyebrow": "Bảo trì hệ thống",
+    "title": "FlintFlow đang bảo trì",
+    "body": "Chúng tôi đang nâng cấp hệ thống để phục vụ bạn tốt hơn. Vui lòng quay lại sau ít phút — dự án và tài liệu của bạn không bị ảnh hưởng.",
+    "home": "Về trang chủ"
   },
   "admin": {
     "common": {
@@ -3727,6 +3751,7 @@
       "loadingVersions": "Đang tải danh sách version…",
       "gapTitle": "Gap report",
       "compareTitle": "So sánh version",
+      "reuploadTitle": "Re-upload file đã sửa",
       "crTitleWithId": "Change request {id}",
       "crTitle": "Change request",
       "backToList": "← Danh sách change request"

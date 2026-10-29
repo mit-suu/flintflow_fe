@@ -18,6 +18,7 @@ vi.mock("./CrWorkspace", () => ({ default: ({ crId }: { crId: string }) => <p>ch
 vi.mock("./ChangeRequestList", () => ({
   default: ({ prefill }: { prefill: { title?: string } | null }) => <p>danh sách CR{prefill ? ` · điền sẵn: ${prefill.title}` : ""}</p>,
 }));
+vi.mock("./ReuploadDiffView", () => ({ default: ({ projectId }: { projectId: string }) => <p>re-upload · {projectId}</p> }));
 vi.mock("./VersionCompare", () => ({ default: ({ versions }: { versions: { version: string }[] }) => <p>so sánh · {versions.length} version</p> }));
 /** Lượt tải đầu xong hay chưa — popup phải chờ xong mới dựng `VersionCompare` (nó chốt mặc định lúc mount). */
 let docsLoading = false;
@@ -35,9 +36,9 @@ vi.mock("../../hooks/mode1/useDocVersions", () => ({
   },
 }));
 
-const open = (q: string) => {
+const open = (q: string, readOnly = false) => {
   query = q;
-  return renderWithIntl(<Mode1Popup projectId={P} />);
+  return renderWithIntl(<Mode1Popup projectId={P} readOnly={readOnly} />);
 };
 
 describe("Mode1Popup — gap report / change request dạng popup trên màn Tài liệu & version", () => {
@@ -87,5 +88,17 @@ describe("Mode1Popup — gap report / change request dạng popup trên màn Tà
     expect(screen.getByRole("dialog", { name: "Change request CR-003" })).toBeInTheDocument();
     expect(screen.getByText("chi tiết CR-003")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "← Danh sách change request" })).toHaveAttribute("href", `/projects/${P}?panel=cr`);
+  });
+
+  it("panel=reupload ⇒ popup Re-upload với ReuploadDiffView của dự án (UC-25)", () => {
+    open("panel=reupload");
+    expect(screen.getByRole("dialog", { name: "Re-upload file đã sửa" })).toBeInTheDocument();
+    expect(screen.getByText(`re-upload · ${P}`)).toBeInTheDocument();
+  });
+
+  it("panel=reupload khi chỉ xem ⇒ không dựng popup", () => {
+    open("panel=reupload", true);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText(/re-upload ·/)).not.toBeInTheDocument();
   });
 });

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import DropdownMenu, { type DropdownMenuItem } from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
-import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
+import { fetchMyOrganizations, onOrganizationChanged, switchOrganization } from "@/lib/api/orgs";
 import type { ActiveOrganization } from "@/lib/hooks/use-active-org";
 import type { Organization } from "@/types/organization";
 import { SIDEBAR_ROW, SIDEBAR_ROW_IDLE, SidebarTooltip, sidebarRowLayout } from "./SidebarNavItem";
@@ -24,6 +24,16 @@ export default function OrgSwitcher({ activeOrg, collapsed }: { activeOrg: Activ
   const [orgs, setOrgs] = useState<Organization[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [switching, setSwitching] = useState(false);
+
+  // Tổ chức đổi tên ⇒ bỏ danh sách đã tải để lần mở menu sau đọc lại tên mới
+  useEffect(
+    () =>
+      onOrganizationChanged(() => {
+        setOrgs(null);
+        setFailed(false);
+      }),
+    []
+  );
 
   // Chỉ tải danh sách khi người dùng thật sự mở menu: thanh bên nằm trên mọi trang `/home`, tải sẵn thì mỗi lần
   // đổi trang lại tốn một request cho thứ hiếm khi dùng.

@@ -32,8 +32,26 @@ export const createOrganization = async (name: string): Promise<Organization> =>
 export const fetchOrganization = async (orgId: string): Promise<OrganizationDetail> =>
   unwrap(await apiCall<OrganizationDetail>(`/orgs/${orgId}`));
 
-export const renameOrganization = async (orgId: string, name: string): Promise<Organization> =>
-  unwrap(await apiCall<Organization>(`/orgs/${orgId}`, { method: "PATCH", body: JSON.stringify({ name }) }));
+// Thanh bên (OrgSwitcher qua `useActiveOrganization`) lắng nghe để hiện tên mới mà không phải tải lại trang
+const ORG_CHANGED_EVENT = "flintflow:organization-changed";
+
+export const emitOrganizationChanged = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(ORG_CHANGED_EVENT));
+  }
+};
+
+export const onOrganizationChanged = (handler: () => void) => {
+  window.addEventListener(ORG_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(ORG_CHANGED_EVENT, handler);
+};
+
+/** UC-80 — chỉ Lead. BE cắt khoảng trắng, từ chối tên rỗng hoặc quá dài (`VALIDATION_ERROR`). */
+export const renameOrganization = async (orgId: string, name: string): Promise<Organization> => {
+  const org = unwrap(await apiCall<Organization>(`/orgs/${orgId}`, { method: "PATCH", body: JSON.stringify({ name }) }));
+  emitOrganizationChanged();
+  return org;
+};
 
 /**
  * Xoá tổ chức — chỉ khi Lead là thành viên duy nhất. Xoá cả dự án, thư mục, ví và gói; không khôi phục được.
