@@ -9,6 +9,7 @@ import { useDocument } from "../hooks/useDocument";
 import type { DocumentSource } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import type { Baseline } from "@/types/spine";
+import { versionFileName } from "@/types/doc-version";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { hookErrorText } from "@/lib/hook-errors";
@@ -112,8 +113,15 @@ export default function ExportPanel({ projectId, projectName, onClose, flags, do
     try {
       const download = format === "pdf" ? downloadPdfExport : downloadWordExport;
       const { blob, filename } = await download(projectId, source, baselineId);
-      const suffix = source === "draft" ? "-draft" : "";
-      const fallbackName = `${projectName ?? t("untitled")}-${document?.version ?? "v0"}${suffix}${extension}`;
+      // Tên dự phòng khi BE không gửi `Content-Disposition` — cùng quy tắc FLF-334 với BE: baseline ⇒ `_v1.0`, bản nháp ⇒
+      // `_v<baseline cuối>_DRAFT` (gốc `0.x` của dự án import ⇒ `v0`), chưa baseline ⇒ `<tên>_DRAFT`
+      const draftBase = baselineVersion && /^0(\.\d+)?$/.test(baselineVersion) ? "0" : (baselineVersion ?? null);
+      const fallbackName = versionFileName({
+        name: projectName ?? t("untitled"),
+        release: source === "baseline",
+        base: source === "baseline" ? (baselineVersion ?? null) : draftBase,
+        ext: format === "pdf" ? "pdf" : "docx",
+      });
       triggerDownload(blob, filename ?? fallbackName);
     } catch (err) {
       setDownloadError(

@@ -83,6 +83,35 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
+  it("FLF-334: BE không gửi tên ⇒ tên dự phòng theo quy tắc chung (chưa baseline / nháp sau baseline / baseline)", async () => {
+    const names: string[] = [];
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download);
+    });
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
+    downloadWordExport.mockResolvedValue({ blob: new Blob(["x"]), filename: null });
+
+    const first = renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
+    await waitFor(() => expect(names).toEqual(["FlintFlow_DRAFT.docx"]));
+    first.unmount();
+
+    const baseline = { id: "BL001", version: "v1.0", type: "generated", doc_version: null, at: "2026-10-26T00:00:00.000Z", snapshot_ref: "BL001", checked_at_version: 1, waived_count: 0 } as Baseline;
+    listBaselines.mockResolvedValue({ data: [baseline], error: null });
+    renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
+    const tab = await screen.findByRole("tab", { name: "Bản baseline" });
+    await waitFor(() => expect(tab).not.toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
+    await waitFor(() => expect(names).toHaveLength(2));
+    fireEvent.click(tab);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
+    await waitFor(() => expect(names).toEqual(["FlintFlow_DRAFT.docx", "FlintFlow_v1.0_DRAFT.docx", "FlintFlow_v1.0.docx"]));
+
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
   it("dự án chưa có nội dung: báo lý do, không mời bấm sang bước nào", async () => {
     getDocument.mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
 

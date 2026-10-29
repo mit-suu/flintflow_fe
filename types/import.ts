@@ -62,6 +62,10 @@ export interface DocStamp {
   project_id: string;
   version: string | null;
   source: string | null;
+  /** FLF-334: release gốc (`2.0`, `0`), CR mới nhất, loại bản — stamp cũ ⇒ `null`. */
+  base_version: string | null;
+  latest_cr: string | null;
+  kind: "release" | "draft" | null;
 }
 
 export interface ImportedDocument {

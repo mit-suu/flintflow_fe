@@ -7,7 +7,7 @@ import { ApiClientError } from "@/lib/api/client";
 import { saveBlob } from "@/lib/api/files";
 import { getSpine } from "@/lib/api/spine";
 import { downloadVersion, releaseDocument } from "@/lib/api/versions";
-import { isReleaseVersion, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
+import { isReleaseVersion, versionFileName, versionLineage, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
 import type { Flag } from "@/types/spine";
 import { useMode1Labels } from "./i18n";
 import { crHref } from "./prefill";
@@ -50,8 +50,15 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
     setError(null);
     try {
       const { blob, filename } = await downloadVersion(projectId, version, variant, format);
-      const suffix = variant === "original" ? "_original" : variant === "tracked" ? "_tracked_DRAFT" : isReleaseVersion(version) ? "" : "_DRAFT";
-      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.${format}`);
+      // Tên dự phòng khi BE không gửi `Content-Disposition` — cùng quy tắc FLF-334 với BE
+      const fallback = versionFileName({
+        name: projectName ?? "SRS",
+        ...versionLineage(versions, version),
+        tracked: variant === "tracked",
+        original: variant === "original",
+        ext: format,
+      });
+      saveBlob(blob, filename ?? fallback);
     } catch (err) {
       setError(L.errorText(err, t("downloadFailed")));
     } finally {

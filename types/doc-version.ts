@@ -99,3 +99,47 @@ export const compareDocVersions = (a: string, b: string): number => {
   const [bm, bn] = b.split(".").map(Number);
   return am - bm || an - bn;
 };
+
+/** Bỏ ký tự Windows cấm trong tên file; rỗng ⇒ `SRS` — cùng luật `sanitizeFileBase` BE. */
+const sanitizeFileBase = (value: string): string => value.replace(/[\\/:*?"<>|]+/g, "_").trim() || "SRS";
+
+export interface VersionFileNameParts {
+  name: string;
+  release: boolean;
+  /** Release: chính nó. Bản nháp: release gốc (`1.0`, `0` = chưa release); `null` = chưa có gốc (mode 2 chưa baseline). */
+  base: string | null;
+  latestCr?: string | null;
+  tracked?: boolean;
+  original?: boolean;
+  ext?: "docx" | "pdf";
+}
+
+/**
+ * Tên file tải về — bản sao `versionFileName` BE (FLF-334), chỉ dùng khi BE không gửi `Content-Disposition`:
+ * `Lumen_v2.0.docx` · `Lumen_v1.0+CR-014_DRAFT.docx` · `Lumen_v0_DRAFT.docx` · `Lumen_DRAFT.docx` · `…_tracked_DRAFT` · `…_original`.
+ */
+export const versionFileName = (parts: VersionFileNameParts): string => {
+  const base = parts.base ? sanitizeFileBase(parts.base.trim().replace(/^v/i, "")) : null;
+  const cr = !parts.release && base && parts.latestCr ? `+${sanitizeFileBase(parts.latestCr)}` : "";
+  const label = base ? `_v${base}${cr}` : "";
+  const tail = parts.original ? "_original" : parts.release ? "" : "_DRAFT";
+  return `${sanitizeFileBase(parts.name)}${label}${parts.tracked ? "_tracked" : ""}${tail}.${parts.ext ?? "docx"}`;
+};
+
+/**
+ * Release gốc + CR mới nhất của `target` trong danh sách version (bản sao `versionLineage` BE): gốc = version `x.0` gần
+ * nhất trước nó (`0` khi chưa có); CR = mã cuối của version gần nhất (tính cả chính nó, sau gốc) có CR.
+ */
+export const versionLineage = (
+  versions: readonly Pick<DocVersion, "version" | "cr_ids">[],
+  target: string
+): { release: boolean; base: string; latestCr: string | null } => {
+  if (isReleaseVersion(target)) return { release: true, base: target, latestCr: null };
+  const history = versions
+    .filter((v) => VERSION_RE.test(v.version) && compareDocVersions(v.version, target) <= 0)
+    .sort((a, b) => compareDocVersions(b.version, a.version));
+  const lastRelease = history.find((v) => isReleaseVersion(v.version)) ?? null;
+  const since = lastRelease ? history.slice(0, history.indexOf(lastRelease)) : history;
+  const withCr = since.find((v) => v.cr_ids.length > 0);
+  return { release: false, base: lastRelease?.version ?? "0", latestCr: withCr ? withCr.cr_ids[withCr.cr_ids.length - 1] : null };
+};

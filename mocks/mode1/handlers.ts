@@ -675,7 +675,7 @@ export const mode1Handlers = [
       S().project.template_intent = intent;
       const name = file.name;
       if (/other-project/i.test(name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision", base_version: "0", latest_cr: "CR-004", kind: "draft" } });
       }
       const issues =
         /\.doc$/i.test(name)
@@ -878,7 +878,7 @@ export const mode1Handlers = [
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
       if (/other-project/i.test(file.name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision", base_version: "0", latest_cr: "CR-004", kind: "draft" } });
       }
       const diff = {
         id: `66f00000000000000000r${String(S().reuploads.length + 1).padStart(3, "0")}`,
