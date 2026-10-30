@@ -176,6 +176,19 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     rerender(<ProjectCard project={baseProject} {...props} readOnly />);
     expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
   });
+
+  it("menu có 'Ký pháp ERD' cho mọi mode (kể cả import); Viewer không có menu", () => {
+    const onChangeErdNotation = vi.fn();
+    const props = { progress: null, onRename: noop, onDelete: noop, onHardDelete: noop, onChangeErdNotation };
+    const imported = { ...baseProject, mode: "import" as const };
+    const { rerender } = renderWithIntl(<ProjectCard project={imported} {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ký pháp ERD" }));
+    expect(onChangeErdNotation).toHaveBeenCalledWith(imported);
+
+    rerender(<ProjectCard project={baseProject} {...props} readOnly />);
+    expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
+  });
 });
 
 describe("phasePosition — đếm theo phase để thanh không thụt lùi khi tổng bước được chốt", () => {

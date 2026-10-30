@@ -697,6 +697,7 @@
         "rename": "Rename",
         "moveToFolder": "Move to folder",
         "documentLanguage": "Document language",
+        "erdNotation": "ERD notation",
         "archive": "Archive",
         "hardDelete": "Delete permanently"
       },
@@ -755,6 +756,20 @@
         "cta": "Change language",
         "busy": "Changing…",
         "failed": "Could not change the document language"
+      },
+      "erdNotation": {
+        "title": "ERD notation",
+        "label": "ERD notation",
+        "chen": "Chen",
+        "chenDetail": "Entities are rectangles and relationships are diamonds joined by lines labelled 1 / N; a double line marks mandatory participation.",
+        "crowsfoot": "Crow's foot",
+        "crowsfootDetail": "Entities are boxes and relationships are lines with a crow's foot (many), bar (one) and circle (optional) at the ends.",
+        "idef1x": "IDEF1X",
+        "idef1xDetail": "Entity boxes joined by lines with a solid dot on the many side; dashed for non-identifying relationships, an open diamond when optional.",
+        "detail": "Applies to the whole project. Existing ERD diagrams are redrawn right away in the new notation; the Spine content does not change.",
+        "cta": "Change notation",
+        "busy": "Changing…",
+        "failed": "Could not change the ERD notation"
       },
       "renameTitle": "Rename project",
       "renameFailed": "Could not rename the project",

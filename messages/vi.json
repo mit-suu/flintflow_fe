@@ -697,6 +697,7 @@
         "rename": "Đổi tên",
         "moveToFolder": "Chuyển vào thư mục",
         "documentLanguage": "Ngôn ngữ tài liệu",
+        "erdNotation": "Ký pháp ERD",
         "archive": "Lưu trữ",
         "hardDelete": "Xoá vĩnh viễn"
       },
@@ -755,6 +756,20 @@
         "cta": "Đổi ngôn ngữ",
         "busy": "Đang đổi…",
         "failed": "Không thể đổi ngôn ngữ tài liệu"
+      },
+      "erdNotation": {
+        "title": "Ký pháp ERD",
+        "label": "Ký pháp ERD",
+        "chen": "Chen",
+        "chenDetail": "Thực thể là hình chữ nhật, quan hệ là hình thoi nối bằng đường có nhãn 1 / N; đường đôi khi bắt buộc tham gia.",
+        "crowsfoot": "Crow's foot",
+        "crowsfootDetail": "Thực thể là hộp, quan hệ là đường nối có chân chim (nhiều), vạch (một) và vòng tròn (tuỳ chọn) ở hai đầu.",
+        "idef1x": "IDEF1X",
+        "idef1xDetail": "Hộp thực thể nối bằng đường có chấm đặc ở phía nhiều; nét đứt cho quan hệ không định danh, thoi rỗng khi tuỳ chọn.",
+        "detail": "Áp dụng cho cả dự án. Hình ERD đã có sẽ được vẽ lại ngay theo ký pháp mới; nội dung Spine không đổi.",
+        "cta": "Đổi ký pháp",
+        "busy": "Đang đổi…",
+        "failed": "Không thể đổi ký pháp ERD"
       },
       "renameTitle": "Đổi tên dự án",
       "renameFailed": "Không thể đổi tên dự án",

@@ -2,13 +2,13 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { MESSAGES, renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
-import { deleteProject, renameProject, setDocumentLanguage } from "@/lib/api/projects";
+import { deleteProject, renameProject, setDocumentLanguage, setErdNotation } from "@/lib/api/projects";
 import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
 import type { TranslationStatus } from "@/types/document";
 import type { Project } from "@/types/project";
 import ProjectActionDialogs from "./ProjectActionDialogs";
 
-vi.mock("@/lib/api/projects", () => ({ renameProject: vi.fn(), deleteProject: vi.fn(), setDocumentLanguage: vi.fn() }));
+vi.mock("@/lib/api/projects", () => ({ renameProject: vi.fn(), deleteProject: vi.fn(), setDocumentLanguage: vi.fn(), setErdNotation: vi.fn() }));
 // FLF-265: đổi ngôn ngữ xong đọc ước tính dịch — mặc định không còn mục nào (đổi xong là đóng như trước)
 const { NOTHING_MISSING } = vi.hoisted(() => ({
   NOTHING_MISSING: { locale: "vi", source_locale: "en", total: 120, missing: 0, batches: 0, estimated_credits: 0 } satisfies TranslationStatus,
@@ -121,6 +121,43 @@ describe("ProjectActionDialogs — ngôn ngữ tài liệu (FLF-265)", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(MESSAGES.vi.errors.DOCUMENT_LANGUAGE_LOCKED);
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProjectActionDialogs — đổi ký pháp ERD (FLF-324)", () => {
+  beforeEach(() => {
+    vi.mocked(setErdNotation).mockReset().mockResolvedValue({ data: { ...project, erdNotation: "crowsfoot" }, error: null } as never);
+  });
+
+  it("thiếu field ⇒ chọn sẵn Chen và nút đổi bị khoá tới khi chọn ký pháp khác", () => {
+    renderWithIntl(<ProjectActionDialogs target={{ action: "erdNotation", project }} onClose={() => {}} onDone={() => {}} />);
+    expect(screen.getByRole("radio", { name: /^Chen/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Đổi ký pháp" })).toBeDisabled();
+  });
+
+  it("đổi ⇒ gọi setErdNotation, tải lại danh sách rồi đóng (mode import cũng đổi được)", async () => {
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    renderWithIntl(<ProjectActionDialogs target={{ action: "erdNotation", project }} onClose={onClose} onDone={onDone} />);
+    fireEvent.click(screen.getByRole("radio", { name: /^Crow's foot/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Đổi ký pháp" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(setErdNotation).toHaveBeenCalledWith("p1", "crowsfoot");
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it("403 ORG_ROLE_FORBIDDEN ⇒ hiện lỗi, không đóng, không tải lại", async () => {
+    vi.mocked(setErdNotation).mockRejectedValue(new ApiClientError(403, "ORG_ROLE_FORBIDDEN", "Forbidden"));
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    renderWithIntl(<ProjectActionDialogs target={{ action: "erdNotation", project: { ...project, erdNotation: "idef1x" } }} onClose={onClose} onDone={onDone} />);
+    fireEvent.click(screen.getByRole("radio", { name: /^Chen/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Đổi ký pháp" }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
   });
 });
 
