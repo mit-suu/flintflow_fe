@@ -4,6 +4,9 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExt
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { saveSectionToLibrary } from "@/lib/api/org-library";
+import type { LibraryMatch } from "@/types/org-library";
+import { useLibraryMatches } from "./hooks/useLibraryMatches";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
 import { getProject, setDocumentLanguage } from "@/lib/api/projects";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
@@ -989,6 +992,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     [handleChangeApplied, activeSessionId, reloadActiveSession, mode1, t]
   );
   const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
+  // FLF-278: nội dung thư viện của tổ chức cho mục riêng (mẫu bắt buộc)
+  const library = useLibraryMatches(projectId, ws.ready && ws.project?.template_intent === "fixed", documentRefreshToken);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
   // FLF-248: cờ "rỗng" của bước đã chốt là vấn đề thật (chặn ký baseline), không phải "sẽ điền ở bước sau"
   const acceptedSteps = new Set((steps?.steps ?? []).filter((s) => s.status === "accepted").map((s) => s.id));
@@ -1124,6 +1129,41 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [requestPreview, cancelPreview, activeSessionId, lastMessageStep, appendLocalMessage, dropLocalMessage, reloadActiveSession]
   );
+  /**
+   * FLF-278: dùng nội dung thư viện tổ chức cho mục riêng. Trước baseline ⇒ lô op `set custom_sections[id=…]` (giữ id/heading/
+   * level/source, thay `blocks`) ⇒ cùng thẻ xem trước của lệnh sửa, không gọi model. Sau baseline (mode 1) sửa phải qua change
+   * request ⇒ điền sẵn lệnh vào ô chat, gửi đi thành CR như mọi lệnh sửa.
+   */
+  const applyLibraryContent = (matches: readonly LibraryMatch[]) => {
+    if (editDisabledReason) return setToast(editDisabledReason);
+    if (matches.length === 0) return;
+    if (mode1) {
+      const m = matches[0];
+      startEditing(t("userText.useLibrary", { label: sectionLabels.get(`custom:${m.custom_section_id}`) ?? m.heading, text: m.entry.blocks.map((b) => b.text).join(" ") }));
+      return;
+    }
+    const sections = spineState.spine?.custom_sections ?? [];
+    const ops = matches.flatMap((m) => {
+      const section = sections.find((c) => c.id === m.custom_section_id);
+      return section ? [{ op: "set" as const, path: `custom_sections[id=${section.id}]`, value: { ...section, blocks: m.entry.blocks } }] : [];
+    });
+    if (ops.length === 0) return;
+    const label = matches.length === 1 ? t("library.one", { heading: matches[0].heading }) : t("library.many", { count: matches.length });
+    pendingInstructionRef.current = label;
+    setAppliedEdit(null);
+    setEditDetailOpen(false);
+    setEditCardOpen(true);
+    void changes.requestOpsPreview(ops, label);
+  };
+  const saveToLibrary = async (sectionId: string) => {
+    try {
+      await saveSectionToLibrary(projectId, sectionId.slice("custom:".length));
+      setToast(t("library.saved"));
+      library.reload();
+    } catch (err) {
+      setToast(userErrorMessage(err, t("library.saveFailed")));
+    }
+  };
   const closeEditCard = () => {
     // Bỏ bản xem trước ⇒ kết thúc vòng hỏi đáp thêm / xoá use case (lệnh sau mở lại từ đầu)
     useCaseTurnsRef.current = null;
@@ -1208,6 +1248,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const onPipelineSession = ws.isPipelineActive;
   /** FLF-244: Viewer chỉ đọc — ẩn ô nhập, thẻ hỏi, thẻ cổng và mọi nút chạy bước (BE cũng chặn 403). */
   const canEdit = ws.canEdit;
+  /** FLF-278: dự án theo mẫu bắt buộc (FLF-335) — mục riêng của mẫu còn trống có nút "Nhờ AI soạn". */
+  const requiredTemplate = ws.project?.template_intent === "fixed";
   const gate = onPipelineSession && runner.state.status === "gate_ready" ? runner.state.gate : null;
   const reviewMode: ReviewMode = spine?.project.review_mode ?? "balanced";
   /**
@@ -2030,6 +2072,19 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           refreshToken={documentRefreshToken}
           mode1={mode1}
           onEditSection={canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined}
+          onDraftSection={canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined}
+          libraryMatchOf={library.matchOf}
+          onUseLibrary={
+            canEdit
+              ? (sectionId) => {
+                  const match = library.matchOf(sectionId);
+                  if (match) applyLibraryContent([match]);
+                }
+              : undefined
+          }
+          onSaveToLibrary={canEdit && requiredTemplate ? (sectionId) => void saveToLibrary(sectionId) : undefined}
+          libraryEmptyCount={mode1 ? 0 : library.emptyMatches.length}
+          onUseLibraryAll={canEdit && !mode1 ? () => applyLibraryContent(library.emptyMatches) : undefined}
           issues={documentIssues}
           onOpenIssues={() => (rightPanel === "verification" && !issueSectionId ? setRightPanel(null) : openIssues())}
           onOpenSectionIssues={(sectionId) => openIssues(sectionId)}
@@ -2115,6 +2170,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
               onEditSection: canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined,
+              onDraftSection: canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined,
               acceptedSteps,
             }}
             readiness={progress?.readiness ?? null}

@@ -175,6 +175,20 @@ export async function fetchAdminFeedback(): Promise<AdminFeedbackItem[]> {
   return res.data ?? [];
 }
 
+/** FLF-278: heading của mẫu bắt buộc thành mục riêng (BE `import/template-gaps.ts`). */
+export interface TemplateGapRow {
+  key: string;
+  samples: string[];
+  projects: number;
+  empty: number;
+  suggested_destination: string | null;
+}
+
+export async function fetchTemplateGaps(limit = 100): Promise<{ projects: number; rows: TemplateGapRow[] }> {
+  const res = await apiCall<{ projects: number; rows: TemplateGapRow[] }>(`/admin/template-gaps?limit=${limit}`);
+  return res.data ?? { projects: 0, rows: [] };
+}
+
 export type AdminOrgPlan = "free" | "pro";
 
 /** UC-90: một tổ chức trong danh sách admin (BE `admin.service.listOrgs`). */

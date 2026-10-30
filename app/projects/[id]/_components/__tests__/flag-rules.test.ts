@@ -28,6 +28,9 @@ describe("flag-rules", () => {
     expect(flagGroupTitle("luat_moi_cua_be", t)).toBeNull();
     expect(flagGroupTitle("section_empty", t)).toBe("Mục còn trống");
     expect(flagGroupTitle("goal_not_covered", t)).toBe("Mục tiêu chưa được đáp ứng");
+    // FLF-278 trên FLF-335/336 — chế độ 3 (mẫu bắt buộc)
+    expect(flagGroupTitle("template_section_absent", t)).toBe("Mẫu bắt buộc không có mục này");
+    expect(flagGroupTitle("template_section_empty", t)).toBe("Mục của mẫu chưa có nội dung");
 
     const groups = groupByAction([
       flag({ id: "A", rule_id: "section_empty" }),

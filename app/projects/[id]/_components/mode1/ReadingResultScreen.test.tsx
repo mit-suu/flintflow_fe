@@ -66,3 +66,18 @@ describe("ReadingResultScreen (FLF-336 — điểm dừng Kết quả đọc fil
     expect(screen.getByRole("button", { name: "Dừng, tải gap report" })).toBeDisabled();
   });
 });
+
+describe("ReadingResultScreen — Luồng 2 cho phần thiếu (FLF-278 trên FLF-336)", () => {
+  it("chế độ 3 + có onDraftMissing ⇒ nút Viết phần còn thiếu là lối chính, Hoàn thiện vẫn còn; chế độ 4 không có nút", () => {
+    const onDraftMissing = vi.fn();
+    const fixed = structure({ resolved_mode: 3, target: "template", intent: "fixed" });
+    const { unmount } = renderWithIntl(<ReadingResultScreen projectId={P} structure={fixed} onComplete={vi.fn()} onDraftMissing={onDraftMissing} />);
+    expect(screen.getByText(/AI dựng Brief từ phần đã có/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Viết phần còn thiếu với FlintFlow" }));
+    expect(onDraftMissing).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Hoàn thiện" })).toBeInTheDocument();
+    unmount();
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure()} onComplete={vi.fn()} onDraftMissing={onDraftMissing} />);
+    expect(screen.queryByRole("button", { name: "Viết phần còn thiếu với FlintFlow" })).not.toBeInTheDocument();
+  });
+});

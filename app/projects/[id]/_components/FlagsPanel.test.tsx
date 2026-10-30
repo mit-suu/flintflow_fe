@@ -276,3 +276,22 @@ describe("FlagsPanel — bấm chấm đỏ trên tài liệu", () => {
     expect(container.querySelectorAll("[data-focus-row]")).toHaveLength(0);
   });
 });
+
+describe("FlagsPanel — mục của mẫu còn trống (FLF-278)", () => {
+  it("cờ template_section_empty có nút Nhờ AI soạn kèm nhãn mục; cờ khác không có", () => {
+    const empty: Flag = { ...baseFlag, id: "FL30", level: "yellow", rule_id: "template_section_empty", section_id: "custom:CS07", message: "Mục \"Document Conventions\" của mẫu chưa có nội dung" };
+    const onDraftSection = vi.fn();
+    renderWithIntl(
+      <FlagsPanel
+        flags={[empty, { ...baseFlag, id: "FL31", level: "yellow", rule_id: "orphan_actor", section_id: "fixed:2.1" }]}
+        onRecompute={vi.fn()}
+        onDraftSection={onDraftSection}
+        sectionLabelOf={(id) => (id === empty.section_id ? "§1.2 Document Conventions" : undefined)}
+      />
+    );
+    const buttons = screen.getAllByRole("button", { name: "Nhờ AI soạn" });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    expect(onDraftSection).toHaveBeenCalledWith("§1.2 Document Conventions");
+  });
+});

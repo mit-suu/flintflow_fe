@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } from "@/lib/api/spine";
-import type { ApplyResult, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
+import type { ApplyResult, ChangeRequestInfo, Op, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { HOOK_ERROR } from "@/lib/hook-errors";
@@ -26,6 +26,11 @@ export interface UseChangesResult {
   historyLoading: boolean;
   /** Xong khi BE đã trả lời (và đã ghi lượt này vào phiên nếu có `getSessionId`) — trả về BE trả lời bằng gì. */
   requestPreview: (instruction: string) => Promise<PreviewOutcome>;
+  /**
+   * Xem trước một lô op FE tự dựng (FLF-278: nội dung thư viện tổ chức) — không gọi model, xác nhận như lệnh sửa.
+   * `label` thay câu lệnh trên thẻ sửa.
+   */
+  requestOpsPreview: (ops: Op[], label: string) => Promise<PreviewOutcome>;
   /**
    * Xác nhận `preview` đang hiển thị — tự chọn `applyChanges` hay `reconcile` theo nguồn gốc.
    * `reason` + `changeRequest` bắt buộc khi `preview.branch === "post_baseline"` (BE trả 400 nếu thiếu — FLF-294).
@@ -57,6 +62,8 @@ export function useChanges(
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
   const [pendingInstruction, setPendingInstruction] = useState("");
+  /** Lô op của bản xem trước dựng từ op (không phải câu lệnh) — xác nhận gửi lại đúng lô cùng `preview_id`. */
+  const [pendingOps, setPendingOps] = useState<Op[] | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [applying, setApplying] = useState(false);
   const [clarification, setClarification] = useState<string | null>(null);
@@ -74,6 +81,7 @@ export function useChanges(
       setError(null);
       setClarification(null);
       setPreview(null);
+      setPendingOps(null);
       setPendingInstruction(instruction.trim());
       try {
         const sessionId = getSessionId();
@@ -104,6 +112,31 @@ export function useChanges(
     [projectId, getBaseVersion, getSessionId]
   );
 
+  const requestOpsPreview = useCallback(
+    async (ops: Op[], label: string): Promise<PreviewOutcome> => {
+      const baseVersion = getBaseVersion();
+      if (baseVersion === null || ops.length === 0) return "skipped";
+      setPreviewing(true);
+      setError(null);
+      setClarification(null);
+      setPreview(null);
+      setPendingOps(ops);
+      setPendingInstruction(label);
+      try {
+        const res = await previewChanges(projectId, { ops, base_version: baseVersion });
+        setPreview(res.data);
+        setPreviewSource("instruction");
+        return "preview";
+      } catch (err) {
+        setError(failureMessage(err));
+        return "error";
+      } finally {
+        setPreviewing(false);
+      }
+    },
+    [projectId, getBaseVersion]
+  );
+
   const cancelPreview = useCallback(() => {
     setPreview(null);
     setPreviewSource(null);
@@ -113,6 +146,7 @@ export function useChanges(
   const adoptPreview = useCallback((next: PreviewResult, instruction: string) => {
     setError(null);
     setClarification(null);
+    setPendingOps(null);
     setPendingInstruction(instruction.trim());
     setPreview(next);
     setPreviewSource("instruction");
@@ -149,7 +183,7 @@ export function useChanges(
         const res =
           previewSource === "instruction"
             ? await applyChanges(projectId, {
-                instruction: pendingInstruction,
+                ...(pendingOps ? { ops: pendingOps } : { instruction: pendingInstruction }),
                 base_version: baseVersion,
                 preview_id: preview.preview_id,
                 ...(sessionId ? { session_id: sessionId } : {}),
@@ -172,7 +206,7 @@ export function useChanges(
         setApplying(false);
       }
     },
-    [projectId, getBaseVersion, getSessionId, preview, previewSource, pendingInstruction, onApplied]
+    [projectId, getBaseVersion, getSessionId, preview, previewSource, pendingInstruction, pendingOps, onApplied]
   );
 
   const undo = useCallback(async () => {
@@ -216,6 +250,7 @@ export function useChanges(
     history,
     historyLoading,
     requestPreview,
+    requestOpsPreview,
     confirmPreview,
     cancelPreview,
     adoptPreview,

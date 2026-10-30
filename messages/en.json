@@ -44,7 +44,22 @@
       "custom": "Custom section",
       "section": "Section {number}",
       "feature": "Feature {code}",
-      "function": "Function {code}"
+      "function": "Function {code}",
+      "slots": {
+        "vision": "Purpose and vision",
+        "goals": "Product goals",
+        "scope": "Release scope (in / out)",
+        "high_rules": "High-level business rules",
+        "context": "System context and external systems",
+        "features": "Product functions overview",
+        "platforms": "Platforms and operating environment",
+        "assumptions": "Assumptions",
+        "risks": "Risks",
+        "open_questions": "Open questions (TBD)",
+        "security": "Common security requirements",
+        "localization": "Localization requirements",
+        "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)"
+      }
     },
     "billingData": {
       "missing": "No {what} data received",
@@ -608,6 +623,7 @@
         "projects": "Projects",
         "notifications": "Notifications",
         "members": "Members",
+        "library": "Template library",
         "billing": "Credits & billing"
       },
       "soonItem": "{label} · {soon}",
@@ -1023,6 +1039,32 @@
         },
         "soleLeadHint": "You are the only Lead — make another member a Lead before you leave.",
         "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
+      },
+      "library": {
+        "title": "Template library",
+        "intro": "Your organization's SRS templates and standard content, reused across customer-template projects.",
+        "readOnly": "You have view-only access — only Leads and Analysts can add, edit or delete.",
+        "loading": "Loading the library…",
+        "delete": "Delete",
+        "confirmDelete": "Confirm delete",
+        "templates": {
+          "title": "Saved SRS templates",
+          "help": "Saved from the document import screen of a project whose heading mapping is confirmed. New projects pick one at the upload step instead of uploading and mapping again.",
+          "empty": "Your organization has not saved any templates yet.",
+          "meta": "{file} · {headings} headings · {customs} kept verbatim · used {uses} times · saved {date}"
+        },
+        "content": {
+          "title": "Standard content by section",
+          "help": "Content shared by every project, e.g. Document Conventions, References. A project's own section with the same title gets a button to use it — the analyst previews before anything is written.",
+          "empty": "The library has no content yet.",
+          "add": "Add content",
+          "edit": "Edit",
+          "titleLabel": "Section title (matches the heading in the template)",
+          "textLabel": "Content",
+          "textHelp": "Separate paragraphs with a blank line; lines starting with “- ” are bullets. Document content should be written in English.",
+          "save": "Save",
+          "cancel": "Cancel"
+        }
       }
     },
     "projectStart": {
@@ -1399,7 +1441,13 @@
       "untranslatedTitle": "These sections show the original text until they are translated",
       "untranslated": "{count, plural, one {# section not translated} other {# sections not translated}}",
       "translate": "Translate document",
-      "emptyDocument": "The document will appear here as soon as the first steps finish."
+      "emptyDocument": "The document will appear here as soon as the first steps finish.",
+      "draftSection": "Ask AI to draft",
+      "useLibrary": "Use organization content",
+      "saveToLibrary": "Save to library",
+      "saveToLibraryTitle": "Save this section's content so other projects of your organization can reuse it",
+      "libraryBanner": "Your organization's library has content for {count} empty sections.",
+      "libraryApplyAll": "Preview and use"
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -1492,7 +1540,9 @@
           "title": "Filled in a later step",
           "hint": "Not an error — AI fills these when it reaches the steps."
         }
-      }
+      },
+      "draftInChat": "Ask AI to draft",
+      "draftInChatTitle": "AI drafts from the template guidance and project data; it asks you when facts are missing"
     },
     "readiness": {
       "loading": "Loading readiness score…",
@@ -2002,7 +2052,9 @@
       "acceptAsIsEmpty": "Approve as is:",
       "fixFlag": "Please fix this issue as suggested: {message}",
       "editSection": "In {label}: ",
-      "fixComment": "In {label}, fix per this comment: {text}"
+      "fixComment": "In {label}, fix per this comment: {text}",
+      "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. ",
+      "useLibrary": "Write section {label} with exactly this organization content (keep the wording): {text}"
     },
     "aiSettings": {
       "aria": "How the AI works with you — {mode}",
@@ -2144,7 +2196,9 @@
       "usecase_relation_invalid": "Invalid relation between use cases",
       "usecase_auth_relation": "Use case login relation",
       "goal_not_covered": "Goal not covered",
-      "accepted_as_is": "Accepted as is"
+      "accepted_as_is": "Accepted as is",
+      "template_section_absent": "The required template has no such section",
+      "template_section_empty": "Template section has no content yet"
     },
     "comments": {
       "role": {
@@ -2407,6 +2461,12 @@
       "note": "The AI approved these steps itself. Review if you like — you don't have to see them all before sending.",
       "markSeen": "Seen",
       "markAllSeen": "Mark all as seen"
+    },
+    "library": {
+      "one": "Use organization content for section “{heading}”",
+      "many": "Use organization content for {count} empty sections",
+      "saved": "Saved to your organization's library",
+      "saveFailed": "Could not save to the library. Please try again."
     }
   },
   "errors": {
@@ -2588,7 +2648,8 @@
         "users": "Users",
         "orgs": "Organizations",
         "aiCost": "AI cost",
-        "feedback": "Feedback"
+        "feedback": "Feedback",
+        "templateGaps": "Template sections without data"
       }
     },
     "search": {
@@ -2767,6 +2828,18 @@
         "confirmUnsuspend": "Confirm reactivate",
         "failed": "Couldn't update the account status"
       }
+    },
+    "templateGaps": {
+      "title": "Template sections without data",
+      "description": "Required-template headings FlintFlow has no section for (kept as own sections), grouped by title. Most often empty first.",
+      "loadFailed": "Could not load the statistics",
+      "loading": "Loading statistics…",
+      "empty": "No project uses a required template yet.",
+      "basis": "Based on {projects} required-template projects.",
+      "colTitle": "Title (variants)",
+      "colProjects": "Projects",
+      "colEmpty": "Still empty",
+      "colSuggested": "Current suggestion"
     }
   },
   "mode1": {
@@ -3276,7 +3349,8 @@
         "gap_review": "Gap report ready for review",
         "delivered": "Gap report delivered",
         "change_requested": "Editing via change request",
-        "incomplete": "Incomplete — your call"
+        "incomplete": "Incomplete — your call",
+        "drafting": "Writing the missing parts"
       },
       "crStatus": {
         "draft": "Draft",
@@ -3671,7 +3745,21 @@
         }
       },
       "uploadTemplate": "Upload the required template (.docx, blank or partly filled)",
-      "uploadTemplateHint": "The Word .docx template the customer requires. FlintFlow reads its structure, drafts only the sections it has and keeps their order."
+      "uploadTemplateHint": "The Word .docx template the customer requires. FlintFlow reads its structure, drafts only the sections it has and keeps their order.",
+      "orgTemplates": {
+        "title": "Or use a template saved by your organization",
+        "help": "Import from the saved template file itself; the heading mapping confirmed in an earlier project is applied.",
+        "meta": "{file} · {headings} headings · used {uses} times",
+        "use": "Use this template"
+      },
+      "saveToOrg": {
+        "help": "Save this template file and the heading mapping you just confirmed for your organization — later projects pick it at the upload step without mapping again.",
+        "nameLabel": "Template name",
+        "action": "Save as organization template",
+        "saving": "Saving…",
+        "saved": "Saved. New projects in your organization will see this template at the upload step.",
+        "failed": "Could not save the template. Please try again."
+      }
     },
     "mappingReview": {
       "title": "Confirm heading → section mapping",
@@ -3700,7 +3788,12 @@
       "skipColumn": "Skip this column",
       "otherGroup": "Other",
       "saving": "Saving…",
-      "submit": "Confirm mapping"
+      "submit": "Confirm mapping",
+      "slotsGroup": "Part of a section (template splits finer than FlintFlow)",
+      "sectionsGroup": "Whole section of the FlintFlow standard template",
+      "guidance": "Template guidance: {text}",
+      "overlap": "Another heading takes “{section}”, which shares data with this choice — the content would be printed twice. Keep only one.",
+      "overlapBlocked": "Some headings share the same data — fix them before saving."
     },
     "flagsPanel": {
       "intro": "The document has been imported — every change goes through a change request (created from the gap report, the “Edit document with preview” panel or an edit command in chat). Release is possible once there are no red flags.",
@@ -3926,7 +4019,9 @@
       "downloading": "Downloading…",
       "downloadFailed": "Could not download the gap report",
       "complete": "Complete",
-      "completing": "Creating the baseline…"
+      "completing": "Creating the baseline…",
+      "draftMissing": "Write the missing parts with FlintFlow",
+      "draftMissingNote": "Complete = lock the original from the template as is (empty sections stay empty). Write the missing parts = AI builds the brief from what exists, drafts each missing section for you to review, then you sign baseline 1.0 in the template layout."
     },
     "referenceDocs": {
       "aria": "Reference documents",
