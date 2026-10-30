@@ -166,6 +166,13 @@ const parseDocument = () => {
   };
 };
 
+/** FLF-343: mục độ tin < 0.8 tự nhận lúc tách file (giữ độ tin) — không còn dừng ở mapping_review. */
+const autoConfirmMapping = () => {
+  for (const e of S().profile?.heading_map ?? []) {
+    if (!e.confirmed && e.confidence < 0.8) Object.assign(e, { confirmed: true, auto_confirmed: true });
+  }
+};
+
 const sectionIds = () => [...new Set((S().profile?.heading_map ?? []).map((h) => h.section_id).filter((id) => id !== "unmapped"))];
 
 /**
@@ -188,7 +195,9 @@ const creditEstimate = (): CreditEstimate | null => {
   const status = S().importDoc?.status;
   if (status !== "mapping_review" && (status !== "extracting" || S().extractRunning)) return null;
   const calls = status === "mapping_review" ? sectionIds().length : S().sections.filter((s) => s.status !== "done").length;
-  return { text_batches: calls, diagram_images: 0, ai_calls: calls, credits: calls * COST.extract, available_credits: S().credits };
+  // FLF-343: báo một lần cho cả lượt một mạch — I-4 + một lượt kiểm tra AI (1.11)
+  const checks = 1;
+  return { text_batches: calls, diagram_images: 0, check_calls: checks, ai_calls: calls + checks, credits: calls * COST.extract + checks * COST.semantic, available_credits: S().credits };
 };
 
 /**
@@ -254,7 +263,9 @@ const extractNextSection = () => {
   }
   doc.extract_cursor = null;
   S().extractRunning = false;
-  setImportStatus(S().reviewFields.some((f) => !f.confirmed) ? "fields_review" : "baselining");
+  // FLF-343: không dừng ở fields_review — job finalize nối tiếp (base_version do server tính)
+  setImportStatus("baselining");
+  S().finalizeJob = "finalize";
 };
 
 const redFlag = (): Flag => ({
@@ -273,8 +284,20 @@ const redFlag = (): Flag => ({
 
 const yellowFlag = (): Flag => ({ ...redFlag(), id: "FL002", level: "yellow", rule_id: "ambiguity", section_id: "fixed:4.2.3", message: "\"quickly\" không đo được — cần ngưỡng (vd ≤ 2 giây)" });
 
-/** Cờ mở sau import: đỏ theo `redFlags` (0 ⇒ release được) + một cờ vàng. Chưa có baseline ⇒ chưa check. */
-const openFlags = (): Flag[] => (hasBaseline() ? [...(S().redFlags > 0 ? [redFlag()] : []), yellowFlag()] : []);
+/** FLF-343: field độ tin thấp tự nhận vào baseline ⇒ cờ vàng "Cần xem" mang đường dẫn field. */
+const needsReviewFlags = (): Flag[] =>
+  S().reviewFields.map((f, i) => ({
+    ...redFlag(),
+    id: `FL${String(100 + i)}`,
+    level: "yellow",
+    rule_id: "import_needs_review",
+    section_id: f.section_id,
+    target_id: f.path,
+    message: `Cần xem: ${f.path} — độ tin ${Math.round(f.confidence * 100)}%; đã đưa vào bản 0.1, sai thì sửa bằng change request`,
+  }));
+
+/** Cờ mở sau import: đỏ theo `redFlags` (0 ⇒ release được) + một cờ vàng (+ cờ Cần xem). Chưa có baseline ⇒ chưa check. */
+const openFlags = (): Flag[] => (hasBaseline() ? [...(S().redFlags > 0 ? [redFlag()] : []), yellowFlag(), ...needsReviewFlags()] : []);
 
 const newBaseline =(type: Baseline["type"], version: string): Baseline => ({
   id: `BL${String(S().baselines.length + 1).padStart(3, "0")}`,
@@ -691,7 +714,8 @@ export const mode1Handlers = [
         original_name: name,
         size: file.size,
         sha256: "a".repeat(64),
-        status: issues.length ? "preflight_rejected" : "awaiting_latest_confirm",
+        // FLF-343: tách file + khớp mẫu ngay ⇒ `extracting` chưa chạy (màn báo credit + câu hỏi "bản mới nhất")
+        status: issues.length ? "preflight_rejected" : "extracting",
         preflight: { status: issues.length ? "rejected" : "accepted", issues },
         stamp: null,
         confirmed_latest_at: null,
@@ -704,6 +728,9 @@ export const mode1Handlers = [
       S().importDoc = doc;
       S().project.import_state = doc.status;
       if (issues.length) return fail(422, "IMPORT_FILE_REJECTED", "File chưa nhập được", { import_id: doc.id, issues });
+      parseDocument();
+      autoConfirmMapping();
+      S().sections = sectionIds().map((section_id): ExtractionSection => ({ section_id, status: "pending", fields_total: 0, fields_needing_review: 0, error: null }));
       return ok({ import: doc }, 201);
     }),
   ),
@@ -764,13 +791,25 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #6 Trích field (I-4) — trả ngay, job chạy nền; FE poll #4
+  // #6 Nút Bắt đầu (FLF-343) — trả ngay, job chạy nền một mạch I-4 ⇒ baseline ⇒ kiểm tra; FE poll #4
   http.post(
     api("/projects/:projectId/import/extract"),
-    mode1(() => {
+    mode1(async ({ request }) => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
-      if (doc.status !== "extracting") return invalidImportState("extracting");
+      // Bản ghi cũ (trước FLF-343) ở awaiting_latest_confirm / mapping_review cũng bắt đầu được
+      if (!["awaiting_latest_confirm", "mapping_review", "extracting"].includes(doc.status)) return invalidImportState("extracting");
+      const body = await readJson(request);
+      if (!doc.confirmed_latest_at) {
+        if (body.confirm_latest !== true) return fail(409, "IMPORT_NEEDS_LATEST_CONFIRM", "Cần xác nhận đây là bản mới nhất của tài liệu trước", { import_id: doc.id });
+        doc.confirmed_latest_at = now();
+      }
+      if (doc.status === "awaiting_latest_confirm") parseDocument();
+      if (doc.status !== "extracting") {
+        autoConfirmMapping();
+        if (!S().sections.length) S().sections = sectionIds().map((section_id): ExtractionSection => ({ section_id, status: "pending", fields_total: 0, fields_needing_review: 0, error: null }));
+        setImportStatus("extracting");
+      }
       if (!S().extractRunning) startExtraction();
       return ok({ import: doc, sections: S().sections });
     }),
@@ -859,7 +898,10 @@ export const mode1Handlers = [
     mode1(() => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
-      if (!doc.paused || !["extracting", "baselining", "checking"].includes(doc.status)) return invalidImportState("extracting");
+      // FLF-343: bản ghi cũ ở fields_review / baselining chưa có job ⇒ finalize một mạch
+      const legacy = doc.status === "fields_review" || (doc.status === "baselining" && !S().finalizeJob);
+      if (!legacy && (!doc.paused || !["extracting", "baselining", "checking"].includes(doc.status))) return invalidImportState("extracting");
+      if (doc.status === "fields_review") setImportStatus("baselining");
       if (doc.status === "extracting") startExtraction();
       else {
         doc.paused = null;

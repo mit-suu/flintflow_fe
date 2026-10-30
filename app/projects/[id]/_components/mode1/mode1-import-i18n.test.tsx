@@ -9,17 +9,15 @@ import { resetMockState } from "@/mocks/state";
 import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import type { DocVersion } from "@/types/doc-version";
-import type { ImportedDocument, ReviewField, TemplateProfile } from "@/types/import";
+import type { ImportedDocument } from "@/types/import";
 import type { Flag } from "@/types/spine";
-import ConfirmLatestModal from "./ConfirmLatestModal";
 import CreditEstimateNote from "./CreditEstimateNote";
 import ExtractProgress from "./ExtractProgress";
-import FieldsReview from "./FieldsReview";
 import ImportWizard from "./ImportWizard";
-import MappingReviewTable from "./MappingReviewTable";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
 import PausedBanner from "./PausedBanner";
 import PreflightIssues from "./PreflightIssues";
+import StartImportCard from "./StartImportCard";
 import UploadStep from "./UploadStep";
 import ValueEditor from "./ValueEditor";
 import VersionsPanel from "./VersionsPanel";
@@ -36,27 +34,6 @@ beforeEach(() => {
 });
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
-
-const PROFILE: TemplateProfile = {
-  doc_version: "0.1",
-  template_family: "ieee830",
-  heading_map: [
-    { block_id: "B0001", heading_text: "1 Product Overview", section_id: "fixed:1", confidence: 0.97, detected_by: "style", confirmed: false },
-    { block_id: "B0007", heading_text: "3.2.4 Log out", section_id: "feature:@B0007", confidence: 0.62, detected_by: "numbering_pattern", confirmed: false },
-    { block_id: "B0011", heading_text: "Appendix B", section_id: "unmapped", confidence: 0.4, detected_by: "user", confirmed: false, template_section: true },
-  ],
-  table_map: [
-    { block_id: "B0005", column_index: 0, header: "Actor", field_path: "actors[].name", confidence: 0.9, confirmed: false, samples: ["Learner"], role: "name" },
-    { block_id: "B0005", column_index: 1, header: "", field_path: "glossary[].term", confidence: 0.5, confirmed: false },
-  ],
-  language: "vi",
-  layout: [],
-} as TemplateProfile;
-
-const FIELDS: ReviewField[] = [
-  { section_id: "fixed:2.1", path: "actors[id=A02].kind", value: "human", confidence: 0.55, source_block_ids: ["B0005"], origin: "vision", confirmed: false },
-  { section_id: "feature:@B0007", path: "project.code", value: "123", confidence: 0.5, source_block_ids: [], origin: "ai", confirmed: false },
-] as ReviewField[];
 
 const DOC: ImportedDocument = {
   id: "66f000000000000000000001",
@@ -103,7 +80,7 @@ const version = (v: string, kind: DocVersion["kind"]): DocVersion => ({
 });
 
 describe("Nhóm import mode 1 — tiếng Anh", () => {
-  it("các bước import (mapping, trích, xác nhận field, preflight, upload) không còn chữ tiếng Việt", () => {
+  it("các bước import (báo credit + bắt đầu, trích, preflight, upload) không còn chữ tiếng Việt", () => {
     const { container } = renderWithIntl(
       <div>
         <UploadStep onUpload={vi.fn()} />
@@ -114,7 +91,7 @@ describe("Nhóm import mode 1 — tiếng Anh", () => {
             { code: "NOT_DOCX", message: "bad file", location: null },
           ] as never}
         />
-        <MappingReviewTable profile={PROFILE} onSubmit={vi.fn()} />
+        <StartImportCard doc={{ ...DOC, paused: null, extract_cursor: null, confirmed_latest_at: null }} estimate={{ ai_calls: 5, credits: 50, text_batches: 3, diagram_images: 1, check_calls: 1, available_credits: 5 }} credits={5} onStart={vi.fn()} onPickAnother={vi.fn()} />
         <ExtractProgress
           doc={DOC}
           sections={[
@@ -128,18 +105,17 @@ describe("Nhóm import mode 1 — tiếng Anh", () => {
           onResume={vi.fn()}
         />
         <CreditEstimateNote estimate={{ ai_calls: 0, credits: 0, text_batches: 0, diagram_images: 0, available_credits: null }} />
-        <FieldsReview fields={FIELDS} onSubmit={vi.fn()} />
         <PausedBanner paused={{ reason: "resume_later", at: "2026-09-19T00:00:00.000Z" }} what="Checking" onResume={vi.fn()} />
       </div>,
       "en"
     );
     expect(vietnameseLeftovers(container)).toEqual([]);
-    expect(screen.getByRole("button", { name: "Confirm mapping" })).toBeInTheDocument();
-    expect(screen.getByText("Detected by section number")).toBeInTheDocument();
-    expect(screen.getAllByText("Actor — Actor name").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Start" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Top up credits" })).toBeInTheDocument();
+    expect(screen.getByText(/check calls/)).toBeInTheDocument();
   });
 
-  it("cờ, version, sửa phần tử và hộp xác nhận bản mới nhất không còn chữ tiếng Việt", () => {
+  it("cờ, version, sửa phần tử không còn chữ tiếng Việt", () => {
     const { container, baseElement } = renderWithIntl(
       <div>
         <Mode1FlagsPanel projectId={MODE1_PROJECT_ID} flags={[FLAG, { ...FLAG, id: "F2", level: "yellow" }]} />
@@ -150,7 +126,6 @@ describe("Nhóm import mode 1 — tiếng Anh", () => {
           onSave={vi.fn()}
           onCancel={vi.fn()}
         />
-        <ConfirmLatestModal open fileName="SRS.docx" onConfirm={vi.fn()} onPickAnother={vi.fn()} />
       </div>,
       "en"
     );

@@ -148,25 +148,26 @@ describe("ExtractProgress trong wizard — poll GET /import khi job nền chạy
     blocks_count: 12,
   });
 
-  it("mở lại trang giữa lúc đang trích (cursor ≠ null) ⇒ tự poll, tiến độ tăng tới khi sang xác nhận field", async () => {
+  it("mở lại trang giữa lúc đang trích (cursor ≠ null) ⇒ tự poll qua tạo bản gốc / kiểm tra tới khi xong (FLF-343)", async () => {
     const calls = serveFrames([
       frame(doc({ extract_cursor: "fixed:2.1" }), [section("fixed:1", "done"), section("fixed:2.1", "pending"), section("fixed:3.1.2", "pending")]),
       frame(doc({ extract_cursor: "fixed:3.1.2" }), [section("fixed:1", "done"), section("fixed:2.1", "done"), section("fixed:3.1.2", "pending")]),
-      frame(doc({ status: "fields_review", extract_cursor: null }), [section("fixed:1", "done"), section("fixed:2.1", "done"), section("fixed:3.1.2", "done")]),
+      frame(doc({ status: "baselining", extract_cursor: null }), [section("fixed:1", "done"), section("fixed:2.1", "done"), section("fixed:3.1.2", "done")]),
+      frame(doc({ status: "gap_review", extract_cursor: null }), [section("fixed:1", "done"), section("fixed:2.1", "done"), section("fixed:3.1.2", "done")]),
     ]);
     renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
 
     expect(await screen.findByText("Đang trích 2.1 Actors…")).toBeInTheDocument();
     expect(screen.getByText("1/3 section")).toBeInTheDocument();
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Mở trang change request" })).toBeInTheDocument();
     const settled = calls();
-    expect(settled).toBe(3);
-    // rời `extracting` ⇒ ngừng poll
+    expect(settled).toBe(4);
+    // xong ⇒ ngừng poll
     await new Promise((r) => setTimeout(r, 40));
     expect(calls()).toBe(settled);
   });
 
-  it("cursor null và chưa bấm ⇒ không poll, không tự gọi trích; bấm “Bắt đầu trích” thì mới chạy nền", async () => {
+  it("cursor null và chưa bấm ⇒ màn báo credit, không poll, không tự gọi trích; bấm “Bắt đầu” thì mới chạy nền", async () => {
     const calls = serveFrames([frame(doc(), [section("fixed:1", "pending")])]);
     let started = 0;
     mockServer.use(
@@ -177,7 +178,7 @@ describe("ExtractProgress trong wizard — poll GET /import khi job nền chạy
     );
     renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
 
-    const start = await screen.findByRole("button", { name: "Bắt đầu trích (AI)" });
+    const start = await screen.findByRole("button", { name: "Bắt đầu" });
     await new Promise((r) => setTimeout(r, 40));
     expect(calls()).toBe(1);
     expect(started).toBe(0);

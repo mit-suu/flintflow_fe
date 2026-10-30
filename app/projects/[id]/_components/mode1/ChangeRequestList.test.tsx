@@ -131,3 +131,67 @@ describe("ChangeRequestList — Viewer (readOnly)", () => {
     expect(screen.queryByRole("button", { name: "Tạo change request" })).not.toBeInTheDocument();
   });
 });
+
+describe("ChangeRequestList — Cần xem (FLF-343)", () => {
+  const flag = (id: string, rule_id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    level: "yellow",
+    rule_id,
+    section_id: "fixed:2.1",
+    target_id: "actors[id=A02].kind",
+    message: `Cần xem: tác nhân ${id} — độ tin 55%`,
+    remediation_step: null,
+    opened_at_version: 3,
+    resolved_at: null,
+    waived_by_user: false,
+    waive_reason: null,
+    waived_at_version: null,
+    ...over,
+  });
+  const serveFlags = (flags: unknown[]) =>
+    mockServer.use(http.get(`${API_BASE_URL}/projects/:projectId/flags`, () => HttpResponse.json({ data: flags, error: null })));
+
+  it("đếm + liệt kê mỗi cờ import_needs_review đang mở đúng một lần, link Tạo CR điền sẵn (không gán nguồn); cờ khác / đã đóng / đã waive không hiện", async () => {
+    serveList([]);
+    serveFlags([
+      flag("FL1", "import_needs_review"),
+      flag("FL2", "import_needs_review", { target_id: "B0007", section_id: "fixed:5.1" }),
+      flag("FL3", "ambiguity"),
+      flag("FL4", "import_needs_review", { resolved_at: "2026-10-30T00:00:00.000Z" }),
+      flag("FL5", "import_needs_review", { waived_by_user: true, waive_reason: "ok" }),
+    ]);
+    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    const section = await screen.findByRole("region", { name: "Cần xem (2)" });
+    expect(within(section).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(section).getByText("Dữ liệu đọc chưa chắc: Tác nhân A02 — Loại")).toBeInTheDocument();
+    expect(within(section).getByText("Khớp mục chưa chắc: 5.1 Business Rules")).toBeInTheDocument();
+    const links = within(section).getAllByRole("link", { name: "Tạo CR" });
+    const href = decodeURIComponent(links[0].getAttribute("href")!.replace(/\+/g, " "));
+    expect(href).toContain("panel=cr");
+    expect(href).toContain("new=1");
+    expect(href).toContain("actors[id=A02].kind");
+    expect(href).not.toContain("source=");
+  });
+
+  it("tiếng Anh: câu Cần xem dựng theo ngôn ngữ giao diện, không lòi câu tiếng Việt của BE", async () => {
+    serveList([]);
+    serveFlags([flag("FL1", "import_needs_review")]);
+    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />, "en");
+    const section = await screen.findByRole("region", { name: "Needs review (1)" });
+    expect(within(section).getByText(/^Uncertain reading: /)).toBeInTheDocument();
+    expect(within(section).queryByText(/Cần xem|độ tin/)).toBeNull();
+  });
+
+  it("không có cờ Cần xem ⇒ không có khối; viewer không có nút Tạo CR", async () => {
+    serveList([]);
+    serveFlags([]);
+    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    await screen.findByText("Chưa có change request nào ở mục này.");
+    expect(screen.queryByRole("region", { name: /Cần xem/ })).toBeNull();
+
+    serveFlags([flag("FL1", "import_needs_review")]);
+    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} readOnly />);
+    expect(await screen.findByRole("region", { name: "Cần xem (1)" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Tạo CR" })).toBeNull();
+  });
+});
