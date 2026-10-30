@@ -3308,8 +3308,8 @@
         "fields_review": "Chờ xác nhận field",
         "baselining": "Sẵn sàng tạo baseline",
         "checking": "Đang kiểm tra",
-        "gap_review": "Chờ xem gap report",
-        "delivered": "Đã giao gap report",
+        "gap_review": "Sẵn sàng tạo change request",
+        "delivered": "Sẵn sàng tạo change request",
         "change_requested": "Đang sửa qua change request",
         "incomplete": "Chưa hoàn thiện — chờ bạn quyết",
         "drafting": "Đang soạn phần còn thiếu"

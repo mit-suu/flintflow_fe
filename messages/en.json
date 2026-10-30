@@ -3308,8 +3308,8 @@
         "fields_review": "Awaiting field confirmation",
         "baselining": "Ready to create baseline",
         "checking": "Checking",
-        "gap_review": "Gap report ready for review",
-        "delivered": "Gap report delivered",
+        "gap_review": "Ready for change requests",
+        "delivered": "Ready for change requests",
         "change_requested": "Editing via change request",
         "incomplete": "Incomplete — your call",
         "drafting": "Writing the missing parts"
