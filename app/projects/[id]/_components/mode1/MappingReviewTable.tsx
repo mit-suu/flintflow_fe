@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FPT_SECTIONS, isProvisionalSection } from "@/lib/constants/fpt-sections";
+import { CONTENT_SLOTS, isContentSlot, slotOverlaps } from "@/lib/constants/content-slots";
 import { MAPPING_CONFIDENCE_THRESHOLD, UNMAPPED_SECTION, type MappingPatchRequest, type TemplateProfile } from "@/types/import";
 import { useMode1Labels } from "./i18n";
 import { formatPercent } from "./labels";
@@ -42,9 +43,11 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
   const options = useMemo(() => {
     const extra = profile.heading_map
       .map((h) => h.section_id)
-      .filter((id, i, all) => id !== UNMAPPED_SECTION && !FPT_SECTIONS.some((s) => s.id === id) && all.indexOf(id) === i);
+      .filter((id, i, all) => id !== UNMAPPED_SECTION && !isContentSlot(id) && !FPT_SECTIONS.some((s) => s.id === id) && all.indexOf(id) === i);
     return [...FPT_SECTIONS.map((s) => s.id), ...extra, UNMAPPED_SECTION];
   }, [profile.heading_map]);
+  // FLF-278: phần nhỏ của một mục (mẫu chia nhỏ hơn FlintFlow) — nhóm riêng trong ô chọn
+  const slotOptions = CONTENT_SLOTS.map((s) => s.id as string);
   const hasProvisional = options.some(isProvisionalSection);
 
   const columnValue = (blockId: string, column: number, suggested: string | null) => {
@@ -68,6 +71,16 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
     section.startsWith("fixed:")
       ? profile.heading_map.filter((o) => o.block_id !== blockId && sectionOf(o.block_id, o.section_id) === section).map((o) => o.heading_text)
       : [];
+
+  // Phần nhỏ và mục FPT chứa nó cùng có heading ⇒ in hai lần (BE từ chối) — báo ngay ở cả hai dòng, khoá nút lưu
+  const overlapWith = new Map<string, string>();
+  for (const [section, slot] of slotOverlaps(profile.heading_map.map((h) => sectionOf(h.block_id, h.section_id)))) {
+    for (const h of profile.heading_map) {
+      const v = sectionOf(h.block_id, h.section_id);
+      if (v === section) overlapWith.set(h.block_id, slot);
+      if (v === slot) overlapWith.set(h.block_id, section);
+    }
+  }
 
   const rows = lowOnly ? profile.heading_map.filter((h) => h.confidence < MAPPING_CONFIDENCE_THRESHOLD) : profile.heading_map;
 
@@ -126,6 +139,12 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                 <tr key={h.block_id} className="border-t border-[#F0EEEA]">
                   <td className="px-3 py-2">
                     <div className="font-semibold text-[#191817]">{h.heading_text}</div>
+                    {h.guidance && <div className="text-caption text-[#6B6862] line-clamp-2">{t("guidance", { text: h.guidance })}</div>}
+                    {overlapWith.has(h.block_id) && (
+                      <div role="alert" className="text-caption text-[#B03030]">
+                        {t("overlap", { section: L.sectionLabel(overlapWith.get(h.block_id)!) })}
+                      </div>
+                    )}
                     <div className="text-caption text-[#A8A49C]">
                       {t("detectedBy", { by: h.detected_by })}
                       {h.template_section && value === UNMAPPED_SECTION ? ` · ${t("templateOwnSection")}` : ""}
@@ -148,11 +167,22 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
                         headings[h.block_id] ? "border-[#6A62C4]" : "border-[#E4E1DC]"
                       }`}
                     >
-                      {options.map((id) => (
-                        <option key={id} value={id}>
-                          {optionLabel(id)}
-                        </option>
-                      ))}
+                      <optgroup label={t("sectionsGroup")}>
+                        {options.filter((id) => id !== UNMAPPED_SECTION).map((id) => (
+                          <option key={id} value={id}>
+                            {optionLabel(id)}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label={t("slotsGroup")}>
+                        {slotOptions.map((id) => (
+                          <option key={id} value={id}>
+                            {optionLabel(id)}
+                          </option>
+                        ))}
+                      </optgroup>
+                      {/* "Không khớp" luôn cuối danh sách */}
+                      <option value={UNMAPPED_SECTION}>{optionLabel(UNMAPPED_SECTION)}</option>
                     </select>
                   </td>
                 </tr>
@@ -234,11 +264,16 @@ export default function MappingReviewTable({ profile, onSubmit, busy = false }: 
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {overlapWith.size > 0 && (
+          <span role="status" className="text-body text-[#B03030]">
+            {t("overlapBlocked")}
+          </span>
+        )}
         <button
           type="button"
           onClick={submit}
-          disabled={busy}
+          disabled={busy || overlapWith.size > 0}
           className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
         >
           {busy ? t("saving") : t("submit")}

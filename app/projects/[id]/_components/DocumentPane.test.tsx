@@ -405,3 +405,68 @@ describe("followsHeading", () => {
     expect(blocks.map((_, i) => followsHeading(blocks, i))).toEqual([true, false, true, false, false]);
   });
 });
+
+describe("DocumentPane — Nhờ AI soạn mục riêng của mẫu bắt buộc (FLF-278)", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const withCustom: RenderedDocument = {
+    ...fixture,
+    sections: [
+      ...fixture.sections,
+      { id: "custom:CS07", number: "1.2", heading: "Document Conventions", level: 2, status: null, blocks: [] },
+      { id: "custom:CS08", number: "1.6", heading: "References", level: 2, status: null, blocks: [{ type: "paragraph", runs: [{ text: "IEEE 830" }] }] },
+    ],
+  } as RenderedDocument;
+
+  it("chỉ mục riêng còn trống có nút; bấm gửi nhãn mục để điền sẵn lệnh soạn nháp; không truyền ⇒ không có", async () => {
+    getDocument.mockResolvedValueOnce({ data: withCustom, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onDraftSection = vi.fn();
+    const { unmount } = renderWithIntl(<DocumentPane projectId="p1" onDraftSection={onDraftSection} />);
+    const buttons = await screen.findAllByRole("button", { name: "Nhờ AI soạn" });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    expect(onDraftSection).toHaveBeenCalledWith("§1.2 Document Conventions");
+    unmount();
+    getDocument.mockResolvedValueOnce({ data: withCustom, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByText("References", { exact: false });
+    expect(screen.queryByRole("button", { name: "Nhờ AI soạn" })).not.toBeInTheDocument();
+  });
+});
+
+describe("DocumentPane — thư viện nội dung của tổ chức (FLF-278)", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const withCustom: RenderedDocument = {
+    ...fixture,
+    sections: [
+      ...fixture.sections,
+      { id: "custom:CS07", number: "1.2", heading: "Document Conventions", level: 2, status: null, blocks: [] },
+      { id: "custom:CS08", number: "1.6", heading: "References", level: 2, status: null, blocks: [{ type: "paragraph", runs: [{ text: "IEEE 830" }] }] },
+    ],
+  } as RenderedDocument;
+
+  it("mục trống có gợi ý ⇒ nút dùng nội dung; mục đã viết ⇒ lưu vào thư viện; dải áp tất cả", async () => {
+    getDocument.mockResolvedValueOnce({ data: withCustom, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onUseLibrary = vi.fn();
+    const onSaveToLibrary = vi.fn();
+    const onUseLibraryAll = vi.fn();
+    renderWithIntl(
+      <DocumentPane
+        projectId="p1"
+        libraryMatchOf={(id) => (id === "custom:CS07" ? { empty: true } : undefined)}
+        onUseLibrary={onUseLibrary}
+        onSaveToLibrary={onSaveToLibrary}
+        libraryEmptyCount={1}
+        onUseLibraryAll={onUseLibraryAll}
+      />
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Dùng nội dung của tổ chức" }));
+    expect(onUseLibrary).toHaveBeenCalledWith("custom:CS07");
+    const save = screen.getAllByRole("button", { name: "Lưu vào thư viện" });
+    expect(save).toHaveLength(1);
+    fireEvent.click(save[0]);
+    expect(onSaveToLibrary).toHaveBeenCalledWith("custom:CS08");
+    expect(screen.getByText(/có sẵn nội dung cho 1 mục còn trống/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xem trước và dùng" }));
+    expect(onUseLibraryAll).toHaveBeenCalledTimes(1);
+  });
+});

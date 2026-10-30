@@ -3,6 +3,7 @@
  * trả ngay `extracting`, tiến độ đọc bằng poll `getImport`.
  */
 import type {
+  ContinueFlow2Response,
   ExtractResponse,
   FieldsPatchRequest,
   FinalizeResponse,
@@ -59,6 +60,13 @@ export const finalizeImport = (projectId: string, importId: string, baseVersion:
     method: "POST",
     // FLF-336: `complete: true` từ màn "Kết quả đọc file" (import `incomplete`)
     body: JSON.stringify({ import_id: importId, base_version: baseVersion, ...(recordOfChanges ? { record_of_changes: recordOfChanges } : {}), ...(opts.complete ? { complete: true } : {}) }),
+  });
+
+/** FLF-278 trên FLF-336: chế độ 3 ở `incomplete` ⇒ viết phần còn thiếu với FlintFlow (Luồng 2) thay vì Hoàn thiện. */
+export const continueImportFlow2 = (projectId: string, importId: string, baseVersion: number) =>
+  apiCall<ContinueFlow2Response>(`${base(projectId)}/import/continue`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId, base_version: baseVersion }),
   });
 
 export const resumeImport = (projectId: string, importId: string) =>

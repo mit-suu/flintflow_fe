@@ -44,7 +44,22 @@
       "custom": "Mục riêng",
       "section": "Mục {number}",
       "feature": "Tính năng {code}",
-      "function": "Chức năng {code}"
+      "function": "Chức năng {code}",
+      "slots": {
+        "vision": "Mục đích và tầm nhìn",
+        "goals": "Mục tiêu sản phẩm",
+        "scope": "Phạm vi phát hành (trong / ngoài)",
+        "high_rules": "Quy tắc nghiệp vụ cấp cao",
+        "context": "Bối cảnh hệ thống và hệ thống ngoài",
+        "features": "Tổng quan chức năng sản phẩm",
+        "platforms": "Nền tảng và môi trường hoạt động",
+        "assumptions": "Giả định",
+        "risks": "Rủi ro",
+        "open_questions": "Câu hỏi còn mở (TBD)",
+        "security": "Yêu cầu bảo mật chung",
+        "localization": "Yêu cầu bản địa hoá",
+        "analysis_models": "Sơ đồ phân tích (use case, luồng màn hình, ERD)"
+      }
     },
     "billingData": {
       "missing": "Không nhận được dữ liệu {what}",
@@ -608,6 +623,7 @@
         "projects": "Dự án",
         "notifications": "Thông báo",
         "members": "Thành viên",
+        "library": "Thư viện mẫu",
         "billing": "Credits & Thanh toán"
       },
       "soonItem": "{label} · {soon}",
@@ -1023,6 +1039,32 @@
         },
         "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
         "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
+      },
+      "library": {
+        "title": "Thư viện mẫu",
+        "intro": "Mẫu SRS và nội dung chuẩn của tổ chức, dùng lại cho các dự án theo mẫu khách hàng.",
+        "readOnly": "Bạn đang ở vai trò chỉ xem — chỉ Lead và Analyst được thêm, sửa, xoá.",
+        "loading": "Đang tải thư viện…",
+        "delete": "Xoá",
+        "confirmDelete": "Xác nhận xoá",
+        "templates": {
+          "title": "Mẫu SRS đã lưu",
+          "help": "Lưu từ màn nhập tài liệu của một dự án đã xác nhận mapping heading. Dự án mới chọn lại ở bước tải file, không phải tải và map lại.",
+          "empty": "Tổ chức chưa lưu mẫu nào.",
+          "meta": "{file} · {headings} heading · {customs} mục giữ nguyên văn · đã dùng {uses} lần · lưu {date}"
+        },
+        "content": {
+          "title": "Nội dung chuẩn theo mục",
+          "help": "Nội dung dùng chung cho mọi dự án, ví dụ Document Conventions, References. Mục riêng của dự án trùng tiêu đề sẽ có nút “Dùng nội dung của tổ chức” — BA xem trước rồi mới ghi.",
+          "empty": "Thư viện chưa có nội dung nào.",
+          "add": "Thêm nội dung",
+          "edit": "Sửa",
+          "titleLabel": "Tiêu đề mục (trùng với tiêu đề heading trong mẫu)",
+          "textLabel": "Nội dung",
+          "textHelp": "Mỗi đoạn cách nhau một dòng trống; dòng bắt đầu bằng “- ” là gạch đầu dòng. Nội dung tài liệu nên viết bằng tiếng Anh.",
+          "save": "Lưu",
+          "cancel": "Huỷ"
+        }
       }
     },
     "projectStart": {
@@ -1399,7 +1441,13 @@
       "untranslatedTitle": "Các mục này đang hiện chữ gốc cho tới khi được dịch",
       "untranslated": "{count} mục chưa dịch",
       "translate": "Dịch tài liệu",
-      "emptyDocument": "Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong."
+      "emptyDocument": "Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.",
+      "draftSection": "Nhờ AI soạn",
+      "useLibrary": "Dùng nội dung của tổ chức",
+      "saveToLibrary": "Lưu vào thư viện",
+      "saveToLibraryTitle": "Lưu nội dung mục này để các dự án khác của tổ chức dùng lại",
+      "libraryBanner": "Thư viện của tổ chức có sẵn nội dung cho {count} mục còn trống.",
+      "libraryApplyAll": "Xem trước và dùng"
     },
     "verification": {
       "closeHint": "Đóng bảng đánh giá",
@@ -1492,7 +1540,9 @@
           "title": "Sẽ điền ở bước sau",
           "hint": "Chưa phải lỗi — AI điền khi chạy tới các bước này."
         }
-      }
+      },
+      "draftInChat": "Nhờ AI soạn",
+      "draftInChatTitle": "AI soạn nháp từ hướng dẫn của mẫu và dữ liệu dự án; thiếu thông tin thì hỏi bạn"
     },
     "readiness": {
       "loading": "Đang tải điểm sẵn sàng…",
@@ -2002,7 +2052,9 @@
       "acceptAsIsEmpty": "Duyệt như hiện tại:",
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
       "editSection": "Trong {label}: ",
-      "fixComment": "Trong {label}, sửa theo góp ý: {text}"
+      "fixComment": "Trong {label}, sửa theo góp ý: {text}",
+      "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. ",
+      "useLibrary": "Viết mục {label} bằng đúng nội dung sau của tổ chức (giữ nguyên chữ): {text}"
     },
     "aiSettings": {
       "aria": "Cách AI làm việc với bạn — {mode}",
@@ -2144,7 +2196,9 @@
       "usecase_relation_invalid": "Quan hệ giữa use case không hợp lệ",
       "usecase_auth_relation": "Quan hệ đăng nhập của use case",
       "goal_not_covered": "Mục tiêu chưa được đáp ứng",
-      "accepted_as_is": "Đã chấp nhận nguyên trạng"
+      "accepted_as_is": "Đã chấp nhận nguyên trạng",
+      "template_section_absent": "Mẫu bắt buộc không có mục này",
+      "template_section_empty": "Mục của mẫu chưa có nội dung"
     },
     "comments": {
       "role": {
@@ -2407,6 +2461,12 @@
       "note": "AI đã tự duyệt những bước này. Xem nếu muốn — không bắt buộc xem hết trước khi gửi.",
       "markSeen": "Đã xem",
       "markAllSeen": "Đánh dấu đã xem tất cả"
+    },
+    "library": {
+      "one": "Dùng nội dung của tổ chức cho mục “{heading}”",
+      "many": "Dùng nội dung của tổ chức cho {count} mục còn trống",
+      "saved": "Đã lưu vào thư viện của tổ chức",
+      "saveFailed": "Chưa lưu được vào thư viện. Vui lòng thử lại."
     }
   },
   "errors": {
@@ -2588,7 +2648,8 @@
         "users": "Người dùng",
         "orgs": "Tổ chức",
         "aiCost": "Chi phí AI",
-        "feedback": "Phản hồi"
+        "feedback": "Phản hồi",
+        "templateGaps": "Mục mẫu khách thiếu dữ liệu"
       }
     },
     "search": {
@@ -2767,6 +2828,18 @@
         "confirmUnsuspend": "Xác nhận mở khoá",
         "failed": "Không thể cập nhật trạng thái tài khoản"
       }
+    },
+    "templateGaps": {
+      "title": "Mục mẫu khách thiếu dữ liệu",
+      "description": "Heading của mẫu bắt buộc mà FlintFlow không có mục tương ứng (giữ thành mục riêng), gộp theo tiêu đề. Mục còn trống nhiều nhất đứng đầu.",
+      "loadFailed": "Không thể tải thống kê",
+      "loading": "Đang tải thống kê…",
+      "empty": "Chưa có dự án nào theo mẫu bắt buộc.",
+      "basis": "Tính trên {projects} dự án theo mẫu bắt buộc.",
+      "colTitle": "Tiêu đề (các cách viết)",
+      "colProjects": "Dự án gặp",
+      "colEmpty": "Còn trống",
+      "colSuggested": "Gợi ý hiện tại"
     }
   },
   "mode1": {
@@ -3276,7 +3349,8 @@
         "gap_review": "Chờ xem gap report",
         "delivered": "Đã giao gap report",
         "change_requested": "Đang sửa qua change request",
-        "incomplete": "Chưa hoàn thiện — chờ bạn quyết"
+        "incomplete": "Chưa hoàn thiện — chờ bạn quyết",
+        "drafting": "Đang soạn phần còn thiếu"
       },
       "crStatus": {
         "draft": "Nháp",
@@ -3671,7 +3745,21 @@
         }
       },
       "uploadTemplate": "Tải lên mẫu bắt buộc (.docx, trống hoặc điền dở)",
-      "uploadTemplateHint": "File Word .docx của mẫu khách yêu cầu. FlintFlow đọc cấu trúc mẫu, chỉ soạn những mục mẫu có và giữ nguyên thứ tự."
+      "uploadTemplateHint": "File Word .docx của mẫu khách yêu cầu. FlintFlow đọc cấu trúc mẫu, chỉ soạn những mục mẫu có và giữ nguyên thứ tự.",
+      "orgTemplates": {
+        "title": "Hoặc dùng mẫu đã lưu của tổ chức",
+        "help": "Nhập từ chính file mẫu đã lưu; mapping heading đã xác nhận ở dự án trước được áp sẵn.",
+        "meta": "{file} · {headings} heading · đã dùng {uses} lần",
+        "use": "Dùng mẫu này"
+      },
+      "saveToOrg": {
+        "help": "Lưu file mẫu và mapping heading vừa xác nhận cho tổ chức — dự án sau chọn lại ở bước tải file, không phải map lại.",
+        "nameLabel": "Tên mẫu",
+        "action": "Lưu làm mẫu của tổ chức",
+        "saving": "Đang lưu…",
+        "saved": "Đã lưu. Dự án mới của tổ chức sẽ thấy mẫu này ở bước tải file.",
+        "failed": "Chưa lưu được mẫu. Vui lòng thử lại."
+      }
     },
     "mappingReview": {
       "title": "Xác nhận mapping heading → section",
@@ -3700,7 +3788,12 @@
       "skipColumn": "Không lấy cột này",
       "otherGroup": "Khác",
       "saving": "Đang lưu…",
-      "submit": "Xác nhận mapping"
+      "submit": "Xác nhận mapping",
+      "slotsGroup": "Một phần nội dung (mẫu chia nhỏ hơn FlintFlow)",
+      "sectionsGroup": "Cả mục theo mẫu chuẩn FlintFlow",
+      "guidance": "Hướng dẫn trong mẫu: {text}",
+      "overlap": "Heading khác đang nhận “{section}” — trùng dữ liệu với lựa chọn này, nội dung sẽ in hai lần. Chỉ giữ một bên.",
+      "overlapBlocked": "Còn heading trùng dữ liệu — sửa trước khi lưu."
     },
     "flagsPanel": {
       "intro": "Tài liệu đã import — mọi thay đổi đi qua change request (tạo từ gap report, panel “Sửa tài liệu có xem trước” hoặc lệnh sửa trong chat). Release được khi hết cờ đỏ.",
@@ -3926,7 +4019,9 @@
       "downloading": "Đang tải…",
       "downloadFailed": "Không tải được gap report",
       "complete": "Hoàn thiện",
-      "completing": "Đang chốt bản gốc…"
+      "completing": "Đang chốt bản gốc…",
+      "draftMissing": "Viết phần còn thiếu với FlintFlow",
+      "draftMissingNote": "Hoàn thiện = khoá bản gốc từ chính mẫu (mục trống để trống). Viết phần còn thiếu = AI dựng Brief từ phần đã có, soạn từng mục còn thiếu để bạn duyệt, rồi ký baseline 1.0 theo đúng mẫu."
     },
     "referenceDocs": {
       "aria": "Tài liệu tham khảo",

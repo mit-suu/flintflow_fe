@@ -12,6 +12,11 @@ interface ReadingResultScreenProps {
   structure: TargetStructure;
   /** Bấm "Hoàn thiện" ⇒ finalize với `complete: true`. */
   onComplete: () => void;
+  /**
+   * FLF-278 trên FLF-336 — chế độ 3: "Viết phần còn thiếu với FlintFlow" (Luồng 2: Brief từ phần đã có, AI soạn từng bước
+   * còn thiếu, BA duyệt, ký baseline 1.0). Không truyền ⇒ không có nút (chế độ 4 chưa hỗ trợ).
+   */
+  onDraftMissing?: () => void;
   busy?: boolean;
 }
 
@@ -26,7 +31,7 @@ const STATUS_TONE: Record<TargetStructure["sections"][number]["status"], string>
  * chế độ thật Code đã chọn (3 / 4), hai lối đi: **Dừng, tải gap report** (dự án "chưa hoàn thiện", mở lại tiếp được, chỉ xuất
  * DRAFT) hoặc **Hoàn thiện** (lát 1: tạo v0 như hôm nay; lát sau: rà soát phần có sẵn rồi soạn phần thiếu).
  */
-export default function ReadingResultScreen({ projectId, structure, onComplete, busy = false }: ReadingResultScreenProps) {
+export default function ReadingResultScreen({ projectId, structure, onComplete, onDraftMissing, busy = false }: ReadingResultScreenProps) {
   const t = useTranslations("mode1.readingResult");
   const L = useMode1Labels();
   const [downloading, setDownloading] = useState(false);
@@ -73,13 +78,23 @@ export default function ReadingResultScreen({ projectId, structure, onComplete, 
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#ECEAE5] pt-3">
-        <p className="flex-1 min-w-[240px] text-caption text-[#8A867E]">{t("stopNote")}</p>
+        <p className="flex-1 min-w-[240px] text-caption text-[#8A867E]">{onDraftMissing && structure.resolved_mode === 3 ? t("draftMissingNote") : t("stopNote")}</p>
         <button type="button" disabled={busy || downloading} onClick={() => void download()} className="px-4 py-2 rounded-[10px] border border-[#ECEAE5] bg-white text-[#191817] text-body font-bold cursor-pointer disabled:opacity-50">
           {downloading ? t("downloading") : t("stop")}
         </button>
-        <button type="button" disabled={busy} onClick={onComplete} className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold cursor-pointer disabled:opacity-50">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onComplete}
+          className={onDraftMissing && structure.resolved_mode === 3 ? "px-4 py-2 rounded-[10px] border border-[#ECEAE5] bg-white text-[#191817] text-body font-bold cursor-pointer disabled:opacity-50" : "px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold cursor-pointer disabled:opacity-50"}
+        >
           {busy ? t("completing") : t("complete")}
         </button>
+        {onDraftMissing && structure.resolved_mode === 3 && (
+          <button type="button" disabled={busy} onClick={onDraftMissing} className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold cursor-pointer disabled:opacity-50">
+            {t("draftMissing")}
+          </button>
+        )}
       </div>
     </section>
   );

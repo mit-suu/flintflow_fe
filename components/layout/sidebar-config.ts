@@ -1,7 +1,7 @@
 import type { IconName } from "@/components/ui/Icon";
 
 /** `id` vừa là khoá React vừa là key nhãn trong `app.shell.items.*` — thêm mục thì thêm key ở cả hai bản messages. */
-export type SidebarItemId = "projects" | "notifications" | "members" | "billing";
+export type SidebarItemId = "projects" | "notifications" | "members" | "library" | "billing";
 
 interface SidebarItemBase {
   id: SidebarItemId;
@@ -46,6 +46,8 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
     // nhóm (`OrgSwitcher`). Mục bên dưới là quản lý CHÍNH tổ chức đang mở: thành viên, lời mời, xoá tổ chức.
     items: [
       { id: "members", icon: "users", status: "ready", href: "/home/members" },
+      // FLF-278: mẫu SRS và nội dung chuẩn dùng lại giữa các dự án theo mẫu bắt buộc
+      { id: "library", icon: "file-template", status: "ready", href: "/home/library" },
       { id: "billing", icon: "credit-card", status: "ready", href: "/home/billing" },
     ],
   },
