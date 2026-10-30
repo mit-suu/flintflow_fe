@@ -6,20 +6,15 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { TEMPLATE_INTENT_OPTIONS } from "@/lib/project-start";
 import type { ProjectStartKind, TemplateIntent } from "@/types/project";
-import type { RocRow } from "@/types/document";
 import type { ImportStatus } from "@/types/import";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useImport } from "../../hooks/mode1/useImport";
-import ConfirmLatestModal from "./ConfirmLatestModal";
-import CreditEstimateNote from "./CreditEstimateNote";
 import ExtractProgress from "./ExtractProgress";
 import ReadingResultScreen from "./ReadingResultScreen";
-import FieldsReview from "./FieldsReview";
 import { IMPORT_DONE_STATUSES } from "./labels";
-import MappingReviewTable from "./MappingReviewTable";
 import PausedBanner from "./PausedBanner";
 import PreflightIssues from "./PreflightIssues";
-import RecordOfChangesCard from "./RecordOfChangesCard";
+import StartImportCard from "./StartImportCard";
 import UploadStep from "./UploadStep";
 import OrgTemplatePicker from "./OrgTemplatePicker";
 import SaveOrgTemplateCard from "./SaveOrgTemplateCard";
@@ -30,32 +25,27 @@ interface ImportWizardProps {
   credits: number | null;
   /** Gọi sau mỗi bước làm đổi `project.import_state` / credit (header). */
   onChanged?: () => void;
-  /** Nhịp poll khi trích — test đặt nhỏ. */
+  /** Nhịp poll khi chạy nền — test đặt nhỏ. */
   pollMs?: number;
   /** FLF-335: lựa chọn lúc tạo dự án — dự án mới có mẫu bắt buộc ⇒ màn tải mẫu, ý định `fixed` cố định. */
   startKind?: ProjectStartKind | null;
   templateIntent?: TemplateIntent | null;
 }
 
-const STEPS: { id: "upload" | "mapping" | "extract" | "fields" | "result" | "baseline" | "gap"; statuses: ImportStatus[] }[] = [
-  { id: "upload", statuses: ["uploaded", "preflight_rejected", "awaiting_latest_confirm", "parsing"] },
-  { id: "mapping", statuses: ["mapping_review"] },
-  { id: "extract", statuses: ["extracting"] },
-  { id: "fields", statuses: ["fields_review"] },
-  // FLF-336 I-5: so cấu trúc đích — thiếu mục ⇒ điểm dừng "Kết quả đọc file"
-  { id: "result", statuses: ["incomplete"] },
-  { id: "baseline", statuses: ["baselining", "checking"] },
-  { id: "gap", statuses: IMPORT_DONE_STATUSES as ImportStatus[] },
-];
+type StepId = "upload" | "start" | "run" | "result" | "done";
+const STEP_IDS: StepId[] = ["upload", "start", "run", "result", "done"];
+
+/** Trạng thái chạy nền của lượt một mạch (bản ghi cũ ở `fields_review` cũng thuộc bước này — chỉ cần bấm Tiếp tục). */
+const RUN_STATUSES: ImportStatus[] = ["extracting", "fields_review", "baselining", "checking"];
+
+/** Bước đã đọc xong file ⇒ hiện ngôn ngữ nhận diện (FLF-265, D3). */
+const LANGUAGE_STATUSES: ImportStatus[] = ["extracting", "baselining", "checking"];
 
 /**
- * Bước đã đọc xong file ⇒ hiện ngôn ngữ nhận diện (FLF-265, D3). Không gắn vào bước mapping vì BE có thể bỏ qua nó
- * (mapping đủ tin cậy ⇒ đi thẳng sang trích).
+ * Import SRS có sẵn — FLF-343 chạy một mạch: tải lên (preflight + tách file + khớp mẫu) ⇒ màn báo credit một lần kèm câu hỏi
+ * "bản mới nhất" ⇒ Bắt đầu ⇒ đọc file ⇒ baseline 0.1 ⇒ kiểm tra ⇒ trang tạo change request (`?panel=cr`). Không còn bước xác
+ * nhận mapping / field / Record of Changes / bấm tạo baseline. Chế độ 3/4 vẫn dừng ở "Kết quả đọc file" (FLF-336).
  */
-const LANGUAGE_STATUSES: ImportStatus[] = ["fields_review", "baselining", "checking"];
-
-
-/** Luồng 1.1–1.12 (UC-19–UC-22): mỗi bước hiện theo `import.status` do BE trả. */
 export default function ImportWizard({ projectId, credits, onChanged, pollMs, startKind = null, templateIntent = null }: ImportWizardProps) {
   const router = useRouter();
   const t = useTranslations("mode1.importWizard");
@@ -64,26 +54,34 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
   /** FLF-335: ý định với file (bước 1.2). Dự án mới có mẫu bắt buộc ⇒ `fixed` cố định; còn lại người dùng chọn, mặc định tự do. */
   const intentLocked = templateIntent === "fixed" && startKind === "new";
   const [intent, setIntent] = useState<TemplateIntent>(templateIntent ?? "free");
-  /** Record of Changes người dùng đã sửa (FLF-252); `null` = chưa đụng tới. */
-  const [recordOfChanges, setRecordOfChanges] = useState<RocRow[] | null>(null);
   const doc = imp.doc;
   const status: ImportStatus | null = doc?.status ?? null;
-  const stepIndex = status ? STEPS.findIndex((s) => s.statuses.includes(status)) : 0;
+  const showUpload = !doc || status === "preflight_rejected" || pickAnother;
+  const step: StepId = showUpload || status === "uploaded" || status === "parsing"
+    ? "upload"
+    : imp.awaitingStart
+      ? "start"
+      : status === "incomplete"
+        ? "result"
+        : status && IMPORT_DONE_STATUSES.includes(status)
+          ? "done"
+          : "run";
+  const stepIndex = STEP_IDS.indexOf(step);
   const after = async <T,>(p: Promise<T>) => {
     const res = await p;
     onChanged?.();
     return res;
   };
 
-  // Baseline 0.1 + kiểm chạy nền xong (poll thấy `gap_review`) ⇒ sang màn Tài liệu & version, mở sẵn popup gap report
-  const finalizeDone = imp.finalizeDone;
+  // Lượt bấm trong phiên này chạy xong (`gap_review`) ⇒ vào thẳng workspace để tạo change request, không mở popup
+  const done = imp.done;
   const navigated = useRef(false);
   useEffect(() => {
-    if (!finalizeDone || navigated.current) return;
+    if (!done || navigated.current) return;
     navigated.current = true;
     onChanged?.();
-    router.push(gapReportHref(projectId));
-  }, [finalizeDone, onChanged, router, projectId]);
+    router.push(`/projects/${projectId}`);
+  }, [done, onChanged, router, projectId]);
 
   if (imp.loading) {
     return (
@@ -93,20 +91,18 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
     );
   }
 
-  const showUpload = !doc || status === "preflight_rejected" || (status === "awaiting_latest_confirm" && pickAnother);
-
   return (
     <div className="flex flex-col gap-5 max-w-[920px] w-full mx-auto">
       <ol className="flex flex-wrap items-center gap-2 text-body" aria-label={t("stepsAria")}>
-        {STEPS.map((s, i) => (
+        {STEP_IDS.map((id, i) => (
           <li
-            key={s.id}
+            key={id}
             aria-current={i === stepIndex ? "step" : undefined}
             className={`px-3 py-1 rounded-full font-bold ${
               i < stepIndex ? "bg-[#E9F7EE] text-[#1F7A45]" : i === stepIndex ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#A8A49C]"
             }`}
           >
-            {i + 1}. {t(`steps.${s.id}`)}
+            {i + 1}. {t(`steps.${id}`)}
           </li>
         ))}
       </ol>
@@ -120,7 +116,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
         </div>
       )}
 
-      {status && LANGUAGE_STATUSES.includes(status) && imp.data?.profile && (
+      {!showUpload && status && LANGUAGE_STATUSES.includes(status) && imp.data?.profile && (
         <p className="text-body text-on-surface-medium">
           {/* Mode 1 bản đầu không dịch: ngôn ngữ tài liệu = ngôn ngữ file; lạ / thiếu ⇒ tiếng Anh như BE (D1) */}
           {t.rich("detectedLanguage", {
@@ -130,8 +126,8 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
         </p>
       )}
 
-      {/* FLF-331: Code chưa chắc file là SRS — vẫn cho đi tiếp, nhắc người dùng xem kỹ kết quả đọc file (bước 1.5) */}
-      {!showUpload && doc?.preflight.document_kind?.kind === "unknown" && (
+      {/* FLF-331: Code chưa chắc file là SRS — vẫn cho đi tiếp, nhắc người dùng xem kỹ kết quả */}
+      {!showUpload && step === "start" && doc?.preflight.document_kind?.kind === "unknown" && (
         <p role="status" className="text-body text-accent-gold-text bg-accent-gold-soft border border-accent-gold-border rounded-[10px] px-3 py-2 leading-relaxed">
           {t("unknownKindNote")}
         </p>
@@ -139,7 +135,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
 
       {showUpload && (
         <>
-          {status === "preflight_rejected" && doc && <PreflightIssues issues={doc.preflight.issues} fileName={doc.original_name} />}
+          {status === "preflight_rejected" && doc && !pickAnother && <PreflightIssues issues={doc.preflight.issues} fileName={doc.original_name} />}
           {!intentLocked && (
             <fieldset className="flex flex-col gap-2 rounded-[12px] border border-[#ECEAE5] bg-white p-3">
               <legend className="px-1 text-body font-bold text-[#191817]">{t("intent.question")}</legend>
@@ -158,32 +154,16 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
           )}
           <UploadStep
             busy={imp.busy === "upload"}
-            onUpload={(file) =>
-              void after(imp.upload(file, intentLocked ? "fixed" : intent)).then(() => setPickAnother(false))
-            }
+            onUpload={(file) => void after(imp.upload(file, intentLocked ? "fixed" : intent)).then(() => setPickAnother(false))}
             title={status === "preflight_rejected" ? t("uploadFixed") : intentLocked ? t("uploadTemplate") : undefined}
             {...(intentLocked ? { hint: t("uploadTemplateHint") } : {})}
           />
-          {intentLocked && (
-            <OrgTemplatePicker busy={imp.busy === "upload"} onPick={(id) => void after(imp.pickOrgTemplate(id, "fixed")).then(() => setPickAnother(false))} />
-          )}
-          <p className="text-body text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">
-            {t.rich("formatNote", { b: (c) => <b>{c}</b> })}
-          </p>
+          {intentLocked && <OrgTemplatePicker busy={imp.busy === "upload"} onPick={(id) => void after(imp.pickOrgTemplate(id, "fixed")).then(() => setPickAnother(false))} />}
+          <p className="text-body text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">{t.rich("formatNote", { b: (c) => <b>{c}</b> })}</p>
         </>
       )}
 
-      {doc && status === "awaiting_latest_confirm" && !pickAnother && (
-        <ConfirmLatestModal
-          open
-          fileName={doc.original_name}
-          busy={imp.busy === "confirm"}
-          onConfirm={() => void after(imp.confirm())}
-          onPickAnother={() => setPickAnother(true)}
-        />
-      )}
-
-      {(status === "uploaded" || status === "parsing") && (
+      {!showUpload && (status === "uploaded" || status === "parsing") && (
         <div className="flex items-center gap-3 text-body text-[#4B4842] bg-white border border-[#ECEAE5] rounded-[14px] p-5">
           <span className="w-5 h-5 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
           {t("parsing")}
@@ -193,92 +173,73 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
         </div>
       )}
 
-      {status === "mapping_review" && imp.data?.profile && (
-        <>
-          {imp.data.credit_estimate && <CreditEstimateNote estimate={imp.data.credit_estimate} fallbackBalance={credits} />}
-          <MappingReviewTable profile={imp.data.profile} busy={imp.busy === "mapping"} onSubmit={(body) => void after(imp.saveMapping(body))} />
-        </>
+      {/* Điểm dừng duy nhất: báo credit một lần + câu hỏi "bản mới nhất" + Bắt đầu */}
+      {!showUpload && step === "start" && doc && (
+        <StartImportCard
+          doc={doc}
+          estimate={imp.data?.credit_estimate ?? null}
+          credits={credits}
+          busy={imp.busy === "start"}
+          onStart={(confirmLatest) => void after(imp.start(confirmLatest))}
+          onPickAnother={() => setPickAnother(true)}
+        />
       )}
 
-      {status === "extracting" && doc && (
+      {!showUpload && step === "run" && status === "extracting" && doc && (
         <ExtractProgress
           doc={doc}
           sections={imp.data?.extraction.sections ?? []}
-          running={imp.jobRunning}
+          running={imp.running}
           credits={credits}
           estimate={imp.data?.credit_estimate ?? null}
-          busy={imp.busy === "extract" || imp.busy === "resume"}
-          onStart={() => void after(imp.extract())}
+          busy={imp.busy === "resume"}
+          onStart={() => void after(imp.resume())}
           onResume={() => void after(imp.resume())}
           headingMap={imp.data?.profile?.heading_map}
         />
       )}
 
-      {status === "fields_review" && (
-        <FieldsReview fields={imp.data?.extraction.review_fields ?? []} headingMap={imp.data?.profile?.heading_map} busy={imp.busy === "fields"} onSubmit={(body) => void after(imp.saveFields(body))} />
-      )}
-
-      {(status === "baselining" || status === "checking") && doc && (
+      {!showUpload && step === "run" && status && RUN_STATUSES.includes(status) && status !== "extracting" && doc && (
         <div className="bg-white border border-[#ECEAE5] rounded-[14px] p-5 flex flex-col gap-3">
-          <h3 className="font-extrabold text-[#191817] text-heading">{t("baseline.title")}</h3>
-          <p className="text-body text-[#4B4842] leading-relaxed">
-            {t.rich("baseline.body", { strong: (c) => <strong>{c}</strong> })}
-          </p>
-          {status === "baselining" && !doc.paused && !imp.finalizing && (
-            <RecordOfChangesCard
-              rows={recordOfChanges ?? imp.data?.profile?.record_of_changes ?? []}
-              fromFile={imp.data?.profile?.record_of_changes?.length ?? 0}
-              onChange={setRecordOfChanges}
-              disabled={imp.busy === "finalize"}
-            />
-          )}
           {doc.paused ? (
-            status === "baselining" ? (
-              // Job tạo bản gốc lỗi / bị gián đoạn: BE đã hoàn về trước bước này, Tiếp tục = chạy lại
-              <PausedBanner
-                paused={doc.paused}
-                what={t("baseline.pausedWhat")}
-                interrupted={t("baseline.interrupted")}
-                busy={imp.busy === "resume"}
-                onResume={() => void after(imp.resume())}
-              />
-            ) : (
-              <PausedBanner paused={doc.paused} what={t("baseline.checkWhat")} busy={imp.busy === "resume"} onResume={() => void after(imp.resume())} />
-            )
-          ) : imp.finalizing ? (
+            <PausedBanner
+              paused={doc.paused}
+              what={t("run.pausedWhat")}
+              {...(status === "baselining" ? { interrupted: t("run.interrupted") } : {})}
+              busy={imp.busy === "resume"}
+              onResume={() => void after(imp.resume())}
+            />
+          ) : status === "fields_review" ? (
+            // Bản ghi cũ (trước FLF-343) dừng ở bước xác nhận field ⇒ Tiếp tục = tạo bản gốc một mạch
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="flex-1 text-body text-[#4B4842]">{t("run.legacy")}</p>
+              <button
+                type="button"
+                disabled={imp.busy === "resume"}
+                onClick={() => void after(imp.resume())}
+                className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
+              >
+                {t("run.continue")}
+              </button>
+            </div>
+          ) : (
             <div role="status" className="flex items-center gap-3 text-[13px] text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[12px] px-4 py-3">
               <span className="w-5 h-5 shrink-0 rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />
               <div className="flex flex-col gap-0.5">
-                <span className="font-bold text-[#191817]">{t("baseline.running")}</span>
-                <span className="text-[12px]">
-                  {status === "checking" ? t("baseline.runningChecking") : t("baseline.runningWriting")} {t("baseline.runningHint")}
-                </span>
+                <span className="font-bold text-[#191817]">{status === "checking" ? t("run.checking") : t("run.baselining")}</span>
+                <span className="text-[12px]">{t("run.hint")}</span>
               </div>
-            </div>
-          ) : (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                disabled={imp.busy === "finalize"}
-                onClick={() =>
-                  // Chưa sửa Record of Changes ⇒ không gửi, BE đọc lại từ file. BE trả ngay, việc chạy nền (poll tới gap_review)
-                  void after(imp.finalize(recordOfChanges ?? undefined))
-                }
-                className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold disabled:opacity-50 cursor-pointer"
-              >
-                {imp.busy === "finalize" ? t("baseline.starting") : t("baseline.start")}
-              </button>
             </div>
           )}
         </div>
       )}
 
-      {status === "incomplete" && imp.data?.target_structure && (
+      {!showUpload && status === "incomplete" && imp.data?.target_structure && (
         <ReadingResultScreen
           projectId={projectId}
           structure={imp.data.target_structure}
           busy={imp.busy === "finalize"}
-          onComplete={() => void after(imp.finalize(undefined, { complete: true }))}
+          onComplete={() => void after(imp.complete())}
           onDraftMissing={() =>
             void after(imp.continueFlow2()).then((res) => {
               // Dự án đã sang luồng tạo mới (`fpt`) ⇒ workspace chạy từ Brief
@@ -288,21 +249,19 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
         />
       )}
 
-      {/* FLF-278: mapping đã xác nhận ⇒ lưu mẫu cho tổ chức (dự án theo mẫu bắt buộc) */}
-      {intentLocked && doc && (status === "incomplete" || (status && IMPORT_DONE_STATUSES.includes(status))) && (
+      {/* FLF-278: lưu mẫu cho tổ chức (dự án theo mẫu bắt buộc) */}
+      {!showUpload && intentLocked && doc && (status === "incomplete" || (status && IMPORT_DONE_STATUSES.includes(status))) && (
         <SaveOrgTemplateCard projectId={projectId} defaultName={doc.original_name.replace(/\.docx$/i, "")} />
       )}
 
-      {status && IMPORT_DONE_STATUSES.includes(status) && (
+      {!showUpload && status && IMPORT_DONE_STATUSES.includes(status) && (
         <div className="bg-[#E9F7EE] border border-[#BFE6CE] rounded-[14px] p-5 flex flex-wrap items-center gap-3 text-body text-[#1F7A45]">
-          <span className="flex-1">
-            {t.rich("done.body", { strong: (c) => <strong>{c}</strong> })}
-          </span>
+          <span className="flex-1">{t.rich("done.body", { strong: (c) => <strong>{c}</strong> })}</span>
           <Link href={gapReportHref(projectId)} className="px-4 py-2 rounded-[8px] border border-[#1F7A45] text-[#1F7A45] font-bold">
             {t("done.gapReport")}
           </Link>
           <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
-            {t("done.openDocument")}
+            {t("done.openCr")}
           </Link>
         </div>
       )}

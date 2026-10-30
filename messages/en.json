@@ -3082,7 +3082,16 @@
       "loading": "Loading change requests",
       "empty": "No change requests here yet.",
       "paused": "Paused",
-      "writtenTo": " · written to version {version}"
+      "writtenTo": " · written to version {version}",
+      "needsReview": {
+        "title": "Needs review ({count})",
+        "intro": "Uncertain readings from the file were added to baseline 0.1. Check them; if one is wrong, create a change request to fix it.",
+        "createCr": "Create CR",
+        "prefillTitle": "Fix item needing review: {message}",
+        "loadFailed": "Could not load the needs-review list.",
+        "field": "Uncertain reading: {what}",
+        "mapping": "Uncertain section match: {section}"
+      }
     },
     "crMaterials": {
       "kind": {
@@ -3162,34 +3171,6 @@
       "askAi": "Ask AI to fix by the rules",
       "editDirect": "Edit directly",
       "editManual": "Edit manually"
-    },
-    "rocCard": {
-      "title": "File's Record of Changes",
-      "fromFile": "Read {count, plural, one {# change history row} other {# change history rows}} from the file. Fix anything misread — these rows go at the top of the Record of Changes table, followed by FlintFlow's history.",
-      "noTable": "No Record of Changes table found in the file. You can add rows manually, or leave it empty — the table will only contain FlintFlow's history.",
-      "columns": {
-        "date": "Date",
-        "version": "Version",
-        "type": "Type",
-        "inCharge": "In charge",
-        "description": "Change description"
-      },
-      "rowAria": {
-        "date": "Date, row {row}",
-        "version": "Version, row {row}",
-        "type": "Change type, row {row}",
-        "inCharge": "In charge, row {row}",
-        "description": "Description, row {row}",
-        "remove": "Remove row {row}"
-      },
-      "types": {
-        "A": "Added (A)",
-        "M": "Modified (M)",
-        "D": "Deleted (D)"
-      },
-      "addRow": "+ Add row",
-      "collapse": "Collapse",
-      "showAll": "Show all {count} rows"
     },
     "impactList": {
       "title": "Affected locations ({count})",
@@ -3291,25 +3272,6 @@
       "fields": "{count, plural, one {# field} other {# fields}}",
       "needsReview": "{count} to review"
     },
-    "fieldsReview": {
-      "title": "Review low-confidence fields",
-      "summary": "{count, plural, one {# field} other {# fields}} the AI is unsure about. Fix any wrong value; confirm to lock them all in (unedited fields stay as the AI extracted them).",
-      "onlyChance": "This is the only place to edit before baseline v0 is locked — after that every change goes through a change request.",
-      "fromImageTitle": "Read from a diagram image in the document — always needs your confirmation",
-      "fromImage": "from image",
-      "confidence": "confidence {value}",
-      "valueAria": "Value of {label}",
-      "source": "Source: {count, plural, one {# passage} other {# passages}} in the document",
-      "sourceNone": "Source: —",
-      "origin": {
-        "ai": "AI extracted",
-        "deterministic": "deterministic extraction",
-        "vision": "AI read from image"
-      },
-      "edited": "edited",
-      "saving": "Saving…",
-      "submit": "Confirm all fields"
-    },
     "gapReport": {
       "redFlag": "Red flag",
       "yellowFlag": "Yellow flag",
@@ -3346,8 +3308,8 @@
         "fields_review": "Awaiting field confirmation",
         "baselining": "Ready to create baseline",
         "checking": "Checking",
-        "gap_review": "Gap report ready for review",
-        "delivered": "Gap report delivered",
+        "gap_review": "Ready for change requests",
+        "delivered": "Ready for change requests",
         "change_requested": "Editing via change request",
         "incomplete": "Incomplete — your call",
         "drafting": "Writing the missing parts"
@@ -3543,7 +3505,8 @@
         "diagram_png_missing": "Diagram has no image",
         "op_not_allowed": "Operation not allowed",
         "op_out_of_scope": "Edit outside the allowed scope",
-        "conflict": "Conflicts with another change"
+        "conflict": "Conflicts with another change",
+        "import_needs_review": "Needs review"
       },
       "violations": {
         "schema_invalid": "The AI proposed editing a place that does not exist in the document.",
@@ -3699,12 +3662,10 @@
       "stepsAria": "Import steps",
       "steps": {
         "upload": "Upload",
-        "mapping": "Mapping",
-        "extract": "Extract fields",
-        "fields": "Confirm fields",
-        "baseline": "Baseline & check",
-        "gap": "Gap report",
-        "result": "Reading result"
+        "start": "Credits & start",
+        "run": "Read file & baseline",
+        "result": "Reading result",
+        "done": "Create change request"
       },
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
@@ -3713,23 +3674,10 @@
       "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FlintFlow standard template sections are added. The original file can always be downloaded again.",
       "parsing": "Splitting the document into blocks…",
       "reload": "Reload",
-      "baseline": {
-        "title": "Create baseline 0.1 and check",
-        "body": "Record the confirmed fields as the index, save the original document as version <strong>0.1</strong>, then run checks: AI reviews semantics (yellow flags, costs credit) and deterministic rules (red/yellow flags). Results go to the gap report.",
-        "pausedWhat": "Creating the original version",
-        "interrupted": "Creating the original version was interrupted — data has been restored to before this step. Click Continue to run it again.",
-        "checkWhat": "Checking",
-        "running": "Creating the original version and checking the document…",
-        "runningChecking": "Original version 0.1 created, now checking (AI + rules).",
-        "runningWriting": "Writing data, drawing diagrams and creating version 0.0.",
-        "runningHint": "Large documents can take a few minutes — you can leave this page, the work keeps running.",
-        "starting": "Starting…",
-        "start": "Create baseline 0.1"
-      },
       "done": {
-        "body": "Import complete — the document is now version 0.0. Upload copies edited outside FlintFlow in the <strong>Document & versions</strong> tab to see the differences.",
+        "body": "Import complete — the document is now version <strong>0.1</strong>. Every change goes through a change request; uncertain readings are flagged <strong>Needs review</strong>.",
         "gapReport": "View gap report",
-        "openDocument": "Open document & versions"
+        "openCr": "Open the change-request page"
       },
       "languageVi": "Vietnamese",
       "languageEn": "English",
@@ -3759,41 +3707,27 @@
         "saving": "Saving…",
         "saved": "Saved. New projects in your organization will see this template at the upload step.",
         "failed": "Could not save the template. Please try again."
+      },
+      "start": {
+        "title": "Ready to read the document",
+        "body": "Click Start once: FlintFlow reads the file, creates baseline <strong>0.1</strong>, runs the checks and opens the change-request page. Uncertain readings are still added to the baseline and flagged <strong>Needs review</strong> for you to check.",
+        "latest": "This is the latest version of the document — from now on every change goes through a change request.",
+        "pickAnother": "Choose another file",
+        "start": "Start",
+        "starting": "Starting…",
+        "shortHint": "Your balance does not cover this estimate — top up credits, then click Start.",
+        "topUp": "Top up credits"
+      },
+      "run": {
+        "extracting": "Reading the file…",
+        "baselining": "Creating baseline 0.1 (writing data, drawing diagrams)…",
+        "checking": "Baseline 0.1 created, now checking (AI + rules)…",
+        "hint": "Large documents can take a few minutes — you can leave this page, the work keeps running. The change-request page opens when it is done.",
+        "pausedWhat": "Reading the file and creating the baseline",
+        "interrupted": "Interrupted — the unfinished part has been rolled back. Click Continue to run it again.",
+        "legacy": "This import stopped at an old step (confirming data). Click Continue to create baseline 0.1 and run the checks — low-confidence items will be flagged Needs review.",
+        "continue": "Continue"
       }
-    },
-    "mappingReview": {
-      "title": "Confirm heading → section mapping",
-      "summary": "{headings} headings, {low} rows with confidence below {threshold}. “Unmatched” headings are kept verbatim and no fields are extracted from them.",
-      "provisionalHint": "“New feature” / “New function”: features and functions taken from the file's own headings (shown after the “—”); feature and function codes are assigned after the import finishes.",
-      "family": "Detected: <strong>{family, select, ieee830 {IEEE 830 template} ieee_features {IEEE template (System Features style)} other {FlintFlow standard template}}</strong>",
-      "familyNote": "each section is extracted into the matching section of the FlintFlow standard template; the document keeps the file's own layout.",
-      "lowOnly": "Show low-confidence rows only",
-      "colHeading": "Heading in the document",
-      "colConfidence": "Confidence",
-      "colSection": "Section",
-      "noLowRows": "No low-confidence rows — review quickly, then confirm.",
-      "detectedBy": "Detected by {by, select, style {heading style} outline_level {outline level} numbering_pattern {section number} other {your choice}}",
-      "templateOwnSection": "template's own section, kept verbatim",
-      "sharedSection": "Also extracted into “{section}” with: {others} — this heading's content is still printed under it.",
-      "sectionAria": "Section for {heading}",
-      "tablesTitle": "Table columns → SRS data",
-      "tablesHint": "Tables with all the required columns are captured automatically at no credit cost. Each table captures one kind of data — choose “Skip this column” if a column has nothing to extract.",
-      "untitledColumn": "Column {n} (untitled)",
-      "tableOf": "{group} table",
-      "tableUnknown": "Table of unknown kind",
-      "columnN": "column {n}",
-      "samples": "Data: {samples}",
-      "mixedEntity": "Different kind from the table's other columns — this column will not be captured.",
-      "columnAria": "Data for column {header}",
-      "skipColumn": "Skip this column",
-      "otherGroup": "Other",
-      "saving": "Saving…",
-      "submit": "Confirm mapping",
-      "slotsGroup": "Part of a section (template splits finer than FlintFlow)",
-      "sectionsGroup": "Whole section of the FlintFlow standard template",
-      "guidance": "Template guidance: {text}",
-      "overlap": "Another heading takes “{section}”, which shares data with this choice — the content would be printed twice. Keep only one.",
-      "overlapBlocked": "Some headings share the same data — fix them before saving."
     },
     "flagsPanel": {
       "intro": "The document has been imported — every change goes through a change request (created from the gap report, the “Edit document with preview” panel or an edit command in chat). Release is possible once there are no red flags.",
@@ -3866,7 +3800,8 @@
       "estimate": "{remaining, select, yes {Estimate for the remainder} other {Estimated cost}}: <strong>~{calls} AI runs</strong>, <strong>~{credits} credits</strong>",
       "balance": "(balance: {balance})",
       "breakdown": "{text} text batches + {images} diagram images",
-      "short": "Balance too low: extraction will pause when credit runs out. Top up, then click Continue — finished parts are not charged again."
+      "short": "Balance too low: extraction will pause when credit runs out. Top up, then click Continue — finished parts are not charged again.",
+      "breakdownWithChecks": "{text} text batches + {images} diagram images + {checks} check calls"
     },
     "paused": {
       "title": "{what} is paused — {reason, select, credits {out of credit} interrupted {it was interrupted} other {AI failed after 2 retries}}",
@@ -3891,7 +3826,8 @@
         "EMPTY_DOCUMENT": "Empty document",
         "FOREIGN_TRACK_CHANGE": "Unresolved Track Changes",
         "FOREIGN_COMMENT": "Unresolved comments",
-        "NOT_SRS": "Not a requirements document (SRS)"
+        "NOT_SRS": "Not a requirements document (SRS)",
+        "PARSE_FAILED": "Could not split the document"
       },
       "otherIssue": "Other issue",
       "location": "Location: paragraph {ord} — “{text}”",
@@ -3902,7 +3838,8 @@
         "FOREIGN_TRACK_CHANGE": "Go to Review → Accept/Reject all changes, then save.",
         "FOREIGN_COMMENT": "Go to Review → Delete All Comments (or resolve each comment), then save.",
         "FILE_TOO_LARGE": "Compress the images (File → Compress Pictures) or split off appendices.",
-        "NOT_SRS": "This flow only accepts an SRS or an SRS template (.docx). If this is meeting minutes, an email or notes, attach it in chat as a reference document; if it really is an SRS, make sure it has Use Case / Requirements sections, then upload again."
+        "NOT_SRS": "This flow only accepts an SRS or an SRS template (.docx). If this is meeting minutes, an email or notes, attach it in chat as a reference document; if it really is an SRS, make sure it has Use Case / Requirements sections, then upload again.",
+        "PARSE_FAILED": "Open the file in Word, save it again as .docx (File → Save As), then upload it again."
       }
     },
     "reupload": {
@@ -3925,14 +3862,6 @@
       "hint": "Word .docx file up to {max} MB. Other people's Track Changes/comments must be accepted/rejected before uploading.",
       "tooLarge": "File {name} is {size} MB, over the {max} MB limit — compress the images in Word (File → Compress Pictures) or split off appendices, then try again.",
       "uploading": "Uploading and checking the file…"
-    },
-    "confirmLatest": {
-      "title": "Is this the latest version?",
-      "body": "<file></file> was not exported by FlintFlow. After import, this document becomes the project's original version <strong>0.1</strong> and every later edit must go through a change request.",
-      "hint": "If there is a newer copy elsewhere (email, shared drive…), pick that one instead.",
-      "pickAnother": "Pick another file",
-      "parsing": "Splitting into blocks…",
-      "confirm": "Yes, this is the latest version"
     },
     "valueEditor": {
       "tableBlock": "Table {n} (one row per line, cells separated by “|”)",

@@ -15,10 +15,11 @@ const CODES: readonly PreflightIssueCode[] = [
   "FOREIGN_TRACK_CHANGE",
   "FOREIGN_COMMENT",
   "NOT_SRS",
+  "PARSE_FAILED",
 ];
 
 /** Mã có hướng dẫn sửa (`mode1.preflight.howToFix.<mã>`). */
-const HOW_TO_FIX = ["LEGACY_DOC", "FILE_ENCRYPTED", "FOREIGN_TRACK_CHANGE", "FOREIGN_COMMENT", "FILE_TOO_LARGE", "NOT_SRS"] as const satisfies readonly PreflightIssueCode[];
+const HOW_TO_FIX = ["LEGACY_DOC", "FILE_ENCRYPTED", "FOREIGN_TRACK_CHANGE", "FOREIGN_COMMENT", "FILE_TOO_LARGE", "NOT_SRS", "PARSE_FAILED"] as const satisfies readonly PreflightIssueCode[];
 const hasFix = (code: PreflightIssueCode): code is (typeof HOW_TO_FIX)[number] => (HOW_TO_FIX as readonly string[]).includes(code);
 
 /** 1.2 Preflight (I-1): lý do từ chối kèm vị trí trong tài liệu — sửa file rồi tải lại. */

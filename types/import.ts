@@ -44,7 +44,9 @@ export type PreflightIssueCode =
   | "FOREIGN_TRACK_CHANGE"
   | "FOREIGN_COMMENT"
   /** FLF-331: Code không thấy dấu hiệu SRS / mẫu SRS (CV, hoá đơn, test plan…). */
-  | "NOT_SRS";
+  | "NOT_SRS"
+  /** FLF-343: qua preflight nhưng tách file / khớp mẫu lỗi — không treo ở `parsing`. */
+  | "PARSE_FAILED";
 
 /** FLF-331: loại tài liệu Code nhận ra ở I-1 (0 credit); `unknown` ⇒ vẫn nhận nhưng cảnh báo ở bước xác nhận. */
 export interface DocumentKind {
@@ -115,7 +117,8 @@ export interface DocBlock {
   revisions?: { kind: "ins" | "del"; text: string; author: string }[];
 }
 
-export type HeadingDetector = "style" | "outline_level" | "numbering_pattern" | "user";
+/** FLF-343 thêm `toc` (trùng mục lục), `numbering` (đánh số tự động), `format` (chữ to / style tiêu đề riêng). */
+export type HeadingDetector = "style" | "outline_level" | "numbering_pattern" | "user" | "toc" | "numbering" | "format";
 
 export interface HeadingMapEntry {
   block_id: string;
@@ -125,6 +128,8 @@ export interface HeadingMapEntry {
   confidence: number;
   detected_by: HeadingDetector;
   confirmed: boolean;
+  /** FLF-343: độ tin thấp, tự nhận lúc tách file — có cờ vàng "Cần xem" sau baseline 0.1. */
+  auto_confirmed?: boolean;
   /**
    * FLF-252: heading khớp một mục của mẫu không phải FPT (IEEE). Mã nội bộ — FE không hiện, chỉ dùng để biết
    * `unmapped` này là mục riêng của mẫu (giữ nguyên văn), không phải heading lạ.
@@ -147,6 +152,8 @@ export interface TableMapEntry {
   field_path: string | null;
   confidence: number;
   confirmed: boolean;
+  /** FLF-343: như `HeadingMapEntry.auto_confirmed`. */
+  auto_confirmed?: boolean;
   /** FLF-252: vai trò cột theo dữ liệu; không có khi bảng chỉ có hàng tiêu đề. */
   role?: TableColumnRole;
   /** FLF-252: tối đa 3 giá trị đầu của cột. */
@@ -260,12 +267,15 @@ export interface ImportStateResponse {
 }
 
 /**
- * Ước tính I-4 còn phải chạy (`GET /import` → `credit_estimate`, BE import-change-contract §4.15): chỉ có ở `mapping_review`
- * hoặc `extracting` khi job chưa chạy / đang dừng. `available_credits` = credit khả dụng của ví org; `null` với Viewer.
+ * Ước tính cả lượt import một mạch (FLF-343, `GET /import` → `credit_estimate`, BE import-change-contract §4.15): I-4 còn phải
+ * chạy + kiểm tra AI sau baseline 0.1 — chỉ có ở `extracting` (bản ghi cũ: `mapping_review`) khi job chưa chạy / đang dừng.
+ * `available_credits` = credit khả dụng của ví org; `null` với Viewer.
  */
 export interface CreditEstimate {
   text_batches: number;
   diagram_images: number;
+  /** FLF-343: lượt AI của bước kiểm tra — đã gộp vào `ai_calls` / `credits`. */
+  check_calls?: number;
   ai_calls: number;
   credits: number;
   available_credits: number | null;

@@ -8,7 +8,6 @@ import { resetMockState } from "@/mocks/state";
 import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
 import ImportWizard from "./ImportWizard";
-import { confirmLatest, getImport, patchFields, patchMapping, startExtraction, uploadImport } from "@/lib/api/import";
 
 const P = MODE1_PROJECT_ID;
 const push = vi.fn();
@@ -30,162 +29,99 @@ afterAll(() => mockServer.close());
 const docx = (name = "SRS_Lumen.docx") =>
   new File(["PK mock"], name, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 
-const renderWizard = () => renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
+const renderWizard = (credits: number | null = 100) => renderWithIntl(<ImportWizard projectId={P} credits={credits} pollMs={5} />);
 
-/** Upload → xác nhận bản mới nhất → mapping; dừng ở màn trích. */
-const uploadAndMap = async () => {
-  renderWizard();
+/** Upload ⇒ màn báo credit một lần (FLF-343); trả nút Bắt đầu. */
+const uploadToStart = async (credits: number | null = 100) => {
+  renderWizard(credits);
   fireEvent.change(await screen.findByTestId("docx-input"), { target: { files: [docx()] } });
-  fireEvent.click(await screen.findByRole("button", { name: "Đúng, đây là bản mới nhất" }));
-  expect(await screen.findByText("Xác nhận mapping heading → section")).toBeInTheDocument();
-  // Mặc định chỉ hiện dòng độ tin thấp: heading 3.2.4 (62%) và phụ lục không khớp (30%)
-  expect(screen.getByText("3.2.4 Log out of system", { selector: "td div" })).toBeInTheDocument();
-  expect(screen.queryByText("1 Product Overview", { selector: "td div" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Xác nhận mapping" }));
-  return screen.findByRole("button", { name: "Bắt đầu trích (AI)" });
+  expect(await screen.findByText("Sẵn sàng đọc tài liệu")).toBeInTheDocument();
+  return screen.getByRole("button", { name: "Bắt đầu" });
 };
 
-describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
-  it("đi trọn: upload → xác nhận → mapping → trích nền (poll) → field → baseline ⇒ sang gap report", async () => {
-    fireEvent.click(await uploadAndMap());
-
-    // I-4 chạy nền: #6 trả ngay, tiến độ tăng qua poll GET /import tới khi sang fields_review
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
-    const value = screen.getByLabelText("Giá trị Tác nhân A02 — Loại");
-    fireEvent.change(value, { target: { value: "system" } });
-    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
-
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.1" }));
-    // Xong baseline 0.1 ⇒ sang màn Tài liệu & version, popup gap report mở sẵn
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
-    expect(mode1State.mode1State.reviewFields[0]).toMatchObject({ confirmed: true, edited_value: "system" });
-    expect(mode1State.mode1State.project.import_state).toBe("gap_review");
-    // không sửa Record of Changes ⇒ không gửi, BE đọc lại từ file (FLF-252)
-    expect(mode1State.mode1State.finalizedRecordOfChanges).toBeNull();
-  });
-
-  it("FLF-252: bước baseline hiện Record of Changes đọc từ file; không sửa ⇒ không gửi, sửa ⇒ gửi kèm finalize", async () => {
-    fireEvent.click(await uploadAndMap());
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
-
-    expect(await screen.findByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Mô tả dòng 1"), { target: { value: "Tạo tài liệu (bản đầu)" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tạo baseline 0.1" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
-    expect(mode1State.mode1State.finalizedRecordOfChanges).toEqual([
-      { date: "01/05/2026", version: "0.2", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu (bản đầu)" },
-    ]);
-  });
-
-  it("FLF-265: sau khi trích hiện ngôn ngữ tài liệu nhận diện từ file (chỉ đọc); bước mapping chưa hiện", async () => {
-    const start = await uploadAndMap();
-    expect(screen.queryByText(/Ngôn ngữ tài liệu/)).toBeNull();
-    mode1State.mode1State.profile!.language = "vi";
+describe("ImportWizard — FLF-343 một mạch trên mock", () => {
+  it("upload ⇒ màn báo credit (ước tính gồm kiểm tra + câu hỏi bản mới nhất) ⇒ Bắt đầu một lần ⇒ không bước nào khác ⇒ trang tạo CR", async () => {
+    const start = await uploadToStart();
+    // ước tính một lần: lượt trích + lượt kiểm tra AI
+    expect(screen.getByText(/lượt kiểm tra/)).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /bản mới nhất/ })).toBeChecked();
+    expect(screen.queryByText(/Xác nhận mapping/)).toBeNull();
     fireEvent.click(start);
 
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
-    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Việt (nhận diện từ file)");
-    expect(screen.queryByRole("radio")).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
-    expect(await screen.findByRole("button", { name: "Tạo baseline 0.1" })).toBeInTheDocument();
-    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Tiếng Việt");
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
+    expect(mode1State.mode1State.project.import_state).toBe("gap_review");
+    expect(mode1State.mode1State.importDoc?.confirmed_latest_at).not.toBeNull();
+    expect(mode1State.mode1State.baselines.filter((b) => b.type === "imported")).toHaveLength(1);
+    // không còn nút xác nhận field / tạo baseline / Record of Changes
+    expect(screen.queryByRole("button", { name: /Xác nhận tất cả field|Tạo baseline 0.1/ })).toBeNull();
   });
 
-  it("FLF-265: file tiếng Anh ⇒ hiện Tiếng Anh", async () => {
-    fireEvent.click(await uploadAndMap());
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
-    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Anh (nhận diện từ file)");
+  it("bỏ tick 'bản mới nhất' ⇒ không chạy, cùng câu từ chối như trước; chọn file khác ⇒ về bước tải lên", async () => {
+    const start = await uploadToStart();
+    fireEvent.click(screen.getByRole("checkbox", { name: /bản mới nhất/ }));
+    expect(start).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Hãy xác nhận đây là bản mới nhất trước.");
+    expect(mode1State.mode1State.importDoc?.status).toBe("extracting");
+    expect(mode1State.mode1State.extractRunning).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Chọn file khác" }));
+    expect(await screen.findByTestId("docx-input")).toBeInTheDocument();
+  });
+
+  it("số dư nhỏ hơn ước tính ⇒ khoá Bắt đầu, gợi ý nạp credit", async () => {
+    mode1State.mode1State.credits = 1;
+    const start = await uploadToStart(1);
+    expect(start).toBeDisabled();
+    expect(screen.getByText(/Số dư chưa đủ cho ước tính này/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nạp credit" })).toHaveAttribute("href", "/home/billing");
+  });
+
+  it("FLF-265: đang chạy hiện ngôn ngữ tài liệu nhận diện từ file (chỉ đọc)", async () => {
+    const start = await uploadToStart();
+    mode1State.mode1State.profile!.language = "vi";
+    mode1State.mode1State.credits = 2; // dừng giữa lúc trích ⇒ ở lại bước chạy
+    fireEvent.click(start);
+    expect(await screen.findByText(/Trích field đang tạm dừng/)).toBeInTheDocument();
+    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Việt (nhận diện từ file)");
+    expect(screen.queryByRole("radio")).toBeNull();
   });
 
   it("FLF-265: ngôn ngữ lạ / thiếu ⇒ coi là Tiếng Anh như BE (D1)", async () => {
-    const start = await uploadAndMap();
+    const start = await uploadToStart();
     mode1State.mode1State.profile!.language = "fr";
+    mode1State.mode1State.credits = 2;
     fireEvent.click(start);
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    expect(await screen.findByText(/Trích field đang tạm dừng/)).toBeInTheDocument();
     expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Anh (nhận diện từ file)");
   });
 
-  it("FLF-265: bước checking vẫn hiện ngôn ngữ nhận diện", async () => {
-    const start = await uploadAndMap();
-    mode1State.mode1State.profile!.language = "vi";
+  it("kiểm tra hết credit trong job nền ⇒ dừng ở checking, banner; nạp rồi Tiếp tục ⇒ trang tạo CR", async () => {
+    const start = await uploadToStart();
+    // đủ trích 3 section (2 credit / lượt), hết ở bước kiểm tra
+    mode1State.mode1State.credits = mode1State.mode1State.sections.length * 2;
     fireEvent.click(start);
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả field" }));
-    const baseline = await screen.findByRole("button", { name: "Tạo baseline 0.1" });
-    expect(screen.getByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeInTheDocument();
-
-    // Giữ import ở `checking`: finalize đẩy trạng thái rồi trả lỗi conflict ⇒ wizard đọc lại, không chuyển trang
-    mockServer.use(
-      http.post(`${API_BASE_URL}/projects/:projectId/import/finalize`, () => {
-        mode1State.mode1State.importDoc!.status = "checking";
-        mode1State.mode1State.project.import_state = "checking";
-        return HttpResponse.json(
-          { data: null, error: { code: "SPINE_VERSION_CONFLICT", message: "Spine đã đổi" } },
-          { status: 409 }
-        );
-      })
-    );
-    fireEvent.click(baseline);
-
-    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Baseline & kiểm");
-    // Record of Changes chỉ hiện ở `baselining` ⇒ biến mất nghĩa là đã sang `checking`
-    await waitFor(() => expect(screen.queryByText(/Đọc được 1 dòng lịch sử thay đổi từ file/)).toBeNull());
-    expect(screen.getByText(/Ngôn ngữ tài liệu:/)).toHaveTextContent("Ngôn ngữ tài liệu: Tiếng Việt (nhận diện từ file)");
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it("baseline chạy nền (§4.16): bấm tạo ⇒ hiện 'Đang tạo bản gốc và kiểm tra tài liệu…', ẩn nút + Record of Changes", async () => {
-    // dựng sẵn tới baselining qua API mock, rồi poll chậm để thấy trạng thái đang chạy
-    const id = (await uploadImport(P, docx())).data!.import.id;
-    await confirmLatest(P, id);
-    await patchMapping(P, { import_id: id, confirm_all: true });
-    await startExtraction(P, id);
-    for (let i = 0; i < 50 && (await getImport(P)).data!.import!.status === "extracting"; i++);
-    await patchFields(P, { import_id: id, confirm_all: true });
-    renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={60_000} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.1" }));
-    expect(await screen.findByText("Đang tạo bản gốc và kiểm tra tài liệu…")).toBeInTheDocument();
-    expect(screen.getByText(/có thể rời trang, việc vẫn chạy tiếp/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Tạo baseline 0.1" })).not.toBeInTheDocument();
-    expect(screen.queryByText(/dòng lịch sử thay đổi từ file/)).not.toBeInTheDocument();
-    // lần đọc lại ngay sau #8 đã qua chặng tạo bản gốc (mock chạy một chặng mỗi lần đọc) ⇒ đang kiểm tra, vẫn poll
-    expect(screen.getByText(/Đã tạo bản gốc 0.1, đang kiểm tra/)).toBeInTheDocument();
+    expect(await screen.findByText(/Đọc file và tạo bản gốc đang tạm dừng — hết credit/)).toBeInTheDocument();
     expect(mode1State.mode1State.importDoc?.status).toBe("checking");
     expect(push).not.toHaveBeenCalled();
-  });
-
-  it("1.11 hết credit trong job nền ⇒ dừng ở checking, banner kiểm tra; nạp rồi Tiếp tục ⇒ sang gap report", async () => {
-    fireEvent.click(await uploadAndMap());
-    fireEvent.click(await screen.findByRole("button", { name: "Xác nhận tất cả field" }));
-    const create = await screen.findByRole("button", { name: "Tạo baseline 0.1" });
-    mode1State.mode1State.credits = 0;
-    fireEvent.click(create);
-    expect(await screen.findByText(/Kiểm tra đang tạm dừng — hết credit/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Tạo baseline 0.1" })).not.toBeInTheDocument();
-    expect(mode1State.mode1State.importDoc?.status).toBe("checking");
     mode1State.mode1State.credits = 100;
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
     expect(mode1State.mode1State.baselines.filter((b) => b.type === "imported")).toHaveLength(1);
   });
 
-  it("tạo bản gốc lỗi giữa chừng ⇒ banner 'bị gián đoạn' ở baselining; Tiếp tục chạy lại tới gap report", async () => {
-    fireEvent.click(await uploadAndMap());
-    fireEvent.click(await screen.findByRole("button", { name: "Xác nhận tất cả field" }));
+  it("tạo bản gốc lỗi giữa chừng ⇒ banner 'bị gián đoạn' ở baselining; Tiếp tục chạy lại tới trang tạo CR", async () => {
+    const start = await uploadToStart();
     mode1State.mode1State.failNextFinalize = true;
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo baseline 0.1" }));
-    expect(await screen.findByText(/Tạo bản gốc đang tạm dừng — bị gián đoạn/)).toBeInTheDocument();
-    expect(screen.getByText(/dữ liệu đã được đưa về như trước bước này/)).toBeInTheDocument();
+    fireEvent.click(start);
+    expect(await screen.findByText(/Đọc file và tạo bản gốc đang tạm dừng — bị gián đoạn/)).toBeInTheDocument();
+    expect(screen.getByText(/phần dở đã được đưa về như trước/)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=gap`));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
   });
 
-  it("hết credit giữa lúc trích ⇒ banner paused; nạp xong bấm Tiếp tục chạy nốt", async () => {
-    const start = await uploadAndMap();
-    mode1State.mode1State.credits = 4; // đủ 2 section
+  it("hết credit giữa lúc trích ⇒ banner paused; nạp xong bấm Tiếp tục chạy tiếp tới trang tạo CR", async () => {
+    const start = await uploadToStart();
+    mode1State.mode1State.credits = 2; // đủ 1 section
     fireEvent.click(start);
 
     expect(await screen.findByText(/Trích field đang tạm dừng — hết credit/)).toBeInTheDocument();
@@ -193,7 +129,74 @@ describe("ImportWizard — luồng 1.1–1.12 trên mock", () => {
 
     mode1State.mode1State.credits = 100;
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
-    expect(await screen.findByText("Xem lại field độ tin thấp")).toBeInTheDocument();
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
+  });
+
+  it("mở lại trang khi import đã xong ⇒ thẻ xong với link trang CR + gap report, không tự chuyển", async () => {
+    const start = await uploadToStart();
+    fireEvent.click(start);
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    push.mockClear();
+    renderWizard();
+    expect(await screen.findAllByRole("link", { name: "Mở trang change request" })).not.toHaveLength(0);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  describe("bản ghi cũ (trước FLF-343) đi tiếp tới trang tạo CR", () => {
+    /** Upload qua mock rồi đưa bản ghi về trạng thái cũ. */
+    const legacy = async (status: "awaiting_latest_confirm" | "mapping_review" | "fields_review") => {
+      const { uploadImport } = await import("@/lib/api/import");
+      await uploadImport(P, docx());
+      const st = mode1State.mode1State;
+      st.importDoc!.status = status;
+      st.project.import_state = status;
+      if (status === "awaiting_latest_confirm") {
+        st.profile = null;
+        st.sections = [];
+      }
+      if (status === "mapping_review") {
+        st.importDoc!.confirmed_latest_at = "2026-10-01T00:00:00.000Z";
+        for (const h of st.profile!.heading_map) Object.assign(h, { confirmed: false, auto_confirmed: undefined });
+      }
+      if (status === "fields_review") {
+        st.importDoc!.confirmed_latest_at = "2026-10-01T00:00:00.000Z";
+        for (const sec of st.sections) Object.assign(sec, { status: "done", fields_total: 3 });
+      }
+    };
+
+    it("awaiting_latest_confirm ⇒ màn Bắt đầu (hỏi bản mới nhất) ⇒ trang tạo CR", async () => {
+      await legacy("awaiting_latest_confirm");
+      renderWizard();
+      expect(await screen.findByRole("checkbox", { name: /bản mới nhất/ })).toBeChecked();
+      fireEvent.click(screen.getByRole("button", { name: "Bắt đầu" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
+      expect(mode1State.mode1State.importDoc?.confirmed_latest_at).not.toBeNull();
+    });
+
+    it("mapping_review ⇒ màn Bắt đầu (không hỏi lại) ⇒ mapping tự nhận ⇒ trang tạo CR", async () => {
+      await legacy("mapping_review");
+      renderWizard();
+      fireEvent.click(await screen.findByRole("button", { name: "Bắt đầu" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
+      expect(mode1State.mode1State.profile!.heading_map.filter((h) => h.confidence < 0.8).every((h) => h.confirmed && h.auto_confirmed)).toBe(true);
+    });
+
+    it("fields_review ⇒ Tiếp tục ⇒ baseline 0.1 ⇒ trang tạo CR", async () => {
+      await legacy("fields_review");
+      renderWizard();
+      fireEvent.click(await screen.findByRole("button", { name: "Tiếp tục" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
+      expect(mode1State.mode1State.baselines.filter((b) => b.type === "imported")).toHaveLength(1);
+    });
+  });
+
+  it("tải lại trang giữa lúc job đã bật (BE không trả ước tính, cursor chưa ghi) ⇒ không hiện lại màn Bắt đầu, vẫn poll tới trang tạo CR", async () => {
+    const { uploadImport, startExtraction } = await import("@/lib/api/import");
+    const id = (await uploadImport(P, docx())).data!.import.id;
+    await startExtraction(P, id, true);
+    renderWizard();
+    await waitFor(() => expect(mode1State.mode1State.importDoc?.status).toBe("gap_review"));
+    expect(screen.queryByText("Sẵn sàng đọc tài liệu")).toBeNull();
   });
 
   it("preflight từ chối ⇒ danh sách lỗi kèm vị trí và cách sửa, cho tải file đã sửa", async () => {

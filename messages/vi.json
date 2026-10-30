@@ -3082,7 +3082,16 @@
       "loading": "Đang tải change request",
       "empty": "Chưa có change request nào ở mục này.",
       "paused": "Tạm dừng",
-      "writtenTo": " · ghi vào bản {version}"
+      "writtenTo": " · ghi vào bản {version}",
+      "needsReview": {
+        "title": "Cần xem ({count})",
+        "intro": "Chỗ đọc từ file chưa chắc chắn đã được đưa vào bản gốc 0.1. Xem lại; sai thì tạo change request để sửa.",
+        "createCr": "Tạo CR",
+        "prefillTitle": "Sửa chỗ cần xem: {message}",
+        "loadFailed": "Chưa tải được danh sách cần xem.",
+        "field": "Dữ liệu đọc chưa chắc: {what}",
+        "mapping": "Khớp mục chưa chắc: {section}"
+      }
     },
     "crMaterials": {
       "kind": {
@@ -3162,34 +3171,6 @@
       "askAi": "Nhờ AI sửa theo quy tắc",
       "editDirect": "Sửa trực tiếp",
       "editManual": "Sửa tay"
-    },
-    "rocCard": {
-      "title": "Record of Changes của file",
-      "fromFile": "Đọc được {count} dòng lịch sử thay đổi từ file. Sửa nếu đọc sai — các dòng này in lên đầu bảng Record of Changes, lịch sử của FlintFlow nối tiếp phía sau.",
-      "noTable": "Không tìm thấy bảng Record of Changes trong file. Có thể thêm dòng tay, hoặc để trống — bảng chỉ có lịch sử của FlintFlow.",
-      "columns": {
-        "date": "Ngày",
-        "version": "Phiên bản",
-        "type": "Loại",
-        "inCharge": "Người thực hiện",
-        "description": "Mô tả thay đổi"
-      },
-      "rowAria": {
-        "date": "Ngày dòng {row}",
-        "version": "Phiên bản dòng {row}",
-        "type": "Loại thay đổi dòng {row}",
-        "inCharge": "Người thực hiện dòng {row}",
-        "description": "Mô tả dòng {row}",
-        "remove": "Xoá dòng {row}"
-      },
-      "types": {
-        "A": "Thêm (A)",
-        "M": "Sửa (M)",
-        "D": "Xoá (D)"
-      },
-      "addRow": "+ Thêm dòng",
-      "collapse": "Thu gọn",
-      "showAll": "Hiện tất cả {count} dòng"
     },
     "impactList": {
       "title": "Vị trí ảnh hưởng ({count})",
@@ -3291,25 +3272,6 @@
       "fields": "{count} field",
       "needsReview": "{count} cần xem"
     },
-    "fieldsReview": {
-      "title": "Xem lại field độ tin thấp",
-      "summary": "{count} field AI chưa chắc. Sửa giá trị nếu sai; bấm xác nhận để chốt tất cả (field không sửa giữ nguyên như AI trích).",
-      "onlyChance": "Đây là chỗ sửa duy nhất trước khi chốt baseline v0 — sau đó mọi thay đổi đi qua change request.",
-      "fromImageTitle": "Đọc từ ảnh diagram trong tài liệu — luôn cần bạn xác nhận",
-      "fromImage": "từ ảnh",
-      "confidence": "độ tin {value}",
-      "valueAria": "Giá trị {label}",
-      "source": "Nguồn: {count} đoạn trong tài liệu",
-      "sourceNone": "Nguồn: —",
-      "origin": {
-        "ai": "AI trích",
-        "deterministic": "trích tất định",
-        "vision": "AI đọc từ ảnh"
-      },
-      "edited": "đã sửa",
-      "saving": "Đang lưu…",
-      "submit": "Xác nhận tất cả field"
-    },
     "gapReport": {
       "redFlag": "Cờ đỏ",
       "yellowFlag": "Cờ vàng",
@@ -3346,8 +3308,8 @@
         "fields_review": "Chờ xác nhận field",
         "baselining": "Sẵn sàng tạo baseline",
         "checking": "Đang kiểm tra",
-        "gap_review": "Chờ xem gap report",
-        "delivered": "Đã giao gap report",
+        "gap_review": "Sẵn sàng tạo change request",
+        "delivered": "Sẵn sàng tạo change request",
         "change_requested": "Đang sửa qua change request",
         "incomplete": "Chưa hoàn thiện — chờ bạn quyết",
         "drafting": "Đang soạn phần còn thiếu"
@@ -3543,7 +3505,8 @@
         "diagram_png_missing": "Sơ đồ chưa có ảnh",
         "op_not_allowed": "Thao tác không được phép",
         "op_out_of_scope": "Sửa ngoài phạm vi cho phép",
-        "conflict": "Xung đột với thay đổi khác"
+        "conflict": "Xung đột với thay đổi khác",
+        "import_needs_review": "Cần xem"
       },
       "violations": {
         "schema_invalid": "AI đề xuất sửa vào một chỗ không có trong tài liệu.",
@@ -3699,12 +3662,10 @@
       "stepsAria": "Các bước import",
       "steps": {
         "upload": "Tải lên",
-        "mapping": "Mapping",
-        "extract": "Trích field",
-        "fields": "Xác nhận field",
-        "baseline": "Baseline & kiểm",
-        "gap": "Gap report",
-        "result": "Kết quả đọc file"
+        "start": "Báo credit & bắt đầu",
+        "run": "Đọc file & tạo bản gốc",
+        "result": "Kết quả đọc file",
+        "done": "Tạo change request"
       },
       "closeError": "Đóng thông báo lỗi",
       "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
@@ -3713,23 +3674,10 @@
       "formatNote": "FlintFlow không sửa file của bạn: tài liệu được đọc ra rồi in lại theo đúng thứ tự và tiêu đề mục của file gốc, nhưng <b>không giữ định dạng Word</b> (font, style, header/footer, logo). Sơ đồ đọc được sẽ được vẽ lại; mục của mẫu chuẩn FlintFlow còn thiếu sẽ được thêm vào để bổ sung. File gốc luôn tải lại được.",
       "parsing": "Đang tách tài liệu thành block…",
       "reload": "Tải lại",
-      "baseline": {
-        "title": "Tạo baseline 0.1 và kiểm tra",
-        "body": "Ghi các field đã xác nhận làm chỉ mục, lưu tài liệu gốc thành version <strong>0.1</strong>, rồi chạy kiểm tra: AI soát ngữ nghĩa (cờ vàng, tốn credit) và luật tất định (cờ đỏ/vàng). Kết quả nằm ở gap report.",
-        "pausedWhat": "Tạo bản gốc",
-        "interrupted": "Tạo bản gốc bị gián đoạn — dữ liệu đã được đưa về như trước bước này. Bấm Tiếp tục để chạy lại.",
-        "checkWhat": "Kiểm tra",
-        "running": "Đang tạo bản gốc và kiểm tra tài liệu…",
-        "runningChecking": "Đã tạo bản gốc 0.1, đang kiểm tra (AI + luật).",
-        "runningWriting": "Đang ghi dữ liệu, vẽ sơ đồ và tạo version 0.0.",
-        "runningHint": "Tài liệu lớn có thể mất vài phút — có thể rời trang, việc vẫn chạy tiếp.",
-        "starting": "Đang bắt đầu…",
-        "start": "Tạo baseline 0.1"
-      },
       "done": {
-        "body": "Import xong — tài liệu đã thành version 0.0. Bản sửa ngoài FlintFlow tải lên ở tab <strong>Tài liệu & version</strong> để xem khác biệt.",
+        "body": "Import xong — tài liệu đã thành version <strong>0.1</strong>. Mọi sửa đổi đi qua change request; chỗ đọc chưa chắc có cờ <strong>Cần xem</strong>.",
         "gapReport": "Xem gap report",
-        "openDocument": "Mở tài liệu & version"
+        "openCr": "Mở trang change request"
       },
       "languageVi": "Tiếng Việt",
       "languageEn": "Tiếng Anh",
@@ -3759,41 +3707,27 @@
         "saving": "Đang lưu…",
         "saved": "Đã lưu. Dự án mới của tổ chức sẽ thấy mẫu này ở bước tải file.",
         "failed": "Chưa lưu được mẫu. Vui lòng thử lại."
+      },
+      "start": {
+        "title": "Sẵn sàng đọc tài liệu",
+        "body": "Bấm Bắt đầu một lần: FlintFlow đọc file, tạo bản gốc <strong>0.1</strong>, kiểm tra rồi mở thẳng trang tạo change request. Chỗ đọc chưa chắc vẫn được đưa vào bản gốc và gắn cờ <strong>Cần xem</strong> để bạn xem lại.",
+        "latest": "Đây là bản mới nhất của tài liệu — từ giờ mọi sửa đổi đi qua change request.",
+        "pickAnother": "Chọn file khác",
+        "start": "Bắt đầu",
+        "starting": "Đang bắt đầu…",
+        "shortHint": "Số dư chưa đủ cho ước tính này — nạp thêm credit rồi bấm Bắt đầu.",
+        "topUp": "Nạp credit"
+      },
+      "run": {
+        "extracting": "Đang đọc file…",
+        "baselining": "Đang tạo bản gốc 0.1 (ghi dữ liệu, vẽ sơ đồ)…",
+        "checking": "Đã tạo bản gốc 0.1, đang kiểm tra (AI + luật)…",
+        "hint": "Tài liệu lớn có thể mất vài phút — có thể rời trang, việc vẫn chạy tiếp. Xong sẽ mở trang tạo change request.",
+        "pausedWhat": "Đọc file và tạo bản gốc",
+        "interrupted": "Bị gián đoạn — phần dở đã được đưa về như trước. Bấm Tiếp tục để chạy tiếp.",
+        "legacy": "Lần nhập này dừng ở một bước cũ (xác nhận dữ liệu). Bấm Tiếp tục để tạo bản gốc 0.1 và kiểm tra — chỗ độ tin thấp sẽ gắn cờ Cần xem.",
+        "continue": "Tiếp tục"
       }
-    },
-    "mappingReview": {
-      "title": "Xác nhận mapping heading → section",
-      "summary": "{headings} heading, {low} dòng độ tin dưới {threshold}. Heading “không khớp” được giữ nguyên văn và không trích field.",
-      "provisionalHint": "“Tính năng mới” / “Chức năng mới”: tính năng, chức năng lấy từ chính tiêu đề trong file (ghi kèm sau dấu “—”); mã tính năng, chức năng được cấp sau khi nhập xong.",
-      "family": "Nhận dạng: <strong>{family, select, ieee830 {mẫu IEEE 830} ieee_features {mẫu IEEE (dạng System Features)} other {mẫu chuẩn FlintFlow}}</strong>",
-      "familyNote": "mỗi mục được trích vào mục tương ứng của mẫu chuẩn FlintFlow; tài liệu vẫn giữ đúng bố cục của file.",
-      "lowOnly": "Chỉ hiện dòng độ tin thấp",
-      "colHeading": "Heading trong tài liệu",
-      "colConfidence": "Độ tin",
-      "colSection": "Section",
-      "noLowRows": "Không có dòng độ tin thấp — kiểm nhanh rồi bấm xác nhận.",
-      "detectedBy": "Nhận theo {by, select, style {kiểu chữ tiêu đề} outline_level {cấp đề mục} numbering_pattern {số mục} other {bạn chọn}}",
-      "templateOwnSection": "mục riêng của mẫu, giữ nguyên văn",
-      "sharedSection": "Cùng trích vào “{section}” với: {others} — nội dung của heading này vẫn in dưới chính nó.",
-      "sectionAria": "Section cho {heading}",
-      "tablesTitle": "Cột trong bảng → dữ liệu SRS",
-      "tablesHint": "Bảng có đủ cột cần thiết được lấy tự động, không tốn credit. Mỗi bảng chỉ lấy một loại dữ liệu — chọn “Không lấy cột này” nếu cột không chứa dữ liệu cần trích.",
-      "untitledColumn": "Cột {n} (không có tiêu đề)",
-      "tableOf": "Bảng {group}",
-      "tableUnknown": "Bảng chưa rõ loại",
-      "columnN": "cột {n}",
-      "samples": "Dữ liệu: {samples}",
-      "mixedEntity": "Khác loại với các cột khác của bảng — cột này sẽ không được lấy.",
-      "columnAria": "Dữ liệu cho cột {header}",
-      "skipColumn": "Không lấy cột này",
-      "otherGroup": "Khác",
-      "saving": "Đang lưu…",
-      "submit": "Xác nhận mapping",
-      "slotsGroup": "Một phần nội dung (mẫu chia nhỏ hơn FlintFlow)",
-      "sectionsGroup": "Cả mục theo mẫu chuẩn FlintFlow",
-      "guidance": "Hướng dẫn trong mẫu: {text}",
-      "overlap": "Heading khác đang nhận “{section}” — trùng dữ liệu với lựa chọn này, nội dung sẽ in hai lần. Chỉ giữ một bên.",
-      "overlapBlocked": "Còn heading trùng dữ liệu — sửa trước khi lưu."
     },
     "flagsPanel": {
       "intro": "Tài liệu đã import — mọi thay đổi đi qua change request (tạo từ gap report, panel “Sửa tài liệu có xem trước” hoặc lệnh sửa trong chat). Release được khi hết cờ đỏ.",
@@ -3866,7 +3800,8 @@
       "estimate": "{remaining, select, yes {Ước tính phần còn lại} other {Ước tính}}: <strong>~{calls} lượt AI</strong>, <strong>~{credits} credit</strong>",
       "balance": "(số dư: {balance})",
       "breakdown": "{text} lô chữ + {images} ảnh sơ đồ",
-      "short": "Số dư chưa đủ: việc trích sẽ tạm dừng khi hết credit. Nạp thêm rồi bấm Tiếp tục — phần đã xong không tính tiền lại."
+      "short": "Số dư chưa đủ: việc trích sẽ tạm dừng khi hết credit. Nạp thêm rồi bấm Tiếp tục — phần đã xong không tính tiền lại.",
+      "breakdownWithChecks": "{text} lô chữ + {images} ảnh sơ đồ + {checks} lượt kiểm tra"
     },
     "paused": {
       "title": "{what} đang tạm dừng — {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
@@ -3891,7 +3826,8 @@
         "EMPTY_DOCUMENT": "Tài liệu rỗng",
         "FOREIGN_TRACK_CHANGE": "Track Changes chưa xử lý",
         "FOREIGN_COMMENT": "Comment chưa xử lý",
-        "NOT_SRS": "Không phải tài liệu yêu cầu (SRS)"
+        "NOT_SRS": "Không phải tài liệu yêu cầu (SRS)",
+        "PARSE_FAILED": "Không tách được tài liệu"
       },
       "otherIssue": "Vấn đề khác",
       "location": "Vị trí: đoạn thứ {ord} — “{text}”",
@@ -3902,7 +3838,8 @@
         "FOREIGN_TRACK_CHANGE": "Vào Review → Accept/Reject tất cả thay đổi rồi lưu lại.",
         "FOREIGN_COMMENT": "Vào Review → Delete All Comments (hoặc xử lý từng comment) rồi lưu lại.",
         "FILE_TOO_LARGE": "Nén ảnh (File → Compress Pictures) hoặc tách phụ lục.",
-        "NOT_SRS": "Luồng này chỉ nhận SRS hoặc mẫu SRS (.docx). Nếu đây là biên bản họp, email hay ghi chú, hãy đính kèm trong chat làm tài liệu tham khảo; nếu đúng là SRS, kiểm tra file có các mục Use Case / Requirements rồi tải lại."
+        "NOT_SRS": "Luồng này chỉ nhận SRS hoặc mẫu SRS (.docx). Nếu đây là biên bản họp, email hay ghi chú, hãy đính kèm trong chat làm tài liệu tham khảo; nếu đúng là SRS, kiểm tra file có các mục Use Case / Requirements rồi tải lại.",
+        "PARSE_FAILED": "Mở file bằng Word, lưu lại dạng .docx (File → Save As) rồi tải lên lại."
       }
     },
     "reupload": {
@@ -3925,14 +3862,6 @@
       "hint": "File Word .docx tối đa {max} MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.",
       "tooLarge": "File {name} nặng {size} MB, lớn hơn giới hạn {max} MB — hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.",
       "uploading": "Đang tải lên và kiểm tra file…"
-    },
-    "confirmLatest": {
-      "title": "Đây có phải bản mới nhất?",
-      "body": "<file></file> không do FlintFlow xuất ra. Sau khi nhập, tài liệu này thành bản gốc <strong>0.1</strong> của dự án và mọi chỉnh sửa về sau phải đi qua change request.",
-      "hint": "Nếu còn bản mới hơn ở chỗ khác (email, ổ chung…), hãy chọn bản đó.",
-      "pickAnother": "Chọn file khác",
-      "parsing": "Đang tách block…",
-      "confirm": "Đúng, đây là bản mới nhất"
     },
     "valueEditor": {
       "tableBlock": "Bảng {n} (mỗi dòng một hàng, ô cách nhau “|”)",

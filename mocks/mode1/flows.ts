@@ -3,26 +3,20 @@
  * để test UI bắt đầu từ một trạng thái có nghĩa.
  */
 import { answerClarifications, createCr, getCr, runCrAction, type CrAction } from "@/lib/api/change-requests";
-import { confirmLatest, finalizeImport, getImport, patchFields, patchMapping, startExtraction, uploadImport } from "@/lib/api/import";
+import { getImport, startExtraction, uploadImport } from "@/lib/api/import";
 import type { CrDetail } from "@/types/change-request";
 import { MODE1_PROJECT_ID } from "./state";
-import * as stateModule from "./state";
 
 const P = MODE1_PROJECT_ID;
 
 const docx = () => new File(["PK mock"], "SRS_Lumen.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 
-/** Upload → … → finalize: import ở `gap_review`, có version 0.1 + baseline. */
+/** Upload → Bắt đầu (FLF-343, một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra): import ở `gap_review`, có version 0.1 + baseline. */
 export const importToGapReview = async (): Promise<string> => {
   const id = (await uploadImport(P, docx())).data!.import.id;
-  await confirmLatest(P, id);
-  await patchMapping(P, { import_id: id, confirm_all: true });
-  await startExtraction(P, id);
-  for (let i = 0; i < 50 && (await getImport(P)).data!.import!.status === "extracting"; i++);
-  await patchFields(P, { import_id: id, confirm_all: true });
-  await finalizeImport(P, id, stateModule.mode1State.spineVersion);
-  // #8 chạy nền: poll #4 tới gap_review
-  for (let i = 0; i < 10 && (await getImport(P)).data!.import!.status !== "gap_review"; i++);
+  await startExtraction(P, id, true);
+  // chạy nền: poll #4 tới gap_review
+  for (let i = 0; i < 60 && (await getImport(P)).data!.import!.status !== "gap_review"; i++);
   return id;
 };
 

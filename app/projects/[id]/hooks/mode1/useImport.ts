@@ -3,43 +3,33 @@
 import type { TemplateIntent } from "@/types/project";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import {
-  confirmLatest,
-  continueImportFlow2,
-  finalizeImport,
-  getImport,
-  patchFields,
-  patchMapping,
-  resumeImport,
-  startExtraction,
-  uploadImport,
-} from "@/lib/api/import";
+import { continueImportFlow2, finalizeImport, getImport, resumeImport, startExtraction, uploadImport } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
-import type { RocRow } from "@/types/document";
-import type { FieldsPatchRequest, FinalizeResponse, GetImportResponse, MappingPatchRequest } from "@/types/import";
+import type { FinalizeResponse, GetImportResponse, ImportStatus } from "@/types/import";
 import { useErrorText } from "../../_components/mode1/i18n";
 import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 
-/** Nhịp poll `GET /import` khi I-4 chạy nền (#6/#10 trả ngay). */
+/** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "confirm" | "mapping" | "extract" | "fields" | "finalize" | "resume";
+export type ImportAction = "upload" | "start" | "finalize" | "resume";
+
+/** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
+const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
 
 /**
- * Trạng thái wizard import (UC-19–UC-22). Nguồn sự thật là `GET /import`; mỗi hành động gọi API rồi đọc lại.
- * I-4 và finalize (1.10–1.12) chạy nền: sau khi bật job thì poll tới khi import rời `extracting` / tới `gap_review`, hoặc
- * bị `paused`.
+ * Trạng thái wizard import (FLF-343 — chế độ 1 chạy một mạch). Nguồn sự thật là `GET /import`; mỗi hành động gọi API rồi đọc
+ * lại. Chỉ một điểm dừng: màn báo credit (`extracting` chưa chạy) với nút Bắt đầu; sau đó I-4 ⇒ baseline 0.1 ⇒ kiểm tra chạy
+ * nền trên BE, FE poll tới `gap_review` (⇒ trang tạo CR), `incomplete` (chế độ 3/4) hoặc `paused`.
  */
 export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pollMs?: number } = {}) {
   const [data, setData] = useState<GetImportResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<ImportAction | null>(null);
-  /** Đã bấm bắt đầu/tiếp tục trong phiên này — BE có thể chưa kịp ghi `extract_cursor` ở lần poll đầu. */
-  const [jobStarted, setJobStarted] = useState(false);
-  /** Đã bấm tạo baseline / tiếp tục bước baseline–kiểm trong phiên này (BE không báo `baselining` nào đang có job). */
-  const [finalizeStarted, setFinalizeStarted] = useState(false);
+  /** Đã bấm Bắt đầu / Tiếp tục trong phiên này — BE có thể chưa kịp ghi `extract_cursor` ở lần poll đầu. */
+  const [started, setStarted] = useState(false);
   const alive = useRef(true);
   const errText = useErrorText();
 
@@ -68,19 +58,35 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
   }, [reload]);
 
   const doc = data?.import ?? null;
-  const extracting = doc?.status === "extracting" && !doc.paused;
-  const jobRunning = extracting && (jobStarted || doc?.extract_cursor !== null);
-  // `checking` không dừng luôn là job nền đang chạy (BE đặt `paused` khi job mất); `baselining` chỉ khi phiên này đã bấm
-  const finalizing = !!doc && !doc.paused && (doc.status === "checking" || (doc.status === "baselining" && finalizeStarted));
-  /** Job baseline–kiểm bấm trong phiên này đã xong (`gap_review`) — wizard chuyển sang gap report. */
-  const finalizeDone = finalizeStarted && !!doc && IMPORT_DONE_STATUSES.includes(doc.status);
+  /**
+   * BE không trả ước tính (`credit_estimate: null`) cho `extracting` khi job nền đang chạy — tải lại trang giữa lúc bấm Bắt đầu
+   * và lần ghi cursor đầu thì vẫn biết là đang chạy (không hiện lại màn Bắt đầu, vẫn poll).
+   */
+  const serverRunning = doc?.status === "extracting" && !doc.paused && data?.credit_estimate === null;
+  /** Màn báo credit: `extracting` chưa chạy lần nào (bản ghi cũ: `awaiting_latest_confirm` / `mapping_review`). */
+  const awaitingStart =
+    !!doc &&
+    !doc.paused &&
+    !started &&
+    !serverRunning &&
+    (doc.status === "awaiting_latest_confirm" || doc.status === "mapping_review" || (doc.status === "extracting" && doc.extract_cursor === null));
+  /**
+   * Job nền đang chạy: trích (đã bấm hoặc đã có cursor), tạo bản gốc, kiểm tra. `baselining` / `checking` không dừng luôn là
+   * job đang chạy (BE đặt `paused: resume_later` khi job mất).
+   */
+  const running =
+    !!doc &&
+    !doc.paused &&
+    ((doc.status === "extracting" && (started || serverRunning || doc.extract_cursor !== null)) || PIPELINE_STATUSES.includes(doc.status));
+  /** Lượt bấm trong phiên này đã chạy xong tới trang tạo CR. */
+  const done = started && !!doc && IMPORT_DONE_STATUSES.includes(doc.status);
 
-  // Poll khi job nền đang chạy; dừng khi rời `extracting` / tới `gap_review`, bị pause, hoặc rời trang
+  // Poll khi job nền đang chạy; dừng khi xong / dừng / rời trang
   useEffect(() => {
-    if (!jobRunning && !finalizing) return;
+    if (!running) return;
     const timer = setTimeout(() => void reload(), pollMs);
     return () => clearTimeout(timer);
-  }, [jobRunning, finalizing, data, pollMs, reload]);
+  }, [running, data, pollMs, reload]);
 
   const run = useCallback(
     async <T,>(action: ImportAction, fn: () => Promise<T>): Promise<T | null> => {
@@ -111,43 +117,42 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
     loading,
     error,
     busy,
-    jobRunning,
-    finalizing,
-    finalizeDone,
+    awaitingStart,
+    running,
+    done,
     reload,
     clearError: () => setError(null),
-    upload: (file: File, intent?: TemplateIntent) => run("upload", () => uploadImport(projectId, file, intent)),
+    upload: (file: File, intent?: TemplateIntent) =>
+      run("upload", async () => {
+        setStarted(false);
+        return uploadImport(projectId, file, intent);
+      }),
     /** FLF-278: dùng mẫu đã lưu của tổ chức thay cho tải file — mapping áp sẵn. */
-    pickOrgTemplate: (orgTemplateId: string, intent?: TemplateIntent) => run("upload", () => importFromOrgTemplate(projectId, orgTemplateId, intent)),
-    confirm: () => run("confirm", () => confirmLatest(projectId, importId)),
-    saveMapping: (body: Omit<MappingPatchRequest, "import_id">) =>
-      run("mapping", () => patchMapping(projectId, { ...body, import_id: importId })),
-    extract: () =>
-      run("extract", async () => {
-        const res = await startExtraction(projectId, importId);
-        setJobStarted(true);
+    pickOrgTemplate: (orgTemplateId: string, intent?: TemplateIntent) =>
+      run("upload", async () => {
+        setStarted(false);
+        return importFromOrgTemplate(projectId, orgTemplateId, intent);
+      }),
+    /** Nút Bắt đầu: một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu trả lời "đây là bản mới nhất". */
+    start: (confirmLatest: boolean) =>
+      run("start", async () => {
+        const res = await startExtraction(projectId, importId, confirmLatest);
+        setStarted(true);
         return res;
       }),
+    /** #10 chạy nền ở mọi bước đang dừng; chạy tiếp tới cùng đích (trang tạo CR). */
     resume: () =>
       run("resume", async () => {
         const res = await resumeImport(projectId, importId);
-        // #10 chạy nền ở cả ba bước: `extracting` (I-4), `baselining` (chạy lại finalize), `checking` (1.11–1.12)
-        if (res.data?.import.status === "extracting") setJobStarted(true);
-        else setFinalizeStarted(true);
+        setStarted(true);
         return res;
       }),
-    saveFields: (body: Omit<FieldsPatchRequest, "import_id">) =>
-      run("fields", () => patchFields(projectId, { ...body, import_id: importId })),
-    /**
-     * 1.10–1.12: baseline 0.1 + kiểm. `base_version` = `spine_version` đọc ngay trước khi gửi. `recordOfChanges` (FLF-252):
-     * dòng Record of Changes người dùng đã sửa ở wizard — bỏ trống ⇒ BE dùng dòng đọc từ file. BE trả ngay (`baselining`),
-     * job chạy nền ⇒ poll `GET /import` tới `gap_review` (`finalizeDone`) hoặc `paused`.
-     */
-    finalize: (recordOfChanges?: RocRow[], opts: { complete?: boolean } = {}) =>
+    /** FLF-336: màn "Kết quả đọc file" (`incomplete`) — Hoàn thiện ⇒ chạy tiếp tới baseline. */
+    complete: () =>
       run("finalize", async (): Promise<FinalizeResponse | null> => {
         const spine = await getSpine(projectId);
-        const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0, recordOfChanges, opts);
-        setFinalizeStarted(true);
+        const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0, undefined, { complete: true });
+        setStarted(true);
         return res.data;
       }),
     /** FLF-278: chế độ 3 ⇒ Luồng 2. Thành công ⇒ dự án thành `fpt`, FE mở workspace (không poll import nữa). */
