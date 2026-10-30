@@ -48,7 +48,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
     expect(screen.queryByText(/Xác nhận mapping/)).toBeNull();
     fireEvent.click(start);
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr`));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
     expect(mode1State.mode1State.project.import_state).toBe("gap_review");
     expect(mode1State.mode1State.importDoc?.confirmed_latest_at).not.toBeNull();
     expect(mode1State.mode1State.baselines.filter((b) => b.type === "imported")).toHaveLength(1);
@@ -104,7 +104,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
     expect(push).not.toHaveBeenCalled();
     mode1State.mode1State.credits = 100;
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr`));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
     expect(mode1State.mode1State.baselines.filter((b) => b.type === "imported")).toHaveLength(1);
   });
 
@@ -116,7 +116,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
     expect(screen.getByText(/phần dở đã được đưa về như trước/)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr`));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
   });
 
   it("hết credit giữa lúc trích ⇒ banner paused; nạp xong bấm Tiếp tục chạy tiếp tới trang tạo CR", async () => {
@@ -129,7 +129,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
 
     mode1State.mode1State.credits = 100;
     fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr`));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
   });
 
   it("mở lại trang khi import đã xong ⇒ thẻ xong với link trang CR + gap report, không tự chuyển", async () => {
@@ -169,7 +169,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
       renderWizard();
       expect(await screen.findByRole("checkbox", { name: /bản mới nhất/ })).toBeChecked();
       fireEvent.click(screen.getByRole("button", { name: "Bắt đầu" }));
-      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr`));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
       expect(mode1State.mode1State.importDoc?.confirmed_latest_at).not.toBeNull();
     });
 
@@ -177,7 +177,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
       await legacy("mapping_review");
       renderWizard();
       fireEvent.click(await screen.findByRole("button", { name: "Bắt đầu" }));
-      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr`));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
       expect(mode1State.mode1State.profile!.heading_map.filter((h) => h.confidence < 0.8).every((h) => h.confirmed && h.auto_confirmed)).toBe(true);
     });
 
@@ -185,7 +185,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
       await legacy("fields_review");
       renderWizard();
       fireEvent.click(await screen.findByRole("button", { name: "Tiếp tục" }));
-      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr`));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
       expect(mode1State.mode1State.baselines.filter((b) => b.type === "imported")).toHaveLength(1);
     });
   });

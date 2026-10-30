@@ -18,7 +18,7 @@ import StartImportCard from "./StartImportCard";
 import UploadStep from "./UploadStep";
 import OrgTemplatePicker from "./OrgTemplatePicker";
 import SaveOrgTemplateCard from "./SaveOrgTemplateCard";
-import { crListHref, gapReportHref } from "./prefill";
+import { gapReportHref } from "./prefill";
 
 interface ImportWizardProps {
   projectId: string;
@@ -73,14 +73,14 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
     return res;
   };
 
-  // Lượt bấm trong phiên này chạy xong (`gap_review`) ⇒ vào thẳng trang tạo change request
+  // Lượt bấm trong phiên này chạy xong (`gap_review`) ⇒ vào thẳng workspace để tạo change request, không mở popup
   const done = imp.done;
   const navigated = useRef(false);
   useEffect(() => {
     if (!done || navigated.current) return;
     navigated.current = true;
     onChanged?.();
-    router.push(crListHref(projectId));
+    router.push(`/projects/${projectId}`);
   }, [done, onChanged, router, projectId]);
 
   if (imp.loading) {
@@ -260,7 +260,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
           <Link href={gapReportHref(projectId)} className="px-4 py-2 rounded-[8px] border border-[#1F7A45] text-[#1F7A45] font-bold">
             {t("done.gapReport")}
           </Link>
-          <Link href={crListHref(projectId)} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
+          <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
             {t("done.openCr")}
           </Link>
         </div>
