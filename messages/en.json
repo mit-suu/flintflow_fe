@@ -595,6 +595,18 @@
         "title": "Baseline {version} recorded",
         "bodyWaived": "The document was signed off at {version} with {count, plural, one {# flag} other {# flags}} waived with a reason.",
         "bodyClean": "The document was signed off at {version} with no red flags left."
+      },
+      "org_invitation_requested": {
+        "title": "Invitation request awaiting approval",
+        "body": "{name} wants to invite {email} to {org} as {role}."
+      },
+      "org_invitation_approved": {
+        "title": "Invitation request approved",
+        "body": "A Lead approved the invitation for {email} to {org}; the code has been emailed."
+      },
+      "org_invitation_rejected": {
+        "title": "Invitation request rejected",
+        "body": "A Lead rejected the invitation for {email} to {org}."
       }
     },
     "common": {
@@ -1012,7 +1024,12 @@
           "codeTitle": "New invitation code",
           "codeBody": "This code is shown only once. Send it to the invitee; it works once and expires.",
           "emailRequired": "Enter the invitee email — the invitation code is sent to that address.",
-          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires — if the invitee cannot find the email, you can send them this code directly."
+          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires — if the invitee cannot find the email, you can send them this code directly.",
+          "requestTitle": "Request an invitation",
+          "requestCta": "Send request for Lead approval",
+          "requesting": "Sending…",
+          "requestSentTitle": "Request sent",
+          "requestSent": "A Lead will review the request to invite {email}. Once approved, the invitation code is emailed to that address — you will be notified."
         },
         "invitations": {
           "title": "Invitations",
@@ -1024,8 +1041,18 @@
             "pending": "Pending",
             "accepted": "Used",
             "revoked": "Revoked",
-            "expired": "Expired"
-          }
+            "expired": "Expired",
+            "awaiting_approval": "Awaiting Lead approval",
+            "rejected": "Rejected"
+          },
+          "mineTitle": "Your invitation requests",
+          "requestedBy": "Requested by {name}",
+          "approve": "Approve",
+          "reject": "Reject",
+          "cancelRequest": "Cancel request",
+          "approvedTitle": "Approved — invitation code",
+          "approvedBody": "The code was sent to {email}. It is shown here only once.",
+          "dismiss": "Dismiss"
         },
         "danger": {
           "title": "Delete organization",
@@ -1038,7 +1065,8 @@
           "confirmCta": "Delete permanently"
         },
         "soleLeadHint": "You are the only Lead — make another member a Lead before you leave.",
-        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
+        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below.",
+        "analystHint": "You can request an invitation; the code is emailed to the invitee only after a Lead approves. Only a Lead can change roles or remove members."
       },
       "library": {
         "title": "Template library",
@@ -2612,7 +2640,8 @@
     "LOG_NOT_FOUND": "That AI run wasn't found.",
     "ORG_CONTEXT_MISSING": "Couldn't determine your organization. Please reload the page.",
     "METHOD_NOT_ALLOWED": "This action isn't supported.",
-    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported."
+    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported.",
+    "INVITE_NOT_AWAITING_APPROVAL": "This invitation is no longer awaiting approval: it was handled, cancelled or has expired."
   },
   "admin": {
     "common": {
