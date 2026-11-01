@@ -81,6 +81,11 @@ interface DocumentPaneProps {
   /** Mục có sơ đồ vẽ lại được (có trong `diagrams[]` của Spine). */
   hasDiagrams?: (sectionId: string) => boolean;
   /**
+   * Nút "Thử lại" trong khung sơ đồ vẽ lỗi (BE gửi `png = "diagram-error:<id>"`). Không truyền ⇒ khung chỉ báo lỗi,
+   * không có nút (mode 1, Viewer).
+   */
+  onRedrawDiagram?: (diagramId: string) => Promise<void>;
+  /**
    * Ngôn ngữ tài liệu client đã biết (FLF-265, `knownDocumentLanguage`): chip trên header và khoá tải lại — đổi ngôn ngữ
    * là gỡ tài liệu cũ xuống. `null` (mode 1 chưa biết ngôn ngữ file) ⇒ chỉ hiện chip khi BE trả `meta.translation`.
    */
@@ -200,13 +205,68 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   return <img src={src} alt={caption ?? t("imageAlt")} className="max-w-full rounded-inner" />;
 }
 
+/** Ô `png` của sơ đồ vẽ lỗi — BE giữ chỗ hình bằng `diagram-error:<id>` thay vì bỏ hình khỏi mục. */
+const DIAGRAM_ERROR_PREFIX = "diagram-error:";
+
+/** Khung thay cho sơ đồ vẽ lỗi, ngay tại chỗ hình: báo chưa vẽ được + nút thử lại vẽ đúng sơ đồ đó. */
+function DiagramErrorBox({ diagramId, onRetry }: { diagramId: string; onRetry?: (diagramId: string) => Promise<void> }) {
+  const t = useTranslations("workspace.document");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const retry = async () => {
+    if (!onRetry) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onRetry(diagramId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("redrawFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div
+      role="group"
+      aria-label={t("diagramNotDrawn")}
+      className="w-full max-w-md aspect-[4/3] flex flex-col items-center justify-center gap-3 p-6 rounded-inner bg-surface-container text-center"
+    >
+      <Icon name="warning" size={24} className="text-error" />
+      <span className="text-body font-bold text-on-surface">{t("diagramNotDrawn")}</span>
+      <span className="text-caption text-on-surface-muted">{onRetry ? t("diagramNotDrawnHint") : t("diagramNotDrawnReadOnly")}</span>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={() => void retry()}
+          disabled={busy}
+          className="inline-flex items-center gap-1 text-caption font-bold px-3 py-1 rounded-full bg-primary text-on-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Icon name="refresh" size={11} />
+          {busy ? t("redrawing") : t("retryDiagram")}
+        </button>
+      )}
+      {error && <span className="text-caption text-error">{error}</span>}
+    </div>
+  );
+}
+
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 
 /** Bảng đứng ngay dưới tiêu đề (tiêu đề section hoặc heading con) — cần khoảng trống để không dính sát tiêu đề. */
 export const followsHeading = (blocks: Block[], index: number): boolean => index === 0 || blocks[index - 1]?.type === "heading";
 
 /** Dùng lại ở `view/page.tsx` (read-only) để không lặp logic render Block. */
-export function BlockView({ block, projectId, afterHeading = false }: { block: Block; projectId: string; afterHeading?: boolean }) {
+export function BlockView({
+  block,
+  projectId,
+  afterHeading = false,
+  onRedrawDiagram,
+}: {
+  block: Block;
+  projectId: string;
+  afterHeading?: boolean;
+  onRedrawDiagram?: (diagramId: string) => Promise<void>;
+}) {
   switch (block.type) {
     case "heading": {
       const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
@@ -268,7 +328,11 @@ export function BlockView({ block, projectId, afterHeading = false }: { block: B
     case "image":
       return (
         <div className="mb-2 flex flex-col items-center gap-1">
-          <DocumentImage projectId={projectId} png={block.png} caption={block.caption} />
+          {block.png.startsWith(DIAGRAM_ERROR_PREFIX) ? (
+            <DiagramErrorBox diagramId={block.png.slice(DIAGRAM_ERROR_PREFIX.length)} onRetry={onRedrawDiagram} />
+          ) : (
+            <DocumentImage projectId={projectId} png={block.png} caption={block.caption} />
+          )}
           {block.caption && <span className="text-caption text-on-surface-muted italic">{block.caption}</span>}
         </div>
       );
@@ -340,6 +404,7 @@ function SectionView({
   commentCount = 0,
   onOpenComments,
   onRedraw,
+  onRedrawDiagram,
 }: {
   onEdit?: (sectionLabel: string) => void;
   onDraft?: (sectionLabel: string) => void;
@@ -351,6 +416,7 @@ function SectionView({
   commentCount?: number;
   onOpenComments?: () => void;
   onRedraw?: () => Promise<void>;
+  onRedrawDiagram?: (diagramId: string) => Promise<void>;
   section: RenderedSection;
   projectId: string;
   /** Vấn đề đang mở của mục: số lượng và có cái nào chặn chốt bản không. */
@@ -482,7 +548,13 @@ function SectionView({
       {section.blocks.length > 0 && (
         <>
           {section.blocks.map((block, i) => (
-            <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+            <BlockView
+              key={i}
+              block={block}
+              projectId={projectId}
+              afterHeading={followsHeading(section.blocks, i)}
+              onRedrawDiagram={onRedrawDiagram}
+            />
           ))}
           {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
         </>
@@ -518,6 +590,7 @@ export default function DocumentPane({
   onSectionsLoaded,
   headerEnd,
   onRedrawSection,
+  onRedrawDiagram,
   hasDiagrams,
   documentLanguage = null,
   onTranslate,
@@ -661,6 +734,7 @@ export default function DocumentPane({
               commentCount={commentCountOf?.(section.id) ?? 0}
               onOpenComments={onOpenSectionComments ? () => onOpenSectionComments(section.id) : undefined}
               onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
+              onRedrawDiagram={onRedrawDiagram}
             />
           ))}
       </div>
