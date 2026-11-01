@@ -333,7 +333,11 @@
       "remember": "Ghi nhớ đăng nhập",
       "forgot": "Quên mật khẩu?",
       "failed": "Đăng nhập thất bại",
-      "googleFailed": "Đăng nhập Google thất bại"
+      "googleFailed": "Đăng nhập Google thất bại",
+      "suspendedTitle": "Tài khoản của bạn đã bị khoá.",
+      "suspendedReason": "Lý do: {reason}",
+      "suspendedAt": "Khoá từ ngày {date}.",
+      "suspendedHelp": "Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ quản trị viên FlintFlow để được mở khoá."
     },
     "register": {
       "title": "Tạo tài khoản",

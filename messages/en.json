@@ -333,7 +333,11 @@
       "remember": "Keep me signed in",
       "forgot": "Forgot password?",
       "failed": "Sign-in failed",
-      "googleFailed": "Google sign-in failed"
+      "googleFailed": "Google sign-in failed",
+      "suspendedTitle": "Your account has been suspended.",
+      "suspendedReason": "Reason: {reason}",
+      "suspendedAt": "Suspended since {date}.",
+      "suspendedHelp": "If you think this is a mistake, contact a FlintFlow administrator to have it reactivated."
     },
     "register": {
       "title": "Create an account",
