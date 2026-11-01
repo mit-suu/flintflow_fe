@@ -90,21 +90,35 @@ export const leaveOrganization = async (orgId: string): Promise<void> => {
 export const fetchInvitations = async (orgId: string): Promise<Invitation[]> =>
   unwrap(await apiCall<Invitation[]>(`/orgs/${orgId}/invitations`));
 
-/** UC-08 — chỉ Lead. Email bắt buộc: BE gửi mã tới đó. `code` trong kết quả là lần duy nhất thấy mã thô. */
+/**
+ * UC-08. Email bắt buộc: BE gửi mã tới đó. Lead nhận `code` — lần duy nhất thấy mã thô. Analyst chỉ tạo yêu cầu
+ * chờ Lead duyệt (FLF-303): kết quả `state: "awaiting_approval"`, không có `code`.
+ */
 export const createInvitation = async (
   orgId: string,
   role: InvitableRole,
   email: string
-): Promise<CreatedInvitation> =>
+): Promise<CreatedInvitation | Invitation> =>
   unwrap(
-    await apiCall<CreatedInvitation>(`/orgs/${orgId}/invitations`, {
+    await apiCall<CreatedInvitation | Invitation>(`/orgs/${orgId}/invitations`, {
       method: "POST",
       body: JSON.stringify({ role, email }),
     })
   );
 
+/** Lead thu hồi mã; Analyst chỉ huỷ được yêu cầu của mình khi còn chờ duyệt. */
 export const revokeInvitation = async (orgId: string, invitationId: string): Promise<Invitation> =>
   unwrap(await apiCall<Invitation>(`/orgs/${orgId}/invitations/${invitationId}`, { method: "DELETE" }));
+
+/** FLF-303 — Lead duyệt yêu cầu mời: BE sinh mã, gửi email; `code` là lần duy nhất thấy mã thô. */
+export const approveInvitation = async (orgId: string, invitationId: string): Promise<CreatedInvitation> =>
+  unwrap(
+    await apiCall<CreatedInvitation>(`/orgs/${orgId}/invitations/${invitationId}/approve`, { method: "POST" })
+  );
+
+/** FLF-303 — Lead từ chối yêu cầu mời; người yêu cầu được báo. */
+export const rejectInvitation = async (orgId: string, invitationId: string): Promise<Invitation> =>
+  unwrap(await apiCall<Invitation>(`/orgs/${orgId}/invitations/${invitationId}/reject`, { method: "POST" }));
 
 /** Xem trước trước khi tham gia. Mã hỏng/hết hạn/đã dùng ⇒ `INVITE_INVALID` (410). */
 export const previewInvitation = async (code: string): Promise<InvitationPreview> =>

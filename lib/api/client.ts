@@ -1,4 +1,5 @@
 import { clearAuthToken } from "../auth";
+import { ACCOUNT_SUSPENDED, endSuspendedSession } from "../account-suspended";
 import { localizeApiError } from "./error-messages";
 import { MODE_SWITCH_ERROR_CODES, signalProjectModeMaybeChanged } from "../project-mode-signal";
 import {
@@ -79,6 +80,23 @@ const withCrossTabLock = <T>(fn: () => Promise<T>): Promise<T> => {
   return fn();
 };
 
+/**
+ * 403 `ACCOUNT_SUSPENDED` (FLF-345): tài khoản bị khoá giữa phiên ⇒ đăng xuất, về /login kèm lý do khoá.
+ * Đọc trên bản clone để nơi gọi vẫn đọc được body của `res`.
+ */
+const isSuspendedResponse = async (res: Response): Promise<boolean> => {
+  if (res.status !== 403) return false;
+  let body: ApiResponse;
+  try {
+    body = (await res.clone().json()) as ApiResponse;
+  } catch {
+    return false;
+  }
+  if (body?.error?.code !== ACCOUNT_SUSPENDED) return false;
+  endSuspendedSession(body.meta);
+  return true;
+};
+
 const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutcome> => {
   if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
 
@@ -96,6 +114,7 @@ const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutco
         // Tab khác (không có Web Locks) có thể đã xoay vòng refresh token ngay trước request này —
         // khi đó đăng xuất sẽ gọi /auth/logout với cookie MỚI và thu hồi luôn phiên vừa tạo.
         if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+        if (await isSuspendedResponse(res)) return "rejected";
         clearAuthToken();
         return "rejected";
       }
@@ -228,6 +247,8 @@ export const authFetch = async (
     if ((err as { name?: unknown } | null)?.name === "AbortError") throw err;
     throw new ApiClientError(0, "NETWORK_ERROR", err instanceof Error ? err.message : String(err));
   }
+
+  await isSuspendedResponse(res);
 
   // 3. Handle 401 Unauthorized with concurrency awareness
   if (res.status === 401 && retry) {

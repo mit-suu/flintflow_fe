@@ -161,3 +161,58 @@ describe("LoginPage — câu lỗi của BE theo ngôn ngữ đang hiển thị"
     expect(await screen.findByText("email không hợp lệ")).toBeInTheDocument();
   });
 });
+
+describe("LoginPage — tài khoản bị khoá hiện lý do (UC-03, FLF-345)", () => {
+  beforeEach(() => {
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
+    vi.mocked(saveAuthToken).mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "", pathname: "/login" });
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("BE trả lý do ⇒ hiện tiêu đề khoá, lý do, ngày khoá và hướng dẫn liên hệ", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(403, {
+        data: null,
+        error: { code: "ACCOUNT_SUSPENDED", message: "Tài khoản đã bị khoá" },
+        meta: { reason: "Vi phạm điều khoản sử dụng", suspended_at: "2026-10-30T08:00:00.000Z" },
+      }),
+    );
+    await renderPage();
+    submit("hiep@flintflow.vn", "password-123");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Tài khoản của bạn đã bị khoá.");
+    expect(alert).toHaveTextContent("Lý do: Vi phạm điều khoản sử dụng");
+    expect(alert).toHaveTextContent(/Khoá từ ngày .*2026/);
+    expect(alert).toHaveTextContent("liên hệ quản trị viên FlintFlow");
+    expect(saveAuthToken).not.toHaveBeenCalled();
+  });
+
+  it("BE không có lý do ⇒ chỉ câu khoá chung, không có dòng Lý do", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(403, { data: null, error: { code: "ACCOUNT_SUSPENDED", message: "Tài khoản đã bị khoá" }, meta: { reason: null, suspended_at: null } }),
+    );
+    await renderPage();
+    submit("hiep@flintflow.vn", "password-123");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Tài khoản của bạn đã bị khoá.");
+    expect(alert).not.toHaveTextContent("Lý do:");
+    expect(alert).not.toHaveTextContent("Khoá từ ngày");
+  });
+
+  it("bị khoá giữa phiên ⇒ /login đọc lý do client.ts để lại, đọc một lần rồi xoá", async () => {
+    sessionStorage.setItem("flintflow:account-suspended", JSON.stringify({ reason: "Spam tạo dự án", suspendedAt: null }));
+    await renderPage();
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Lý do: Spam tạo dự án");
+    expect(sessionStorage.getItem("flintflow:account-suspended")).toBeNull();
+  });
+});

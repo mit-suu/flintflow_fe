@@ -19,6 +19,7 @@ const str = (value: unknown): string | undefined => (typeof value === "string" &
  */
 export const useNotificationText = () => {
   const t = useTranslations("app.notificationTypes");
+  const tRoles = useTranslations("app.org.roles");
   const format = useFormatter();
   const rawLocale = useLocale();
   const locale = isLocale(rawLocale) ? rawLocale : "vi";
@@ -55,6 +56,27 @@ export const useNotificationText = () => {
         const available = num(meta.available);
         if (credits === undefined || available === undefined) return stored;
         return { title: t("credit_topped_up.title", { credits: format.number(credits) }), body: t("credit_topped_up.body", { available: format.number(available) }) };
+      }
+      // FLF-303: Analyst gửi yêu cầu mời ⇒ Lead; Lead duyệt / từ chối ⇒ người yêu cầu
+      case "org_invitation_requested": {
+        const name = str(meta.requesterName);
+        const email = str(meta.email);
+        const org = str(meta.organizationName);
+        const role = str(meta.role);
+        if (!name || !email || !org || (role !== "analyst" && role !== "viewer")) return stored;
+        return {
+          title: t("org_invitation_requested.title"),
+          body: t("org_invitation_requested.body", { name, email, org, role: tRoles(role) }),
+        };
+      }
+      case "org_invitation_approved":
+      case "org_invitation_rejected": {
+        const email = str(meta.email);
+        const org = str(meta.organizationName);
+        if (!email || !org) return stored;
+        return notification.type === "org_invitation_approved"
+          ? { title: t("org_invitation_approved.title"), body: t("org_invitation_approved.body", { email, org }) }
+          : { title: t("org_invitation_rejected.title"), body: t("org_invitation_rejected.body", { email, org }) };
       }
       case "low_credit": {
         const balance = num(meta.balance);
