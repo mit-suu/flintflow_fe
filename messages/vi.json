@@ -473,7 +473,10 @@
         "type": "Loại",
         "action": "Hành động",
         "credit": "Credit",
-        "availableAfter": "Khả dụng sau"
+        "availableAfter": "Khả dụng sau",
+        "project": "Dự án",
+        "member": "Thành viên",
+        "tokens": "Token (vào / ra)"
       },
       "txType": {
         "reserve": "Giữ credit",
@@ -483,7 +486,8 @@
         "monthly_reset": "Reset hằng tháng",
         "refund": "Hoàn credit",
         "admin_adjust": "Điều chỉnh credit",
-        "other": "Giao dịch credit"
+        "other": "Giao dịch credit",
+        "payment": "Thanh toán"
       },
       "txState": {
         "reserved": "đang giữ",
@@ -495,7 +499,8 @@
         "load": "Không thể tải thông tin thanh toán",
         "createTx": "Không thể tạo giao dịch",
         "changePlan": "Không thể đổi gói",
-        "loadMore": "Không thể tải thêm giao dịch"
+        "loadMore": "Không thể tải thêm giao dịch",
+        "filter": "Không thể lọc lịch sử giao dịch"
       },
       "loadingHistory": "Đang tải lịch sử giao dịch…",
       "actionType": {
@@ -534,7 +539,24 @@
       "creditUnit": {
         "one": "credit",
         "other": "credit"
-      }
+      },
+      "paymentStatus": {
+        "succeeded": "Thành công",
+        "pending": "Đang chờ",
+        "failed": "Thất bại"
+      },
+      "openQr": "Mở mã QR",
+      "filter": {
+        "kind": "Loại",
+        "kindAll": "Tất cả giao dịch",
+        "usage": "Sử dụng AI",
+        "payment": "Thanh toán",
+        "member": "Thành viên",
+        "memberAll": "Mọi thành viên",
+        "project": "Dự án",
+        "projectAll": "Mọi dự án"
+      },
+      "noTxFiltered": "Không có giao dịch nào khớp bộ lọc"
     },
     "checkout": {
       "title": "Giao dịch",

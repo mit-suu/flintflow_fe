@@ -1,10 +1,10 @@
 "use client";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import { Badge, Button, EmptyState, IconButton, PageSkeleton } from "@/components/ui";
+import { Badge, Button, EmptyState, FilterSelect, IconButton, PageSkeleton, type BadgeTone } from "@/components/ui";
 import {
   createCheckout,
   fetchBalance,
@@ -15,10 +15,16 @@ import {
   type BalanceResponse,
   type CreditPackage,
   type CreditTransaction,
+  type PaymentIntentStatus,
   type PlanDefinition,
   type PlanId,
+  type TransactionFilters,
+  type TransactionKind,
   requestCreditTopup,
 } from "@/lib/api/billing";
+import { fetchMembers } from "@/lib/api/orgs";
+import { listProjects } from "@/lib/api/projects";
+import { tPhase, tStep } from "@/lib/i18n";
 import { emitNotificationsChanged } from "@/lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
@@ -28,6 +34,32 @@ const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "deduct") return `−${tx.amount}`;
   return String(tx.amount);
 };
+
+/** Ô không có dữ liệu (dòng cũ chưa ghi step / token, giao dịch không gắn dự án). */
+const EMPTY_CELL = "—";
+
+const PAYMENT_TONE: Record<PaymentIntentStatus, BadgeTone> = {
+  succeeded: "success",
+  pending: "warning",
+  failed: "danger",
+};
+
+/** Bộ lọc lịch sử — `all` = không lọc. */
+interface LedgerFilters {
+  kind: "all" | TransactionKind;
+  memberId: string;
+  projectId: string;
+}
+
+const NO_FILTERS: LedgerFilters = { kind: "all", memberId: "all", projectId: "all" };
+
+const toApiFilters = (f: LedgerFilters): TransactionFilters => ({
+  ...(f.kind !== "all" ? { kind: f.kind } : {}),
+  ...(f.memberId !== "all" ? { memberId: f.memberId } : {}),
+  ...(f.projectId !== "all" ? { projectId: f.projectId } : {}),
+});
+
+type FilterChoice = { value: string; label: string };
 
 /** Chỉ đổi màu con số, không đổi hình thẻ: khả dụng là con số người dùng theo dõi, số khác chỉ là tham chiếu. */
 type StatTone = "primary" | "error" | "muted" | "plain";
@@ -69,6 +101,11 @@ export default function BillingPage() {
   const [ledger, setLedger] = useState<CreditTransaction[]>([]);
   const [ledgerPage, setLedgerPage] = useState(1);
   const [ledgerTotalPages, setLedgerTotalPages] = useState(1);
+  const [filters, setFilters] = useState<LedgerFilters>(NO_FILTERS);
+  const [memberChoices, setMemberChoices] = useState<FilterChoice[]>([]);
+  const [projectChoices, setProjectChoices] = useState<FilterChoice[]>([]);
+  // Đổi bộ lọc nhanh ⇒ chỉ nhận câu trả lời của lần đổi cuối
+  const ledgerRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   // Ví là của tổ chức và chỉ Lead được nạp / đổi gói (UC-59, UC-62). Biết chắc không phải Lead thì ẩn nút mua —
@@ -91,19 +128,43 @@ export default function BillingPage() {
     }
   };
 
-  const loadBalance = useCallback(async () => {
-    const [nextBalance, firstPage] = await Promise.all([fetchBalance(), fetchTransactions(1)]);
-    setBalance(nextBalance);
+  const loadLedger = useCallback(async (next: LedgerFilters) => {
+    const request = ++ledgerRequest.current;
+    const firstPage = await fetchTransactions(1, 20, toApiFilters(next));
+    if (request !== ledgerRequest.current) return;
     setLedger(firstPage.items);
     setLedgerPage(1);
     setLedgerTotalPages(firstPage.meta?.totalPages ?? 1);
   }, []);
 
+  const loadBalance = useCallback(async () => {
+    setBalance(await fetchBalance());
+  }, []);
+
+  // Lựa chọn của bộ lọc thành viên / dự án. Lỗi ở đây chỉ làm mất bộ lọc, không chặn trang.
+  const activeOrgId = activeOrg?.id ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    const loadChoices = async () => {
+      const [members, projects] = await Promise.all([
+        activeOrgId ? fetchMembers(activeOrgId).catch(() => []) : Promise.resolve([]),
+        listProjects().then((res) => res.data ?? []).catch(() => []),
+      ]);
+      if (cancelled) return;
+      setMemberChoices(members.map((m) => ({ value: m.userId, label: m.name?.trim() || m.email })));
+      setProjectChoices(projects.map((p) => ({ value: p._id, label: p.name })));
+    };
+    void loadChoices();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrgId]);
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const [catalog] = await Promise.all([fetchPackages(), loadBalance()]);
+        const [catalog] = await Promise.all([fetchPackages(), loadBalance(), loadLedger(NO_FILTERS)]);
         if (cancelled) return;
         setPackages(catalog.packages);
         setPlans(catalog.plans);
@@ -118,7 +179,7 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadBalance]);
+  }, [loadBalance, loadLedger]);
 
   const handleBuy = async (pkg: CreditPackage) => {
     setBusy(pkg.id);
@@ -144,7 +205,7 @@ export default function BillingPage() {
         return;
       }
       await upgradePlan(plan.id);
-      await loadBalance();
+      await Promise.all([loadBalance(), loadLedger(filters)]);
       emitNotificationsChanged();
       setBusy(null);
     } catch (err) {
@@ -156,7 +217,7 @@ export default function BillingPage() {
   const handleLoadMore = async () => {
     setBusy("ledger");
     try {
-      const next = await fetchTransactions(ledgerPage + 1);
+      const next = await fetchTransactions(ledgerPage + 1, 20, toApiFilters(filters));
       setLedger((prev) => [...prev, ...next.items]);
       setLedgerPage(next.meta.page);
       setLedgerTotalPages(next.meta.totalPages);
@@ -166,6 +227,37 @@ export default function BillingPage() {
       setBusy(null);
     }
   };
+
+  const changeFilter = async (patch: Partial<LedgerFilters>) => {
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    setBusy("ledger");
+    try {
+      await loadLedger(next);
+    } catch (err) {
+      setError(userErrorMessage(err, t("errors.filter")));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const filtered = filters.kind !== "all" || filters.memberId !== "all" || filters.projectId !== "all";
+  const kindOptions: { value: LedgerFilters["kind"]; label: string }[] = [
+    { value: "all", label: t("filter.kindAll") },
+    { value: "usage", label: t("filter.usage") },
+    { value: "payment", label: t("filter.payment") },
+  ];
+  const memberOptions = [{ value: "all", label: t("filter.memberAll") }, ...memberChoices];
+  const projectOptions = [{ value: "all", label: t("filter.projectAll") }, ...projectChoices];
+
+  // Step của pipeline (`S-1.1`) hoặc giai đoạn khi đó là lượt phỏng vấn đầu giai đoạn (`B`)
+  const stepLabel = (stepId: string) => {
+    const label = tStep(stepId, locale);
+    return label === stepId ? tPhase(stepId, locale) : label;
+  };
+  const packageLabel = (packageId?: string) => packages.find((p) => p.id === packageId)?.label ?? t("txType.purchase");
+  const tokensOf = (tx: CreditTransaction) =>
+    tx.tokensIn != null && tx.tokensOut != null ? `${format.number(tx.tokensIn)} / ${format.number(tx.tokensOut)}` : EMPTY_CELL;
 
   const lowCredit = balance ? balance.available < balance.lowCreditThreshold : false;
 
@@ -316,12 +408,23 @@ export default function BillingPage() {
               </div>
             </section>
 
-            {/* Ledger */}
+            {/* Ledger — UC-59 thanh toán (cả đang chờ / lỗi) + UC-60 chi tiết từng lượt gọi AI */}
             <section className="flex flex-col gap-3">
-              <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FilterSelect label={t("filter.kind")} value={filters.kind} options={kindOptions} onChange={(kind) => void changeFilter({ kind })} />
+                  {projectChoices.length > 0 && (
+                    <FilterSelect label={t("filter.project")} value={filters.projectId} options={projectOptions} onChange={(projectId) => void changeFilter({ projectId })} />
+                  )}
+                  {memberChoices.length > 0 && (
+                    <FilterSelect label={t("filter.member")} value={filters.memberId} options={memberOptions} onChange={(memberId) => void changeFilter({ memberId })} />
+                  )}
+                </div>
+              </div>
               <div className="rounded-card bg-surface-container-low p-1.5 max-h-[52dvh] overflow-auto">
                 {ledger.length === 0 ? (
-                  <EmptyState icon="wallet" title={t("noTx")} />
+                  <EmptyState icon="wallet" title={filtered ? t("noTxFiltered") : t("noTx")} />
                 ) : (
                   <table className="w-full text-body">
                     <thead>
@@ -329,40 +432,68 @@ export default function BillingPage() {
                         <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.time")}</th>
                         <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.type")}</th>
                         <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.action")}</th>
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.project")}</th>
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.member")}</th>
+                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.tokens")}</th>
                         <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.credit")}</th>
                         <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.availableAfter")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {ledger.map((tx) => (
-                        <tr key={tx._id} className="transition-colors hover:bg-surface-container-lowest">
-                          <td className="px-4 py-2.5 text-on-surface-variant whitespace-nowrap">
-                            {format.dateTime(new Date(tx.createdAt), {
-                              day: "numeric",
-                              month: "numeric",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              second: "2-digit",
-                            })}
-                          </td>
-                          <td className="px-4 py-2.5 text-on-surface font-semibold whitespace-nowrap">
-                            {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
-                            {tx.state && (
-                              <span className="ml-1.5 text-caption font-medium text-on-surface-muted">({t(`txState.${tx.state}`)})</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-on-surface-variant">{actionLabel(tx.actionType)}</td>
-                          <td
-                            className={`px-4 py-2.5 text-right font-bold ${
-                              tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
-                            }`}
-                          >
-                            {signedAmount(tx)}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-on-surface">{tx.balanceAfter}</td>
-                        </tr>
-                      ))}
+                      {ledger.map((tx) => {
+                        const isPayment = tx.type === "payment" || tx.type === "purchase";
+                        return (
+                          <tr key={tx._id} className="transition-colors hover:bg-surface-container-lowest">
+                            <td className="px-4 py-2.5 text-on-surface-variant whitespace-nowrap">
+                              {format.dateTime(new Date(tx.createdAt), {
+                                day: "numeric",
+                                month: "numeric",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                              })}
+                            </td>
+                            <td className="px-4 py-2.5 text-on-surface font-semibold whitespace-nowrap">
+                              {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
+                              {tx.state && (
+                                <span className="ml-1.5 text-caption font-medium text-on-surface-muted">({t(`txState.${tx.state}`)})</span>
+                              )}
+                              {tx.paymentStatus && (
+                                <Badge tone={PAYMENT_TONE[tx.paymentStatus]} className="ml-1.5">
+                                  {t(`paymentStatus.${tx.paymentStatus}`)}
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-on-surface-variant">
+                              <div>{isPayment ? packageLabel(tx.packageId) : actionLabel(tx.actionType)}</div>
+                              {tx.stepId && <div className="text-caption text-on-surface-muted">{stepLabel(tx.stepId)}</div>}
+                              {tx.price != null && <div className="text-caption text-on-surface-muted">{formatVnd(tx.price, locale)}</div>}
+                              {tx.type === "payment" && tx.paymentStatus === "pending" && tx.intentId && (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="mt-1"
+                                  onClick={() => router.push(`/home/billing/checkout?intentId=${encodeURIComponent(tx.intentId!)}`)}
+                                >
+                                  {t("openQr")}
+                                </Button>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-on-surface-variant">{tx.project?.name || EMPTY_CELL}</td>
+                            <td className="px-4 py-2.5 text-on-surface-variant whitespace-nowrap">{tx.member?.name || EMPTY_CELL}</td>
+                            <td className="px-4 py-2.5 text-right text-on-surface-variant whitespace-nowrap">{tokensOf(tx)}</td>
+                            <td
+                              className={`px-4 py-2.5 text-right font-bold ${
+                                tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
+                              }`}
+                            >
+                              {signedAmount(tx)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-on-surface">{tx.balanceAfter ?? EMPTY_CELL}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}

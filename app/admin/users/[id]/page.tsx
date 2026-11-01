@@ -298,7 +298,7 @@ export default function AdminUserDetailPage() {
                           </TableCell>
                           <TableCell className="font-mono text-caption">{tx.actionType}</TableCell>
                           <TableCell className="text-end">{num(tx.amount)}</TableCell>
-                          <TableCell className="text-end">{num(tx.balanceAfter)}</TableCell>
+                          <TableCell className="text-end">{tx.balanceAfter == null ? "—" : num(tx.balanceAfter)}</TableCell>
                         </TableRow>
                       ))
                     )}
