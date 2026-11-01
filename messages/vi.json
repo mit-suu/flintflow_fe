@@ -465,7 +465,7 @@
       "current": "Đang dùng",
       "switching": "Đang đổi…",
       "buyPlan": "Mua gói {plan}",
-      "switchTo": "Chuyển sang {plan}",
+      "autoRevert": "Tự về {plan} khi gói hiện tại hết hạn ({date})",
       "history": "Lịch sử giao dịch",
       "noTx": "Chưa có giao dịch nào",
       "col": {
