@@ -469,7 +469,7 @@
       "current": "Current",
       "switching": "Switching…",
       "buyPlan": "Buy {plan} plan",
-      "switchTo": "Switch to {plan}",
+      "autoRevert": "Returns to {plan} when the current plan ends ({date})",
       "history": "Transaction history",
       "noTx": "No transactions yet",
       "col": {

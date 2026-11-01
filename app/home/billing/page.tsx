@@ -11,7 +11,6 @@ import {
   fetchPackages,
   fetchTransactions,
   formatVnd,
-  upgradePlan,
   type BalanceResponse,
   type CreditPackage,
   type CreditTransaction,
@@ -132,21 +131,14 @@ export default function BillingPage() {
     }
   };
 
-  /** Gói trả phí đi qua checkout thật (`plan:<id>`); về gói miễn phí thì đổi ngay. */
+  /** Nâng gói (UC-58) đi qua checkout thật (`plan:<id>`). Không có hạ gói (FLF-347). */
   const handleUpgrade = async (plan: PlanDefinition) => {
     const busyKey: `plan:${PlanId}` = `plan:${plan.id}`;
     setBusy(busyKey);
     setError(null);
     try {
-      if (plan.priceVnd > 0) {
-        const checkout = await createCheckout(busyKey);
-        router.push(`/home/billing/checkout?intentId=${encodeURIComponent(checkout.intentId)}`);
-        return;
-      }
-      await upgradePlan(plan.id);
-      await loadBalance();
-      emitNotificationsChanged();
-      setBusy(null);
+      const checkout = await createCheckout(busyKey);
+      router.push(`/home/billing/checkout?intentId=${encodeURIComponent(checkout.intentId)}`);
     } catch (err) {
       setError(userErrorMessage(err, t("errors.changePlan")));
       setBusy(null);
@@ -168,6 +160,7 @@ export default function BillingPage() {
   };
 
   const lowCredit = balance ? balance.available < balance.lowCreditThreshold : false;
+  const currentPlanPrice = plans.find((p) => p.id === balance?.plan)?.priceVnd ?? 0;
 
   // Bốn thẻ cùng một khuôn: ba con số của ví và gói hiện tại. Đơn vị "credit" giữ nguyên chữ, bản en có số nhiều.
   const statCards: { key: string; label: string; value: ReactNode; hint: string; tone: StatTone }[] = balance
@@ -285,6 +278,8 @@ export default function BillingPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {plans.map((plan) => {
                   const isCurrent = balance?.plan === plan.id;
+                  // FLF-347: bản đầu không có hạ gói (UC-58 chỉ nâng) — gói thấp hơn chỉ tới khi gói đang dùng hết kỳ
+                  const isLower = plan.priceVnd < currentPlanPrice;
                   return (
                     // Gói hiện tại đánh dấu bằng huy hiệu, không bằng viền màu — cả trang không dùng nét để phân tách
                     <div key={plan.id} className="rounded-card bg-surface-container-low p-5 flex items-center gap-4">
@@ -299,6 +294,19 @@ export default function BillingPage() {
                         <Badge tone="primary" size="md">
                           {t("current")}
                         </Badge>
+                      ) : isLower ? (
+                        balance?.subscription && (
+                          <span className="max-w-[12rem] text-right text-body text-on-surface-muted">
+                            {t("autoRevert", {
+                              plan: plan.label,
+                              date: format.dateTime(new Date(balance.subscription.currentPeriodEnd), {
+                                day: "numeric",
+                                month: "numeric",
+                                year: "numeric",
+                              }),
+                            })}
+                          </span>
+                        )
                       ) : canPurchase ? (
                         <Button
                           variant="secondary"
@@ -307,7 +315,7 @@ export default function BillingPage() {
                           disabled={busy !== null}
                           onClick={() => handleUpgrade(plan)}
                         >
-                          {plan.priceVnd > 0 ? t("buyPlan", { plan: plan.label }) : t("switchTo", { plan: plan.label })}
+                          {t("buyPlan", { plan: plan.label })}
                         </Button>
                       ) : null}
                     </div>

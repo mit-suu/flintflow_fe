@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import AppShell from "@/components/layout/AppShell";
 import BillingPage from "./page";
+import { fetchBalance } from "@/lib/api/billing";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/home/billing" }));
 vi.mock("@/lib/api/notifications", () => ({ emitNotificationsChanged: vi.fn(), onNotificationsChanged: () => () => {} }));
@@ -53,6 +54,26 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
   it("chưa biết vai trò thì vẫn hiện nút — BE vẫn chặn, Lead không bị mất nút", async () => {
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
     expect(await screen.findByRole("button", { name: "Mua ngay" })).toBeInTheDocument();
+  });
+});
+
+describe("không hạ gói (FLF-347)", () => {
+  it("đang dùng Pro còn hạn: thẻ Free không có nút chuyển, chỉ báo tự về Free khi hết kỳ", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    vi.mocked(fetchBalance).mockResolvedValueOnce({
+      balance: 694,
+      available: 694,
+      reserved: 0,
+      plan: "pro",
+      planLabel: "Pro",
+      lowCreditThreshold: 10,
+      subscription: { plan: "pro", status: "active", monthlyCreditsAllotment: 1000, currentPeriodStart: "2026-10-14T00:00:00.000Z", currentPeriodEnd: "2026-11-13T00:00:00.000Z" },
+    } as never);
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    expect(await screen.findByText("Tự về Free khi gói hiện tại hết hạn (13/11/2026)")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Chuyển sang/ })).toBeNull();
+    expect(screen.getByText("Đang dùng")).toBeInTheDocument();
   });
 });
 
