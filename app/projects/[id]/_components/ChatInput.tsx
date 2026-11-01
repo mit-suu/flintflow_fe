@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
+import ChatToolbarTip, { CHIP_ICON_ONLY_CLASS, CHIP_LABEL_CLASS } from "./ChatToolbarTip";
 
 /** ~6 dòng chữ 13px — cao hơn nữa thì ô nhập chiếm mất khung chat, nên cuộn trong ô. */
 const MAX_INPUT_HEIGHT = 132;
@@ -171,41 +172,53 @@ export default function ChatInput({
           <div className={`flex items-center gap-1.5 min-w-0 ${compact ? "order-1" : ""}`}>
             {!compact && toolbarExtra}
             {onToggleEditMode && !compact && (
-              <button
-                type="button"
-                onClick={onToggleEditMode}
-                disabled={Boolean(editDisabledReason) && !editMode}
-                aria-pressed={editMode}
-                aria-label={t("editMode")}
-                title={editDisabledReason && !editMode ? editDisabledReason : editMode ? t("editOff") : t("editHint")}
-                // Thanh công cụ hẹp ⇒ nút rút về ô vuông chỉ còn icon, nhường chỗ cho nút gửi ở lề phải
-                className={`h-8 pl-2 pr-2.5 shrink-0 @max-[352px]:w-8 @max-[352px]:justify-center @max-[352px]:px-0 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                  editMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
-                }`}
+              <ChatToolbarTip
+                label={t("editMode")}
+                hint={editDisabledReason && !editMode ? editDisabledReason : editMode ? t("editOff") : t("editHint")}
               >
-                <Icon name="pencil" size={15} weight={editMode ? "bold" : "regular"} />
-                <span className="@max-[352px]:hidden">{t("editMode")}</span>
-              </button>
+                {(describedBy) => (
+                  <button
+                    type="button"
+                    onClick={onToggleEditMode}
+                    disabled={Boolean(editDisabledReason) && !editMode}
+                    aria-pressed={editMode}
+                    aria-label={t("editMode")}
+                    aria-describedby={describedBy}
+                    // Thanh công cụ hẹp ⇒ nút rút về ô vuông chỉ còn icon, nhường chỗ cho nút gửi ở lề phải.
+                    // Khoá ⇒ bỏ sự kiện chuột để khung bọc nhận hover và hiện lý do khoá.
+                    className={`h-8 pl-2 pr-2.5 shrink-0 ${CHIP_ICON_ONLY_CLASS} rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer disabled:opacity-45 disabled:pointer-events-none ${
+                      editMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
+                    }`}
+                  >
+                    <Icon name="pencil" size={15} weight={editMode ? "bold" : "regular"} />
+                    <span data-chip-label className={CHIP_LABEL_CLASS}>{t("editMode")}</span>
+                  </button>
+                )}
+              </ChatToolbarTip>
             )}
             {/* Hiện CẢ khi thu gọn, chỉ bỏ nhãn: thu gọn nghĩa là đang có thẻ hỏi của bước, mà "không
                 biết trả lời nên hỏi kiến thức" chính là lúc cần chip này nhất. Ẩn nó đi thì chế độ gửi
                 đang bật không còn tín hiệu nào, và câu trả lời bước sẽ bị gửi thành câu hỏi tri thức. */}
             {onToggleKnowledgeMode && !knowledgeHidden && (
-              <button
-                type="button"
-                onClick={onToggleKnowledgeMode}
-                aria-pressed={knowledgeMode}
-                aria-label={t("knowledgeMode")}
-                title={knowledgeMode ? t("knowledgeOff") : t("knowledgeHint")}
-                className={`h-8 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
-                  compact ? "w-8 justify-center shrink-0" : "pl-2 pr-2.5"
-                } ${
-                  knowledgeMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
-                }`}
-              >
-                <Icon name="book" size={15} weight={knowledgeMode ? "bold" : "regular"} />
-                {!compact && t("knowledgeMode")}
-              </button>
+              <ChatToolbarTip label={t("knowledgeMode")} hint={knowledgeMode ? t("knowledgeOff") : t("knowledgeHint")}>
+                {(describedBy) => (
+                  <button
+                    type="button"
+                    onClick={onToggleKnowledgeMode}
+                    aria-pressed={knowledgeMode}
+                    aria-label={t("knowledgeMode")}
+                    aria-describedby={describedBy}
+                    className={`h-8 shrink-0 rounded-control flex items-center gap-1.5 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
+                      compact ? "w-8 justify-center" : `pl-2 pr-2.5 ${CHIP_ICON_ONLY_CLASS}`
+                    } ${
+                      knowledgeMode ? "bg-primary-soft text-primary-hover" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
+                    }`}
+                  >
+                    <Icon name="book" size={15} weight={knowledgeMode ? "bold" : "regular"} />
+                    {!compact && <span data-chip-label className={CHIP_LABEL_CLASS}>{t("knowledgeMode")}</span>}
+                  </button>
+                )}
+              </ChatToolbarTip>
             )}
             {/* Attachment Button */}
             <input
@@ -218,53 +231,62 @@ export default function ChatInput({
             />
             {/* Lượt tri thức không nhận đính kèm: gửi khi chỉ có file ⇒ nội dung thành
                 "[Đính kèm tài liệu]", một câu hỏi vô nghĩa vẫn tốn credit. */}
-            <button
-              type="button"
-              hidden={editMode || knowledgeMode}
-              onClick={() => fileInputRef.current?.click()}
-              className="w-8 h-8 shrink-0 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
-              aria-label={t("attachLabel")}
-              title={t("attach")}
-            >
-              <Icon name="attach" size={18} />
-            </button>
+            <ChatToolbarTip label={t("attach")} hidden={editMode || knowledgeMode}>
+              {() => (
+                <button
+                  type="button"
+                  hidden={editMode || knowledgeMode}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-8 h-8 shrink-0 grid place-items-center rounded-control text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
+                  aria-label={t("attachLabel")}
+                >
+                  <Icon name="attach" size={18} />
+                </button>
+              )}
+            </ChatToolbarTip>
           </div>
 
           {/* Nút gửi không bao giờ bị thu hay bị đẩy: nó là đường đi chính của màn này */}
           <div className={`flex items-center gap-3 shrink-0 ${compact ? "order-3" : ""}`}>
             {stoppable ? (
-              <button
-                type="button"
-                onClick={onStop}
-                aria-label={t("stopLabel")}
-                title={t("stop")}
-                className="w-8 h-8 rounded-control grid place-items-center bg-primary hover:bg-primary-hover text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer"
-              >
-                <span className="w-2.5 h-2.5 rounded-[2px] bg-current" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={send}
-                disabled={
-                  (!draft.trim() && pendingAttachments.length === 0) ||
-                  sending
-                }
-                aria-label={t("sendLabel")}
-                className={`w-8 h-8 rounded-control flex items-center justify-center text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer ${
-                  (draft.trim() || pendingAttachments.length > 0) &&
-                  !sending
-                    ? "bg-primary hover:bg-primary-hover"
-                    : "bg-surface-container-highest text-on-surface-subtle cursor-not-allowed"
-                }`}
-                title={t("send")}
-              >
-                {sending ? (
-                  <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
-                ) : (
-                  <Icon name="arrow-up" size={16} weight="bold" />
+              <ChatToolbarTip label={t("stop")}>
+                {() => (
+                  <button
+                    type="button"
+                    onClick={onStop}
+                    aria-label={t("stopLabel")}
+                    className="w-8 h-8 rounded-control grid place-items-center bg-primary hover:bg-primary-hover text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-[2px] bg-current" />
+                  </button>
                 )}
-              </button>
+              </ChatToolbarTip>
+            ) : (
+              <ChatToolbarTip label={t("send")}>
+                {() => (
+                  <button
+                    type="button"
+                    onClick={send}
+                    disabled={
+                      (!draft.trim() && pendingAttachments.length === 0) ||
+                      sending
+                    }
+                    aria-label={t("sendLabel")}
+                    className={`w-8 h-8 rounded-control flex items-center justify-center text-on-primary transition-[background-color,transform] duration-150 active:scale-95 cursor-pointer disabled:pointer-events-none ${
+                      (draft.trim() || pendingAttachments.length > 0) &&
+                      !sending
+                        ? "bg-primary hover:bg-primary-hover"
+                        : "bg-surface-container-highest text-on-surface-subtle"
+                    }`}
+                  >
+                    {sending ? (
+                      <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
+                    ) : (
+                      <Icon name="arrow-up" size={16} weight="bold" />
+                    )}
+                  </button>
+                )}
+              </ChatToolbarTip>
             )}
           </div>
         </div>
