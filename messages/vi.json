@@ -599,6 +599,18 @@
         "title": "Đã chốt baseline {version}",
         "bodyWaived": "Tài liệu đã được ký ở mức {version} với {count} cờ được bỏ qua có lý do.",
         "bodyClean": "Tài liệu đã được ký ở mức {version}, không còn cờ đỏ nào."
+      },
+      "org_invitation_requested": {
+        "title": "Có yêu cầu mời thành viên chờ duyệt",
+        "body": "{name} muốn mời {email} vào {org} với vai trò {role}."
+      },
+      "org_invitation_approved": {
+        "title": "Yêu cầu mời thành viên đã được duyệt",
+        "body": "Lead đã duyệt lời mời {email} vào {org}; mã mời đã được gửi qua email."
+      },
+      "org_invitation_rejected": {
+        "title": "Yêu cầu mời thành viên bị từ chối",
+        "body": "Lead đã từ chối lời mời {email} vào {org}."
       }
     },
     "common": {
@@ -1016,7 +1028,12 @@
           "codeTitle": "Mã mời vừa tạo",
           "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn.",
           "emailRequired": "Hãy nhập email người được mời — mã mời sẽ được gửi tới email đó.",
-          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn — nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này."
+          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn — nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này.",
+          "requestTitle": "Đề xuất mời thành viên",
+          "requestCta": "Gửi yêu cầu cho Lead duyệt",
+          "requesting": "Đang gửi…",
+          "requestSentTitle": "Đã gửi yêu cầu",
+          "requestSent": "Lead sẽ duyệt yêu cầu mời {email}. Khi được duyệt, mã mời mới được gửi tới email đó — bạn sẽ nhận thông báo."
         },
         "invitations": {
           "title": "Lời mời",
@@ -1028,8 +1045,18 @@
             "pending": "Đang chờ",
             "accepted": "Đã dùng",
             "revoked": "Đã thu hồi",
-            "expired": "Hết hạn"
-          }
+            "expired": "Hết hạn",
+            "awaiting_approval": "Chờ Lead duyệt",
+            "rejected": "Bị từ chối"
+          },
+          "mineTitle": "Yêu cầu mời của bạn",
+          "requestedBy": "Đề xuất bởi {name}",
+          "approve": "Duyệt",
+          "reject": "Từ chối",
+          "cancelRequest": "Huỷ yêu cầu",
+          "approvedTitle": "Đã duyệt — mã mời",
+          "approvedBody": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây.",
+          "dismiss": "Đóng"
         },
         "danger": {
           "title": "Xoá tổ chức",
@@ -1042,7 +1069,8 @@
           "confirmCta": "Xoá vĩnh viễn"
         },
         "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
-        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
+        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới.",
+        "analystHint": "Bạn gửi được yêu cầu mời; Lead duyệt thì mã mới được gửi tới email người được mời. Chỉ Lead đổi vai trò hoặc xoá thành viên."
       },
       "library": {
         "title": "Thư viện mẫu",
@@ -2616,7 +2644,8 @@
     "LOG_NOT_FOUND": "Không tìm thấy lượt chạy AI này.",
     "ORG_CONTEXT_MISSING": "Hệ thống gặp lỗi khi xác định tổ chức. Vui lòng tải lại trang.",
     "METHOD_NOT_ALLOWED": "Thao tác này không được hỗ trợ.",
-    "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ."
+    "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ.",
+    "INVITE_NOT_AWAITING_APPROVAL": "Lời mời không còn chờ duyệt: đã được xử lý, đã huỷ hoặc đã hết hạn."
   },
   "admin": {
     "common": {
