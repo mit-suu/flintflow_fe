@@ -156,7 +156,8 @@ describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
     rerender(<ChatInput {...inputProps} onToggleEditMode={onToggle} editDisabledReason="Bước đang chạy" />);
     const chip = screen.getByRole("button", { name: "Sửa tài liệu" });
     expect(chip).toBeDisabled();
-    expect(chip).toHaveAttribute("title", "Bước đang chạy");
+    // Lý do khoá hiện trong tooltip của chip (thay cho title của trình duyệt)
+    expect(chip).toHaveAccessibleDescription(/Bước đang chạy/);
   });
 
   it("thu gọn (có thẻ câu hỏi) ⇒ một dòng, không chip sửa, không hiện credit", () => {

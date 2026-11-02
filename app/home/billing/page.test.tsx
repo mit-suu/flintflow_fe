@@ -1,10 +1,16 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import AppShell from "@/components/layout/AppShell";
 import BillingPage from "./page";
+import { fetchBalance, fetchTransactions } from "@/lib/api/billing";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/home/billing" }));
+const push = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/home/billing" }));
+vi.mock("@/lib/api/orgs", () => ({
+  fetchMembers: vi.fn(async () => [{ userId: "u1", email: "lan@example.com", name: "Lan", role: "lead", joinedAt: "" }]),
+}));
+vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn(async () => ({ data: [{ _id: "p1", name: "Shop online" }] })) }));
 vi.mock("@/lib/api/notifications", () => ({ emitNotificationsChanged: vi.fn(), onNotificationsChanged: () => () => {} }));
 vi.mock("@/lib/api/billing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/billing")>();
@@ -28,6 +34,51 @@ vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => acti
 
 beforeEach(() => {
   activeOrg.value = null;
+  push.mockReset();
+});
+
+const page = (items: unknown[]) => ({ items, meta: { page: 1, limit: 20, total: items.length, totalPages: 1 } });
+const at = "2026-11-01T03:00:00.000Z";
+
+describe("lịch sử credit (UC-59, UC-60)", () => {
+  it("dòng dùng AI hiện dự án, step, thành viên, token; thanh toán đang chờ / lỗi có nhãn trạng thái và mở lại mã QR", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    vi.mocked(fetchTransactions).mockResolvedValueOnce(
+      page([
+        { _id: "t1", type: "deduct", actionType: "draft", amount: 4, balanceAfter: 296, createdAt: at, stepId: "S-1.1", tokensIn: 1200, tokensOut: 300, member: { id: "u1", name: "Lan" }, project: { id: "p1", name: "Shop online" } },
+        { _id: "t2", type: "payment", actionType: "purchase", amount: 100, balanceAfter: null, createdAt: at, paymentStatus: "pending", intentId: "i1", packageId: "pack_100", price: 40000, member: { id: "u1", name: "Lan" }, project: null },
+        { _id: "t3", type: "payment", actionType: "purchase", amount: 100, balanceAfter: null, createdAt: at, paymentStatus: "failed", intentId: "i2", packageId: "pack_100", price: 40000, member: { id: "u1", name: "Lan" }, project: null },
+      ]) as never
+    );
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    const usageRow = (await screen.findByText("Trích xuất Brief")).closest("tr")!;
+    expect(within(usageRow).getByText("Shop online")).toBeInTheDocument();
+    expect(within(usageRow).getByText("Lan")).toBeInTheDocument();
+    expect(within(usageRow).getByText("1.200 / 300")).toBeInTheDocument();
+
+    expect(screen.getByText("Đang chờ")).toBeInTheDocument();
+    expect(screen.getByText("Thất bại")).toBeInTheDocument();
+    // Chỉ thanh toán đang chờ mới mở lại được mã QR
+    const qr = screen.getAllByRole("button", { name: "Mở mã QR" });
+    expect(qr).toHaveLength(1);
+    fireEvent.click(qr[0]);
+    expect(push).toHaveBeenCalledWith("/home/billing/checkout?intentId=i1");
+  });
+
+  it("đổi bộ lọc ⇒ tải lại trang đầu với điều kiện lọc", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    fireEvent.click(await screen.findByRole("combobox", { name: "Loại" }));
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Sử dụng AI" }));
+    await waitFor(() => expect(fetchTransactions).toHaveBeenLastCalledWith(1, 20, { kind: "usage" }));
+
+    fireEvent.click(await screen.findByRole("combobox", { name: "Thành viên" }));
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Lan" }));
+    await waitFor(() => expect(fetchTransactions).toHaveBeenLastCalledWith(1, 20, { kind: "usage", memberId: "u1" }));
+    expect(await screen.findByText("Không có giao dịch nào khớp bộ lọc")).toBeInTheDocument();
+  });
 });
 
 describe("trang thanh toán theo vai trò trong tổ chức", () => {
@@ -53,6 +104,26 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
   it("chưa biết vai trò thì vẫn hiện nút — BE vẫn chặn, Lead không bị mất nút", async () => {
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
     expect(await screen.findByRole("button", { name: "Mua ngay" })).toBeInTheDocument();
+  });
+});
+
+describe("không hạ gói (FLF-347)", () => {
+  it("đang dùng Pro còn hạn: thẻ Free không có nút chuyển, chỉ báo tự về Free khi hết kỳ", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    vi.mocked(fetchBalance).mockResolvedValueOnce({
+      balance: 694,
+      available: 694,
+      reserved: 0,
+      plan: "pro",
+      planLabel: "Pro",
+      lowCreditThreshold: 10,
+      subscription: { plan: "pro", status: "active", monthlyCreditsAllotment: 1000, currentPeriodStart: "2026-10-14T00:00:00.000Z", currentPeriodEnd: "2026-11-13T00:00:00.000Z" },
+    } as never);
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    expect(await screen.findByText("Tự về Free khi gói hiện tại hết hạn (13/11/2026)")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Chuyển sang/ })).toBeNull();
+    expect(screen.getByText("Đang dùng")).toBeInTheDocument();
   });
 });
 

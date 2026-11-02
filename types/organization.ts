@@ -25,13 +25,16 @@ export interface OrgMember {
   joinedAt: string;
 }
 
-export type InvitationState = "pending" | "accepted" | "revoked" | "expired";
+/** `awaiting_approval`: yêu cầu mời của Analyst chưa được Lead duyệt — chưa có mã, chưa gửi email (FLF-303). */
+export type InvitationState = "pending" | "awaiting_approval" | "accepted" | "revoked" | "rejected" | "expired";
 
 export interface Invitation {
   id: string;
   email: string | null;
   role: InvitableRole;
   state: InvitationState;
+  /** Analyst đã gửi yêu cầu mời; null = Lead mời thẳng. */
+  requestedBy: { id: string; name: string } | null;
   expiresAt: string;
   createdAt: string;
 }
