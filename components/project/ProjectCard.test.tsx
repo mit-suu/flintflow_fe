@@ -101,6 +101,21 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(screen.queryByText("51/51")).toBeNull();
   });
 
+  it("FLF-343: dự án import SRS có sẵn ⇒ không thanh giai đoạn / số bước, xong import ghi sẵn sàng tạo change request", () => {
+    renderWithIntl(
+      <ProjectCard
+        project={{ ...baseProject, mode: "import", import_state: "gap_review" }}
+        progress={progress({ done: 30, total: 39 })}
+        onRename={noop}
+        onDelete={noop}
+        onHardDelete={noop}
+      />
+    );
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.queryByText("30/39")).toBeNull();
+    expect(screen.getByText("Sẵn sàng tạo change request")).toBeInTheDocument();
+  });
+
   it("thanh 12 giai đoạn: phase đã qua tô đậm, phase đang làm tô nhạt, kèm số bước từ BE", () => {
     renderWithIntl(
       <ProjectCard
@@ -173,6 +188,19 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).not.toContain("Ngôn ngữ tài liệu");
 
     // Viewer: không có menu ⋮ nào
+    rerender(<ProjectCard project={baseProject} {...props} readOnly />);
+    expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
+  });
+
+  it("menu có 'Ký pháp ERD' cho mọi mode (kể cả import); Viewer không có menu", () => {
+    const onChangeErdNotation = vi.fn();
+    const props = { progress: null, onRename: noop, onDelete: noop, onHardDelete: noop, onChangeErdNotation };
+    const imported = { ...baseProject, mode: "import" as const };
+    const { rerender } = renderWithIntl(<ProjectCard project={imported} {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ký pháp ERD" }));
+    expect(onChangeErdNotation).toHaveBeenCalledWith(imported);
+
     rerender(<ProjectCard project={baseProject} {...props} readOnly />);
     expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
   });

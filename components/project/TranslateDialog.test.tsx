@@ -252,3 +252,47 @@ describe("TranslateDialog (FLF-265)", () => {
     expect(vietnameseLeftovers(screen.getByRole("dialog"))).toEqual([]);
   });
 });
+
+describe("TranslateDialog — locale (FLF-334 B)", () => {
+  it("locale ⇒ status đọc ?locale=, run gửi locale trong body", async () => {
+    const statusUrls: string[] = [];
+    const runBodies: unknown[] = [];
+    mockServer.use(
+      http.get("*/projects/:projectId/translations/status", ({ request }) => {
+        statusUrls.push(new URL(request.url).search);
+        return HttpResponse.json({ data: { locale: "en", source_locale: "en", total: 10, missing: 3, batches: 1, estimated_credits: 2 }, error: null });
+      }),
+      http.post("*/projects/:projectId/translations/run", async ({ request }) => {
+        runBodies.push(await request.json());
+        return HttpResponse.json({ data: { translated: 3, remaining: 0, credits_used: 2 }, error: null });
+      })
+    );
+    const { onDone } = openDialog({ locale: "en" });
+    await screen.findByText("3 mục · ~2 credit");
+    expect(statusUrls).toEqual(["?locale=en"]);
+    await confirm();
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(runBodies).toEqual([{ max_batches: 2, locale: "en" }]);
+  });
+
+  it("đích snapshot (version / baselineId) ⇒ status và run cùng đích với lượt tải", async () => {
+    const statusUrls: string[] = [];
+    const runBodies: unknown[] = [];
+    mockServer.use(
+      http.get("*/projects/:projectId/translations/status", ({ request }) => {
+        statusUrls.push(new URL(request.url).search);
+        return HttpResponse.json({ data: { locale: "vi", source_locale: "en", total: 10, missing: 3, batches: 1, estimated_credits: 2 }, error: null });
+      }),
+      http.post("*/projects/:projectId/translations/run", async ({ request }) => {
+        runBodies.push(await request.json());
+        return HttpResponse.json({ data: { translated: 3, remaining: 0, credits_used: 2 }, error: null });
+      })
+    );
+    const { onDone } = openDialog({ locale: "vi", version: "1.0" });
+    await screen.findByText("3 mục · ~2 credit");
+    expect(statusUrls).toEqual(["?locale=vi&version=1.0"]);
+    await confirm();
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(runBodies).toEqual([{ max_batches: 2, locale: "vi", version: "1.0" }]);
+  });
+});

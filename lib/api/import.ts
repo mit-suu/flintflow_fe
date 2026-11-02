@@ -45,10 +45,14 @@ export const getImport = (projectId: string) => apiCall<GetImportResponse>(`${ba
 export const patchMapping = (projectId: string, body: MappingPatchRequest) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/mapping`, { method: "PATCH", body: JSON.stringify(body) });
 
-export const startExtraction = (projectId: string, importId: string) =>
+/**
+ * Nút "Bắt đầu" (FLF-343): BE chạy một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu "đây là bản mới nhất"
+ * (bắt buộc khi file chưa xác nhận — thiếu ⇒ 409 `IMPORT_NEEDS_LATEST_CONFIRM`).
+ */
+export const startExtraction = (projectId: string, importId: string, confirmLatest?: boolean) =>
   apiCall<ExtractResponse>(`${base(projectId)}/import/extract`, {
     method: "POST",
-    body: JSON.stringify({ import_id: importId }),
+    body: JSON.stringify({ import_id: importId, ...(confirmLatest ? { confirm_latest: true } : {}) }),
   });
 
 export const patchFields = (projectId: string, body: FieldsPatchRequest) =>

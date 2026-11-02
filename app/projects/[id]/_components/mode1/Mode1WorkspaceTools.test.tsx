@@ -63,6 +63,7 @@ const VERSION_00 = {
   has_clean_file: false,
   has_tracked_file: false,
   has_original_file: true,
+  other_language_available: false,
   created_by: "u1",
   created_at: "2026-09-20T03:00:00.000Z",
 };

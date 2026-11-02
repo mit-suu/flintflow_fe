@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchOrganization } from "@/lib/api/orgs";
+import { fetchOrganization, onOrganizationChanged } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { OrgRole } from "@/types/organization";
 
@@ -24,14 +24,19 @@ export const useActiveOrganization = (): ActiveOrganization | null => {
     const orgId = getActiveOrgId();
     if (!orgId) return;
     let mounted = true;
-    fetchOrganization(orgId)
-      .then((detail) => {
-        if (mounted) setOrg({ id: detail.id, name: detail.name, role: detail.role });
-      })
-      // Không lấy được thì thôi hiện tên — không chặn giao diện vì chuyện phụ này
-      .catch(() => undefined);
+    const load = () =>
+      fetchOrganization(orgId)
+        .then((detail) => {
+          if (mounted) setOrg({ id: detail.id, name: detail.name, role: detail.role });
+        })
+        // Không lấy được thì thôi hiện tên — không chặn giao diện vì chuyện phụ này
+        .catch(() => undefined);
+    void load();
+    // Đổi tên tổ chức (trang Thành viên) ⇒ đọc lại để thanh bên hiện tên mới ngay
+    const unsubscribe = onOrganizationChanged(() => void load());
     return () => {
       mounted = false;
+      unsubscribe();
     };
   }, []);
 

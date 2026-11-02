@@ -309,6 +309,53 @@ describe("DocumentPane — nút Vẽ lại sơ đồ theo mục", () => {
   });
 });
 
+describe("DocumentPane — khung sơ đồ vẽ lỗi", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  // BE giữ chỗ hình vẽ lỗi bằng `diagram-error:<id>` thay vì bỏ hình khỏi mục
+  const withFailed: RenderedDocument = {
+    ...fixture,
+    sections: [
+      {
+        id: "fixed:2.2.1",
+        number: "2.2.1",
+        heading: "Use Case Diagram",
+        level: 3,
+        status: "accepted",
+        blocks: [{ type: "image", png: "diagram-error:D02-3", caption: "Use Cases — Authentication — diagram could not be drawn yet" }],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    getDocument.mockReset();
+    getDocument.mockResolvedValue({ data: withFailed, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+  });
+
+  it("hiện khung lỗi thay cho ảnh, kèm chú thích; Thử lại gọi vẽ lại đúng id sơ đồ", async () => {
+    const onRedrawDiagram = vi.fn().mockResolvedValue(undefined);
+    renderWithIntl(<DocumentPane projectId="p1" onRedrawDiagram={onRedrawDiagram} />);
+    const box = await screen.findByRole("group", { name: "Sơ đồ chưa vẽ được" });
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByText(/diagram could not be drawn yet/)).toBeInTheDocument();
+    fireEvent.click(within(box).getByRole("button", { name: "Thử lại" }));
+    await waitFor(() => expect(onRedrawDiagram).toHaveBeenCalledWith("D02-3"));
+  });
+
+  it("vẽ lại vẫn lỗi ⇒ báo ngay trong khung", async () => {
+    const onRedrawDiagram = vi.fn().mockRejectedValue(new Error("Không vẽ lại được sơ đồ"));
+    renderWithIntl(<DocumentPane projectId="p1" onRedrawDiagram={onRedrawDiagram} />);
+    const box = await screen.findByRole("group", { name: "Sơ đồ chưa vẽ được" });
+    fireEvent.click(within(box).getByRole("button", { name: "Thử lại" }));
+    expect(await within(box).findByText("Không vẽ lại được sơ đồ")).toBeInTheDocument();
+  });
+
+  it("không truyền onRedrawDiagram (mode 1, Viewer) ⇒ khung chỉ báo lỗi, không có nút", async () => {
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    const box = await screen.findByRole("group", { name: "Sơ đồ chưa vẽ được" });
+    expect(within(box).queryByRole("button")).toBeNull();
+  });
+});
+
 describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const draftMeta = { assembled_at_version: 5, spine_version: 5, stale: false };

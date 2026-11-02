@@ -32,6 +32,8 @@ interface Props {
   onMoveToFolder?: (p: Project) => void;
   /** Có ⇒ menu thêm "Ngôn ngữ tài liệu" (FLF-265) — trừ dự án mode `import` (ngôn ngữ theo file). */
   onChangeDocumentLanguage?: (p: Project) => void;
+  /** Có ⇒ menu thêm "Ký pháp ERD" (FLF-324) — mọi mode đều đổi được. */
+  onChangeErdNotation?: (p: Project) => void;
   /** Tên thư mục chứa dự án — hiện chip ở tab "Dự án" (nơi hiện cả dự án trong thư mục). */
   folderName?: string | null;
   /** Cho kéo card thả vào thẻ thư mục. */
@@ -212,6 +214,7 @@ export default function ProjectCard({
   onHardDelete,
   onMoveToFolder,
   onChangeDocumentLanguage,
+  onChangeErdNotation,
   folderName,
   draggable = false,
   selectable = false,
@@ -251,6 +254,15 @@ export default function ProjectCard({
             label: t("menu.documentLanguage"),
             icon: "translate",
             onSelect: () => onChangeDocumentLanguage(project)
+          } as const
+        ]
+      : []),
+    ...(onChangeErdNotation
+      ? [
+          {
+            label: t("menu.erdNotation"),
+            icon: "layers",
+            onSelect: () => onChangeErdNotation(project)
           } as const
         ]
       : []),
@@ -341,7 +353,8 @@ export default function ProjectCard({
                 : nextStepLabel(progress, tNext as NextTranslator, locale)}
             </span>
           </span>
-          {!converted && (
+          {/* Dự án import (kể cả chuyển từ mode 2) không đi theo bước soạn của mode 2 ⇒ không có thanh giai đoạn / số bước */}
+          {project.mode !== "import" && (
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <PhaseBar progress={progress} locale={locale} />

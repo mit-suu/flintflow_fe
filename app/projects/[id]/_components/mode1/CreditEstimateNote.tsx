@@ -44,11 +44,19 @@ export default function CreditEstimateNote({ estimate, fallbackBalance = null, r
             strong: (c) => <strong>{c}</strong>,
           })}
           {balance !== null && <> {t("balance", { balance })}</>}
-          {estimate.diagram_images > 0 && (
+          {(estimate.check_calls ?? 0) > 0 ? (
+            // FLF-343: ước tính cả lượt một mạch — gồm lượt kiểm tra AI sau baseline 0.1
             <span className="opacity-75">
               {" "}
-              — {t("breakdown", { text: estimate.text_batches, images: estimate.diagram_images })}
+              — {t("breakdownWithChecks", { text: estimate.text_batches, images: estimate.diagram_images, checks: estimate.check_calls ?? 0 })}
             </span>
+          ) : (
+            estimate.diagram_images > 0 && (
+              <span className="opacity-75">
+                {" "}
+                — {t("breakdown", { text: estimate.text_batches, images: estimate.diagram_images })}
+              </span>
+            )
           )}
         </p>
         {short && (

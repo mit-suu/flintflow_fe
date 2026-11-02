@@ -12,7 +12,6 @@ import CrTimeline from "./CrTimeline";
 import ImpactList from "./ImpactList";
 import Mode1CrThread from "./Mode1CrThread";
 import OriginalDiagramChange from "./OriginalDiagramChange";
-import RecordOfChangesCard from "./RecordOfChangesCard";
 import ReasonDialog from "./ReasonDialog";
 import VerifyResult from "./VerifyResult";
 
@@ -65,7 +64,6 @@ const renderAll = (locale: "vi" | "en") =>
       <ChangeGroupPanel groups={[group]} locations={[location("L1")]} canDecide onDecide={vi.fn()} />
       <VerifyResult location={location("L3")} />
       <OriginalDiagramChange loc={diagramLoc} />
-      <RecordOfChangesCard rows={[{ date: "2026-09-01", version: "1.0", change_type: "A", in_charge: "Lan", description: "Init" }]} fromFile={1} onChange={vi.fn()} />
       <BlockDiffList entries={[{ block_id: "b1", change: "modified", before: "a", after: "b" }]} />
       <p>
         <DiffSummary summary={{ added: 1, removed: 0, modified: 2, moved: 0 }} />

@@ -81,7 +81,7 @@ import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
-import { compareHref, crListHref, gapReportHref } from "./_components/mode1/prefill";
+import { compareHref, crListHref, gapReportHref, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -477,6 +477,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const [translateOpen, setTranslateOpen] = useState(false);
   /** Ước tính đã đọc sẵn (lệnh chat vừa đổi ngôn ngữ / thẻ "Dịch N mục còn thiếu") ⇒ hộp dịch khỏi đọc lại lần đầu. */
   const [translateStatus, setTranslateStatus] = useState<TranslationStatus | undefined>(undefined);
+  /** FLF-334 B: hộp dịch mở từ lần tải theo ngôn ngữ khác — dịch sang ngôn ngữ đó, không phải ngôn ngữ tài liệu. */
+  const [translateLocale, setTranslateLocale] = useState<DocumentLanguage | undefined>(undefined);
+  /** …và đích snapshot của lần tải đó (`baselineId` mode 2 / `version` mode 1) — hộp dịch đếm / dịch đúng snapshot ấy. */
+  const [translateTarget, setTranslateTarget] = useState<{ baselineId?: string; version?: string } | undefined>(undefined);
   /** Thẻ lệnh đổi ngôn ngữ tài liệu trong chat (§3.7); `languageCommandSeq` bỏ kết quả về trễ của thẻ đã thay. */
   const [languageCommand, setLanguageCommand] = useState<LanguageCommandState | null>(null);
   const languageCommandSeq = useRef(0);
@@ -1711,7 +1715,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
           // Mode 1: gap report, change request, so sánh version mở dạng popup ngay trên màn tài liệu
-          // (`?panel=gap|cr|compare`)
+          // (`?panel=gap|cr|compare|reupload`)
           actions={
             mode1 ? (
               <>
@@ -1724,6 +1728,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 <Link href={compareHref(projectId)} scroll={false} className={MODE1_ACTION}>
                   {t("page.compareVersions")}
                 </Link>
+                {/* Re-upload (UC-25) dẫn tới tạo CR ⇒ chỉ người sửa được */}
+                {canEdit && (
+                  <Link href={reuploadHref(projectId)} scroll={false} className={MODE1_ACTION}>
+                    {t("page.reupload")}
+                  </Link>
+                )}
               </>
             ) : undefined
           }
@@ -2099,6 +2109,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           // Tạm ẩn nút "Vẽ lại sơ đồ" dưới hình: bật lại bằng REDRAW_SECTION_ENABLED.
           onRedrawSection={mode1 || !REDRAW_SECTION_ENABLED ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
+          // Khung sơ đồ vẽ lỗi trong tài liệu: "Thử lại" vẽ lại đúng sơ đồ đó (cùng đường với nút "Vẽ lại" trên cờ)
+          onRedrawDiagram={
+            mode1 || !canEdit
+              ? undefined
+              : (diagramId) => redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === diagramId) ?? [])
+          }
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           headerEnd={focusMode ? <IconButton icon="collapse" label={t("page.exitFocus")} onClick={() => setFocusMode(false)} /> : undefined}
           documentLanguage={documentLanguage}
@@ -2130,6 +2146,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 canRelease={ws.orgRole === "lead"}
                 orgRole={ws.orgRole}
                 refreshToken={documentRefreshToken}
+                documentLanguage={documentLanguage}
+                onTranslate={
+                  canEdit && ws.project?.converted_from === "fpt"
+                    ? (locale, version) => {
+                        setTranslateStatus(undefined);
+                        setTranslateLocale(locale);
+                        setTranslateTarget({ version });
+                        setTranslateOpen(true);
+                      }
+                    : undefined
+                }
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
@@ -2295,11 +2322,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           flags={flags}
           onClose={() => setExportOpen(false)}
           documentLanguage={documentLanguage}
+          otherLanguageAvailable={!mode1}
           // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
           onTranslate={
             !mode1 && canEdit
-              ? () => {
+              ? (locale?: DocumentLanguage, target?: { baselineId?: string }) => {
                   setExportOpen(false);
+                  if (locale) {
+                    setTranslateStatus(undefined);
+                    setTranslateLocale(locale);
+                    setTranslateTarget(target);
+                  }
                   setTranslateOpen(true);
                 }
               : undefined
@@ -2307,14 +2340,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         />
       )}
 
-      {!mode1 && canEdit && (
+      {/* FLF-334 B: dự án chuyển từ mode 2 cũng mở được hộp dịch (dịch nốt để tải version bằng ngôn ngữ khác) */}
+      {(!mode1 || ws.project?.converted_from === "fpt") && canEdit && (
         <TranslateDialog
           projectId={projectId}
           open={translateOpen}
           initialStatus={translateStatus}
+          locale={translateLocale}
+          baselineId={translateTarget?.baselineId}
+          version={translateTarget?.version}
           onClose={() => {
             setTranslateOpen(false);
             setTranslateStatus(undefined);
+            setTranslateLocale(undefined);
+            setTranslateTarget(undefined);
           }}
           onDone={handleTranslated}
         />

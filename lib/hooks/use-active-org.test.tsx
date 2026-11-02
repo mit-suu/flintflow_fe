@@ -1,10 +1,14 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchOrganization } from "@/lib/api/orgs";
+import { emitOrganizationChanged, fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { useActiveOrganization } from "./use-active-org";
 
-vi.mock("@/lib/api/orgs", () => ({ fetchOrganization: vi.fn() }));
+// Sự kiện đổi tổ chức giữ bản thật — test kiểm hook nghe đúng sự kiện mà `renameOrganization` phát
+vi.mock("@/lib/api/orgs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/orgs")>();
+  return { fetchOrganization: vi.fn(), emitOrganizationChanged: actual.emitOrganizationChanged, onOrganizationChanged: actual.onOrganizationChanged };
+});
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -36,5 +40,16 @@ describe("useActiveOrganization", () => {
     const { result } = renderHook(() => useActiveOrganization());
     await waitFor(() => expect(fetchOrganization).toHaveBeenCalled());
     expect(result.current).toBeNull();
+  });
+
+  it("tổ chức đổi tên (sự kiện org-changed) ⇒ đọc lại và trả tên mới", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue("org-1");
+    const detail = { id: "org-1", name: "Nhóm A", role: "lead" as const, joinedAt: "2026-10-01T00:00:00Z", memberCount: 2 };
+    vi.mocked(fetchOrganization).mockResolvedValueOnce(detail).mockResolvedValueOnce({ ...detail, name: "Nhóm B" });
+    const { result } = renderHook(() => useActiveOrganization());
+    await waitFor(() => expect(result.current?.name).toBe("Nhóm A"));
+    act(() => emitOrganizationChanged());
+    await waitFor(() => expect(result.current?.name).toBe("Nhóm B"));
+    expect(fetchOrganization).toHaveBeenCalledTimes(2);
   });
 });

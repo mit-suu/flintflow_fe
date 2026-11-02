@@ -7,7 +7,8 @@ import { ApiClientError } from "@/lib/api/client";
 import { saveBlob } from "@/lib/api/files";
 import { getSpine } from "@/lib/api/spine";
 import { downloadVersion, releaseDocument } from "@/lib/api/versions";
-import { isReleaseVersion, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
+import { isReleaseVersion, versionFileName, versionLineage, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
+import type { DocumentLanguage } from "@/types/project";
 import type { Flag } from "@/types/spine";
 import { useMode1Labels } from "./i18n";
 import { crHref } from "./prefill";
@@ -26,14 +27,40 @@ interface VersionsPanelProps {
   onReleased: () => void;
   /** Viewer / Analyst: ẩn mục Release (chỉ Lead release) — vẫn xem và tải các version. */
   readOnly?: boolean;
+  /**
+   * FLF-334 B: ngôn ngữ tài liệu của dự án — version `other_language_available` có thêm nút tải bằng ngôn ngữ còn lại.
+   * `null` / bỏ trống ⇒ không hiện.
+   */
+  documentLanguage?: DocumentLanguage | null;
+  /**
+   * Mở hộp dịch sang `locale` khi tải theo ngôn ngữ khác còn mục chưa dịch — `version` là version vừa tải (hộp dịch đếm /
+   * dịch đúng snapshot baseline của nó). Bỏ trống (Viewer) ⇒ chỉ báo số mục.
+   */
+  onTranslate?: (locale: DocumentLanguage, version: string) => void;
 }
 
 /**
  * Version & release (Flow 6, UC-57): `0.1` import → `0.x` sau mỗi CR (Track Changes + DRAFT) → `x.0` release
  * (bản sạch). Release bị khoá khi còn cờ đỏ (BR-04, mode 1 không waive) — BE vẫn chặn lần nữa.
  */
-export default function VersionsPanel({ projectId, projectName, versions, redOpen, selected, onSelect, onReleased, readOnly = false }: VersionsPanelProps) {
+export default function VersionsPanel({
+  projectId,
+  projectName,
+  versions,
+  redOpen,
+  selected,
+  onSelect,
+  onReleased,
+  readOnly = false,
+  documentLanguage = null,
+  onTranslate,
+}: VersionsPanelProps) {
   const t = useTranslations("mode1.versions");
+  const tLanguage = useTranslations("common.documentLanguage");
+  const otherLanguage: DocumentLanguage | null = documentLanguage ? (documentLanguage === "vi" ? "en" : "vi") : null;
+  /** 409 `TRANSLATION_INCOMPLETE` của lần tải theo ngôn ngữ khác (FLF-334 B). */
+  // `count: null` ⇒ BE không gửi số ⇒ câu chung (`message`), không bao giờ "0"
+  const [incomplete, setIncomplete] = useState<{ count: number | null; message: string; locale: DocumentLanguage; version: string } | null>(null);
   const L = useMode1Labels();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -45,14 +72,28 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
   const releaseBlockedReason =
     redOpen === null ? t("checkingFlags") : redOpen > 0 ? t("redFlagsOpen", { count: redOpen }) : !latest ? t("noDocument") : null;
 
-  const download = async (version: string, variant: DownloadVariant, format: DownloadFormat = "docx") => {
-    setBusy(`download:${version}:${variant}:${format}`);
+  const download = async (version: string, variant: DownloadVariant, format: DownloadFormat = "docx", lang?: DocumentLanguage) => {
+    setBusy(`download:${version}:${variant}:${format}${lang ? `:${lang}` : ""}`);
     setError(null);
+    setIncomplete(null);
     try {
-      const { blob, filename } = await downloadVersion(projectId, version, variant, format);
-      const suffix = variant === "original" ? "_original" : variant === "tracked" ? "_tracked_DRAFT" : isReleaseVersion(version) ? "" : "_DRAFT";
-      saveBlob(blob, filename ?? `${projectName ?? "SRS"}_v${version}${suffix}.${format}`);
+      const { blob, filename } = await downloadVersion(projectId, version, variant, format, lang);
+      // Tên dự phòng khi BE không gửi `Content-Disposition` — cùng quy tắc FLF-334 với BE
+      const fallback = versionFileName({
+        name: projectName ?? "SRS",
+        ...versionLineage(versions, version),
+        tracked: variant === "tracked",
+        original: variant === "original",
+        ext: format,
+        language: lang ?? null,
+      });
+      saveBlob(blob, filename ?? fallback);
     } catch (err) {
+      if (lang && err instanceof ApiClientError && err.code === "TRANSLATION_INCOMPLETE") {
+        const missing = err.meta?.missing;
+        setIncomplete({ count: typeof missing === "number" ? missing : null, message: L.errorText(err, t("downloadFailed")), locale: lang, version });
+        return;
+      }
       setError(L.errorText(err, t("downloadFailed")));
     } finally {
       setBusy(null);
@@ -130,6 +171,36 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
 
       <section className="flex flex-col gap-2">
         <h3 className="font-extrabold text-[#191817] text-body">{t("listTitle")}</h3>
+        {/* readOnly ẩn mục Release (nơi hiện lỗi) — lỗi tải vẫn phải thấy */}
+        {readOnly && error && (
+          <div role="alert" className="text-body text-[#B03030] bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-3 py-2">
+            {error}
+          </div>
+        )}
+        {incomplete && (
+          <div role="alert" className="bg-accent-gold-soft border border-accent-gold-border rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex flex-col items-start gap-1.5">
+            <span>
+              {incomplete.count === null
+                ? incomplete.message
+                : t("translationIncomplete", { count: incomplete.count, language: tLanguage(incomplete.locale) })}
+            </span>
+            {onTranslate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  // Hộp dịch mở ⇒ cảnh báo cũ không còn đúng sau khi dịch; lần tải sau tự báo lại nếu vẫn thiếu
+                  setIncomplete(null);
+                  onTranslate(incomplete.locale, incomplete.version);
+                }}
+                className="font-bold hover:underline cursor-pointer"
+              >
+                {t("translateRest")}
+              </button>
+            ) : (
+              <span>{t("translateAskEditor")}</span>
+            )}
+          </div>
+        )}
         <ul className="flex flex-col gap-2">
           {versions.map((v) => {
             const release = isReleaseVersion(v.version);
@@ -192,6 +263,18 @@ export default function VersionsPanel({ projectId, projectName, versions, redOpe
                   >
                     {busy === `download:${v.version}:auto:pdf` ? t("creatingPdf") : t("downloadPdf")}
                   </button>
+                  {/* FLF-334 B: bản đã chốt (có baseline) của dự án chuyển từ mode 2 — dựng lại bằng ngôn ngữ còn lại */}
+                  {otherLanguage && v.other_language_available && (
+                    <button
+                      type="button"
+                      onClick={() => void download(v.version, "auto", "docx", otherLanguage)}
+                      disabled={busy !== null}
+                      title={t("downloadInLanguageTitle", { language: tLanguage(otherLanguage) })}
+                      className="px-2.5 py-1 rounded-[8px] border border-[#E4E1DC] bg-white text-body font-semibold text-[#6B6862] hover:bg-[#FAF9F7] disabled:opacity-50"
+                    >
+                      {busy === `download:${v.version}:auto:docx:${otherLanguage}` ? t("downloading") : t("downloadInLanguage", { language: tLanguage(otherLanguage) })}
+                    </button>
+                  )}
                   {v.has_original_file && (
                     <button
                       type="button"
