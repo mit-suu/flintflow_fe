@@ -1,4 +1,4 @@
-import type { CreateProjectRequest, DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { CreateProjectRequest, DocumentLanguage, ErdNotation, Project, ProjectMode, ProjectStatus } from "@/types/project";
 import { apiCall } from "./client";
 
 export const listProjects = (status?: ProjectStatus) =>
@@ -53,4 +53,14 @@ export const setDocumentLanguage = (projectId: string, documentLanguage: Documen
   apiCall<Project>(`/projects/${projectId}/document-language`, {
     method: "PATCH",
     body: JSON.stringify({ documentLanguage }),
+  });
+
+/**
+ * Đổi ký pháp ERD của dự án (FLF-324) — chỉ Lead/Analyst (Viewer ⇒ 403). Khác ký pháp cũ và đã có hình ERD ⇒ BE vẽ lại
+ * ngay (Spine version tăng một); mọi mode đều đổi được.
+ */
+export const setErdNotation = (projectId: string, erdNotation: ErdNotation) =>
+  apiCall<Project>(`/projects/${projectId}/erd-notation`, {
+    method: "PATCH",
+    body: JSON.stringify({ erdNotation }),
   });

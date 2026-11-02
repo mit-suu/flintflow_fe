@@ -73,6 +73,12 @@ const cases: EndpointCase[] = [
     { method: "PATCH", body: JSON.stringify({ folderId: "f1" }) },
   ],
   [
+    "setErdNotation",
+    () => projects.setErdNotation("p1", "crowsfoot"),
+    "/projects/p1/erd-notation",
+    { method: "PATCH", body: JSON.stringify({ erdNotation: "crowsfoot" }) },
+  ],
+  [
     "setDocumentLanguage",
     () => projects.setDocumentLanguage("p1", "en"),
     "/projects/p1/document-language",

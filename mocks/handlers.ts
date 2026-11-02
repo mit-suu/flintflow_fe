@@ -36,7 +36,7 @@ import type {
 } from "@/types/pipeline";
 import type { Change, ReviewMode, Spine } from "@/types/spine";
 import type { AutoPassedItem } from "@/types/review-level";
-import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { DocumentLanguage, ErdNotation, Project, ProjectMode, ProjectStatus } from "@/types/project";
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
@@ -394,6 +394,8 @@ export const resetMockChangeFlowState = (): void => {
 // Ngôn ngữ tài liệu = `mockState.project.documentLanguage` (thiếu ⇒ `en`); ngôn ngữ gốc mode 2 luôn `en`, mode import
 // theo file ⇒ coi như trùng. Khác nhau ⇒ `GET /document` kèm `meta.translation`, `status` đếm phần thiếu, `run` dịch dần.
 
+const isErdNotation = (v: unknown): v is ErdNotation => v === "chen" || v === "crowsfoot" || v === "idef1x";
+
 /** Số đơn vị chữ của tài liệu mock (BE: mỗi field theo id một đơn vị). */
 export const MOCK_TRANSLATION_UNITS = 100;
 /** Một lô ~40 đơn vị, 2 credit — như `splitBatches` + giá `translate_document` của BE. */
@@ -709,6 +711,17 @@ export const handlers = [
     // Bản dịch theo ngôn ngữ: đổi sang ngôn ngữ khác ⇒ nội dung đã có thành "thiếu" với ngôn ngữ mới
     if (documentLanguage !== mockState.project.documentLanguage) mockTranslation.missing = MOCK_TRANSLATION_UNITS;
     mockState.project = { ...mockState.project, documentLanguage, updatedAt: new Date().toISOString() };
+    return ok(mockState.project);
+  }),
+  // FLF-324: body strict { erdNotation }; mọi mode đổi được (không có 409)
+  http.patch(api("/projects/:projectId/erd-notation"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const { erdNotation } = body;
+    if (!isErdNotation(erdNotation) || Object.keys(body).length !== 1) {
+      return fail(400, "VALIDATION_ERROR", "erdNotation: Invalid option: expected one of \"chen\"|\"crowsfoot\"|\"idef1x\"");
+    }
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    mockState.project = { ...mockState.project, erdNotation, updatedAt: new Date().toISOString() };
     return ok(mockState.project);
   }),
   // FLF-265 #26: đếm + ước tính, không gọi model; ngôn ngữ = gốc ⇒ total 0

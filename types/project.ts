@@ -20,6 +20,9 @@ export type TemplateIntent = "fixed" | "free";
  */
 export type DocumentLanguage = "vi" | "en";
 
+/** Ký pháp vẽ ERD của cả dự án (FLF-324). Đổi ⇒ BE vẽ lại hình ERD đã có. */
+export type ErdNotation = "chen" | "crowsfoot" | "idef1x";
+
 /**
  * Project theo `project.model.ts` BE — chỉ metadata danh sách. Nội dung, tiến độ và baseline nằm ở Spine
  * (`types/spine.ts`, `GET /projects/:id/spine`); tiến độ đọc từ `GET /projects/:id/progress`
@@ -47,6 +50,8 @@ export interface Project {
   converted_at?: string | null;
   /** Dự án cũ không có field: mode 2 đọc `en`, mode 1 theo ngôn ngữ file (BE suy ra). */
   documentLanguage?: DocumentLanguage;
+  /** FLF-324: BE luôn trả; dự án cũ `chen`. Thiếu field (BE cũ) ⇒ coi là `chen`. */
+  erdNotation?: ErdNotation;
   /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */
   folderId?: string | null;
   /** Lần mở gần nhất (BE ghi khi `GET /projects/:id`); null = chưa mở. */

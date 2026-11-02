@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
-import { getProject, setDocumentLanguage } from "@/lib/api/projects";
+import { getProject, setDocumentLanguage, setErdNotation } from "@/lib/api/projects";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import { getDocument } from "@/lib/api/export";
 import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
@@ -232,6 +232,20 @@ describe("mock PATCH /projects/:id/document-language (FLF-265 #1a)", () => {
     mockState.project = { ...mockState.project, mode: "import" };
     await expect(setDocumentLanguage(P, "vi")).rejects.toMatchObject({ code: "DOCUMENT_LANGUAGE_LOCKED", status: 409 });
     expect(mockState.project.documentLanguage).toBeUndefined();
+  });
+});
+
+describe("mock PATCH /projects/:id/erd-notation (FLF-324)", () => {
+  it("đổi ký pháp ⇒ GET trả field mới, mọi mode đều đổi được; giá trị lạ hoặc key lạ ⇒ 400", async () => {
+    expect((await setErdNotation(P, "crowsfoot")).data?.erdNotation).toBe("crowsfoot");
+    expect((await getProject(P)).data?.erdNotation).toBe("crowsfoot");
+    mockState.project = { ...mockState.project, mode: "import" };
+    expect((await setErdNotation(P, "idef1x")).data?.erdNotation).toBe("idef1x");
+    await expect(setErdNotation(P, "Chen" as never)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  });
+
+  it("projectId lạ ⇒ 404 PROJECT_NOT_FOUND", async () => {
+    await expect(setErdNotation("khac", "chen")).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND", status: 404 });
   });
 });
 
