@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { ReviewMode } from "@/types/spine";
 import ReviewModeSelect, { displayReviewMode } from "./ReviewModeSelect";
+import ChatToolbarTip, { CHIP_LABEL_CLASS } from "./ChatToolbarTip";
 
 interface AiSettingsMenuProps {
   reviewMode: ReviewMode;
@@ -47,30 +48,34 @@ export default function AiSettingsMenu({ reviewMode, onChangeReviewMode, disable
 
   return (
     <div ref={rootRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-label={t("aria", { mode: reviewLabel })}
-        title={t("title")}
-        // Thanh công cụ rất hẹp ⇒ bỏ nhãn chế độ, giữ icon + mũi tên để vẫn thấy đây là menu
-        className={`h-8 pl-2 pr-1.5 shrink-0 rounded-control flex items-center gap-1 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
-          open ? "bg-surface-container-high text-on-surface" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
-        }`}
-      >
-        <Icon name="sparkle" size={14} />
-        <span className="@max-[256px]:hidden">{reviewLabel}</span>
-        <Icon name="chevron-down" size={12} />
-      </button>
+      <ChatToolbarTip label={reviewLabel} hint={t("title")} disabled={open}>
+        {(describedBy) => (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={t("aria", { mode: reviewLabel })}
+            aria-describedby={describedBy}
+            // Thanh công cụ hẹp ⇒ bỏ nhãn chế độ (cùng ngưỡng với các chip khác), giữ icon + mũi tên để vẫn thấy đây là menu
+            className={`h-8 pl-2 pr-1.5 shrink-0 rounded-control flex items-center gap-1 whitespace-nowrap text-body font-bold transition-colors cursor-pointer ${
+              open ? "bg-surface-container-high text-on-surface" : "text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface"
+            }`}
+          >
+            <Icon name="sparkle" size={14} />
+            <span data-chip-label className={CHIP_LABEL_CLASS}>{reviewLabel}</span>
+            <Icon name="chevron-down" size={12} />
+          </button>
+        )}
+      </ChatToolbarTip>
 
       {open && (
         <div
           id={panelId}
           role="dialog"
           aria-label={t("title")}
-          className="absolute bottom-full left-0 mb-2 z-40 w-[300px] bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-3 flex flex-col gap-3"
+          className="absolute bottom-full left-0 mb-2 z-40 w-[340px] max-w-[calc(100vw-2rem)] bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-3 flex flex-col gap-3"
         >
           <div className="flex flex-col gap-1.5">
             <span className="text-body font-bold text-on-surface">{t("heading")}</span>
