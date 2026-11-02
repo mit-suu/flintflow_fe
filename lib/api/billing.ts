@@ -6,18 +6,46 @@ import { apiCall } from "./client";
 import { currentLocale } from "./error-messages";
 
 export type PlanId = "free" | "pro";
-export type CreditTransactionType = "reserve" | "deduct" | "release" | "refund" | "monthly_reset" | "purchase" | "admin_adjust";
+/** `payment`: thanh toán đang chờ / lỗi (UC-59) — chỉ Lead nhận, không phải dòng sổ ví. */
+export type CreditTransactionType = "reserve" | "deduct" | "release" | "refund" | "monthly_reset" | "purchase" | "admin_adjust" | "payment";
 export type PaymentIntentStatus = "pending" | "succeeded" | "failed";
+
+/** Thành viên / dự án của một dòng lịch sử — `name` rỗng khi đã bị xoá. */
+export interface NamedRef {
+  id: string;
+  name: string;
+}
 
 export interface CreditTransaction {
   _id: string;
   actionType: string;
   amount: number;
   type: CreditTransactionType;
-  balanceAfter: number;
+  /** `null` ở dòng thanh toán chưa thành công (chưa đụng ví). */
+  balanceAfter: number | null;
   state?: "reserved" | "deducted" | "refunded" | "expired";
   expires_at?: string;
   createdAt: string;
+  /** UC-60: step pipeline của lượt gọi AI; `null` khi gọi ngoài pipeline hoặc dòng cũ. */
+  stepId?: string | null;
+  tokensIn?: number | null;
+  tokensOut?: number | null;
+  member?: NamedRef | null;
+  project?: NamedRef | null;
+  /** UC-59: dòng `purchase` (= succeeded) và dòng `payment` (pending / failed). */
+  paymentStatus?: PaymentIntentStatus;
+  intentId?: string;
+  packageId?: string;
+  /** Số tiền (VND) của dòng `payment`. */
+  price?: number;
+}
+
+export type TransactionKind = "usage" | "payment";
+
+export interface TransactionFilters {
+  kind?: TransactionKind;
+  projectId?: string;
+  memberId?: string;
 }
 
 export interface BalanceResponse {
@@ -122,8 +150,10 @@ export async function upgradePlan(plan: PlanId) {
   return unwrap(res.data, "plan");
 }
 
-export async function fetchTransactions(page = 1, limit = 20) {
-  const res = await apiCall<CreditTransaction[]>(`/billing/transactions?page=${page}&limit=${limit}`);
+export async function fetchTransactions(page = 1, limit = 20, filters: TransactionFilters = {}) {
+  const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+  for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value);
+  const res = await apiCall<CreditTransaction[]>(`/billing/transactions?${query}`);
   return {
     items: res.data ?? [],
     meta: res.meta as unknown as TransactionsMeta,

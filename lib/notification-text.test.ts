@@ -44,6 +44,18 @@ describe("useNotificationText (T25)", () => {
     );
   });
 
+  it("FLF-303: yêu cầu mời / duyệt / từ chối dịch theo ngôn ngữ người xem", () => {
+    const meta = { requesterName: "Bình", email: "moi@flintflow.test", organizationName: "Nhóm A", role: "viewer" };
+    expect(textIn("en")(note("org_invitation_requested", meta)).body).toBe(
+      "Bình wants to invite moi@flintflow.test to Nhóm A as Viewer."
+    );
+    expect(textIn("vi")(note("org_invitation_approved", meta)).title).toBe("Yêu cầu mời thành viên đã được duyệt");
+    expect(textIn("en")(note("org_invitation_rejected", meta)).body).toBe(
+      "A Lead rejected the invitation for moi@flintflow.test to Nhóm A."
+    );
+    expect(textIn("en")(note("org_invitation_requested", { email: "x@y.z" })).title).toBe("Tiêu đề đã lưu");
+  });
+
   it("thiếu tham số (thông báo cũ) ⇒ hiện nguyên câu đã lưu", () => {
     const text = textIn("en");
     expect(text(note("welcome", null))).toEqual({ title: "Tiêu đề đã lưu", body: "Nội dung đã lưu" });

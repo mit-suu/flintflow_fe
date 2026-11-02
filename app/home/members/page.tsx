@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import TopBar from "@/components/layout/TopBar";
 import { Avatar, Badge, Button, CountBadge, DropdownMenu, IconButton, Modal } from "@/components/ui";
 import {
+  approveInvitation,
   changeMemberRole,
   createInvitation,
   deleteOrganization,
@@ -13,6 +14,7 @@ import {
   fetchMyOrganizations,
   fetchOrganization,
   leaveOrganization,
+  rejectInvitation,
   removeMember,
   revokeInvitation,
   switchOrganization,
@@ -37,14 +39,17 @@ type Pending = { kind: "remove"; member: OrgMember } | { kind: "leave" } | { kin
 /** Key tĩnh để next-intl kiểm được lúc biên dịch — ghép chuỗi động thì mất kiểm tra đó. */
 const STATE_KEYS = {
   pending: "invitations.states.pending",
+  awaiting_approval: "invitations.states.awaiting_approval",
   accepted: "invitations.states.accepted",
   revoked: "invitations.states.revoked",
+  rejected: "invitations.states.rejected",
   expired: "invitations.states.expired",
 } as const;
 
 /**
  * Thành viên của org đang mở — BPMN Flow 9: mời (9.1–9.2), đổi vai trò (9.5), xoá (9.6), rời (9.7).
  * BR-02 (org phải còn ít nhất một Lead) do BE giữ; FE chỉ hiện lỗi LAST_LEAD khi BE từ chối.
+ * FLF-303: Analyst gửi được yêu cầu mời, Lead duyệt / từ chối; xoá tổ chức vẫn chỉ Lead.
  */
 export default function MembersPage() {
   const t = useTranslations("app.org.members");
@@ -66,9 +71,14 @@ export default function MembersPage() {
   const [inviteRole, setInviteRole] = useState<InvitableRole>("analyst");
   const [inviteEmail, setInviteEmail] = useState("");
   const [createdCode, setCreatedCode] = useState<CreatedInvitation | null>(null);
+  /** Analyst vừa gửi yêu cầu mời — không có mã, chỉ báo đã gửi cho Lead. */
+  const [requested, setRequested] = useState<Invitation | null>(null);
+  /** Mã Lead vừa duyệt — mã thô chỉ trả đúng lượt duyệt nên hiện tới khi Lead đóng. */
+  const [approvedCode, setApprovedCode] = useState<CreatedInvitation | null>(null);
   const [confirmText, setConfirmText] = useState("");
 
   const isLead = org?.role === "lead";
+  const canInvite = isLead || org?.role === "analyst";
 
   /** Chỉ đọc dữ liệu, không đụng state — để effect bên dưới tự quyết khi nào gán. */
   const fetchAll = useCallback(async () => {
@@ -76,7 +86,7 @@ export default function MembersPage() {
     const detail = await fetchOrganization(orgId);
     const [list, invites] = await Promise.all([
       fetchMembers(orgId),
-      detail.role === "lead" ? fetchInvitations(orgId) : Promise.resolve<Invitation[]>([]),
+      detail.role === "viewer" ? Promise.resolve<Invitation[]>([]) : fetchInvitations(orgId),
     ]);
     return { detail, list, invites };
   }, [orgId]);
@@ -135,7 +145,8 @@ export default function MembersPage() {
     }
     void run(async () => {
       const created = await createInvitation(orgId, inviteRole, inviteEmail.trim());
-      setCreatedCode(created);
+      if ("code" in created) setCreatedCode(created);
+      else setRequested(created);
       setInviteEmail("");
       await load();
     });
@@ -145,6 +156,22 @@ export default function MembersPage() {
     if (!orgId) return;
     void run(async () => {
       await revokeInvitation(orgId, invitation.id);
+      await load();
+    });
+  };
+
+  const handleApprove = (invitation: Invitation) => {
+    if (!orgId) return;
+    void run(async () => {
+      setApprovedCode(await approveInvitation(orgId, invitation.id));
+      await load();
+    });
+  };
+
+  const handleReject = (invitation: Invitation) => {
+    if (!orgId) return;
+    void run(async () => {
+      await rejectInvitation(orgId, invitation.id);
       await load();
     });
   };
@@ -164,6 +191,7 @@ export default function MembersPage() {
   const closeInvite = () => {
     setInviteOpen(false);
     setCreatedCode(null);
+    setRequested(null);
     setInviteEmail("");
     setError(null);
   };
@@ -210,7 +238,7 @@ export default function MembersPage() {
       <div className="flex-1 overflow-y-auto px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
         {/* Bề ngang theo nội dung thật: Lead có thêm cột phụ (lời mời, vùng xoá) nên cần rộng; người chỉ xem
             danh sách thì khung hẹp lại cho dễ đọc, không kéo một cột ra hết màn. */}
-        <section className={`w-full mx-auto flex flex-col gap-6 ${isLead ? "max-w-[1200px]" : "max-w-[820px]"}`}>
+        <section className={`w-full mx-auto flex flex-col gap-6 ${canInvite ? "max-w-[1200px]" : "max-w-[820px]"}`}>
           {/* Hành động chính của TRANG nằm cạnh tiêu đề trang, không phải ở thanh trên dùng chung mọi trang */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-2">
@@ -219,11 +247,14 @@ export default function MembersPage() {
                 {members.length > 0 && <CountBadge count={members.length} />}
               </div>
               {org ? <p className="text-body text-on-surface-muted">{t("subtitle", { org: org.name })}</p> : null}
-              {org && !isLead ? <p className="text-body text-on-surface-muted">{t("leadOnly")}</p> : null}
+              {org && !isLead ? (
+                <p className="text-body text-on-surface-muted">{canInvite ? t("analystHint") : t("leadOnly")}</p>
+              ) : null}
             </div>
-            {isLead ? (
+            {/* Analyst cũng mời được nhưng chỉ là yêu cầu chờ Lead duyệt — nhãn nói rõ để không tưởng đã mời xong */}
+            {canInvite ? (
               <Button icon="plus" onClick={() => setInviteOpen(true)}>
-                {t("invite.title")}
+                {isLead ? t("invite.title") : t("invite.requestTitle")}
               </Button>
             ) : null}
           </div>
@@ -237,7 +268,7 @@ export default function MembersPage() {
 
           {/* Hai cột từ `lg`: danh sách bên trái, việc phụ của Lead (lời mời, xoá tổ chức) dồn sang cột phải —
               xếp dọc một cột thì trang dài gấp đôi mà hai bên vẫn trống. Dưới `lg` tự xuống một cột. */}
-          <div className={`grid gap-6 items-start ${isLead ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]" : ""}`}>
+          <div className={`grid gap-6 items-start ${canInvite ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]" : ""}`}>
             {/* Phân tách bằng NỀN và khoảng cách, không bằng nét: một mảng nền mờ gom cả danh sách, mỗi dòng
                 nổi lên nền trắng khi rê chuột. Không viền ngoài, không kẻ ngang.
                 Tổ chức đông người thì danh sách tự cuộn trong khung, không kéo dài
@@ -330,13 +361,32 @@ export default function MembersPage() {
             })}
             </div>
 
-            {isLead ? (
+            {canInvite ? (
               <aside className="flex flex-col gap-6">
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-subtitle font-bold text-on-surface">{t("invitations.title")}</h2>
+                    <h2 className="text-subtitle font-bold text-on-surface">
+                      {isLead ? t("invitations.title") : t("invitations.mineTitle")}
+                    </h2>
                     {invitations.length > 0 && <CountBadge count={invitations.length} />}
                   </div>
+                  {approvedCode ? (
+                    <div className="rounded-card bg-primary-soft px-4 py-3" role="status">
+                      <p className="text-body font-semibold text-on-surface">{t("invitations.approvedTitle")}</p>
+                      <p
+                        className="my-1 font-mono text-title font-bold tracking-[0.2em] text-primary"
+                        data-testid="approved-code"
+                      >
+                        {approvedCode.code}
+                      </p>
+                      <p className="text-body text-on-surface-muted">
+                        {t("invitations.approvedBody", { email: approvedCode.email ?? "" })}
+                      </p>
+                      <Button size="sm" variant="ghost" className="mt-1" onClick={() => setApprovedCode(null)}>
+                        {t("invitations.dismiss")}
+                      </Button>
+                    </div>
+                  ) : null}
                   {invitations.length === 0 ? (
                     <p className="text-body text-on-surface-muted">{t("invitations.empty")}</p>
                   ) : (
@@ -360,10 +410,31 @@ export default function MembersPage() {
                                 ? " · " + t("invitations.expires", { date: date(inv.expiresAt) })
                                 : ""}
                             </p>
+                            {isLead && inv.requestedBy ? (
+                              <p className="text-caption text-on-surface-muted truncate">
+                                {t("invitations.requestedBy", { name: inv.requestedBy.name })}
+                              </p>
+                            ) : null}
                           </div>
-                          {inv.state === "pending" ? (
+                          {/* Lead: duyệt / từ chối yêu cầu, thu hồi mã đã phát. Analyst: chỉ huỷ yêu cầu còn chờ. */}
+                          {isLead && inv.state === "awaiting_approval" ? (
+                            <div className="flex gap-1">
+                              <Button size="sm" disabled={busy} onClick={() => handleApprove(inv)}>
+                                {t("invitations.approve")}
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReject(inv)}>
+                                {t("invitations.reject")}
+                              </Button>
+                            </div>
+                          ) : null}
+                          {isLead && inv.state === "pending" ? (
                             <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
                               {t("invitations.revoke")}
+                            </Button>
+                          ) : null}
+                          {!isLead && inv.state === "awaiting_approval" ? (
+                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
+                              {t("invitations.cancelRequest")}
                             </Button>
                           ) : null}
                         </div>
@@ -372,6 +443,7 @@ export default function MembersPage() {
                   )}
                 </div>
 
+                {isLead ? (
                 <div className="flex flex-col gap-3 rounded-card bg-error-container px-4 py-4">
                   <h2 className="text-subtitle font-bold text-error">{t("danger.title")}</h2>
                   <p className="text-body text-on-error-container leading-[1.6]">{t("danger.body")}</p>
@@ -387,11 +459,12 @@ export default function MembersPage() {
                     {t("danger.cta")}
                   </Button>
                 </div>
+                ) : null}
               </aside>
             ) : null}
           </div>
 
-          <Modal open={inviteOpen} onClose={closeInvite} title={t("invite.title")}>
+          <Modal open={inviteOpen} onClose={closeInvite} title={isLead ? t("invite.title") : t("invite.requestTitle")}>
             <form onSubmit={handleInvite} className="flex flex-col gap-4">
               <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
                 {t("invite.roleLabel")}
@@ -438,12 +511,27 @@ export default function MembersPage() {
                 </div>
               ) : null}
 
+              {requested ? (
+                <div className="rounded-card bg-primary-soft px-4 py-3" role="status">
+                  <p className="text-body font-semibold text-on-surface">{t("invite.requestSentTitle")}</p>
+                  <p className="text-body text-on-surface-muted">
+                    {t("invite.requestSent", { email: requested.email ?? "" })}
+                  </p>
+                </div>
+              ) : null}
+
               <div className="flex justify-end gap-2">
                 <Button variant="secondary" onClick={closeInvite} disabled={busy}>
-                  {createdCode ? tc("close") : t("cancel")}
+                  {createdCode || requested ? tc("close") : t("cancel")}
                 </Button>
                 <Button type="submit" loading={busy}>
-                  {busy ? t("invite.creating") : t("invite.cta")}
+                  {isLead
+                    ? busy
+                      ? t("invite.creating")
+                      : t("invite.cta")
+                    : busy
+                      ? t("invite.requesting")
+                      : t("invite.requestCta")}
                 </Button>
               </div>
             </form>
