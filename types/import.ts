@@ -18,6 +18,8 @@ export const IMPORT_STATUSES = [
   "baselining",
   /** FLF-336 I-5: file thiếu mục của cấu trúc đích ⇒ dừng ở "Kết quả đọc file", không có v0. */
   "incomplete",
+  /** FLF-278 trên FLF-336: chế độ 3 đi tiếp Luồng 2 — dự án sang pipeline tạo mới viết phần còn thiếu. */
+  "drafting",
   "checking",
   "gap_review",
   "delivered",
@@ -128,6 +130,8 @@ export interface HeadingMapEntry {
    * `unmapped` này là mục riêng của mẫu (giữ nguyên văn), không phải heading lạ.
    */
   template_section?: string | null;
+  /** FLF-278 trên FLF-336 (business-flow 1.5): chữ hướng dẫn của mẫu dưới heading — chỉ để xem, không phải nội dung. */
+  guidance?: string;
 }
 
 /** Họ mẫu của tài liệu upload (FLF-252). */
@@ -310,6 +314,14 @@ export interface FinalizeResponse {
   baseline: Baseline | null;
   spine_version: number;
   flags: { red: number; yellow: number } | null;
+}
+
+/** #8b `POST /import/continue` — chế độ 3 sang Luồng 2 (dự án thành `mode = fpt`). */
+export interface ContinueFlow2Response {
+  project_mode: "fpt";
+  import_state: "drafting";
+  current_step: string | null;
+  spine_version: number;
 }
 
 export interface GapLayoutRow {

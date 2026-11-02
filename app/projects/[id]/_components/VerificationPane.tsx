@@ -48,7 +48,7 @@ interface VerificationPaneProps {
   /** Nhãn mục, cuộn tới mục, lọc theo mục, nhóm "Mục cần viết lại" — chuyển thẳng cho `FlagsPanel`. */
   issues?: Pick<
     ComponentProps<typeof FlagsPanel>,
-    "sectionLabelOf" | "onShowSection" | "focusSectionId" | "outdatedCount" | "onRewriteOutdated" | "rewriting" | "onEditSection" | "acceptedSteps"
+    "sectionLabelOf" | "onShowSection" | "focusSectionId" | "outdatedCount" | "onRewriteOutdated" | "rewriting" | "onEditSection" | "onDraftSection" | "acceptedSteps"
   >;
 }
 

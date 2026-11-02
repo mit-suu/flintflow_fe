@@ -20,6 +20,9 @@ const EXTRA_RULES = [
   "usecase_auth_relation",
   "goal_not_covered",
   "accepted_as_is",
+  // FLF-278 trên FLF-335/336 — chế độ 3 (mẫu bắt buộc): mục FlintFlow mẫu không có / mục của mẫu còn trống
+  "template_section_absent",
+  "template_section_empty",
 ] as const;
 
 export type FlagRuleTitleKey = FlagRuleId | (typeof EXTRA_RULES)[number];

@@ -1,12 +1,12 @@
 import type { useTranslations } from "next-intl";
-import { Building2, ChartColumnIncreasing, Coins, MessageSquareText, Users, type LucideIcon } from "lucide-react";
+import { Building2, ChartColumnIncreasing, Coins, FileStack, MessageSquareText, Users, type LucideIcon } from "lucide-react";
 
 /** Translator của namespace `admin` — truyền vào các hàm dựng cột/nhãn (không gọi hook được ngoài component). */
 export type AdminT = ReturnType<typeof useTranslations<"admin">>;
 
 export interface AdminNavItem {
   /** Key dưới `admin.nav.items` — component dịch lúc render. */
-  labelKey: "metrics" | "users" | "orgs" | "aiCost" | "feedback";
+  labelKey: "metrics" | "users" | "orgs" | "aiCost" | "feedback" | "templateGaps";
   href: string;
   icon: LucideIcon;
 }
@@ -32,6 +32,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { labelKey: "aiCost", href: "/admin/ai-cost", icon: Coins },
       { labelKey: "feedback", href: "/admin/feedback", icon: MessageSquareText },
+      { labelKey: "templateGaps", href: "/admin/template-gaps", icon: FileStack },
     ],
   },
 ];

@@ -6,6 +6,7 @@
 
 import { createTranslator } from "next-intl";
 import { currentLocale } from "@/lib/api/error-messages";
+import { isContentSlot, slotKey } from "@/lib/constants/content-slots";
 import type { Locale } from "@/lib/i18n";
 import en from "@/messages/en.json";
 import vi from "@/messages/vi.json";
@@ -92,6 +93,8 @@ export const sectionLabel = (id: string | null, locale: Locale = currentLocale()
   if (!id || id === "unmapped") return t("unmapped");
   const known = FPT_SECTIONS.find((s) => s.id === id);
   if (known) return `${known.number} ${known.title}`;
+  // FLF-278: phần nhỏ `slot:*` của mẫu khách
+  if (isContentSlot(id)) return t(`slots.${slotKey(id)}` as Parameters<typeof t>[0]);
   if (isProvisionalSection(id)) return t(id.startsWith("feature:") ? "newFeatureNoCode" : "newFunctionNoCode");
   const kind = KIND.exec(id);
   if (kind) {

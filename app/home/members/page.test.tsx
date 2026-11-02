@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  approveInvitation,
   changeMemberRole,
   createInvitation,
   deleteOrganization,
@@ -10,15 +11,18 @@ import {
   fetchMyOrganizations,
   fetchOrganization,
   leaveOrganization,
+  rejectInvitation,
   removeMember,
   renameOrganization,
+  revokeInvitation,
   switchOrganization,
 } from "@/lib/api/orgs";
 import { decodeJwt, getActiveOrgId } from "@/lib/api/token-store";
-import type { OrgMember, OrgRole } from "@/types/organization";
+import type { Invitation, OrgMember, OrgRole } from "@/types/organization";
 import MembersPage from "./page";
 
 vi.mock("@/lib/api/orgs", () => ({
+  approveInvitation: vi.fn(),
   changeMemberRole: vi.fn(),
   createInvitation: vi.fn(),
   deleteOrganization: vi.fn(),
@@ -27,6 +31,7 @@ vi.mock("@/lib/api/orgs", () => ({
   fetchMyOrganizations: vi.fn(),
   fetchOrganization: vi.fn(),
   leaveOrganization: vi.fn(),
+  rejectInvitation: vi.fn(),
   removeMember: vi.fn(),
   renameOrganization: vi.fn(),
   revokeInvitation: vi.fn(),
@@ -126,6 +131,7 @@ describe("trang thành viên — Lead", () => {
       email: "moi@flintflow.test",
       role: "viewer",
       state: "pending",
+      requestedBy: null,
       expiresAt: "2026-10-01T00:00:00Z",
       createdAt: "2026-09-26T00:00:00Z",
     });
@@ -153,13 +159,14 @@ describe("trang thành viên — Lead", () => {
 });
 
 describe("trang thành viên — không phải Lead", () => {
-  it("chỉ xem, không có công cụ quản lý và không tải lời mời", async () => {
-    setup("analyst");
+  it("Viewer chỉ xem, không có công cụ quản lý và không tải lời mời", async () => {
+    setup("viewer");
     renderWithIntl(<MembersPage />);
 
     expect(await screen.findByText("Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.")).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("button", { name: "Mời thành viên" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Đề xuất mời thành viên" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Thao tác với Bình/ })).toBeNull();
     expect(fetchInvitations).not.toHaveBeenCalled();
   });
@@ -280,6 +287,7 @@ describe("góp ý UI tổ chức (kiểm bằng Playwright 2026-10-04)", () => {
       email: "moi@flintflow.test",
       role: "analyst",
       state: "pending",
+      requestedBy: null,
       expiresAt: "2026-10-11T00:00:00Z",
       createdAt: "2026-10-04T00:00:00Z",
     });
@@ -373,5 +381,81 @@ describe("đổi tên tổ chức (UC-80)", () => {
     renderWithIntl(<MembersPage />);
     expect(await screen.findByText("Thành viên của Nhóm A")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Đổi tên tổ chức" })).not.toBeInTheDocument();
+  });
+});
+
+describe("FLF-303 — Analyst đề xuất mời, Lead duyệt", () => {
+  const awaiting: Invitation = {
+    id: "inv-9",
+    email: "moi@flintflow.test",
+    role: "viewer",
+    state: "awaiting_approval",
+    requestedBy: { id: "u-2", name: "Bình" },
+    expiresAt: "2026-11-08T00:00:00Z",
+    createdAt: "2026-11-01T00:00:00Z",
+  };
+
+  it("Analyst: nút nói rõ là gửi yêu cầu; gửi xong không có mã, chỉ báo chờ Lead duyệt", async () => {
+    setup("analyst");
+    vi.mocked(createInvitation).mockResolvedValue(awaiting);
+    renderWithIntl(<MembersPage />);
+
+    expect(await screen.findByText(/Bạn gửi được yêu cầu mời/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Đề xuất mời thành viên" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Email người được mời"), { target: { value: "moi@flintflow.test" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Gửi yêu cầu cho Lead duyệt" }));
+
+    await waitFor(() => expect(createInvitation).toHaveBeenCalledWith("org-a", "analyst", "moi@flintflow.test"));
+    expect(await within(dialog).findByText(/Lead sẽ duyệt yêu cầu mời moi@flintflow.test/)).toBeInTheDocument();
+    expect(screen.queryByTestId("invite-code")).toBeNull();
+  });
+
+  it("Analyst: thấy yêu cầu của mình, huỷ được khi còn chờ; không có nút duyệt và không có khu xoá tổ chức", async () => {
+    setup("analyst");
+    vi.mocked(fetchInvitations).mockResolvedValue([awaiting]);
+    vi.mocked(revokeInvitation).mockResolvedValue({ ...awaiting, state: "revoked" });
+    renderWithIntl(<MembersPage />);
+
+    expect(await screen.findByText("Yêu cầu mời của bạn")).toBeInTheDocument();
+    expect(screen.getByText(/Chờ Lead duyệt/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duyệt" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Xoá tổ chức" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ yêu cầu" }));
+    await waitFor(() => expect(revokeInvitation).toHaveBeenCalledWith("org-a", "inv-9"));
+  });
+
+  it("Analyst: lời mời đã duyệt thì không còn nút huỷ", async () => {
+    setup("analyst");
+    vi.mocked(fetchInvitations).mockResolvedValue([{ ...awaiting, state: "pending" }]);
+    renderWithIntl(<MembersPage />);
+
+    await screen.findByText("moi@flintflow.test");
+    expect(screen.queryByRole("button", { name: "Huỷ yêu cầu" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Thu hồi" })).toBeNull();
+  });
+
+  it("Lead: thấy người đề xuất, duyệt thì hiện mã vừa sinh", async () => {
+    setup("lead");
+    vi.mocked(fetchInvitations).mockResolvedValue([awaiting]);
+    vi.mocked(approveInvitation).mockResolvedValue({ ...awaiting, state: "pending", code: "WXYZ234567" });
+    renderWithIntl(<MembersPage />);
+
+    expect(await screen.findByText("Đề xuất bởi Bình")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Duyệt" }));
+
+    await waitFor(() => expect(approveInvitation).toHaveBeenCalledWith("org-a", "inv-9"));
+    expect(await screen.findByTestId("approved-code")).toHaveTextContent("WXYZ234567");
+  });
+
+  it("Lead: từ chối yêu cầu", async () => {
+    setup("lead");
+    vi.mocked(fetchInvitations).mockResolvedValue([awaiting]);
+    vi.mocked(rejectInvitation).mockResolvedValue({ ...awaiting, state: "rejected" });
+    renderWithIntl(<MembersPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Từ chối" }));
+    await waitFor(() => expect(rejectInvitation).toHaveBeenCalledWith("org-a", "inv-9"));
   });
 });

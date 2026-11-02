@@ -116,6 +116,8 @@ interface FlagsPanelProps {
   rewriting?: boolean;
   /** "Sửa trong chat" trên một vấn đề — bật chip Sửa tài liệu, điền sẵn tên mục. */
   onEditSection?: (sectionLabel: string) => void;
+  /** FLF-278: "Nhờ AI soạn" trên cờ mục của mẫu còn trống — điền sẵn lệnh soạn nháp vào ô chat. */
+  onDraftSection?: (sectionLabel: string) => void;
   /** Bước đã chốt: cờ "rỗng" của bước đã chốt là vấn đề cần xử lý, không phải "sẽ điền ở bước sau" (FLF-248). */
   acceptedSteps?: ReadonlySet<string>;
 }
@@ -167,6 +169,7 @@ export default function FlagsPanel({
   onRewriteOutdated,
   rewriting = false,
   onEditSection,
+  onDraftSection,
   acceptedSteps,
 }: FlagsPanelProps) {
   const t = useTranslations("workspace.flags");
@@ -381,6 +384,16 @@ export default function FlagsPanel({
                     title={t("editInChatTitle")}
                   >
                     {t("editInChat")}
+                  </button>
+                )}
+                {onDraftSection && flag.rule_id === "template_section_empty" && (
+                  <button
+                    type="button"
+                    onClick={() => onDraftSection(sectionName(flag.section_id))}
+                    className={`${textButton} ${secondary} text-primary`}
+                    title={t("draftInChatTitle")}
+                  >
+                    {t("draftInChat")}
                   </button>
                 )}
                 {waiveLink(flag)}
