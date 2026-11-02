@@ -64,6 +64,11 @@ const FALLBACK_CODES: ReadonlySet<string> = new Set(["UNKNOWN_ERROR", "PARSE_ERR
  */
 const withMeta = (code: string | null | undefined, locale: Locale, meta?: Record<string, unknown>): string | undefined => {
   if (code === "FILE_TOO_LARGE" && typeof meta?.max_mb === "number") return ERRORS[locale].FILE_TOO_LARGE_LIMIT.replace("{max_mb}", String(meta.max_mb));
+  // FLF-334 B: tải theo ngôn ngữ khác còn mục chưa dịch — nói rõ bao nhiêu
+  if (code === "TRANSLATION_INCOMPLETE" && typeof meta?.missing === "number") {
+    const one = new Intl.PluralRules(locale).select(meta.missing) === "one";
+    return ERRORS[locale][one ? "TRANSLATION_INCOMPLETE_COUNT_ONE" : "TRANSLATION_INCOMPLETE_COUNT"].replace("{missing}", String(meta.missing));
+  }
   return undefined;
 };
 

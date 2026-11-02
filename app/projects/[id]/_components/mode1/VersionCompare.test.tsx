@@ -33,6 +33,7 @@ const version = (v: string, kind: DocVersion["kind"] = "cr_revision"): DocVersio
   has_clean_file: kind === "release",
   has_tracked_file: kind === "cr_revision",
   has_original_file: kind === "imported",
+  other_language_available: false,
   created_by: "u1",
   created_at: "2026-09-19T00:00:00.000Z",
 });

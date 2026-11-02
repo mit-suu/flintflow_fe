@@ -199,6 +199,30 @@ const cases: EndpointCase[] = [
   ["getTranslationStatus", () => translations.getTranslationStatus("p1"), "/projects/p1/translations/status"],
   ["runTranslation (số lô mặc định của BE)", () => translations.runTranslation("p1"), "/projects/p1/translations/run", post({})],
   ["runTranslation (max_batches)", () => translations.runTranslation("p1", 2), "/projects/p1/translations/run", post({ max_batches: 2 })],
+  // ─── FLF-334 B: ngôn ngữ đích + đích snapshot của lượt tải bị 409 ───
+  ["getTranslationStatus (locale)", () => translations.getTranslationStatus("p1", { locale: "vi" }), "/projects/p1/translations/status?locale=vi"],
+  [
+    "getTranslationStatus (locale + baseline)",
+    () => translations.getTranslationStatus("p1", { locale: "vi", baselineId: "BL001" }),
+    "/projects/p1/translations/status?locale=vi&baseline_id=BL001",
+  ],
+  [
+    "getTranslationStatus (locale + version)",
+    () => translations.getTranslationStatus("p1", { locale: "en", version: "1.0" }),
+    "/projects/p1/translations/status?locale=en&version=1.0",
+  ],
+  [
+    "runTranslation (locale + version)",
+    () => translations.runTranslation("p1", 2, { locale: "vi", version: "2.0" }),
+    "/projects/p1/translations/run",
+    post({ max_batches: 2, locale: "vi", version: "2.0" }),
+  ],
+  [
+    "runTranslation (locale + baseline)",
+    () => translations.runTranslation("p1", undefined, { locale: "vi", baselineId: "BL002" }),
+    "/projects/p1/translations/run",
+    post({ locale: "vi", baseline_id: "BL002" }),
+  ],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
   ["listComments", () => comments.listComments("p1"), "/projects/p1/comments?status=open"],
   ["listComments all", () => comments.listComments("p1", "all"), "/projects/p1/comments?status=all"],
@@ -473,6 +497,34 @@ describe("lib/api wrappers", () => {
     expect(result.filename).toBe("du-an-v1.0.pdf");
   });
 
+  it("FLF-334 B: downloadWordExport / downloadPdfExport gửi lang khi có; bỏ trống ⇒ URL như trước", async () => {
+    vi.mocked(authFetch).mockImplementation(async () => new Response("bytes", { status: 200 }));
+
+    await exportApi.downloadWordExport("p1", "draft", undefined, "en");
+    await exportApi.downloadPdfExport("p1", "baseline", "BL001", "vi");
+    await exportApi.downloadWordExport("p1", "baseline", "BL001");
+
+    expect(vi.mocked(authFetch).mock.calls.map((c) => c[0])).toEqual([
+      "/projects/p1/export/word?source=draft&lang=en",
+      "/projects/p1/export/pdf?source=baseline&baseline_id=BL001&lang=vi",
+      "/projects/p1/export/word?source=baseline&baseline_id=BL001",
+    ]);
+  });
+
+  it("FLF-334 B: 409 TRANSLATION_INCOMPLETE của export ⇒ ApiClientError mang meta { locale, missing, total }", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "Còn 4 đoạn chưa dịch" }, meta: { locale: "vi", missing: 4, total: 30 } }),
+        { status: 409 }
+      )
+    );
+    await expect(exportApi.downloadWordExport("p1", "draft", undefined, "vi")).rejects.toMatchObject({
+      status: 409,
+      code: "TRANSLATION_INCOMPLETE",
+      meta: { locale: "vi", missing: 4, total: 30 },
+    });
+  });
+
   it("downloadPdfExport ném PDF_EXPORT_UNAVAILABLE khi BE không chuyển được PDF", async () => {
     vi.mocked(authFetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ error: { code: "PDF_EXPORT_UNAVAILABLE", message: "Chưa xuất được PDF lúc này." } }), { status: 503 })
@@ -539,11 +591,13 @@ describe("lib/api wrappers", () => {
     await versions.downloadVersion("p1", "0.3");
     await versions.downloadVersion("p1", "1.0", "tracked");
     await versions.downloadVersion("p1", "1.0", "auto", "pdf");
+    await versions.downloadVersion("p1", "2.0", "auto", "docx", "vi");
 
     expect(vi.mocked(authFetch).mock.calls.map((c) => c[0])).toEqual([
       "/projects/p1/versions/0.3/download?variant=auto",
       "/projects/p1/versions/1.0/download?variant=tracked",
       "/projects/p1/versions/1.0/download?variant=auto&format=pdf",
+      "/projects/p1/versions/2.0/download?variant=auto&lang=vi",
     ]);
   });
 

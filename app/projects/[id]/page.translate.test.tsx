@@ -63,3 +63,89 @@ describe("WorkspacePage — dịch tài liệu (FLF-265)", () => {
     expect(screen.queryByRole("button", { name: "Dịch tài liệu" })).toBeNull();
   }, 30_000);
 });
+
+describe("WorkspacePage — tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
+  it("dự án en: Export chọn Tiếng Việt ⇒ 409 TRANSLATION_INCOMPLETE ⇒ “Dịch nốt” mở hộp dịch với ?locale=vi", async () => {
+    const exportUrls: string[] = [];
+    const statusUrls: string[] = [];
+    mockServer.use(
+      http.get("*/projects/:projectId/export/word", ({ request }) => {
+        exportUrls.push(new URL(request.url).search);
+        return HttpResponse.json(
+          { data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "thiếu" }, meta: { locale: "vi", missing: 5, total: 40 } },
+          { status: 409 }
+        );
+      }),
+      http.get("*/projects/:projectId/translations/status", ({ request }) => {
+        statusUrls.push(new URL(request.url).search);
+        return HttpResponse.json({ data: { locale: "vi", source_locale: "en", total: 40, missing: 5, batches: 1, estimated_credits: 2 }, error: null });
+      })
+    );
+    renderWithIntl(<WorkspacePage />);
+
+    expect(await screen.findByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("EN");
+    fireEvent.click(screen.getByTitle("Hoàn tất và xuất tài liệu SRS"));
+    const group = await screen.findByRole("radiogroup", { name: "Ngôn ngữ file" });
+    fireEvent.click(within(group).getByRole("radio", { name: "Tiếng Việt" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
+
+    const alert = await screen.findByText("Còn 5 mục chưa dịch sang Tiếng Việt nên chưa tải được bản này.");
+    expect(exportUrls).toEqual(["?source=draft&lang=vi"]);
+    fireEvent.click(within(alert.parentElement as HTMLElement).getByRole("button", { name: "Dịch nốt" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Dịch tài liệu" });
+    await within(dialog).findByRole("button", { name: "Dịch ngay" });
+    expect(statusUrls).toContain("?locale=vi");
+  }, 30_000);
+});
+
+describe("WorkspacePage — dự án chuyển từ mode 2 tải version theo ngôn ngữ còn lại (FLF-334 B)", () => {
+  it("1.0 other_language_available ⇒ “Tải bản Tiếng Việt” 409 ⇒ “Dịch nốt” mở hộp dịch với ?locale=vi&version=1.0", async () => {
+    Object.assign(mockState.project, { mode: "import", import_state: "delivered", converted_from: "fpt", documentLanguage: "en" });
+    const statusUrls: string[] = [];
+    const downloadUrls: string[] = [];
+    mockServer.use(
+      http.get("*/projects/:projectId/versions", () =>
+        HttpResponse.json({
+          data: [
+            {
+              version: "1.0",
+              kind: "imported",
+              based_on: null,
+              cr_ids: [],
+              baseline_id: "BL001",
+              has_clean_file: true,
+              has_tracked_file: false,
+              has_original_file: false,
+              other_language_available: true,
+              created_by: "u1",
+              created_at: "2026-10-29T00:00:00.000Z",
+            },
+          ],
+          error: null,
+        })
+      ),
+      http.get("*/projects/:projectId/versions/:v/download", ({ request }) => {
+        downloadUrls.push(new URL(request.url).search);
+        return HttpResponse.json(
+          { data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "thiếu" }, meta: { locale: "vi", missing: 4, total: 40 } },
+          { status: 409 }
+        );
+      }),
+      http.get("*/projects/:projectId/translations/status", ({ request }) => {
+        statusUrls.push(new URL(request.url).search);
+        return HttpResponse.json({ data: { locale: "vi", source_locale: "en", total: 40, missing: 4, batches: 1, estimated_credits: 2 }, error: null });
+      })
+    );
+    renderWithIntl(<WorkspacePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Tải bản Tiếng Việt" }));
+    const alert = await screen.findByText("Còn 4 mục chưa dịch sang Tiếng Việt nên chưa tải được bản này.");
+    expect(downloadUrls).toEqual(["?variant=auto&lang=vi"]);
+    fireEvent.click(within(alert.parentElement as HTMLElement).getByRole("button", { name: "Dịch nốt" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Dịch tài liệu" });
+    await within(dialog).findByRole("button", { name: "Dịch ngay" });
+    expect(statusUrls).toContain("?locale=vi&version=1.0");
+  }, 30_000);
+});

@@ -2,6 +2,7 @@
  * Version tài liệu + release mode 1 (#12–#15, #31 `docs/api/import-change-contract.md`).
  */
 import type { DocBlock } from "@/types/import";
+import type { DocumentLanguage } from "@/types/project";
 import type { CompareResponse, DocVersion, DownloadFormat, DownloadVariant, ReleaseResponse, ReviewPackage } from "@/types/doc-version";
 import { apiCall } from "./client";
 import { fetchFile } from "./files";
@@ -21,10 +22,19 @@ export const compareVersions = (projectId: string, from: string, to: string) =>
 
 /**
  * `auto`: release ⇒ bản sạch, draft ⇒ Track Changes + DRAFT. `format=pdf` (FLF-316) là chính file đó chuyển
- * ở BE — `503 PDF_EXPORT_UNAVAILABLE` khi bộ chuyển không sẵn sàng; `docx` vẫn tải được.
+ * ở BE — `503 PDF_EXPORT_UNAVAILABLE` khi bộ chuyển không sẵn sàng; `docx` vẫn tải được. `lang` (FLF-334 B): chỉ cho
+ * version `other_language_available`; thiếu bản dịch ⇒ `409 TRANSLATION_INCOMPLETE` (`meta { locale, missing, total }`).
  */
-export const downloadVersion = (projectId: string, version: string, variant: DownloadVariant = "auto", format: DownloadFormat = "docx") =>
-  fetchFile(`${base(projectId)}/versions/${encodeURIComponent(version)}/download?variant=${variant}${format === "pdf" ? "&format=pdf" : ""}`);
+export const downloadVersion = (
+  projectId: string,
+  version: string,
+  variant: DownloadVariant = "auto",
+  format: DownloadFormat = "docx",
+  lang?: DocumentLanguage
+) =>
+  fetchFile(
+    `${base(projectId)}/versions/${encodeURIComponent(version)}/download?variant=${variant}${format === "pdf" ? "&format=pdf" : ""}${lang ? `&lang=${lang}` : ""}`
+  );
 
 // ─── gói duyệt (FLF-330, C-7) ───
 
