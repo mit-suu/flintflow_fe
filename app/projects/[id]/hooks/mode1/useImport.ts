@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import {
   confirmLatest,
+  continueImportFlow2,
   finalizeImport,
   getImport,
   patchFields,
@@ -14,6 +15,7 @@ import {
   uploadImport,
 } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
+import { importFromOrgTemplate } from "@/lib/api/org-library";
 import type { RocRow } from "@/types/document";
 import type { FieldsPatchRequest, FinalizeResponse, GetImportResponse, MappingPatchRequest } from "@/types/import";
 import { useErrorText } from "../../_components/mode1/i18n";
@@ -115,6 +117,8 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
     reload,
     clearError: () => setError(null),
     upload: (file: File, intent?: TemplateIntent) => run("upload", () => uploadImport(projectId, file, intent)),
+    /** FLF-278: dùng mẫu đã lưu của tổ chức thay cho tải file — mapping áp sẵn. */
+    pickOrgTemplate: (orgTemplateId: string, intent?: TemplateIntent) => run("upload", () => importFromOrgTemplate(projectId, orgTemplateId, intent)),
     confirm: () => run("confirm", () => confirmLatest(projectId, importId)),
     saveMapping: (body: Omit<MappingPatchRequest, "import_id">) =>
       run("mapping", () => patchMapping(projectId, { ...body, import_id: importId })),
@@ -145,6 +149,12 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
         const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0, recordOfChanges, opts);
         setFinalizeStarted(true);
         return res.data;
+      }),
+    /** FLF-278: chế độ 3 ⇒ Luồng 2. Thành công ⇒ dự án thành `fpt`, FE mở workspace (không poll import nữa). */
+    continueFlow2: () =>
+      run("finalize", async () => {
+        const spine = await getSpine(projectId);
+        return (await continueImportFlow2(projectId, importId, spine.data?.spine_version ?? 0)).data;
       }),
   };
 }

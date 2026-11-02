@@ -44,7 +44,22 @@
       "custom": "Custom section",
       "section": "Section {number}",
       "feature": "Feature {code}",
-      "function": "Function {code}"
+      "function": "Function {code}",
+      "slots": {
+        "vision": "Purpose and vision",
+        "goals": "Product goals",
+        "scope": "Release scope (in / out)",
+        "high_rules": "High-level business rules",
+        "context": "System context and external systems",
+        "features": "Product functions overview",
+        "platforms": "Platforms and operating environment",
+        "assumptions": "Assumptions",
+        "risks": "Risks",
+        "open_questions": "Open questions (TBD)",
+        "security": "Common security requirements",
+        "localization": "Localization requirements",
+        "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)"
+      }
     },
     "billingData": {
       "missing": "No {what} data received",
@@ -318,7 +333,11 @@
       "remember": "Keep me signed in",
       "forgot": "Forgot password?",
       "failed": "Sign-in failed",
-      "googleFailed": "Google sign-in failed"
+      "googleFailed": "Google sign-in failed",
+      "suspendedTitle": "Your account has been suspended.",
+      "suspendedReason": "Reason: {reason}",
+      "suspendedAt": "Suspended since {date}.",
+      "suspendedHelp": "If you think this is a mistake, contact a FlintFlow administrator to have it reactivated."
     },
     "register": {
       "title": "Create an account",
@@ -450,7 +469,7 @@
       "current": "Current",
       "switching": "Switching…",
       "buyPlan": "Buy {plan} plan",
-      "switchTo": "Switch to {plan}",
+      "autoRevert": "Returns to {plan} when the current plan ends ({date})",
       "history": "Transaction history",
       "noTx": "No transactions yet",
       "col": {
@@ -458,7 +477,10 @@
         "type": "Type",
         "action": "Action",
         "credit": "Credits",
-        "availableAfter": "Available after"
+        "availableAfter": "Available after",
+        "project": "Project",
+        "member": "Member",
+        "tokens": "Tokens (in / out)"
       },
       "txType": {
         "reserve": "Credit hold",
@@ -468,7 +490,8 @@
         "monthly_reset": "Monthly reset",
         "refund": "Credit refund",
         "admin_adjust": "Credit adjustment",
-        "other": "Credit transaction"
+        "other": "Credit transaction",
+        "payment": "Payment"
       },
       "txState": {
         "reserved": "held",
@@ -480,7 +503,8 @@
         "load": "Could not load billing information",
         "createTx": "Could not create the transaction",
         "changePlan": "Could not change the plan",
-        "loadMore": "Could not load more transactions"
+        "loadMore": "Could not load more transactions",
+        "filter": "Could not filter the transaction history"
       },
       "loadingHistory": "Loading transaction history…",
       "actionType": {
@@ -519,7 +543,24 @@
       "creditUnit": {
         "one": "credit",
         "other": "credits"
-      }
+      },
+      "paymentStatus": {
+        "succeeded": "Succeeded",
+        "pending": "Pending",
+        "failed": "Failed"
+      },
+      "openQr": "Open QR code",
+      "filter": {
+        "kind": "Type",
+        "kindAll": "All transactions",
+        "usage": "AI usage",
+        "payment": "Payments",
+        "member": "Member",
+        "memberAll": "All members",
+        "project": "Project",
+        "projectAll": "All projects"
+      },
+      "noTxFiltered": "No transactions match the filters"
     },
     "checkout": {
       "title": "Transaction",
@@ -580,6 +621,18 @@
         "title": "Baseline {version} recorded",
         "bodyWaived": "The document was signed off at {version} with {count, plural, one {# flag} other {# flags}} waived with a reason.",
         "bodyClean": "The document was signed off at {version} with no red flags left."
+      },
+      "org_invitation_requested": {
+        "title": "Invitation request awaiting approval",
+        "body": "{name} wants to invite {email} to {org} as {role}."
+      },
+      "org_invitation_approved": {
+        "title": "Invitation request approved",
+        "body": "A Lead approved the invitation for {email} to {org}; the code has been emailed."
+      },
+      "org_invitation_rejected": {
+        "title": "Invitation request rejected",
+        "body": "A Lead rejected the invitation for {email} to {org}."
       }
     },
     "common": {
@@ -608,6 +661,7 @@
         "projects": "Projects",
         "notifications": "Notifications",
         "members": "Members",
+        "library": "Template library",
         "billing": "Credits & billing"
       },
       "soonItem": "{label} · {soon}",
@@ -996,7 +1050,12 @@
           "codeTitle": "New invitation code",
           "codeBody": "This code is shown only once. Send it to the invitee; it works once and expires.",
           "emailRequired": "Enter the invitee email — the invitation code is sent to that address.",
-          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires — if the invitee cannot find the email, you can send them this code directly."
+          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires — if the invitee cannot find the email, you can send them this code directly.",
+          "requestTitle": "Request an invitation",
+          "requestCta": "Send request for Lead approval",
+          "requesting": "Sending…",
+          "requestSentTitle": "Request sent",
+          "requestSent": "A Lead will review the request to invite {email}. Once approved, the invitation code is emailed to that address — you will be notified."
         },
         "invitations": {
           "title": "Invitations",
@@ -1008,8 +1067,18 @@
             "pending": "Pending",
             "accepted": "Used",
             "revoked": "Revoked",
-            "expired": "Expired"
-          }
+            "expired": "Expired",
+            "awaiting_approval": "Awaiting Lead approval",
+            "rejected": "Rejected"
+          },
+          "mineTitle": "Your invitation requests",
+          "requestedBy": "Requested by {name}",
+          "approve": "Approve",
+          "reject": "Reject",
+          "cancelRequest": "Cancel request",
+          "approvedTitle": "Approved — invitation code",
+          "approvedBody": "The code was sent to {email}. It is shown here only once.",
+          "dismiss": "Dismiss"
         },
         "danger": {
           "title": "Delete organization",
@@ -1022,7 +1091,34 @@
           "confirmCta": "Delete permanently"
         },
         "soleLeadHint": "You are the only Lead — make another member a Lead before you leave.",
-        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
+        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below.",
+        "analystHint": "You can request an invitation; the code is emailed to the invitee only after a Lead approves. Only a Lead can change roles or remove members."
+      },
+      "library": {
+        "title": "Template library",
+        "intro": "Your organization's SRS templates and standard content, reused across customer-template projects.",
+        "readOnly": "You have view-only access — only Leads and Analysts can add, edit or delete.",
+        "loading": "Loading the library…",
+        "delete": "Delete",
+        "confirmDelete": "Confirm delete",
+        "templates": {
+          "title": "Saved SRS templates",
+          "help": "Saved from the document import screen of a project whose heading mapping is confirmed. New projects pick one at the upload step instead of uploading and mapping again.",
+          "empty": "Your organization has not saved any templates yet.",
+          "meta": "{file} · {headings} headings · {customs} kept verbatim · used {uses} times · saved {date}"
+        },
+        "content": {
+          "title": "Standard content by section",
+          "help": "Content shared by every project, e.g. Document Conventions, References. A project's own section with the same title gets a button to use it — the analyst previews before anything is written.",
+          "empty": "The library has no content yet.",
+          "add": "Add content",
+          "edit": "Edit",
+          "titleLabel": "Section title (matches the heading in the template)",
+          "textLabel": "Content",
+          "textHelp": "Separate paragraphs with a blank line; lines starting with “- ” are bullets. Document content should be written in English.",
+          "save": "Save",
+          "cancel": "Cancel"
+        }
       }
     },
     "projectStart": {
@@ -1399,7 +1495,13 @@
       "untranslatedTitle": "These sections show the original text until they are translated",
       "untranslated": "{count, plural, one {# section not translated} other {# sections not translated}}",
       "translate": "Translate document",
-      "emptyDocument": "The document will appear here as soon as the first steps finish."
+      "emptyDocument": "The document will appear here as soon as the first steps finish.",
+      "draftSection": "Ask AI to draft",
+      "useLibrary": "Use organization content",
+      "saveToLibrary": "Save to library",
+      "saveToLibraryTitle": "Save this section's content so other projects of your organization can reuse it",
+      "libraryBanner": "Your organization's library has content for {count} empty sections.",
+      "libraryApplyAll": "Preview and use"
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -1492,7 +1594,9 @@
           "title": "Filled in a later step",
           "hint": "Not an error — AI fills these when it reaches the steps."
         }
-      }
+      },
+      "draftInChat": "Ask AI to draft",
+      "draftInChatTitle": "AI drafts from the template guidance and project data; it asks you when facts are missing"
     },
     "readiness": {
       "loading": "Loading readiness score…",
@@ -2007,7 +2111,9 @@
       "acceptAsIsEmpty": "Approve as is:",
       "fixFlag": "Please fix this issue as suggested: {message}",
       "editSection": "In {label}: ",
-      "fixComment": "In {label}, fix per this comment: {text}"
+      "fixComment": "In {label}, fix per this comment: {text}",
+      "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. ",
+      "useLibrary": "Write section {label} with exactly this organization content (keep the wording): {text}"
     },
     "aiSettings": {
       "aria": "How the AI works with you — {mode}",
@@ -2149,7 +2255,9 @@
       "usecase_relation_invalid": "Invalid relation between use cases",
       "usecase_auth_relation": "Use case login relation",
       "goal_not_covered": "Goal not covered",
-      "accepted_as_is": "Accepted as is"
+      "accepted_as_is": "Accepted as is",
+      "template_section_absent": "The required template has no such section",
+      "template_section_empty": "Template section has no content yet"
     },
     "comments": {
       "role": {
@@ -2412,6 +2520,12 @@
       "note": "The AI approved these steps itself. Review if you like — you don't have to see them all before sending.",
       "markSeen": "Seen",
       "markAllSeen": "Mark all as seen"
+    },
+    "library": {
+      "one": "Use organization content for section “{heading}”",
+      "many": "Use organization content for {count} empty sections",
+      "saved": "Saved to your organization's library",
+      "saveFailed": "Could not save to the library. Please try again."
     }
   },
   "errors": {
@@ -2561,7 +2675,8 @@
     "LOG_NOT_FOUND": "That AI run wasn't found.",
     "ORG_CONTEXT_MISSING": "Couldn't determine your organization. Please reload the page.",
     "METHOD_NOT_ALLOWED": "This action isn't supported.",
-    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported."
+    "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported.",
+    "INVITE_NOT_AWAITING_APPROVAL": "This invitation is no longer awaiting approval: it was handled, cancelled or has expired."
   },
   "admin": {
     "common": {
@@ -2597,7 +2712,8 @@
         "users": "Users",
         "orgs": "Organizations",
         "aiCost": "AI cost",
-        "feedback": "Feedback"
+        "feedback": "Feedback",
+        "templateGaps": "Template sections without data"
       }
     },
     "search": {
@@ -2776,6 +2892,18 @@
         "confirmUnsuspend": "Confirm reactivate",
         "failed": "Couldn't update the account status"
       }
+    },
+    "templateGaps": {
+      "title": "Template sections without data",
+      "description": "Required-template headings FlintFlow has no section for (kept as own sections), grouped by title. Most often empty first.",
+      "loadFailed": "Could not load the statistics",
+      "loading": "Loading statistics…",
+      "empty": "No project uses a required template yet.",
+      "basis": "Based on {projects} required-template projects.",
+      "colTitle": "Title (variants)",
+      "colProjects": "Projects",
+      "colEmpty": "Still empty",
+      "colSuggested": "Current suggestion"
     }
   },
   "mode1": {
@@ -3285,7 +3413,8 @@
         "gap_review": "Gap report ready for review",
         "delivered": "Gap report delivered",
         "change_requested": "Editing via change request",
-        "incomplete": "Incomplete — your call"
+        "incomplete": "Incomplete — your call",
+        "drafting": "Writing the missing parts"
       },
       "crStatus": {
         "draft": "Draft",
@@ -3680,7 +3809,21 @@
         }
       },
       "uploadTemplate": "Upload the required template (.docx, blank or partly filled)",
-      "uploadTemplateHint": "The Word .docx template the customer requires. FlintFlow reads its structure, drafts only the sections it has and keeps their order."
+      "uploadTemplateHint": "The Word .docx template the customer requires. FlintFlow reads its structure, drafts only the sections it has and keeps their order.",
+      "orgTemplates": {
+        "title": "Or use a template saved by your organization",
+        "help": "Import from the saved template file itself; the heading mapping confirmed in an earlier project is applied.",
+        "meta": "{file} · {headings} headings · used {uses} times",
+        "use": "Use this template"
+      },
+      "saveToOrg": {
+        "help": "Save this template file and the heading mapping you just confirmed for your organization — later projects pick it at the upload step without mapping again.",
+        "nameLabel": "Template name",
+        "action": "Save as organization template",
+        "saving": "Saving…",
+        "saved": "Saved. New projects in your organization will see this template at the upload step.",
+        "failed": "Could not save the template. Please try again."
+      }
     },
     "mappingReview": {
       "title": "Confirm heading → section mapping",
@@ -3709,7 +3852,12 @@
       "skipColumn": "Skip this column",
       "otherGroup": "Other",
       "saving": "Saving…",
-      "submit": "Confirm mapping"
+      "submit": "Confirm mapping",
+      "slotsGroup": "Part of a section (template splits finer than FlintFlow)",
+      "sectionsGroup": "Whole section of the FlintFlow standard template",
+      "guidance": "Template guidance: {text}",
+      "overlap": "Another heading takes “{section}”, which shares data with this choice — the content would be printed twice. Keep only one.",
+      "overlapBlocked": "Some headings share the same data — fix them before saving."
     },
     "flagsPanel": {
       "intro": "The document has been imported — every change goes through a change request (created from the gap report, the “Edit document with preview” panel or an edit command in chat). Release is possible once there are no red flags.",
@@ -3940,7 +4088,9 @@
       "downloading": "Downloading…",
       "downloadFailed": "Could not download the gap report",
       "complete": "Complete",
-      "completing": "Creating the baseline…"
+      "completing": "Creating the baseline…",
+      "draftMissing": "Write the missing parts with FlintFlow",
+      "draftMissingNote": "Complete = lock the original from the template as is (empty sections stay empty). Write the missing parts = AI builds the brief from what exists, drafts each missing section for you to review, then you sign baseline 1.0 in the template layout."
     },
     "referenceDocs": {
       "aria": "Reference documents",

@@ -36,6 +36,21 @@ interface DocumentPaneProps {
   /** "Sửa mục này" trên từng mục — nhận nhãn mục (`§3.2 Actors`) để điền sẵn lệnh sửa vào ô chat. */
   onEditSection?: (sectionLabel: string) => void;
   /**
+   * FLF-278: "Nhờ AI soạn" trên mục riêng còn trống của mẫu bắt buộc (`custom:*`) — điền sẵn lệnh soạn nháp vào ô chat, BA tự
+   * gửi; trước baseline ra bản xem trước, sau baseline thành change request như mọi lệnh sửa. Không truyền ⇒ không có nút.
+   */
+  onDraftSection?: (sectionLabel: string) => void;
+  /**
+   * FLF-278 — thư viện nội dung của tổ chức. `libraryMatchOf`: mục riêng có nội dung cùng tiêu đề trong thư viện;
+   * `onUseLibrary` mở bản xem trước / lệnh sửa (không ghi ngay); `onSaveToLibrary` lưu mục đã viết vào thư viện;
+   * `onUseLibraryAll` dùng cho mọi mục trống có gợi ý.
+   */
+  libraryMatchOf?: (sectionId: string) => { empty: boolean } | undefined;
+  onUseLibrary?: (sectionId: string) => void;
+  onSaveToLibrary?: (sectionId: string) => void;
+  libraryEmptyCount?: number;
+  onUseLibraryAll?: () => void;
+  /**
    * "Góp ý" trên từng mục (UC-49): ghim lời nhắn vào mục, **không** đổi nội dung (BR-05) nên vẫn giữ
    * nguyên tắc document pane read-only. Không truyền ⇒ không có nút (trang xem, mode 1).
    */
@@ -317,12 +332,20 @@ function SectionView({
   emptyHint,
   mode1 = false,
   onEdit,
+  onDraft,
+  libraryMatch,
+  onUseLibrary,
+  onSaveToLibrary,
   onComment,
   commentCount = 0,
   onOpenComments,
   onRedraw,
 }: {
   onEdit?: (sectionLabel: string) => void;
+  onDraft?: (sectionLabel: string) => void;
+  libraryMatch?: { empty: boolean };
+  onUseLibrary?: () => void;
+  onSaveToLibrary?: () => void;
   onComment?: (sectionLabel: string) => void;
   /** Số góp ý đang mở của mục này. */
   commentCount?: number;
@@ -414,6 +437,36 @@ function SectionView({
               {t("comment")}
             </button>
           )}
+          {onUseLibrary && custom && libraryMatch?.empty && (
+            // Thư viện tổ chức có nội dung cùng tiêu đề: mở bản xem trước, chỉ ghi khi BA xác nhận
+            <button
+              type="button"
+              onClick={onUseLibrary}
+              className="text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer"
+            >
+              {t("useLibrary")}
+            </button>
+          )}
+          {onSaveToLibrary && custom && !showEmpty && (
+            <button
+              type="button"
+              onClick={onSaveToLibrary}
+              title={t("saveToLibraryTitle")}
+              className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
+            >
+              {t("saveToLibrary")}
+            </button>
+          )}
+          {onDraft && custom && showEmpty && (
+            // Mục riêng của mẫu còn trống: luôn hiện (không chờ rê chuột) — chỉ điền sẵn lệnh, BA tự gửi
+            <button
+              type="button"
+              onClick={() => onDraft(sectionLabel(section))}
+              className="text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer"
+            >
+              {t("draftSection")}
+            </button>
+          )}
           {onEdit && (
             // Hiện khi rê chuột / focus vào mục: sửa ngay chỗ đang đọc, lệnh gõ tiếp ở ô chat
             <button
@@ -449,6 +502,12 @@ export default function DocumentPane({
   emptyHintOf,
   mode1 = false,
   onEditSection,
+  onDraftSection,
+  libraryMatchOf,
+  onUseLibrary,
+  onSaveToLibrary,
+  libraryEmptyCount = 0,
+  onUseLibraryAll,
   onCommentSection,
   commentCountOf,
   onOpenSectionComments,
@@ -573,6 +632,14 @@ export default function DocumentPane({
           </div>
         )}
 
+        {document && onUseLibraryAll && libraryEmptyCount > 0 && (
+          <div role="status" className="rounded-card bg-primary-soft px-3.5 py-2.5 flex flex-wrap items-center gap-3 text-body text-on-surface">
+            <span className="flex-1 min-w-[200px]">{t("libraryBanner", { count: libraryEmptyCount })}</span>
+            <button type="button" onClick={onUseLibraryAll} className="text-caption font-bold px-2.5 py-1 rounded-full bg-primary text-on-primary cursor-pointer">
+              {t("libraryApplyAll")}
+            </button>
+          </div>
+        )}
         {document &&
           document.sections.map((section) => (
             <SectionView
@@ -586,6 +653,10 @@ export default function DocumentPane({
               emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
               mode1={mode1}
               onEdit={onEditSection}
+              onDraft={onDraftSection}
+              libraryMatch={libraryMatchOf?.(section.id)}
+              onUseLibrary={onUseLibrary ? () => onUseLibrary(section.id) : undefined}
+              onSaveToLibrary={onSaveToLibrary ? () => onSaveToLibrary(section.id) : undefined}
               onComment={onCommentSection ? (label) => onCommentSection({ sectionId: section.id, label }) : undefined}
               commentCount={commentCountOf?.(section.id) ?? 0}
               onOpenComments={onOpenSectionComments ? () => onOpenSectionComments(section.id) : undefined}

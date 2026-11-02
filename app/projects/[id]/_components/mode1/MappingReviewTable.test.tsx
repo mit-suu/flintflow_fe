@@ -244,3 +244,31 @@ describe("MappingReviewTable — cột bảng không có tiêu đề (FLF-179)",
   });
 });
 
+
+describe("MappingReviewTable — phần nhỏ slot:* và hướng dẫn của mẫu (FLF-278 trên FLF-336)", () => {
+  const withSlot = () =>
+    profile({
+      heading_map: [
+        heading("B0001", "1 Product Overview", "fixed:1", 0.97),
+        { ...heading("B0003", "1.2 Product Scope", "slot:scope", 0.7), guidance: "Describe the release scope." },
+      ],
+      table_map: [],
+    });
+
+  it("hiện hướng dẫn soạn và nhãn phần nhỏ; chồng lấn với mục cha ⇒ báo ở dòng + khoá nút lưu; đổi lại thì gửi được", () => {
+    const onSubmit = vi.fn();
+    renderWithIntl(<MappingReviewTable profile={withSlot()} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByLabelText("Chỉ hiện dòng độ tin thấp"));
+    expect(screen.getByText("Hướng dẫn trong mẫu: Describe the release scope.")).toBeInTheDocument();
+    const scope = screen.getByRole("combobox", { name: /1.2 Product Scope/ });
+    expect(scope).toHaveValue("slot:scope");
+    expect(within(scope).getByRole("option", { name: "Phạm vi phát hành (trong / ngoài)" })).toBeInTheDocument();
+    expect(screen.getAllByRole("alert").length).toBe(2);
+    expect(screen.getByRole("button", { name: "Xác nhận mapping" })).toBeDisabled();
+
+    fireEvent.change(screen.getByRole("combobox", { name: /1 Product Overview/ }), { target: { value: "unmapped" } });
+    expect(screen.queryAllByRole("alert")).toHaveLength(0);
+    submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ headings: [{ block_id: "B0001", section_id: "unmapped" }] }));
+  });
+});

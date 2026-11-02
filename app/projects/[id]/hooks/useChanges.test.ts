@@ -65,6 +65,25 @@ describe("useChanges", () => {
     applySpy.mockRestore();
   });
 
+  it("FLF-278 đợt 3: xem trước lô op tự dựng (không gọi model) → xác nhận gửi lại đúng lô + preview_id", async () => {
+    const baseVersion = await seedActor();
+    const onApplied = vi.fn();
+    const apply = vi.spyOn(spineApi, "applyChanges");
+    const ops = [{ op: "set" as const, path: "actors[id=A01].description", value: "Từ thư viện tổ chức" }];
+    const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, onApplied));
+
+    expect(await result.current.requestOpsPreview(ops, "Dùng nội dung của tổ chức")).toBe("preview");
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+    expect(result.current.pendingInstruction).toBe("Dùng nội dung của tổ chức");
+
+    await result.current.confirmPreview();
+    await waitFor(() => expect(onApplied).toHaveBeenCalledTimes(1));
+    const sent = apply.mock.calls.at(-1)![1];
+    expect(sent).toMatchObject({ ops, preview_id: expect.any(String) });
+    expect(sent).not.toHaveProperty("instruction");
+    apply.mockRestore();
+  });
+
   it("lệnh không tìm được đối tượng ⇒ clarification, không có preview", async () => {
     const baseVersion = await version();
     const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, vi.fn()));

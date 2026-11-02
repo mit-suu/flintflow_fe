@@ -21,6 +21,8 @@ import PausedBanner from "./PausedBanner";
 import PreflightIssues from "./PreflightIssues";
 import RecordOfChangesCard from "./RecordOfChangesCard";
 import UploadStep from "./UploadStep";
+import OrgTemplatePicker from "./OrgTemplatePicker";
+import SaveOrgTemplateCard from "./SaveOrgTemplateCard";
 import { gapReportHref } from "./prefill";
 
 interface ImportWizardProps {
@@ -162,6 +164,9 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
             title={status === "preflight_rejected" ? t("uploadFixed") : intentLocked ? t("uploadTemplate") : undefined}
             {...(intentLocked ? { hint: t("uploadTemplateHint") } : {})}
           />
+          {intentLocked && (
+            <OrgTemplatePicker busy={imp.busy === "upload"} onPick={(id) => void after(imp.pickOrgTemplate(id, "fixed")).then(() => setPickAnother(false))} />
+          )}
           <p className="text-body text-[#4B4842] bg-[#F2F1FB] border border-[#DCD9F2] rounded-[10px] px-3 py-2 leading-relaxed">
             {t.rich("formatNote", { b: (c) => <b>{c}</b> })}
           </p>
@@ -274,7 +279,18 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
           structure={imp.data.target_structure}
           busy={imp.busy === "finalize"}
           onComplete={() => void after(imp.finalize(undefined, { complete: true }))}
+          onDraftMissing={() =>
+            void after(imp.continueFlow2()).then((res) => {
+              // Dự án đã sang luồng tạo mới (`fpt`) ⇒ workspace chạy từ Brief
+              if (res) router.push(`/projects/${projectId}`);
+            })
+          }
         />
+      )}
+
+      {/* FLF-278: mapping đã xác nhận ⇒ lưu mẫu cho tổ chức (dự án theo mẫu bắt buộc) */}
+      {intentLocked && doc && (status === "incomplete" || (status && IMPORT_DONE_STATUSES.includes(status))) && (
+        <SaveOrgTemplateCard projectId={projectId} defaultName={doc.original_name.replace(/\.docx$/i, "")} />
       )}
 
       {status && IMPORT_DONE_STATUSES.includes(status) && (
