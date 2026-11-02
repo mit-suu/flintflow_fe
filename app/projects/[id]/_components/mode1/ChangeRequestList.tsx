@@ -5,12 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { listCrs } from "@/lib/api/change-requests";
+import { listFlags } from "@/lib/api/flags";
+import type { Flag } from "@/types/spine";
 import { CR_TERMINAL_STATUSES, type Cr } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import ChangeRequestForm from "./ChangeRequestForm";
 import ReferenceDocumentsPanel from "./ReferenceDocumentsPanel";
 import { useErrorText, useMode1Labels } from "./i18n";
-import { crHref, type CrPrefill } from "./prefill";
+import { crHref, crPrefillHref, type CrPrefill } from "./prefill";
 
 interface ChangeRequestListProps {
   projectId: string;
@@ -21,6 +23,11 @@ interface ChangeRequestListProps {
 }
 
 type Filter = "open" | "closed" | "all";
+
+/** FLF-343: cờ vàng import đặt cho chỗ độ tin thấp tự nhận vào baseline 0.1 ("Cần xem"). */
+export const NEEDS_REVIEW_RULE = "import_needs_review";
+
+const shortText = (s: string, max = 70) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 
 export const statusTone = (status: Cr["status"]): string =>
   status === "written"
@@ -42,6 +49,8 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(prefill !== null && !readOnly);
   const [filter, setFilter] = useState<Filter>("open");
+  const [review, setReview] = useState<Flag[] | null>(null);
+  const [reviewError, setReviewError] = useState(false);
 
   const load = useCallback(
     () =>
@@ -54,6 +63,26 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * Câu của một cờ Cần xem theo ngôn ngữ giao diện (câu BE chỉ tiếng Việt): đường dẫn field ⇒ nhãn phần tử — trường; block
+   * heading / bảng ⇒ mục khớp chưa chắc.
+   */
+  const reviewText = (f: Flag): string =>
+    f.target_id && /^(project\.|[a-z_]+\[)/.test(f.target_id)
+      ? t("needsReview.field", { what: L.pathLabel(f.target_id) })
+      : t("needsReview.mapping", { section: f.section_id ? L.sectionName(f.section_id) : "—" });
+
+  // "Cần xem" (FLF-343): cờ do BE đặt lúc import — FE chỉ lọc theo luật, không tự suy ra
+  useEffect(() => {
+    let cancelled = false;
+    listFlags(projectId)
+      .then((res) => !cancelled && setReview((res.data ?? []).filter((f) => f.rule_id === NEEDS_REVIEW_RULE && !f.resolved_at && !f.waived_by_user)))
+      .catch(() => !cancelled && setReviewError(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   const shown = (crs ?? []).filter((c) =>
     filter === "all" ? true : filter === "open" ? !CR_TERMINAL_STATUSES.includes(c.status) : CR_TERMINAL_STATUSES.includes(c.status)
@@ -86,6 +115,41 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
         <p role="alert" className="text-body text-[#B03030]">
           {error}
         </p>
+      )}
+
+      {/* FLF-343: chỗ độ tin thấp đã vào baseline 0.1 — xem lại, sai thì tạo CR */}
+      {reviewError && (
+        <p role="alert" className="text-body text-[#B03030]">
+          {t("needsReview.loadFailed")}
+        </p>
+      )}
+      {review && review.length > 0 && (
+        <section aria-label={t("needsReview.title", { count: review.length })} className="flex flex-col gap-2 bg-[#FBF4E4] border border-[#EFD9A6] rounded-[14px] px-4 py-3">
+          <h3 className="text-body font-extrabold text-[#8A6D1F]">{t("needsReview.title", { count: review.length })}</h3>
+          <p className="text-caption text-[#8A6D1F]">{t("needsReview.intro")}</p>
+          <ul className="flex flex-col gap-1.5">
+            {review.map((f) => (
+              <li key={f.id} className="flex flex-wrap items-center gap-2 bg-white border border-[#EFD9A6] rounded-[10px] px-2.5 py-1.5">
+                <span className="flex-1 min-w-[200px] text-body text-[#33312D]">{reviewText(f)}</span>
+                {f.section_id && <span className="text-caption text-[#8A867E]">{L.sectionName(f.section_id)}</span>}
+                {!readOnly && (
+                  <Link
+                    // Không điền nguồn: cờ do import đặt không thuộc nguồn CR nào (gap report, email…) — người dùng tự chọn
+                    href={crPrefillHref(projectId, {
+                      title: t("needsReview.prefillTitle", { message: shortText(reviewText(f)) }),
+                      description: [reviewText(f), f.target_id ?? ""].filter(Boolean).join("\n"),
+                      ref: f.section_id ? L.sectionName(f.section_id) : undefined,
+                    })}
+                    scroll={false}
+                    className="ml-auto text-caption font-bold text-[#6A62C4] hover:underline shrink-0"
+                  >
+                    {t("needsReview.createCr")}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* FLF-338 §3.6.1: tài liệu tham khảo ⇒ rút yêu cầu ⇒ nhiều CR một lúc */}

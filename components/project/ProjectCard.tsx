@@ -341,7 +341,8 @@ export default function ProjectCard({
                 : nextStepLabel(progress, tNext as NextTranslator, locale)}
             </span>
           </span>
-          {!converted && (
+          {/* Dự án import (kể cả chuyển từ mode 2) không đi theo bước soạn của mode 2 ⇒ không có thanh giai đoạn / số bước */}
+          {project.mode !== "import" && (
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <PhaseBar progress={progress} locale={locale} />

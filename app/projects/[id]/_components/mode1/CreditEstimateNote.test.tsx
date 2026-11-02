@@ -84,26 +84,27 @@ describe("CreditEstimateNote trong wizard", () => {
   const serve = (view: GetImportResponse) =>
     mockServer.use(http.get(`${API_BASE_URL}/projects/:projectId/import`, () => HttpResponse.json({ data: view, error: null })));
 
-  it("bước mapping: hiện ước tính + số dư ví org từ BE; số dư thấp ⇒ cảnh báo", async () => {
+  it("bản ghi cũ ở mapping_review ⇒ màn báo credit một lần (FLF-343): ước tính + số dư ví org từ BE; số dư thấp ⇒ cảnh báo", async () => {
     serve({ import: doc("mapping_review"), profile, extraction: { sections: [], review_fields: [] }, blocks_count: 3, credit_estimate: { ...EST, available_credits: 6 } });
     renderWithIntl(<ImportWizard projectId={MODE1_PROJECT_ID} credits={100} pollMs={5} />);
-    expect(await screen.findByText("Xác nhận mapping heading → section")).toBeInTheDocument();
+    expect(await screen.findByText("Sẵn sàng đọc tài liệu")).toBeInTheDocument();
     const note = screen.getByRole("alert");
     expect(note).toHaveTextContent("Ước tính: ~9 lượt AI, ~18 credit (số dư: 6)");
     expect(note).toHaveTextContent("Số dư chưa đủ");
   });
 
-  it("bước bắt đầu trích: hiện ước tính cạnh nút bắt đầu; không có ước tính ⇒ không hiện", async () => {
+  it("màn báo credit: hiện ước tính cạnh nút Bắt đầu; không có ước tính ⇒ không hiện", async () => {
     const sections = [{ section_id: "fixed:1", status: "pending" as const, fields_total: 0, fields_needing_review: 0, error: null }];
     serve({ import: doc("extracting"), profile, extraction: { sections, review_fields: [] }, blocks_count: 3, credit_estimate: EST });
     const { unmount } = renderWithIntl(<ImportWizard projectId={MODE1_PROJECT_ID} credits={100} pollMs={5} />);
-    await screen.findByRole("button", { name: "Bắt đầu trích (AI)" });
+    await screen.findByRole("button", { name: "Bắt đầu" });
     expect(screen.getByRole("status")).toHaveTextContent("Ước tính: ~9 lượt AI, ~18 credit (số dư: 300)");
     unmount();
 
-    serve({ import: doc("extracting"), profile, extraction: { sections, review_fields: [] }, blocks_count: 3, credit_estimate: null });
+    // `extracting` + null = job đang chạy (FLF-343) ⇒ dùng bản ghi cũ ở awaiting_latest_confirm (chưa tách file, chưa có ước tính)
+    serve({ import: doc("awaiting_latest_confirm"), profile: null, extraction: { sections: [], review_fields: [] }, blocks_count: 0, credit_estimate: null });
     renderWithIntl(<ImportWizard projectId={MODE1_PROJECT_ID} credits={100} pollMs={5} />);
-    await screen.findByRole("button", { name: "Bắt đầu trích (AI)" });
+    await screen.findByRole("button", { name: "Bắt đầu" });
     expect(screen.queryByText(/Ước tính/)).not.toBeInTheDocument();
   });
 });
