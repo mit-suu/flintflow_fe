@@ -1,12 +1,21 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
+import { emitOrganizationChanged, fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import OrgSwitcher from "./OrgSwitcher";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/home" }));
-vi.mock("@/lib/api/orgs", () => ({ fetchMyOrganizations: vi.fn(), switchOrganization: vi.fn() }));
+// Sự kiện đổi tổ chức giữ bản thật — test kiểm menu nghe đúng sự kiện mà `renameOrganization` phát
+vi.mock("@/lib/api/orgs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/orgs")>();
+  return {
+    fetchMyOrganizations: vi.fn(),
+    switchOrganization: vi.fn(),
+    emitOrganizationChanged: actual.emitOrganizationChanged,
+    onOrganizationChanged: actual.onOrganizationChanged,
+  };
+});
 
 const assign = vi.fn();
 const ACTIVE = { id: "org-a", name: "Nhóm A", role: "lead" } as const;
@@ -65,5 +74,18 @@ describe("OrgSwitcher", () => {
 
     expect(await screen.findByText("Không tải được danh sách tổ chức.")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /Tạo hoặc tham gia/ })).toBeInTheDocument();
+  });
+
+  it("tổ chức đổi tên ⇒ bỏ danh sách đã tải, mở menu lần sau đọc lại tên mới", async () => {
+    await open();
+    expect(await screen.findByRole("menuitem", { name: /Nhóm A/ })).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+
+    vi.mocked(fetchMyOrganizations).mockResolvedValue([{ ...ORGS[0], name: "Nhóm Mới" }, ORGS[1]] as never);
+    act(() => emitOrganizationChanged());
+    fireEvent.click(screen.getByRole("button", { name: /Đổi tổ chức/ }));
+
+    await waitFor(() => expect(fetchMyOrganizations).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("menuitem", { name: /Nhóm Mới/ })).toBeInTheDocument();
   });
 });
