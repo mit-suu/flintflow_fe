@@ -123,7 +123,7 @@ export interface VersionFileNameParts {
 
 /**
  * Tên file tải về — bản sao `versionFileName` BE (FLF-334), chỉ dùng khi BE không gửi `Content-Disposition`:
- * `Lumen_v2.0.docx` · `Lumen_v1.0+CR-014_DRAFT.docx` · `Lumen_v0_DRAFT.docx` · `Lumen_DRAFT.docx` · `…_tracked_DRAFT` · `…_original`.
+ * `Lumen_v2.0.docx` · `Lumen_v1.0+CR-014_DRAFT.docx` · `Lumen_v0.1_DRAFT.docx` · `Lumen_DRAFT.docx` · `…_tracked_DRAFT` · `…_original`.
  */
 export const versionFileName = (parts: VersionFileNameParts): string => {
   const base = parts.base ? sanitizeFileBase(parts.base.trim().replace(/^v/i, "")) : null;
@@ -136,7 +136,7 @@ export const versionFileName = (parts: VersionFileNameParts): string => {
 
 /**
  * Release gốc + CR mới nhất của `target` trong danh sách version (bản sao `versionLineage` BE): gốc = version `x.0` gần
- * nhất trước nó (`0` khi chưa có); CR = mã cuối của version gần nhất (tính cả chính nó, sau gốc) có CR.
+ * nhất trước nó (chưa có ⇒ số bản import `0.1` / cũ `0.0`, FLF-356); CR = mã cuối của version gần nhất (tính cả chính nó, sau gốc) có CR.
  */
 export const versionLineage = (
   versions: readonly Pick<DocVersion, "version" | "cr_ids">[],
@@ -149,5 +149,5 @@ export const versionLineage = (
   const lastRelease = history.find((v) => isReleaseVersion(v.version)) ?? null;
   const since = lastRelease ? history.slice(0, history.indexOf(lastRelease)) : history;
   const withCr = since.find((v) => v.cr_ids.length > 0);
-  return { release: false, base: lastRelease?.version ?? "0", latestCr: withCr ? withCr.cr_ids[withCr.cr_ids.length - 1] : null };
+  return { release: false, base: lastRelease?.version ?? history[history.length - 1]?.version ?? "0", latestCr: withCr ? withCr.cr_ids[withCr.cr_ids.length - 1] : null };
 };

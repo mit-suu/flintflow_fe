@@ -112,6 +112,30 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
+  it("FLF-356: dự án import (baseline 0.1) ⇒ draft _v0.1_DRAFT, baseline _v0.1 — không gộp về _v0", async () => {
+    const names: string[] = [];
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download);
+    });
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
+    downloadWordExport.mockResolvedValue({ blob: new Blob(["x"]), filename: null });
+    const imported = { id: "BL001", version: "0.1", type: "imported", doc_version: "0.1", at: "2026-10-26T00:00:00.000Z", snapshot_ref: "BL001", checked_at_version: 1, waived_count: 0 } as Baseline;
+    listBaselines.mockResolvedValue({ data: [imported], error: null });
+
+    renderWithIntl(<ExportPanel projectId="p1" projectName="FAP" onClose={vi.fn()} />);
+    const tab = await screen.findByRole("tab", { name: "Bản baseline" });
+    await waitFor(() => expect(tab).not.toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
+    await waitFor(() => expect(names).toHaveLength(1));
+    fireEvent.click(tab);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
+    await waitFor(() => expect(names).toEqual(["FAP_v0.1_DRAFT.docx", "FAP_v0.1.docx"]));
+
+    clickSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
   it("dự án chưa có nội dung: báo lý do, không mời bấm sang bước nào", async () => {
     getDocument.mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
 
