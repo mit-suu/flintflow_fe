@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -132,14 +132,30 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
   });
 
-  it("mở lại trang khi import đã xong ⇒ thẻ xong với link trang CR + gap report, không tự chuyển", async () => {
+  it("mở lại trang khi import đã xong ⇒ thẻ xong với link màn chat (workspace, không popup CR) + gap report, không tự chuyển", async () => {
     const start = await uploadToStart();
     fireEvent.click(start);
     await waitFor(() => expect(push).toHaveBeenCalled());
     push.mockClear();
     renderWizard();
-    expect(await screen.findAllByRole("link", { name: "Mở trang change request" })).not.toHaveLength(0);
+    const links = await screen.findAllByRole("link", { name: "Mở màn hình chat" });
+    expect(links[0]).toHaveAttribute("href", `/projects/${P}`);
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("FLF-357: thanh bước chỉ còn 3 bước (không “Kết quả đọc file”, không “Tạo change request”); xong ⇒ cả 3 bước đã qua", async () => {
+    const start = await uploadToStart();
+    const steps = within(screen.getByRole("list", { name: "Các bước import" })).getAllByRole("listitem");
+    expect(steps.map((li) => li.textContent)).toEqual(["1. Tải lên", "2. Báo credit & bắt đầu", "3. Đọc file & tạo bản gốc"]);
+    expect(screen.queryByText(/Tạo change request|Kết quả đọc file/)).not.toBeInTheDocument();
+    fireEvent.click(start);
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
+    push.mockClear();
+    renderWizard();
+    await screen.findAllByRole("link", { name: "Mở màn hình chat" });
+    const done = within(screen.getAllByRole("list", { name: "Các bước import" }).at(-1)!).getAllByRole("listitem");
+    expect(done).toHaveLength(3);
+    for (const li of done) expect(li).not.toHaveAttribute("aria-current");
   });
 
   describe("bản ghi cũ (trước FLF-343) đi tiếp tới trang tạo CR", () => {

@@ -32,8 +32,12 @@ interface ImportWizardProps {
   templateIntent?: TemplateIntent | null;
 }
 
-type StepId = "upload" | "start" | "run" | "result" | "done";
-const STEP_IDS: StepId[] = ["upload", "start", "run", "result", "done"];
+/**
+ * FLF-357: chỉ còn 3 bước — bỏ bước 4 "Kết quả đọc file" (màn đó vẫn hiện khi `incomplete`, tính vào bước 3) và bước 5
+ * "Tạo change request" (xong import là vào thẳng màn chat của workspace); `done` ⇒ cả 3 bước đã xong.
+ */
+const STEP_IDS = ["upload", "start", "run"] as const;
+type StepId = (typeof STEP_IDS)[number] | "done";
 
 /** Trạng thái chạy nền của lượt một mạch (bản ghi cũ ở `fields_review` cũng thuộc bước này — chỉ cần bấm Tiếp tục). */
 const RUN_STATUSES: ImportStatus[] = ["extracting", "fields_review", "baselining", "checking"];
@@ -43,7 +47,7 @@ const LANGUAGE_STATUSES: ImportStatus[] = ["extracting", "baselining", "checking
 
 /**
  * Import SRS có sẵn — FLF-343 chạy một mạch: tải lên (preflight + tách file + khớp mẫu) ⇒ màn báo credit một lần kèm câu hỏi
- * "bản mới nhất" ⇒ Bắt đầu ⇒ đọc file ⇒ baseline 0.1 ⇒ kiểm tra ⇒ trang tạo change request (`?panel=cr`). Không còn bước xác
+ * "bản mới nhất" ⇒ Bắt đầu ⇒ đọc file ⇒ baseline 0.1 ⇒ kiểm tra ⇒ màn chat của workspace (FLF-357 — mode 1 tạo CR qua chat). Không còn bước xác
  * nhận mapping / field / Record of Changes / bấm tạo baseline. Chế độ 3/4 vẫn dừng ở "Kết quả đọc file" (FLF-336).
  */
 export default function ImportWizard({ projectId, credits, onChanged, pollMs, startKind = null, templateIntent = null }: ImportWizardProps) {
@@ -61,19 +65,18 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
     ? "upload"
     : imp.awaitingStart
       ? "start"
-      : status === "incomplete"
-        ? "result"
-        : status && IMPORT_DONE_STATUSES.includes(status)
+      : status && IMPORT_DONE_STATUSES.includes(status)
           ? "done"
           : "run";
-  const stepIndex = STEP_IDS.indexOf(step);
+  const stepIndex = step === "done" ? STEP_IDS.length : STEP_IDS.indexOf(step);
   const after = async <T,>(p: Promise<T>) => {
     const res = await p;
     onChanged?.();
     return res;
   };
 
-  // Lượt bấm trong phiên này chạy xong (`gap_review`) ⇒ vào thẳng workspace để tạo change request, không mở popup
+  // Lượt bấm trong phiên này chạy xong (`gap_review`) — cả luồng một mạch lẫn "Hoàn thiện" ở màn kết quả đọc file — ⇒ vào
+  // thẳng màn chat của workspace (FLF-357: không mở popup CR; mode 1 tạo change request qua chat)
   const done = imp.done;
   const navigated = useRef(false);
   useEffect(() => {
@@ -261,7 +264,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
             {t("done.gapReport")}
           </Link>
           <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
-            {t("done.openCr")}
+            {t("done.openChat")}
           </Link>
         </div>
       )}

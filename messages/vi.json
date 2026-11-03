@@ -37,8 +37,6 @@
     },
     "fptSections": {
       "unmapped": "Không khớp (giữ nguyên, không trích)",
-      "newFeature": "Tính năng mới",
-      "newFunction": "Chức năng mới",
       "newFeatureNoCode": "Tính năng mới (chưa có mã)",
       "newFunctionNoCode": "Chức năng mới (chưa có mã)",
       "custom": "Mục riêng",
@@ -3770,9 +3768,7 @@
       "steps": {
         "upload": "Tải lên",
         "start": "Báo credit & bắt đầu",
-        "run": "Đọc file & tạo bản gốc",
-        "result": "Kết quả đọc file",
-        "done": "Tạo change request"
+        "run": "Đọc file & tạo bản gốc"
       },
       "closeError": "Đóng thông báo lỗi",
       "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
@@ -3784,7 +3780,7 @@
       "done": {
         "body": "Import xong — tài liệu đã thành version <strong>0.1</strong>. Mọi sửa đổi đi qua change request; chỗ đọc chưa chắc có cờ <strong>Cần xem</strong>.",
         "gapReport": "Xem gap report",
-        "openCr": "Mở trang change request"
+        "openChat": "Mở màn hình chat"
       },
       "languageVi": "Tiếng Việt",
       "languageEn": "Tiếng Anh",

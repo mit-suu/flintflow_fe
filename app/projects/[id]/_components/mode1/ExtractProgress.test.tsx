@@ -110,6 +110,25 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
     expect(items[3]).toHaveTextContent("AI trả sai schema");
   });
 
+  it("danh sách mục theo số đề mục 1, 2, 3 từ trên xuống; mục tạm chỉ hiện tiêu đề trong file (không “Tính năng mới —”)", () => {
+    const headingMap = [
+      { block_id: "B0030", heading_text: "3.2 Authentication" },
+      { block_id: "B0031", heading_text: "3.2.1 Register account" },
+    ] as Parameters<typeof ExtractProgress>[0]["headingMap"];
+    const sections = [
+      section("fixed:4.2.3", "pending"),
+      section("function:@B0031", "pending"),
+      section("fixed:2.1", "done"),
+      section("feature:@B0030", "pending"),
+      section("fixed:1", "done"),
+    ];
+    renderWithIntl(<ExtractProgress {...props({ sections, headingMap, doc: doc({ extract_cursor: null }) })} />);
+    const items = within(screen.getByRole("list")).getAllByRole("listitem").map((li) => li.textContent ?? "");
+    expect(items.map((text) => text.match(/^\d+(?:\.\d+)*/)?.[0])).toEqual(["1", "2.1", "3.2", "3.2.1", "4.2.3"]);
+    expect(items[2]).toContain("3.2 Authentication");
+    expect(screen.queryByText(/Tính năng mới|Chức năng mới/)).not.toBeInTheDocument();
+  });
+
   it("đã dừng (không chạy, đã có section xong) ⇒ “Đã dừng”, không hiện nút bắt đầu", () => {
     renderWithIntl(<ExtractProgress {...props({ doc: doc({ extract_cursor: null }) })} />);
     expect(screen.getByText("Đã dừng")).toBeInTheDocument();
@@ -159,7 +178,7 @@ describe("ExtractProgress trong wizard — poll GET /import khi job nền chạy
 
     expect(await screen.findByText("Đang trích 2.1 Actors…")).toBeInTheDocument();
     expect(screen.getByText("1/3 section")).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "Mở trang change request" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Mở màn hình chat" })).toBeInTheDocument();
     const settled = calls();
     expect(settled).toBe(4);
     // xong ⇒ ngừng poll
