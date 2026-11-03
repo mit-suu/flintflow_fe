@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareOutlineLabels, isProvisionalSection, withoutOutlineNumber, provisionalLabel, sectionLabel, sectionLabelIn } from "./fpt-sections";
+import { compareOutlineLabels, isProvisionalSection, provisionalLabel, sectionLabel, sectionLabelIn } from "./fpt-sections";
 
 describe("fpt-sections — nhãn section tạm (FLF-312)", () => {
   const headings = [
@@ -14,15 +14,6 @@ describe("fpt-sections — nhãn section tạm (FLF-312)", () => {
     expect(provisionalLabel(" 3.2.1 Register account ")).toBe("3.2.1 Register account");
     expect(sectionLabelIn("feature:@B0030", headings)).toBe("3.2 Authentication");
     expect(sectionLabelIn("function:@B0031", headings)).toBe("3.2.1 Register account");
-  });
-
-  it("withoutOutlineNumber: bỏ số đề mục ở đầu nhãn; chỉ có số / không có số ⇒ giữ nguyên", () => {
-    expect(withoutOutlineNumber("3.2 Authentication")).toBe("Authentication");
-    expect(withoutOutlineNumber("3.2.1. Register account")).toBe("Register account");
-    expect(withoutOutlineNumber("1 Introduction")).toBe("Introduction");
-    expect(withoutOutlineNumber("Mục riêng")).toBe("Mục riêng");
-    expect(withoutOutlineNumber("2.1")).toBe("2.1");
-    expect(withoutOutlineNumber("2FA settings")).toBe("2FA settings");
   });
 
   it("compareOutlineLabels: theo số đề mục từng cấp; nhãn không số xếp sau, giữ thứ tự", () => {

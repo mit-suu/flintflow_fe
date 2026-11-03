@@ -6,7 +6,7 @@ import CreditEstimateNote from "./CreditEstimateNote";
 import PausedBanner from "./PausedBanner";
 import { useMode1Labels } from "./i18n";
 import Icon, { type IconName } from "@/components/ui/Icon";
-import { compareOutlineLabels, withoutOutlineNumber } from "@/lib/constants/fpt-sections";
+import { compareOutlineLabels } from "@/lib/constants/fpt-sections";
 
 interface ExtractProgressProps {
   doc: ImportedDocument;
@@ -39,11 +39,10 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
   const done = sections.filter((s) => s.status === "done").length;
   const total = sections.length;
   const notStarted = !running && !doc.paused && doc.extract_cursor === null && done === 0;
-  // Xếp theo số đề mục từ trên xuống (1, 2, 3…), không theo thứ tự BE chạy trích; hiển thị tên mục không kèm số
+  // Theo số đề mục từ trên xuống (1, 2, 3…), không theo thứ tự BE chạy trích
   const rows = sections
     .map((s) => ({ ...s, label: L.sectionLabelIn(s.section_id, headingMap) }))
-    .sort((a, b) => compareOutlineLabels(a.label, b.label))
-    .map((s) => ({ ...s, label: withoutOutlineNumber(s.label) }));
+    .sort((a, b) => compareOutlineLabels(a.label, b.label));
 
   return (
     <div className="flex flex-col gap-4">
@@ -80,7 +79,7 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
           <div className="flex items-center justify-between text-body font-semibold text-[#4B4842]">
             <span>
               {running && <span className="inline-block w-3 h-3 mr-1.5 align-middle rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />}
-              {running ? (doc.extract_cursor ? t("runningSection", { section: withoutOutlineNumber(L.sectionLabelIn(doc.extract_cursor, headingMap)) }) : t("running")) : t("stopped")}
+              {running ? (doc.extract_cursor ? t("runningSection", { section: L.sectionLabelIn(doc.extract_cursor, headingMap) }) : t("running")) : t("stopped")}
             </span>
             <span>
               {t("progress", { done, total })}

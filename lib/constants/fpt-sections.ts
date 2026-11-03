@@ -88,12 +88,6 @@ const OUTLINE = /^(\d+(?:\.\d+)*)(?=[.\s]|$)/;
  * So sánh hai nhãn mục theo số đề mục ở đầu nhãn (`2.1 Actors` < `3.2 Authentication` < `3.10 …`), từng cấp theo số.
  * Nhãn không bắt đầu bằng số (`Mục riêng`, `Không khớp`…) xếp sau, giữ thứ tự cũ (dùng với `Array.prototype.sort` ổn định).
  */
-/** Bỏ số đề mục ở đầu nhãn để hiển thị: `3.2 Authentication` ⇒ `Authentication`; nhãn chỉ có số / không có số ⇒ giữ nguyên. */
-export const withoutOutlineNumber = (label: string): string => {
-  const rest = label.trim().replace(OUTLINE, "").replace(/^\.?\s+/, "");
-  return rest || label.trim();
-};
-
 export const compareOutlineLabels = (a: string, b: string): number => {
   const pa = OUTLINE.exec(a.trim())?.[1].split(".").map(Number);
   const pb = OUTLINE.exec(b.trim())?.[1].split(".").map(Number);
