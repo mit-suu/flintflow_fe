@@ -7,6 +7,7 @@ import { fetchTemplateGaps, type TemplateGapRow } from "@/lib/api/admin";
 import AdminHeader from "../_components/AdminHeader";
 import { AdminMain, AdminPageHeader, AdminScroll, ErrorBanner, LoadingBlock } from "../_components/AdminPage";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { sectionLabel } from "@/lib/constants/fpt-sections";
 
 /**
  * FLF-278 trên FLF-335/336: heading của mẫu bắt buộc mà FlintFlow không có mục tương ứng (thành mục riêng) và còn trống ở
@@ -63,7 +64,7 @@ export default function AdminTemplateGapsPage() {
                       <td className="px-5 py-2.5">{row.samples.join(" · ")}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{row.projects}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{row.empty}</td>
-                      <td className="px-5 py-2.5 text-muted-foreground">{row.suggested_destination ?? "—"}</td>
+                      <td className="px-5 py-2.5 text-muted-foreground">{row.suggested_destination ? sectionLabel(row.suggested_destination, "vi") : "—"}</td>
                     </tr>
                   ))}
                 </tbody>

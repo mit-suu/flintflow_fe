@@ -8,7 +8,10 @@ vi.mock("@/lib/api/admin", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchTemplateGaps: vi.fn(async () => ({
     projects: 4,
-    rows: [{ key: "hardware interfaces", samples: ["Hardware Interfaces", "2.4 Hardware interfaces"], projects: 3, empty: 2, suggested_destination: null }],
+    rows: [
+      { key: "hardware interfaces", samples: ["Hardware Interfaces", "2.4 Hardware interfaces"], projects: 3, empty: 2, suggested_destination: null },
+      { key: "open questions", samples: ["Open Questions"], projects: 1, empty: 1, suggested_destination: "slot:open_questions" },
+    ],
   })),
 }));
 
@@ -19,5 +22,8 @@ describe("AdminTemplateGapsPage (FLF-278 trên FLF-335/336)", () => {
     expect(screen.getByText("Tính trên 4 dự án theo mẫu bắt buộc.")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
+    // Gợi ý đích hiện tên dễ đọc, không phải mã `slot:*`
+    expect(screen.getByText("Câu hỏi còn mở (TBD)")).toBeInTheDocument();
+    expect(screen.queryByText("slot:open_questions")).not.toBeInTheDocument();
   });
 });

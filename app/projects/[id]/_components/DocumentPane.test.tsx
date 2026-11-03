@@ -478,6 +478,40 @@ describe("DocumentPane — Nhờ AI soạn mục riêng của mẫu bắt buộc
     await screen.findByText("References", { exact: false });
     expect(screen.queryByRole("button", { name: "Nhờ AI soạn" })).not.toBeInTheDocument();
   });
+
+  it("mục riêng chỉ có chữ hướng dẫn của mẫu vẫn là mục trống: có Nhờ AI soạn, không có Lưu vào thư viện", async () => {
+    const guidanceOnly = {
+      ...withCustom,
+      sections: [
+        ...fixture.sections,
+        { id: "custom:CS09", number: "1.3", heading: "Intended Audience", level: 2, status: null, blocks: [{ type: "paragraph", runs: [{ text: "[Describe the different types of reader]" }] }] },
+      ],
+    } as RenderedDocument;
+    getDocument.mockResolvedValueOnce({ data: guidanceOnly, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onDraftSection = vi.fn();
+    renderWithIntl(<DocumentPane projectId="p1" onDraftSection={onDraftSection} onSaveToLibrary={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Nhờ AI soạn" }));
+    expect(onDraftSection).toHaveBeenCalledWith("§1.3 Intended Audience");
+    expect(screen.queryByRole("button", { name: "Lưu vào thư viện" })).not.toBeInTheDocument();
+  });
+
+  it("heading bao của mẫu (mục riêng trống chỉ chứa mục con) không có Nhờ AI soạn", async () => {
+    const withWrapper = {
+      ...withCustom,
+      sections: [
+        ...fixture.sections,
+        { id: "custom:CS10", number: "2", heading: "Overall Description", level: 1, status: null, blocks: [] },
+        { id: "custom:CS11", number: "2.1", heading: "Product Perspective", level: 2, status: null, blocks: [] },
+      ],
+    } as RenderedDocument;
+    getDocument.mockResolvedValueOnce({ data: withWrapper, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onDraftSection = vi.fn();
+    renderWithIntl(<DocumentPane projectId="p1" onDraftSection={onDraftSection} />);
+    const buttons = await screen.findAllByRole("button", { name: "Nhờ AI soạn" });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    expect(onDraftSection).toHaveBeenCalledWith("§2.1 Product Perspective");
+  });
 });
 
 describe("DocumentPane — thư viện nội dung của tổ chức (FLF-278)", () => {

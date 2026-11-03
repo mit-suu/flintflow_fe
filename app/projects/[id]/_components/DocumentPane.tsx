@@ -7,6 +7,7 @@ import { fetchDiagramPng } from "@/lib/api/spine";
 import { tStep } from "@/lib/i18n";
 import { hookErrorText } from "@/lib/hook-errors";
 import { shownDocumentLanguage } from "@/lib/document-language";
+import { blockHasRealText } from "@/lib/instruction-text";
 import { useDocument } from "../hooks/useDocument";
 import DocumentLanguageChip from "./DocumentLanguageChip";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
@@ -388,6 +389,7 @@ function EmptySection({ hint, onSelectStep, mode1 = false }: { hint?: EmptyHint;
 
 function SectionView({
   section,
+  hasChildren = false,
   projectId,
   issues,
   onOpenIssues,
@@ -418,6 +420,8 @@ function SectionView({
   onRedraw?: () => Promise<void>;
   onRedrawDiagram?: (diagramId: string) => Promise<void>;
   section: RenderedSection;
+  /** Mục ngay sau sâu hơn — mục riêng trống mà có mục con là heading bao của mẫu, không cần soạn. */
+  hasChildren?: boolean;
   projectId: string;
   /** Vấn đề đang mở của mục: số lượng và có cái nào chặn chốt bản không. */
   issues?: { count: number; blocking: boolean };
@@ -434,6 +438,8 @@ function SectionView({
   // `feature:*` (§3.2…) chỉ là tiêu đề nhóm, Spine feature không có thân — nội dung nằm ở các function con (FLF-248)
   const showEmpty = section.blocks.length === 0 && !section.id.startsWith("feature:");
   const custom = section.id.startsWith("custom:");
+  // Mục riêng của mẫu chỉ có chữ hướng dẫn (`[Describe …]`) vẫn là mục trống — như BE (cờ mục mẫu, thư viện tổ chức)
+  const customEmpty = custom && !section.blocks.some(blockHasRealText);
   const depth = depthOf(section);
   return (
     <article
@@ -513,7 +519,7 @@ function SectionView({
               {t("useLibrary")}
             </button>
           )}
-          {onSaveToLibrary && custom && !showEmpty && (
+          {onSaveToLibrary && custom && !customEmpty && (
             <button
               type="button"
               onClick={onSaveToLibrary}
@@ -523,7 +529,7 @@ function SectionView({
               {t("saveToLibrary")}
             </button>
           )}
-          {onDraft && custom && showEmpty && (
+          {onDraft && customEmpty && !hasChildren && (
             // Mục riêng của mẫu còn trống: luôn hiện (không chờ rê chuột) — chỉ điền sẵn lệnh, BA tự gửi
             <button
               type="button"
@@ -714,10 +720,11 @@ export default function DocumentPane({
           </div>
         )}
         {document &&
-          document.sections.map((section) => (
+          document.sections.map((section, i) => (
             <SectionView
               key={section.id}
               section={section}
+              hasChildren={(document.sections[i + 1]?.level ?? 0) > section.level}
               projectId={projectId}
               issues={issuesOf(section.id)}
               onOpenIssues={onOpenSectionIssues ? () => onOpenSectionIssues(section.id) : undefined}
