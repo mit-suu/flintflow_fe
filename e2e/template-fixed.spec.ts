@@ -73,39 +73,32 @@ test("mẫu bắt buộc: Luồng 1 → Luồng 2 cho phần còn thiếu", asyn
   console.log(`[e2e] project ${projectId}`);
   await expect(page.getByText("Tải lên mẫu bắt buộc (.docx, trống hoặc điền dở)")).toBeVisible({ timeout: 60_000 });
 
-  // ── 2. Tải mẫu → mapping review: có nhóm phần nhỏ `slot:*` (lát 2) ─────────────────────
+  // ── 2–3. Tải mẫu → (FLF-343) màn "Sẵn sàng đọc tài liệu": xác nhận bản mới nhất + Bắt đầu một lần ⇒ đọc file, so cấu trúc
+  // đích (I-5) ⇒ kết quả đọc chế độ 3. Mapping heading tự động; màn xác nhận mapping (nếu còn hiện) thì kiểm phần nhỏ `slot:*`.
   await page.getByTestId("docx-input").setInputFiles(DOCX);
-  const latest = page.getByRole("button", { name: "Đúng, đây là bản mới nhất" });
   const mapping = page.getByRole("button", { name: "Xác nhận mapping" });
-  const startExtract = page.getByRole("button", { name: "Bắt đầu trích (AI)" });
-  let next = await firstVisible(page, [latest, mapping, startExtract], 120_000);
-  if (next === 0) {
-    await latest.click();
-    next = await firstVisible(page, [mapping, startExtract], 120_000) + 1;
-  }
-  if (next === 1) {
-    await expect(page.getByRole("heading", { name: "Xác nhận mapping heading → section" })).toBeVisible();
-    const slotGroups = await page.locator('optgroup[label="Một phần nội dung (mẫu chia nhỏ hơn FlintFlow)"]').count();
-    expect(slotGroups, "ô chọn section có nhóm phần nhỏ slot:*").toBeGreaterThan(0);
-    const guidance = await page.getByText(/^Hướng dẫn trong mẫu:/).count();
-    console.log(`[e2e] mapping review: ${slotGroups} ô chọn có nhóm phần nhỏ, ${guidance} dòng hướng dẫn soạn`);
-    await snap(page, "mapping-review");
-    await mapping.click();
-  }
-
-  // ── 3. Trích → (xác nhận field) → finalize (I-5 so cấu trúc đích) → kết quả đọc chế độ 3 ──────
-  await startExtract.click({ timeout: 120_000 });
+  const start = page.getByRole("button", { name: "Bắt đầu", exact: true });
   const fields = page.getByRole("button", { name: "Xác nhận tất cả field" });
   const baseline = page.getByRole("button", { name: "Tạo baseline 0.1" });
   const reading = page.getByRole("region", { name: "Kết quả đọc file" });
   const paused = page.getByText(/đang tạm dừng/);
   for (;;) {
-    const at = await firstVisible(page, [fields, baseline, reading, paused], AI_TIMEOUT);
-    expect(at, "trích / finalize không được dừng giữa chừng").not.toBe(3);
-    if (at === 2) break;
-    await snap(page, at === 0 ? "fields-review" : "baseline");
-    await (at === 0 ? fields : baseline).click();
-    await expect((at === 0 ? fields : baseline).first()).toBeHidden({ timeout: AI_TIMEOUT });
+    const at = await firstVisible(page, [mapping, start, fields, baseline, reading, paused], AI_TIMEOUT);
+    expect(at, "đọc file / tạo bản gốc không được dừng giữa chừng").not.toBe(5);
+    if (at === 4) break;
+    if (at === 0) {
+      const slotGroups = await page.locator('optgroup[label="Một phần nội dung (mẫu chia nhỏ hơn FlintFlow)"]').count();
+      expect(slotGroups, "ô chọn section có nhóm phần nhỏ slot:*").toBeGreaterThan(0);
+      await snap(page, "mapping-review");
+    }
+    if (at === 1) {
+      const latest = page.getByRole("checkbox", { name: /Đây là bản mới nhất của tài liệu/ });
+      if (!(await latest.isChecked())) await latest.check();
+      await snap(page, "start");
+    }
+    const action = [mapping, start, fields, baseline][at];
+    await action.click();
+    await expect(action.first()).toBeHidden({ timeout: AI_TIMEOUT });
   }
   await expect(reading.getByText(/File theo mẫu cố định còn \d+ mục trống/)).toBeVisible();
   await expect(reading.getByText("Sẽ soạn").first()).toBeVisible();
