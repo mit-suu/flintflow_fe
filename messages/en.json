@@ -37,8 +37,6 @@
     },
     "fptSections": {
       "unmapped": "No match (kept as is, not extracted)",
-      "newFeature": "New feature",
-      "newFunction": "New function",
       "newFeatureNoCode": "New feature (no code yet)",
       "newFunctionNoCode": "New function (no code yet)",
       "custom": "Custom section",
@@ -3770,9 +3768,7 @@
       "steps": {
         "upload": "Upload",
         "start": "Credits & start",
-        "run": "Read file & baseline",
-        "result": "Reading result",
-        "done": "Create change request"
+        "run": "Read file & baseline"
       },
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
@@ -3784,7 +3780,7 @@
       "done": {
         "body": "Import complete — the document is now version <strong>0.1</strong>. Every change goes through a change request; uncertain readings are flagged <strong>Needs review</strong>.",
         "gapReport": "View gap report",
-        "openCr": "Open the change-request page"
+        "openChat": "Open chat"
       },
       "languageVi": "Vietnamese",
       "languageEn": "English",

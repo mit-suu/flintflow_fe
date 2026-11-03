@@ -79,10 +79,25 @@ const KIND = /^(feature|function|custom|group):(.+)$/;
 /** Section tạm `feature:@B…` / `function:@B…` — tính năng / chức năng nhận từ heading của file, chưa có mã. */
 export const isProvisionalSection = (id: string): boolean => PROVISIONAL.test(id);
 
-const provisionalKind = (id: string, locale: Locale): string => sectionT(locale)(id.startsWith("feature:") ? "newFeature" : "newFunction");
+/** Nhãn section tạm = đúng tiêu đề heading trong file (`3.2 Authentication`) — không thêm tiền tố "Tính năng mới —". */
+export const provisionalLabel = (heading: string): string => heading.trim();
 
-/** Nhãn section tạm ghi rõ tính năng / chức năng nào: `Tính năng mới — 3.2 Authentication`. */
-export const provisionalLabel = (id: string, heading: string, locale: Locale = currentLocale()): string => `${provisionalKind(id, locale)} — ${heading.trim()}`;
+const OUTLINE = /^(\d+(?:\.\d+)*)(?=[.\s]|$)/;
+
+/**
+ * So sánh hai nhãn mục theo số đề mục ở đầu nhãn (`2.1 Actors` < `3.2 Authentication` < `3.10 …`), từng cấp theo số.
+ * Nhãn không bắt đầu bằng số (`Mục riêng`, `Không khớp`…) xếp sau, giữ thứ tự cũ (dùng với `Array.prototype.sort` ổn định).
+ */
+export const compareOutlineLabels = (a: string, b: string): number => {
+  const pa = OUTLINE.exec(a.trim())?.[1].split(".").map(Number);
+  const pb = OUTLINE.exec(b.trim())?.[1].split(".").map(Number);
+  if (!pa || !pb) return pa ? -1 : pb ? 1 : 0;
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? -1) - (pb[i] ?? -1);
+    if (d !== 0) return d;
+  }
+  return 0;
+};
 
 /**
  * Nhãn hiển thị của một section id — không bao giờ trả mã thô cho người dùng: `2.1 Actors`, `Tính năng mới (chưa có mã)`,
@@ -114,5 +129,5 @@ export const sectionLabelIn = (
 ): string => {
   const block = id && isProvisionalSection(id) ? id.slice(id.indexOf("@") + 1) : null;
   const heading = block ? headingMap?.find((h) => h.block_id === block)?.heading_text : undefined;
-  return id && heading?.trim() ? provisionalLabel(id, heading, locale) : sectionLabel(id, locale);
+  return id && heading?.trim() ? provisionalLabel(heading) : sectionLabel(id, locale);
 };

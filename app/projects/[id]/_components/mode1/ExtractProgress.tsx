@@ -6,6 +6,7 @@ import CreditEstimateNote from "./CreditEstimateNote";
 import PausedBanner from "./PausedBanner";
 import { useMode1Labels } from "./i18n";
 import Icon, { type IconName } from "@/components/ui/Icon";
+import { compareOutlineLabels } from "@/lib/constants/fpt-sections";
 
 interface ExtractProgressProps {
   doc: ImportedDocument;
@@ -38,6 +39,10 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
   const done = sections.filter((s) => s.status === "done").length;
   const total = sections.length;
   const notStarted = !running && !doc.paused && doc.extract_cursor === null && done === 0;
+  // Theo số đề mục từ trên xuống (1, 2, 3…), không theo thứ tự BE chạy trích
+  const rows = sections
+    .map((s) => ({ ...s, label: L.sectionLabelIn(s.section_id, headingMap) }))
+    .sort((a, b) => compareOutlineLabels(a.label, b.label));
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,13 +93,13 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
 
       {total > 0 && (
         <ul className="bg-white border border-[#ECEAE5] rounded-[14px] divide-y divide-[#F0EEEA]">
-          {sections.map((s) => {
+          {rows.map((s) => {
             const st = STATUS_ICON[s.status];
             const current = running && s.section_id === doc.extract_cursor;
             return (
               <li key={s.section_id} className={`px-3 py-2 flex items-center gap-3 text-body ${current ? "bg-[#F2F1FB]" : ""}`}>
                 <Icon name={st.icon} size={18} style={{ color: st.color }} label={t(`status.${s.status}`)} />
-                <span className="flex-1 font-semibold text-[#191817]">{L.sectionLabelIn(s.section_id, headingMap)}</span>
+                <span className="flex-1 font-semibold text-[#191817]">{s.label}</span>
                 {s.status === "done" && (
                   <span className="text-body text-[#8A867E]">
                     {t("fields", { count: s.fields_total })}
