@@ -32,8 +32,10 @@ describe("versionLineage", () => {
     expect(versionLineage(history, "1.0")).toEqual({ release: true, base: "1.0", latestCr: null });
   });
 
-  it("trước release đầu ⇒ gốc 0; bản import ⇒ không CR", () => {
-    expect(versionLineage(history, "0.2")).toEqual({ release: false, base: "0", latestCr: "CR-001" });
-    expect(versionLineage(history, "0.1")).toEqual({ release: false, base: "0", latestCr: null });
+  it("trước release đầu ⇒ gốc = số bản import (FLF-356); bản import ⇒ không CR", () => {
+    expect(versionLineage(history, "0.2")).toEqual({ release: false, base: "0.1", latestCr: "CR-001" });
+    expect(versionLineage(history, "0.1")).toEqual({ release: false, base: "0.1", latestCr: null });
+    expect(versionFileName({ name: "FAP", ...versionLineage(history, "0.1") })).toBe("FAP_v0.1_DRAFT.docx");
+    expect(versionFileName({ name: "FAP", ...versionLineage(history, "0.1"), ext: "pdf" })).toBe("FAP_v0.1_DRAFT.pdf");
   });
 });

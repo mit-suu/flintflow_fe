@@ -148,12 +148,12 @@ export default function ExportPanel({
       const download = format === "pdf" ? downloadPdfExport : downloadWordExport;
       const { blob, filename } = await download(projectId, source, baselineId, requestedLanguage);
       // Tên dự phòng khi BE không gửi `Content-Disposition` — cùng quy tắc FLF-334 với BE: baseline ⇒ `_v1.0`, bản nháp ⇒
-      // `_v<baseline cuối>_DRAFT` (gốc `0.x` của dự án import ⇒ `v0`), chưa baseline ⇒ `<tên>_DRAFT`
-      const draftBase = baselineVersion && /^0(\.\d+)?$/.test(baselineVersion) ? "0" : (baselineVersion ?? null);
+      // `_v<baseline cuối>_DRAFT`, chưa baseline ⇒ `<tên>_DRAFT`. FLF-356: gốc `0.x` của dự án import giữ đúng số
+      // (`_v0.1`, không gộp về `_v0`); bản baseline không có watermark DRAFT ⇒ tên không `_DRAFT` (`FAP_v0.1.docx`)
       const fallbackName = versionFileName({
         name: projectName ?? t("untitled"),
         release: source === "baseline",
-        base: source === "baseline" ? (baselineVersion ?? null) : draftBase,
+        base: baselineVersion ?? null,
         ext: format === "pdf" ? "pdf" : "docx",
         language: requestedLanguage ?? null,
       });
