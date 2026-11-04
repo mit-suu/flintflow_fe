@@ -56,7 +56,10 @@
         "open_questions": "Open questions (TBD)",
         "security": "Common security requirements",
         "localization": "Localization requirements",
-        "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)"
+        "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)",
+        "references": "References",
+        "apportioning": "Apportioning of requirements",
+        "verification": "Verification"
       }
     },
     "billingData": {
@@ -3583,6 +3586,7 @@
         "import_image_unread": "Image could not be read",
         "import_unresolved_ref": "Permission does not match a screen / role",
         "import_title_content_mismatch": "Heading and content differ",
+        "verification_orphan": "Verification points to a missing requirement",
         "original_diagram_stale": "Original diagram out of sync with data",
         "accepted_as_is": "Accepted as is",
         "goal_not_covered": "Goal not covered",

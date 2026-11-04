@@ -69,6 +69,7 @@ export const RULE_KEYS = [
   "import_image_unread",
   "import_unresolved_ref",
   "import_title_content_mismatch",
+  "verification_orphan",
   "import_needs_review",
   "original_diagram_stale",
   "accepted_as_is",

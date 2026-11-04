@@ -56,7 +56,10 @@
         "open_questions": "Câu hỏi còn mở (TBD)",
         "security": "Yêu cầu bảo mật chung",
         "localization": "Yêu cầu bản địa hoá",
-        "analysis_models": "Sơ đồ phân tích (use case, luồng màn hình, ERD)"
+        "analysis_models": "Sơ đồ phân tích (use case, luồng màn hình, ERD)",
+        "references": "Tài liệu tham khảo",
+        "apportioning": "Phân bổ yêu cầu",
+        "verification": "Kiểm chứng"
       }
     },
     "billingData": {
@@ -3583,6 +3586,7 @@
         "import_image_unread": "Ảnh chưa đọc được",
         "import_unresolved_ref": "Quyền chưa khớp màn / vai trò",
         "import_title_content_mismatch": "Tiêu đề và nội dung khác nhau",
+        "verification_orphan": "Kiểm chứng trỏ yêu cầu không có",
         "original_diagram_stale": "Hình gốc lệch dữ liệu",
         "accepted_as_is": "Chấp nhận nguyên trạng",
         "goal_not_covered": "Mục tiêu chưa được đáp ứng",
