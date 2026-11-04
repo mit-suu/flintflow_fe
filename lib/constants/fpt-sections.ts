@@ -122,27 +122,45 @@ export const sectionLabel = (id: string | null, locale: Locale = currentLocale()
 };
 
 /** Số gõ tay ở đầu tiêu đề (`2.1 Actors`, `IV. NFR`) — cùng mẫu `splitHeadingNumber` của BE. */
-const TYPED_NUMBER = /^\s*(?:(?:\d{1,2}\.)*\d{1,2}|[IVX]{1,4})\.?\s+\S/;
+const TYPED_NUMBER = /^\s*(?:(?:\d{1,2}\.)*\d{1,2}|[IVX]{1,4})\.?\s+(?=\S)/;
 
-/**
- * Tiêu đề heading của file upload đúng như người dùng thấy trong Word (FLF-362): nhãn số Word tự đánh (`number_label`) +
- * chữ heading; chữ đã gõ số tay hoặc không có nhãn ⇒ giữ nguyên chữ.
- */
-export const fileHeadingLabel = (heading: { heading_text: string; number_label?: string }): string => {
-  const text = heading.heading_text.trim();
-  const label = heading.number_label?.trim();
-  return label && text && !TYPED_NUMBER.test(text) ? `${label} ${text}` : text;
+/** Tiêu đề bỏ số mục gõ tay ở đầu (FLF-362): "1. Giới thiệu" ⇒ "Giới thiệu", "3.2.1 UC-01 …" ⇒ "UC-01 …". */
+export const plainHeading = (text: string): string => text.trim().replace(TYPED_NUMBER, "");
+
+type HeadingRef = { block_id: string; heading_text: string; section_id?: string };
+
+/** Heading của file upload sinh ra section: section tạm theo block của nó, section khác theo heading đầu tiên map vào nó. */
+const fileHeadingOf = (id: string | null, headingMap?: readonly HeadingRef[]): { index: number; heading?: HeadingRef } => {
+  const block = id && isProvisionalSection(id) ? id.slice(id.indexOf("@") + 1) : null;
+  const index = id && headingMap ? headingMap.findIndex((h) => (block ? h.block_id === block : h.section_id === id)) : -1;
+  return { index, heading: index >= 0 ? headingMap![index] : undefined };
 };
 
-type HeadingRef = { block_id: string; heading_text: string; section_id?: string; number_label?: string };
-
 /**
- * Như `sectionLabel`, nhưng lấy tiêu đề **của file upload** (`heading_map` của profile) — kèm đúng số của file (FLF-362):
- * section tạm theo heading sinh ra nó, section khác theo heading đầu tiên map vào nó. Section không có heading trong file
- * (mục FPT FlintFlow thêm) ⇒ nhãn mẫu như `sectionLabel`.
+ * Nhãn mục trên màn luồng upload (FLF-362, bước 3 "Đọc file & tạo bản gốc"): tiêu đề **của file upload** bỏ số mục — số gõ
+ * tay lẫn số Word tự đánh, cả khung FPT lẫn IEEE. Section không có heading trong file ⇒ tên mẫu FPT không số; section khác
+ * ⇒ như `sectionLabel`.
  */
 export const sectionLabelIn = (id: string | null, headingMap?: readonly HeadingRef[], locale: Locale = currentLocale()): string => {
-  const block = id && isProvisionalSection(id) ? id.slice(id.indexOf("@") + 1) : null;
-  const heading = id ? headingMap?.find((h) => (block ? h.block_id === block : h.section_id === id)) : undefined;
-  return heading?.heading_text.trim() ? provisionalLabel(fileHeadingLabel(heading)) : sectionLabel(id, locale);
+  const { heading } = fileHeadingOf(id, headingMap);
+  if (heading?.heading_text.trim()) return provisionalLabel(plainHeading(heading.heading_text));
+  const known = FPT_SECTIONS.find((s) => s.id === id);
+  return known ? known.title : sectionLabel(id, locale);
+};
+
+/**
+ * So thứ tự hai section trên màn luồng upload (FLF-362) — theo thứ tự heading trong file (nhãn đã bỏ số nên không xếp theo
+ * số được); section không có trong file xếp sau, theo thứ tự mẫu FPT.
+ */
+export const compareFileOrder = (headingMap?: readonly HeadingRef[]) => {
+  const fptIndex = (id: string) => {
+    const i = FPT_SECTIONS.findIndex((s) => s.id === id);
+    return i >= 0 ? i : FPT_SECTIONS.length;
+  };
+  return (a: string, b: string): number => {
+    const ia = fileHeadingOf(a, headingMap).index;
+    const ib = fileHeadingOf(b, headingMap).index;
+    if (ia >= 0 || ib >= 0) return (ia >= 0 ? ia : Number.MAX_SAFE_INTEGER) - (ib >= 0 ? ib : Number.MAX_SAFE_INTEGER);
+    return fptIndex(a) - fptIndex(b);
+  };
 };

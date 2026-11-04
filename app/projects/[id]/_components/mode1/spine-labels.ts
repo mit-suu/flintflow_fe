@@ -209,7 +209,7 @@ export const spineLabels = (t: Mode1T, localeName: string) => {
   const sectionLabel = (id: string | null): string => fptSectionLabel(id, locale);
   const sectionLabelIn = (
     id: string | null,
-    headingMap?: readonly { block_id: string; heading_text: string; section_id?: string; number_label?: string }[]
+    headingMap?: readonly { block_id: string; heading_text: string; section_id?: string }[]
   ): string => fptSectionLabelIn(id, headingMap, locale);
 
   /** Mục trong câu chữ: `fixed:5.1` ⇒ "5.1 Business Rules". */
