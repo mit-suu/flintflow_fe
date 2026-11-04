@@ -96,6 +96,7 @@ import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
 import { isPhaseUnit, unitOfStep, useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
 import { useDocument } from "./hooks/useDocument";
+import { useDocumentFollow } from "./hooks/useDocumentFollow";
 import { useComments } from "./hooks/useComments";
 import CommentsPanel from "./_components/CommentsPanel";
 import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comment";
@@ -1043,7 +1044,31 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [handleChangeApplied, activeSessionId, reloadActiveSession, mode1, t]
   );
-  const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId);
+  // ─── Cổng đồng bộ trước khi gửi sửa (tài liệu tự bám bản mới — `useDocumentFollow` phía dưới) ────────────────
+  /** Tab đã biết Spine / tài liệu ở BE mới hơn bản đang giữ (cập nhật từ `useDocumentFollow`). */
+  const behindRef = useRef(false);
+  const { reload: reloadDocument } = doc;
+  /**
+   * Kéo Spine + tiến độ + tài liệu về bản BE đang có. `base_version` chỉ nâng bằng Spine THẬT vừa đọc — không bao giờ bằng số
+   * `/version`: gửi lô op dựng trên Spine cũ với `base_version` mới sẽ đè mất sửa của nơi khác.
+   */
+  const resyncFromServer = useCallback(async () => {
+    bumpVersion(await reloadSpine());
+    void reloadProgress();
+    await reloadDocument();
+  }, [bumpVersion, reloadSpine, reloadProgress, reloadDocument]);
+  const syncBeforeSend = useCallback(async () => {
+    if (!behindRef.current) return false;
+    behindRef.current = false;
+    await resyncFromServer();
+    return true;
+  }, [resyncFromServer]);
+  /** `409 SPINE_VERSION_CONFLICT`: tải lại Spine + tài liệu; câu báo "xem lại rồi gửi lại" do `useChanges` đặt, không tự gửi lại. */
+  const onChangeConflict = useCallback(() => void resyncFromServer(), [resyncFromServer]);
+  const changes = useChanges(projectId, getBaseVersion, getLatestSeq, onChangesApplied, getSessionId, {
+    syncBeforeSend,
+    onConflict: onChangeConflict,
+  });
   // FLF-278: nội dung thư viện của tổ chức cho mục riêng (mẫu bắt buộc)
   const library = useLibraryMatches(projectId, ws.ready && ws.project?.template_intent === "fixed", documentRefreshToken);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
@@ -1056,6 +1081,43 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const [pendingComment, setPendingComment] = useState<PendingCommentAnchor | null>(null);
   /** Panel góp ý đang lọc theo mã của lượt Lead từ chối baseline. */
   const [focusCommentIds, setFocusCommentIds] = useState<readonly string[] | null>(null);
+  // ── Tài liệu tự bám bản mới nhất (thay đổi từ tab khác / thành viên khác / việc nền ở BE) ──
+  /** Luồng SSE đang mở ở tab này (chạy step, chat): không hỏi `/version`, không thay tài liệu giữa chừng. */
+  const followStreaming = runner.state.busy || ws.streamingMessage !== null;
+  /** User đang thao tác dở trên tài liệu: xem trước sửa, chọn chỗ góp ý, ô chat có chữ kèm chip "Sửa tài liệu". */
+  const followBusy =
+    changes.preview !== null ||
+    changes.previewing ||
+    changes.applying ||
+    pendingComment !== null ||
+    (editMode && ws.inputMessage.trim() !== "");
+  /** Chỉ Spine đổi (tính lại cờ / waive…): đọc lại Spine — tiến độ, cờ tự tải theo `spine_version` — không tải lại tài liệu. */
+  const onFollowSpineOnly = useCallback(() => {
+    void reloadSpine().then(bumpVersion);
+  }, [reloadSpine, bumpVersion]);
+  const follow = useDocumentFollow({
+    projectId,
+    enabled: ws.ready,
+    shownRevision: doc.meta?.document_revision ?? null,
+    knownSpineVersion: spineState.version,
+    busy: followBusy,
+    streaming: followStreaming,
+    documentReloading: doc.loading || doc.refreshing,
+    onApply: onSpineChanged,
+    onSpineOnly: onFollowSpineOnly,
+  });
+  useEffect(() => {
+    behindRef.current = follow.behind;
+  }, [follow.behind]);
+  // Bản xem trước dựng trên Spine cũ hơn Spine hiện tại không còn đúng: bỏ, user xem trước lại
+  const { preview: openPreview, applying: applyingChange, cancelPreview: dropPreview } = changes;
+  useEffect(() => {
+    if (!openPreview || applyingChange || spineState.version === null || openPreview.base_version >= spineState.version) return;
+    dropPreview();
+    setEditDetailOpen(false);
+    setToast(tHook("documentChanged"));
+  }, [openPreview, applyingChange, spineState.version, dropPreview, tHook]);
+
   const openComments = (commentIds?: readonly string[]) => {
     setFocusCommentIds(commentIds ?? null);
     setRightPanel("comments");
@@ -2123,6 +2185,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           projectName={documentName}
           flags={flags}
           doc={doc}
+          newerVersion={follow.hasNewer && followBusy ? { onApply: follow.apply } : null}
           // Mode 1 v3: không có step ⇒ không có nút "xem tại step", mục trống mời tạo CR
           onSelectStep={mode1 ? undefined : setSelectedStepId}
           mode1={mode1}

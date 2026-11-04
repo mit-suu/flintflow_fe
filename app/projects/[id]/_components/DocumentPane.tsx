@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
+import { ApiClientError } from "@/lib/api/client";
+import { fetchDocumentImage, IMAGE_CHANGED, parseImageRef } from "@/lib/api/document-images";
 import { fetchDiagramPng } from "@/lib/api/spine";
 import { tStep } from "@/lib/i18n";
 import { hookErrorText } from "@/lib/hook-errors";
@@ -101,6 +103,11 @@ interface DocumentPaneProps {
    * "N mục chưa dịch" vẫn hiện nhưng không có nút (Viewer chỉ đọc, mode 1 không dịch — D3).
    */
   onTranslate?: () => void;
+  /**
+   * Có bản tài liệu mới hơn bản đang hiển thị nhưng user đang thao tác dở nên chưa tự thay nội dung: hiện dải
+   * "Có bản mới · Cập nhật" ở đầu tài liệu. Không truyền ⇒ không có dải.
+   */
+  newerVersion?: { onApply: () => void } | null;
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
@@ -170,43 +177,79 @@ const Runs = ({ runs }: { runs: InlineRun[] }) => (
 
 const Cell = ({ cell }: { cell: TableCell }) => <Runs runs={cell} />;
 
-/** Ảnh trong tài liệu: base64 thật hoặc tham chiếu `diagram-ref:<id>` (cache nội bộ BE lộ ra). */
+/**
+ * Báo "ảnh đã vẽ lại sau khi tài liệu dựng" (`409 IMAGE_CHANGED`) cho chủ của tài liệu để tải lại — truyền qua context vì
+ * ảnh nằm sâu trong mục → block. Ngoài `DocumentPane` (không có Provider) thì không có gì để gọi.
+ */
+const ImageChangedContext = createContext<(() => void) | null>(null);
+
+/** Hai lượt tải lại vì `IMAGE_CHANGED` cách nhau tối thiểu chừng này — chặn vòng lặp nếu BE vẫn lệch hash. */
+const IMAGE_RELOAD_MIN_GAP_MS = 10_000;
+
+/** Vùng giữ chỗ khi ảnh đang tải: chiều cao cố định để chữ bên dưới không nhảy khi ảnh về. */
+const IMAGE_PLACEHOLDER_CLASS = "w-full min-h-[240px] grid place-items-center rounded-inner bg-surface-container text-caption text-on-surface-subtle italic";
+
+/**
+ * Ảnh trong tài liệu, ba dạng `png`:
+ * - base64 thật (ảnh giữ chỗ, BE cũ, export): hiện thẳng;
+ * - `image-ref:<kind>:<id>[:<locale>]@<hash>`: tải Blob qua `lib/api` (Blob nhớ theo token, ảnh đã có không tải lại), mỗi lần
+ *   mount tạo object URL riêng và thu hồi khi gỡ / đổi token;
+ * - `diagram-ref:<id>` (dạng cũ): tải PNG của sơ đồ.
+ */
 function DocumentImage({ projectId, png, caption }: { projectId: string; png: string; caption?: string }) {
   const t = useTranslations("workspace.document");
   const loadFailed = t("diagramLoadFailed");
+  const onImageChanged = useContext(ImageChangedContext);
+  const onImageChangedRef = useRef(onImageChanged);
+  useEffect(() => {
+    onImageChangedRef.current = onImageChanged;
+  }, [onImageChanged]);
+  const isImageRef = parseImageRef(png) !== null;
   const isDiagramRef = png.startsWith("diagram-ref:");
-  const directSrc = isDiagramRef ? null : `data:image/png;base64,${png}`;
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const loadsRemotely = isImageRef || isDiagramRef;
+  const directSrc = loadsRemotely ? null : `data:image/png;base64,${png}`;
+  // Gắn kết quả với token đã tải: đổi `png` thì kết quả cũ (URL đã thu hồi) không bị dùng nhầm cho ảnh mới
+  const [resolved, setResolved] = useState<{ png: string; url: string } | null>(null);
+  const [failure, setFailure] = useState<{ png: string; message: string } | null>(null);
 
   useEffect(() => {
-    if (!isDiagramRef) return;
-    const diagramId = png.slice("diagram-ref:".length);
+    if (!loadsRemotely) return;
     let cancelled = false;
     let objectUrl: string | null = null;
-    fetchDiagramPng(projectId, diagramId)
+    const load = isImageRef
+      ? fetchDocumentImage(projectId, png).then((blob) => URL.createObjectURL(blob))
+      : fetchDiagramPng(projectId, png.slice("diagram-ref:".length));
+    load
       .then((url) => {
-        // Unmount (hoặc đổi `png`) trước khi fetch xong: blob URL vừa tạo không còn ai revoke ở
-        // cleanup bên dưới (nó chạy trước khi promise này resolve) — revoke ngay tại đây.
+        // Unmount (hoặc đổi `png`) trước khi tải xong: URL vừa tạo không còn ai thu hồi ở cleanup — thu hồi ngay tại đây.
         if (cancelled) {
           URL.revokeObjectURL(url);
           return;
         }
         objectUrl = url;
-        setResolvedSrc(url);
+        setResolved({ png, url });
       })
-      .catch((err: unknown) => !cancelled && setError(userErrorMessage(err, loadFailed)));
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        // Ảnh đã vẽ lại: tải lại tài liệu để có tham chiếu mới, trong lúc đó vẫn giữ khung chờ thay vì báo lỗi
+        if (isImageRef && err instanceof ApiClientError && err.code === IMAGE_CHANGED && onImageChangedRef.current) {
+          onImageChangedRef.current();
+          return;
+        }
+        setFailure({ png, message: userErrorMessage(err, loadFailed) });
+      });
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
     // `loadFailed` chỉ là câu dự phòng — đổi ngôn ngữ không cần tải lại ảnh
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, png, isDiagramRef]);
+  }, [projectId, png, isImageRef, loadsRemotely]);
 
-  const src = directSrc ?? resolvedSrc;
+  const src = directSrc ?? (resolved?.png === png ? resolved.url : null);
+  const error = failure?.png === png ? failure.message : null;
   if (error) return <div className="text-caption text-error italic">{error}</div>;
-  if (!src) return <div className="text-caption text-on-surface-subtle italic">{t("imageLoading")}</div>;
+  if (!src) return <div className={IMAGE_PLACEHOLDER_CLASS}>{t("imageLoading")}</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
   return <img src={src} alt={caption ?? t("imageAlt")} className="max-w-full rounded-inner" />;
 }
@@ -723,11 +766,24 @@ function DocumentPaneView({
   hasDiagrams,
   documentLanguage = null,
   onTranslate,
+  newerVersion = null,
 }: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
   const name = projectName ?? t("untitled");
   const { document, translation, loading, refreshing, empty, error, refreshError, reload, lastDiff, pendingSectionIds } = doc;
+  // Ảnh báo `IMAGE_CHANGED` ⇒ tải lại tài liệu đúng một lượt (nhiều ảnh cùng báo, hoặc vẫn lệch sau khi tải ⇒ không lặp)
+  const reloadRef = useRef(reload);
+  useEffect(() => {
+    reloadRef.current = reload;
+  }, [reload]);
+  const lastImageReloadAt = useRef(0);
+  const onImageChanged = useCallback(() => {
+    const now = Date.now();
+    if (now - lastImageReloadAt.current < IMAGE_RELOAD_MIN_GAP_MS) return;
+    lastImageReloadAt.current = now;
+    void reloadRef.current();
+  }, []);
   const language = shownDocumentLanguage(translation, documentLanguage);
   // Mode 1 không dịch (D3) — dù có truyền nhầm thì cũng không hiện nút
   const translate = mode1 ? undefined : onTranslate;
@@ -766,6 +822,7 @@ function DocumentPaneView({
   };
 
   return (
+    <ImageChangedContext.Provider value={onImageChanged}>
     <section className="relative flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
       {/* Trình đọc màn hình: báo mục vừa cập nhật khi bản mới về (vùng live luôn có mặt để lời đọc được phát) */}
       <div aria-live="polite" className="sr-only">
@@ -830,6 +887,16 @@ function DocumentPaneView({
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
+        {newerVersion && (
+          <div role="status" className="sticky top-0 z-10 rounded-control bg-primary-soft px-3 py-1.5 flex items-center gap-1.5 text-body text-on-surface">
+            <Icon name="refresh" size={14} className="text-primary" />
+            <span>{t("newerVersion")}</span>
+            <span aria-hidden>·</span>
+            <button type="button" onClick={newerVersion.onApply} className="font-bold text-primary hover:underline cursor-pointer">
+              {t("newerVersionApply")}
+            </button>
+          </div>
+        )}
         {/* Lỗi nằm trong vùng cuộn: đặt ngay dưới header thì bị lớp mờ của header che */}
         {/* Tải lại lỗi khi đang có tài liệu: bản đang đọc giữ nguyên, chỉ báo nhỏ (nút làm mới bấm lại được) */}
         {document && refreshError && (
@@ -915,5 +982,6 @@ function DocumentPaneView({
         onDismiss={() => setDismissedGeneric(lastDiff?.seq ?? 0)}
       />
     </section>
+    </ImageChangedContext.Provider>
   );
 }

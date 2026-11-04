@@ -409,6 +409,16 @@ export interface SectionProgress {
   derived: boolean;
 }
 
+/**
+ * `GET /projects/:id/version` — đầu Spine + revision tài liệu bản nháp, không đọc cả Spine hay changelog. `document_revision`
+ * là chuỗi mờ, chỉ so bằng nhau: không đổi khi chỉ cờ được tính lại / waive / giữ nguyên; đổi khi nội dung, bản dịch của
+ * ngôn ngữ tài liệu, hay ngôn ngữ tài liệu đổi.
+ */
+export interface VersionResponse {
+  spine_version: number;
+  document_revision: string;
+}
+
 /** `GET /projects/:id/progress`. */
 export interface ProgressResponse {
   readiness: Readiness;

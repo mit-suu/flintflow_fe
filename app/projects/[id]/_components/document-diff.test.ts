@@ -153,6 +153,13 @@ describe("imageKey", () => {
     expect(imageKey("diagram-error:D1")).toBe("diagram-error:D1");
   });
 
+  it("image-ref dùng nguyên cả token: hash đổi ⇒ khoá đổi (ảnh vẽ lại), cùng token ⇒ cùng khoá", () => {
+    const a = "image-ref:diagram:D1@0123456789abcdef";
+    expect(imageKey(a)).toBe(a);
+    expect(imageKey("image-ref:diagram:D1@fedcba9876543210")).not.toBe(imageKey(a));
+    expect(imageKey("image-ref:diagram:D1:vi@0123456789abcdef")).not.toBe(imageKey(a));
+  });
+
   it("tham chiếu object dùng id + hash + locale", () => {
     expect(imageKey({ ref: "diagram", id: "D1", locale: "vi", hash: "h1" })).toBe("ref:D1@h1:vi");
     expect(imageKey({ ref: "diagram", id: "D1", hash: "h2" })).not.toBe(imageKey({ ref: "diagram", id: "D1", hash: "h1" }));
