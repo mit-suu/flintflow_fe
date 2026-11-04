@@ -562,3 +562,86 @@ body {
   bottom: 100%;
   background: linear-gradient(to top, var(--ff-fade, var(--color-surface)) 40%, transparent);
 }
+
+/* ── Vùng tài liệu đang / vừa được cập nhật (`ff-upd`, FLF-369) ──
+   Gắn lên mục (`ff-upd-section`) hoặc từng block của tài liệu; `data-update` quyết định trạng thái:
+   · `pending`: nền primary-soft đứng yên + vạch tím 3px mép trái có dải sáng chạy dọc — vùng này sắp có bản mới;
+   · `fresh`:   bản mới vừa về — nội dung crossfade ~200ms, nền + vạch giữ đứng yên;
+   · `settled`: đã xem đủ lâu — nền + vạch nhạt dần ~600ms (không có thuộc tính ⇒ cũng ở trạng thái này).
+   Không đổi kích thước hay chữ: tất cả vẽ bằng pseudo-element nằm DƯỚI nội dung (z-index -1 trong `isolation`), chỉ
+   animate `opacity` / `transform`. `::before` = nền + vạch, `::after` = dải sáng trên vạch. */
+.ff-upd {
+  --ff-upd-x: 8px;
+  --ff-upd-y: 4px;
+  position: relative;
+  isolation: isolate;
+}
+.ff-upd-section {
+  --ff-upd-x: 0px;
+  --ff-upd-y: 0px;
+}
+.ff-upd::before,
+.ff-upd::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 600ms ease-out;
+}
+.ff-upd::before {
+  inset: calc(var(--ff-upd-y) * -1) calc(var(--ff-upd-x) * -1);
+  border-radius: 8px;
+  background: linear-gradient(to right, var(--color-primary) 0 3px, var(--color-primary-soft) 3px);
+}
+.ff-upd::after {
+  top: calc(var(--ff-upd-y) * -1);
+  left: calc(var(--ff-upd-x) * -1);
+  width: 3px;
+  height: 30%;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.9), transparent);
+}
+.ff-upd[data-update="pending"]::before,
+.ff-upd[data-update="pending"]::after,
+.ff-upd[data-update="fresh"]::before {
+  opacity: 1;
+  transition-duration: 150ms;
+}
+.ff-upd[data-update="pending"]::after {
+  animation: ff-upd-sheen 1.4s ease-in-out infinite;
+}
+.ff-upd[data-update="fresh"] > * {
+  animation: ff-upd-in 200ms ease-out;
+}
+/* Dải sáng chạy từ đầu tới cuối vạch: 30% chiều cao × 233% = đúng phần còn lại của vùng */
+@keyframes ff-upd-sheen {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(233%);
+  }
+}
+@keyframes ff-upd-in {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* "Giảm chuyển động": bỏ dải sáng + crossfade, giữ nền và vạch đứng yên */
+@media (prefers-reduced-motion: reduce) {
+  .ff-upd::before,
+  .ff-upd::after {
+    transition: none;
+  }
+  .ff-upd[data-update="pending"]::after {
+    animation: none;
+    opacity: 0;
+  }
+  .ff-upd[data-update="fresh"] > * {
+    animation: none;
+  }
+}

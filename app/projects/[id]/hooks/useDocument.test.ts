@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyChanges } from "@/lib/api/spine";
 import { getSpine } from "@/lib/api/spine";
 import { MOCK_TRANSLATION_UNITS, mockTiming, resetMockChangeFlowState, resetMockTranslationState } from "@/mocks/handlers";
@@ -8,7 +8,7 @@ import { mockServer } from "@/mocks/server";
 import { MOCK_PROJECT_ID, mockState, resetMockState } from "@/mocks/state";
 import type { RenderedDocument } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
-import { useDocument } from "./useDocument";
+import { PENDING_EXPIRY_MS, useDocument } from "./useDocument";
 
 const P = MOCK_PROJECT_ID;
 
@@ -139,5 +139,123 @@ describe("useDocument — ngôn ngữ tài liệu (FLF-265)", () => {
     release();
     await waitFor(() => expect(result.current.document?.version).toBe("v0.vi"));
     expect(result.current.translation).toEqual({ locale: "vi", source_locale: "en", missing: 7 });
+  });
+});
+
+describe("useDocument — tải lại lỗi, so bản, vùng chờ", () => {
+  const respondWith = (data: RenderedDocument) =>
+    mockServer.use(
+      http.get("*/projects/:projectId/document", () =>
+        HttpResponse.json({ data, meta: { assembled_at_version: 1, spine_version: 1, stale: false }, error: null })
+      )
+    );
+  const failNext = () =>
+    mockServer.use(http.get("*/projects/:projectId/document", () => HttpResponse.json({ error: { code: "INTERNAL", message: "boom" } }, { status: 500 })));
+
+  const loaded = async () => {
+    const hook = renderHook(() => useDocument(P, "draft"));
+    await waitFor(() => expect(hook.result.current.document).not.toBeNull());
+    return hook;
+  };
+
+  it("tải lại lỗi ⇒ giữ nguyên tài liệu đang đọc, báo lỗi nhỏ ở refreshError, không phải error; tải lại được tiếp", async () => {
+    const { result } = await loaded();
+    const before = result.current.document;
+    failNext();
+
+    await act(() => result.current.reload());
+
+    expect(result.current.document).toBe(before);
+    expect(result.current.refreshError).toBeTruthy();
+    expect(result.current.error).toBeNull();
+    expect(result.current.refreshing).toBe(false);
+    expect(result.current.loading).toBe(false);
+
+    mockServer.resetHandlers();
+    await act(() => result.current.reload());
+    expect(result.current.refreshError).toBeNull();
+    expect(result.current.document).not.toBeNull();
+  });
+
+  it("lần tải ĐẦU lỗi (chưa có tài liệu) ⇒ dùng error như cũ, không có refreshError", async () => {
+    failNext();
+    const { result } = renderHook(() => useDocument(P, "draft"));
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.document).toBeNull();
+    expect(result.current.refreshError).toBeNull();
+  });
+
+  it("đổi ngôn ngữ rồi tải lỗi ⇒ vẫn gỡ bản cũ (đổi hẳn tài liệu), dùng error", async () => {
+    const { result, rerender } = renderHook(({ language }) => useDocument(P, "draft", undefined, 0, language), {
+      initialProps: { language: "en" as DocumentLanguage },
+    });
+    await waitFor(() => expect(result.current.document).not.toBeNull());
+    failNext();
+
+    rerender({ language: "vi" });
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.document).toBeNull();
+    expect(result.current.refreshError).toBeNull();
+  });
+
+  it("lastDiff: null ở lần tải đầu; bản sau khác ⇒ có mục đổi + seq; giống hệt ⇒ null", async () => {
+    const { result } = await loaded();
+    expect(result.current.lastDiff).toBeNull();
+
+    const original = result.current.document as RenderedDocument;
+    const edited: RenderedDocument = {
+      ...original,
+      sections: original.sections.map((section, i) =>
+        i === 0 ? { ...section, blocks: [...section.blocks, { type: "paragraph", runs: [{ text: "Đoạn mới" }] }] } : section
+      ),
+    };
+    respondWith(edited);
+    await act(() => result.current.reload());
+    expect(result.current.lastDiff?.sections.get(original.sections[0].id)).toBe("changed");
+    expect(result.current.lastDiff?.seq).toBe(1);
+
+    respondWith(edited);
+    await act(() => result.current.reload());
+    expect(result.current.lastDiff).toBeNull();
+  });
+
+  it("markPending: có hiệu lực tới khi tài liệu mới về, rồi tự xoá", async () => {
+    const { result } = await loaded();
+
+    act(() => result.current.markPending(["fixed:2.2.1"]));
+    expect(result.current.pendingSectionIds.has("fixed:2.2.1")).toBe(true);
+
+    await act(() => result.current.reload());
+    expect(result.current.pendingSectionIds.size).toBe(0);
+  });
+
+  it("tải lại lỗi cũng xoá vùng chờ (không treo trạng thái đang cập nhật)", async () => {
+    const { result } = await loaded();
+    act(() => result.current.markPending(["fixed:2.2.1"]));
+    failNext();
+
+    await act(() => result.current.reload());
+
+    expect(result.current.pendingSectionIds.size).toBe(0);
+    expect(result.current.refreshError).toBeTruthy();
+  });
+
+  it("không có bản nào về thì vùng chờ tự hết hạn sau 60s; clearPending xoá ngay", async () => {
+    const { result } = await loaded();
+    vi.useFakeTimers();
+    try {
+      act(() => result.current.markPending(["fixed:1"]));
+      expect(result.current.pendingSectionIds.size).toBe(1);
+      act(() => void vi.advanceTimersByTime(PENDING_EXPIRY_MS + 1));
+      expect(result.current.pendingSectionIds.size).toBe(0);
+
+      act(() => result.current.markPending(["fixed:1"]));
+      act(() => result.current.clearPending());
+      expect(result.current.pendingSectionIds.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

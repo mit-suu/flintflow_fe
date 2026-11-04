@@ -8,7 +8,7 @@ import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
 import { useMode1Labels } from "./mode1/i18n";
-import { WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup } from "./flag-rules";
+import { WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isRedrawable, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup, type RedrawReport } from "./flag-rules";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { hookErrorText } from "@/lib/hook-errors";
 
@@ -92,8 +92,11 @@ interface FlagsPanelProps {
   /** Không truyền ⇒ không có nút kiểm lại (Viewer: kiểm lại là thao tác ghi). */
   onRecompute?: () => void;
   onSelectStep?: (stepId: string) => void;
-  /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
-  onRedraw?: (flag: Flag) => Promise<void> | void;
+  /**
+   * Vẽ lại sơ đồ của các cờ `diagram_stale` / `render_error` (BUG-17) — MỘT lời gọi cho cả lô, kể cả nút "Vẽ lại tất cả".
+   * Trả báo cáo kết quả để panel nói rõ sơ đồ nào vẫn lỗi; không trả gì ⇒ panel không báo thêm.
+   */
+  onRedraw?: (flags: Flag[]) => Promise<RedrawReport | void>;
   /**
    * Xác nhận / bác bỏ một giả định ngay tại panel (BUG-13). Trước đây chỗ này chỉ có Waive, nên 27 giả
    * định chưa xác nhận ở S-9.1 không có đường xử lý nào ngoài "bỏ qua có lý do".
@@ -135,8 +138,7 @@ export const sortFlags = (flags: readonly Flag[]): Flag[] =>
     return a.id < b.id ? -1 : 1;
   });
 
-/** Cờ mà việc cần làm là vẽ lại sơ đồ, không phải sửa nội dung. */
-export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_stale" || flag.rule_id === "render_error";
+export { isRedrawable };
 
 /** Tab của panel: cờ đỏ (+ mục cần viết lại) chặn chốt bản · cờ vàng nên xem · đã bỏ qua. */
 type IssueTab = "blocking" | "suggestions" | "waived";
@@ -180,7 +182,9 @@ export default function FlagsPanel({
   const stepLabel = (stepId: string) => workspaceStepLabel(stepId, locale);
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
-  const [redrawing, setRedrawing] = useState<string | null>(null);
+  /** Id các cờ đang được vẽ lại — mọi dòng của lô cùng hiện "Đang vẽ…" và mọi nút Vẽ lại khoá. */
+  const [redrawing, setRedrawing] = useState<ReadonlySet<string>>(new Set());
+  const [redrawReport, setRedrawReport] = useState<RedrawReport | null>(null);
   /** Nhóm đã bấm "Xem thêm". */
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   // Mở sẵn tab có việc: chỉ sang "Nên xem" khi không còn gì phải xử lý mà vẫn có gợi ý
@@ -227,15 +231,41 @@ export default function FlagsPanel({
   };
 
   const redraw = async (targets: Flag[]) => {
-    if (!onRedraw) return;
-    for (const flag of targets) {
-      setRedrawing(flag.id);
-      try {
-        await onRedraw(flag);
-      } finally {
-        setRedrawing(null);
-      }
+    if (!onRedraw || redrawing.size > 0 || targets.length === 0) return;
+    // Cờ khác cùng trỏ tới sơ đồ đó cũng được vẽ trong lượt này ⇒ dòng của chúng cũng hiện "Đang vẽ…"
+    const diagramIds = new Set(targets.map((f) => f.target_id));
+    const ids = new Set([...targets, ...flags.filter((f) => isRedrawable(f) && isOpen(f) && diagramIds.has(f.target_id))].map((f) => f.id));
+    setRedrawReport(null);
+    setRedrawing(ids);
+    try {
+      setRedrawReport((await onRedraw(targets)) ?? null);
+    } catch (err) {
+      setRedrawReport({ failed: targets, stillBroken: [], flagsCheckFailed: false, error: userErrorMessage(err, t("redrawFailed")) });
+    } finally {
+      setRedrawing(new Set());
     }
+  };
+
+  /** Tên các mục của một nhóm cờ, bỏ trùng — thông báo nói "sơ đồ <mục>", không in mã sơ đồ. */
+  const sectionNames = (list: readonly Flag[]) => [...new Set(list.map((f) => sectionName(f.section_id)))].join(", ");
+
+  /** Kết quả lượt vẽ lại gần nhất — chỉ hiện khi vẫn còn cờ sơ đồ để người dùng xử lý tiếp. */
+  const redrawNotice = () => {
+    if (!redrawReport || !flags.some((f) => isRedrawable(f) && isOpen(f))) return null;
+    const lines: string[] = [];
+    if (redrawReport.failed.length > 0) {
+      lines.push(t("redrawFailedFor", { sections: sectionNames(redrawReport.failed) }) + (redrawReport.error ? ` ${redrawReport.error}` : ""));
+    }
+    if (redrawReport.stillBroken.length > 0) lines.push(t("redrawStillBroken", { sections: sectionNames(redrawReport.stillBroken) }));
+    if (redrawReport.flagsCheckFailed) lines.push(t("redrawCheckFailed"));
+    if (lines.length === 0) return null;
+    return (
+      <div role="status" className="rounded-card bg-error-container px-3.5 py-2.5 text-body text-on-error-container flex flex-col gap-0.5">
+        {lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+    );
   };
 
   const sectionLink = (flag: Flag, className = "") =>
@@ -362,8 +392,8 @@ export default function FlagsPanel({
               {sectionLink(flag, "text-caption text-on-surface-muted")}
             </div>
             {onRedraw && (
-              <button type="button" disabled={busy || redrawing === flag.id} onClick={() => void redraw([flag])} className={`${textButton} text-primary shrink-0`}>
-                {redrawing === flag.id ? t("redrawing") : t("redraw")}
+              <button type="button" disabled={busy || redrawing.size > 0} onClick={() => void redraw([flag])} className={`${textButton} text-primary shrink-0`}>
+                {redrawing.has(flag.id) ? t("redrawing") : t("redraw")}
               </button>
             )}
           </li>
@@ -420,8 +450,8 @@ export default function FlagsPanel({
     }
     if (group.action === "redraw" && onRedraw && group.flags.length > 1)
       return (
-        <button type="button" disabled={busy || redrawing !== null} onClick={() => void redraw(group.flags)} className={`${pillButton} bg-primary-soft text-primary-hover hover:bg-primary-fixed`}>
-          {redrawing ? t("redrawing") : t("redrawAll")}
+        <button type="button" disabled={busy || redrawing.size > 0} onClick={() => void redraw(group.flags)} className={`${pillButton} bg-primary-soft text-primary-hover hover:bg-primary-fixed`}>
+          {redrawing.size > 0 ? t("redrawing") : t("redrawAll")}
         </button>
       );
     return null;
@@ -507,6 +537,7 @@ export default function FlagsPanel({
       />
 
       {error && <div className="text-body text-error">{hookErrorText(error, tHook)}</div>}
+      {redrawNotice()}
 
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (

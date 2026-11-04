@@ -88,13 +88,14 @@ import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
-import { issueCounts, readableMessage } from "./_components/flag-rules";
-import { isFlagWaivable } from "@/types/flags";
+import { isRedrawable, issueCounts, readableMessage, type RedrawReport } from "./_components/flag-rules";
+import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
 import { isPhaseUnit, unitOfStep, useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
+import { useDocument } from "./hooks/useDocument";
 import { useComments } from "./hooks/useComments";
 import CommentsPanel from "./_components/CommentsPanel";
 import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comment";
@@ -108,7 +109,8 @@ const subscribeViewport = (onChange: () => void) => {
 const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
-const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+/** Sơ đồ vẽ chung một lượt khi cùng kind + owner (`screen_flow` nhiều phần, hai cờ cùng một hình). */
+const diagramKey = (d: Pick<Diagram, "kind" | "owner_id">): string => `${d.kind}:${d.owner_id ?? ""}`;
 /** Toast tự tắt sau khoảng này — trước đây nó ở mãi và che nút Gửi của ô chat. */
 const TOAST_MS = 5000;
 /** Nút "Vẽ lại sơ đồ" dưới hình của mỗi mục trong DocumentPane — tạm ẩn; đổi thành `true` để hiện lại. */
@@ -567,7 +569,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
 
   const handleFlagRecompute = useCallback(async () => {
-    await recomputeFlagsFn();
+    // Lỗi tính lại cờ đã nằm ở `flagsError` của panel; vẫn đọc lại Spine như trước
+    await recomputeFlagsFn().catch(() => undefined);
     // Recompute GHI cờ ⇒ `spine_version` đổi. Không đọc lại thì lần chạy step ngay sau đó gửi phiên bản
     // cũ và ăn 409 — đúng chuỗi thao tác "tính lại cờ rồi chạy lại bước đang bị cờ chỉ tới".
     // Nâng `versionRef` ngay từ kết quả đọc: chỉ trông vào effect theo `spineState.version` thì nó chạy SAU lệnh kế tiếp
@@ -579,28 +582,64 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const { refreshUser } = ws;
 
   const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
+  const documentLanguage = knownDocumentLanguage(ws.project);
+  /**
+   * Nguồn duy nhất của tài liệu (một lời gọi `GET /document` mỗi lượt tải): `DocumentPane` nhận qua prop, nên trang thấy được
+   * lúc bản mới về để đánh dấu mục đang / vừa cập nhật. `ExportPanel` giữ instance riêng (xuất bản chốt / bản nháp).
+   * Chưa `ws.ready` thì chưa tải (projectId rỗng ⇒ hook đứng yên).
+   */
+  const doc = useDocument(ws.ready ? projectId : "", "draft", undefined, documentRefreshToken, documentLanguage);
+  const { markPending: markDocumentPending, clearPending: clearDocumentPending } = doc;
 
   /**
    * Vẽ lại các sơ đồ (một lời gọi cho mỗi cặp kind + owner: `screen_flow` nhiều phần vẽ chung một lượt) rồi quét lại cờ và
-   * tải lại tài liệu — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới. Ném lỗi bằng câu tiếng Việt.
+   * tải lại tài liệu MỘT lần cho cả lô — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới.
+   * Mỗi sơ đồ vẽ trong một transaction riêng nên một sơ đồ lỗi không làm mất phần đã vẽ: vẫn tính lại cờ, đọc lại Spine
+   * (version tăng sau mỗi lần vẽ ⇒ `base_version` phải theo kịp, nếu không lệnh sửa kế tiếp ăn 409) và tải lại tài liệu.
+   * Trả kết quả từng sơ đồ (`error` = câu tiếng người, `null` = vẽ xong) và cờ sau khi tính lại (`null` = tính lại lỗi).
    */
+  const runRedraw = useCallback(
+    async (diagrams: readonly Diagram[]) => {
+      const targets = [...new Map(diagrams.map((d) => [diagramKey(d), d])).values()];
+      // Mục có sơ đồ đang vẽ báo "đang cập nhật" ngay từ lúc bắt đầu ghi, tới khi tài liệu mới về
+      markDocumentPending(targets.map((d) => d.section));
+      const results = new Map<string, string | null>();
+      for (const d of targets) {
+        try {
+          await renderDiagram(projectId, d.kind, d.owner_id);
+          results.set(diagramKey(d), null);
+        } catch (err) {
+          const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
+          results.set(diagramKey(d), friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message);
+        }
+      }
+      const drawn = [...results.values()].some((error) => error === null);
+      let flagsAfter: Flag[] | null = null;
+      if (drawn) {
+        flagsAfter = await recomputeFlagsFn().catch(() => null);
+        bumpVersion(await reloadSpine());
+        void reloadProgress();
+        setDocumentRefreshToken((v) => v + 1);
+      } else {
+        // Không sơ đồ nào vẽ được ⇒ không có bản mới nào về để tự xoá vùng chờ
+        clearDocumentPending();
+      }
+      return { results, flagsAfter };
+    },
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale, markDocumentPending, clearDocumentPending]
+  );
+
+  /** Vẽ lại từ nút trên tài liệu (theo mục / khung lỗi). Ném lỗi bằng câu tiếng Việt nếu có sơ đồ không vẽ được. */
   const redrawDiagrams = useCallback(
     async (diagrams: readonly Diagram[]) => {
       if (diagrams.length === 0) throw new Error(t("page.redrawNotFound"));
-      const targets = [...new Map(diagrams.map((d) => [`${d.kind}:${d.owner_id ?? ""}`, d])).values()];
-      try {
-        for (const d of targets) await renderDiagram(projectId, d.kind, d.owner_id);
-      } catch (err) {
-        const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-        throw new Error(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message);
-      }
-      await recomputeFlagsFn();
-      void reloadSpine();
-      void reloadProgress();
-      setDocumentRefreshToken((v) => v + 1);
+      const { results } = await runRedraw(diagrams);
+      const failure = [...results.values()].find((error) => error !== null);
+      if (failure) throw new Error(failure);
       setToast(t("toasts.redrawn"));
     },
-    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, t, locale]
+    [runRedraw, t]
   );
 
   const diagramsOfSection = useCallback(
@@ -608,18 +647,33 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     [spineState.spine]
   );
 
-  /** BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ, vẽ xong cờ tự đóng. */
-  const handleRedrawDiagram = useCallback(
-    async (flag: Flag) => {
-      try {
-        await redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === flag.target_id) ?? []);
-      } catch (err) {
-        setSaveError(err instanceof Error ? err.message : t("page.redrawFailed"));
-      }
+  /**
+   * BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ. Cả nhóm vẽ MỘT lượt; báo cáo
+   * nói sơ đồ nào không vẽ được và sơ đồ nào vẽ xong mà cờ vẫn còn (lấy từ lượt tính lại cờ, không từ `flags` cũ trong closure).
+   */
+  const handleRedrawDiagrams = useCallback(
+    async (targets: Flag[]): Promise<RedrawReport> => {
+      const byId = new Map((spineState.spine?.diagrams ?? []).map((d) => [d.id, d]));
+      const diagrams = targets.flatMap((flag) => byId.get(flag.target_id ?? "") ?? []);
+      const unknown = targets.filter((flag) => !byId.has(flag.target_id ?? ""));
+      if (diagrams.length === 0) return { failed: targets, stillBroken: [], flagsCheckFailed: false, error: t("page.redrawNotFound") };
+      const { results, flagsAfter } = await runRedraw(diagrams);
+      const errorOf = (flag: Flag) => {
+        const diagram = byId.get(flag.target_id ?? "");
+        return diagram ? results.get(diagramKey(diagram)) ?? null : null;
+      };
+      const failed = [...unknown, ...targets.filter((flag) => errorOf(flag) !== null)];
+      const drawnKeys = new Set([...results].filter(([, error]) => error === null).map(([key]) => key));
+      const stillBroken = (flagsAfter ?? []).filter((flag) => {
+        const diagram = byId.get(flag.target_id ?? "");
+        return isOpenFlag(flag) && isRedrawable(flag) && diagram !== undefined && drawnKeys.has(diagramKey(diagram));
+      });
+      const flagsCheckFailed = drawnKeys.size > 0 && flagsAfter === null;
+      if (failed.length === 0 && stillBroken.length === 0 && !flagsCheckFailed) setToast(t("toasts.redrawn"));
+      return { failed, stillBroken, flagsCheckFailed, error: [...results.values()].find((error) => error !== null) ?? undefined };
     },
-    [redrawDiagrams, spineState.spine, t]
+    [spineState.spine, runRedraw, t]
   );
-  const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
     (spineVersion?: number) => {
       bumpVersion(spineVersion);
@@ -932,7 +986,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
 
   // ─── Lệnh sửa trong chat áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
-  const changedSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
@@ -940,17 +993,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
+      // Mục bị ảnh hưởng báo "đang cập nhật" tới khi tài liệu mới về (thay cho viền nổi bật tắt theo timer)
+      markDocumentPending(impactedSectionIds ?? []);
       setDocumentRefreshToken((v) => v + 1);
-      setChangedSectionIds(new Set(impactedSectionIds ?? []));
-      // Viền nổi bật "một nhịp" (chú thích DocumentPane) — tắt sau một khoảng, không giữ mãi.
-      if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
-      changedSectionTimerRef.current = setTimeout(() => setChangedSectionIds(new Set()), CHANGED_SECTION_HIGHLIGHT_MS);
     },
-    [bumpVersion, replaceSpine, reloadProgress, t]
+    [bumpVersion, replaceSpine, reloadProgress, t, markDocumentPending]
   );
-  useEffect(() => () => {
-    if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
-  }, []);
 
   // ─── sửa tài liệu ngay trong chat (chip "Sửa tài liệu") ──────────
   /** Thẻ sửa đang hiện trong chat (đang xem trước / chờ quyết / vừa áp). */
@@ -1261,8 +1309,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    * tên dự án tiếng Việt user gõ lúc tạo. Chưa chốt tên thì mới rơi về tên dự án.
    */
   const documentName = spine?.project.system_name?.trim() || ws.project?.name;
-  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
-  const documentLanguage = knownDocumentLanguage(ws.project);
   /**
    * BUG-03: vòng S-5 của màn đang để trống — panel Tiến độ mở lại được, thay vì khoá cứng 5 bước.
    * Chỉ S-5.1 là chỗ vào: chạy nó đưa màn về `in_progress` và các bước còn lại tự tới lượt.
@@ -2076,10 +2122,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           projectId={projectId}
           projectName={documentName}
           flags={flags}
-          changedSectionIds={changedSectionIds}
+          doc={doc}
           // Mode 1 v3: không có step ⇒ không có nút "xem tại step", mục trống mời tạo CR
           onSelectStep={mode1 ? undefined : setSelectedStepId}
-          refreshToken={documentRefreshToken}
           mode1={mode1}
           onEditSection={canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined}
           onDraftSection={canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined}
@@ -2210,7 +2255,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onSelectStep={mode1 ? undefined : setSelectedStepId}
             onWaive={mode1 || !canEdit ? undefined : handleFlagWaive}
             onKeep={!canEdit ? undefined : handleFlagKeep}
-            onRedraw={canEdit ? handleRedrawDiagram : undefined}
+            onRedraw={canEdit ? handleRedrawDiagrams : undefined}
             onAssumptionDecision={mode1 || !canEdit ? undefined : (decision) => void applyAssumptionDecision(decision)}
             onConfirmAllAssumptions={mode1 || !canEdit ? undefined : (ids) => void confirmAllAssumptions(ids)}
             onRecompute={canEdit ? handleFlagRecompute : undefined}
