@@ -40,6 +40,9 @@ const SAMPLES = 8;
 const SAMPLE_LENGTH = 16;
 const EDGE_LENGTH = 32;
 
+/** Chuỗi tham chiếu dùng nguyên làm khoá — `image-ref:…@<hash>` có hash nội dung nên ảnh vẽ lại ⇒ khoá đổi. */
+const IMAGE_REFERENCE_PREFIXES = ["image-ref:", "diagram-ref:", "diagram-error:"];
+
 /** Dấu vân tay rẻ của chuỗi base64 rất dài: độ dài + đầu/cuối + vài đoạn rải đều (đầu/cuối PNG gần như cố định). */
 const fingerprint = (value: string): string => {
   const { length } = value;
@@ -53,13 +56,13 @@ const fingerprint = (value: string): string => {
 
 /**
  * Khoá so sánh của một block ảnh — KHÔNG stringify cả `png`:
- * - chuỗi tham chiếu (`diagram-ref:<id>` hay `diagram-ref:<id>@<hash>`, `diagram-error:<id>`) dùng nguyên;
+ * - chuỗi tham chiếu (`image-ref:<kind>:<id>[:<locale>]@<hash>`, `diagram-ref:<id>[@<hash>]`, `diagram-error:<id>`) dùng nguyên cả token;
  * - tham chiếu dạng object `{ ref, id, locale?, hash }` dùng id + hash (+ locale);
  * - base64 thật (vài trăm KB) dùng dấu vân tay.
  */
 export const imageKey = (png: unknown): string => {
   if (typeof png === "string") {
-    return png.startsWith("diagram-ref:") || png.startsWith("diagram-error:") ? png : fingerprint(png);
+    return IMAGE_REFERENCE_PREFIXES.some((prefix) => png.startsWith(prefix)) ? png : fingerprint(png);
   }
   if (png && typeof png === "object") {
     const ref = png as { ref?: unknown; id?: unknown; locale?: unknown; hash?: unknown };

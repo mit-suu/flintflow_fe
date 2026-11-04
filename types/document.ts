@@ -7,8 +7,9 @@ export type DocumentSource = "draft" | "baseline";
 
 /*
  * RenderedDocument — ĐỒNG BỘ TAY, nguồn là BE `modules/render/rendered-document.types.ts` (T05).
- * Ảnh qua HTTP là chuỗi base64 (có thể kèm tiền tố `data:image/png;base64,`), hoặc tham chiếu
- * `diagram-ref:<diagramId>` khi BE lộ cache nội bộ — FE tải lại qua `GET /diagrams/:id.png`.
+ * Ảnh qua HTTP là chuỗi base64 (có thể kèm tiền tố `data:image/png;base64,`; ảnh giữ chỗ "đang chờ vẽ" luôn là base64),
+ * tham chiếu `image-ref:<diagram|media>:<id>[:<locale>]@<hash>` (`GET /document` bản nháp — FE tải ảnh qua
+ * `GET /document/image?ref=`, `hash` đổi khi ảnh đổi), hoặc `diagram-ref:<diagramId>` (dạng cũ — `GET /diagrams/:id.png`).
  */
 
 export interface InlineRun {
@@ -84,6 +85,11 @@ export interface DraftMeta {
   assembled_at_version: number;
   spine_version: number;
   stale: boolean;
+  /**
+   * Revision của tài liệu bản nháp, tính TRƯỚC khi dựng bản này (chuỗi mờ — chỉ so bằng nhau với `GET /version`).
+   * BE cũ không gửi ⇒ vắng.
+   */
+  document_revision?: string;
 }
 
 // ─── Ngôn ngữ tài liệu (FLF-265) — `pipeline-contract.md` #16, #26, #27; schema ở BE `pipeline.dto.ts` ───

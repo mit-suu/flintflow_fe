@@ -7,11 +7,18 @@ import DocumentPane, { FRESH_HOLD_MS, followsHeading } from "./DocumentPane";
 import { blockRegionKey, sectionRegionKey } from "./document-diff";
 import type { DocumentUpdate, UseDocumentResult } from "../hooks/useDocument";
 import * as exportApi from "@/lib/api/export";
+import * as documentImages from "@/lib/api/document-images";
+import { ApiClientError } from "@/lib/api/client";
 import type { RenderedDocument } from "@/types/document";
 import type { Flag } from "@/types/flags";
 
 vi.mock("@/lib/api/export", () => ({
   getDocument: vi.fn(),
+}));
+
+vi.mock("@/lib/api/document-images", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/document-images")>()),
+  fetchDocumentImage: vi.fn(),
 }));
 
 const fixture: RenderedDocument = {
@@ -754,5 +761,94 @@ describe("DocumentPane — thư viện nội dung của tổ chức (FLF-278)", 
     expect(screen.getByText(/có sẵn nội dung cho 1 mục còn trống/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xem trước và dùng" }));
     expect(onUseLibraryAll).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const fetchImage = vi.mocked(documentImages.fetchDocumentImage);
+  const TOKEN = "image-ref:diagram:D1@0123456789abcdef";
+  const withImage = (png: string): RenderedDocument => ({
+    ...fixture,
+    sections: [{ id: "fixed:3.1.5", number: "3.1.5", heading: "Entity Relationship Diagram", level: 2, status: "accepted", blocks: [{ type: "image", png, caption: "ERD" }] }],
+  });
+  const meta = { assembled_at_version: 5, spine_version: 5, stale: false };
+  let created: string[];
+  let revoked: string[];
+
+  beforeEach(() => {
+    getDocument.mockReset();
+    fetchImage.mockReset();
+    created = [];
+    revoked = [];
+    URL.createObjectURL = vi.fn(() => {
+      const url = `blob:mock-${created.length}`;
+      created.push(url);
+      return url;
+    });
+    URL.revokeObjectURL = vi.fn((url: string) => void revoked.push(url));
+  });
+
+  it("base64 thật ⇒ hiện thẳng, không gọi tải ảnh", async () => {
+    getDocument.mockResolvedValue({ data: withImage("iVBORw0KGgo="), error: null, meta });
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    const img = await screen.findByAltText("ERD");
+    expect(img).toHaveAttribute("src", "data:image/png;base64,iVBORw0KGgo=");
+    expect(fetchImage).not.toHaveBeenCalled();
+  });
+
+  it("image-ref ⇒ tải Blob đúng token, hiện bằng object URL, thu hồi URL khi gỡ", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockResolvedValue(new Blob([new Uint8Array([1])], { type: "image/png" }));
+    const { unmount } = renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByAltText("ERD")).toHaveAttribute("src", "blob:mock-0");
+    expect(fetchImage).toHaveBeenCalledTimes(1);
+    expect(fetchImage).toHaveBeenCalledWith("p1", TOKEN);
+    expect(revoked).toEqual([]);
+    unmount();
+    expect(revoked).toEqual(["blob:mock-0"]);
+  });
+
+  it("mount lại cùng token ⇒ mỗi lần một object URL riêng (cache là Blob, không phải URL)", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    const blob = new Blob([new Uint8Array([1])], { type: "image/png" });
+    fetchImage.mockResolvedValue(blob);
+    const first = renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByAltText("ERD");
+    first.unmount();
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByAltText("ERD")).toHaveAttribute("src", "blob:mock-1");
+    expect(created).toEqual(["blob:mock-0", "blob:mock-1"]);
+    expect(revoked).toEqual(["blob:mock-0"]);
+  });
+
+  it("đang tải ⇒ khung giữ chỗ, chưa có <img>", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockReturnValue(new Promise(() => undefined));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByText("Đang tải ảnh…")).toBeInTheDocument();
+    expect(screen.queryByAltText("ERD")).toBeNull();
+  });
+
+  it("409 IMAGE_CHANGED ⇒ tải lại tài liệu một lượt, không báo lỗi", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockRejectedValue(new ApiClientError(409, "IMAGE_CHANGED", "đã vẽ lại"));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/đã vẽ lại/)).toBeNull();
+    await waitFor(() => expect(fetchImage).toHaveBeenCalled());
+    // BE vẫn lệch sau lượt tải lại: không lặp lại
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(getDocument).toHaveBeenCalledTimes(2);
+  });
+
+  it("lỗi khác (404) ⇒ báo lỗi nhỏ tại chỗ ảnh, không tải lại tài liệu", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockRejectedValue(new ApiClientError(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh"));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByText(/Không tìm thấy ảnh|Không tải được hình sơ đồ/)).toBeInTheDocument();
+    expect(getDocument).toHaveBeenCalledTimes(1);
   });
 });

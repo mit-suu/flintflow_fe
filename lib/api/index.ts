@@ -9,6 +9,7 @@ export * from "./flags";
 export * from "./comments";
 export * from "./sources";
 export * from "./export";
+export * from "./document-images";
 export * from "./notifications";
 export * from "./billing";
 export * from "./admin";
