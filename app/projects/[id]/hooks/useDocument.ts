@@ -1,12 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDocument } from "@/lib/api/export";
 import { translationMetaOf } from "@/lib/document-language";
 import type { DocumentSource, DocumentTranslationMeta, DraftMeta, RenderedDocument } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { HOOK_ERROR } from "@/lib/hook-errors";
+import { diffDocument, type DocumentDiff } from "../_components/document-diff";
+
+/** Vùng đang chờ bản mới tự hết hạn sau chừng này — lượt tải bị treo / bỏ rơi không để vùng "đang cập nhật" mãi. */
+export const PENDING_EXPIRY_MS = 60_000;
+
+const NO_SECTIONS: ReadonlySet<string> = new Set();
+
+/** Kết quả so bản vừa về với bản trước đó; `seq` tăng mỗi lần có bản khác nội dung (để nơi hiển thị biết đây là lượt mới). */
+export interface DocumentUpdate extends DocumentDiff {
+  seq: number;
+}
 
 export interface UseDocumentResult {
   document: RenderedDocument | null;
@@ -20,6 +31,17 @@ export interface UseDocumentResult {
   loading: boolean;
   /** Đang tải lại trong khi bản hiện tại vẫn hiển thị. */
   refreshing: boolean;
+  /**
+   * Lần tải lại gần nhất lỗi trong khi đã có tài liệu: bản đang hiển thị được GIỮ NGUYÊN, lỗi hiện nhỏ ở đây. Chỉ lần tải
+   * đầu (chưa có tài liệu) hay lúc đổi nguồn / ngôn ngữ mới dùng `error` thay nội dung.
+   */
+  refreshError: string | null;
+  /** So bản vừa về với bản trước (cùng nguồn + ngôn ngữ). `null` ⇒ lần tải đầu, vừa đổi nguồn, hoặc không có gì khác. */
+  lastDiff: DocumentUpdate | null;
+  /** Mục đang chờ bản mới (đặt bằng `markPending` khi thao tác bắt đầu ghi, tự xoá khi tài liệu mới về, lỗi, hoặc hết hạn). */
+  pendingSectionIds: ReadonlySet<string>;
+  markPending: (sectionIds: Iterable<string>) => void;
+  clearPending: () => void;
   /** Dự án chưa có nội dung nào để dựng tài liệu — BE trả 200 kèm `meta.state = "not_assembled"`, không phải lỗi. */
   empty: boolean;
   error: string | null;
@@ -53,6 +75,15 @@ export function useDocument(
   const [pending, setPending] = useState(true);
   const [empty, setEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [lastDiff, setLastDiff] = useState<DocumentUpdate | null>(null);
+  /** Mỗi lượt tải xong (thành công hay lỗi) tăng một bậc — vùng chờ gắn với bậc lúc đánh dấu nên tự hết hiệu lực khi có bản về. */
+  const [settled, setSettled] = useState(0);
+  const [pendingMark, setPendingMark] = useState<{ ids: ReadonlySet<string>; settled: number } | null>(null);
+  const settledRef = useRef(0);
+  const diffSeqRef = useRef(0);
+  /** Bản đang hiển thị — đọc trong callback bất đồng bộ (state trong closure là bản cũ). */
+  const documentRef = useRef<RenderedDocument | null>(null);
   // Chỉ response của lần gọi mới nhất được áp (cùng pattern `useSpine.ts`) — tránh một `reload()`
   // gọi tay ghi đè bằng response của lần tải trước đó về muộn hơn.
   const requestRef = useRef(0);
@@ -67,9 +98,12 @@ export function useDocument(
     const key = `${source}:${baselineId ?? ""}:${language ?? ""}`;
     if (sourceRef.current !== key) {
       sourceRef.current = key;
+      documentRef.current = null;
       setDocument(null);
       setMeta(null);
       setTranslation(null);
+      setLastDiff(null);
+      setRefreshError(null);
     }
     setPending(true);
     return getDocument(projectId, source, baselineId)
@@ -77,19 +111,34 @@ export function useDocument(
         if (request !== requestRef.current) return;
         // BUG-31: dự án chưa có nội dung là trạng thái bình thường của một dự án đang làm dở, BE trả 200 + meta.state
         const nothingYet = res.data === null && res.meta?.state === "not_assembled";
+        const previous = documentRef.current;
+        documentRef.current = res.data;
+        const diff = previous && res.data ? diffDocument(previous, res.data) : null;
+        setLastDiff(diff && diff.sections.size > 0 ? { ...diff, seq: ++diffSeqRef.current } : null);
         setDocument(res.data);
         setMeta(isDraftMeta(res.meta) ? res.meta : null);
         setTranslation(translationMetaOf(res.meta));
         setEmpty(nothingYet);
         setError(null);
+        setRefreshError(null);
+        settledRef.current += 1;
+        setSettled(settledRef.current);
       })
       .catch((err: unknown) => {
         if (request !== requestRef.current) return;
-        setDocument(null);
-        setMeta(null);
-        setTranslation(null);
-        setEmpty(false);
-        setError(userErrorMessage(err, HOOK_ERROR.docLoadFailed));
+        const message = userErrorMessage(err, HOOK_ERROR.docLoadFailed);
+        if (documentRef.current) {
+          // Đã có tài liệu cùng nguồn + ngôn ngữ: giữ nguyên bản đang đọc, chỉ báo lỗi nhỏ
+          setRefreshError(message);
+        } else {
+          setDocument(null);
+          setMeta(null);
+          setTranslation(null);
+          setEmpty(false);
+          setError(message);
+        }
+        settledRef.current += 1;
+        setSettled(settledRef.current);
       })
       .finally(() => {
         if (request === requestRef.current) setPending(false);
@@ -103,5 +152,36 @@ export function useDocument(
     queueMicrotask(() => void reload());
   }, [projectId, reload, refreshToken]);
 
-  return { document, meta, translation, loading: pending && document === null, refreshing: pending && document !== null, empty, error, reload };
+  const markPending = useCallback((sectionIds: Iterable<string>) => {
+    const ids = new Set(sectionIds);
+    setPendingMark(ids.size > 0 ? { ids, settled: settledRef.current } : null);
+  }, []);
+  const clearPending = useCallback(() => setPendingMark(null), []);
+
+  useEffect(() => {
+    if (!pendingMark) return;
+    const timer = setTimeout(() => setPendingMark((current) => (current === pendingMark ? null : current)), PENDING_EXPIRY_MS);
+    return () => clearTimeout(timer);
+  }, [pendingMark]);
+
+  const pendingSectionIds = useMemo(
+    () => (pendingMark && pendingMark.settled === settled ? pendingMark.ids : NO_SECTIONS),
+    [pendingMark, settled]
+  );
+
+  return {
+    document,
+    meta,
+    translation,
+    loading: pending && document === null,
+    refreshing: pending && document !== null,
+    empty,
+    error,
+    refreshError,
+    lastDiff,
+    pendingSectionIds,
+    markPending,
+    clearPending,
+    reload,
+  };
 }
