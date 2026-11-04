@@ -3582,6 +3582,7 @@
         "import_semantic": "AI found a content issue",
         "import_image_unread": "Image could not be read",
         "import_unresolved_ref": "Permission does not match a screen / role",
+        "import_title_content_mismatch": "Heading and content differ",
         "original_diagram_stale": "Original diagram out of sync with data",
         "accepted_as_is": "Accepted as is",
         "goal_not_covered": "Goal not covered",
