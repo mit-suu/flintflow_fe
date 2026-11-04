@@ -36,4 +36,22 @@ describe("fpt-sections — nhãn section tạm (FLF-312)", () => {
     expect(sectionLabelIn("fixed:2.1", headings)).toBe("2.1 Actors");
     expect(sectionLabelIn(null)).toBe("Không khớp (giữ nguyên, không trích)");
   });
+
+  it("FLF-362: section có heading trong file ⇒ tiêu đề + số của file (số Word tự đánh ghép vào), không phải nhãn mẫu FPT", () => {
+    const fileHeadings = [
+      { block_id: "B0001", heading_text: "User Characteristics", section_id: "fixed:2.1", number_label: "2.4." },
+      { block_id: "B0002", heading_text: "1.3 Định nghĩa, từ viết tắt", section_id: "fixed:5.5", number_label: "9.9" },
+      { block_id: "B0003", heading_text: "Product Scope", section_id: "slot:scope" },
+      { block_id: "B0004", heading_text: "Authentication", section_id: "feature:@B0004", number_label: "3.2." },
+    ];
+    // số Word tự đánh của file, không phải "2.1 Actors" của mẫu FPT
+    expect(sectionLabelIn("fixed:2.1", fileHeadings)).toBe("2.4. User Characteristics");
+    // chữ đã gõ số tay ⇒ giữ nguyên, không ghép thêm nhãn
+    expect(sectionLabelIn("fixed:5.5", fileHeadings)).toBe("1.3 Định nghĩa, từ viết tắt");
+    // phần nhỏ / mục không số ⇒ đúng chữ của file
+    expect(sectionLabelIn("slot:scope", fileHeadings)).toBe("Product Scope");
+    expect(sectionLabelIn("feature:@B0004", fileHeadings)).toBe("3.2. Authentication");
+    // mục FPT không có heading trong file ⇒ nhãn mẫu
+    expect(sectionLabelIn("fixed:4.1", fileHeadings)).toBe("4.1 External Interfaces");
+  });
 });

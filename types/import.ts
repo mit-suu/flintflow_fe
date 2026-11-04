@@ -141,6 +141,8 @@ export interface HeadingMapEntry {
   template_section?: string | null;
   /** FLF-278 trên FLF-336 (business-flow 1.5): chữ hướng dẫn của mẫu dưới heading — chỉ để xem, không phải nội dung. */
   guidance?: string;
+  /** FLF-362: nhãn số Word tự đánh của heading ("2.1.", "II.") — không nằm trong `heading_text`; hiển thị = nhãn + tiêu đề. */
+  number_label?: string;
 }
 
 /** Họ mẫu của tài liệu upload (FLF-252). */
@@ -170,6 +172,8 @@ export interface LayoutEntry {
   heading_text: string;
   level: number;
   section_id: string;
+  /** FLF-362: như `HeadingMapEntry.number_label`. */
+  number_label?: string;
 }
 
 export interface TemplateProfile {

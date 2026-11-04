@@ -121,13 +121,28 @@ export const sectionLabel = (id: string | null, locale: Locale = currentLocale()
   return id;
 };
 
-/** Như `sectionLabel`, nhưng section tạm lấy tiêu đề heading sinh ra nó (`heading_map` của profile) để ghi rõ tính năng / chức năng nào. */
-export const sectionLabelIn = (
-  id: string | null,
-  headingMap?: readonly { block_id: string; heading_text: string }[],
-  locale: Locale = currentLocale()
-): string => {
+/** Số gõ tay ở đầu tiêu đề (`2.1 Actors`, `IV. NFR`) — cùng mẫu `splitHeadingNumber` của BE. */
+const TYPED_NUMBER = /^\s*(?:(?:\d{1,2}\.)*\d{1,2}|[IVX]{1,4})\.?\s+\S/;
+
+/**
+ * Tiêu đề heading của file upload đúng như người dùng thấy trong Word (FLF-362): nhãn số Word tự đánh (`number_label`) +
+ * chữ heading; chữ đã gõ số tay hoặc không có nhãn ⇒ giữ nguyên chữ.
+ */
+export const fileHeadingLabel = (heading: { heading_text: string; number_label?: string }): string => {
+  const text = heading.heading_text.trim();
+  const label = heading.number_label?.trim();
+  return label && text && !TYPED_NUMBER.test(text) ? `${label} ${text}` : text;
+};
+
+type HeadingRef = { block_id: string; heading_text: string; section_id?: string; number_label?: string };
+
+/**
+ * Như `sectionLabel`, nhưng lấy tiêu đề **của file upload** (`heading_map` của profile) — kèm đúng số của file (FLF-362):
+ * section tạm theo heading sinh ra nó, section khác theo heading đầu tiên map vào nó. Section không có heading trong file
+ * (mục FPT FlintFlow thêm) ⇒ nhãn mẫu như `sectionLabel`.
+ */
+export const sectionLabelIn = (id: string | null, headingMap?: readonly HeadingRef[], locale: Locale = currentLocale()): string => {
   const block = id && isProvisionalSection(id) ? id.slice(id.indexOf("@") + 1) : null;
-  const heading = block ? headingMap?.find((h) => h.block_id === block)?.heading_text : undefined;
-  return id && heading?.trim() ? provisionalLabel(heading) : sectionLabel(id, locale);
+  const heading = id ? headingMap?.find((h) => (block ? h.block_id === block : h.section_id === id)) : undefined;
+  return heading?.heading_text.trim() ? provisionalLabel(fileHeadingLabel(heading)) : sectionLabel(id, locale);
 };

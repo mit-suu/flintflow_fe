@@ -207,8 +207,10 @@ export const spineLabels = (t: Mode1T, localeName: string) => {
 
   /** Nhãn mục theo ngôn ngữ — dùng chung `lib/constants/fpt-sections` (namespace `common.fptSections`). */
   const sectionLabel = (id: string | null): string => fptSectionLabel(id, locale);
-  const sectionLabelIn = (id: string | null, headingMap?: readonly { block_id: string; heading_text: string }[]): string =>
-    fptSectionLabelIn(id, headingMap, locale);
+  const sectionLabelIn = (
+    id: string | null,
+    headingMap?: readonly { block_id: string; heading_text: string; section_id?: string; number_label?: string }[]
+  ): string => fptSectionLabelIn(id, headingMap, locale);
 
   /** Mục trong câu chữ: `fixed:5.1` ⇒ "5.1 Business Rules". */
   const sectionName = (sectionId: string | null | undefined): string => (sectionId ? sectionLabel(sectionId) : "");
