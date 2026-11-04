@@ -15,7 +15,11 @@ export interface UseFlagsResult {
   waive: (flagId: string, reason: string) => Promise<void>;
   /** FLF-329: giữ nguyên + lý do — cờ vẫn mở. */
   keep: (flagId: string, reason: string) => Promise<void>;
-  recompute: () => Promise<void>;
+  /**
+   * Tính lại cờ và trả danh sách cờ mới. Lỗi thì đặt `error` rồi NÉM — nơi gọi tự quyết bắt hay báo (vẽ lại sơ đồ cần
+   * phân biệt "còn lỗi" với "không kiểm lại được").
+   */
+  recompute: () => Promise<Flag[]>;
 }
 
 /** `GET /flags`, tải lại mỗi khi `spineVersion` đổi (ops mới có thể mở/đóng cờ). */
@@ -96,10 +100,13 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
     setBusy(true);
     try {
       const res = await recomputeFlags(projectId);
-      setFlags(res.data ?? []);
+      const next = res.data ?? [];
+      setFlags(next);
       setError(null);
+      return next;
     } catch (err) {
       setError(userErrorMessage(err, HOOK_ERROR.recomputeFailed));
+      throw err;
     } finally {
       setBusy(false);
     }

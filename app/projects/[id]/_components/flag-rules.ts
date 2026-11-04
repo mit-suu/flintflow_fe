@@ -138,3 +138,19 @@ export const issueCounts = (flags: readonly Flag[], outdated = 0, acceptedSteps?
 
 /** Lý do bỏ qua một cờ phải dài ít nhất chừng này ký tự (in kèm trong tài liệu). */
 export const WAIVE_REASON_MIN_LENGTH = 20;
+
+/** Cờ mà việc cần làm là vẽ lại sơ đồ, không phải sửa nội dung. */
+export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_stale" || flag.rule_id === "render_error";
+
+/**
+ * Kết quả của một lượt "Vẽ lại" (một hay nhiều cờ): panel dựng thông báo từ đây, không tự đoán.
+ * `failed`: cờ có sơ đồ không vẽ lại được (hoặc không tìm thấy sơ đồ); `stillBroken`: cờ vẫn mở sau khi vẽ xong,
+ * lấy từ lượt tính lại cờ; `flagsCheckFailed`: vẽ xong nhưng tính lại cờ lỗi ⇒ không biết còn lỗi hay không.
+ */
+export interface RedrawReport {
+  failed: Flag[];
+  stillBroken: Flag[];
+  flagsCheckFailed: boolean;
+  /** Câu lỗi đầu tiên của lượt vẽ (nếu có), đã chuyển sang tiếng người. */
+  error?: string;
+}

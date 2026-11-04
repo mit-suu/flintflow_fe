@@ -88,8 +88,8 @@ import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
-import { issueCounts, readableMessage } from "./_components/flag-rules";
-import { isFlagWaivable } from "@/types/flags";
+import { isRedrawable, issueCounts, readableMessage, type RedrawReport } from "./_components/flag-rules";
+import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
@@ -109,6 +109,9 @@ const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
 const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
+
+/** Sơ đồ vẽ chung một lượt khi cùng kind + owner (`screen_flow` nhiều phần, hai cờ cùng một hình). */
+const diagramKey = (d: Pick<Diagram, "kind" | "owner_id">): string => `${d.kind}:${d.owner_id ?? ""}`;
 /** Toast tự tắt sau khoảng này — trước đây nó ở mãi và che nút Gửi của ô chat. */
 const TOAST_MS = 5000;
 /** Nút "Vẽ lại sơ đồ" dưới hình của mỗi mục trong DocumentPane — tạm ẩn; đổi thành `true` để hiện lại. */
@@ -567,7 +570,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const { reload: reloadSpine, replace: replaceSpine } = spineState;
 
   const handleFlagRecompute = useCallback(async () => {
-    await recomputeFlagsFn();
+    // Lỗi tính lại cờ đã nằm ở `flagsError` của panel; vẫn đọc lại Spine như trước
+    await recomputeFlagsFn().catch(() => undefined);
     // Recompute GHI cờ ⇒ `spine_version` đổi. Không đọc lại thì lần chạy step ngay sau đó gửi phiên bản
     // cũ và ăn 409 — đúng chuỗi thao tác "tính lại cờ rồi chạy lại bước đang bị cờ chỉ tới".
     // Nâng `versionRef` ngay từ kết quả đọc: chỉ trông vào effect theo `spineState.version` thì nó chạy SAU lệnh kế tiếp
@@ -582,25 +586,47 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
   /**
    * Vẽ lại các sơ đồ (một lời gọi cho mỗi cặp kind + owner: `screen_flow` nhiều phần vẽ chung một lượt) rồi quét lại cờ và
-   * tải lại tài liệu — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới. Ném lỗi bằng câu tiếng Việt.
+   * tải lại tài liệu MỘT lần cho cả lô — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới.
+   * Mỗi sơ đồ vẽ trong một transaction riêng nên một sơ đồ lỗi không làm mất phần đã vẽ: vẫn tính lại cờ, đọc lại Spine
+   * (version tăng sau mỗi lần vẽ ⇒ `base_version` phải theo kịp, nếu không lệnh sửa kế tiếp ăn 409) và tải lại tài liệu.
+   * Trả kết quả từng sơ đồ (`error` = câu tiếng người, `null` = vẽ xong) và cờ sau khi tính lại (`null` = tính lại lỗi).
    */
+  const runRedraw = useCallback(
+    async (diagrams: readonly Diagram[]) => {
+      const targets = [...new Map(diagrams.map((d) => [diagramKey(d), d])).values()];
+      const results = new Map<string, string | null>();
+      for (const d of targets) {
+        try {
+          await renderDiagram(projectId, d.kind, d.owner_id);
+          results.set(diagramKey(d), null);
+        } catch (err) {
+          const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
+          results.set(diagramKey(d), friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message);
+        }
+      }
+      const drawn = [...results.values()].some((error) => error === null);
+      let flagsAfter: Flag[] | null = null;
+      if (drawn) {
+        flagsAfter = await recomputeFlagsFn().catch(() => null);
+        bumpVersion(await reloadSpine());
+        void reloadProgress();
+        setDocumentRefreshToken((v) => v + 1);
+      }
+      return { results, flagsAfter };
+    },
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale]
+  );
+
+  /** Vẽ lại từ nút trên tài liệu (theo mục / khung lỗi). Ném lỗi bằng câu tiếng Việt nếu có sơ đồ không vẽ được. */
   const redrawDiagrams = useCallback(
     async (diagrams: readonly Diagram[]) => {
       if (diagrams.length === 0) throw new Error(t("page.redrawNotFound"));
-      const targets = [...new Map(diagrams.map((d) => [`${d.kind}:${d.owner_id ?? ""}`, d])).values()];
-      try {
-        for (const d of targets) await renderDiagram(projectId, d.kind, d.owner_id);
-      } catch (err) {
-        const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-        throw new Error(friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message);
-      }
-      await recomputeFlagsFn();
-      void reloadSpine();
-      void reloadProgress();
-      setDocumentRefreshToken((v) => v + 1);
+      const { results } = await runRedraw(diagrams);
+      const failure = [...results.values()].find((error) => error !== null);
+      if (failure) throw new Error(failure);
       setToast(t("toasts.redrawn"));
     },
-    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, t, locale]
+    [runRedraw, t]
   );
 
   const diagramsOfSection = useCallback(
@@ -608,16 +634,32 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     [spineState.spine]
   );
 
-  /** BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ, vẽ xong cờ tự đóng. */
-  const handleRedrawDiagram = useCallback(
-    async (flag: Flag) => {
-      try {
-        await redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === flag.target_id) ?? []);
-      } catch (err) {
-        setSaveError(err instanceof Error ? err.message : t("page.redrawFailed"));
-      }
+  /**
+   * BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ. Cả nhóm vẽ MỘT lượt; báo cáo
+   * nói sơ đồ nào không vẽ được và sơ đồ nào vẽ xong mà cờ vẫn còn (lấy từ lượt tính lại cờ, không từ `flags` cũ trong closure).
+   */
+  const handleRedrawDiagrams = useCallback(
+    async (targets: Flag[]): Promise<RedrawReport> => {
+      const byId = new Map((spineState.spine?.diagrams ?? []).map((d) => [d.id, d]));
+      const diagrams = targets.flatMap((flag) => byId.get(flag.target_id ?? "") ?? []);
+      const unknown = targets.filter((flag) => !byId.has(flag.target_id ?? ""));
+      if (diagrams.length === 0) return { failed: targets, stillBroken: [], flagsCheckFailed: false, error: t("page.redrawNotFound") };
+      const { results, flagsAfter } = await runRedraw(diagrams);
+      const errorOf = (flag: Flag) => {
+        const diagram = byId.get(flag.target_id ?? "");
+        return diagram ? results.get(diagramKey(diagram)) ?? null : null;
+      };
+      const failed = [...unknown, ...targets.filter((flag) => errorOf(flag) !== null)];
+      const drawnKeys = new Set([...results].filter(([, error]) => error === null).map(([key]) => key));
+      const stillBroken = (flagsAfter ?? []).filter((flag) => {
+        const diagram = byId.get(flag.target_id ?? "");
+        return isOpenFlag(flag) && isRedrawable(flag) && diagram !== undefined && drawnKeys.has(diagramKey(diagram));
+      });
+      const flagsCheckFailed = drawnKeys.size > 0 && flagsAfter === null;
+      if (failed.length === 0 && stillBroken.length === 0 && !flagsCheckFailed) setToast(t("toasts.redrawn"));
+      return { failed, stillBroken, flagsCheckFailed, error: [...results.values()].find((error) => error !== null) ?? undefined };
     },
-    [redrawDiagrams, spineState.spine, t]
+    [spineState.spine, runRedraw, t]
   );
   const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
@@ -2210,7 +2252,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onSelectStep={mode1 ? undefined : setSelectedStepId}
             onWaive={mode1 || !canEdit ? undefined : handleFlagWaive}
             onKeep={!canEdit ? undefined : handleFlagKeep}
-            onRedraw={canEdit ? handleRedrawDiagram : undefined}
+            onRedraw={canEdit ? handleRedrawDiagrams : undefined}
             onAssumptionDecision={mode1 || !canEdit ? undefined : (decision) => void applyAssumptionDecision(decision)}
             onConfirmAllAssumptions={mode1 || !canEdit ? undefined : (ids) => void confirmAllAssumptions(ids)}
             onRecompute={canEdit ? handleFlagRecompute : undefined}
