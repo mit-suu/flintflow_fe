@@ -143,6 +143,9 @@ export interface HeadingMapEntry {
   content_mismatch?: { by_title: string; by_content: string };
   /** FLF-278 trên FLF-336 (business-flow 1.5): chữ hướng dẫn của mẫu dưới heading — chỉ để xem, không phải nội dung. */
   guidance?: string;
+  /** FLF-364: nguồn của `guidance` — chữ trong `[ ]` / `{ }`, có / không kèm kiểu chữ hướng dẫn; block chứa nó. */
+  guidance_by?: "brackets" | "brackets+format";
+  guidance_blocks?: string[];
   /** FLF-362: nhãn số Word tự đánh của heading ("2.1.", "II.") — không nằm trong `heading_text`; hiển thị = nhãn + tiêu đề. */
   number_label?: string;
 }
@@ -166,6 +169,8 @@ export interface TableMapEntry {
   role?: TableColumnRole;
   /** FLF-252: tối đa 3 giá trị đầu của cột. */
   samples?: string[];
+  /** FLF-364: chữ hướng dẫn trong các ô của cột (`[Tên tác nhân]`), bỏ ngoặc. */
+  guidance?: string;
 }
 
 /** Mục của layout tài liệu người dùng (FLF-182): `section_id` = section FPT hoặc `custom:<id>`. */
