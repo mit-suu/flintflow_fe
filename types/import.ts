@@ -135,18 +135,20 @@ export interface HeadingMapEntry {
   /** FLF-343: độ tin thấp, tự nhận lúc tách file — có cờ vàng "Cần xem" sau baseline 0.1. */
   auto_confirmed?: boolean;
   /**
-   * FLF-252: heading khớp một mục của mẫu không phải FPT (IEEE). Mã nội bộ — FE không hiện, chỉ dùng để biết
+   * FLF-363: phần của ngân hàng phần chung FPT + IEEE khớp theo tên. Mã nội bộ — FE không hiện, chỉ dùng để biết
    * `unmapped` này là mục riêng của mẫu (giữ nguyên văn), không phải heading lạ.
    */
   template_section?: string | null;
+  /** FLF-363: mục theo tên (`by_title`) khác mục theo nội dung (`by_content`) — heading đã đổi theo nội dung. */
+  content_mismatch?: { by_title: string; by_content: string };
   /** FLF-278 trên FLF-336 (business-flow 1.5): chữ hướng dẫn của mẫu dưới heading — chỉ để xem, không phải nội dung. */
   guidance?: string;
   /** FLF-362: nhãn số Word tự đánh của heading ("2.1.", "II.") — không nằm trong `heading_text`; hiển thị = nhãn + tiêu đề. */
   number_label?: string;
 }
 
-/** Họ mẫu của tài liệu upload (FLF-252). */
-export type TemplateFamily = "fpt" | "ieee830" | "ieee_features";
+/** Nhãn họ mẫu của tài liệu upload (FLF-363) — tính sau khi khớp, chỉ để báo cáo. */
+export type TemplateFamily = "fpt" | "ieee29148" | "mixed";
 
 /** Vai trò cột theo dữ liệu dưới tiêu đề (FLF-252). */
 export type TableColumnRole = "row_no" | "code" | "date" | "version" | "change_type" | "mark" | "text" | "name";
