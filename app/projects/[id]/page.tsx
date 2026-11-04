@@ -95,6 +95,7 @@ import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
 import { isPhaseUnit, unitOfStep, useStepRunner } from "./hooks/useStepRunner";
 import { useFlags } from "./hooks/useFlags";
+import { useDocument } from "./hooks/useDocument";
 import { useComments } from "./hooks/useComments";
 import CommentsPanel from "./_components/CommentsPanel";
 import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comment";
@@ -108,8 +109,6 @@ const subscribeViewport = (onChange: () => void) => {
 const viewportWidth = () => window.innerWidth;
 
 /** Viền nổi bật của section vừa đổi (DocumentPane) tắt sau một nhịp — khớp chú thích UI. */
-const CHANGED_SECTION_HIGHLIGHT_MS = 3000;
-
 /** Sơ đồ vẽ chung một lượt khi cùng kind + owner (`screen_flow` nhiều phần, hai cờ cùng một hình). */
 const diagramKey = (d: Pick<Diagram, "kind" | "owner_id">): string => `${d.kind}:${d.owner_id ?? ""}`;
 /** Toast tự tắt sau khoảng này — trước đây nó ở mãi và che nút Gửi của ô chat. */
@@ -583,6 +582,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const { refreshUser } = ws;
 
   const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
+  const documentLanguage = knownDocumentLanguage(ws.project);
+  /**
+   * Nguồn duy nhất của tài liệu (một lời gọi `GET /document` mỗi lượt tải): `DocumentPane` nhận qua prop, nên trang thấy được
+   * lúc bản mới về để đánh dấu mục đang / vừa cập nhật. `ExportPanel` giữ instance riêng (xuất bản chốt / bản nháp).
+   * Chưa `ws.ready` thì chưa tải (projectId rỗng ⇒ hook đứng yên).
+   */
+  const doc = useDocument(ws.ready ? projectId : "", "draft", undefined, documentRefreshToken, documentLanguage);
+  const { markPending: markDocumentPending, clearPending: clearDocumentPending } = doc;
 
   /**
    * Vẽ lại các sơ đồ (một lời gọi cho mỗi cặp kind + owner: `screen_flow` nhiều phần vẽ chung một lượt) rồi quét lại cờ và
@@ -594,6 +602,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const runRedraw = useCallback(
     async (diagrams: readonly Diagram[]) => {
       const targets = [...new Map(diagrams.map((d) => [diagramKey(d), d])).values()];
+      // Mục có sơ đồ đang vẽ báo "đang cập nhật" ngay từ lúc bắt đầu ghi, tới khi tài liệu mới về
+      markDocumentPending(targets.map((d) => d.section));
       const results = new Map<string, string | null>();
       for (const d of targets) {
         try {
@@ -611,10 +621,13 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         bumpVersion(await reloadSpine());
         void reloadProgress();
         setDocumentRefreshToken((v) => v + 1);
+      } else {
+        // Không sơ đồ nào vẽ được ⇒ không có bản mới nào về để tự xoá vùng chờ
+        clearDocumentPending();
       }
       return { results, flagsAfter };
     },
-    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale]
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale, markDocumentPending, clearDocumentPending]
   );
 
   /** Vẽ lại từ nút trên tài liệu (theo mục / khung lỗi). Ném lỗi bằng câu tiếng Việt nếu có sơ đồ không vẽ được. */
@@ -661,7 +674,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [spineState.spine, runRedraw, t]
   );
-  const [changedSectionIds, setChangedSectionIds] = useState<Set<string>>(new Set());
   const onSpineChanged = useCallback(
     (spineVersion?: number) => {
       bumpVersion(spineVersion);
@@ -974,7 +986,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
 
   // ─── Lệnh sửa trong chat áp lô đã có preview (UC 6.8) — Spine mới đã có sẵn, khỏi reloadSpine ────
-  const changedSectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
@@ -982,17 +993,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
+      // Mục bị ảnh hưởng báo "đang cập nhật" tới khi tài liệu mới về (thay cho viền nổi bật tắt theo timer)
+      markDocumentPending(impactedSectionIds ?? []);
       setDocumentRefreshToken((v) => v + 1);
-      setChangedSectionIds(new Set(impactedSectionIds ?? []));
-      // Viền nổi bật "một nhịp" (chú thích DocumentPane) — tắt sau một khoảng, không giữ mãi.
-      if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
-      changedSectionTimerRef.current = setTimeout(() => setChangedSectionIds(new Set()), CHANGED_SECTION_HIGHLIGHT_MS);
     },
-    [bumpVersion, replaceSpine, reloadProgress, t]
+    [bumpVersion, replaceSpine, reloadProgress, t, markDocumentPending]
   );
-  useEffect(() => () => {
-    if (changedSectionTimerRef.current) clearTimeout(changedSectionTimerRef.current);
-  }, []);
 
   // ─── sửa tài liệu ngay trong chat (chip "Sửa tài liệu") ──────────
   /** Thẻ sửa đang hiện trong chat (đang xem trước / chờ quyết / vừa áp). */
@@ -1303,8 +1309,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    * tên dự án tiếng Việt user gõ lúc tạo. Chưa chốt tên thì mới rơi về tên dự án.
    */
   const documentName = spine?.project.system_name?.trim() || ws.project?.name;
-  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
-  const documentLanguage = knownDocumentLanguage(ws.project);
   /**
    * BUG-03: vòng S-5 của màn đang để trống — panel Tiến độ mở lại được, thay vì khoá cứng 5 bước.
    * Chỉ S-5.1 là chỗ vào: chạy nó đưa màn về `in_progress` và các bước còn lại tự tới lượt.
@@ -2118,10 +2122,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           projectId={projectId}
           projectName={documentName}
           flags={flags}
-          changedSectionIds={changedSectionIds}
+          doc={doc}
           // Mode 1 v3: không có step ⇒ không có nút "xem tại step", mục trống mời tạo CR
           onSelectStep={mode1 ? undefined : setSelectedStepId}
-          refreshToken={documentRefreshToken}
           mode1={mode1}
           onEditSection={canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined}
           onDraftSection={canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined}
