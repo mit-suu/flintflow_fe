@@ -852,3 +852,26 @@ describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
     expect(getDocument).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("DocumentPane — dải Có bản mới", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  beforeEach(() => {
+    getDocument.mockReset();
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+  });
+
+  it("có newerVersion ⇒ dải 'Có bản mới · Cập nhật'; bấm Cập nhật gọi onApply", async () => {
+    const onApply = vi.fn();
+    renderWithIntl(<DocumentPane projectId="p1" newerVersion={{ onApply }} />);
+    await screen.findByText("Vision statement");
+    expect(screen.getByText("Có bản mới")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cập nhật" }));
+    expect(onApply).toHaveBeenCalledTimes(1);
+  });
+
+  it("không có newerVersion ⇒ không có dải", async () => {
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByText("Vision statement");
+    expect(screen.queryByText("Có bản mới")).toBeNull();
+  });
+});

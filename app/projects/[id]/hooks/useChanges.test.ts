@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as spineApi from "@/lib/api/spine";
 import { applyChanges, getSpine } from "@/lib/api/spine";
@@ -6,6 +6,8 @@ import { mockTiming, resetMockChangeFlowState } from "@/mocks/handlers";
 import { mockServer } from "@/mocks/server";
 import { MOCK_PROJECT_ID, resetMockState } from "@/mocks/state";
 import { useChanges } from "./useChanges";
+import { ApiClientError } from "@/lib/api/client";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 import type { ApplyResult } from "@/types/pipeline";
 
 const P = MOCK_PROJECT_ID;
@@ -142,5 +144,73 @@ describe("useChanges", () => {
     await waitFor(() => expect(onApplied).toHaveBeenCalledTimes(2));
     const undone = onApplied.mock.calls[1][0] as ApplyResult;
     expect(undone.spine.actors[0]?.description).toBe("Ban đầu");
+  });
+});
+
+describe("useChanges — cổng đồng bộ trước khi gửi và 409", () => {
+  it("syncBeforeSend chạy trước /changes/preview và base_version lấy SAU cổng", async () => {
+    const baseVersion = await seedActor();
+    const previewSpy = vi.spyOn(spineApi, "previewChanges");
+    let current = baseVersion - 1; // tab đang giữ bản cũ
+    const syncBeforeSend = vi.fn(async () => {
+      current = baseVersion;
+      return true;
+    });
+    const { result } = renderHook(() => useChanges(P, () => current, () => null, vi.fn(), () => null, { syncBeforeSend }));
+
+    await act(async () => void (await result.current.requestPreview("làm rõ vai trò")));
+    expect(syncBeforeSend).toHaveBeenCalledTimes(1);
+    expect(previewSpy).toHaveBeenCalledWith(P, expect.objectContaining({ base_version: baseVersion }));
+    previewSpy.mockRestore();
+  });
+
+  it("confirmPreview: cổng vừa kéo Spine lên bản mới hơn bản xem trước ⇒ bỏ xem trước, không gọi /changes", async () => {
+    const baseVersion = await seedActor();
+    const applySpy = vi.spyOn(spineApi, "applyChanges");
+    let current = baseVersion;
+    let synced = false;
+    const syncBeforeSend = vi.fn(async () => {
+      if (synced) current = baseVersion + 1;
+      return synced;
+    });
+    const { result } = renderHook(() => useChanges(P, () => current, () => null, vi.fn(), () => null, { syncBeforeSend }));
+
+    await act(async () => void (await result.current.requestPreview("làm rõ vai trò")));
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+    applySpy.mockClear();
+
+    synced = true; // giữa lúc xem trước và bấm Áp dụng, nơi khác ghi thêm
+    await act(async () => void (await result.current.confirmPreview()));
+    expect(applySpy).not.toHaveBeenCalled();
+    expect(result.current.preview).toBeNull();
+    expect(result.current.error).toBe(HOOK_ERROR.documentChanged);
+    applySpy.mockRestore();
+  });
+
+  it("409 SPINE_VERSION_CONFLICT ⇒ onConflict một lần, báo 'tài liệu vừa thay đổi', bỏ xem trước, KHÔNG tự gửi lại", async () => {
+    const baseVersion = await seedActor();
+    const onConflict = vi.fn();
+    const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, vi.fn(), () => null, { onConflict }));
+
+    await act(async () => void (await result.current.requestPreview("làm rõ vai trò")));
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+
+    const applySpy = vi.spyOn(spineApi, "applyChanges").mockRejectedValue(new ApiClientError(409, "SPINE_VERSION_CONFLICT", "stale"));
+    await act(async () => void (await result.current.confirmPreview()));
+    expect(applySpy).toHaveBeenCalledTimes(1);
+    expect(onConflict).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toBe(HOOK_ERROR.documentChanged);
+    expect(result.current.preview).toBeNull();
+    applySpy.mockRestore();
+  });
+
+  it("lỗi của cổng không chặn gửi", async () => {
+    const baseVersion = await seedActor();
+    const syncBeforeSend = vi.fn(async (): Promise<boolean> => {
+      throw new Error("network");
+    });
+    const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, vi.fn(), () => null, { syncBeforeSend }));
+    await act(async () => void (await result.current.requestPreview("làm rõ vai trò")));
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
   });
 });

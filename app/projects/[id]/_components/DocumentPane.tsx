@@ -103,6 +103,11 @@ interface DocumentPaneProps {
    * "N mục chưa dịch" vẫn hiện nhưng không có nút (Viewer chỉ đọc, mode 1 không dịch — D3).
    */
   onTranslate?: () => void;
+  /**
+   * Có bản tài liệu mới hơn bản đang hiển thị nhưng user đang thao tác dở nên chưa tự thay nội dung: hiện dải
+   * "Có bản mới · Cập nhật" ở đầu tài liệu. Không truyền ⇒ không có dải.
+   */
+  newerVersion?: { onApply: () => void } | null;
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
@@ -761,6 +766,7 @@ function DocumentPaneView({
   hasDiagrams,
   documentLanguage = null,
   onTranslate,
+  newerVersion = null,
 }: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
@@ -881,6 +887,16 @@ function DocumentPaneView({
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
+        {newerVersion && (
+          <div role="status" className="sticky top-0 z-10 rounded-control bg-primary-soft px-3 py-1.5 flex items-center gap-1.5 text-body text-on-surface">
+            <Icon name="refresh" size={14} className="text-primary" />
+            <span>{t("newerVersion")}</span>
+            <span aria-hidden>·</span>
+            <button type="button" onClick={newerVersion.onApply} className="font-bold text-primary hover:underline cursor-pointer">
+              {t("newerVersionApply")}
+            </button>
+          </div>
+        )}
         {/* Lỗi nằm trong vùng cuộn: đặt ngay dưới header thì bị lớp mờ của header che */}
         {/* Tải lại lỗi khi đang có tài liệu: bản đang đọc giữ nguyên, chỉ báo nhỏ (nút làm mới bấm lại được) */}
         {document && refreshError && (
