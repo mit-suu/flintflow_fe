@@ -142,6 +142,7 @@ export default function StepProgressBar({
               const reopenable = reopenableStepIds?.has(step.id) ?? false;
               const clickable = step.status === "accepted" || isCurrent || step.status === "revision_requested" || reopenable;
               const cell = isCurrent ? STEP_ACTIVE_CELL : CELL[step.status];
+              const sections = step.template_sections?.length ? step.template_sections.join(" · ") : null;
               return (
                 <li key={step.id} className="relative">
                   <Connector above={!first} below={!last} />
@@ -149,9 +150,9 @@ export default function StepProgressBar({
                     type="button"
                     disabled={!clickable}
                     onClick={() => onSelectStep(step.id)}
-                    aria-label={stepLabel(step.id)}
+                    aria-label={sections ? `${stepLabel(step.id)} — ${t("templateSectionsTitle", { sections })}` : stepLabel(step.id)}
                     aria-current={isCurrent ? "step" : undefined}
-                    title={t("stepTitle", {
+                    title={(sections ? `${t("templateSectionsTitle", { sections })}\n` : "") + t("stepTitle", {
                       id: step.id,
                       label: stepLabel(step.id),
                       status: isCurrent ? t("current") : reopenable ? t("reopenable") : t(`status.${step.status}`),
@@ -169,6 +170,12 @@ export default function StepProgressBar({
                       } ${isCurrent ? "" : "group-hover:bg-surface-container"}`}
                     >
                       {stepLabel(step.id)}
+                      {/* FLF-278: dự án theo mẫu bắt buộc — mục của mẫu mà bước này soạn (BE gắn, FE chỉ hiển thị) */}
+                      {sections && (
+                        <span data-testid="step-template-sections" className="block mt-0.5 text-caption font-normal text-on-surface-muted [text-decoration:none]">
+                          {t("templateSections", { sections })}
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>
