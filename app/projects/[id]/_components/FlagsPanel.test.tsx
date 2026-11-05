@@ -1,6 +1,6 @@
 "use client";
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import FlagsPanel, { sortFlags } from "./FlagsPanel";
@@ -250,7 +250,7 @@ describe("FlagsPanel — FLF-177", () => {
     const redraw = screen.getAllByRole("button", { name: "Vẽ lại" });
     expect(redraw).toHaveLength(1);
     fireEvent.click(redraw[0]);
-    await waitFor(() => expect(onRedraw).toHaveBeenCalledWith(stale));
+    await waitFor(() => expect(onRedraw).toHaveBeenCalledWith([stale]));
   });
 });
 
@@ -293,5 +293,82 @@ describe("FlagsPanel — mục của mẫu còn trống (FLF-278)", () => {
     expect(buttons).toHaveLength(1);
     fireEvent.click(buttons[0]);
     expect(onDraftSection).toHaveBeenCalledWith("§1.2 Document Conventions");
+  });
+});
+
+describe("FlagsPanel — Vẽ lại tất cả một lượt", () => {
+  const stale = (id: string, target: string, section: string): Flag => ({
+    ...baseFlag,
+    id,
+    rule_id: "diagram_stale",
+    target_id: target,
+    section_id: section,
+    message: `Hình ${target} không còn khớp dữ liệu`,
+    remediation_step: "S-5.3@S03",
+  });
+  const flags = [stale("F1", "D1", "fixed:2.2.1"), stale("F2", "D2", "fixed:3.1.1"), stale("F3", "D3", "fixed:3.1.5")];
+  const labels = (id: string) => ({ "fixed:2.2.1": "§2.2.1 Use Case Diagram", "fixed:3.1.1": "§3.1.1 Screens Flow", "fixed:3.1.5": "§3.1.5 ERD" })[id];
+  const renderPanel = (onRedraw: (f: Flag[]) => Promise<never>) =>
+    renderWithIntl(<FlagsPanel flags={flags} onRecompute={vi.fn()} onRedraw={onRedraw} sectionLabelOf={labels} />);
+
+  it("nút nhóm gọi onRedraw MỘT lần với đủ cờ; mọi dòng hiện Đang vẽ… và mọi nút khoá cho tới khi xong", async () => {
+    let finish: (report: undefined) => void = () => {};
+    const onRedraw = vi.fn(() => new Promise<never>((resolve) => (finish = resolve as never)));
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Đang vẽ…" })).toHaveLength(4)); // 3 dòng + nút nhóm
+    expect(onRedraw).toHaveBeenCalledTimes(1);
+    expect(onRedraw).toHaveBeenCalledWith(flags);
+    for (const button of screen.getAllByRole("button", { name: "Đang vẽ…" })) expect(button).toBeDisabled();
+    // Bấm thêm trong lúc đang vẽ không bắt đầu lượt thứ hai
+    fireEvent.click(screen.getAllByRole("button", { name: "Đang vẽ…" })[0]);
+    expect(onRedraw).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish(undefined));
+    expect(screen.getAllByRole("button", { name: "Vẽ lại" })).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Vẽ lại tất cả" })).toBeEnabled();
+  });
+
+  it("cờ còn sau khi vẽ ⇒ báo 'vẫn lỗi' bằng tên mục, không lộ mã sơ đồ", async () => {
+    const onRedraw = vi.fn().mockResolvedValue({ failed: [], stillBroken: [flags[0], flags[1]], flagsCheckFailed: false });
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent("Vẽ lại xong nhưng sơ đồ §2.2.1 Use Case Diagram, §3.1.1 Screens Flow vẫn lỗi bố cục.");
+    expect(notice).not.toHaveTextContent("D1");
+  });
+
+  it("tính lại cờ lỗi ⇒ 'Không kiểm lại được cờ', KHÔNG báo nhầm là vẫn lỗi", async () => {
+    const onRedraw = vi.fn().mockResolvedValue({ failed: [], stillBroken: [], flagsCheckFailed: true });
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent("không kiểm lại được cờ");
+    expect(notice).not.toHaveTextContent("vẫn lỗi");
+  });
+
+  it("một sơ đồ không vẽ được ⇒ báo đúng sơ đồ đó kèm lý do", async () => {
+    const onRedraw = vi.fn().mockResolvedValue({ failed: [flags[2]], stillBroken: [], flagsCheckFailed: false, error: "Mất kết nối." });
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Chưa vẽ lại được sơ đồ §3.1.5 ERD. Mất kết nối.");
+  });
+
+  it("onRedraw ném lỗi ⇒ panel báo lỗi thay vì rơi vào unhandled rejection, nút mở khoá lại", async () => {
+    const onRedraw = vi.fn().mockRejectedValue(new Error("boom"));
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Chưa vẽ lại được sơ đồ");
+    expect(screen.getByRole("button", { name: "Vẽ lại tất cả" })).toBeEnabled();
   });
 });

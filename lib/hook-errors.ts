@@ -12,6 +12,7 @@ export const HOOK_ERROR = {
   keepFailed: "@keepFailed",
   recomputeFailed: "@recomputeFailed",
   actionFailed: "@actionFailed",
+  documentChanged: "@documentChanged",
   spineLoadFailed: "@spineLoadFailed",
   progressLoadFailed: "@progressLoadFailed",
   commentsLoadFailed: "@commentsLoadFailed",

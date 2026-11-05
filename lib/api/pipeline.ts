@@ -12,12 +12,17 @@ import type {
   StepEvent,
   StepsResponse,
   RunEstimate,
+  VersionResponse,
 } from "@/types/pipeline";
 import { streamSse, type SseHandlers } from "../ai-stream";
 import { apiCall } from "./client";
 
 export const getProgress = (projectId: string) =>
   apiCall<ProgressResponse>(`/projects/${projectId}/progress`);
+
+/** Nhịp hỏi nhẹ để biết tài liệu / Spine đã đổi ở nơi khác chưa (`useDocumentFollow`). Mọi vai trò kể cả Viewer gọi được. */
+export const getProjectVersion = (projectId: string) =>
+  apiCall<VersionResponse>(`/projects/${projectId}/version`);
 
 export const listSteps = (projectId: string) =>
   apiCall<StepsResponse>(`/projects/${projectId}/steps`);

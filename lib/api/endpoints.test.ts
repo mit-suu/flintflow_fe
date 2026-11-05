@@ -160,6 +160,7 @@ const cases: EndpointCase[] = [
     "/projects/p1/traceability?entity=actor&id=A01",
   ],
   ["getProgress", () => pipeline.getProgress("p1"), "/projects/p1/progress"],
+  ["getProjectVersion", () => pipeline.getProjectVersion("p1"), "/projects/p1/version"],
   ["listSteps", () => pipeline.listSteps("p1"), "/projects/p1/steps"],
   [
     "answerStep",

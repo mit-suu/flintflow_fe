@@ -1,4 +1,5 @@
 import { decodeJwt, getStoredAuthToken, setAccessToken } from "./api/token-store";
+import { clearDocumentImageCache } from "./api/document-image-cache";
 
 // Hàm token nằm ở `lib/api/token-store.ts`; re-export để giữ đường import cũ `lib/auth`.
 export { decodeJwt, getStoredAuthToken, getUserRole, saveAuthToken, setSessionPersistence } from "./api/token-store";
@@ -25,6 +26,7 @@ const logoutOnServer = (): Promise<void> => {
 
 export const clearAuthToken = (): Promise<void> => {
   setAccessToken(null);
+  clearDocumentImageCache();
   if (typeof window !== "undefined") {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userRole");

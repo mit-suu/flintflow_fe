@@ -95,8 +95,9 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
       return (
         <div className="flex min-h-screen items-center justify-center bg-surface">
           <div className="flex flex-col items-center gap-3">
-            <Icon name="cloud-off" size={30} className="text-secondary" label={t("offlineTitle")} />
-            <p className="text-xs text-secondary font-medium">
+            {/* Chữ phụ dùng `on-surface-variant`; `text-secondary` là màu nền nút phụ (#eceae5) nên gần như trùng nền */}
+            <Icon name="cloud-off" size={30} className="text-on-surface-variant" label={t("offlineTitle")} />
+            <p className="text-xs text-on-surface-variant font-medium">
               {t("offline")}
             </p>
             <button

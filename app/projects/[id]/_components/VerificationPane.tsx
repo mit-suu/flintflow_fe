@@ -11,7 +11,7 @@ import type { Readiness } from "@/types/pipeline";
 import type { Flag } from "@/types/flags";
 import type { Spine } from "@/types/spine";
 import TraceabilityMap from "./TraceabilityMap";
-import { issueCounts } from "./flag-rules";
+import { issueCounts, type RedrawReport } from "./flag-rules";
 
 interface VerificationPaneProps {
   /** Có ⇒ hiện "Bản đồ truy vết" (actor → use case → feature → màn → function) ở cuối panel. */
@@ -34,8 +34,8 @@ interface VerificationPaneProps {
   /** FLF-329: giữ nguyên + lý do cho cờ đỏ. */
   onKeep?: (flagId: string, reason: string) => Promise<void>;
   onRecompute?: () => Promise<void> | void;
-  /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
-  onRedraw?: (flag: Flag) => Promise<void> | void;
+  /** Vẽ lại sơ đồ của các cờ `diagram_stale` / `render_error` (BUG-17) — một lời gọi cho cả lô. */
+  onRedraw?: (flags: Flag[]) => Promise<RedrawReport | void>;
   /** Xác nhận / bác bỏ giả định ngay tại panel (BUG-13). */
   onAssumptionDecision?: (decision: { kind: "confirm" | "reject"; id: string }) => void;
   /**

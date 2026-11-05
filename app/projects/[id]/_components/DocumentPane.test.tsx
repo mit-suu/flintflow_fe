@@ -1,15 +1,24 @@
 "use client";
 
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import DocumentPane, { followsHeading } from "./DocumentPane";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import DocumentPane, { FRESH_HOLD_MS, followsHeading } from "./DocumentPane";
+import { blockRegionKey, sectionRegionKey } from "./document-diff";
+import type { DocumentUpdate, UseDocumentResult } from "../hooks/useDocument";
 import * as exportApi from "@/lib/api/export";
+import * as documentImages from "@/lib/api/document-images";
+import { ApiClientError } from "@/lib/api/client";
 import type { RenderedDocument } from "@/types/document";
 import type { Flag } from "@/types/flags";
 
 vi.mock("@/lib/api/export", () => ({
   getDocument: vi.fn(),
+}));
+
+vi.mock("@/lib/api/document-images", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/document-images")>()),
+  fetchDocumentImage: vi.fn(),
 }));
 
 const fixture: RenderedDocument = {
@@ -119,7 +128,7 @@ describe("DocumentPane", () => {
     renderWithIntl(<DocumentPane projectId="p1" />);
 
     await waitFor(() => expect(screen.getByText(/1. Product Overview/)).toBeInTheDocument());
-    const refresh = screen.getByRole("button", { name: "Làm mới" });
+    const refresh = screen.getByRole("button", { name: "Tải lại tài liệu" });
     expect(refresh).toHaveAttribute("title", "Tải lại tài liệu");
     fireEvent.click(refresh);
     await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2));
@@ -374,7 +383,7 @@ describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
     expect(chip()).toHaveTextContent("EN");
     expect(chip()).toHaveAttribute("title", "Ngôn ngữ tài liệu: English");
     expect(chip().querySelector("[lang]")).toHaveAttribute("lang", "en");
-    expect(chip().compareDocumentPosition(screen.getByRole("button", { name: "Làm mới" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chip().compareDocumentPosition(screen.getByRole("button", { name: "Tải lại tài liệu" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
   });
 
@@ -437,6 +446,209 @@ describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("4 mục chưa dịch");
     expect(getDocument).toHaveBeenCalledTimes(2);
     expect(chip()).toHaveTextContent("VI");
+  });
+});
+
+describe("DocumentPane — nút làm mới chỉ icon", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const meta = { assembled_at_version: 5, spine_version: 5, stale: false };
+  const button = (name: string) => screen.getByRole("button", { name });
+
+  beforeEach(() => getDocument.mockReset());
+
+  it("không còn chữ 'Làm mới' / 'Đang làm mới…'; bình thường: bấm được, không busy", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta });
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByText(/1\. Product Overview/);
+
+    const refresh = button("Tải lại tài liệu");
+    expect(refresh).toBeEnabled();
+    expect(refresh).toHaveAttribute("aria-busy", "false");
+    expect(refresh).toHaveAttribute("title", "Tải lại tài liệu");
+    expect(refresh).toHaveTextContent("");
+    expect(refresh.querySelector("svg")).not.toHaveClass("animate-spin");
+  });
+
+  it("đang làm mới (bấm tay): icon xoay + khoá + aria-busy + nhãn 'Đang làm mới tài liệu'; xong thì trở lại", async () => {
+    let release: () => void = () => {};
+    getDocument
+      .mockResolvedValueOnce({ data: fixture, error: null, meta })
+      .mockReturnValueOnce(new Promise((resolve) => (release = () => resolve({ data: fixture, error: null, meta }))) as never);
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByText(/1\. Product Overview/);
+
+    fireEvent.click(button("Tải lại tài liệu"));
+
+    const busy = await screen.findByRole("button", { name: "Đang làm mới tài liệu" });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute("aria-busy", "true");
+    expect(busy).toHaveAttribute("title", "Đang làm mới tài liệu");
+    expect(busy.querySelector("svg")).toHaveClass("animate-spin");
+    // Tài liệu đang đọc vẫn nguyên trong lúc tải
+    expect(screen.getByText(/1\. Product Overview/)).toBeInTheDocument();
+
+    release();
+    await waitFor(() => expect(button("Tải lại tài liệu")).toBeEnabled());
+    expect(button("Tải lại tài liệu").querySelector("svg")).not.toHaveClass("animate-spin");
+  });
+
+  it("tự tải (refreshToken tăng) cũng xoay + khoá — một nguồn trạng thái cho mọi lượt làm mới", async () => {
+    let release: () => void = () => {};
+    getDocument
+      .mockResolvedValueOnce({ data: fixture, error: null, meta })
+      .mockReturnValueOnce(new Promise((resolve) => (release = () => resolve({ data: fixture, error: null, meta }))) as never);
+    const { rerender } = renderWithIntl(<DocumentPane projectId="p1" refreshToken={0} />);
+    await screen.findByText(/1\. Product Overview/);
+
+    rerender(<DocumentPane projectId="p1" refreshToken={1} />);
+
+    expect(await screen.findByRole("button", { name: "Đang làm mới tài liệu" })).toBeDisabled();
+    release();
+    await waitFor(() => expect(button("Tải lại tài liệu")).toBeEnabled());
+  });
+
+  it("làm mới lỗi: giữ nguyên tài liệu, báo lỗi nhỏ, icon đứng yên và bấm lại được", async () => {
+    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta }).mockRejectedValueOnce(new Error("mất mạng"));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByText(/1\. Product Overview/);
+
+    fireEvent.click(button("Tải lại tài liệu"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Chưa làm mới được tài liệu");
+    expect(screen.getByText(/1\. Product Overview/)).toBeInTheDocument();
+    expect(screen.queryByText(/Không tải được tài liệu:/)).toBeNull();
+    const retry = button("Tải lại tài liệu");
+    expect(retry).toBeEnabled();
+    expect(retry.querySelector("svg")).not.toHaveClass("animate-spin");
+
+    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta });
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(getDocument).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("DocumentPane — mục đang / vừa cập nhật", () => {
+  const meta = { assembled_at_version: 5, spine_version: 5, stale: false };
+  const makeDoc = (over: Partial<UseDocumentResult> = {}): UseDocumentResult => ({
+    document: fixture,
+    meta,
+    translation: null,
+    loading: false,
+    refreshing: false,
+    empty: false,
+    error: null,
+    refreshError: null,
+    lastDiff: null,
+    pendingSectionIds: new Set(),
+    markPending: vi.fn(),
+    clearPending: vi.fn(),
+    reload: vi.fn().mockResolvedValue(undefined),
+    ...over,
+  });
+  const diffOf = (regions: string[], extra: Partial<DocumentUpdate> = {}): DocumentUpdate => ({
+    seq: 1,
+    sections: new Map([["fixed:2.1", "changed"]]),
+    blocks: new Map(),
+    broad: false,
+    regions,
+    ...extra,
+  });
+  const article = (id: string) => document.querySelector(`article[data-section-id="${id}"]`) as HTMLElement;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("mục đang chờ bản mới: data-update=pending + aria-busy; mục khác không", () => {
+    renderWithIntl(<DocumentPane projectId="p1" doc={makeDoc({ pendingSectionIds: new Set(["fixed:2.1"]) })} />);
+
+    expect(article("fixed:2.1")).toHaveAttribute("data-update", "pending");
+    expect(article("fixed:2.1")).toHaveAttribute("aria-busy", "true");
+    expect(article("fixed:1")).not.toHaveAttribute("data-update");
+    expect(article("fixed:1")).not.toHaveAttribute("aria-busy");
+    // Chữ giữ nguyên, không bị che
+    expect(screen.getByText("Founder")).toBeInTheDocument();
+  });
+
+  it("đang chờ nhiều mục ⇒ nhãn nổi 'Đang cập nhật N mục'", () => {
+    renderWithIntl(<DocumentPane projectId="p1" doc={makeDoc({ pendingSectionIds: new Set(["fixed:2.1", "fixed:1"]) })} />);
+    expect(screen.getByText("Đang cập nhật 2 mục")).toBeInTheDocument();
+  });
+
+  it("bản mới về: mục fresh + lời đọc 'Đã cập nhật mục §2.1 Actors'; đủ 2s trong khung nhìn thì nhạt dần (settled)", async () => {
+    vi.useFakeTimers();
+    renderWithIntl(<DocumentPane projectId="p1" doc={makeDoc({ lastDiff: diffOf([sectionRegionKey("fixed:2.1")]) })} />);
+
+    expect(article("fixed:2.1")).toHaveAttribute("data-update", "fresh");
+    expect(article("fixed:1")).not.toHaveAttribute("data-update");
+    expect(screen.getByText("Đã cập nhật mục §2.1 Actors")).toBeInTheDocument();
+
+    // jsdom không có IntersectionObserver ⇒ coi là đang thấy ngay, đếm 2s
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(article("fixed:2.1")).toHaveAttribute("data-update", "fresh");
+    act(() => void vi.advanceTimersByTime(FRESH_HOLD_MS));
+    expect(article("fixed:2.1")).toHaveAttribute("data-update", "settled");
+  });
+
+  it("chỉ một đoạn đổi ⇒ chỉ block đó fresh, mục không", () => {
+    const lastDiff = diffOf([blockRegionKey("fixed:2.1", 0)], { blocks: new Map([["fixed:2.1", new Set([0])]]) });
+    renderWithIntl(<DocumentPane projectId="p1" doc={makeDoc({ lastDiff })} />);
+
+    expect(article("fixed:2.1")).not.toHaveAttribute("data-update");
+    expect(article("fixed:2.1").querySelector('[data-update-region="block:fixed:2.1#0"]')).toHaveAttribute("data-update", "fresh");
+  });
+
+  describe("vùng ngoài màn hình", () => {
+    class FakeObserver {
+      static instances: FakeObserver[] = [];
+      targets: Element[] = [];
+      constructor(private callback: (entries: Partial<IntersectionObserverEntry>[]) => void) {
+        FakeObserver.instances.push(this);
+      }
+      observe(el: Element) {
+        this.targets.push(el);
+      }
+      disconnect() {}
+      unobserve() {}
+      report(visible: boolean) {
+        this.callback(this.targets.map((target) => ({ target, isIntersecting: visible })));
+      }
+    }
+
+    beforeEach(() => {
+      FakeObserver.instances = [];
+      vi.stubGlobal("IntersectionObserver", FakeObserver);
+    });
+
+    it("vùng đổi chưa vào khung nhìn ⇒ nhãn 'N mục vừa cập nhật', bấm cuộn tới; thấy rồi thì nhãn ẩn", async () => {
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      renderWithIntl(<DocumentPane projectId="p1" doc={makeDoc({ lastDiff: diffOf([sectionRegionKey("fixed:2.1")]) })} />);
+      const observer = FakeObserver.instances.at(-1)!;
+      expect(observer.targets).toHaveLength(1);
+      // Chưa biết vùng nào ngoài màn hình thì chưa dựng nhãn (tránh nháy)
+      expect(screen.queryByText(/vừa cập nhật/)).toBeNull();
+
+      act(() => observer.report(false));
+      fireEvent.click(await screen.findByRole("button", { name: /1 mục vừa cập nhật/ }));
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+      act(() => observer.report(true));
+      expect(screen.queryByText(/vừa cập nhật/)).toBeNull();
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    });
+  });
+
+  it("đổi diện rộng: không tô từng mục, chỉ nhãn chung 'Tài liệu đã cập nhật' (bấm để ẩn)", () => {
+    renderWithIntl(<DocumentPane projectId="p1" doc={makeDoc({ lastDiff: diffOf([], { broad: true }) })} />);
+
+    expect(document.querySelector("[data-update]")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Tài liệu đã cập nhật" }));
+    expect(screen.queryByRole("button", { name: "Tài liệu đã cập nhật" })).toBeNull();
   });
 });
 
@@ -549,5 +761,117 @@ describe("DocumentPane — thư viện nội dung của tổ chức (FLF-278)", 
     expect(screen.getByText(/có sẵn nội dung cho 1 mục còn trống/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xem trước và dùng" }));
     expect(onUseLibraryAll).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const fetchImage = vi.mocked(documentImages.fetchDocumentImage);
+  const TOKEN = "image-ref:diagram:D1@0123456789abcdef";
+  const withImage = (png: string): RenderedDocument => ({
+    ...fixture,
+    sections: [{ id: "fixed:3.1.5", number: "3.1.5", heading: "Entity Relationship Diagram", level: 2, status: "accepted", blocks: [{ type: "image", png, caption: "ERD" }] }],
+  });
+  const meta = { assembled_at_version: 5, spine_version: 5, stale: false };
+  let created: string[];
+  let revoked: string[];
+
+  beforeEach(() => {
+    getDocument.mockReset();
+    fetchImage.mockReset();
+    created = [];
+    revoked = [];
+    URL.createObjectURL = vi.fn(() => {
+      const url = `blob:mock-${created.length}`;
+      created.push(url);
+      return url;
+    });
+    URL.revokeObjectURL = vi.fn((url: string) => void revoked.push(url));
+  });
+
+  it("base64 thật ⇒ hiện thẳng, không gọi tải ảnh", async () => {
+    getDocument.mockResolvedValue({ data: withImage("iVBORw0KGgo="), error: null, meta });
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    const img = await screen.findByAltText("ERD");
+    expect(img).toHaveAttribute("src", "data:image/png;base64,iVBORw0KGgo=");
+    expect(fetchImage).not.toHaveBeenCalled();
+  });
+
+  it("image-ref ⇒ tải Blob đúng token, hiện bằng object URL, thu hồi URL khi gỡ", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockResolvedValue(new Blob([new Uint8Array([1])], { type: "image/png" }));
+    const { unmount } = renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByAltText("ERD")).toHaveAttribute("src", "blob:mock-0");
+    expect(fetchImage).toHaveBeenCalledTimes(1);
+    expect(fetchImage).toHaveBeenCalledWith("p1", TOKEN);
+    expect(revoked).toEqual([]);
+    unmount();
+    expect(revoked).toEqual(["blob:mock-0"]);
+  });
+
+  it("mount lại cùng token ⇒ mỗi lần một object URL riêng (cache là Blob, không phải URL)", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    const blob = new Blob([new Uint8Array([1])], { type: "image/png" });
+    fetchImage.mockResolvedValue(blob);
+    const first = renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByAltText("ERD");
+    first.unmount();
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByAltText("ERD")).toHaveAttribute("src", "blob:mock-1");
+    expect(created).toEqual(["blob:mock-0", "blob:mock-1"]);
+    expect(revoked).toEqual(["blob:mock-0"]);
+  });
+
+  it("đang tải ⇒ khung giữ chỗ, chưa có <img>", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockReturnValue(new Promise(() => undefined));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByText("Đang tải ảnh…")).toBeInTheDocument();
+    expect(screen.queryByAltText("ERD")).toBeNull();
+  });
+
+  it("409 IMAGE_CHANGED ⇒ tải lại tài liệu một lượt, không báo lỗi", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockRejectedValue(new ApiClientError(409, "IMAGE_CHANGED", "đã vẽ lại"));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/đã vẽ lại/)).toBeNull();
+    await waitFor(() => expect(fetchImage).toHaveBeenCalled());
+    // BE vẫn lệch sau lượt tải lại: không lặp lại
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(getDocument).toHaveBeenCalledTimes(2);
+  });
+
+  it("lỗi khác (404) ⇒ báo lỗi nhỏ tại chỗ ảnh, không tải lại tài liệu", async () => {
+    getDocument.mockResolvedValue({ data: withImage(TOKEN), error: null, meta });
+    fetchImage.mockRejectedValue(new ApiClientError(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh"));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByText(/Không tìm thấy ảnh|Không tải được hình sơ đồ/)).toBeInTheDocument();
+    expect(getDocument).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DocumentPane — dải Có bản mới", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  beforeEach(() => {
+    getDocument.mockReset();
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+  });
+
+  it("có newerVersion ⇒ dải 'Có bản mới · Cập nhật'; bấm Cập nhật gọi onApply", async () => {
+    const onApply = vi.fn();
+    renderWithIntl(<DocumentPane projectId="p1" newerVersion={{ onApply }} />);
+    await screen.findByText("Vision statement");
+    expect(screen.getByText("Có bản mới")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cập nhật" }));
+    expect(onApply).toHaveBeenCalledTimes(1);
+  });
+
+  it("không có newerVersion ⇒ không có dải", async () => {
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    await screen.findByText("Vision statement");
+    expect(screen.queryByText("Có bản mới")).toBeNull();
   });
 });

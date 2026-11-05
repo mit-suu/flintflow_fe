@@ -373,6 +373,15 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
 // đụng `mocks/state.ts`. `resetMockChangeFlowState` dùng trong test riêng của T16, không nối vào
 // `resetMockState` (thuộc T12).
 
+/** PNG 1×1 trong suốt. */
+const MOCK_PNG_BYTES = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="),
+  (c) => c.charCodeAt(0)
+);
+/** Mock không có lớp bản dịch riêng nên revision tài liệu bám `spine_version` (+ ngôn ngữ tài liệu). */
+const mockDocumentRevision = (): string =>
+  `${mockState.spine.spine_version}:${mockState.project.mode === "import" ? "" : (mockState.project.documentLanguage ?? "en")}`;
+
 const okWithMeta = <T>(data: T, meta: Record<string, unknown>) => HttpResponse.json({ data, meta, error: null });
 
 /** `preview_id` → lô ops đã tính diff, chờ `POST /changes` hoặc `POST /reconcile` xác nhận. */
@@ -819,6 +828,10 @@ export const handlers = [
 
   http.get(api("/projects/:projectId/spine"), () => ok(mockState.spine)),
   http.get(api("/projects/:projectId/progress"), () => ok(progressOf(mockState))),
+  // Nhịp theo dõi bản mới của tài liệu: revision mock = `spine_version` (mock không có lớp bản dịch riêng)
+  http.get(api("/projects/:projectId/version"), () =>
+    ok({ spine_version: mockState.spine.spine_version, document_revision: mockDocumentRevision() })
+  ),
   // FLF-332: ước tính credit lượt chạy liền — số tròn cho thẻ xác nhận
   http.get(api("/projects/:projectId/run-estimate"), ({ request }) => {
     const url = new URL(request.url);
@@ -1090,8 +1103,16 @@ export const handlers = [
       assembled_at_version: mockAssembledAtVersion,
       spine_version: mockState.spine.spine_version,
       stale: false,
+      document_revision: mockDocumentRevision(),
       ...(locale !== source_locale ? { translation: { locale, source_locale, missing: mockTranslation.missing } } : {}),
     });
+  }),
+
+  // Ảnh tài liệu theo tham chiếu (`image-ref:…@hash`): PNG 1×1 — test dựng token riêng và ghi đè handler khi cần lỗi
+  http.get(api("/projects/:projectId/document/image"), ({ request }) => {
+    const ref = new URL(request.url).searchParams.get("ref") ?? "";
+    if (!/^image-ref:(diagram|media):[^:@]+(:[a-z]{2})?@[0-9a-f]{16}$/.test(ref)) return fail(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh");
+    return new HttpResponse(MOCK_PNG_BYTES, { headers: { "Content-Type": "image/png", "Cache-Control": "private, max-age=31536000, immutable" } });
   }),
 
   http.get(api("/projects/:projectId/export/word"), ({ request }) => {

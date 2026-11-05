@@ -47,6 +47,22 @@ export interface UseChangesResult {
 
 const isPreviewResult = (result: PreviewResult | ApplyResult): result is PreviewResult => "ok" in result;
 
+export interface UseChangesOptions {
+  /**
+   * Cổng trước khi gửi `/changes/preview` và `/changes`: nếu tab biết Spine / tài liệu ở BE đã mới hơn thì tải lại Spine
+   * (nâng `base_version`) + tài liệu rồi mới gửi. Trả `true` khi đã đồng bộ — bản xem trước dựng trên Spine cũ khi đó không
+   * còn hợp lệ. Lỗi của cổng không chặn gửi (lỗi thật nếu có sẽ do BE báo).
+   */
+  syncBeforeSend?: () => Promise<boolean>;
+  /** `409 SPINE_VERSION_CONFLICT`: Spine đổi ở nơi khác giữa lúc xem trước và gửi — tải lại Spine + tài liệu, KHÔNG tự gửi lại. */
+  onConflict?: () => void;
+}
+
+const isConflict = (err: unknown): boolean => err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT";
+
+const failureMessage = (err: unknown): string =>
+  isConflict(err) ? HOOK_ERROR.documentChanged : userErrorMessage(err, HOOK_ERROR.actionFailed);
+
 /** Xem trước / xác nhận lệnh sửa qua chat (UC 6.8–6.11), hoà giải, undo, lịch sử — trên mock T16. */
 export function useChanges(
   projectId: string,
@@ -57,7 +73,8 @@ export function useChanges(
   /** `impactedSectionIds` (từ `preview.impact.sections`, nếu preview có) — cha dùng để highlight DocumentPane. */
   onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void,
   /** Phiên chat đang mở — lệnh sửa gửi kèm để model đọc được các tin trước và lượt sửa nằm lại trong phiên. */
-  getSessionId: () => string | null = () => null
+  getSessionId: () => string | null = () => null,
+  { syncBeforeSend, onConflict }: UseChangesOptions = {}
 ): UseChangesResult {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
@@ -71,12 +88,26 @@ export function useChanges(
   const [history, setHistory] = useState<Change[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  const failureMessage = (err: unknown) => userErrorMessage(err, HOOK_ERROR.actionFailed);
+  /** Chạy cổng đồng bộ (nếu có); lỗi cổng không chặn gửi. */
+  const syncFirst = useCallback(async (): Promise<boolean> => {
+    if (!syncBeforeSend) return false;
+    try {
+      return await syncBeforeSend();
+    } catch {
+      return false;
+    }
+  }, [syncBeforeSend]);
+  const handleFailure = useCallback(
+    (err: unknown) => {
+      setError(failureMessage(err));
+      if (isConflict(err)) onConflict?.();
+    },
+    [onConflict]
+  );
 
   const requestPreview = useCallback(
     async (instruction: string): Promise<PreviewOutcome> => {
-      const baseVersion = getBaseVersion();
-      if (baseVersion === null || !instruction.trim()) return "skipped";
+      if (getBaseVersion() === null || !instruction.trim()) return "skipped";
       setPreviewing(true);
       setError(null);
       setClarification(null);
@@ -84,6 +115,9 @@ export function useChanges(
       setPendingOps(null);
       setPendingInstruction(instruction.trim());
       try {
+        await syncFirst();
+        const baseVersion = getBaseVersion();
+        if (baseVersion === null) return "skipped";
         const sessionId = getSessionId();
         const res = await previewChanges(projectId, {
           instruction: instruction.trim(),
@@ -103,19 +137,18 @@ export function useChanges(
           setClarification(err.rawMessage || err.message);
           return "clarification";
         }
-        setError(failureMessage(err));
+        handleFailure(err);
         return "error";
       } finally {
         setPreviewing(false);
       }
     },
-    [projectId, getBaseVersion, getSessionId]
+    [projectId, getBaseVersion, getSessionId, syncFirst, handleFailure]
   );
 
   const requestOpsPreview = useCallback(
     async (ops: Op[], label: string): Promise<PreviewOutcome> => {
-      const baseVersion = getBaseVersion();
-      if (baseVersion === null || ops.length === 0) return "skipped";
+      if (getBaseVersion() === null || ops.length === 0) return "skipped";
       setPreviewing(true);
       setError(null);
       setClarification(null);
@@ -123,18 +156,21 @@ export function useChanges(
       setPendingOps(ops);
       setPendingInstruction(label);
       try {
+        await syncFirst();
+        const baseVersion = getBaseVersion();
+        if (baseVersion === null) return "skipped";
         const res = await previewChanges(projectId, { ops, base_version: baseVersion });
         setPreview(res.data);
         setPreviewSource("instruction");
         return "preview";
       } catch (err) {
-        setError(failureMessage(err));
+        handleFailure(err);
         return "error";
       } finally {
         setPreviewing(false);
       }
     },
-    [projectId, getBaseVersion]
+    [projectId, getBaseVersion, syncFirst, handleFailure]
   );
 
   const cancelPreview = useCallback(() => {
@@ -166,20 +202,29 @@ export function useChanges(
         onApplied(res.data);
       }
     } catch (err) {
-      setError(failureMessage(err));
+      handleFailure(err);
     } finally {
       setApplying(false);
     }
-  }, [projectId, getBaseVersion, onApplied]);
+  }, [projectId, getBaseVersion, onApplied, handleFailure]);
 
   const confirmPreview = useCallback(
     async (reason?: string, changeRequest?: ChangeRequestInfo, commentId?: string | null) => {
-      const baseVersion = getBaseVersion();
-      if (baseVersion === null || !preview?.preview_id || !previewSource) return;
+      if (getBaseVersion() === null || !preview?.preview_id || !previewSource) return;
       setApplying(true);
       setError(null);
       const sessionId = getSessionId();
       try {
+        const synced = await syncFirst();
+        const baseVersion = getBaseVersion();
+        if (baseVersion === null) return;
+        // Spine vừa được kéo lên bản mới hơn bản mà xem trước dựng trên đó ⇒ xem trước không còn đúng: bỏ, user xem trước lại
+        if (synced && preview.base_version < baseVersion) {
+          setPreview(null);
+          setPreviewSource(null);
+          setError(HOOK_ERROR.documentChanged);
+          return;
+        }
         const res =
           previewSource === "instruction"
             ? await applyChanges(projectId, {
@@ -201,12 +246,17 @@ export function useChanges(
           setPreviewSource(null);
         }
       } catch (err) {
-        setError(failureMessage(err));
+        handleFailure(err);
+        // 409 thật: bản xem trước dựng trên Spine cũ — bỏ, không để nút Áp dụng gửi lại đúng lô đó
+        if (isConflict(err)) {
+          setPreview(null);
+          setPreviewSource(null);
+        }
       } finally {
         setApplying(false);
       }
     },
-    [projectId, getBaseVersion, getSessionId, preview, previewSource, pendingInstruction, pendingOps, onApplied]
+    [projectId, getBaseVersion, getSessionId, preview, previewSource, pendingInstruction, pendingOps, onApplied, syncFirst, handleFailure]
   );
 
   const undo = useCallback(async () => {
@@ -218,11 +268,11 @@ export function useChanges(
       const res = await undoLastChange(projectId, { base_version: baseVersion });
       if (res.data) onApplied(res.data);
     } catch (err) {
-      setError(failureMessage(err));
+      handleFailure(err);
     } finally {
       setApplying(false);
     }
-  }, [projectId, getBaseVersion, onApplied]);
+  }, [projectId, getBaseVersion, onApplied, handleFailure]);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);

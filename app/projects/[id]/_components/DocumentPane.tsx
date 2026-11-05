@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
+import { ApiClientError } from "@/lib/api/client";
+import { fetchDocumentImage, IMAGE_CHANGED, parseImageRef } from "@/lib/api/document-images";
 import { fetchDiagramPng } from "@/lib/api/spine";
 import { tStep } from "@/lib/i18n";
 import { hookErrorText } from "@/lib/hook-errors";
 import { shownDocumentLanguage } from "@/lib/document-language";
 import { blockHasRealText } from "@/lib/instruction-text";
-import { useDocument } from "../hooks/useDocument";
+import { useDocument, type DocumentUpdate, type UseDocumentResult } from "../hooks/useDocument";
 import DocumentLanguageChip from "./DocumentLanguageChip";
+import DocumentUpdatePill from "./DocumentUpdatePill";
+import { blockRegionKey, sectionRegionKey } from "./document-diff";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
 import type { Flag } from "@/types/flags";
 import type { DocumentLanguage } from "@/types/project";
@@ -20,10 +24,13 @@ interface DocumentPaneProps {
   projectName?: string;
   /** Cờ mở, dùng để gắn nút "xem tại step" theo `section_id` (nguồn duy nhất đáng tin cho map này). */
   flags?: Flag[];
-  /** Section vừa đổi sau khi step ghi op hoặc lệnh sửa trong chat áp một lô — nền nổi bật một nhịp. */
-  changedSectionIds?: ReadonlySet<string>;
+  /**
+   * Trạng thái tài liệu do chủ của `useDocument` (trang workspace) giữ — một instance duy nhất, nên cũng thấy được lúc tài
+   * liệu mới về để đánh dấu mục đang / vừa cập nhật. Không truyền ⇒ pane tự tải bằng `refreshToken` + `documentLanguage`.
+   */
+  doc?: UseDocumentResult;
   onSelectStep?: (stepId: string) => void;
-  /** Tăng để buộc tải lại tài liệu (sau `ops_applied`, gate, hoặc lệnh sửa trong chat áp lô). */
+  /** Chỉ dùng khi không truyền `doc`: tăng để buộc tải lại tài liệu. */
   refreshToken?: number;
   /**
    * Mode 1 v2 (FLF-185): step sở hữu section chưa có nội dung — hiện "Chưa có nội dung — chạy step X" thay câu chung.
@@ -96,6 +103,11 @@ interface DocumentPaneProps {
    * "N mục chưa dịch" vẫn hiện nhưng không có nút (Viewer chỉ đọc, mode 1 không dịch — D3).
    */
   onTranslate?: () => void;
+  /**
+   * Có bản tài liệu mới hơn bản đang hiển thị nhưng user đang thao tác dở nên chưa tự thay nội dung: hiện dải
+   * "Có bản mới · Cập nhật" ở đầu tài liệu. Không truyền ⇒ không có dải.
+   */
+  newerVersion?: { onApply: () => void } | null;
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
@@ -165,43 +177,79 @@ const Runs = ({ runs }: { runs: InlineRun[] }) => (
 
 const Cell = ({ cell }: { cell: TableCell }) => <Runs runs={cell} />;
 
-/** Ảnh trong tài liệu: base64 thật hoặc tham chiếu `diagram-ref:<id>` (cache nội bộ BE lộ ra). */
+/**
+ * Báo "ảnh đã vẽ lại sau khi tài liệu dựng" (`409 IMAGE_CHANGED`) cho chủ của tài liệu để tải lại — truyền qua context vì
+ * ảnh nằm sâu trong mục → block. Ngoài `DocumentPane` (không có Provider) thì không có gì để gọi.
+ */
+const ImageChangedContext = createContext<(() => void) | null>(null);
+
+/** Hai lượt tải lại vì `IMAGE_CHANGED` cách nhau tối thiểu chừng này — chặn vòng lặp nếu BE vẫn lệch hash. */
+const IMAGE_RELOAD_MIN_GAP_MS = 10_000;
+
+/** Vùng giữ chỗ khi ảnh đang tải: chiều cao cố định để chữ bên dưới không nhảy khi ảnh về. */
+const IMAGE_PLACEHOLDER_CLASS = "w-full min-h-[240px] grid place-items-center rounded-inner bg-surface-container text-caption text-on-surface-subtle italic";
+
+/**
+ * Ảnh trong tài liệu, ba dạng `png`:
+ * - base64 thật (ảnh giữ chỗ, BE cũ, export): hiện thẳng;
+ * - `image-ref:<kind>:<id>[:<locale>]@<hash>`: tải Blob qua `lib/api` (Blob nhớ theo token, ảnh đã có không tải lại), mỗi lần
+ *   mount tạo object URL riêng và thu hồi khi gỡ / đổi token;
+ * - `diagram-ref:<id>` (dạng cũ): tải PNG của sơ đồ.
+ */
 function DocumentImage({ projectId, png, caption }: { projectId: string; png: string; caption?: string }) {
   const t = useTranslations("workspace.document");
   const loadFailed = t("diagramLoadFailed");
+  const onImageChanged = useContext(ImageChangedContext);
+  const onImageChangedRef = useRef(onImageChanged);
+  useEffect(() => {
+    onImageChangedRef.current = onImageChanged;
+  }, [onImageChanged]);
+  const isImageRef = parseImageRef(png) !== null;
   const isDiagramRef = png.startsWith("diagram-ref:");
-  const directSrc = isDiagramRef ? null : `data:image/png;base64,${png}`;
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const loadsRemotely = isImageRef || isDiagramRef;
+  const directSrc = loadsRemotely ? null : `data:image/png;base64,${png}`;
+  // Gắn kết quả với token đã tải: đổi `png` thì kết quả cũ (URL đã thu hồi) không bị dùng nhầm cho ảnh mới
+  const [resolved, setResolved] = useState<{ png: string; url: string } | null>(null);
+  const [failure, setFailure] = useState<{ png: string; message: string } | null>(null);
 
   useEffect(() => {
-    if (!isDiagramRef) return;
-    const diagramId = png.slice("diagram-ref:".length);
+    if (!loadsRemotely) return;
     let cancelled = false;
     let objectUrl: string | null = null;
-    fetchDiagramPng(projectId, diagramId)
+    const load = isImageRef
+      ? fetchDocumentImage(projectId, png).then((blob) => URL.createObjectURL(blob))
+      : fetchDiagramPng(projectId, png.slice("diagram-ref:".length));
+    load
       .then((url) => {
-        // Unmount (hoặc đổi `png`) trước khi fetch xong: blob URL vừa tạo không còn ai revoke ở
-        // cleanup bên dưới (nó chạy trước khi promise này resolve) — revoke ngay tại đây.
+        // Unmount (hoặc đổi `png`) trước khi tải xong: URL vừa tạo không còn ai thu hồi ở cleanup — thu hồi ngay tại đây.
         if (cancelled) {
           URL.revokeObjectURL(url);
           return;
         }
         objectUrl = url;
-        setResolvedSrc(url);
+        setResolved({ png, url });
       })
-      .catch((err: unknown) => !cancelled && setError(userErrorMessage(err, loadFailed)));
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        // Ảnh đã vẽ lại: tải lại tài liệu để có tham chiếu mới, trong lúc đó vẫn giữ khung chờ thay vì báo lỗi
+        if (isImageRef && err instanceof ApiClientError && err.code === IMAGE_CHANGED && onImageChangedRef.current) {
+          onImageChangedRef.current();
+          return;
+        }
+        setFailure({ png, message: userErrorMessage(err, loadFailed) });
+      });
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
     // `loadFailed` chỉ là câu dự phòng — đổi ngôn ngữ không cần tải lại ảnh
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, png, isDiagramRef]);
+  }, [projectId, png, isImageRef, loadsRemotely]);
 
-  const src = directSrc ?? resolvedSrc;
+  const src = directSrc ?? (resolved?.png === png ? resolved.url : null);
+  const error = failure?.png === png ? failure.message : null;
   if (error) return <div className="text-caption text-error italic">{error}</div>;
-  if (!src) return <div className="text-caption text-on-surface-subtle italic">{t("imageLoading")}</div>;
+  if (!src) return <div className={IMAGE_PLACEHOLDER_CLASS}>{t("imageLoading")}</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
   return <img src={src} alt={caption ?? t("imageAlt")} className="max-w-full rounded-inner" />;
 }
@@ -247,6 +295,101 @@ function DiagramErrorBox({ diagramId, onRetry }: { diagramId: string; onRetry?: 
         </button>
       )}
       {error && <span className="text-caption text-error">{error}</span>}
+    </div>
+  );
+}
+
+/** Trạng thái hiển thị của một vùng (mục / block) so với lượt cập nhật tài liệu — xem `.ff-upd` ở `globals.css`. */
+type UpdateState = "pending" | "fresh" | "settled" | null;
+
+/** Vùng "vừa cập nhật" giữ nền cho tới khi vào khung nhìn chừng này rồi mới nhạt dần. */
+export const FRESH_HOLD_MS = 2000;
+
+interface RegionProgress {
+  seq: number;
+  /** Observer đã báo ít nhất một lượt — trước đó chưa biết vùng nào đang ngoài màn hình nên chưa dựng nhãn nổi. */
+  observed: boolean;
+  /** Vùng đã từng vào khung nhìn. */
+  seen: ReadonlySet<string>;
+  /** Vùng đã ở trong khung nhìn đủ `FRESH_HOLD_MS` ⇒ nền nhạt dần. */
+  settled: ReadonlySet<string>;
+}
+
+const NO_PROGRESS: RegionProgress = { seq: 0, observed: false, seen: new Set(), settled: new Set() };
+
+/**
+ * Theo dõi các vùng vừa đổi của lượt cập nhật `update`: vùng nào đã vào khung nhìn (bắt đầu đếm `FRESH_HOLD_MS` để nhạt dần,
+ * rời đi trước khi đủ thì đếm lại) và vùng nào chưa ai nhìn thấy (nhãn nổi "N mục vừa cập nhật"). Một observer cho cả lượt.
+ */
+function useUpdateRegions(scrollRef: { current: HTMLElement | null }, update: DocumentUpdate | null) {
+  const [progress, setProgress] = useState<RegionProgress>(NO_PROGRESS);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !update || update.regions.length === 0) return;
+    const seq = update.seq;
+    const wanted = new Set(update.regions);
+    const elements = new Map<string, Element>();
+    root.querySelectorAll<HTMLElement>("[data-update-region]").forEach((el) => {
+      const key = el.dataset.updateRegion;
+      if (key && wanted.has(key)) elements.set(key, el);
+    });
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const add = (field: "seen" | "settled", key: string) =>
+      setProgress((prev) => {
+        const base = prev.seq === seq ? prev : { ...NO_PROGRESS, seq };
+        if (base[field].has(key)) return base;
+        return { ...base, [field]: new Set(base[field]).add(key) };
+      });
+    const visible = (key: string) => {
+      add("seen", key);
+      if (!timers.has(key)) timers.set(key, setTimeout(() => add("settled", key), FRESH_HOLD_MS));
+    };
+    const hidden = (key: string) => {
+      const timer = timers.get(key);
+      if (timer) clearTimeout(timer);
+      timers.delete(key);
+    };
+    const observed = () =>
+      setProgress((prev) => (prev.seq === seq ? (prev.observed ? prev : { ...prev, observed: true }) : { ...NO_PROGRESS, seq, observed: true }));
+
+    if (typeof IntersectionObserver === "undefined") {
+      // Môi trường không có observer: coi mọi vùng là đang thấy (không dựng nhãn nổi nhầm)
+      queueMicrotask(() => {
+        elements.forEach((_, key) => visible(key));
+        observed();
+      });
+      return () => timers.forEach((timer) => clearTimeout(timer));
+    }
+    const keyOf = new Map([...elements].map(([key, el]) => [el, key]));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const key = keyOf.get(entry.target);
+          if (!key) continue;
+          if (entry.isIntersecting) visible(key);
+          else hidden(key);
+        }
+        observed();
+      },
+      { root }
+    );
+    elements.forEach((el) => observer.observe(el));
+    return () => {
+      observer.disconnect();
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [scrollRef, update]);
+
+  return update && progress.seq === update.seq ? progress : NO_PROGRESS;
+}
+
+/** Bao một block của mục để đánh dấu riêng đoạn vừa đổi mà không đổi bố cục (xem `.ff-upd`). */
+function BlockSlot({ regionKey, state, spaced, children }: { regionKey: string; state: UpdateState; spaced: boolean; children: ReactNode }) {
+  // `p` trong BlockView tự bỏ lề dưới vì là con cuối — bọc lại thì nó luôn là con cuối nên bù lề ở đây
+  return (
+    <div data-update-region={regionKey} data-update={state ?? undefined} className={`ff-upd flow-root ${spaced ? "mb-2" : ""}`}>
+      {children}
     </div>
   );
 }
@@ -393,7 +536,8 @@ function SectionView({
   projectId,
   issues,
   onOpenIssues,
-  changed,
+  pending,
+  regionState,
   onSelectStep,
   emptyHint,
   mode1 = false,
@@ -426,7 +570,10 @@ function SectionView({
   /** Vấn đề đang mở của mục: số lượng và có cái nào chặn chốt bản không. */
   issues?: { count: number; blocking: boolean };
   onOpenIssues?: () => void;
-  changed: boolean;
+  /** Mục đang chờ bản mới (thao tác của chính tab đang ghi). */
+  pending: boolean;
+  /** Trạng thái của một vùng vừa đổi theo khoá `sectionRegionKey` / `blockRegionKey`. */
+  regionState: (regionKey: string) => UpdateState;
   onSelectStep?: (stepId: string) => void;
   emptyHint?: EmptyHint;
   mode1?: boolean;
@@ -441,15 +588,19 @@ function SectionView({
   // Mục riêng của mẫu chỉ có chữ hướng dẫn (`[Describe …]`) vẫn là mục trống — như BE (cờ mục mẫu, thư viện tổ chức)
   const customEmpty = custom && !section.blocks.some(blockHasRealText);
   const depth = depthOf(section);
+  const updateState: UpdateState = pending ? "pending" : regionState(sectionRegionKey(section.id));
   return (
     <article
       data-section-id={section.id}
+      data-update-region={sectionRegionKey(section.id)}
+      data-update={updateState ?? undefined}
+      aria-busy={updateState === "pending" || undefined}
       // Mục con thụt vào so với mục cha (inline style: độ sâu là dữ liệu, không phải class tĩnh); −12px bù phần đệm
       // ngang dành cho nền nổi bật, để chữ của mục gốc thẳng hàng với heading nhóm
       style={{ marginLeft: depth * INDENT_PER_LEVEL - 12 }}
-      // Không khung/viền: tài liệu đọc liền mạch như bản xuất. Section vừa đổi qua chat nổi lên bằng nền tím nhạt một
-      // nhịp (thay cho viền nổi bật trước đây) — chỉ là hiển thị, không liên quan dữ liệu hay file xuất.
-      className={`group/section -mr-3 px-3 py-1.5 rounded-control flex flex-col gap-1.5 transition-colors duration-500 ${changed ? "bg-primary-soft" : ""}`}
+      // Không khung/viền: tài liệu đọc liền mạch như bản xuất. Mục đang / vừa cập nhật nổi lên bằng nền tím nhạt + vạch
+      // trái (`.ff-upd`, globals.css) — chỉ là hiển thị, không liên quan dữ liệu hay file xuất.
+      className="ff-upd ff-upd-section group/section -mr-3 px-3 py-1.5 rounded-control flex flex-col gap-1.5"
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
@@ -554,13 +705,19 @@ function SectionView({
       {section.blocks.length > 0 && (
         <>
           {section.blocks.map((block, i) => (
-            <BlockView
+            <BlockSlot
               key={i}
-              block={block}
-              projectId={projectId}
-              afterHeading={followsHeading(section.blocks, i)}
-              onRedrawDiagram={onRedrawDiagram}
-            />
+              regionKey={blockRegionKey(section.id, i)}
+              state={regionState(blockRegionKey(section.id, i))}
+              spaced={block.type === "paragraph" && i < section.blocks.length - 1}
+            >
+              <BlockView
+                block={block}
+                projectId={projectId}
+                afterHeading={followsHeading(section.blocks, i)}
+                onRedrawDiagram={onRedrawDiagram}
+              />
+            </BlockSlot>
           ))}
           {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
         </>
@@ -569,14 +726,23 @@ function SectionView({
   );
 }
 
+/** Chuỗi trong `useDocument` của pane tự tải (không có `doc` từ ngoài). */
+function SelfLoadingDocumentPane({ refreshToken = 0, documentLanguage = null, ...props }: Omit<DocumentPaneProps, "doc">) {
+  const doc = useDocument(props.projectId, "draft", undefined, refreshToken, documentLanguage);
+  return <DocumentPaneView {...props} documentLanguage={documentLanguage} doc={doc} />;
+}
+
 /** Document pane thật (T16): render `GET /document` (RenderedDocument, T15) — chỉ đọc. */
-export default function DocumentPane({
+export default function DocumentPane({ doc, ...props }: DocumentPaneProps) {
+  return doc ? <DocumentPaneView {...props} doc={doc} /> : <SelfLoadingDocumentPane {...props} />;
+}
+
+function DocumentPaneView({
   projectId,
   projectName,
   flags = [],
-  changedSectionIds,
+  doc,
   onSelectStep,
-  refreshToken = 0,
   emptyHintOf,
   mode1 = false,
   onEditSection,
@@ -600,11 +766,24 @@ export default function DocumentPane({
   hasDiagrams,
   documentLanguage = null,
   onTranslate,
-}: DocumentPaneProps) {
+  newerVersion = null,
+}: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
   const name = projectName ?? t("untitled");
-  const { document, translation, loading, refreshing, empty, error, reload } = useDocument(projectId, "draft", undefined, refreshToken, documentLanguage);
+  const { document, translation, loading, refreshing, empty, error, refreshError, reload, lastDiff, pendingSectionIds } = doc;
+  // Ảnh báo `IMAGE_CHANGED` ⇒ tải lại tài liệu đúng một lượt (nhiều ảnh cùng báo, hoặc vẫn lệch sau khi tải ⇒ không lặp)
+  const reloadRef = useRef(reload);
+  useEffect(() => {
+    reloadRef.current = reload;
+  }, [reload]);
+  const lastImageReloadAt = useRef(0);
+  const onImageChanged = useCallback(() => {
+    const now = Date.now();
+    if (now - lastImageReloadAt.current < IMAGE_RELOAD_MIN_GAP_MS) return;
+    lastImageReloadAt.current = now;
+    void reloadRef.current();
+  }, []);
   const language = shownDocumentLanguage(translation, documentLanguage);
   // Mode 1 không dịch (D3) — dù có truyền nhầm thì cũng không hiện nút
   const translate = mode1 ? undefined : onTranslate;
@@ -613,6 +792,29 @@ export default function DocumentPane({
     if (document) onSectionsLoaded?.(document.sections);
   }, [document, onSectionsLoaded]);
 
+  // ─── Mục đang / vừa cập nhật ────────────────────────────────────────────────────────────────────────────
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const progress = useUpdateRegions(scrollRef, lastDiff);
+  const regionSet = useMemo(() => new Set(lastDiff?.regions ?? []), [lastDiff]);
+  const regionState = (key: string): UpdateState => (regionSet.has(key) ? (progress.settled.has(key) ? "settled" : "fresh") : null);
+  const unseenRegions = lastDiff && progress.observed ? lastDiff.regions.filter((key) => !progress.seen.has(key)) : [];
+  const [dismissedGeneric, setDismissedGeneric] = useState(0);
+  const jumpToUnseen = () => {
+    const target = unseenRegions[0];
+    if (!target) return;
+    const el = [...(scrollRef.current?.querySelectorAll<HTMLElement>("[data-update-region]") ?? [])].find((node) => node.dataset.updateRegion === target);
+    // `start`: mục cao (bảng dài) căn giữa sẽ đẩy tiêu đề mục khỏi khung nhìn. `?.` trên chính hàm: jsdom không có
+    // `scrollIntoView`
+    el?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
+  /** Lời đọc cho trình đọc màn hình khi bản mới về: "Đã cập nhật mục §2.2.1 Use Case Diagram". */
+  const announcement = (() => {
+    if (!lastDiff || !document) return "";
+    if (lastDiff.broad) return t("updatedGeneric");
+    const changed = document.sections.filter((section) => lastDiff.sections.has(section.id));
+    return changed.length <= 3 ? t("updatedSections", { sections: changed.map(sectionLabel).join(", ") }) : t("updatedMany", { count: changed.length });
+  })();
+
   const openFlags = flags.filter((f) => !f.resolved_at && (f.level === "red" || !f.waived_by_user)); // FLF-329: cờ đỏ giữ nguyên vẫn mở
   const issuesOf = (sectionId: string) => {
     const own = openFlags.filter((f) => f.section_id === sectionId);
@@ -620,7 +822,12 @@ export default function DocumentPane({
   };
 
   return (
-    <section className="flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
+    <ImageChangedContext.Provider value={onImageChanged}>
+    <section className="relative flex-1 bg-surface-container-lowest flex flex-col min-w-[320px] overflow-hidden">
+      {/* Trình đọc màn hình: báo mục vừa cập nhật khi bản mới về (vùng live luôn có mặt để lời đọc được phát) */}
+      <div aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
       <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between gap-3 shrink-0 h-12 bg-surface-container-lowest">
         {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng. Pane hẹp ⇒ cắt cả nhãn phiên bản, không tràn đè lên nhóm nút
             bên phải (FLF-265: chip ngôn ngữ làm nhóm phải rộng thêm) */}
@@ -661,22 +868,42 @@ export default function DocumentPane({
           {/*
             Tài liệu tự cập nhật sau mỗi bước và mỗi lệnh sửa (BE dựng bản còn thiếu lúc đọc) — nút này chỉ còn để
             kéo về thay đổi đến từ phiên khác, không còn trạng thái "đã cũ" nào để người dùng phải tự xử lý.
+            Chỉ icon, kích thước cố định 32×32 (đổi trạng thái không xô lệch header): xoay + khoá trong MỌI lượt làm mới
+            (bấm tay hay tự tải); lỗi thì icon đứng yên lại và bấm thử lại được.
           */}
           <button
             type="button"
             onClick={() => void reload()}
             disabled={refreshing}
-            title={t("reloadTitle")}
-            className="h-8 px-3 whitespace-nowrap rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface text-body font-bold cursor-pointer transition-colors disabled:opacity-60"
+            aria-busy={refreshing}
+            aria-label={refreshing ? t("refreshing") : t("refresh")}
+            title={refreshing ? t("refreshing") : t("refresh")}
+            className="shrink-0 w-8 h-8 grid place-items-center rounded-control text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors disabled:cursor-default motion-reduce:disabled:opacity-60"
           >
-            {refreshing ? t("refreshing") : t("refresh")}
+            <Icon name="refresh" size={15} className={refreshing ? "animate-spin motion-reduce:animate-none" : undefined} />
           </button>
           {headerEnd}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
+        {newerVersion && (
+          <div role="status" className="sticky top-0 z-10 rounded-control bg-primary-soft px-3 py-1.5 flex items-center gap-1.5 text-body text-on-surface">
+            <Icon name="refresh" size={14} className="text-primary" />
+            <span>{t("newerVersion")}</span>
+            <span aria-hidden>·</span>
+            <button type="button" onClick={newerVersion.onApply} className="font-bold text-primary hover:underline cursor-pointer">
+              {t("newerVersionApply")}
+            </button>
+          </div>
+        )}
         {/* Lỗi nằm trong vùng cuộn: đặt ngay dưới header thì bị lớp mờ của header che */}
+        {/* Tải lại lỗi khi đang có tài liệu: bản đang đọc giữ nguyên, chỉ báo nhỏ (nút làm mới bấm lại được) */}
+        {document && refreshError && (
+          <p role="alert" className="text-caption text-error">
+            {t("refreshFailed", { error: hookErrorText(refreshError, tHook) })}
+          </p>
+        )}
         {rewriteError && (
           <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-error">
             {t("rewriteFailed", { error: rewriteError })}
@@ -728,7 +955,8 @@ export default function DocumentPane({
               projectId={projectId}
               issues={issuesOf(section.id)}
               onOpenIssues={onOpenSectionIssues ? () => onOpenSectionIssues(section.id) : undefined}
-              changed={changedSectionIds?.has(section.id) ?? false}
+              pending={pendingSectionIds.has(section.id)}
+              regionState={regionState}
               onSelectStep={onSelectStep}
               emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
               mode1={mode1}
@@ -745,6 +973,15 @@ export default function DocumentPane({
             />
           ))}
       </div>
+
+      <DocumentUpdatePill
+        pendingCount={pendingSectionIds.size}
+        updatedCount={unseenRegions.length}
+        generic={Boolean(lastDiff?.broad) && dismissedGeneric !== lastDiff?.seq}
+        onJump={jumpToUnseen}
+        onDismiss={() => setDismissedGeneric(lastDiff?.seq ?? 0)}
+      />
     </section>
+    </ImageChangedContext.Provider>
   );
 }

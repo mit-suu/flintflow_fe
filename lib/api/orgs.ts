@@ -5,6 +5,7 @@
  * xem `switchOrganization` / `acceptInvitation`.
  */
 import { apiCall } from "./client";
+import { clearDocumentImageCache } from "./document-image-cache";
 import { saveAuthToken } from "./token-store";
 import type {
   AcceptInvitationResult,
@@ -76,6 +77,7 @@ export const deleteOrganization = async (
 export const switchOrganization = async (orgId: string): Promise<SwitchOrgResult> => {
   const result = unwrap(await apiCall<SwitchOrgResult>(`/orgs/${orgId}/switch`, { method: "POST" }));
   saveAuthToken(result.accessToken);
+  clearDocumentImageCache();
   return result;
 };
 
@@ -148,5 +150,6 @@ export const acceptInvitation = async (code: string): Promise<AcceptInvitationRe
     await apiCall<AcceptInvitationResult>(`/invitations/${encodeURIComponent(code)}/accept`, { method: "POST" })
   );
   saveAuthToken(result.accessToken);
+  clearDocumentImageCache();
   return result;
 };
