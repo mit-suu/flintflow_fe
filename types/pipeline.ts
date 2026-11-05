@@ -113,6 +113,11 @@ export interface StepSummary {
   accepted_at: string | null;
   /** Step đang chạy dở ở một request khác (vd tab cũ chưa xong sau khi reload) — khoá nút chạy thay vì để nhận 409. */
   running: boolean;
+  /**
+   * FLF-278: chỉ có ở dự án theo mẫu bắt buộc — heading của mẫu (nguyên văn, thứ tự mẫu) mà bước soạn; `[]` = bước không
+   * soạn mục nào của mẫu. Dự án khác: không có.
+   */
+  template_sections?: string[];
 }
 
 /** `GET /projects/:id/steps`. */

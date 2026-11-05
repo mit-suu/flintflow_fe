@@ -71,7 +71,7 @@ describe("Helper .ts theo ngôn ngữ", () => {
   it("sectionLabel theo locale", () => {
     expect(sectionLabel("custom:x", "en")).toBe("Custom section");
     expect(sectionLabel("feature:@B0099", "en")).toBe("New feature (no code yet)");
-    expect(sectionLabelIn("function:@B0031", [{ block_id: "B0031", heading_text: "3.2.1 Register" }], "en")).toBe("3.2.1 Register");
+    expect(sectionLabelIn("function:@B0031", [{ block_id: "B0031", heading_text: "3.2.1 Register" }], "en")).toBe("Register");
     expect(sectionLabel(null, "vi")).toBe("Không khớp (giữ nguyên, không trích)");
   });
 });

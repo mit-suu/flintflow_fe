@@ -17,7 +17,7 @@ vi.mock("@/lib/api/org-library", () => ({
   deleteContentEntry: vi.fn(async () => undefined),
 }));
 
-const template = { id: "t1", name: "IEEE ngân hàng", source_file_name: "bank.docx", heading_count: 42, custom_count: 19, template_family: "ieee830", uses: 3, created_at: "2026-10-20T00:00:00.000Z" };
+const template = { id: "t1", name: "IEEE ngân hàng", source_file_name: "bank.docx", heading_count: 42, custom_count: 19, template_family: "ieee29148", uses: 3, created_at: "2026-10-20T00:00:00.000Z" };
 const entry = {
   id: "e1",
   title: "References",

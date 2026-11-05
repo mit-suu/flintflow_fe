@@ -7,7 +7,7 @@ import { E2E_API_URL } from "../playwright.config";
  * e2e FLF-278 trên FLF-335/336 — dự án mới có mẫu bắt buộc, FE thật trên BE thật:
  *
  *   tạo dự án "Dự án mới" + mẫu bắt buộc → tải file mẫu → mapping review (phần nhỏ `slot:*`) → trích → kết quả đọc
- *   (chế độ 3, mục trống "Sẽ soạn") → lưu mẫu cho tổ chức → "Viết phần còn thiếu với FlintFlow" ⇒ workspace luồng tạo mới
+ *   (chế độ 3, mục trống "Sẽ soạn") → lưu mẫu cho tổ chức → "Viết với FlintFlow" ⇒ workspace luồng tạo mới
  *   (Luồng 2 tại 2.4) → mẫu nằm trong thư viện của tổ chức
  *
  * Chạy tay: `E2E_TEMPLATE_DOCX` là file mẫu .docx (trống hoặc điền dở, có chữ hướng dẫn kiểu `[...]`). BE có thể chạy với
@@ -100,7 +100,10 @@ test("mẫu bắt buộc: Luồng 1 → Luồng 2 cho phần còn thiếu", asyn
     await action.click();
     await expect(action.first()).toBeHidden({ timeout: AI_TIMEOUT });
   }
-  await expect(reading.getByText(/File theo mẫu cố định còn \d+ mục trống/)).toBeVisible();
+  await expect(reading.getByText(/Mẫu có \d+ mục đã có nội dung và \d+ mục còn trống/)).toBeVisible();
+  // Dự án mới theo mẫu bắt buộc: không khoá mẫu còn trống thành bản gốc, không gap report
+  await expect(reading.getByRole("button", { name: "Hoàn thiện" })).toHaveCount(0);
+  await expect(reading.getByRole("button", { name: "Dừng, tải gap report" })).toHaveCount(0);
   await expect(reading.getByText("Sẽ soạn").first()).toBeVisible();
   console.log(`[e2e] kết quả đọc:\n${await reading.innerText()}`);
   await snap(page, "reading-result");
@@ -111,7 +114,7 @@ test("mẫu bắt buộc: Luồng 1 → Luồng 2 cho phần còn thiếu", asyn
   await expect(page.getByText(/Đã lưu\. Dự án mới của tổ chức/)).toBeVisible({ timeout: 30_000 });
 
   // ── 5. Luồng 2 cho phần thiếu (lát 3) ─────────────────────────────────────────────────────
-  await reading.getByRole("button", { name: "Viết phần còn thiếu với FlintFlow" }).click();
+  await reading.getByRole("button", { name: "Viết với FlintFlow" }).click();
   await page.waitForURL(new RegExp(`/projects/${projectId}$`), { timeout: 60_000 });
   await expect(page.locator("#flintflow-chat-pane"), "workspace luồng tạo mới").toBeVisible({ timeout: 60_000 });
   await snap(page, "workspace-flow2");

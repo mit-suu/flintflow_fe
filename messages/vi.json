@@ -56,7 +56,10 @@
         "open_questions": "Câu hỏi còn mở (TBD)",
         "security": "Yêu cầu bảo mật chung",
         "localization": "Yêu cầu bản địa hoá",
-        "analysis_models": "Sơ đồ phân tích (use case, luồng màn hình, ERD)"
+        "analysis_models": "Sơ đồ phân tích (use case, luồng màn hình, ERD)",
+        "references": "Tài liệu tham khảo",
+        "apportioning": "Phân bổ yêu cầu",
+        "verification": "Kiểm chứng"
       }
     },
     "billingData": {
@@ -1237,7 +1240,9 @@
         "skipped": "bỏ qua"
       },
       "dormantTitle": "{count} màn đang để lại (placeholder) — mỗi màn có {steps} bước S-5, chỉ mở khi màn có function. Thêm feature/function cho màn để chạy các bước này.",
-      "dormant": "+{count} màn để lại"
+      "dormant": "+{count} màn để lại",
+      "templateSections": "→ {sections}",
+      "templateSectionsTitle": "Soạn mục của mẫu: {sections}"
     },
     "view": {
       "untitled": "Dự án",
@@ -3595,6 +3600,8 @@
         "import_semantic": "AI phát hiện vấn đề nội dung",
         "import_image_unread": "Ảnh chưa đọc được",
         "import_unresolved_ref": "Quyền chưa khớp màn / vai trò",
+        "import_title_content_mismatch": "Tiêu đề và nội dung khác nhau",
+        "verification_orphan": "Kiểm chứng trỏ yêu cầu không có",
         "original_diagram_stale": "Hình gốc lệch dữ liệu",
         "accepted_as_is": "Chấp nhận nguyên trạng",
         "goal_not_covered": "Mục tiêu chưa được đáp ứng",
@@ -3781,7 +3788,8 @@
       "steps": {
         "upload": "Tải lên",
         "start": "Báo credit & bắt đầu",
-        "run": "Đọc file & tạo bản gốc"
+        "run": "Đọc file & tạo bản gốc",
+        "runTemplate": "Đọc mẫu"
       },
       "closeError": "Đóng thông báo lỗi",
       "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
@@ -3842,7 +3850,8 @@
         "pausedWhat": "Đọc file và tạo bản gốc",
         "interrupted": "Bị gián đoạn — phần dở đã được đưa về như trước. Bấm Tiếp tục để chạy tiếp.",
         "legacy": "Lần nhập này dừng ở một bước cũ (xác nhận dữ liệu). Bấm Tiếp tục để tạo bản gốc 0.1 và kiểm tra — chỗ độ tin thấp sẽ gắn cờ Cần xem.",
-        "continue": "Tiếp tục"
+        "continue": "Tiếp tục",
+        "pausedWhatTemplate": "Đọc mẫu"
       }
     },
     "flagsPanel": {
@@ -3859,11 +3868,18 @@
       "projects": "Dự án",
       "loading": "Đang tải…",
       "modeBadge": "Upload SRS có sẵn",
+      "modeBadgeTemplate": "Mẫu bắt buộc",
+      "templateStatus": {
+        "parsing": "Đang đọc mẫu",
+        "extracting": "Đang đọc mẫu",
+        "incomplete": "Chờ viết phần còn thiếu"
+      },
       "credits": "{credits} credits",
       "needsBaseline": "Cần hoàn tất import (baseline 0.1) trước",
       "tabs": {
         "import": "Nhập SRS",
-        "document": "Tài liệu & version"
+        "document": "Tài liệu & version",
+        "importTemplate": "Mẫu"
       }
     },
     "popup": {
@@ -4071,8 +4087,13 @@
       "downloadFailed": "Không tải được gap report",
       "complete": "Hoàn thiện",
       "completing": "Đang chốt bản gốc…",
-      "draftMissing": "Viết phần còn thiếu với FlintFlow",
-      "draftMissingNote": "Hoàn thiện = khoá bản gốc từ chính mẫu (mục trống để trống). Viết phần còn thiếu = AI dựng Brief từ phần đã có, soạn từng mục còn thiếu để bạn duyệt, rồi ký baseline 1.0 theo đúng mẫu."
+      "template": {
+        "title": "Kết quả đọc mẫu",
+        "summary": "Mẫu có {present} mục đã có nội dung và {missing} mục còn trống. FlintFlow soạn đúng các mục mẫu có — không thêm mục, không đổi thứ tự.",
+        "note": "FlintFlow dựng Brief từ phần mẫu đã có, hỏi bạn phần còn thiếu, soạn {missing, plural, =1 {1 mục còn trống} other {# mục còn trống}} để bạn duyệt rồi ký baseline 1.0 theo đúng mẫu.",
+        "action": "Viết với FlintFlow",
+        "starting": "Đang chuyển sang soạn…"
+      }
     },
     "referenceDocs": {
       "aria": "Tài liệu tham khảo",

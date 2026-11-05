@@ -56,7 +56,10 @@
         "open_questions": "Open questions (TBD)",
         "security": "Common security requirements",
         "localization": "Localization requirements",
-        "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)"
+        "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)",
+        "references": "References",
+        "apportioning": "Apportioning of requirements",
+        "verification": "Verification"
       }
     },
     "billingData": {
@@ -1237,7 +1240,9 @@
         "skipped": "skipped"
       },
       "dormantTitle": "{count, plural, one {# screen left for later (placeholder)} other {# screens left for later (placeholder)}} — each screen has {steps} S-5 steps, opened only when the screen has functions. Add features/functions to the screen to run these steps.",
-      "dormant": "{count, plural, one {+# screen left for later} other {+# screens left for later}}"
+      "dormant": "{count, plural, one {+# screen left for later} other {+# screens left for later}}",
+      "templateSections": "→ {sections}",
+      "templateSectionsTitle": "Writes template sections: {sections}"
     },
     "view": {
       "untitled": "Project",
@@ -3595,6 +3600,8 @@
         "import_semantic": "AI found a content issue",
         "import_image_unread": "Image could not be read",
         "import_unresolved_ref": "Permission does not match a screen / role",
+        "import_title_content_mismatch": "Heading and content differ",
+        "verification_orphan": "Verification points to a missing requirement",
         "original_diagram_stale": "Original diagram out of sync with data",
         "accepted_as_is": "Accepted as is",
         "goal_not_covered": "Goal not covered",
@@ -3781,7 +3788,8 @@
       "steps": {
         "upload": "Upload",
         "start": "Credits & start",
-        "run": "Read file & baseline"
+        "run": "Read file & baseline",
+        "runTemplate": "Read template"
       },
       "closeError": "Close error message",
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
@@ -3842,7 +3850,8 @@
         "pausedWhat": "Reading the file and creating the baseline",
         "interrupted": "Interrupted — the unfinished part has been rolled back. Click Continue to run it again.",
         "legacy": "This import stopped at an old step (confirming data). Click Continue to create baseline 0.1 and run the checks — low-confidence items will be flagged Needs review.",
-        "continue": "Continue"
+        "continue": "Continue",
+        "pausedWhatTemplate": "Reading the template"
       }
     },
     "flagsPanel": {
@@ -3859,11 +3868,18 @@
       "projects": "Projects",
       "loading": "Loading…",
       "modeBadge": "Existing SRS upload",
+      "modeBadgeTemplate": "Mandatory template",
+      "templateStatus": {
+        "parsing": "Reading template",
+        "extracting": "Reading template",
+        "incomplete": "Waiting to write missing sections"
+      },
       "credits": "{credits} credits",
       "needsBaseline": "Finish the import (baseline 0.1) first",
       "tabs": {
         "import": "Import SRS",
-        "document": "Document & versions"
+        "document": "Document & versions",
+        "importTemplate": "Template"
       }
     },
     "popup": {
@@ -4071,8 +4087,13 @@
       "downloadFailed": "Could not download the gap report",
       "complete": "Complete",
       "completing": "Creating the baseline…",
-      "draftMissing": "Write the missing parts with FlintFlow",
-      "draftMissingNote": "Complete = lock the original from the template as is (empty sections stay empty). Write the missing parts = AI builds the brief from what exists, drafts each missing section for you to review, then you sign baseline 1.0 in the template layout."
+      "template": {
+        "title": "Template reading result",
+        "summary": "The template has {present} sections with content and {missing} empty sections. FlintFlow writes only the sections the template has — no extra sections, same order.",
+        "note": "FlintFlow builds the Brief from what the template already has, asks you about the rest, drafts {missing, plural, =1 {1 empty section} other {# empty sections}} for your review, then signs baseline 1.0 in the template layout.",
+        "action": "Write with FlintFlow",
+        "starting": "Switching to drafting…"
+      }
     },
     "referenceDocs": {
       "aria": "Reference documents",

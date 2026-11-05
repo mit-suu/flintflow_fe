@@ -6,7 +6,7 @@ import CreditEstimateNote from "./CreditEstimateNote";
 import PausedBanner from "./PausedBanner";
 import { useMode1Labels } from "./i18n";
 import Icon, { type IconName } from "@/components/ui/Icon";
-import { compareOutlineLabels } from "@/lib/constants/fpt-sections";
+import { compareFileOrder } from "@/lib/constants/fpt-sections";
 
 interface ExtractProgressProps {
   doc: ImportedDocument;
@@ -39,10 +39,11 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
   const done = sections.filter((s) => s.status === "done").length;
   const total = sections.length;
   const notStarted = !running && !doc.paused && doc.extract_cursor === null && done === 0;
-  // Theo số đề mục từ trên xuống (1, 2, 3…), không theo thứ tự BE chạy trích
+  // Theo thứ tự heading trong file từ trên xuống (nhãn bỏ số mục — FLF-362), không theo thứ tự BE chạy trích
+  const order = compareFileOrder(headingMap);
   const rows = sections
     .map((s) => ({ ...s, label: L.sectionLabelIn(s.section_id, headingMap) }))
-    .sort((a, b) => compareOutlineLabels(a.label, b.label));
+    .sort((a, b) => order(a.section_id, b.section_id));
 
   return (
     <div className="flex flex-col gap-4">
