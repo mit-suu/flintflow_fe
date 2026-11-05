@@ -1,15 +1,12 @@
 import type { Block, InlineRun } from "@/types/document";
 
 /**
- * Chữ hướng dẫn của mẫu SRS (FLF-278) — ĐỒNG BỘ TAY với BE `shared/utils/instruction-text.ts`: đoạn nằm trọn trong ngoặc
- * (`[Describe …]`, `<<…>>`, `{…}`, `(…)`) hoặc câu "This section describes…" / "Mục này mô tả…". Không phải nội dung tài liệu:
- * BE không tính nó khi xét mục trống (cờ `template_section_empty`, thư viện tổ chức), FE cũng phải coi như vậy.
+ * Chữ hướng dẫn của mẫu SRS (FLF-278, FLF-364) — ĐỒNG BỘ TAY với BE `shared/utils/instruction-text.ts`: **chỉ** đoạn nằm trọn
+ * trong `[ ]` hoặc `{ }` (`[Describe …]`, `{Ghi chú…}`, `[Name]`, `{{project name}}`). Ngoặc tròn, `< >`, câu "This section
+ * describes…" là nội dung. Không phải nội dung tài liệu: BE không tính nó khi xét mục trống (cờ `template_section_empty`,
+ * thư viện tổ chức), FE cũng phải coi như vậy.
  */
-const INSTRUCTION_PATTERNS: readonly RegExp[] = [
-  /^[[<{(][\s\S]*[\]>})]$/,
-  /^(this|the) section (describes|should|lists|contains)/i,
-  /^(mục|phần) này (mô tả|trình bày|liệt kê|nêu)/i,
-];
+const INSTRUCTION_PATTERNS: readonly RegExp[] = [/^\[[\s\S]*\]$/, /^\{[\s\S]*\}$/];
 
 export const isInstructionText = (text: string): boolean => {
   const t = text.trim();

@@ -23,6 +23,10 @@ export const CONTENT_SLOTS: readonly ContentSlot[] = Object.freeze([
   { id: "slot:security", parents: ["fixed:5.2"] },
   { id: "slot:localization", parents: ["fixed:5.2"] },
   { id: "slot:analysis_models", parents: ["fixed:2.2.1", "fixed:3.1.1", "fixed:3.1.5"] },
+  // FLF-365: mục chỉ có ở mẫu IEEE 29148
+  { id: "slot:references", parents: [] },
+  { id: "slot:apportioning", parents: [] },
+  { id: "slot:verification", parents: [] },
 ] as const);
 
 export const isContentSlot = (id: string): boolean => CONTENT_SLOTS.some((s) => s.id === id);
