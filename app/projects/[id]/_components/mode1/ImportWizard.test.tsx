@@ -158,6 +158,58 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
     for (const li of done) expect(li).not.toHaveAttribute("aria-current");
   });
 
+  describe("Kết quả đọc file theo loại dự án (FLF-278)", () => {
+    /** Upload qua mock rồi để GET /import trả `incomplete` + cấu trúc đích chế độ 3. */
+    const incomplete = async () => {
+      const { uploadImport } = await import("@/lib/api/import");
+      await uploadImport(P, docx("Mau_SRS.docx"));
+      const st = mode1State.mode1State;
+      const doc = { ...st.importDoc!, status: "incomplete" as const, intent: "fixed" as const };
+      const target_structure = {
+        target: "template",
+        intent: "fixed",
+        resolved_mode: 3,
+        compared_at: "2026-11-05T01:00:00.000Z",
+        missing: ["fixed:4.2"],
+        sections: [
+          { section_id: "slot:vision", title: "1.1 Purpose", status: "present", owner_steps: [] },
+          { section_id: "fixed:4.2", title: "3.2 Functional Requirements", status: "missing", owner_steps: ["S-5.1"] },
+        ],
+      };
+      let continued = 0;
+      mockServer.use(
+        http.get(`${API_BASE_URL}/projects/:projectId/import`, () =>
+          HttpResponse.json({ data: { import: doc, profile: st.profile, extraction: { sections: [], review_fields: [] }, blocks_count: 0, credit_estimate: null, target_structure }, error: null })
+        ),
+        http.get(`${API_BASE_URL}/projects/:projectId/spine`, () => HttpResponse.json({ data: { spine_version: 7 }, error: null })),
+        http.post(`${API_BASE_URL}/projects/:projectId/import/continue`, async ({ request }) => {
+          continued += 1;
+          expect(await request.json()).toMatchObject({ import_id: doc.id, base_version: 7 });
+          return HttpResponse.json({ data: { project_mode: "fpt", import_state: "drafting", current_step: "B-1.1", spine_version: 8 }, error: null });
+        })
+      );
+      return () => continued;
+    };
+
+    it("dự án mới + mẫu bắt buộc ⇒ bước 'Đọc mẫu', chỉ Viết với FlintFlow ⇒ /import/continue rồi mở workspace", async () => {
+      const continued = await incomplete();
+      renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} startKind="new" templateIntent="fixed" />);
+      const reading = await screen.findByRole("region", { name: "Kết quả đọc file" });
+      expect(within(reading).getAllByRole("button").map((b) => b.textContent)).toEqual(["Viết với FlintFlow"]);
+      expect(within(screen.getByRole("list", { name: "Các bước import" })).getAllByRole("listitem").at(-1)).toHaveTextContent("3. Đọc mẫu");
+      fireEvent.click(within(reading).getByRole("button", { name: "Viết với FlintFlow" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
+      expect(continued()).toBe(1);
+    });
+
+    it("dự án có sẵn ⇒ Dừng / Hoàn thiện, không có Viết với FlintFlow", async () => {
+      await incomplete();
+      renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} startKind="existing" templateIntent="fixed" />);
+      const reading = await screen.findByRole("region", { name: "Kết quả đọc file" });
+      expect(within(reading).getAllByRole("button").map((b) => b.textContent)).toEqual(["Dừng, tải gap report", "Hoàn thiện"]);
+    });
+  });
+
   describe("bản ghi cũ (trước FLF-343) đi tiếp tới trang tạo CR", () => {
     /** Upload qua mock rồi đưa bản ghi về trạng thái cũ. */
     const legacy = async (status: "awaiting_latest_confirm" | "mapping_review" | "fields_review") => {
