@@ -1237,7 +1237,9 @@
         "skipped": "bỏ qua"
       },
       "dormantTitle": "{count} màn đang để lại (placeholder) — mỗi màn có {steps} bước S-5, chỉ mở khi màn có function. Thêm feature/function cho màn để chạy các bước này.",
-      "dormant": "+{count} màn để lại"
+      "dormant": "+{count} màn để lại",
+      "templateSections": "→ {sections}",
+      "templateSectionsTitle": "Soạn mục của mẫu: {sections}"
     },
     "view": {
       "untitled": "Dự án",

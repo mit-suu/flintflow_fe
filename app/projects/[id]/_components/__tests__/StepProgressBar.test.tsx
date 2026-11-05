@@ -42,6 +42,16 @@ describe("StepProgressBar", () => {
     expect(screen.queryByTestId("step-percent")).not.toBeInTheDocument();
   });
 
+  it("FLF-278: dự án theo mẫu bắt buộc ⇒ dưới tên bước ghi mục của mẫu mà bước đó soạn; bước không soạn mục nào thì không", () => {
+    const tagged = [{ ...step("S-2.5", "accepted"), template_sections: ["1.1 Purpose", "1.2 Scope"] }, { ...step("S-3.1", "pending"), template_sections: [] }];
+    renderWithIntl(<StepProgressBar steps={tagged} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
+    const lines = screen.getAllByTestId("step-template-sections");
+    expect(lines.map((l) => l.textContent)).toEqual(["→ 1.1 Purpose · 1.2 Scope"]);
+    const withSections = screen.getByRole("button", { name: `${stepLabel("S-2.5")} — Soạn mục của mẫu: 1.1 Purpose · 1.2 Scope` });
+    expect(withSections).toHaveAttribute("title", expect.stringContaining("Soạn mục của mẫu: 1.1 Purpose · 1.2 Scope"));
+    expect(screen.getByRole("button", { name: stepLabel("S-3.1") })).not.toHaveTextContent("→");
+  });
+
   it("`phase` ⇒ chỉ hiện bước của phase đó", () => {
     renderWithIntl(<StepProgressBar phase="S-3" steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
     expect(screen.queryByRole("button", { name: stepLabel("S-2.5") })).not.toBeInTheDocument();

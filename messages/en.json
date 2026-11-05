@@ -1237,7 +1237,9 @@
         "skipped": "skipped"
       },
       "dormantTitle": "{count, plural, one {# screen left for later (placeholder)} other {# screens left for later (placeholder)}} — each screen has {steps} S-5 steps, opened only when the screen has functions. Add features/functions to the screen to run these steps.",
-      "dormant": "{count, plural, one {+# screen left for later} other {+# screens left for later}}"
+      "dormant": "{count, plural, one {+# screen left for later} other {+# screens left for later}}",
+      "templateSections": "→ {sections}",
+      "templateSectionsTitle": "Writes template sections: {sections}"
     },
     "view": {
       "untitled": "Project",
