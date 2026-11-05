@@ -105,7 +105,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
               i < stepIndex ? "bg-[#E9F7EE] text-[#1F7A45]" : i === stepIndex ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#A8A49C]"
             }`}
           >
-            {i + 1}. {t(`steps.${id}`)}
+            {i + 1}. {intentLocked && id === "run" ? t("steps.runTemplate") : t(`steps.${id}`)}
           </li>
         ))}
       </ol>
@@ -207,7 +207,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
           {doc.paused ? (
             <PausedBanner
               paused={doc.paused}
-              what={t("run.pausedWhat")}
+              what={intentLocked ? t("run.pausedWhatTemplate") : t("run.pausedWhat")}
               {...(status === "baselining" ? { interrupted: t("run.interrupted") } : {})}
               busy={imp.busy === "resume"}
               onResume={() => void after(imp.resume())}
@@ -242,13 +242,16 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
           projectId={projectId}
           structure={imp.data.target_structure}
           busy={imp.busy === "finalize"}
-          onComplete={() => void after(imp.complete())}
-          onDraftMissing={() =>
-            void after(imp.continueFlow2()).then((res) => {
-              // Dự án đã sang luồng tạo mới (`fpt`) ⇒ workspace chạy từ Brief
-              if (res) router.push(`/projects/${projectId}`);
-            })
-          }
+          // Dự án mới theo mẫu bắt buộc: chỉ "Viết với FlintFlow" (mẫu trống không khoá thành bản gốc); dự án có sẵn: Dừng / Hoàn thiện
+          {...(intentLocked
+            ? {
+                onDraftMissing: () =>
+                  void after(imp.continueFlow2()).then((res) => {
+                    // Dự án đã sang luồng tạo mới (`fpt`) ⇒ workspace chạy từ Brief
+                    if (res) router.push(`/projects/${projectId}`);
+                  }),
+              }
+            : { onComplete: () => void after(imp.complete()) })}
         />
       )}
 

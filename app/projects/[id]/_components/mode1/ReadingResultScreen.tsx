@@ -10,11 +10,14 @@ import { useMode1Labels } from "./i18n";
 interface ReadingResultScreenProps {
   projectId: string;
   structure: TargetStructure;
-  /** Bấm "Hoàn thiện" ⇒ finalize với `complete: true`. */
-  onComplete: () => void;
   /**
-   * FLF-278 trên FLF-336 — chế độ 3: "Viết phần còn thiếu với FlintFlow" (Luồng 2: Brief từ phần đã có, AI soạn từng bước
-   * còn thiếu, BA duyệt, ký baseline 1.0). Không truyền ⇒ không có nút (chế độ 4 chưa hỗ trợ).
+   * Dự án có sẵn (FLF-336): "Hoàn thiện" ⇒ finalize với `complete: true`; kèm "Dừng, tải gap report". Không truyền ⇒ không
+   * có hai nút này (dự án mới theo mẫu bắt buộc — BE chặn khoá mẫu còn trống thành bản gốc).
+   */
+  onComplete?: () => void;
+  /**
+   * FLF-278 — dự án **mới** theo mẫu bắt buộc: file là khung mẫu, lối đi duy nhất là "Viết với FlintFlow" (Luồng 2: Brief từ
+   * phần mẫu đã có, AI soạn từng mục còn trống, BA duyệt, ký baseline 1.0). Truyền ⇒ màn đổi sang lời "đọc mẫu".
    */
   onDraftMissing?: () => void;
   busy?: boolean;
@@ -28,8 +31,10 @@ const STATUS_TONE: Record<TargetStructure["sections"][number]["status"], string>
 
 /**
  * Điểm dừng "Kết quả đọc file" (FLF-336 §3.1.2 bước 1.10): bản đồ mục của file ⇒ cấu trúc đích (có / sẽ soạn / ngoài phạm vi),
- * chế độ thật Code đã chọn (3 / 4), hai lối đi: **Dừng, tải gap report** (dự án "chưa hoàn thiện", mở lại tiếp được, chỉ xuất
- * DRAFT) hoặc **Hoàn thiện** (lát 1: tạo v0 như hôm nay; lát sau: rà soát phần có sẵn rồi soạn phần thiếu).
+ * chế độ thật Code đã chọn (3 / 4). Lối đi theo loại dự án:
+ *  - dự án có sẵn: **Dừng, tải gap report** (dự án "chưa hoàn thiện", mở lại tiếp được, chỉ xuất DRAFT) hoặc **Hoàn thiện**;
+ *  - dự án mới theo mẫu bắt buộc (FLF-278): chỉ **Viết với FlintFlow** — mẫu còn trống thì khoá thành bản gốc hay tải gap
+ *    report đều vô nghĩa.
  */
 export default function ReadingResultScreen({ projectId, structure, onComplete, onDraftMissing, busy = false }: ReadingResultScreenProps) {
   const t = useTranslations("mode1.readingResult");
@@ -39,6 +44,7 @@ export default function ReadingResultScreen({ projectId, structure, onComplete, 
   const missing = structure.sections.filter((s) => s.status === "missing");
   const present = structure.sections.filter((s) => s.status === "present");
   const outOfScope = structure.sections.filter((s) => s.status === "out_of_scope");
+  const template = Boolean(onDraftMissing);
 
   const download = async () => {
     setDownloading(true);
@@ -56,8 +62,10 @@ export default function ReadingResultScreen({ projectId, structure, onComplete, 
   return (
     <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-5 flex flex-col gap-4" aria-label={t("aria")}>
       <div>
-        <h3 className="text-title font-extrabold text-[#191817]">{t("title")}</h3>
-        <p className="text-body text-[#4B4842]">{t(`mode.${structure.resolved_mode}`, { missing: missing.length, present: present.length })}</p>
+        <h3 className="text-title font-extrabold text-[#191817]">{template ? t("template.title") : t("title")}</h3>
+        <p className="text-body text-[#4B4842]">
+          {template ? t("template.summary", { missing: missing.length, present: present.length }) : t(`mode.${structure.resolved_mode}`, { missing: missing.length, present: present.length })}
+        </p>
       </div>
 
       <ul className="flex flex-col gap-1.5" aria-label={t("mapAria")}>
@@ -78,21 +86,20 @@ export default function ReadingResultScreen({ projectId, structure, onComplete, 
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#ECEAE5] pt-3">
-        <p className="flex-1 min-w-[240px] text-caption text-[#8A867E]">{onDraftMissing && structure.resolved_mode === 3 ? t("draftMissingNote") : t("stopNote")}</p>
-        <button type="button" disabled={busy || downloading} onClick={() => void download()} className="px-4 py-2 rounded-[10px] border border-[#ECEAE5] bg-white text-[#191817] text-body font-bold cursor-pointer disabled:opacity-50">
-          {downloading ? t("downloading") : t("stop")}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onComplete}
-          className={onDraftMissing && structure.resolved_mode === 3 ? "px-4 py-2 rounded-[10px] border border-[#ECEAE5] bg-white text-[#191817] text-body font-bold cursor-pointer disabled:opacity-50" : "px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold cursor-pointer disabled:opacity-50"}
-        >
-          {busy ? t("completing") : t("complete")}
-        </button>
-        {onDraftMissing && structure.resolved_mode === 3 && (
+        <p className="flex-1 min-w-[240px] text-caption text-[#8A867E]">{template ? t("template.note", { missing: missing.length }) : t("stopNote")}</p>
+        {onComplete && (
+          <>
+            <button type="button" disabled={busy || downloading} onClick={() => void download()} className="px-4 py-2 rounded-[10px] border border-[#ECEAE5] bg-white text-[#191817] text-body font-bold cursor-pointer disabled:opacity-50">
+              {downloading ? t("downloading") : t("stop")}
+            </button>
+            <button type="button" disabled={busy} onClick={onComplete} className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold cursor-pointer disabled:opacity-50">
+              {busy ? t("completing") : t("complete")}
+            </button>
+          </>
+        )}
+        {onDraftMissing && (
           <button type="button" disabled={busy} onClick={onDraftMissing} className="px-5 py-2.5 rounded-[10px] btn-gradient-primary text-white text-body font-bold cursor-pointer disabled:opacity-50">
-            {t("draftMissing")}
+            {busy ? t("template.starting") : t("template.action")}
           </button>
         )}
       </div>
