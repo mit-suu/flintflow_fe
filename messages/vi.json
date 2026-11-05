@@ -3191,7 +3191,6 @@
     "crList": {
       "title": "Change request",
       "intro": "Tài liệu đã có baseline — mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.",
-      "create": "+ Tạo change request",
       "filterAria": "Lọc change request",
       "filters": {
         "open": "Đang mở",

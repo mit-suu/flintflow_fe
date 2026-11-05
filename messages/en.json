@@ -3191,7 +3191,6 @@
     "crList": {
       "title": "Change requests",
       "intro": "The document has a baseline — every edit goes through a change request: clarify, locate, propose, check, approve, then write Track Changes.",
-      "create": "+ Create change request",
       "filterAria": "Filter change requests",
       "filters": {
         "open": "Open",
