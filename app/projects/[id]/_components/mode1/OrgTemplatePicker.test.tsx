@@ -8,7 +8,7 @@ import * as api from "@/lib/api/org-library";
 vi.mock("@/lib/api/token-store", async (importOriginal) => ({ ...(await importOriginal<object>()), getActiveOrgId: () => "o1" }));
 vi.mock("@/lib/api/org-library", () => ({
   listOrgTemplates: vi.fn(async () => [
-    { id: "t1", name: "Mẫu ngân hàng", source_file_name: "bank.docx", heading_count: 42, custom_count: 9, template_family: "ieee830", uses: 2, created_at: "2026-10-20T00:00:00.000Z" },
+    { id: "t1", name: "Mẫu ngân hàng", source_file_name: "bank.docx", heading_count: 42, custom_count: 9, template_family: "ieee29148", uses: 2, created_at: "2026-10-20T00:00:00.000Z" },
   ]),
   saveImportToOrg: vi.fn(async () => ({ id: "t2" })),
 }));

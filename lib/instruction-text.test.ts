@@ -4,11 +4,13 @@ import { blockHasRealText, isInstructionText, isRealText } from "./instruction-t
 const p = (text: string) => ({ type: "paragraph" as const, runs: [{ text }] });
 
 describe("chữ hướng dẫn của mẫu (FLF-278, đồng bộ BE instruction-text)", () => {
-  it("nhận chữ trong ngoặc và câu mô tả mục là hướng dẫn", () => {
+  it("FLF-364: chỉ chữ trọn trong [ ] / { } là hướng dẫn; < >, ngoặc tròn, câu mô tả mục là nội dung", () => {
     expect(isInstructionText("[Describe any standards or typographical conventions]")).toBe(true);
-    expect(isInstructionText("  <<Tên hệ thống>> ")).toBe(true);
-    expect(isInstructionText("This section describes the context of the product.")).toBe(true);
-    expect(isInstructionText("Mục này mô tả phạm vi phát hành.")).toBe(true);
+    expect(isInstructionText(" {Ghi chú cho người soạn} ")).toBe(true);
+    expect(isInstructionText("  <<Tên hệ thống>> ")).toBe(false);
+    expect(isInstructionText("<= 24 h (<= 6 h during exam week)")).toBe(false);
+    expect(isInstructionText("This section describes the context of the product.")).toBe(false);
+    expect(isInstructionText("Mục này mô tả phạm vi phát hành.")).toBe(false);
     expect(isInstructionText("Lumen Pay follows the internal IT security policy.")).toBe(false);
     expect(isRealText("   ")).toBe(false);
     expect(isRealText("[dd/mm/yyyy]")).toBe(false);

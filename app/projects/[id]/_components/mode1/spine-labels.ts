@@ -68,6 +68,8 @@ export const RULE_KEYS = [
   "import_semantic",
   "import_image_unread",
   "import_unresolved_ref",
+  "import_title_content_mismatch",
+  "verification_orphan",
   "import_needs_review",
   "original_diagram_stale",
   "accepted_as_is",
@@ -207,8 +209,10 @@ export const spineLabels = (t: Mode1T, localeName: string) => {
 
   /** Nhãn mục theo ngôn ngữ — dùng chung `lib/constants/fpt-sections` (namespace `common.fptSections`). */
   const sectionLabel = (id: string | null): string => fptSectionLabel(id, locale);
-  const sectionLabelIn = (id: string | null, headingMap?: readonly { block_id: string; heading_text: string }[]): string =>
-    fptSectionLabelIn(id, headingMap, locale);
+  const sectionLabelIn = (
+    id: string | null,
+    headingMap?: readonly { block_id: string; heading_text: string; section_id?: string }[]
+  ): string => fptSectionLabelIn(id, headingMap, locale);
 
   /** Mục trong câu chữ: `fixed:5.1` ⇒ "5.1 Business Rules". */
   const sectionName = (sectionId: string | null | undefined): string => (sectionId ? sectionLabel(sectionId) : "");

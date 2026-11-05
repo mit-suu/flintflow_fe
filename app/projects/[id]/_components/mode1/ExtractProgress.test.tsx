@@ -91,7 +91,7 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
   it("đang chạy ⇒ thanh tiến độ theo số section xong, tên section đang trích, số field cần xem, lỗi section", () => {
     renderWithIntl(<ExtractProgress {...props({ running: true, doc: doc({ extract_cursor: "fixed:3.1.2" }) })} />);
     expect(screen.queryByRole("button", { name: "Bắt đầu trích (AI)" })).not.toBeInTheDocument();
-    expect(screen.getByText("Đang trích 3.1.2 Screen Descriptions…")).toBeInTheDocument();
+    expect(screen.getByText("Đang trích Screen Descriptions…")).toBeInTheDocument();
     expect(screen.getByText("2/4 section")).toBeInTheDocument();
     const bar = screen.getByRole("progressbar");
     expect(bar).toHaveAttribute("aria-valuenow", "2");
@@ -101,7 +101,8 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
 
     const items = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(items).toHaveLength(4);
-    expect(items[0]).toHaveTextContent("1 Product Overview");
+    expect(items[0]).toHaveTextContent("Product Overview");
+    expect(items[0].textContent).not.toMatch(/^\d/);
     expect(items[0]).toHaveTextContent("3 field");
     expect(items[1]).toHaveTextContent("6 field · 2 cần xem");
     expect(items[2].className).toContain("bg-[#F2F1FB]"); // section đang trích được làm nổi
@@ -110,7 +111,7 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
     expect(items[3]).toHaveTextContent("AI trả sai schema");
   });
 
-  it("danh sách mục theo số đề mục 1, 2, 3 từ trên xuống; mục tạm chỉ hiện tiêu đề trong file (không “Tính năng mới —”)", () => {
+  it("FLF-362: danh sách mục bỏ số mục, theo thứ tự heading trong file (mục không có trong file xếp sau theo mẫu); mục tạm chỉ hiện tiêu đề trong file (không “Tính năng mới —”)", () => {
     const headingMap = [
       { block_id: "B0030", heading_text: "3.2 Authentication" },
       { block_id: "B0031", heading_text: "3.2.1 Register account" },
@@ -124,8 +125,8 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
     ];
     renderWithIntl(<ExtractProgress {...props({ sections, headingMap, doc: doc({ extract_cursor: null }) })} />);
     const items = within(screen.getByRole("list")).getAllByRole("listitem").map((li) => li.textContent ?? "");
-    expect(items.map((text) => text.match(/^\d+(?:\.\d+)*/)?.[0])).toEqual(["1", "2.1", "3.2", "3.2.1", "4.2.3"]);
-    expect(items[2]).toContain("3.2 Authentication");
+    expect(items.map((text) => text.match(/^\D*?(?=\d|$)/)?.[0]?.trim())).toEqual(["Authentication", "Register account", "Product Overview", "Actors", "Performance"]);
+    expect(items.some((text) => /^\d/.test(text))).toBe(false);
     expect(screen.queryByText(/Tính năng mới|Chức năng mới/)).not.toBeInTheDocument();
   });
 
@@ -176,7 +177,7 @@ describe("ExtractProgress trong wizard — poll GET /import khi job nền chạy
     ]);
     renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} />);
 
-    expect(await screen.findByText("Đang trích 2.1 Actors…")).toBeInTheDocument();
+    expect(await screen.findByText("Đang trích Actors…")).toBeInTheDocument();
     expect(screen.getByText("1/3 section")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Mở màn hình chat" })).toBeInTheDocument();
     const settled = calls();

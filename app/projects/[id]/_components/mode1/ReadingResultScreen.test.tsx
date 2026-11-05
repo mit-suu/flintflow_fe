@@ -67,17 +67,22 @@ describe("ReadingResultScreen (FLF-336 — điểm dừng Kết quả đọc fil
   });
 });
 
-describe("ReadingResultScreen — Luồng 2 cho phần thiếu (FLF-278 trên FLF-336)", () => {
-  it("chế độ 3 + có onDraftMissing ⇒ nút Viết phần còn thiếu là lối chính, Hoàn thiện vẫn còn; chế độ 4 không có nút", () => {
+describe("ReadingResultScreen — dự án mới theo mẫu bắt buộc (FLF-278)", () => {
+  it("có onDraftMissing (không onComplete) ⇒ lời 'đọc mẫu', một lối đi duy nhất Viết với FlintFlow — không Hoàn thiện, không gap report", () => {
     const onDraftMissing = vi.fn();
-    const fixed = structure({ resolved_mode: 3, target: "template", intent: "fixed" });
-    const { unmount } = renderWithIntl(<ReadingResultScreen projectId={P} structure={fixed} onComplete={vi.fn()} onDraftMissing={onDraftMissing} />);
-    expect(screen.getByText(/AI dựng Brief từ phần đã có/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Viết phần còn thiếu với FlintFlow" }));
+    const fixed = structure({ resolved_mode: 3, target: "template", intent: "fixed", sections: structure().sections.filter((s) => s.status !== "out_of_scope") });
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={fixed} onDraftMissing={onDraftMissing} />);
+    expect(screen.getByRole("heading", { name: "Kết quả đọc mẫu" })).toBeInTheDocument();
+    expect(screen.getByText(/Mẫu có 1 mục đã có nội dung và 2 mục còn trống/)).toBeInTheDocument();
+    expect(screen.getByText(/soạn 2 mục còn trống để bạn duyệt/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Viết với FlintFlow"]);
+    fireEvent.click(screen.getByRole("button", { name: "Viết với FlintFlow" }));
     expect(onDraftMissing).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Hoàn thiện" })).toBeInTheDocument();
-    unmount();
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure()} onComplete={vi.fn()} onDraftMissing={onDraftMissing} />);
-    expect(screen.queryByRole("button", { name: "Viết phần còn thiếu với FlintFlow" })).not.toBeInTheDocument();
+  });
+
+  it("dự án có sẵn (chỉ onComplete) ⇒ Dừng / Hoàn thiện, không có Viết với FlintFlow", () => {
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure({ resolved_mode: 3, target: "template", intent: "fixed" })} onComplete={vi.fn()} />);
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Dừng, tải gap report", "Hoàn thiện"]);
+    expect(screen.getByRole("heading", { name: "Kết quả đọc file" })).toBeInTheDocument();
   });
 });

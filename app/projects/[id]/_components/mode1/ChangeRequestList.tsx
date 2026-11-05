@@ -18,7 +18,7 @@ interface ChangeRequestListProps {
   projectId: string;
   /** Điền sẵn từ gap report / re-upload / chat (`?new=1&…`) ⇒ mở form ngay. */
   prefill: CrPrefill | null;
-  /** Viewer: chỉ xem danh sách, không có nút tạo CR. */
+  /** Viewer: chỉ xem danh sách, prefill không mở form. */
   readOnly?: boolean;
 }
 
@@ -38,7 +38,10 @@ export const statusTone = (status: Cr["status"]): string =>
         ? "bg-[#FBF4E4] text-[#8A6D1F]"
         : "bg-[#F2F1FB] text-[#554DB0]";
 
-/** Danh sách change request + tạo mới (UC-48). */
+/**
+ * Danh sách change request (UC-48). Không có nút tạo mới: CR tạo qua chat (`Mode1CrThread`); form chỉ mở khi một lối vào
+ * khác điền sẵn (`?new=1&…` — gap report, comment, cờ, re-upload).
+ */
 export default function ChangeRequestList({ projectId, prefill, readOnly = false }: ChangeRequestListProps) {
   const t = useTranslations("mode1.crList");
   const L = useMode1Labels();
@@ -48,6 +51,7 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
   const [crs, setCrs] = useState<Cr[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(prefill !== null && !readOnly);
+  // `formOpen` chỉ còn tắt được (Huỷ) — không có nút mở lại
   const [filter, setFilter] = useState<Filter>("open");
   const [review, setReview] = useState<Flag[] | null>(null);
   const [reviewError, setReviewError] = useState(false);
@@ -90,16 +94,9 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
 
   return (
     <div className="flex flex-col gap-4 max-w-[920px] w-full mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-title font-extrabold text-[#191817]">{t("title")}</h2>
-          <p className="text-body text-[#8A867E]">{t("intro")}</p>
-        </div>
-        {!formOpen && !readOnly && (
-          <button type="button" onClick={() => setFormOpen(true)} className="px-4 py-2 rounded-full btn-gradient-primary text-white text-body font-bold cursor-pointer">
-            {t("create")}
-          </button>
-        )}
+      <div>
+        <h2 className="text-title font-extrabold text-[#191817]">{t("title")}</h2>
+        <p className="text-body text-[#8A867E]">{t("intro")}</p>
       </div>
 
       {formOpen && (

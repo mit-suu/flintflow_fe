@@ -11,6 +11,10 @@ import { IMPORT_DONE_STATUSES } from "./labels";
 
 export type Mode1Tab = "document" | "import";
 
+/** Trạng thái import đổi lời khi file là mẫu bắt buộc của dự án mới (đọc mẫu, không "trích field" / "chờ bạn quyết"). */
+const TEMPLATE_STATUSES = ["parsing", "extracting", "incomplete"] as const;
+type TemplateStatus = (typeof TEMPLATE_STATUSES)[number];
+
 interface Mode1ShellProps {
   projectId: string;
   project: Project | null;
@@ -36,6 +40,9 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
   const L = useMode1Labels();
   const importState = project?.import_state ?? null;
   const hasBaseline = importState !== null && IMPORT_DONE_STATUSES.includes(importState);
+  /** FLF-278: dự án mới theo mẫu bắt buộc — file tải lên là mẫu để viết, không phải SRS có sẵn. */
+  const template = project?.start_kind === "new" && project?.template_intent === "fixed";
+  const statusLabel = (s: NonNullable<typeof importState>) => (template && (TEMPLATE_STATUSES as readonly string[]).includes(s) ? t(`templateStatus.${s as TemplateStatus}`) : L.importStatus(s));
 
   return (
     <AuthGuard>
@@ -51,11 +58,11 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
               <span className="font-bold text-[#191817] truncate max-w-[260px]">{project?.name ?? t("loading")}</span>
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-[#F2F1FB] text-[#554DB0] text-caption font-bold shrink-0">
-              {t("modeBadge")}
+              {template ? t("modeBadgeTemplate") : t("modeBadge")}
             </span>
             {importState && (
               <span className="px-2.5 py-0.5 rounded-full bg-[#F0EEEA] text-[#4B4842] text-caption font-semibold shrink-0">
-                {L.importStatus(importState)}
+                {statusLabel(importState)}
               </span>
             )}
           </div>
@@ -81,7 +88,7 @@ export default function Mode1Shell({ projectId, project, credits, active, error,
               </span>
             ) : (
               <Link key={tab.id} href={`/projects/${projectId}${tab.path}`} className={className} aria-current={active === tab.id ? "page" : undefined}>
-                {t(`tabs.${tab.id}`)}
+                {template && tab.id === "import" ? t("tabs.importTemplate") : t(`tabs.${tab.id}`)}
               </Link>
             );
           })}

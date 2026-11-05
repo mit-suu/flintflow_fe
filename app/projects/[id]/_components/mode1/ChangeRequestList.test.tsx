@@ -96,7 +96,7 @@ describe("ChangeRequestList", () => {
     expect(await screen.findByText("Chưa có change request nào ở mục này.")).toBeInTheDocument();
   });
 
-  it("lỗi tải ⇒ báo lỗi mà vẫn dùng được nút tạo mới", async () => {
+  it("lỗi tải ⇒ báo lỗi, không làm trắng trang", async () => {
     mockServer.use(
       http.get(`${API_BASE_URL}/projects/:projectId/change-requests`, () =>
         HttpResponse.json({ data: null, error: { code: "PROJECT_NOT_FOUND", message: "Không tìm thấy dự án" } }, { status: 404 })
@@ -104,14 +104,21 @@ describe("ChangeRequestList", () => {
     );
     renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Không tìm thấy dự án");
-    expect(screen.getByRole("button", { name: "+ Tạo change request" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Change request" })).toBeInTheDocument();
   });
 
-  it("có prefill (từ gap report / chat) ⇒ form mở sẵn, không phải bấm thêm", async () => {
+  it("không có nút tạo CR — CR tạo qua chat; không prefill thì không có form", async () => {
+    serveList(LIST);
+    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    expect(screen.queryByRole("button", { name: /Tạo change request/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Tiêu đề")).not.toBeInTheDocument();
+  });
+
+  it("có prefill (từ gap report / comment / cờ) ⇒ form mở sẵn", async () => {
     serveList([]);
     renderWithIntl(<ChangeRequestList projectId={P} prefill={{ title: "Đổi tên actor", description: "Learner ⇒ Student", source: "gap_report" }} />);
     await waitFor(() => expect(screen.getByLabelText("Tiêu đề")).toHaveValue("Đổi tên actor"));
-    expect(screen.queryByRole("button", { name: "+ Tạo change request" }), "form đang mở thì không mời mở lần nữa").not.toBeInTheDocument();
   });
 
   it("statusTone: bốn nhóm màu theo trạng thái, không trạng thái nào rơi ra ngoài", () => {
@@ -123,11 +130,10 @@ describe("ChangeRequestList", () => {
 });
 
 describe("ChangeRequestList — Viewer (readOnly)", () => {
-  it("xem được danh sách; không có nút tạo, prefill cũng không mở form", async () => {
+  it("xem được danh sách; prefill không mở form", async () => {
     serveList(LIST);
     renderWithIntl(<ChangeRequestList projectId={P} prefill={{ title: "Từ gap report", description: "x" }} readOnly />);
     await waitFor(() => expect(rows()).toHaveLength(2));
-    expect(screen.queryByRole("button", { name: "+ Tạo change request" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tạo change request" })).not.toBeInTheDocument();
   });
 });
