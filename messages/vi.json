@@ -3310,6 +3310,7 @@
       "unknown": "Chưa biết — AI sẽ giả định",
       "aria": "Trả lời câu hỏi làm rõ",
       "need": "AI cần thêm thông tin trước khi tìm vị trí và viết nội dung (vòng {round}/{max}):",
+      "needConfirm": "Change request khác với nội dung đang có trong tài liệu — chọn cách xử lý trước khi đi tiếp (vòng {round}):",
       "hint": "Chọn một gợi ý hoặc tự nhập câu trả lời. Câu chưa biết thì “Bỏ qua” — AI sẽ tự giả định và đánh dấu để người duyệt xác nhận."
     },
     "reasonDialog": {

@@ -3310,6 +3310,7 @@
       "unknown": "Unknown — AI will make an assumption",
       "aria": "Answer the clarifying questions",
       "need": "AI needs more information before locating and writing the content (round {round}/{max}):",
+      "needConfirm": "The change request conflicts with what the document says now — choose how to handle it before going on (round {round}):",
       "hint": "Pick a suggestion or type your own answer. If you don't know, click “Skip” — AI will make an assumption and flag it for the reviewer to confirm."
     },
     "reasonDialog": {
