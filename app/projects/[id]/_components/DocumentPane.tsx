@@ -49,6 +49,12 @@ interface DocumentPaneProps {
    */
   onDraftSection?: (sectionLabel: string) => void;
   /**
+   * FLF-382 luồng B (dự án có sẵn · mẫu cố định, mode 1): "Soạn mục còn trống" trên mọi mục trống (mục FPT lẫn mục riêng) —
+   * mở / tạo lại CR "Bổ sung mục còn thiếu" cho **mọi** mục đang trống. Không truyền ⇒ không có nút.
+   */
+  onGapFill?: () => void;
+  gapFillBusy?: boolean;
+  /**
    * FLF-278 — thư viện nội dung của tổ chức. `libraryMatchOf`: mục riêng có nội dung cùng tiêu đề trong thư viện;
    * `onUseLibrary` mở bản xem trước / lệnh sửa (không ghi ngay); `onSaveToLibrary` lưu mục đã viết vào thư viện;
    * `onUseLibraryAll` dùng cho mọi mục trống có gợi ý.
@@ -543,6 +549,8 @@ function SectionView({
   mode1 = false,
   onEdit,
   onDraft,
+  onGapFill,
+  gapFillBusy = false,
   libraryMatch,
   onUseLibrary,
   onSaveToLibrary,
@@ -554,6 +562,8 @@ function SectionView({
 }: {
   onEdit?: (sectionLabel: string) => void;
   onDraft?: (sectionLabel: string) => void;
+  onGapFill?: () => void;
+  gapFillBusy?: boolean;
   libraryMatch?: { empty: boolean };
   onUseLibrary?: () => void;
   onSaveToLibrary?: () => void;
@@ -690,6 +700,17 @@ function SectionView({
               {t("draftSection")}
             </button>
           )}
+          {onGapFill && (showEmpty || customEmpty) && !hasChildren && (
+            // FLF-382: mục trống của luồng B — mở CR bổ sung (AI hỏi rồi soạn mọi mục còn trống), luôn hiện
+            <button
+              type="button"
+              onClick={onGapFill}
+              disabled={gapFillBusy}
+              className="text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-default"
+            >
+              {gapFillBusy ? t("gapFillBusy") : t("gapFill")}
+            </button>
+          )}
           {onEdit && (
             // Hiện khi rê chuột / focus vào mục: sửa ngay chỗ đang đọc, lệnh gõ tiếp ở ô chat
             <button
@@ -747,6 +768,8 @@ function DocumentPaneView({
   mode1 = false,
   onEditSection,
   onDraftSection,
+  onGapFill,
+  gapFillBusy = false,
   libraryMatchOf,
   onUseLibrary,
   onSaveToLibrary,
@@ -962,6 +985,8 @@ function DocumentPaneView({
               mode1={mode1}
               onEdit={onEditSection}
               onDraft={onDraftSection}
+              onGapFill={onGapFill}
+              gapFillBusy={gapFillBusy}
               libraryMatch={libraryMatchOf?.(section.id)}
               onUseLibrary={onUseLibrary ? () => onUseLibrary(section.id) : undefined}
               onSaveToLibrary={onSaveToLibrary ? () => onSaveToLibrary(section.id) : undefined}

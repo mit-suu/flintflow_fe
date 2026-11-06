@@ -19,6 +19,12 @@ const post = (body: unknown = {}): RequestInit => ({ method: "POST", body: JSON.
 
 export const createCr = (projectId: string, body: CreateCrRequest) => apiCall<CrDetail>(crs(projectId), post(body));
 
+/**
+ * FLF-382 (luồng B): mở CR "Bổ sung mục còn thiếu" cho các mục đang trống — BE tạo mới hoặc trả CR bổ sung đang mở.
+ * 409 `NO_MISSING_SECTIONS` khi tài liệu không còn mục trống.
+ */
+export const startGapFillCr = (projectId: string) => apiCall<CrDetail>(`${crs(projectId)}/gap-fill`, post({}));
+
 /** Mới nhất trước. */
 export const listCrs = (projectId: string, status?: CrStatus) =>
   apiCall<Cr[]>(status ? `${crs(projectId)}?status=${status}` : crs(projectId));

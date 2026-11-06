@@ -63,6 +63,18 @@ export interface CrMaterial {
   added_at: IsoDateTime;
 }
 
+/**
+ * FLF-382: `gap_fill` = CR "Bổ sung mục còn thiếu" (luồng B — BE tự tạo sau Hoàn thiện hoặc qua nút "Soạn mục còn trống");
+ * `edit` = CR thường. CR cũ không có field ⇒ coi như `edit`.
+ */
+export type CrKind = "edit" | "gap_fill";
+
+/** FLF-382: mục còn trống CR bổ sung sẽ soạn — `title` theo tiêu đề của file khách (đã kèm số mục). */
+export interface CrGapSection {
+  section_id: string;
+  title: string;
+}
+
 export interface CrSource {
   kind: CrSourceKind;
   ref: string | null;
@@ -92,6 +104,10 @@ export interface Cr {
   missing_info: string[];
   /** Phase 8: lệnh sửa gộp thêm từ chat (theo thứ tự). */
   amendments: { text: string; at: IsoDateTime }[];
+  /** FLF-382: thiếu ở CR cũ ⇒ `edit`. */
+  kind?: CrKind;
+  /** FLF-382: chỉ CR `gap_fill` có mục; CR thường `[]` / thiếu. */
+  gap_sections?: CrGapSection[];
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }
@@ -271,4 +287,6 @@ export type Mode1ErrorCode =
   | "CHANGE_REQUIRES_CR"
   | "IMPORT_FILE_REJECTED"
   | "IMPORT_STAMP_FOREIGN_PROJECT"
-  | "RELEASE_RED_FLAGS_OPEN";
+  | "RELEASE_RED_FLAGS_OPEN"
+  /** FLF-382: `POST /change-requests/gap-fill` khi tài liệu không còn mục trống. */
+  | "NO_MISSING_SECTIONS";

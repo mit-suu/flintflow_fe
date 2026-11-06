@@ -726,6 +726,41 @@ describe("DocumentPane — Nhờ AI soạn mục riêng của mẫu bắt buộc
   });
 });
 
+describe("DocumentPane — Soạn mục còn trống (FLF-382, luồng B)", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const doc = {
+    ...fixture,
+    sections: [
+      ...fixture.sections,
+      { id: "custom:CS07", number: "1.2", heading: "Document Conventions", level: 2, status: null, blocks: [] },
+      { id: "custom:CS08", number: "1.6", heading: "References", level: 2, status: null, blocks: [{ type: "paragraph", runs: [{ text: "IEEE 830" }] }] },
+    ],
+  } as RenderedDocument;
+
+  it("mọi mục trống (mục FPT lẫn mục riêng) có nút; bấm gọi onGapFill; mục có nội dung không có", async () => {
+    getDocument.mockResolvedValueOnce({ data: doc, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onGapFill = vi.fn();
+    renderWithIntl(<DocumentPane projectId="p1" mode1 onGapFill={onGapFill} />);
+    const buttons = await screen.findAllByRole("button", { name: "Soạn mục còn trống" });
+    // 5.5 Glossary (mục FPT trống) + 1.2 Document Conventions (mục riêng trống)
+    expect(buttons.map((b) => b.closest("article")?.getAttribute("data-section-id"))).toEqual(["fixed:5.5", "custom:CS07"]);
+    fireEvent.click(buttons[1]);
+    expect(onGapFill).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Nhờ AI soạn" })).not.toBeInTheDocument();
+  });
+
+  it("đang mở CR ⇒ nút khoá; không truyền onGapFill ⇒ không có nút", async () => {
+    getDocument.mockResolvedValueOnce({ data: doc, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const { unmount } = renderWithIntl(<DocumentPane projectId="p1" mode1 onGapFill={vi.fn()} gapFillBusy />);
+    for (const b of await screen.findAllByRole("button", { name: "Đang mở…" })) expect(b).toBeDisabled();
+    unmount();
+    getDocument.mockResolvedValueOnce({ data: doc, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    renderWithIntl(<DocumentPane projectId="p1" mode1 />);
+    await screen.findByText("References", { exact: false });
+    expect(screen.queryByRole("button", { name: "Soạn mục còn trống" })).not.toBeInTheDocument();
+  });
+});
+
 describe("DocumentPane — thư viện nội dung của tổ chức (FLF-278)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const withCustom: RenderedDocument = {

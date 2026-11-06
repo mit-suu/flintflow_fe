@@ -1541,7 +1541,9 @@
       "saveToLibrary": "Save to library",
       "saveToLibraryTitle": "Save this section's content so other projects of your organization can reuse it",
       "libraryBanner": "Your organization's library has content for {count} empty sections.",
-      "libraryApplyAll": "Preview and use"
+      "libraryApplyAll": "Preview and use",
+      "gapFill": "Draft empty sections",
+      "gapFillBusy": "Opening…"
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -3159,7 +3161,12 @@
       "closeTitle": "Close change request",
       "cancelTitle": "Cancel change request",
       "closeDescription": "Every group was rejected. Closing the CR unlocks all blocks and moves the CR to rejected.",
-      "cancelDescription": "Cancelling unlocks every block the CR holds. Nothing is written to the document."
+      "cancelDescription": "Cancelling unlocks every block the CR holds. Nothing is written to the document.",
+      "gapFill": {
+        "title": "Fill in missing sections",
+        "intro": "FlintFlow will ask you a few questions, then draft {count, plural, =1 {1 empty section} other {# empty sections}} of the document:",
+        "sectionsAria": "Sections to draft"
+      }
     },
     "crForm": {
       "emptyFields": "A title and a change description are required.",
@@ -3420,7 +3427,10 @@
       "unrenderedHint": "Does not block baseline signing — redraw in the workspace once the diagram server is available.",
       "renderError": "render failed",
       "notRendered": "not drawn yet",
-      "lowConfidenceTitle": "AI-extracted data that is uncertain"
+      "lowConfidenceTitle": "AI-extracted data that is uncertain",
+      "gapFill": "Draft empty sections",
+      "gapFillBusy": "Opening…",
+      "gapFillBody": "Empty sections ⇒ Draft empty sections: FlintFlow asks you a few questions, then drafts them for your review."
     },
     "labels": {
       "importStatus": {
@@ -3781,7 +3791,8 @@
         "IMPORT_REUPLOAD_NO_STAMP": "The file does not carry this project's stamp — only files downloaded from FlintFlow can be compared.",
         "CR_NO_OWNER_STEP": "This location belongs to a custom section with no authoring rules for the AI — use “Edit directly”.",
         "PREVIEW_EXPIRED": "The preview has expired — click “Preview changes” again.",
-        "CR_NOTHING_TO_APPROVE": "Every location is \"not related\", so there is nothing to approve. Change the conclusion of a location that needs editing (\"Edit manually\" button), or cancel the change request."
+        "CR_NOTHING_TO_APPROVE": "Every location is \"not related\", so there is nothing to approve. Change the conclusion of a location that needs editing (\"Edit manually\" button), or cancel the change request.",
+        "NO_MISSING_SECTIONS": "The document has no empty sections left to draft."
       }
     },
     "importWizard": {
@@ -3803,7 +3814,8 @@
       "done": {
         "body": "Import complete — the document is now version <strong>0.1</strong>. Every change goes through a change request; uncertain readings are flagged <strong>Needs review</strong>.",
         "gapReport": "View gap report",
-        "openChat": "Open chat"
+        "openChat": "Open chat",
+        "gapFill": "Fill in missing sections"
       },
       "languageVi": "Vietnamese",
       "languageEn": "English",
@@ -4095,6 +4107,12 @@
         "note": "FlintFlow reads the template's instructions and examples, asks you about the project, drafts {count, plural, =1 {1 section} other {# sections}} of the template for your review, then signs baseline 1.0 in the template layout.",
         "action": "Write with FlintFlow",
         "starting": "Switching to drafting…"
+      },
+      "fixedExisting": {
+        "summary": "Your templated file has {present} written sections and {missing} empty sections. Click Complete: FlintFlow locks baseline 0.1 with exactly what you wrote, then asks you a few questions to draft the {missing} empty sections.",
+        "gapReport": "Download the gap report",
+        "credits": "~{credits} credits",
+        "creditsTitle": "Estimated credits for FlintFlow to ask you and draft the empty sections"
       }
     },
     "referenceDocs": {

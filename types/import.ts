@@ -304,6 +304,16 @@ export interface GetImportResponse {
   credit_estimate?: CreditEstimate | null;
   /** FLF-336 I-5: có sau lần finalize đầu (kể cả khi dừng ở `incomplete`). */
   target_structure?: TargetStructure | null;
+  /**
+   * FLF-382 (luồng B): CR "Bổ sung mục còn thiếu" BE tự tạo sau khi Hoàn thiện (kiểm tra xong ⇒ `gap_review`) — id dùng cho
+   * trang `change-requests/[crId]`. `null` / thiếu ⇒ không có CR bổ sung (file đủ mục, luồng A / C, BE cũ).
+   */
+  gap_fill_cr_id?: string | null;
+  /**
+   * FLF-382: ước tính credit cho phần AI soạn mục còn trống (C-2 + C-4 + C-5 của CR bổ sung) — chỉ luồng B ở `incomplete`
+   * còn mục trống; còn lại `null` / thiếu.
+   */
+  gap_fill_credit_estimate?: number | null;
 }
 
 /** FLF-336 I-5 — bản đồ mục của file ⇒ cấu trúc đích (BE `targetStructureSchema`). */

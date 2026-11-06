@@ -18,7 +18,7 @@ import StartImportCard from "./StartImportCard";
 import UploadStep from "./UploadStep";
 import OrgTemplatePicker from "./OrgTemplatePicker";
 import SaveOrgTemplateCard from "./SaveOrgTemplateCard";
-import { gapReportHref } from "./prefill";
+import { crHref, gapReportHref } from "./prefill";
 
 interface ImportWizardProps {
   projectId: string;
@@ -76,15 +76,17 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
   };
 
   // Lượt bấm trong phiên này chạy xong (`gap_review`) — cả luồng một mạch lẫn "Hoàn thiện" ở màn kết quả đọc file — ⇒ vào
-  // thẳng màn chat của workspace (FLF-357: không mở popup CR; mode 1 tạo change request qua chat)
+  // thẳng màn chat của workspace (FLF-357: không mở popup CR; mode 1 tạo change request qua chat). FLF-382 luồng B: BE đã
+  // tạo CR "Bổ sung mục còn thiếu" (`gap_fill_cr_id`) ⇒ mở thẳng trang CR đó thay vì màn chat trống.
   const done = imp.done;
+  const gapFillCrId = imp.data?.gap_fill_cr_id ?? null;
   const navigated = useRef(false);
   useEffect(() => {
     if (!done || navigated.current) return;
     navigated.current = true;
     onChanged?.();
-    router.push(`/projects/${projectId}`);
-  }, [done, onChanged, router, projectId]);
+    router.push(gapFillCrId ? crHref(projectId, gapFillCrId) : `/projects/${projectId}`);
+  }, [done, gapFillCrId, onChanged, router, projectId]);
 
   if (imp.loading) {
     return (
@@ -242,6 +244,7 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
           projectId={projectId}
           structure={imp.data.target_structure}
           busy={imp.busy === "finalize"}
+          gapFillCredits={imp.data.gap_fill_credit_estimate ?? null}
           // Dự án mới theo mẫu bắt buộc: chỉ "Viết với FlintFlow" (mẫu trống không khoá thành bản gốc); dự án có sẵn: Dừng / Hoàn thiện
           {...(intentLocked
             ? {
@@ -266,6 +269,11 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
           <Link href={gapReportHref(projectId)} className="px-4 py-2 rounded-[8px] border border-[#1F7A45] text-[#1F7A45] font-bold">
             {t("done.gapReport")}
           </Link>
+          {gapFillCrId && (
+            <Link href={crHref(projectId, gapFillCrId)} className="px-4 py-2 rounded-[8px] border border-[#1F7A45] text-[#1F7A45] font-bold">
+              {t("done.gapFill")}
+            </Link>
+          )}
           <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[8px] bg-[#1F7A45] text-white font-bold">
             {t("done.openChat")}
           </Link>

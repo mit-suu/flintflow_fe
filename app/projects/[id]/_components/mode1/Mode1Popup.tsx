@@ -19,6 +19,8 @@ interface Mode1PopupProps {
   onChanged?: () => void;
   /** Viewer: xem gap report / CR nhưng không tạo hay thao tác CR. */
   readOnly?: boolean;
+  /** FLF-382 luồng B: gap report có nút "Soạn mục còn trống" (mở CR bổ sung). */
+  gapFill?: boolean;
 }
 
 /**
@@ -50,7 +52,7 @@ function CompareBody({ projectId }: { projectId: string }) {
  * `panel=gap` / `panel=cr` (+ `cr=<id>` ⇒ chi tiết ngay trong popup, `new=1&…` ⇒ form tạo CR điền sẵn) /
  * `panel=compare` / `panel=reupload` (UC-25, chỉ người sửa được). Đóng ⇒ bỏ query.
  */
-export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false }: Mode1PopupProps) {
+export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false, gapFill = false }: Mode1PopupProps) {
   const t = useTranslations("mode1.popup");
   const params = useSearchParams();
   const router = useRouter();
@@ -75,7 +77,7 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
 
   return (
     <Modal open onClose={close} title={title} size="xl">
-      {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} readOnly={readOnly} />}
+      {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} readOnly={readOnly} gapFill={gapFill} />}
       {/* So sánh chỉ đọc nên viewer cũng xem được — không gác theo `readOnly` */}
       {panel === "compare" && <CompareBody projectId={projectId} />}
       {panel === "reupload" && <ReuploadDiffView projectId={projectId} />}

@@ -340,6 +340,7 @@ const cases: EndpointCase[] = [
     "/projects/p1/change-requests",
     post({ title: "T", description: "D", source: { kind: "gap_report", ref: "gap-report 0.1", note: null }, requester: "PM Lan" }),
   ],
+  ["startGapFillCr (FLF-382)", () => changeRequests.startGapFillCr("p1"), "/projects/p1/change-requests/gap-fill", post({})],
   ["listCrs", () => changeRequests.listCrs("p1"), "/projects/p1/change-requests"],
   ["listCrs (lọc trạng thái)", () => changeRequests.listCrs("p1", "in_review"), "/projects/p1/change-requests?status=in_review"],
   ["getCr", () => changeRequests.getCr("p1", "CR-001"), "/projects/p1/change-requests/CR-001"],
