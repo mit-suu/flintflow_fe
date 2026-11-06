@@ -2243,6 +2243,7 @@
       "placeholderWorking": "The AI is working…",
       "placeholderGate": "Tell me what you would like to change…",
       "placeholderStart": "Describe your idea or what you want the AI to do…",
+      "placeholderStartTemplate": "The template is ready — describe the project idea (who uses it, what for, goals) so FlintFlow can draft every template section…",
       "viewerNotice": "You are viewing as a Viewer — you can read the document but cannot send messages or run AI steps.",
       "staleNotice": "Step <strong>{step}</strong> is accepted, but <strong>{sections}</strong> is outdated after later edits. Rerun the step so the AI updates it, review it, then click Approve at the gate.",
       "rerunStep": "Update this step",

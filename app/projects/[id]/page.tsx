@@ -1888,7 +1888,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               : !mode1 && gate
                 ? t("page.placeholderGate")
                 : !mode1 && stepNotStarted
-                  ? t("page.placeholderStart")
+                  ? // FLF-378: dự án mới theo mẫu bắt buộc vào thẳng Brief (B-0 bỏ qua) — file là mẫu, chưa có ý tưởng dự án
+                    t(requiredTemplate && viewedStep === "B-1.1" ? "page.placeholderStartTemplate" : "page.placeholderStart")
                   : undefined
           }
           pendingAttachments={ws.pendingAttachments}
