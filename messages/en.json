@@ -2974,7 +2974,7 @@
         "impact": "Finding the related parts of the document…",
         "propose": "AI is drafting the proposed edits…",
         "verify": "Checking the proposals…",
-        "submit": "Sending to the Lead…",
+        "submit": "Writing to the draft…",
         "revise": "Locking again for revision…",
         "resume": "Resuming…",
         "amend": "Merging the edit into the change request…",
