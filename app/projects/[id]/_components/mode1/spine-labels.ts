@@ -68,6 +68,9 @@ export const RULE_KEYS = [
   "import_semantic",
   "import_image_unread",
   "import_unresolved_ref",
+  // FLF-278: mẫu cố định (mẫu bắt buộc / mẫu công ty của dự án có sẵn)
+  "template_section_absent",
+  "template_section_empty",
   "import_title_content_mismatch",
   "verification_orphan",
   "import_needs_review",
@@ -160,7 +163,7 @@ export const resolveRefs = (field: string | undefined, value: unknown, names: Re
   return Array.isArray(value) ? value.map(name) : name(value);
 };
 
-export const spineLabels = (t: Mode1T, localeName: string) => {
+export const spineLabels = (t: Mode1T, localeName: string, sectionNames?: ReadonlyMap<string, string>) => {
   const locale = isLocale(localeName) ? localeName : DEFAULT_LOCALE;
   /** Tra key, không có ⇒ `null` (mã lạ). */
   const lookup = (group: string, code: string): string | null => {
@@ -208,7 +211,7 @@ export const spineLabels = (t: Mode1T, localeName: string) => {
   };
 
   /** Nhãn mục theo ngôn ngữ — dùng chung `lib/constants/fpt-sections` (namespace `common.fptSections`). */
-  const sectionLabel = (id: string | null): string => fptSectionLabel(id, locale);
+  const sectionLabel = (id: string | null): string => (id ? sectionNames?.get(id) : undefined) || fptSectionLabel(id, locale);
   const sectionLabelIn = (
     id: string | null,
     headingMap?: readonly { block_id: string; heading_text: string; section_id?: string }[]
