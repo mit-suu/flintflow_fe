@@ -3,7 +3,7 @@
  * gom vào một object `Mode1Labels` đã gắn translator của namespace `mode1`. Component lấy bằng `useMode1Labels()`;
  * test / code ngoài React dựng bằng `mode1Labels(t, locale)` với `createTranslator` của next-intl.
  */
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { errorText } from "./errors";
 import { statusLabels } from "./labels";
@@ -20,8 +20,14 @@ export interface Mode1T {
   has(key: string): boolean;
 }
 
-export const mode1Labels = (t: Mode1T, locale: string) => {
-  const spine = spineLabels(t, locale);
+/**
+ * Tên mục theo **chính tài liệu đang xem** (`section_id` ⇒ "3.1.2 Software Interfaces"): mẫu cố định / file có sẵn đặt tên mục
+ * khác mẫu FPT, nên nhãn mục ở panel cờ, CR, gap report lấy tên này trước, không có mới rơi về số + tên FPT.
+ */
+export const SectionNamesContext = createContext<ReadonlyMap<string, string> | null>(null);
+
+export const mode1Labels = (t: Mode1T, locale: string, sectionNames?: ReadonlyMap<string, string> | null) => {
+  const spine = spineLabels(t, locale, sectionNames ?? undefined);
   const base = { t, locale, ...spine, ...tableFields(t, spine), ...statusLabels(t, locale), ...valueDiff(t, spine) };
   return { ...base, errorText: (err: unknown, fallback?: string) => errorText(err, base, fallback) };
 };
@@ -34,7 +40,8 @@ export type Mode1BaseLabels = Omit<Mode1Labels, "errorText">;
 export function useMode1Labels(): Mode1Labels {
   const t = useTranslations("mode1") as unknown as Mode1T;
   const locale = useLocale();
-  return useMemo(() => mode1Labels(t, locale), [t, locale]);
+  const sectionNames = useContext(SectionNamesContext);
+  return useMemo(() => mode1Labels(t, locale, sectionNames), [t, locale, sectionNames]);
 }
 
 /**

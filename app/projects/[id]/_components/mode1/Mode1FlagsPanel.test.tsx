@@ -69,4 +69,26 @@ describe("Mode1FlagsPanel — Viewer (readOnly)", () => {
     expect(within(list).getByText("Cờ đỏ đang chặn release (1)")).toBeInTheDocument();
     expect(within(list).queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
   });
+
+  it("mẫu cố định: mục của mẫu còn trống (cờ vàng) được liệt kê kèm Tạo CR, không gộp vào dòng đếm cờ vàng", () => {
+    renderWithIntl(
+      <Mode1FlagsPanel
+        projectId={P}
+        flags={[
+          flag("y1", { level: "yellow", rule_id: "template_section_empty", section_id: "custom:CS02", message: "Mục \"1.4 References\" của mẫu chưa có nội dung" }),
+          flag("y2", { level: "yellow", rule_id: "unconfirmed_assumption", message: "Giả định chưa xác nhận" }),
+        ]}
+      />
+    );
+    const list = screen.getByRole("region", { name: "Mục của mẫu còn trống" });
+    expect(within(list).getByText(/1\.4 References/)).toBeInTheDocument();
+    expect(within(list).getByText("Mục của mẫu còn trống")).toBeInTheDocument();
+    expect(within(list).getByRole("link", { name: "Tạo CR" })).toBeInTheDocument();
+    expect(screen.getByText(/^1 cờ vàng/)).toBeInTheDocument();
+  });
+
+  it("chỉ xem (Viewer) ⇒ mục mẫu trống vẫn liệt kê nhưng không có nút Tạo CR", () => {
+    renderWithIntl(<Mode1FlagsPanel projectId={P} readOnly flags={[flag("y1", { level: "yellow", rule_id: "template_section_empty" })]} />);
+    expect(screen.queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
+  });
 });

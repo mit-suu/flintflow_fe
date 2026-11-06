@@ -1510,6 +1510,8 @@
       "emptyRunStep": "No content yet — run step {stepId} · {label}",
       "openStep": "Open step",
       "customTitle": "Section outside the FlintFlow standard template — kept verbatim from the uploaded file, edit via chat",
+      "templateSection": "Template section",
+      "templateSectionTitle": "A section of your uploaded template — printed at its place with its heading, edited through chat",
       "custom": "Custom section",
       "issuesTitle": "See this section's issues",
       "issuesAria": "See {count, plural, one {# issue} other {# issues}} in this section",
@@ -1692,6 +1694,7 @@
       "loading": "Loading document info…",
       "version": "Version",
       "redCount": "Red flags to be printed in §I",
+      "redOpenCount": "Open red flags",
       "downloadFailed": "Download failed",
       "downloading": "Downloading…",
       "downloadDraft": "Download draft ({extension})",
@@ -3421,7 +3424,7 @@
       "tileYellow": "Yellow flags",
       "tileLowConfidence": "Uncertain data",
       "nextTitle": "Next step",
-      "nextBody": "Nothing to fix ⇒ download the report to send (done). Need fixes or want to add sections ⇒ create a change request (source: gap report).",
+      "nextBody": "Nothing to fix ⇒ download the report to send (done). Need fixes or to fill empty sections ⇒ create a change request (source: gap report).",
       "downloading": "Downloading…",
       "download": "Download gap report (.docx)",
       "createCr": "Needs fixes → Create change request",
@@ -3643,7 +3646,9 @@
         "op_not_allowed": "Operation not allowed",
         "op_out_of_scope": "Edit outside the allowed scope",
         "conflict": "Conflicts with another change",
-        "import_needs_review": "Needs review"
+        "import_needs_review": "Needs review",
+        "template_section_absent": "The template has no such section",
+        "template_section_empty": "Template section is empty"
       },
       "violations": {
         "schema_invalid": "The AI proposed editing a place that does not exist in the document.",
@@ -3807,7 +3812,7 @@
       "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
       "uploadFixed": "Upload the corrected file",
       "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements…). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
-      "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FlintFlow standard template sections are added. The original file can always be downloaded again.",
+      "formatNote": "FlintFlow does not modify your file. For a fixed template, or a file with every section of the FlintFlow standard template, downloads <b>keep your file as it is</b> (Word formatting, cover, revision history…); only sections changed through change requests are reprinted. A file missing FlintFlow standard sections is reprinted in the FlintFlow template without its Word formatting. The original file can always be downloaded again.",
       "parsing": "Splitting the document into blocks…",
       "reload": "Reload",
       "done": {
@@ -3825,7 +3830,7 @@
         },
         "fixed": {
           "label": "A fixed template",
-          "description": "The customer's or your company's template. FlintFlow drafts only the sections the template has, adds nothing and keeps the order."
+          "description": "Your customer's or company's template. Keeps the template's sections and order and adds nothing; empty sections are filled in through change requests."
         }
       },
       "uploadTemplate": "Upload the required template (.docx, blank or partly filled)",
@@ -3874,7 +3879,9 @@
       "prefillTitle": "Resolve flag: {message}",
       "prefillSection": "section {section}",
       "createCr": "Create CR",
-      "yellowNote": "{count, plural, one {# yellow flag} other {# yellow flags}} — not blocking release, see the gap report or the Verification panel."
+      "yellowNote": "{count, plural, one {# yellow flag} other {# yellow flags}} — not blocking release, see the gap report.",
+      "emptyTemplateAria": "Empty template sections",
+      "emptyTemplateTitle": "Empty template sections ({count})"
     },
     "shell": {
       "projects": "Projects",
@@ -4085,29 +4092,27 @@
       "mapAria": "Section map against the target structure",
       "mode": {
         "1": "The file covers the target structure — {present} sections with content.",
-        "3": "The fixed template still has {missing} empty sections out of {present} with content. FlintFlow drafts only the sections the template has, adds nothing and keeps the order.",
-        "4": "The file is missing {missing} sections of the FlintFlow standard template ({present} present). Completing adds the missing sections and reorders the layout, keeping what you have."
+        "3": "File in your template: {present} sections with content, {missing} empty. The baseline keeps the template's sections and order and adds nothing.",
+        "4": "The file is missing {missing} sections of the FlintFlow standard template ({present} present)."
       },
       "status": {
         "present": "Present",
         "missing": "To draft",
-        "out_of_scope": "Out of scope"
+        "out_of_scope": "Out of scope",
+        "empty": "Empty"
       },
       "ownerSteps": "step {steps}",
       "outOfScopeNote": "{count, plural, =1 {1 section} other {# sections}} out of scope stay verbatim and move to the end of the document.",
-      "stopNote": "Stopping here leaves the project incomplete: reopen it later; only DRAFT exports.",
-      "stop": "Stop, download the gap report",
-      "downloading": "Downloading…",
-      "downloadFailed": "Could not download the gap report",
-      "complete": "Complete",
-      "completing": "Creating the baseline…",
+      "complete": "Continue editing with FlintFlow",
+      "completing": "Opening the editor…",
       "template": {
         "title": "Template reading result",
         "summary": "The template has {present} sections with content and {missing} empty sections. FlintFlow writes only the sections the template has — no extra sections, same order.",
         "note": "FlintFlow builds the Brief from what the template already has, asks you about the rest, drafts {missing, plural, =1 {1 empty section} other {# empty sections}} for your review, then signs baseline 1.0 in the template layout.",
         "action": "Write with FlintFlow",
         "starting": "Switching to drafting…"
-      }
+      },
+      "existingNote": "FlintFlow keeps your file as baseline 0.1 and opens the editor: {missing, plural, =1 {1 empty section is} other {# empty sections are}} filled in through chat (change requests). The gap report can be downloaded in the workspace."
     },
     "referenceDocs": {
       "aria": "Reference documents",

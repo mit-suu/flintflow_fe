@@ -202,11 +202,11 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
       expect(continued()).toBe(1);
     });
 
-    it("dự án có sẵn ⇒ Dừng / Hoàn thiện, không có Viết với FlintFlow", async () => {
+    it("dự án có sẵn ⇒ một nút Tiếp tục sửa với FlintFlow, không có Viết với FlintFlow", async () => {
       await incomplete();
       renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} startKind="existing" templateIntent="fixed" />);
       const reading = await screen.findByRole("region", { name: "Kết quả đọc file" });
-      expect(within(reading).getAllByRole("button").map((b) => b.textContent)).toEqual(["Dừng, tải gap report", "Hoàn thiện"]);
+      expect(within(reading).getAllByRole("button").map((b) => b.textContent)).toEqual(["Tiếp tục sửa với FlintFlow"]);
     });
   });
 
@@ -317,10 +317,21 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
     expect(mode1State.mode1State.importDoc).toBeNull();
   });
 
-  it("bước upload báo trước: in lại theo cấu trúc file gốc, không giữ định dạng Word, file gốc tải lại được", async () => {
+  it("bước upload báo trước: file theo mẫu / đủ mục giữ nguyên file, thiếu mục thì in lại theo mẫu FlintFlow; file gốc tải lại được", async () => {
     renderWizard();
     await screen.findByTestId("docx-input");
-    expect(screen.getByText("không giữ định dạng Word")).toBeInTheDocument();
+    expect(screen.getByText("giữ nguyên file")).toBeInTheDocument();
+    expect(screen.getByText(/in lại theo mẫu FlintFlow, không giữ định dạng Word/)).toBeInTheDocument();
     expect(screen.getByText(/File gốc luôn tải lại được/)).toBeInTheDocument();
+  });
+
+  it("dự án có sẵn theo mẫu cố định: chọn file khác sau khi upload ⇒ ý định vẫn là mẫu cố định (không rơi về tự do)", async () => {
+    const { uploadImport } = await import("@/lib/api/import");
+    await uploadImport(P, docx(), "fixed");
+    renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} startKind="existing" templateIntent={null} />);
+    await screen.findByText("Sẵn sàng đọc tài liệu");
+    fireEvent.click(screen.getByRole("checkbox", { name: /bản mới nhất/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Chọn file khác" }));
+    expect(await screen.findByRole("radio", { name: /Theo một mẫu cố định/ })).toBeChecked();
   });
 });

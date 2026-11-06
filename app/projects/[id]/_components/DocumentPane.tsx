@@ -49,6 +49,11 @@ interface DocumentPaneProps {
    */
   onDraftSection?: (sectionLabel: string) => void;
   /**
+   * Dự án theo mẫu cố định (mẫu bắt buộc lẫn mẫu công ty của dự án có sẵn): mục riêng là **mục của mẫu**, không phải mục
+   * ngoài mẫu FlintFlow; "Nhờ AI soạn" có ở mọi mục mẫu còn trống, không chỉ `custom:*`.
+   */
+  requiredTemplate?: boolean;
+  /**
    * FLF-278 — thư viện nội dung của tổ chức. `libraryMatchOf`: mục riêng có nội dung cùng tiêu đề trong thư viện;
    * `onUseLibrary` mở bản xem trước / lệnh sửa (không ghi ngay); `onSaveToLibrary` lưu mục đã viết vào thư viện;
    * `onUseLibraryAll` dùng cho mọi mục trống có gợi ý.
@@ -541,6 +546,7 @@ function SectionView({
   onSelectStep,
   emptyHint,
   mode1 = false,
+  requiredTemplate = false,
   onEdit,
   onDraft,
   libraryMatch,
@@ -577,6 +583,7 @@ function SectionView({
   onSelectStep?: (stepId: string) => void;
   emptyHint?: EmptyHint;
   mode1?: boolean;
+  requiredTemplate?: boolean;
 }) {
   // Hook gọi trước mọi `return` sớm (rules-of-hooks)
   const t = useTranslations("workspace.document");
@@ -587,6 +594,8 @@ function SectionView({
   const custom = section.id.startsWith("custom:");
   // Mục riêng của mẫu chỉ có chữ hướng dẫn (`[Describe …]`) vẫn là mục trống — như BE (cờ mục mẫu, thư viện tổ chức)
   const customEmpty = custom && !section.blocks.some(blockHasRealText);
+  // Mẫu cố định: mọi mục của mẫu còn trống (kể cả mục map vào mục FlintFlow) đều mời soạn
+  const templateEmpty = requiredTemplate ? showEmpty || !section.blocks.some(blockHasRealText) : customEmpty
   const depth = depthOf(section);
   const updateState: UpdateState = pending ? "pending" : regionState(sectionRegionKey(section.id));
   return (
@@ -612,8 +621,8 @@ function SectionView({
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {custom && (
-            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant" title={t("customTitle")}>
-              {t("custom")}
+            <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant" title={requiredTemplate ? t("templateSectionTitle") : t("customTitle")}>
+              {requiredTemplate ? t("templateSection") : t("custom")}
             </span>
           )}
           {section.awaiting_reaccept && (
@@ -680,7 +689,7 @@ function SectionView({
               {t("saveToLibrary")}
             </button>
           )}
-          {onDraft && customEmpty && !hasChildren && (
+          {onDraft && templateEmpty && !hasChildren && !section.id.startsWith("feature:") && (
             // Mục riêng của mẫu còn trống: luôn hiện (không chờ rê chuột) — chỉ điền sẵn lệnh, BA tự gửi
             <button
               type="button"
@@ -747,6 +756,7 @@ function DocumentPaneView({
   mode1 = false,
   onEditSection,
   onDraftSection,
+  requiredTemplate = false,
   libraryMatchOf,
   onUseLibrary,
   onSaveToLibrary,
@@ -962,6 +972,7 @@ function DocumentPaneView({
               mode1={mode1}
               onEdit={onEditSection}
               onDraft={onDraftSection}
+              requiredTemplate={requiredTemplate}
               libraryMatch={libraryMatchOf?.(section.id)}
               onUseLibrary={onUseLibrary ? () => onUseLibrary(section.id) : undefined}
               onSaveToLibrary={onSaveToLibrary ? () => onSaveToLibrary(section.id) : undefined}

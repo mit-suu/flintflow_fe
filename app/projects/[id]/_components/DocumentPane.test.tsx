@@ -691,6 +691,24 @@ describe("DocumentPane — Nhờ AI soạn mục riêng của mẫu bắt buộc
     expect(screen.queryByRole("button", { name: "Nhờ AI soạn" })).not.toBeInTheDocument();
   });
 
+  it("mẫu cố định (requiredTemplate): mục riêng là 'Mục của mẫu'; mục mẫu trống map vào mục FlintFlow cũng có Nhờ AI soạn", async () => {
+    const mapped = {
+      ...withCustom,
+      sections: [
+        ...withCustom.sections,
+        { id: "fixed:4.1", number: "3.1.2", heading: "Software Interfaces", level: 3, status: null, blocks: [] },
+      ],
+    } as RenderedDocument;
+    getDocument.mockResolvedValueOnce({ data: mapped, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onDraftSection = vi.fn();
+    renderWithIntl(<DocumentPane projectId="p1" onDraftSection={onDraftSection} requiredTemplate />);
+    const buttons = await screen.findAllByRole("button", { name: "Nhờ AI soạn" });
+    fireEvent.click(buttons[buttons.length - 1]);
+    expect(onDraftSection).toHaveBeenLastCalledWith("§3.1.2 Software Interfaces");
+    expect(screen.getAllByText("Mục của mẫu").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Mục riêng")).not.toBeInTheDocument();
+  });
+
   it("mục riêng chỉ có chữ hướng dẫn của mẫu vẫn là mục trống: có Nhờ AI soạn, không có Lưu vào thư viện", async () => {
     const guidanceOnly = {
       ...withCustom,
