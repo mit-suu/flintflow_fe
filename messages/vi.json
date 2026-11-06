@@ -1161,7 +1161,7 @@
         "yes": "Có",
         "no": "Không",
         "hint": "Chọn một trong hai để tiếp tục.",
-        "yesHint": "Bạn sẽ tải file mẫu (trống hoặc điền dở) lên; FlintFlow chỉ soạn những mục mẫu có, giữ nguyên thứ tự.",
+        "yesHint": "Bạn sẽ tải file mẫu (trống, có hướng dẫn hoặc ví dụ) lên; FlintFlow soạn toàn bộ các mục của mẫu, giữ nguyên thứ tự.",
         "noHint": "Soạn theo mẫu chuẩn FlintFlow, bắt đầu từ ý tưởng / ghi chú."
       }
     }
@@ -3817,8 +3817,8 @@
           "description": "Mẫu của khách hoặc của công ty. FlintFlow chỉ soạn những mục mẫu có, không thêm mục, không đổi thứ tự."
         }
       },
-      "uploadTemplate": "Tải lên mẫu bắt buộc (.docx, trống hoặc điền dở)",
-      "uploadTemplateHint": "File Word .docx của mẫu khách yêu cầu. FlintFlow đọc cấu trúc mẫu, chỉ soạn những mục mẫu có và giữ nguyên thứ tự.",
+      "uploadTemplate": "Tải lên mẫu bắt buộc (.docx)",
+      "uploadTemplateHint": "File Word .docx của mẫu khách yêu cầu — trống, có hướng dẫn hoặc ví dụ. FlintFlow soạn toàn bộ các mục của mẫu, giữ nguyên thứ tự.",
       "orgTemplates": {
         "title": "Hoặc dùng mẫu đã lưu của tổ chức",
         "help": "Nhập từ chính file mẫu đã lưu; mapping heading đã xác nhận ở dự án trước được áp sẵn.",
@@ -4090,8 +4090,8 @@
       "completing": "Đang chốt bản gốc…",
       "template": {
         "title": "Kết quả đọc mẫu",
-        "summary": "Mẫu có {present} mục đã có nội dung và {missing} mục còn trống. FlintFlow soạn đúng các mục mẫu có — không thêm mục, không đổi thứ tự.",
-        "note": "FlintFlow dựng Brief từ phần mẫu đã có, hỏi bạn phần còn thiếu, soạn {missing, plural, =1 {1 mục còn trống} other {# mục còn trống}} để bạn duyệt rồi ký baseline 1.0 theo đúng mẫu.",
+        "summary": "Mẫu có {count} mục — FlintFlow soạn toàn bộ, dùng hướng dẫn và ví dụ của mẫu làm gợi ý, không thêm mục, không đổi thứ tự.",
+        "note": "FlintFlow đọc hướng dẫn và ví dụ của mẫu, hỏi bạn thông tin của dự án, soạn {count, plural, =1 {1 mục} other {# mục}} của mẫu để bạn duyệt rồi ký baseline 1.0 theo đúng mẫu.",
         "action": "Viết với FlintFlow",
         "starting": "Đang chuyển sang soạn…"
       }

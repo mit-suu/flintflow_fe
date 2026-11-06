@@ -1161,7 +1161,7 @@
         "yes": "Yes",
         "no": "No",
         "hint": "Pick one to continue.",
-        "yesHint": "You will upload the template file (blank or partly filled); FlintFlow drafts only the sections the template has, in its order.",
+        "yesHint": "You will upload the template file (blank, with instructions or examples); FlintFlow drafts every section of the template, in its order.",
         "noHint": "Drafted on the FlintFlow standard template, starting from an idea / notes."
       }
     }
@@ -3817,8 +3817,8 @@
           "description": "The customer's or your company's template. FlintFlow drafts only the sections the template has, adds nothing and keeps the order."
         }
       },
-      "uploadTemplate": "Upload the required template (.docx, blank or partly filled)",
-      "uploadTemplateHint": "The Word .docx template the customer requires. FlintFlow reads its structure, drafts only the sections it has and keeps their order.",
+      "uploadTemplate": "Upload the required template (.docx)",
+      "uploadTemplateHint": "The Word .docx template the customer requires — blank, with instructions or examples. FlintFlow drafts every section of the template and keeps their order.",
       "orgTemplates": {
         "title": "Or use a template saved by your organization",
         "help": "Import from the saved template file itself; the heading mapping confirmed in an earlier project is applied.",
@@ -4090,8 +4090,8 @@
       "completing": "Creating the baseline…",
       "template": {
         "title": "Template reading result",
-        "summary": "The template has {present} sections with content and {missing} empty sections. FlintFlow writes only the sections the template has — no extra sections, same order.",
-        "note": "FlintFlow builds the Brief from what the template already has, asks you about the rest, drafts {missing, plural, =1 {1 empty section} other {# empty sections}} for your review, then signs baseline 1.0 in the template layout.",
+        "summary": "The template has {count} sections — FlintFlow drafts all of them, using the template's instructions and examples as hints, with no extra sections and the same order.",
+        "note": "FlintFlow reads the template's instructions and examples, asks you about the project, drafts {count, plural, =1 {1 section} other {# sections}} of the template for your review, then signs baseline 1.0 in the template layout.",
         "action": "Write with FlintFlow",
         "starting": "Switching to drafting…"
       }
