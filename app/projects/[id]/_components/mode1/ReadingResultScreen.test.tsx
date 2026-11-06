@@ -73,8 +73,10 @@ describe("ReadingResultScreen — dự án mới theo mẫu bắt buộc (FLF-27
     const fixed = structure({ resolved_mode: 3, target: "template", intent: "fixed", sections: structure().sections.filter((s) => s.status !== "out_of_scope") });
     renderWithIntl(<ReadingResultScreen projectId={P} structure={fixed} onDraftMissing={onDraftMissing} />);
     expect(screen.getByRole("heading", { name: "Kết quả đọc mẫu" })).toBeInTheDocument();
-    expect(screen.getByText(/Mẫu có 1 mục đã có nội dung và 2 mục còn trống/)).toBeInTheDocument();
-    expect(screen.getByText(/soạn 2 mục còn trống để bạn duyệt/)).toBeInTheDocument();
+    // FLF-378: FlintFlow soạn toàn bộ mục của mẫu — không còn "mục đã có / còn trống", "điền dở", "chỉ soạn mục còn trống"
+    expect(screen.getByText(/Mẫu có 3 mục — FlintFlow soạn toàn bộ, dùng hướng dẫn và ví dụ của mẫu làm gợi ý/)).toBeInTheDocument();
+    expect(screen.getByText(/soạn 3 mục của mẫu để bạn duyệt/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/điền dở|còn trống/);
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Viết với FlintFlow"]);
     fireEvent.click(screen.getByRole("button", { name: "Viết với FlintFlow" }));
     expect(onDraftMissing).toHaveBeenCalledTimes(1);

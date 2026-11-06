@@ -16,8 +16,8 @@ interface ReadingResultScreenProps {
    */
   onComplete?: () => void;
   /**
-   * FLF-278 — dự án **mới** theo mẫu bắt buộc: file là khung mẫu, lối đi duy nhất là "Viết với FlintFlow" (Luồng 2: Brief từ
-   * phần mẫu đã có, AI soạn từng mục còn trống, BA duyệt, ký baseline 1.0). Truyền ⇒ màn đổi sang lời "đọc mẫu".
+   * FLF-278 / FLF-378 — dự án **mới** theo mẫu bắt buộc: file là mẫu (trống / hướng dẫn / ví dụ), lối đi duy nhất là "Viết
+   * với FlintFlow" (Luồng 2: Brief, AI soạn mọi mục của mẫu, BA duyệt, ký baseline 1.0). Truyền ⇒ màn đổi sang lời "đọc mẫu".
    */
   onDraftMissing?: () => void;
   busy?: boolean;
@@ -45,6 +45,8 @@ export default function ReadingResultScreen({ projectId, structure, onComplete, 
   const present = structure.sections.filter((s) => s.status === "present");
   const outOfScope = structure.sections.filter((s) => s.status === "out_of_scope");
   const template = Boolean(onDraftMissing);
+  // FLF-378: dự án mới theo mẫu bắt buộc — FlintFlow soạn mọi mục của mẫu (chữ trong mẫu là hướng dẫn / ví dụ, không phải nội dung)
+  const templateCount = missing.length + present.length;
 
   const download = async () => {
     setDownloading(true);
@@ -64,7 +66,7 @@ export default function ReadingResultScreen({ projectId, structure, onComplete, 
       <div>
         <h3 className="text-title font-extrabold text-[#191817]">{template ? t("template.title") : t("title")}</h3>
         <p className="text-body text-[#4B4842]">
-          {template ? t("template.summary", { missing: missing.length, present: present.length }) : t(`mode.${structure.resolved_mode}`, { missing: missing.length, present: present.length })}
+          {template ? t("template.summary", { count: templateCount }) : t(`mode.${structure.resolved_mode}`, { missing: missing.length, present: present.length })}
         </p>
       </div>
 
@@ -86,7 +88,7 @@ export default function ReadingResultScreen({ projectId, structure, onComplete, 
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#ECEAE5] pt-3">
-        <p className="flex-1 min-w-[240px] text-caption text-[#8A867E]">{template ? t("template.note", { missing: missing.length }) : t("stopNote")}</p>
+        <p className="flex-1 min-w-[240px] text-caption text-[#8A867E]">{template ? t("template.note", { count: templateCount }) : t("stopNote")}</p>
         {onComplete && (
           <>
             <button type="button" disabled={busy || downloading} onClick={() => void download()} className="px-4 py-2 rounded-[10px] border border-[#ECEAE5] bg-white text-[#191817] text-body font-bold cursor-pointer disabled:opacity-50">
