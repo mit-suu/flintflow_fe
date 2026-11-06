@@ -46,6 +46,10 @@ function Harness() {
       >
         Gửi chat
       </button>
+      {/* Như trang: lệnh thêm / xoá use case đi vòng hỏi đáp riêng (không qua `chat.send`) nhưng vẫn là một lệnh sửa mới */}
+      <button type="button" onClick={() => chat.clearSent()}>
+        Lệnh use case
+      </button>
     </>
   );
 }
@@ -89,6 +93,30 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     expect(cr().status).toBe("written");
     expect(cr().result_doc_version).toBe("0.2");
     expect(screen.getByPlaceholderText(/Gõ yêu cầu sửa tài liệu/)).toBeInTheDocument();
+  });
+
+  it("CR đã ghi xong ⇒ lệnh sửa mới (sửa thường hay thêm use case) ẩn thẻ “đã ghi vào bản nháp” của CR trước", async () => {
+    renderWithIntl(<Harness />);
+    await say("Đăng xuất mọi thiết bị — yêu cầu còn mơ hồ");
+    await click("Lan · yêu cầu miệng");
+    const q = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
+    fireEvent.click(within(q).getByRole("radio", { name: "Có, áp cho mọi thiết bị" }));
+    fireEvent.click(within(q).getByRole("radio", { name: "Không cần thông báo" }));
+    fireEvent.click(within(q).getByRole("button", { name: "Gửi câu trả lời" }));
+    await click("Tiếp tục — AI đề xuất sửa");
+    fireEvent.click(within(await screen.findByLabelText("Đề xuất sửa")).getByRole("button", { name: /^Đồng ý tất cả/ }));
+    await click("Xác nhận & ghi vào bản nháp");
+    expect(await screen.findByLabelText("Đã ghi vào bản nháp")).toBeInTheDocument();
+
+    // Lệnh thêm use case (vòng hỏi đáp riêng) ⇒ thẻ cũ ẩn
+    fireEvent.click(screen.getByRole("button", { name: "Lệnh use case" }));
+    await waitFor(() => expect(screen.queryByLabelText("Đã ghi vào bản nháp")).not.toBeInTheDocument());
+
+    // Lệnh sửa thường cũng ẩn (đường `send` sẵn có)
+    expect(screen.queryByText(/CR-001 đã ghi vào bản nháp chung/)).not.toBeInTheDocument();
+    await say("Đổi tên màn hình đăng nhập");
+    expect(screen.queryByLabelText("Đã ghi vào bản nháp")).not.toBeInTheDocument();
+    expect(screen.getByText("Đổi tên màn hình đăng nhập")).toBeInTheDocument();
   });
 
   it("gõ thêm khi CR đang mở ⇒ gộp vào cùng CR, chạy lại làm rõ + tìm vị trí", async () => {

@@ -1591,6 +1591,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const sendEditInstruction = (text: string) => {
     if (interceptLanguageCommand(text, "edit")) return;
     if (!mode1) return submitEditInstruction(text);
+    // Lệnh sửa mới (thêm / sửa / xoá bất cứ gì) ⇒ thẻ "CR-xxx đã ghi vào bản nháp" của CR trước không còn là việc đang làm
+    crChat.clearSent();
     // FLF-318: chưa có CR đang mở mà lệnh là thêm / xoá use case (hoặc đang trả lời câu hỏi của lệnh đó) ⇒ đi đúng vòng hỏi
     // đáp + bản xem trước như trước baseline (màn riêng / popup, ai xử lý, giữ / bỏ use case đề xuất, xoá cả luồng); xong
     // thì "Tạo change request" mang bản xem trước đó. Lệnh khác vẫn mở CR thẳng trong chat như cũ.
