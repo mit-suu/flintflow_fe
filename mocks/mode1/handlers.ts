@@ -691,10 +691,12 @@ export const mode1Handlers = [
       const form = await request.formData();
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
-      // FLF-335: ý định lúc upload (fixed / free); thiếu ⇒ free; dự án có mẫu bắt buộc luôn fixed
+      // FLF-335: ý định lúc upload (fixed / free); thiếu ⇒ free; chỉ dự án mới có mẫu bắt buộc luôn fixed (như BE
+      // `import.service#uploadImport`) — dự án có sẵn lấy đúng ý định của lần upload
       const intentRaw = form.get("intent");
       if (intentRaw !== null && intentRaw !== "fixed" && intentRaw !== "free") return fail(400, "VALIDATION_ERROR", "intent phải là fixed hoặc free");
-      const intent: TemplateIntent = S().project.template_intent === "fixed" ? "fixed" : intentRaw === "fixed" ? "fixed" : "free";
+      const locked = S().project.template_intent === "fixed" && S().project.start_kind === "new";
+      const intent: TemplateIntent = locked || intentRaw === "fixed" ? "fixed" : "free";
       S().project.template_intent = intent;
       const name = file.name;
       if (/other-project/i.test(name)) {
