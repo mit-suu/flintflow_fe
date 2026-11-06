@@ -89,7 +89,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
    * (`preview_id`, BE dùng đúng lô người dùng đã duyệt) và cả đoạn hỏi đáp làm mô tả.
    */
   const [pendingSeed, setPendingSeed] = useState<{ previewId: string; description: string } | null>(null);
-  /** CR vừa gửi cho Lead — hiện thẻ xác nhận cho tới lệnh sửa kế tiếp. */
+  /** CR vừa ghi vào bản nháp — hiện thẻ xác nhận cho tới lệnh sửa kế tiếp (mọi lệnh: thêm / sửa / xoá, kể cả use case). */
   const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState<CrChatBusy | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -311,6 +311,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
           ? t("hintAnswer")
           : t("hintAmend", { crId: detail.change_request.cr_id }),
     clearError: () => setError(null),
+    /**
+     * Ẩn thẻ "CR-xxx đã ghi vào bản nháp" khi người dùng bắt đầu một lệnh sửa mới. Lệnh thêm / xoá use case đi vòng hỏi đáp +
+     * bản xem trước riêng (FLF-318) không qua `send`, nên trang gọi hàm này ngay đầu mọi lệnh sửa.
+     */
+    clearSent: () => setSent(null),
     cancelPending: () => {
       setPending(null);
       setPendingSeed(null);

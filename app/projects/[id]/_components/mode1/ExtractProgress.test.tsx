@@ -130,6 +130,26 @@ describe("ExtractProgress — trích field theo section (1.8)", () => {
     expect(screen.queryByText(/Tính năng mới|Chức năng mới/)).not.toBeInTheDocument();
   });
 
+  it("FLF-360: AI quá tải, BE đang đọc lại ⇒ “Đang đọc lại ảnh N/M” / “đọc lại <mục> (lần N/M)” thay cho tên mục đang trích", () => {
+    const { unmount } = renderWithIntl(
+      <ExtractProgress {...props({ running: true, doc: doc({ extract_cursor: "fixed:3.1.2", reread: { kind: "images", done: 2, total: 10, section_id: "fixed:3.1.1" } }) })} />
+    );
+    expect(screen.getByText("Đang đọc lại ảnh 3/10 (AI vừa quá tải)…")).toBeInTheDocument();
+    expect(screen.queryByText(/^Đang trích/)).not.toBeInTheDocument();
+    unmount();
+
+    renderWithIntl(<ExtractProgress {...props({ running: true, doc: doc({ extract_cursor: "fixed:2.1", reread: { kind: "text", done: 1, total: 3, section_id: "fixed:2.1" } }) })} />);
+    expect(screen.getByText(/AI đang quá tải — đọc lại .+ \(lần 1\/3\)…/)).toBeInTheDocument();
+  });
+
+  it("FLF-360: hết đọc lại (reread null) ⇒ quay về “Đang trích <mục>…”; đã dừng thì không hiện đọc lại", () => {
+    const { unmount } = renderWithIntl(<ExtractProgress {...props({ running: true, doc: doc({ extract_cursor: "fixed:3.1.2", reread: null }) })} />);
+    expect(screen.getByText(/^Đang trích .+…$/)).toBeInTheDocument();
+    unmount();
+    renderWithIntl(<ExtractProgress {...props({ running: false, doc: doc({ extract_cursor: null, reread: { kind: "images", done: 0, total: 2, section_id: "fixed:2.2.1" } }) })} />);
+    expect(screen.queryByText(/Đang đọc lại ảnh/)).not.toBeInTheDocument();
+  });
+
   it("đã dừng (không chạy, đã có section xong) ⇒ “Đã dừng”, không hiện nút bắt đầu", () => {
     renderWithIntl(<ExtractProgress {...props({ doc: doc({ extract_cursor: null }) })} />);
     expect(screen.getByText("Đã dừng")).toBeInTheDocument();

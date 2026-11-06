@@ -3398,6 +3398,8 @@
       "ready": "Mapping đã chốt — {total, plural, =0 {các section} other {# section}} sẵn sàng để trích.",
       "starting": "Đang bắt đầu…",
       "start": "Bắt đầu trích (AI)",
+      "rereadImages": "Đang đọc lại ảnh {current}/{total} (AI vừa quá tải)…",
+      "rereadText": "AI đang quá tải — đọc lại {section} (lần {attempt}/{total})…",
       "runningSection": "Đang trích {section}…",
       "running": "Đang trích…",
       "stopped": "Đã dừng",

@@ -3398,6 +3398,8 @@
       "ready": "Mapping locked — {total, plural, =0 {the sections are} one {# section is} other {# sections are}} ready to extract.",
       "starting": "Starting…",
       "start": "Start extraction (AI)",
+      "rereadImages": "Re-reading image {current}/{total} (the AI was overloaded)…",
+      "rereadText": "The AI is overloaded — re-reading {section} (attempt {attempt}/{total})…",
       "runningSection": "Extracting {section}…",
       "running": "Extracting…",
       "stopped": "Stopped",
