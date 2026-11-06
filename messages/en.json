@@ -2990,6 +2990,17 @@
         "intro": "Exactly the changes you approved in the preview — no need to review each part again. Open an item to see the details.",
         "busy": "Preparing the changes you approved…"
       },
+      "batch": {
+        "listAria": "Proposal list",
+        "more": "(+{count} fields)",
+        "expand": "Open details of {title}",
+        "collapse": "Collapse {title}",
+        "detailAria": "Proposal details {id}",
+        "ownAria": "Needs your separate review",
+        "ownTitle": "⚠ Needs your separate review ({count})",
+        "acceptAll": "Accept all ({count})",
+        "perRowHint": "Redo / drop a part: click ▸"
+      },
       "requester": {
         "step": "Open a change request",
         "label": "Choose the requester",
@@ -3072,7 +3083,7 @@
       "proposeNow": "Continue — AI proposes edits",
       "proposeStep": "③ Proposed edits — {settled}/{total} settled",
       "proposeLabel": "Proposed edits",
-      "proposeHint": "Go through each part: accept, redo it your way, or drop it. Once all are settled, the system checks them automatically.",
+      "proposeHint": "Accept every part that passed the checks at once with \"Accept all\"; click ▸ to view, redo or drop a part. Once all are settled, the system checks them automatically.",
       "proposeNone": "AI found no part that needs editing. Open the list below to bring back any part you still want to edit.",
       "manualStep": "④ Check — needs your action",
       "manualLabel": "Needs fixing",

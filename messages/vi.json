@@ -2990,6 +2990,17 @@
         "intro": "Đúng các thay đổi bạn đã duyệt ở bản xem trước — không cần duyệt lại từng phần. Mở từng mục để xem chi tiết.",
         "busy": "Đang chuẩn bị đúng các thay đổi đã duyệt…"
       },
+      "batch": {
+        "listAria": "Danh sách đề xuất",
+        "more": "(+{count} trường)",
+        "expand": "Mở chi tiết {title}",
+        "collapse": "Thu gọn {title}",
+        "detailAria": "Chi tiết đề xuất {id}",
+        "ownAria": "Cần bạn xem riêng",
+        "ownTitle": "⚠ Cần bạn xem riêng ({count})",
+        "acceptAll": "Đồng ý tất cả ({count})",
+        "perRowHint": "Sửa / bỏ từng phần: bấm ▸"
+      },
       "requester": {
         "step": "Mở change request",
         "label": "Chọn người yêu cầu",
@@ -3072,7 +3083,7 @@
       "proposeNow": "Tiếp tục — AI đề xuất sửa",
       "proposeStep": "③ Đề xuất sửa — đã chốt {settled}/{total}",
       "proposeLabel": "Đề xuất sửa",
-      "proposeHint": "Xem từng phần: đồng ý, sửa lại theo ý bạn, hoặc bỏ. Chốt hết thì hệ thống tự kiểm tra.",
+      "proposeHint": "Phần đã đạt kiểm tra đồng ý một lần bằng \"Đồng ý tất cả\"; bấm ▸ để xem, sửa lại hoặc bỏ từng phần. Chốt hết thì hệ thống tự kiểm tra.",
       "proposeNone": "AI thấy không phần nào cần sửa. Mở danh sách bên dưới để đưa lại phần nào bạn vẫn muốn sửa.",
       "manualStep": "④ Kiểm tra — cần bạn xử lý",
       "manualLabel": "Cần sửa",

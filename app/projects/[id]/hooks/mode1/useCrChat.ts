@@ -395,6 +395,18 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         saveAccepted(id, next);
         await advance(d, next);
       }),
+    /**
+     * FLF-375 "Đồng ý tất cả": đồng ý cùng lúc nhiều đề xuất — gom vào một lần lưu rồi chạy tiếp một lần (gọi `accept` lặp
+     * lại sẽ đè nhau vì mỗi lần đọc cùng một tập đã đồng ý cũ).
+     */
+    acceptMany: (locs: readonly CrLocation[]) =>
+      void withCr(async (id, d) => {
+        if (!locs.length) return;
+        const next = new Set(accepted);
+        for (const l of locs) next.add(proposalKey(l));
+        saveAccepted(id, next);
+        await advance(d, next);
+      }),
     reject: (loc: CrLocation) =>
       void withCr(async (id) => {
         const d = await call("reject", () =>
