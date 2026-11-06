@@ -8,6 +8,7 @@ import { saveBlob } from "@/lib/api/files";
 import type { Flag } from "@/types/spine";
 import type { GapReport } from "@/types/import";
 import PageSkeleton from "@/components/ui/PageSkeleton";
+import { useGapFill } from "../../hooks/mode1/useGapFill";
 import { useErrorText, useMode1Labels, type Mode1Labels } from "./i18n";
 import { formatPercent } from "./labels";
 import { crPrefillHref } from "./prefill";
@@ -19,6 +20,11 @@ interface GapReportViewProps {
   onChanged?: () => void;
   /** Viewer: chỉ xem / tải báo cáo, không có lối tạo change request. */
   readOnly?: boolean;
+  /**
+   * FLF-382 luồng B (dự án có sẵn · mẫu cố định): nút "Soạn mục còn trống" — mở / tạo lại CR "Bổ sung mục còn thiếu" rồi
+   * chuyển tới trang CR đó. Không truyền ⇒ không có nút.
+   */
+  gapFill?: boolean;
 }
 
 const Tile = ({ label, value, tone }: { label: string; value: number; tone: "red" | "yellow" | "neutral" }) => (
@@ -70,8 +76,9 @@ export const gapReportPrefill = (report: GapReport, L: Mode1Labels): { title: st
  * 1.13 Gap report (UC-23): cờ đỏ/vàng theo section, hình chưa vẽ, field còn độ tin thấp. Mẫu FPT không bắt buộc (FLF-312):
  * không liệt kê đầu mục FPT thiếu hay tiêu đề ngoài mẫu.
  */
-export default function GapReportView({ projectId, projectName, onChanged, readOnly = false }: GapReportViewProps) {
+export default function GapReportView({ projectId, projectName, onChanged, readOnly = false, gapFill = false }: GapReportViewProps) {
   const t = useTranslations("mode1.gapReport");
+  const fill = useGapFill(projectId);
   const L = useMode1Labels();
   const errText = useErrorText();
   const [report, setReport] = useState<GapReport | null>(null);
@@ -141,6 +148,7 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
         <div className="flex-1 min-w-[240px] text-body text-[#4B4842]">
           <p className="font-bold text-[#191817]">{t("nextTitle")}</p>
           <p>{t("nextBody")}</p>
+          {gapFill && !readOnly && <p>{t("gapFillBody")}</p>}
         </div>
         <button
           type="button"
@@ -150,6 +158,16 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
         >
           {downloading ? t("downloading") : t("download")}
         </button>
+        {gapFill && !readOnly && (
+          <button
+            type="button"
+            onClick={() => void fill.start()}
+            disabled={fill.busy}
+            className="px-4 py-2 rounded-[10px] border-[1.5px] border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E9E7F7] disabled:opacity-50 cursor-pointer"
+          >
+            {fill.busy ? t("gapFillBusy") : t("gapFill")}
+          </button>
+        )}
         {!readOnly && (
           <Link
             href={crPrefillHref(projectId, { ...prefill, source: "gap_report", ref: t("prefillRef", { version: report.doc_version }) })}
@@ -157,6 +175,11 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
           >
             {t("createCr")}
           </Link>
+        )}
+        {fill.error && (
+          <p role="alert" className="basis-full text-body text-[#B03030]">
+            {fill.error}
+          </p>
         )}
       </div>
 

@@ -79,6 +79,7 @@ import { recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { useCrChat } from "./hooks/mode1/useCrChat";
+import { useGapFill } from "./hooks/mode1/useGapFill";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
 import { compareHref, crListHref, gapReportHref, reuploadHref } from "./_components/mode1/prefill";
@@ -1071,6 +1072,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   });
   // FLF-278: nội dung thư viện của tổ chức cho mục riêng (mẫu bắt buộc)
   const library = useLibraryMatches(projectId, ws.ready && ws.project?.template_intent === "fixed", documentRefreshToken);
+  /** FLF-382: "Soạn mục còn trống" (luồng B) — mở CR bổ sung; lỗi (vd 409 NO_MISSING_SECTIONS) hiện bằng toast. */
+  const gapFill = useGapFill(projectId);
   const outdatedSections = mode1 ? 0 : (progress?.readiness.stale ?? 0);
   // FLF-248: cờ "rỗng" của bước đã chốt là vấn đề thật (chặn ký baseline), không phải "sẽ điền ở bước sau"
   const acceptedSteps = new Set((steps?.steps ?? []).filter((s) => s.status === "accepted").map((s) => s.id));
@@ -1364,6 +1367,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const canEdit = ws.canEdit;
   /** FLF-278: dự án theo mẫu bắt buộc (FLF-335) — mục riêng của mẫu còn trống có nút "Nhờ AI soạn". */
   const requiredTemplate = ws.project?.template_intent === "fixed";
+  /**
+   * FLF-382 luồng B: dự án có sẵn theo mẫu cố định (mode 1) — mục trống mở CR "Bổ sung mục còn thiếu" ("Soạn mục còn trống")
+   * thay cho "Nhờ AI soạn" từng mục riêng.
+   */
+  const gapFillProject = mode1 && ws.project?.start_kind === "existing" && requiredTemplate;
+  const startGapFill = () => void gapFill.start().then((error) => error && setToast(error));
   const gate = onPipelineSession && runner.state.status === "gate_ready" ? runner.state.gate : null;
   const reviewMode: ReviewMode = spine?.project.review_mode ?? "balanced";
   /**
@@ -2191,7 +2200,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onSelectStep={mode1 ? undefined : setSelectedStepId}
           mode1={mode1}
           onEditSection={canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined}
-          onDraftSection={canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined}
+          onDraftSection={canEdit && requiredTemplate && !gapFillProject ? (label) => startEditing(t("userText.draftSection", { label })) : undefined}
+          onGapFill={canEdit && gapFillProject ? startGapFill : undefined}
+          gapFillBusy={gapFill.busy}
           libraryMatchOf={library.matchOf}
           onUseLibrary={
             canEdit
@@ -2470,7 +2481,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
       {mode1 && (
         <Suspense fallback={null}>
-          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} />
+          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} gapFill={gapFillProject} />
         </Suspense>
       )}
     </div>

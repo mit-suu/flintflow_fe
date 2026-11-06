@@ -59,6 +59,9 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
   const busy = cr.busy !== null;
   const after = (p: Promise<boolean>) => void p.then((ok) => ok && onChanged?.());
   const terminal = CR_TERMINAL_STATUSES.includes(c.status);
+  // FLF-382: CR "Bổ sung mục còn thiếu" (luồng B) — tiêu đề cố định + danh sách mục sẽ soạn; các bước còn lại như CR thường
+  const gapFill = c.kind === "gap_fill";
+  const gapSections = gapFill ? (c.gap_sections ?? []) : [];
   const allRejected = groups.length > 0 && groups.every((g) => g.decision === "rejected");
   // Phase 7: tài liệu bổ sung chỉ thêm / xoá được trước khi tìm vị trí (BE: draft, awaiting_answers)
   const materialsEditable = !readOnly && (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
@@ -183,7 +186,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
             <span className="text-[#D6D2CB]"> / </span>
             <code className="font-bold text-[#6A62C4]">{c.cr_id}</code>
           </p>
-          <h2 className="text-title font-extrabold text-[#191817]">{c.title}</h2>
+          <h2 className="text-title font-extrabold text-[#191817]">{gapFill ? t("gapFill.title") : c.title}</h2>
           <p className="text-body text-[#8A867E]">
             {L.crSource(c.source.kind)}
             {L.sourceRefLabel(c.source.ref) ? ` · ${L.sourceRefLabel(c.source.ref)}` : ""}
@@ -199,7 +202,25 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
 
       <CrTimeline status={c.status} />
 
-      <p className="text-body text-[#33312D] whitespace-pre-wrap bg-white border border-[#ECEAE5] rounded-[14px] p-3.5">{c.description}</p>
+      {gapFill ? (
+        <section className="flex flex-col gap-2 bg-white border border-[#ECEAE5] rounded-[14px] p-3.5" aria-label={t("gapFill.sectionsAria")}>
+          {gapSections.length > 0 ? (
+            <>
+              <p className="text-body text-[#33312D]">{t("gapFill.intro", { count: gapSections.length })}</p>
+              <ul className="list-disc pl-5 text-body font-bold text-[#191817] flex flex-col gap-0.5">
+                {gapSections.map((s) => (
+                  <li key={s.section_id}>{L.humanizeText(s.title)}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            // BE chưa trả danh sách mục ⇒ lời yêu cầu tự sinh (đã liệt kê mục theo tiêu đề của file)
+            <p className="text-body text-[#33312D] whitespace-pre-wrap">{c.description}</p>
+          )}
+        </section>
+      ) : (
+        <p className="text-body text-[#33312D] whitespace-pre-wrap bg-white border border-[#ECEAE5] rounded-[14px] p-3.5">{c.description}</p>
+      )}
 
       {c.seed && (
         <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] px-3.5 py-2.5" aria-label={t("seedAria")}>
