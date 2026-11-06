@@ -42,22 +42,11 @@ describe("ReadingResultScreen (FLF-336 — điểm dừng Kết quả đọc fil
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("chế độ 3: câu riêng cho mẫu cố định; Dừng ⇒ tải gap report docx", async () => {
-    let downloaded = 0;
-    mockServer.use(
-      http.get(`${API_BASE_URL}/projects/:projectId/gap-report`, () => {
-        downloaded += 1;
-        return new HttpResponse(new Blob(["PK"]), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": 'attachment; filename="gap.docx"' } });
-      })
-    );
-    const urlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:x");
-    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure({ resolved_mode: 3, target: "template", intent: "fixed", sections: structure().sections.filter((s) => s.status !== "out_of_scope") })} onComplete={vi.fn()} />);
-    expect(screen.getByText(/mẫu cố định còn 2 mục trống/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dừng, tải gap report" }));
-    await waitFor(() => expect(downloaded).toBe(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Dừng, tải gap report" })).toBeEnabled());
-    urlSpy.mockRestore();
+  it("chế độ 4 (luồng A): giữ Dừng / Hoàn thiện, câu tóm tắt cũ, không ước tính credit", () => {
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure()} onComplete={vi.fn()} gapFillCredits={12} />);
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Dừng, tải gap report", "Hoàn thiện"]);
+    expect(screen.getByText(/Dừng ở đây thì dự án ở trạng thái chưa hoàn thiện/)).toBeInTheDocument();
+    expect(screen.queryByText(/credit/)).toBeNull();
   });
 
   it("đang chốt ⇒ hai nút khoá", () => {
@@ -82,9 +71,62 @@ describe("ReadingResultScreen — dự án mới theo mẫu bắt buộc (FLF-27
     expect(onDraftMissing).toHaveBeenCalledTimes(1);
   });
 
-  it("dự án có sẵn (chỉ onComplete) ⇒ Dừng / Hoàn thiện, không có Viết với FlintFlow", () => {
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure({ resolved_mode: 3, target: "template", intent: "fixed" })} onComplete={vi.fn()} />);
+  it("dự án có sẵn · tự do (chỉ onComplete, chế độ 4) ⇒ Dừng / Hoàn thiện, không có Viết với FlintFlow", () => {
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure()} onComplete={vi.fn()} />);
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Dừng, tải gap report", "Hoàn thiện"]);
     expect(screen.getByRole("heading", { name: "Kết quả đọc file" })).toBeInTheDocument();
+  });
+});
+
+describe("ReadingResultScreen — luồng B: dự án có sẵn theo mẫu cố định (FLF-382)", () => {
+  const fixedExisting = () => structure({ resolved_mode: 3, target: "template", intent: "fixed", sections: structure().sections.filter((s) => s.status !== "out_of_scope") });
+
+  it("một nút chính Hoàn thiện + ước tính credit cạnh nút + câu tóm tắt mới; gap report chỉ là liên kết phụ", () => {
+    const onComplete = vi.fn();
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={fixedExisting()} onComplete={onComplete} gapFillCredits={18} />);
+    expect(screen.getByRole("heading", { name: "Kết quả đọc file" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "File theo mẫu của bạn có 1 mục đã viết và 2 mục còn trống. Bấm Hoàn thiện: FlintFlow chốt bản gốc 0.1 đúng phần bạn đã viết, rồi hỏi bạn vài điều để soạn 2 mục còn trống."
+      )
+    ).toBeInTheDocument();
+    // Một nút chính duy nhất; "Dừng, tải gap report" không còn — chỉ còn liên kết phụ "Tải gap report"
+    const primary = screen.getAllByRole("button").filter((b) => b.className.includes("btn-gradient-primary"));
+    expect(primary.map((b) => b.textContent)).toEqual(["Hoàn thiện"]);
+    expect(screen.queryByRole("button", { name: "Dừng, tải gap report" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Tải gap report" }).className).toContain("underline");
+    expect(screen.getByText("~18 credit")).toBeInTheDocument();
+    expect(screen.queryByText(/Dừng ở đây/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Viết với FlintFlow" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Hoàn thiện" }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("không có ước tính (null) ⇒ không hiện credit", () => {
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={fixedExisting()} onComplete={vi.fn()} gapFillCredits={null} />);
+    expect(screen.queryByText(/credit/)).toBeNull();
+  });
+
+  it("liên kết phụ vẫn tải gap report docx", async () => {
+    let downloaded = 0;
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/gap-report`, () => {
+        downloaded += 1;
+        return new HttpResponse(new Blob(["PK"]), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": 'attachment; filename="gap.docx"' } });
+      })
+    );
+    const urlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:x");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={fixedExisting()} onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tải gap report" }));
+    await waitFor(() => expect(downloaded).toBe(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Tải gap report" })).toBeEnabled());
+    urlSpy.mockRestore();
+  });
+
+  it("đang chốt ⇒ Hoàn thiện và liên kết gap report đều khoá", () => {
+    renderWithIntl(<ReadingResultScreen projectId={P} structure={fixedExisting()} onComplete={vi.fn()} gapFillCredits={18} busy />);
+    expect(screen.getByRole("button", { name: "Đang chốt bản gốc…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Tải gap report" })).toBeDisabled();
   });
 });

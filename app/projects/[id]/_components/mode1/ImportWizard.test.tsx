@@ -160,7 +160,7 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
 
   describe("Kết quả đọc file theo loại dự án (FLF-278)", () => {
     /** Upload qua mock rồi để GET /import trả `incomplete` + cấu trúc đích chế độ 3. */
-    const incomplete = async () => {
+    const incomplete = async (opts: { gapFillCrId?: string } = {}) => {
       const { uploadImport } = await import("@/lib/api/import");
       await uploadImport(P, docx("Mau_SRS.docx"));
       const st = mode1State.mode1State;
@@ -177,10 +177,30 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
         ],
       };
       let continued = 0;
+      // FLF-382: sau POST /import/finalize (complete) ⇒ GET /import trả `gap_review` + CR bổ sung BE đã tạo
+      let finalized: { complete: boolean } | null = null;
       mockServer.use(
         http.get(`${API_BASE_URL}/projects/:projectId/import`, () =>
-          HttpResponse.json({ data: { import: doc, profile: st.profile, extraction: { sections: [], review_fields: [] }, blocks_count: 0, credit_estimate: null, target_structure }, error: null })
+          HttpResponse.json({
+            data: {
+              import: finalized ? { ...doc, status: "gap_review" } : doc,
+              profile: st.profile,
+              extraction: { sections: [], review_fields: [] },
+              blocks_count: 0,
+              credit_estimate: null,
+              target_structure,
+              gap_fill_cr_id: finalized ? opts.gapFillCrId ?? null : null,
+              gap_fill_credit_estimate: finalized ? null : 18,
+            },
+            error: null,
+          })
         ),
+        http.post(`${API_BASE_URL}/projects/:projectId/import/finalize`, async ({ request }) => {
+          const body = (await request.json()) as { import_id: string; base_version: number; complete?: boolean };
+          expect(body).toMatchObject({ import_id: doc.id, base_version: 7, complete: true });
+          finalized = { complete: true };
+          return HttpResponse.json({ data: { import: { ...doc, status: "baselining" }, doc_version: "0.1", baseline: null, spine_version: 8, flags: null }, error: null });
+        }),
         http.get(`${API_BASE_URL}/projects/:projectId/spine`, () => HttpResponse.json({ data: { spine_version: 7 }, error: null })),
         http.post(`${API_BASE_URL}/projects/:projectId/import/continue`, async ({ request }) => {
           continued += 1;
@@ -202,11 +222,30 @@ describe("ImportWizard — FLF-343 một mạch trên mock", () => {
       expect(continued()).toBe(1);
     });
 
-    it("dự án có sẵn ⇒ Dừng / Hoàn thiện, không có Viết với FlintFlow", async () => {
+    it("FLF-382 dự án có sẵn + mẫu cố định ⇒ một nút Hoàn thiện kèm ước tính credit, gap report là liên kết phụ", async () => {
       await incomplete();
       renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} startKind="existing" templateIntent="fixed" />);
       const reading = await screen.findByRole("region", { name: "Kết quả đọc file" });
-      expect(within(reading).getAllByRole("button").map((b) => b.textContent)).toEqual(["Dừng, tải gap report", "Hoàn thiện"]);
+      expect(within(reading).getAllByRole("button").map((b) => b.textContent)).toEqual(["Tải gap report", "Hoàn thiện"]);
+      expect(within(reading).getByText("~18 credit")).toBeInTheDocument();
+      expect(within(reading).queryByRole("button", { name: "Viết với FlintFlow" })).toBeNull();
+    });
+
+    it("FLF-382 Hoàn thiện ⇒ finalize complete ⇒ BE có CR bổ sung (`gap_fill_cr_id`) ⇒ mở thẳng trang CR đó", async () => {
+      await incomplete({ gapFillCrId: "CR-007" });
+      renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} startKind="existing" templateIntent="fixed" />);
+      const reading = await screen.findByRole("region", { name: "Kết quả đọc file" });
+      fireEvent.click(within(reading).getByRole("button", { name: "Hoàn thiện" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}?panel=cr&cr=CR-007`));
+      expect(push).toHaveBeenCalledTimes(1);
+    });
+
+    it("FLF-382 Hoàn thiện mà không có CR bổ sung (file đủ mục) ⇒ vẫn vào màn chat như cũ", async () => {
+      await incomplete();
+      renderWithIntl(<ImportWizard projectId={P} credits={100} pollMs={5} startKind="existing" templateIntent="fixed" />);
+      const reading = await screen.findByRole("region", { name: "Kết quả đọc file" });
+      fireEvent.click(within(reading).getByRole("button", { name: "Hoàn thiện" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/projects/${P}`));
     });
   });
 

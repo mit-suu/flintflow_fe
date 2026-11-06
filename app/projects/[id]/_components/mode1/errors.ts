@@ -31,6 +31,8 @@ const FRIENDLY_CODES: readonly string[] = [
   "CR_NO_OWNER_STEP",
   "PREVIEW_EXPIRED",
   "CR_NOTHING_TO_APPROVE",
+  // FLF-382: "Soạn mục còn trống" khi tài liệu đã đủ mục
+  "NO_MISSING_SECTIONS",
 ];
 
 export const errorText = (err: unknown, L: Pick<Mode1BaseLabels, "t" | "pathLabel">, fallback?: string): string => {

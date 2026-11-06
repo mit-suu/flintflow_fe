@@ -1541,7 +1541,9 @@
       "saveToLibrary": "Lưu vào thư viện",
       "saveToLibraryTitle": "Lưu nội dung mục này để các dự án khác của tổ chức dùng lại",
       "libraryBanner": "Thư viện của tổ chức có sẵn nội dung cho {count} mục còn trống.",
-      "libraryApplyAll": "Xem trước và dùng"
+      "libraryApplyAll": "Xem trước và dùng",
+      "gapFill": "Soạn mục còn trống",
+      "gapFillBusy": "Đang mở…"
     },
     "verification": {
       "closeHint": "Đóng bảng đánh giá",
@@ -3159,7 +3161,12 @@
       "closeTitle": "Đóng change request",
       "cancelTitle": "Huỷ change request",
       "closeDescription": "Mọi nhóm đã bị từ chối. Đóng CR sẽ mở khoá toàn bộ block, CR chuyển sang trạng thái từ chối.",
-      "cancelDescription": "Huỷ sẽ mở khoá mọi block CR đang giữ. Không ghi gì vào tài liệu."
+      "cancelDescription": "Huỷ sẽ mở khoá mọi block CR đang giữ. Không ghi gì vào tài liệu.",
+      "gapFill": {
+        "title": "Bổ sung mục còn thiếu",
+        "intro": "FlintFlow sẽ hỏi bạn vài điều rồi soạn {count, plural, =1 {1 mục còn trống} other {# mục còn trống}} của tài liệu:",
+        "sectionsAria": "Mục sẽ soạn"
+      }
     },
     "crForm": {
       "emptyFields": "Cần tiêu đề và mô tả thay đổi.",
@@ -3420,7 +3427,10 @@
       "unrenderedHint": "Không chặn ký baseline — vẽ lại ở workspace khi máy chủ vẽ hình sẵn sàng.",
       "renderError": "vẽ lỗi",
       "notRendered": "chưa vẽ",
-      "lowConfidenceTitle": "Dữ liệu AI trích chưa chắc chắn"
+      "lowConfidenceTitle": "Dữ liệu AI trích chưa chắc chắn",
+      "gapFill": "Soạn mục còn trống",
+      "gapFillBusy": "Đang mở…",
+      "gapFillBody": "Còn mục trống ⇒ Soạn mục còn trống: FlintFlow hỏi bạn vài điều rồi soạn các mục đó để bạn duyệt."
     },
     "labels": {
       "importStatus": {
@@ -3781,7 +3791,8 @@
         "IMPORT_REUPLOAD_NO_STAMP": "File không mang stamp của dự án — chỉ file tải từ FlintFlow mới so khác biệt được.",
         "CR_NO_OWNER_STEP": "Vị trí này thuộc mục riêng, không có quy tắc soạn để AI sửa — dùng “Sửa trực tiếp”.",
         "PREVIEW_EXPIRED": "Bản xem trước đã hết hạn — bấm “Xem trước thay đổi” lại.",
-        "CR_NOTHING_TO_APPROVE": "Mọi vị trí đều là \"không liên quan\" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút \"Sửa tay\"), hoặc huỷ change request."
+        "CR_NOTHING_TO_APPROVE": "Mọi vị trí đều là \"không liên quan\" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút \"Sửa tay\"), hoặc huỷ change request.",
+        "NO_MISSING_SECTIONS": "Tài liệu không còn mục trống nào cần soạn."
       }
     },
     "importWizard": {
@@ -3803,7 +3814,8 @@
       "done": {
         "body": "Import xong — tài liệu đã thành version <strong>0.1</strong>. Mọi sửa đổi đi qua change request; chỗ đọc chưa chắc có cờ <strong>Cần xem</strong>.",
         "gapReport": "Xem gap report",
-        "openChat": "Mở màn hình chat"
+        "openChat": "Mở màn hình chat",
+        "gapFill": "Bổ sung mục còn thiếu"
       },
       "languageVi": "Tiếng Việt",
       "languageEn": "Tiếng Anh",
@@ -4095,6 +4107,12 @@
         "note": "FlintFlow đọc hướng dẫn và ví dụ của mẫu, hỏi bạn thông tin của dự án, soạn {count, plural, =1 {1 mục} other {# mục}} của mẫu để bạn duyệt rồi ký baseline 1.0 theo đúng mẫu.",
         "action": "Viết với FlintFlow",
         "starting": "Đang chuyển sang soạn…"
+      },
+      "fixedExisting": {
+        "summary": "File theo mẫu của bạn có {present} mục đã viết và {missing} mục còn trống. Bấm Hoàn thiện: FlintFlow chốt bản gốc 0.1 đúng phần bạn đã viết, rồi hỏi bạn vài điều để soạn {missing} mục còn trống.",
+        "gapReport": "Tải gap report",
+        "credits": "~{credits} credit",
+        "creditsTitle": "Ước tính credit để FlintFlow hỏi bạn và soạn các mục còn trống"
       }
     },
     "referenceDocs": {
