@@ -2255,6 +2255,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 orgRole={ws.orgRole}
                 refreshToken={documentRefreshToken}
                 documentLanguage={documentLanguage}
+                // CR đang soạn ở khung chat (chưa ghi bản nháp) ⇒ khoá gửi Lead duyệt / phát hành thẳng
+                crInProgress={crChat.detail ? crChat.detail.change_request.cr_id : crChat.pending !== null || crChat.busy !== null ? "" : null}
                 onTranslate={
                   canEdit && ws.project?.converted_from === "fpt"
                     ? (locale, version) => {

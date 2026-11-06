@@ -3925,6 +3925,8 @@
       "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
       "listAria": "Change request trong gói",
       "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
+      "blockedEditing": "Đang sửa {crId} ở khung chat — xác nhận ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
+      "blockedEditingNew": "Đang soạn change request ở khung chat — ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
       "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
       "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
       "submit": "Gửi Lead duyệt cả gói",
