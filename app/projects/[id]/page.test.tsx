@@ -48,7 +48,8 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     const tools = await screen.findByRole("complementary", { name: "Cờ, change request & version" });
     expect(router.replace).not.toHaveBeenCalled();
     const red = await within(tools).findByRole("region", { name: "Cờ đỏ đang chặn release" });
-    expect(within(red).getByRole("link", { name: "Tạo CR" }).getAttribute("href")).toContain("source=gap_report");
+    // Vùng cờ hiện trước khi danh sách cờ tải xong ⇒ chờ nút (trước đây getByRole ngay lập tức — flaky trên CI)
+    expect((await within(red).findByRole("link", { name: "Tạo CR" })).getAttribute("href")).toContain("source=gap_report");
     expect(within(tools).queryByRole("button", { name: "Ký baseline v1" })).not.toBeInTheDocument();
     expect(within(tools).queryByRole("button", { name: /Waive|Bật|Tắt/ })).not.toBeInTheDocument();
     expect(within(tools).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
