@@ -38,6 +38,7 @@ import ChatSessionHistory from "./_components/ChatSessionHistory";
 import ChatPane from "./_components/ChatPane";
 import ResizeHandle from "./_components/ResizeHandle";
 import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
+import { SectionNamesContext } from "./_components/mode1/i18n";
 import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
 import BriefPanel, { briefHasData } from "./_components/BriefPanel";
@@ -384,6 +385,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const togglePanel = (panel: WorkspacePanel) => setRightPanel((current) => (current === panel ? null : panel));
   /** Tên mục (`§2.2.2 Actors`) theo `section_id` — từ tài liệu đang hiển thị, để panel kiểm tra khỏi hiện mã nội bộ. */
   const [sectionLabels, setSectionLabels] = useState<ReadonlyMap<string, string>>(new Map());
+  /** Tên mục cho nhãn của panel mode 1 (cờ, CR, gap report): như nhãn mục của tài liệu, bỏ ký hiệu "§". */
+  const panelSectionNames = useMemo<ReadonlyMap<string, string>>(
+    () => new Map([...sectionLabels].map(([id, label]) => [id, label.replace(/^§/, "")])),
+    [sectionLabels]
+  );
   const handleSectionsLoaded = useCallback(
     (sections: readonly RenderedSection[]) => setSectionLabels(new Map(sections.map((section) => [section.id, sectionLabel(section)]))),
     []
@@ -1790,6 +1796,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   };
 
   return (
+    // Tên mục theo tài liệu đang xem cho nhãn mục của mode 1 (mẫu cố định / file có sẵn đặt tên khác mẫu FPT)
+    <SectionNamesContext.Provider value={panelSectionNames}>
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
       {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
@@ -2191,6 +2199,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           mode1={mode1}
           onEditSection={canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined}
           onDraftSection={canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined}
+          requiredTemplate={requiredTemplate}
           libraryMatchOf={library.matchOf}
           onUseLibrary={
             canEdit
@@ -2431,6 +2440,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onClose={() => setExportOpen(false)}
           documentLanguage={documentLanguage}
           otherLanguageAvailable={!mode1}
+          sourceFile={mode1 && ws.project?.start_kind !== "new" && ws.project?.converted_from !== "fpt"}
           // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
           onTranslate={
             !mode1 && canEdit
@@ -2473,5 +2483,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         </Suspense>
       )}
     </div>
+    </SectionNamesContext.Provider>
   );
 }

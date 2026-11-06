@@ -53,11 +53,14 @@ function FlagRow({ flag }: { flag: Flag }) {
   );
 }
 
-/** Mô tả CR điền sẵn từ gap report: cờ đỏ trên nội dung đã có (người dùng sửa lại trước khi gửi). */
+/**
+ * Mô tả CR điền sẵn từ gap report: cờ đỏ trên nội dung đã có, cộng mục của mẫu cố định còn trống (`template_section_empty`
+ * — việc chính của dự án có sẵn theo mẫu công ty). Người dùng sửa lại trước khi gửi.
+ */
 export const gapReportPrefill = (report: GapReport, L: Mode1Labels): { title: string; description: string } => {
   const reds = report.sections.flatMap((s) =>
     s.flags
-      .filter((f) => f.level === "red" && f.rule_id !== "section_empty")
+      .filter((f) => (f.level === "red" && f.rule_id !== "section_empty") || f.rule_id === "template_section_empty")
       .map((f) => `- ${L.sectionTitle(s.section_id, s.title)}: ${L.humanizeText(f.message)}`)
   );
   return {

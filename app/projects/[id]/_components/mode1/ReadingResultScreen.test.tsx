@@ -1,13 +1,9 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { fireEvent, screen } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/intl";
-import { API_BASE_URL } from "@/lib/api/client";
 import { mockServer } from "@/mocks/server";
 import type { TargetStructure } from "@/types/import";
 import ReadingResultScreen from "./ReadingResultScreen";
-
-const P = "650000000000000000000002";
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
@@ -29,41 +25,31 @@ const structure = (over: Partial<TargetStructure> = {}): TargetStructure => ({
 });
 
 describe("ReadingResultScreen (FLF-336 — điểm dừng Kết quả đọc file)", () => {
-  it("chế độ 4: nói số mục thiếu / đã có, bản đồ mục có / sẽ soạn / ngoài phạm vi kèm bước soạn; Hoàn thiện gọi onComplete", () => {
+  it("chế độ 4 (dự án có sẵn): số mục thiếu / đã có, bản đồ mục có / còn trống / ngoài phạm vi — không có bước soạn; Tiếp tục sửa với FlintFlow gọi onComplete", () => {
     const onComplete = vi.fn();
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure()} onComplete={onComplete} />);
+    renderWithIntl(<ReadingResultScreen structure={structure()} onComplete={onComplete} />);
     expect(screen.getByText(/còn thiếu 2 mục của mẫu chuẩn FlintFlow \(1 mục đã có\)/)).toBeInTheDocument();
     const map = screen.getByRole("list", { name: "Bản đồ mục so với cấu trúc đích" });
     expect(map).toHaveTextContent("Có1. Product Overview");
-    expect(map).toHaveTextContent("Sẽ soạn2.1 Actorsbước S-2.1");
+    // Dự án có sẵn: mục trống bổ sung qua change request, không có bước nào "sẽ soạn"
+    expect(map).toHaveTextContent("Còn trống2.1 Actors");
+    expect(map).not.toHaveTextContent("bước S-2.1");
+    expect(screen.getByText(/giữ nguyên file của bạn làm bản gốc 0\.1 rồi mở chỗ sửa: 2 mục còn trống bổ sung qua chat/)).toBeInTheDocument();
     expect(map).toHaveTextContent("Ngoài phạm viPhụ lục Dự toán");
     expect(screen.getByText(/1 mục ngoài phạm vi giữ nguyên văn/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Hoàn thiện" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục sửa với FlintFlow" }));
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("chế độ 3: câu riêng cho mẫu cố định; Dừng ⇒ tải gap report docx", async () => {
-    let downloaded = 0;
-    mockServer.use(
-      http.get(`${API_BASE_URL}/projects/:projectId/gap-report`, () => {
-        downloaded += 1;
-        return new HttpResponse(new Blob(["PK"]), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": 'attachment; filename="gap.docx"' } });
-      })
-    );
-    const urlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:x");
-    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure({ resolved_mode: 3, target: "template", intent: "fixed", sections: structure().sections.filter((s) => s.status !== "out_of_scope") })} onComplete={vi.fn()} />);
-    expect(screen.getByText(/mẫu cố định còn 2 mục trống/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dừng, tải gap report" }));
-    await waitFor(() => expect(downloaded).toBe(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Dừng, tải gap report" })).toBeEnabled());
-    urlSpy.mockRestore();
+  it("chế độ 3: câu riêng cho mẫu cố định của dự án có sẵn; không có nút tải gap report ở bước này (tải ở workspace)", () => {
+    renderWithIntl(<ReadingResultScreen structure={structure({ resolved_mode: 3, target: "template", intent: "fixed", sections: structure().sections.filter((s) => s.status !== "out_of_scope") })} onComplete={vi.fn()} />);
+    expect(screen.getByText(/File theo mẫu của bạn: 1 mục đã có nội dung, 2 mục còn trống/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /gap report/i })).not.toBeInTheDocument();
   });
 
-  it("đang chốt ⇒ hai nút khoá", () => {
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure()} onComplete={vi.fn()} busy />);
-    expect(screen.getByRole("button", { name: "Đang chốt bản gốc…" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Dừng, tải gap report" })).toBeDisabled();
+  it("đang mở chỗ sửa ⇒ nút khoá", () => {
+    renderWithIntl(<ReadingResultScreen structure={structure()} onComplete={vi.fn()} busy />);
+    expect(screen.getByRole("button", { name: "Đang mở chỗ sửa…" })).toBeDisabled();
   });
 });
 
@@ -71,7 +57,7 @@ describe("ReadingResultScreen — dự án mới theo mẫu bắt buộc (FLF-27
   it("có onDraftMissing (không onComplete) ⇒ lời 'đọc mẫu', một lối đi duy nhất Viết với FlintFlow — không Hoàn thiện, không gap report", () => {
     const onDraftMissing = vi.fn();
     const fixed = structure({ resolved_mode: 3, target: "template", intent: "fixed", sections: structure().sections.filter((s) => s.status !== "out_of_scope") });
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={fixed} onDraftMissing={onDraftMissing} />);
+    renderWithIntl(<ReadingResultScreen structure={fixed} onDraftMissing={onDraftMissing} />);
     expect(screen.getByRole("heading", { name: "Kết quả đọc mẫu" })).toBeInTheDocument();
     expect(screen.getByText(/Mẫu có 1 mục đã có nội dung và 2 mục còn trống/)).toBeInTheDocument();
     expect(screen.getByText(/soạn 2 mục còn trống để bạn duyệt/)).toBeInTheDocument();
@@ -80,9 +66,9 @@ describe("ReadingResultScreen — dự án mới theo mẫu bắt buộc (FLF-27
     expect(onDraftMissing).toHaveBeenCalledTimes(1);
   });
 
-  it("dự án có sẵn (chỉ onComplete) ⇒ Dừng / Hoàn thiện, không có Viết với FlintFlow", () => {
-    renderWithIntl(<ReadingResultScreen projectId={P} structure={structure({ resolved_mode: 3, target: "template", intent: "fixed" })} onComplete={vi.fn()} />);
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Dừng, tải gap report", "Hoàn thiện"]);
+  it("dự án có sẵn (chỉ onComplete) ⇒ một nút Tiếp tục sửa với FlintFlow, không có Viết với FlintFlow", () => {
+    renderWithIntl(<ReadingResultScreen structure={structure({ resolved_mode: 3, target: "template", intent: "fixed" })} onComplete={vi.fn()} />);
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Tiếp tục sửa với FlintFlow"]);
     expect(screen.getByRole("heading", { name: "Kết quả đọc file" })).toBeInTheDocument();
   });
 });

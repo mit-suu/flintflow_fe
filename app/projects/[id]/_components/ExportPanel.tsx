@@ -30,6 +30,10 @@ interface ExportPanelProps {
   onTranslate?: (locale?: DocumentLanguage, target?: { baselineId?: string }) => void;
   /** FLF-334 B: cho chọn tải theo ngôn ngữ còn lại — chỉ mode 2 (mode 1 tải theo version ở VersionsPanel). */
   otherLanguageAvailable?: boolean;
+  /**
+   * Dự án "Upload SRS có sẵn": bản in lấy chính file upload làm nền, không có phụ lục cờ §I ⇒ chỉ báo số cờ đỏ đang mở.
+   */
+  sourceFile?: boolean;
 }
 
 /** Ghim thẻ `<a download>` vào DOM trước khi click — Safari/Firefox bỏ qua click trên thẻ rời DOM. */
@@ -62,6 +66,7 @@ export default function ExportPanel({
   documentLanguage = null,
   onTranslate,
   otherLanguageAvailable = false,
+  sourceFile = false,
 }: ExportPanelProps) {
   const t = useTranslations("workspace.export");
   const tHook = useTranslations("workspace.hookErrors");
@@ -292,7 +297,7 @@ export default function ExportPanel({
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span>{t("redCount")}</span>
+              <span>{sourceFile ? t("redOpenCount") : t("redCount")}</span>
               <span className={`font-bold ${redCount > 0 ? "text-[#B03030]" : "text-[#1F7A45]"}`}>{redCount}</span>
             </div>
             {(requestedLanguage ?? language) && (

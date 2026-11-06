@@ -57,8 +57,11 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
   const [pickAnother, setPickAnother] = useState(false);
   /** FLF-335: ý định với file (bước 1.2). Dự án mới có mẫu bắt buộc ⇒ `fixed` cố định; còn lại người dùng chọn, mặc định tự do. */
   const intentLocked = templateIntent === "fixed" && startKind === "new";
-  const [intent, setIntent] = useState<TemplateIntent>(templateIntent ?? "free");
+  // Người dùng chưa chọn ⇒ ý định của lần upload trước, rồi của dự án (project tải bất đồng bộ — khởi tạo state một lần thì
+  // upload lại / chọn file khác sẽ rơi về "free" và BE ghi đè `template_intent`)
+  const [pickedIntent, setIntent] = useState<TemplateIntent | null>(null);
   const doc = imp.doc;
+  const intent: TemplateIntent = pickedIntent ?? doc?.intent ?? templateIntent ?? "free";
   const status: ImportStatus | null = doc?.status ?? null;
   const showUpload = !doc || status === "preflight_rejected" || pickAnother;
   const step: StepId = showUpload || status === "uploaded" || status === "parsing"
@@ -77,6 +80,16 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
 
   // Lượt bấm trong phiên này chạy xong (`gap_review`) — cả luồng một mạch lẫn "Hoàn thiện" ở màn kết quả đọc file — ⇒ vào
   // thẳng màn chat của workspace (FLF-357: không mở popup CR; mode 1 tạo change request qua chat)
+  // Trạng thái import đổi do job nền (poll) ⇒ báo trang tải lại project: badge trạng thái ở header đọc `project.import_state`,
+  // không thì vẫn ghi "Đang trích field" khi đã dừng ở kết quả đọc file
+  const seenStatus = useRef<ImportStatus | null>(null);
+  useEffect(() => {
+    if (!status || seenStatus.current === status) return;
+    const first = seenStatus.current === null;
+    seenStatus.current = status;
+    if (!first) onChanged?.();
+  }, [status, onChanged]);
+
   const done = imp.done;
   const navigated = useRef(false);
   useEffect(() => {
@@ -239,10 +252,9 @@ export default function ImportWizard({ projectId, credits, onChanged, pollMs, st
 
       {!showUpload && status === "incomplete" && imp.data?.target_structure && (
         <ReadingResultScreen
-          projectId={projectId}
           structure={imp.data.target_structure}
           busy={imp.busy === "finalize"}
-          // Dự án mới theo mẫu bắt buộc: chỉ "Viết với FlintFlow" (mẫu trống không khoá thành bản gốc); dự án có sẵn: Dừng / Hoàn thiện
+          // Dự án mới theo mẫu bắt buộc: chỉ "Viết với FlintFlow" (mẫu trống không khoá thành bản gốc); dự án có sẵn: chỉ "Tiếp tục sửa với FlintFlow"
           {...(intentLocked
             ? {
                 onDraftMissing: () =>
