@@ -119,6 +119,19 @@ describe("ReviewPackagePanel (FLF-330 — gói duyệt kiểu pull request)", ()
     await waitFor(() => expect(calls.map((c) => c.path)).toEqual(["release"]));
   });
 
+  it("đang sửa một CR ở khung chat (chưa ghi bản nháp) ⇒ khoá \"Gửi Lead duyệt cả gói\" và \"Phát hành thẳng\", nói rõ lý do", async () => {
+    const calls = serve(pkg());
+    const { unmount } = renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} crInProgress="CR-003" />);
+    expect(await screen.findByRole("button", { name: "Phát hành thẳng (Lead)" })).toBeDisabled();
+    expect(screen.getByText(/Đang sửa CR-003 ở khung chat/)).toBeInTheDocument();
+    unmount();
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="analyst" onChanged={vi.fn()} crInProgress="" />);
+    expect(await screen.findByRole("button", { name: "Gửi Lead duyệt cả gói" })).toBeDisabled();
+    expect(screen.getByText(/Đang soạn change request ở khung chat/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Gửi Lead duyệt cả gói" }));
+    expect(calls).toEqual([]);
+  });
+
   it("Viewer chỉ xem nhãn bản nháp và danh sách, không có nút nào", async () => {
     serve(pkg());
     renderWithIntl(<ReviewPackagePanel projectId={P} role="viewer" onChanged={vi.fn()} />);
