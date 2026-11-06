@@ -80,7 +80,16 @@ export default function ExtractProgress({ doc, sections, running, credits, estim
           <div className="flex items-center justify-between text-body font-semibold text-[#4B4842]">
             <span>
               {running && <span className="inline-block w-3 h-3 mr-1.5 align-middle rounded-full border-2 border-[#E4E1DC] border-t-[#6A62C4] ff-spinner" />}
-              {running ? (doc.extract_cursor ? t("runningSection", { section: L.sectionLabelIn(doc.extract_cursor, headingMap) }) : t("running")) : t("stopped")}
+              {running
+                ? // FLF-360: AI quá tải ⇒ BE tự đọc lại — nói rõ đang đọc lại, không để trông như bị treo
+                  doc.reread?.kind === "images"
+                  ? t("rereadImages", { current: Math.min(doc.reread.done + 1, doc.reread.total), total: doc.reread.total })
+                  : doc.reread?.kind === "text"
+                    ? t("rereadText", { section: L.sectionLabelIn(doc.reread.section_id, headingMap), attempt: doc.reread.done, total: doc.reread.total })
+                    : doc.extract_cursor
+                      ? t("runningSection", { section: L.sectionLabelIn(doc.extract_cursor, headingMap) })
+                      : t("running")
+                : t("stopped")}
             </span>
             <span>
               {t("progress", { done, total })}

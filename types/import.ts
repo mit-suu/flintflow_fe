@@ -85,6 +85,11 @@ export interface ImportedDocument {
   paused: Paused | null;
   /** Section đang/sắp trích (I-4); resume chạy tiếp từ đây. */
   extract_cursor: string | null;
+  /**
+   * FLF-360: đang đọc lại vì AI quá tải — `images`: ảnh sơ đồ chưa đọc được (`done`/`total` ảnh), `text`: một lô chữ của
+   * `section_id` (`done`/`total` lượt). `null` / thiếu = không đọc lại.
+   */
+  reread?: { kind: "images" | "text"; done: number; total: number; section_id: string } | null;
   /** FLF-335: ý định lúc upload — file theo mẫu cố định hay cấu trúc tự do; bản ghi cũ `null` / thiếu (coi như `free`). */
   intent?: TemplateIntent | null;
   created_at: IsoDateTime;
