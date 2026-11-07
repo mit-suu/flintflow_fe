@@ -125,6 +125,16 @@ export interface TranslationRunResult {
 }
 
 /** Tài liệu đính kèm của project (`/projects/:id/documents`). */
+/**
+ * Business-flow §3.6: file .docx có trông như SRS không (Code nhận diện như preflight, không gọi AI) — FE gợi ý chuyển ô /
+ * cập nhật phiên bản mới, không chặn. `heading_overlap` (0–1) chỉ có khi dự án đã có SRS.
+ */
+export interface DocxPrecheck {
+  looks_like_srs: boolean;
+  stamp: { project_id: string } | null;
+  heading_overlap?: number;
+}
+
 export interface ProjectDocument {
   _id: string;
   projectId: string;

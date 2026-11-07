@@ -16,7 +16,7 @@ export interface SourceModeOption {
 
 /**
  * Nhãn / icon / tone để **hiển thị** 3 `ProjectMode` của BE (card dự án, bộ lọc). Từ FLF-335 người dùng không chọn mode —
- * thẻ tạo dự án là `ProjectStartPicker` (`lib/project-start.ts`); mode do BE suy ra.
+ * hộp Tạo dự án chỉ có ô SRS + ô chọn "Bổ sung các mục còn thiếu…" (`components/project/CreateProjectForm.tsx`); mode do BE suy ra.
  */
 export const SOURCE_MODE_OPTIONS = [
   {

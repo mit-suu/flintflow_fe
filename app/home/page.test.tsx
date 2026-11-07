@@ -72,21 +72,20 @@ describe("Project Dashboard", () => {
     expect(screen.queryByText("Không có dự án khớp bộ lọc")).toBeNull();
   });
 
-  it("chưa có dự án ⇒ 2 thẻ Dự án mới / Dự án có sẵn + ô tên ngay trên trang; tạo xong tải lại và vào route theo mode BE trả", async () => {
+  it("chưa có dự án ⇒ hộp Tạo dự án hai ô (SRS + tài liệu tham khảo) ngay trên trang; tạo xong tải lại và vào dự án", async () => {
     vi.mocked(listProjects).mockResolvedValue(ok([]));
     vi.mocked(createProjectFrom).mockResolvedValue(ok(project("p9")));
     renderPage();
 
     expect(await screen.findByText("Bắt đầu dự án SRS đầu tiên")).toBeInTheDocument();
-    expect(within(screen.getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(2);
-    // FLF-335: không còn thẻ chế độ / "Sắp có"
-    expect(screen.queryByRole("radio", { name: /template của khách/ })).toBeNull();
-    fireEvent.click(screen.getByRole("radio", { name: /Dự án mới/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "Không" }));
+    // Không còn câu hỏi Dự án mới / có sẵn — chỉ hai ô tải file
+    expect(screen.queryByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "SRS" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tài liệu tham khảo" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p9"));
-    expect(createProjectFrom).toHaveBeenCalledWith({ name: "Dự án chưa đặt tên", source: "new", has_required_template: false, documentLanguage: "vi" });
+    expect(createProjectFrom).toHaveBeenCalledWith({ name: "Dự án chưa đặt tên", has_srs_file: false, documentLanguage: "vi" });
     expect(listProjects).toHaveBeenCalledTimes(2);
   });
 
@@ -129,8 +128,8 @@ describe("Project Dashboard", () => {
 
     expect(await screen.findByText("Chưa có dự án đang làm")).toBeInTheDocument();
     expect(screen.queryByText("Bắt đầu dự án SRS đầu tiên")).toBeNull();
-    // Chọn cách bắt đầu ngay trong vùng trống, không phải mở dialog
-    expect(screen.getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).toBeInTheDocument();
+    // Hộp Tạo dự án ngay trong vùng trống, không phải mở dialog
+    expect(screen.getByRole("heading", { name: "SRS" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Bắt đầu/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xem lưu trữ" }));
     expect(screen.getByRole("link", { name: /Dự án c/ })).toBeInTheDocument();
@@ -234,14 +233,15 @@ describe("Project Dashboard", () => {
     expect(screen.getByRole("dialog", { name: "Chuyển vào thư mục" })).toBeInTheDocument();
   });
 
-  it('"+ Dự án mới" mở dialog chứa cùng picker; Huỷ không tạo gì', async () => {
+  it('"+ Dự án mới" mở dialog chứa cùng hộp hai ô; Huỷ không tạo gì', async () => {
     vi.mocked(listProjects).mockResolvedValue(ok([project("a")]));
     renderPage();
     await screen.findByRole("link", { name: /Dự án a/ });
 
     fireEvent.click(screen.getByRole("button", { name: /Dự án mới|Mới/ }));
     const dialog = screen.getByRole("dialog", { name: "Tạo dự án mới" });
-    expect(within(within(dialog).getByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).getAllByRole("radio")).toHaveLength(2);
+    expect(within(dialog).getByRole("heading", { name: "SRS" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Tài liệu tham khảo" })).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Huỷ" }));
     expect(screen.queryByRole("dialog")).toBeNull();

@@ -762,15 +762,57 @@
       "language": {
         "label": "Ngôn ngữ tài liệu",
         "vi": "Tiếng Việt",
-        "en": "Tiếng Anh",
-        "importHint": "Ngôn ngữ tài liệu lấy theo file tải lên."
+        "en": "Tiếng Anh"
       },
-      "pickMode": "Chọn một cách bắt đầu ở trên để tiếp tục.",
       "submitting": "Đang tạo…",
       "submit": "Bắt đầu",
       "missingProject": "Không nhận được dự án vừa tạo",
       "failed": "Không thể tạo dự án",
-      "answerTemplate": "Cho biết khách có bắt buộc theo mẫu không để tiếp tục."
+      "srs": {
+        "label": "SRS",
+        "hint": "Một file .docx FlintFlow sẽ sửa và hoàn thiện — mẫu khách bắt buộc, dù còn trống, cũng tải vào đây. Không có SRS thì để trống.",
+        "dropHint": ".docx · tối đa 40 MB",
+        "change": "Đổi",
+        "remove": "Bỏ {name}",
+        "notDocx": "Ô SRS chỉ nhận file .docx.",
+        "tooLarge": "File SRS lớn hơn 40 MB. Hãy nén ảnh trong Word rồi chọn lại.",
+        "orgTemplateChosen": "Mẫu của tổ chức: {name}",
+        "completeToStandard": "Bổ sung các mục còn thiếu theo mẫu chuẩn FlintFlow",
+        "completeInfoLabel": "Giải thích ô chọn này",
+        "completeInfo": "Mặc định FlintFlow giữ đúng các mục của file để bạn sửa tiếp. Tick nếu muốn FlintFlow soạn thêm các mục còn thiếu so với mẫu chuẩn FlintFlow (giới thiệu, use case, màn hình, yêu cầu phi chức năng…)."
+      },
+      "references": {
+        "label": "Tài liệu tham khảo",
+        "hint": "Biên bản họp, email, yêu cầu của khách… để FlintFlow dựa vào khi soạn và sửa. Có thể thêm sau trong chat.",
+        "dropHint": ".docx, .pdf, .doc, .md, .txt · tối đa 10 MB mỗi file",
+        "remove": "Bỏ {name}",
+        "checking": "Đang xem file…",
+        "rejected": "Chưa thêm được: {files} — chỉ nhận .docx, .pdf, .doc, .md, .txt tối đa 10 MB.",
+        "uploadFailed": "Đã tạo dự án nhưng chưa tải được: {files}. Bạn có thể đính kèm lại trong chat của dự án.",
+        "suggest": {
+          "looksLikeSrs": "File này trông như một SRS. Bạn muốn FlintFlow sửa và hoàn thiện nó?",
+          "otherVersion": "File này trông như một bản SRS khác. Nếu là bản cũ của file ở ô SRS, nên bỏ để tránh lẫn nội dung.",
+          "moveToSrs": "Chuyển sang ô SRS",
+          "keep": "Giữ làm tham khảo",
+          "drop": "Bỏ file này"
+        }
+      },
+      "slots": {
+        "drop": "Kéo thả file vào đây hoặc bấm để chọn",
+        "addMore": "Thêm file"
+      },
+      "orgTemplates": {
+        "toggle": "Hoặc chọn từ mẫu của tổ chức ({count})",
+        "title": "Mẫu đã lưu của tổ chức",
+        "meta": "{file} · {headings} heading · đã dùng {uses} lần",
+        "use": "Dùng mẫu này"
+      },
+      "stage": {
+        "creating": "Đang tạo dự án…",
+        "srs": "Đang tải file SRS…",
+        "references": "Đang tải tài liệu tham khảo…"
+      },
+      "openProject": "Mở dự án"
     },
     "projectDialogs": {
       "archive": {
@@ -1143,26 +1185,6 @@
           "save": "Lưu",
           "cancel": "Huỷ"
         }
-      }
-    },
-    "projectStart": {
-      "groupLabel": "Bạn bắt đầu từ đâu?",
-      "new": {
-        "label": "Dự án mới",
-        "description": "Chưa có SRS. FlintFlow dẫn từ ý tưởng tới bản SRS đầy đủ theo mẫu chuẩn FlintFlow — hoặc theo mẫu khách bắt buộc."
-      },
-      "existing": {
-        "label": "Dự án có sẵn",
-        "description": "Đã có file SRS đang dùng (.docx). FlintFlow đọc file, tìm chỗ thiếu và giúp hoàn thiện, sửa qua change request.",
-        "hint": "Khi tải file lên, FlintFlow hỏi file theo một mẫu cố định hay cấu trúc tự do rồi tự chọn cách làm phù hợp."
-      },
-      "requiredTemplate": {
-        "question": "Khách có bắt buộc theo một mẫu không?",
-        "yes": "Có",
-        "no": "Không",
-        "hint": "Chọn một trong hai để tiếp tục.",
-        "yesHint": "Bạn sẽ tải file mẫu (trống hoặc điền dở) lên; FlintFlow chỉ soạn những mục mẫu có, giữ nguyên thứ tự.",
-        "noHint": "Soạn theo mẫu chuẩn FlintFlow, bắt đầu từ ý tưởng / ghi chú."
       }
     }
   },

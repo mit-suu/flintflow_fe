@@ -63,6 +63,13 @@ export interface Project {
 export interface CreateProjectRequest {
   name: string;
   domain?: string;
+  /**
+   * Hộp Tạo dự án hai ô (business-flow §1): có tải file SRS không. Có trường này thì BE bỏ qua `source` / `mode` — không SRS ⇒
+   * chế độ 2; có SRS ⇒ giữ khung của file, trừ khi `complete_to_standard`.
+   */
+  has_srs_file?: boolean;
+  /** Ô chọn "Bổ sung các mục còn thiếu theo mẫu chuẩn FlintFlow" — chỉ có nghĩa khi có file SRS. */
+  complete_to_standard?: boolean;
   /** FLF-335: `new` / `existing` — BE suy ra `mode`. Thiếu cả `source` lẫn `mode` ⇒ `fpt`. */
   source?: ProjectStartKind;
   /** Chỉ với `source: "new"`: khách có bắt buộc theo một mẫu không (có ⇒ sang màn tải mẫu). */

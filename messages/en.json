@@ -762,15 +762,57 @@
       "language": {
         "label": "Document language",
         "vi": "Vietnamese",
-        "en": "English",
-        "importHint": "The document language follows the uploaded file."
+        "en": "English"
       },
-      "pickMode": "Pick a way to start above to continue.",
       "submitting": "Creating…",
       "submit": "Start",
       "missingProject": "The new project was not returned",
       "failed": "Could not create the project",
-      "answerTemplate": "Tell us whether the customer requires a template to continue."
+      "srs": {
+        "label": "SRS",
+        "hint": "One .docx file FlintFlow will edit and complete — a customer's required template, even blank, goes here too. Leave empty if you have no SRS.",
+        "dropHint": ".docx · up to 40 MB",
+        "change": "Change",
+        "remove": "Remove {name}",
+        "notDocx": "The SRS slot only accepts .docx files.",
+        "tooLarge": "The SRS file is larger than 40 MB. Compress the pictures in Word and choose it again.",
+        "orgTemplateChosen": "Organization template: {name}",
+        "completeToStandard": "Add the missing sections from the FlintFlow standard template",
+        "completeInfoLabel": "Explain this option",
+        "completeInfo": "By default FlintFlow keeps exactly the sections of your file so you can keep editing it. Tick this if you want FlintFlow to also draft the sections missing from the FlintFlow standard template (introduction, use cases, screens, non-functional requirements…)."
+      },
+      "references": {
+        "label": "Reference documents",
+        "hint": "Meeting notes, emails, customer requests… for FlintFlow to rely on when drafting and editing. You can add more later in chat.",
+        "dropHint": ".docx, .pdf, .doc, .md, .txt · up to 10 MB each",
+        "remove": "Remove {name}",
+        "checking": "Checking file…",
+        "rejected": "Not added: {files} — only .docx, .pdf, .doc, .md, .txt up to 10 MB.",
+        "uploadFailed": "The project was created, but these files were not uploaded: {files}. You can attach them again in the project chat.",
+        "suggest": {
+          "looksLikeSrs": "This file looks like an SRS. Do you want FlintFlow to edit and complete it?",
+          "otherVersion": "This file looks like another SRS version. If it is an older copy of the file in the SRS slot, remove it to avoid mixing content.",
+          "moveToSrs": "Move to the SRS slot",
+          "keep": "Keep as reference",
+          "drop": "Remove this file"
+        }
+      },
+      "slots": {
+        "drop": "Drag a file here or click to choose",
+        "addMore": "Add files"
+      },
+      "orgTemplates": {
+        "toggle": "Or pick an organization template ({count})",
+        "title": "Saved organization templates",
+        "meta": "{file} · {headings} headings · used {uses} times",
+        "use": "Use this template"
+      },
+      "stage": {
+        "creating": "Creating the project…",
+        "srs": "Uploading the SRS file…",
+        "references": "Uploading reference documents…"
+      },
+      "openProject": "Open project"
     },
     "projectDialogs": {
       "archive": {
@@ -1143,26 +1185,6 @@
           "save": "Save",
           "cancel": "Cancel"
         }
-      }
-    },
-    "projectStart": {
-      "groupLabel": "Where are you starting from?",
-      "new": {
-        "label": "New project",
-        "description": "No SRS yet. FlintFlow takes you from the idea to a complete SRS on the FlintFlow standard template — or on a template the customer requires."
-      },
-      "existing": {
-        "label": "Existing project",
-        "description": "You already have an SRS file in use (.docx). FlintFlow reads it, finds the gaps, helps complete it and tracks edits as change requests.",
-        "hint": "When you upload the file, FlintFlow asks whether it follows a fixed template or a free structure, then picks the right way of working."
-      },
-      "requiredTemplate": {
-        "question": "Does the customer require a specific template?",
-        "yes": "Yes",
-        "no": "No",
-        "hint": "Pick one to continue.",
-        "yesHint": "You will upload the template file (blank or partly filled); FlintFlow drafts only the sections the template has, in its order.",
-        "noHint": "Drafted on the FlintFlow standard template, starting from an idea / notes."
       }
     }
   },
