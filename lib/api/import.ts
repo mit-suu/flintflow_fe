@@ -17,22 +17,22 @@ import type {
 } from "@/types/import";
 import type { RocRow } from "@/types/document";
 import { apiCall } from "./client";
-import type { TemplateIntent } from "@/types/project";
 import { fetchFile } from "./files";
 
 const base = (projectId: string) => `/projects/${projectId}`;
 
-const docxForm = (file: File, intent?: TemplateIntent) => {
+const docxForm = (file: File) => {
   const form = new FormData();
   form.append("file", file);
-  // FLF-335: ý định lúc upload (bước 1.2) — thiếu ⇒ BE coi như `free`
-  if (intent) form.append("intent", intent);
   return form;
 };
 
-/** 422 `IMPORT_FILE_REJECTED` mang `meta.issues[]`; 422 `IMPORT_STAMP_FOREIGN_PROJECT` mang `meta.stamp`. */
-export const uploadImport = (projectId: string, file: File, intent?: TemplateIntent) =>
-  apiCall<ImportStateResponse>(`${base(projectId)}/import`, { method: "POST", body: docxForm(file, intent) });
+/**
+ * 422 `IMPORT_FILE_REJECTED` mang `meta.issues[]`; 422 `IMPORT_STAMP_FOREIGN_PROJECT` mang `meta.stamp`. Ý định với file (giữ
+ * khung / bổ sung theo mẫu chuẩn) BE lấy từ dự án — chốt ở hộp Tạo dự án.
+ */
+export const uploadImport = (projectId: string, file: File) =>
+  apiCall<ImportStateResponse>(`${base(projectId)}/import`, { method: "POST", body: docxForm(file) });
 
 export const confirmLatest = (projectId: string, importId: string) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/confirm-latest`, {

@@ -24,9 +24,9 @@ describe("org-library API (FLF-278 trên FLF-335/336)", () => {
     ["deleteContentEntry", () => api.deleteContentEntry("o1", "e1"), "/orgs/o1/content-library/e1", { method: "DELETE" }],
     [
       "importFromOrgTemplate",
-      () => api.importFromOrgTemplate("p1", "t1", "fixed"),
+      () => api.importFromOrgTemplate("p1", "t1"),
       "/projects/p1/import/from-org",
-      { method: "POST", body: JSON.stringify({ org_template_id: "t1", intent: "fixed" }) },
+      { method: "POST", body: JSON.stringify({ org_template_id: "t1" }) },
     ],
     ["saveImportToOrg", () => api.saveImportToOrg("p1", "IEEE"), "/projects/p1/import/save-to-org", { method: "POST", body: JSON.stringify({ name: "IEEE" }) }],
     ["libraryMatches", () => api.libraryMatches("p1"), "/projects/p1/library-matches", undefined],

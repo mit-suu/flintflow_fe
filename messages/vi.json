@@ -2596,6 +2596,119 @@
       "many": "Dùng nội dung của tổ chức cho {count} mục còn trống",
       "saved": "Đã lưu vào thư viện của tổ chức",
       "saveFailed": "Chưa lưu được vào thư viện. Vui lòng thử lại."
+    },
+    "import": {
+      "loading": "Đang tải file của dự án…",
+      "opening": "Đang mở dự án…",
+      "closeError": "Đóng thông báo lỗi",
+      "parsing": "FlintFlow đang đọc khung tài liệu…",
+      "badge": {
+        "upload": "Chưa có file SRS",
+        "ready": "Chờ bắt đầu",
+        "reading": "Đang đọc file",
+        "incomplete": "Còn thiếu mục",
+        "rejected": "File chưa nhập được"
+      },
+      "upload": {
+        "title": "Tải file SRS (.docx)",
+        "again": "Tải file đã sửa",
+        "cancel": "Giữ file hiện tại"
+      },
+      "preview": {
+        "pickAnother": "Chọn file khác",
+        "summary": {
+          "written": "SRS đã viết · {present}/{total} mục có nội dung",
+          "template": "Khung mẫu · {present}/{total} mục có nội dung",
+          "legacy": "Sẵn sàng đọc file"
+        },
+        "next": {
+          "mode1": "File đủ khung. Bấm Bắt đầu để FlintFlow đọc nội dung và tạo bản gốc 0.1 — sau đó bạn sửa tài liệu qua chat.",
+          "mode3": "Còn {missing} mục trống. FlintFlow đọc phần đã có rồi chuyển sang soạn các mục còn thiếu cùng bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
+          "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót."
+        },
+        "mapTitle": "Các mục theo thứ tự trong file",
+        "gapReport": "Tải báo cáo thiếu sót",
+        "status": {
+          "present": "Có",
+          "missing": "Còn trống",
+          "out_of_scope": "Ngoài phạm vi"
+        },
+        "outOfScopeNote": "Giữ nguyên, không kiểm",
+        "credit": {
+          "estimate": "Dự kiến ~<strong>{credits} credit</strong>",
+          "none": "Đọc file này không tốn credit",
+          "unknown": "Chưa tính được credit dự kiến",
+          "balance": "bạn còn {balance}",
+          "short": "Chưa đủ credit để đọc hết file.",
+          "topUp": "Nạp credit"
+        },
+        "start": "Bắt đầu",
+        "starting": "Đang bắt đầu…",
+        "unsureKind": "FlintFlow chưa chắc đây là tài liệu SRS. Bạn vẫn bắt đầu được — hãy xem kỹ các mục bên dưới, hoặc chọn file khác."
+      },
+      "progress": {
+        "title": "FlintFlow đang đọc file",
+        "canLeave": "Có thể rời trang — FlintFlow vẫn đọc tiếp và giữ kết quả.",
+        "phasesLabel": "Các bước đọc file",
+        "phase": {
+          "read": "Đọc nội dung",
+          "build": "Dựng tài liệu",
+          "check": "Kiểm tra"
+        },
+        "sections": "{done}/{total} mục",
+        "state": {
+          "done": "xong",
+          "active": "đang làm",
+          "todo": "chưa tới"
+        },
+        "paused": {
+          "read": "Đọc nội dung",
+          "build": "Dựng tài liệu",
+          "check": "Kiểm tra"
+        },
+        "interrupted": "Bước dựng tài liệu bị gián đoạn",
+        "reread": {
+          "images": "AI đang quá tải — đang đọc lại ảnh {done}/{total}",
+          "text": "AI đang quá tải — đang đọc lại phần chữ ({done}/{total} lượt)"
+        }
+      },
+      "legacy": {
+        "fieldsReview": "Lần đọc file này dừng giữa chừng ở phiên bản trước. Bấm Tiếp tục để FlintFlow đọc nốt.",
+        "continue": "Tiếp tục"
+      },
+      "outcome": {
+        "mode3": {
+          "title": "File còn thiếu {missing} mục",
+          "body": "FlintFlow giữ nguyên các mục bạn đã viết và soạn các mục còn thiếu cùng bạn trong workspace.",
+          "draft": "Soạn phần còn thiếu"
+        },
+        "mode4": {
+          "title": "File còn thiếu {missing} mục so với mẫu chuẩn FlintFlow",
+          "body": "Hiện chỉ tải được bản DRAFT và báo cáo thiếu sót.",
+          "draft": "Tải bản DRAFT",
+          "gapReport": "Tải báo cáo thiếu sót"
+        }
+      },
+      "saveToOrg": {
+        "help": "Lưu file mẫu này cho tổ chức — dự án sau chọn lại ngay ở ô SRS khi tạo dự án, FlintFlow hiểu sẵn các mục của mẫu.",
+        "nameLabel": "Tên mẫu",
+        "action": "Lưu làm mẫu của tổ chức",
+        "saving": "Đang lưu…",
+        "saved": "Đã lưu. Dự án mới của tổ chức sẽ thấy mẫu này ở ô SRS khi tạo dự án.",
+        "failed": "Chưa lưu được mẫu. Vui lòng thử lại."
+      }
+    },
+    "srsAttachment": {
+      "question": "“{name}” trông như một bản SRS. Đây là phiên bản mới của tài liệu?",
+      "stampHint": "File này được tải về từ chính dự án.",
+      "update": "Cập nhật phiên bản mới",
+      "keep": "Dùng làm tham khảo"
+    },
+    "structureChanges": {
+      "nowEmpty": "Sau khi đọc chi tiết, {count, plural, one {mục {names} thực ra còn trống} other {các mục {names} thực ra còn trống}} — đã thêm vào danh sách cần soạn / bổ sung.",
+      "nowFilled": "Sau khi đọc chi tiết, {count, plural, one {mục {names} đã có nội dung} other {các mục {names} đã có nội dung}} — không cần soạn thêm.",
+      "other": "Sau khi đọc chi tiết, {count, plural, one {mục {names} khác} other {các mục {names} khác}} với màn đọc khung.",
+      "dismiss": "Đóng thông báo"
     }
   },
   "errors": {
@@ -3412,28 +3525,6 @@
     "crPages": {
       "opening": "Đang mở change request"
     },
-    "extractProgress": {
-      "title": "Trích field theo section",
-      "hint": "Bảng khớp đủ cột được trích tất định (không tốn credit); phần văn xuôi do AI trích, mỗi lượt giữ credit trước và quyết toán sau. Có thể rời trang — việc trích vẫn chạy trên máy chủ.",
-      "credits": "Credit khả dụng: {credits}",
-      "pausedWhat": "Trích field",
-      "ready": "Mapping đã chốt — {total, plural, =0 {các section} other {# section}} sẵn sàng để trích.",
-      "starting": "Đang bắt đầu…",
-      "start": "Bắt đầu trích (AI)",
-      "rereadImages": "Đang đọc lại ảnh {current}/{total} (AI vừa quá tải)…",
-      "rereadText": "AI đang quá tải — đọc lại {section} (lần {attempt}/{total})…",
-      "runningSection": "Đang trích {section}…",
-      "running": "Đang trích…",
-      "stopped": "Đã dừng",
-      "progress": "{done}/{total} section",
-      "status": {
-        "pending": "Chờ",
-        "done": "Xong",
-        "failed": "Lỗi"
-      },
-      "fields": "{count} field",
-      "needsReview": "{count} cần xem"
-    },
     "gapReport": {
       "redFlag": "Cờ đỏ",
       "yellowFlag": "Cờ vàng",
@@ -3464,16 +3555,16 @@
         "uploaded": "Đã tải lên",
         "preflight_rejected": "File bị từ chối",
         "awaiting_latest_confirm": "Chờ xác nhận bản mới nhất",
-        "parsing": "Đang tách block",
-        "mapping_review": "Chờ xác nhận mapping",
-        "extracting": "Đang trích field",
-        "fields_review": "Chờ xác nhận field",
-        "baselining": "Sẵn sàng tạo baseline",
+        "parsing": "Đang đọc khung",
+        "mapping_review": "Chờ bắt đầu",
+        "extracting": "Đang đọc nội dung",
+        "fields_review": "Chờ tiếp tục",
+        "baselining": "Đang dựng tài liệu",
         "checking": "Đang kiểm tra",
         "gap_review": "Sẵn sàng tạo change request",
         "delivered": "Sẵn sàng tạo change request",
         "change_requested": "Đang sửa qua change request",
-        "incomplete": "Chưa hoàn thiện — chờ bạn quyết",
+        "incomplete": "Còn thiếu mục",
         "drafting": "Đang soạn phần còn thiếu"
       },
       "crStatus": {
@@ -3823,78 +3914,6 @@
         "CR_NOTHING_TO_APPROVE": "Mọi vị trí đều là \"không liên quan\" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút \"Sửa tay\"), hoặc huỷ change request."
       }
     },
-    "importWizard": {
-      "loading": "Đang tải trạng thái import",
-      "stepsAria": "Các bước import",
-      "steps": {
-        "upload": "Tải lên",
-        "start": "Báo credit & bắt đầu",
-        "run": "Đọc file & tạo bản gốc",
-        "runTemplate": "Đọc mẫu"
-      },
-      "closeError": "Đóng thông báo lỗi",
-      "detectedLanguage": "Ngôn ngữ tài liệu: <strong>{language}</strong> (nhận diện từ file)",
-      "uploadFixed": "Tải lên file đã sửa",
-      "unknownKindNote": "FlintFlow chưa chắc file này là SRS: ít đầu mục quen thuộc (Use Case, Requirements…). Vẫn đọc được, nhưng hãy xem kỹ kết quả đọc file ở bước xác nhận trước khi đi tiếp.",
-      "formatNote": "FlintFlow không sửa file của bạn. File theo mẫu cố định, hoặc đủ mục của mẫu chuẩn FlintFlow: bản tải về <b>giữ nguyên file</b> (định dạng Word, bìa, bảng lịch sử…), chỉ mục được sửa qua change request mới in lại. File còn thiếu mục của mẫu chuẩn FlintFlow: tài liệu in lại theo mẫu FlintFlow, không giữ định dạng Word. File gốc luôn tải lại được.",
-      "parsing": "Đang tách tài liệu thành block…",
-      "reload": "Tải lại",
-      "done": {
-        "body": "Import xong — tài liệu đã thành version <strong>0.1</strong>. Mọi sửa đổi đi qua change request; chỗ đọc chưa chắc có cờ <strong>Cần xem</strong>.",
-        "gapReport": "Xem gap report",
-        "openChat": "Mở màn hình chat"
-      },
-      "languageVi": "Tiếng Việt",
-      "languageEn": "Tiếng Anh",
-      "intent": {
-        "question": "File này theo cấu trúc nào?",
-        "free": {
-          "label": "Cấu trúc tự do",
-          "description": "Không theo mẫu nào cụ thể. FlintFlow so với mẫu chuẩn FlintFlow: đủ thì sửa qua change request, thiếu thì bổ sung và sắp lại bố cục."
-        },
-        "fixed": {
-          "label": "Theo một mẫu cố định",
-          "description": "Mẫu của khách hoặc của công ty. Giữ đúng mục và thứ tự của mẫu, không thêm mục; mục còn trống bổ sung qua change request."
-        }
-      },
-      "uploadTemplate": "Tải lên mẫu bắt buộc (.docx, trống hoặc điền dở)",
-      "uploadTemplateHint": "File Word .docx của mẫu khách yêu cầu. FlintFlow đọc cấu trúc mẫu, chỉ soạn những mục mẫu có và giữ nguyên thứ tự.",
-      "orgTemplates": {
-        "title": "Hoặc dùng mẫu đã lưu của tổ chức",
-        "help": "Nhập từ chính file mẫu đã lưu; mapping heading đã xác nhận ở dự án trước được áp sẵn.",
-        "meta": "{file} · {headings} heading · đã dùng {uses} lần",
-        "use": "Dùng mẫu này"
-      },
-      "saveToOrg": {
-        "help": "Lưu file mẫu và mapping heading vừa xác nhận cho tổ chức — dự án sau chọn lại ở bước tải file, không phải map lại.",
-        "nameLabel": "Tên mẫu",
-        "action": "Lưu làm mẫu của tổ chức",
-        "saving": "Đang lưu…",
-        "saved": "Đã lưu. Dự án mới của tổ chức sẽ thấy mẫu này ở bước tải file.",
-        "failed": "Chưa lưu được mẫu. Vui lòng thử lại."
-      },
-      "start": {
-        "title": "Sẵn sàng đọc tài liệu",
-        "body": "Bấm Bắt đầu một lần: FlintFlow đọc file, tạo bản gốc <strong>0.1</strong>, kiểm tra rồi mở thẳng trang tạo change request. Chỗ đọc chưa chắc vẫn được đưa vào bản gốc và gắn cờ <strong>Cần xem</strong> để bạn xem lại.",
-        "latest": "Đây là bản mới nhất của tài liệu — từ giờ mọi sửa đổi đi qua change request.",
-        "pickAnother": "Chọn file khác",
-        "start": "Bắt đầu",
-        "starting": "Đang bắt đầu…",
-        "shortHint": "Số dư chưa đủ cho ước tính này — nạp thêm credit rồi bấm Bắt đầu.",
-        "topUp": "Nạp credit"
-      },
-      "run": {
-        "extracting": "Đang đọc file…",
-        "baselining": "Đang tạo bản gốc 0.1 (ghi dữ liệu, vẽ sơ đồ)…",
-        "checking": "Đã tạo bản gốc 0.1, đang kiểm tra (AI + luật)…",
-        "hint": "Tài liệu lớn có thể mất vài phút — có thể rời trang, việc vẫn chạy tiếp. Xong sẽ mở trang tạo change request.",
-        "pausedWhat": "Đọc file và tạo bản gốc",
-        "interrupted": "Bị gián đoạn — phần dở đã được đưa về như trước. Bấm Tiếp tục để chạy tiếp.",
-        "legacy": "Lần nhập này dừng ở một bước cũ (xác nhận dữ liệu). Bấm Tiếp tục để tạo bản gốc 0.1 và kiểm tra — chỗ độ tin thấp sẽ gắn cờ Cần xem.",
-        "continue": "Tiếp tục",
-        "pausedWhatTemplate": "Đọc mẫu"
-      }
-    },
     "flagsPanel": {
       "intro": "Tài liệu đã import — mọi thay đổi đi qua change request (tạo từ gap report, panel “Sửa tài liệu có xem trước” hoặc lệnh sửa trong chat). Release được khi hết cờ đỏ.",
       "redAria": "Cờ đỏ đang chặn release",
@@ -3906,24 +3925,6 @@
       "yellowNote": "{count} cờ vàng — không chặn release, xem ở gap report.",
       "emptyTemplateAria": "Mục của mẫu còn trống",
       "emptyTemplateTitle": "Mục của mẫu còn trống ({count})"
-    },
-    "shell": {
-      "projects": "Dự án",
-      "loading": "Đang tải…",
-      "modeBadge": "Upload SRS có sẵn",
-      "modeBadgeTemplate": "Mẫu bắt buộc",
-      "templateStatus": {
-        "parsing": "Đang đọc mẫu",
-        "extracting": "Đang đọc mẫu",
-        "incomplete": "Chờ viết phần còn thiếu"
-      },
-      "credits": "{credits} credits",
-      "needsBaseline": "Cần hoàn tất import (baseline 0.1) trước",
-      "tabs": {
-        "import": "Nhập SRS",
-        "document": "Tài liệu & version",
-        "importTemplate": "Mẫu"
-      }
     },
     "popup": {
       "loadingVersions": "Đang tải danh sách version…",
@@ -3938,8 +3939,7 @@
       "flagsTitle": "Cờ & change request",
       "navAria": "Import & change request",
       "gapReport": "Gap report",
-      "changeRequest": "Change request",
-      "importSrs": "Nhập SRS"
+      "changeRequest": "Change request"
     },
     "reviewPackage": {
       "aria": "Gói thay đổi chờ duyệt",
@@ -3972,14 +3972,6 @@
       "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
       "releasing": "Đang phát hành…",
       "confirmRelease": "Xác nhận phát hành"
-    },
-    "creditEstimate": {
-      "none": "Ước tính: không cần lượt AI nào — phần còn lại trích tất định, không tốn credit.",
-      "estimate": "{remaining, select, yes {Ước tính phần còn lại} other {Ước tính}}: <strong>~{calls} lượt AI</strong>, <strong>~{credits} credit</strong>",
-      "balance": "(số dư: {balance})",
-      "breakdown": "{text} lô chữ + {images} ảnh sơ đồ",
-      "short": "Số dư chưa đủ: việc trích sẽ tạm dừng khi hết credit. Nạp thêm rồi bấm Tiếp tục — phần đã xong không tính tiền lại.",
-      "breakdownWithChecks": "{text} lô chữ + {images} ảnh sơ đồ + {checks} lượt kiểm tra"
     },
     "paused": {
       "title": "{what} đang tạm dừng — {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
@@ -4031,7 +4023,7 @@
       "prefillRef": "File tải lại {name}",
       "failed": "Không so được file",
       "title": "Tải lên bản đã sửa ngoài FlintFlow",
-      "hint": "So theo block với version mới nhất, không tạo version mới. Muốn áp thay đổi thì tạo change request từ khác biệt.",
+      "hint": "So từng đoạn với phiên bản mới nhất, không tạo phiên bản mới. Muốn áp thay đổi thì tạo change request từ khác biệt.",
       "summary": "<name></name> so với bản {version} ({at}): <summary></summary>",
       "createCr": "Tạo CR từ khác biệt"
     },
@@ -4109,34 +4101,6 @@
       "to": "Đến",
       "compare": "So sánh",
       "pickDifferent": "Chọn hai version khác nhau."
-    },
-    "readingResult": {
-      "aria": "Kết quả đọc file",
-      "title": "Kết quả đọc file",
-      "mapAria": "Bản đồ mục so với cấu trúc đích",
-      "mode": {
-        "1": "File đủ cấu trúc đích — {present} mục có nội dung.",
-        "3": "File theo mẫu của bạn: {present} mục đã có nội dung, {missing} mục còn trống. Bản gốc giữ đúng mục và thứ tự của mẫu, không thêm mục.",
-        "4": "File còn thiếu {missing} mục của mẫu chuẩn FlintFlow ({present} mục đã có)."
-      },
-      "status": {
-        "present": "Có",
-        "missing": "Sẽ soạn",
-        "out_of_scope": "Ngoài phạm vi",
-        "empty": "Còn trống"
-      },
-      "ownerSteps": "bước {steps}",
-      "outOfScopeNote": "{count, plural, =1 {1 mục} other {# mục}} ngoài phạm vi giữ nguyên văn và chuyển xuống cuối tài liệu.",
-      "complete": "Tiếp tục sửa với FlintFlow",
-      "completing": "Đang mở chỗ sửa…",
-      "template": {
-        "title": "Kết quả đọc mẫu",
-        "summary": "Mẫu có {present} mục đã có nội dung và {missing} mục còn trống. FlintFlow soạn đúng các mục mẫu có — không thêm mục, không đổi thứ tự.",
-        "note": "FlintFlow dựng Brief từ phần mẫu đã có, hỏi bạn phần còn thiếu, soạn {missing, plural, =1 {1 mục còn trống} other {# mục còn trống}} để bạn duyệt rồi ký baseline 1.0 theo đúng mẫu.",
-        "action": "Viết với FlintFlow",
-        "starting": "Đang chuyển sang soạn…"
-      },
-      "existingNote": "FlintFlow giữ nguyên file của bạn làm bản gốc 0.1 rồi mở chỗ sửa: {missing, plural, =1 {1 mục còn trống} other {# mục còn trống}} bổ sung qua chat (change request). Gap report tải được trong workspace."
     },
     "referenceDocs": {
       "aria": "Tài liệu tham khảo",

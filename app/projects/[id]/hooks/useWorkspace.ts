@@ -13,6 +13,8 @@ import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { uploadProjectDocument } from "@/lib/api/documents";
+import type { SrsAttachmentSuggestion } from "../_components/mode1/srs-attachment-chip";
 
 /** Thông báo ở pill toast của trang — có thể là: */
 export type SessionNoticeKey =
@@ -64,6 +66,9 @@ export interface ChatAiError {
   knowledge: boolean;
 }
 
+/** Khoá gợi ý file trông như SRS — tăng dần, hai file cùng tên trong một lượt không đụng nhau. */
+let srsSuggestionSeq = 0;
+
 export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT, confirmAttachments }: UseWorkspaceOptions = {}) {
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
@@ -78,6 +83,8 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
   /** BE trả `409 KNOWLEDGE_DISABLED` ⇒ tính năng tắt ở máy chủ, ẩn chip và đừng thử lại. */
   const [knowledgeDisabled, setKnowledgeDisabled] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  /** Business-flow §3.6: file vừa đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới (không chặn). */
+  const [srsSuggestions, setSrsSuggestions] = useState<SrsAttachmentSuggestion[]>([]);
   /**
    * Mode 1 (G9, BR-03; v3 — BPMN 3.1): lệnh sửa trong chat bị BE chặn `409 CHANGE_REQUIRES_CR` ⇒ thẻ mời tạo CR, mở form
    * 3.1 điền sẵn (BE không tự tạo CR nữa).
@@ -241,18 +248,21 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
   const uploadPendingAttachments = useCallback(async (): Promise<boolean> => {
     if (pendingAttachments.length === 0) return true;
     try {
+      const suggestions: SrsAttachmentSuggestion[] = [];
       for (const file of pendingAttachments) {
-        const formData = new FormData();
-        formData.append("file", file);
-        await apiCall(`/projects/${projectId}/documents`, { method: "POST", body: formData });
+        const precheck = (await uploadProjectDocument(projectId, file)).data?.precheck ?? null;
+        if (precheck?.looks_like_srs) suggestions.push({ key: `${file.name}:${++srsSuggestionSeq}`, file, fromThisProject: precheck.stamp?.project_id === projectId });
       }
       setPendingAttachments([]);
+      if (suggestions.length) setSrsSuggestions((prev) => [...prev, ...suggestions]);
       return true;
     } catch (err) {
       setNotice(errorNotice(err, "uploadFailed"));
       return false;
     }
   }, [pendingAttachments, projectId]);
+
+  const dismissSrsSuggestion = useCallback((key: string) => setSrsSuggestions((prev) => prev.filter((x) => x.key !== key)), []);
 
   /**
    * Hiện ngay tin user vừa gửi khi tin đó đi thẳng vào lượt chạy bước (BE ghi transcript, FLF-221) — không chờ tải lại
@@ -461,6 +471,8 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       sendMessage,
       stopMessage,
       uploadPendingAttachments,
+      srsSuggestions,
+      dismissSrsSuggestion,
       appendLocalMessage,
       dropLocalMessage,
       reloadActiveSession,
@@ -499,6 +511,8 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       sendMessage,
       stopMessage,
       uploadPendingAttachments,
+      srsSuggestions,
+      dismissSrsSuggestion,
       appendLocalMessage,
       dropLocalMessage,
       reloadActiveSession,

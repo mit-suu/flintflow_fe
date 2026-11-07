@@ -1,12 +1,11 @@
 "use client";
 
-import type { TemplateIntent } from "@/types/project";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { continueImportFlow2, finalizeImport, getImport, resumeImport, startExtraction, uploadImport } from "@/lib/api/import";
+import { continueImportFlow2, getImport, resumeImport, startExtraction, uploadImport } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
-import type { FinalizeResponse, GetImportResponse, ImportStatus } from "@/types/import";
+import type { GetImportResponse, ImportStatus } from "@/types/import";
 import { useErrorText } from "../../_components/mode1/i18n";
 import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 
@@ -19,9 +18,10 @@ export type ImportAction = "upload" | "start" | "finalize" | "resume";
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
 
 /**
- * Trạng thái wizard import (FLF-343 — chế độ 1 chạy một mạch). Nguồn sự thật là `GET /import`; mỗi hành động gọi API rồi đọc
- * lại. Chỉ một điểm dừng: màn báo credit (`extracting` chưa chạy) với nút Bắt đầu; sau đó I-4 ⇒ baseline 0.1 ⇒ kiểm tra chạy
- * nền trên BE, FE poll tới `gap_review` (⇒ trang tạo CR), `incomplete` (chế độ 3/4) hoặc `paused`.
+ * Trạng thái import trong workspace (FLF-343 — chạy một mạch). Nguồn sự thật là `GET /import`; mỗi hành động gọi API rồi đọc
+ * lại. Chỉ một điểm dừng: màn đọc khung (`extracting` chưa chạy) với nút Bắt đầu; sau đó đọc nội dung ⇒ dựng tài liệu ⇒ kiểm
+ * tra chạy nền trên BE, FE poll tới `gap_review` (bản gốc 0.1), `drafting` (giữ khung còn thiếu ⇒ soạn phần thiếu),
+ * `incomplete` (bổ sung theo mẫu chuẩn còn thiếu) hoặc `paused`.
  */
 export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pollMs?: number } = {}) {
   const [data, setData] = useState<GetImportResponse | null>(null);
@@ -122,16 +122,17 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
     done,
     reload,
     clearError: () => setError(null),
-    upload: (file: File, intent?: TemplateIntent) =>
+    /** Chọn file khác ở màn đọc khung (ý định với file BE lấy từ dự án). */
+    upload: (file: File) =>
       run("upload", async () => {
         setStarted(false);
-        return uploadImport(projectId, file, intent);
+        return uploadImport(projectId, file);
       }),
     /** FLF-278: dùng mẫu đã lưu của tổ chức thay cho tải file — mapping áp sẵn. */
-    pickOrgTemplate: (orgTemplateId: string, intent?: TemplateIntent) =>
+    pickOrgTemplate: (orgTemplateId: string) =>
       run("upload", async () => {
         setStarted(false);
-        return importFromOrgTemplate(projectId, orgTemplateId, intent);
+        return importFromOrgTemplate(projectId, orgTemplateId);
       }),
     /** Nút Bắt đầu: một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu trả lời "đây là bản mới nhất". */
     start: (confirmLatest: boolean) =>
@@ -147,15 +148,10 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
         setStarted(true);
         return res;
       }),
-    /** FLF-336: màn "Kết quả đọc file" (`incomplete`) — Hoàn thiện ⇒ chạy tiếp tới baseline. */
-    complete: () =>
-      run("finalize", async (): Promise<FinalizeResponse | null> => {
-        const spine = await getSpine(projectId);
-        const res = await finalizeImport(projectId, importId, spine.data?.spine_version ?? 0, undefined, { complete: true });
-        setStarted(true);
-        return res.data;
-      }),
-    /** FLF-278: chế độ 3 ⇒ Luồng 2. Thành công ⇒ dự án thành `fpt`, FE mở workspace (không poll import nữa). */
+    /**
+     * Bản ghi cũ chế độ 3 còn dừng ở `incomplete` (lượt mới BE tự chuyển) ⇒ Luồng 2. Thành công ⇒ dự án thành `fpt`, workspace
+     * chạy từ Brief.
+     */
     continueFlow2: () =>
       run("finalize", async () => {
         const spine = await getSpine(projectId);

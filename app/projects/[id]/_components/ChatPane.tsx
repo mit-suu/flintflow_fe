@@ -44,6 +44,8 @@ interface ChatPaneProps {
   children?: ReactNode;
   /** Thẻ câu hỏi đặt ngay trên ô nhập (ô nhập vẫn giữ), ví dụ ElicitPanel khi step chờ câu trả lời. */
   questionCard?: ReactNode;
+  /** Thông báo / gợi ý ngay trên ô nhập (vd file đính kèm trông như SRS, kết quả đọc file lệch bản sơ bộ). */
+  inputNotice?: ReactNode;
   /**
    * Nhận lệnh sửa tài liệu (UC 6.8) — gửi khi chip "Sửa tài liệu" đang bật. Phiên phụ (`is_pipeline === false`) vẫn
    * hỏi đáp như thường; trước FLF-244 ô chat ở đó bị ép thành lệnh sửa.
@@ -154,6 +156,7 @@ export default function ChatPane({
   isStreaming = false,
   children,
   questionCard,
+  inputNotice,
   onEditInstruction,
   onGoToPipeline,
   readOnlyNotice,
@@ -375,6 +378,7 @@ export default function ChatPane({
                       sending={sending}
                     />
                   ))}
+                {inputNotice}
                 {/* Ô chat luôn hiện — kể cả khi có thẻ câu hỏi, để trả lời thẳng bằng lời của mình */}
                 <ChatInput
                   inputMessage={inputMessage}

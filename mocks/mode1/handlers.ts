@@ -118,7 +118,8 @@ const reviewPackage = () => {
     base_version: base,
     latest_version: latest,
     next_version: latest ? nextMajor(latest) : null,
-    draft_label: ids.length ? `${base ?? "v0"} · ${ids.length} thay đổi chưa duyệt` : (base ?? "v0"),
+    // Như BE: chưa phát hành bản nào ⇒ nhãn cho người đọc là "Bản gốc 0.1" (`base_version` vẫn mã v0)
+    draft_label: ids.length ? `${base && base !== "v0" ? base : "Bản gốc 0.1"} · ${ids.length} thay đổi chưa duyệt` : base && base !== "v0" ? base : "Bản gốc 0.1",
     change_requests: ids.map((id) => {
       const c = S().crs.get(id)!.change_request;
       return { cr_id: c.cr_id, title: c.title, requester: c.requester, source: { kind: c.source.kind, ref: c.source.ref ?? null }, result_doc_version: c.result_doc_version, written_at: now() };
