@@ -16,9 +16,14 @@ import type {
 } from "@/types/pipeline";
 import { streamSse, type SseHandlers } from "../ai-stream";
 import { apiCall } from "./client";
+import { rememberProgress } from "../progress-cache";
 
+/** Mỗi lần đọc tiến độ đều nhớ lại cho thẻ dự án ở trang chủ (`lib/progress-cache.ts`). */
 export const getProgress = (projectId: string) =>
-  apiCall<ProgressResponse>(`/projects/${projectId}/progress`);
+  apiCall<ProgressResponse>(`/projects/${projectId}/progress`).then((res) => {
+    rememberProgress(projectId, res.data ?? null);
+    return res;
+  });
 
 /** Nhịp hỏi nhẹ để biết tài liệu / Spine đã đổi ở nơi khác chưa (`useDocumentFollow`). Mọi vai trò kể cả Viewer gọi được. */
 export const getProjectVersion = (projectId: string) =>

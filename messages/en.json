@@ -770,7 +770,7 @@
       "failed": "Could not create the project",
       "srs": {
         "label": "SRS",
-        "hint": "One .docx file FlintFlow will edit and complete — a customer's required template, even blank, goes here too. Leave empty if you have no SRS.",
+        "hint": "A .docx file FlintFlow will edit and complete — a blank customer template works too. Skip if you have none.",
         "dropHint": ".docx · up to 40 MB",
         "change": "Change",
         "remove": "Remove {name}",
@@ -783,12 +783,11 @@
       },
       "references": {
         "label": "Reference documents",
-        "hint": "Meeting notes, emails, customer requests… for FlintFlow to rely on when drafting and editing. You can add more later in chat.",
+        "hint": "Meeting notes, emails, customer requests… for FlintFlow to rely on. You can add more later in chat.",
         "dropHint": ".docx, .pdf, .doc, .md, .txt · up to 10 MB each",
         "remove": "Remove {name}",
         "checking": "Checking file…",
         "rejected": "Not added: {files} — only .docx, .pdf, .doc, .md, .txt up to 10 MB.",
-        "uploadFailed": "The project was created, but these files were not uploaded: {files}. You can attach them again in the project chat.",
         "suggest": {
           "looksLikeSrs": "This file looks like an SRS. Do you want FlintFlow to edit and complete it?",
           "otherVersion": "This file looks like another SRS version. If it is an older copy of the file in the SRS slot, remove it to avoid mixing content.",
@@ -808,11 +807,12 @@
         "use": "Use this template"
       },
       "stage": {
-        "creating": "Creating the project…",
-        "srs": "Uploading the SRS file…",
-        "references": "Uploading reference documents…"
+        "creating": "Creating the project…"
       },
-      "openProject": "Open project"
+      "outcome": {
+        "withSrs": "FlintFlow reads the file outline first — no credits used yet.",
+        "noSrs": "FlintFlow asks you step by step to draft a new SRS."
+      }
     },
     "projectDialogs": {
       "archive": {
@@ -2619,6 +2619,8 @@
         "summary": {
           "written": "Written SRS · {present}/{total} sections have content",
           "template": "Template outline · {present}/{total} sections have content",
+          "writtenFull": "Written SRS · complete outline",
+          "templateFull": "Template · complete outline",
           "legacy": "Ready to read the file"
         },
         "next": {
@@ -2626,14 +2628,12 @@
           "mode3": "{missing} sections are empty. FlintFlow reads what is there, then drafts the missing sections with you; the credits for drafting are shown after you approve the Brief.",
           "mode4": "{missing} sections are missing compared with the FlintFlow standard template. After reading, only the DRAFT and the gap report can be downloaded for now."
         },
-        "mapTitle": "Sections in file order",
         "gapReport": "Download gap report",
-        "status": {
-          "present": "Present",
-          "missing": "Empty",
-          "out_of_scope": "Out of scope"
+        "stats": {
+          "withContent": "sections with content",
+          "missing": "{count} empty",
+          "outOfScope": "{count} out of scope"
         },
-        "outOfScopeNote": "Kept as is, not checked",
         "credit": {
           "estimate": "About <strong>{credits} credits</strong>",
           "none": "Reading this file costs no credits",
@@ -2649,6 +2649,47 @@
       "progress": {
         "title": "FlintFlow is reading the file",
         "canLeave": "You can leave this page — FlintFlow keeps reading and saves the result.",
+        "pausedTitle": "Reading is paused",
+        "pause": {
+          "credits": {
+            "title": "{phase} paused — out of credits",
+            "body": "Finished parts are kept. Top up, then press Continue.",
+            "topUp": "Top up credits"
+          },
+          "interrupted": {
+            "title": "{phase} was interrupted",
+            "body": "The server restarted or hit a temporary error. What was read is kept — press Continue to run this step again."
+          },
+          "ai": {
+            "title": "{phase} paused — AI error",
+            "body": "The AI is failing or overloaded and retries did not help. Finished parts are kept — press Continue to go on."
+          }
+        },
+        "stop": {
+          "label": "Stop reading",
+          "busy": "Stopping…",
+          "hint": "Sections already read are kept; no more credits are used."
+        },
+        "stopped": {
+          "title": "Reading stopped",
+          "body": "{done}/{total} sections read — kept as is, no more credits used. Continue to read the rest from where it stopped.",
+          "resume": "Continue",
+          "resuming": "Continuing…"
+        },
+        "documentLabel": "Your document",
+        "noSections": "Preparing the section list…",
+        "readCount": "sections read",
+        "row": {
+          "done": "Read",
+          "active": "Reading",
+          "todo": "Waiting",
+          "failed": "Failed"
+        },
+        "phaseHint": {
+          "read": "Extract the content of each section",
+          "build": "Assemble baseline 0.1",
+          "check": "Check for gaps and conflicts"
+        },
         "phasesLabel": "Reading steps",
         "phase": {
           "read": "Read the content",
@@ -2661,12 +2702,6 @@
           "active": "in progress",
           "todo": "not started"
         },
-        "paused": {
-          "read": "Reading the content",
-          "build": "Building the document",
-          "check": "Checking"
-        },
-        "interrupted": "Building the document was interrupted",
         "reread": {
           "images": "AI is overloaded — re-reading image {done}/{total}",
           "text": "AI is overloaded — re-reading the text ({done}/{total} calls)"
@@ -2696,6 +2731,52 @@
         "saving": "Saving…",
         "saved": "Saved. New projects in your organization will see this template in the SRS slot when created.",
         "failed": "Could not save the template. Please try again."
+      },
+      "creating": {
+        "title": "Preparing your project",
+        "hint": "Your file is being uploaded and its outline read right now — no credits yet. FlintFlow opens the structure preview when it is done.",
+        "project": "Create the project",
+        "srs": "Upload the SRS file and read its outline",
+        "references": "Reference documents {done}/{total}",
+        "preview": "Open the structure preview",
+        "retry": "Retry",
+        "pickAnother": "Choose another file",
+        "fileFailed": "Could not upload {name}"
+      },
+      "absorb": {
+        "documentLabel": "Your document",
+        "storeLabel": "What FlintFlow understands",
+        "showAll": "Show all sections",
+        "skip": "Skip animation",
+        "replay": "Replay",
+        "hint": "Hover a box to see which sections of your file flow into it; click to filter.",
+        "status": {
+          "present": "Present",
+          "missing": "Empty",
+          "out_of_scope": "Out of scope"
+        },
+        "bins": {
+          "overview": "Overview",
+          "actors": "Actors",
+          "usecases": "Use cases",
+          "screens": "Screens",
+          "permissions": "Permissions",
+          "functions": "Functions",
+          "entities": "Entities",
+          "nfr": "Non-functional",
+          "rules": "Business rules",
+          "messages": "Messages",
+          "common": "Common requirements & glossary",
+          "verbatim": "Kept as written"
+        },
+        "binCount": "{count} sections",
+        "binMissing": "{count} sections · empty — will be drafted",
+        "binVerbatim": "{count} sections of your own",
+        "binEmpty": "Not in the file — will be drafted",
+        "reading": "Reading the document structure",
+        "readingTitle": "Reading the document structure…",
+        "readingHint": "FlintFlow reads the outline of your file to see which sections are there — no credits used yet.",
+        "readingBin": "Reading…"
       }
     },
     "srsAttachment": {

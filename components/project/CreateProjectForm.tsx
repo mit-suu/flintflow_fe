@@ -3,10 +3,11 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import { createProjectFrom } from "@/lib/api/projects";
-import { precheckDocx, uploadProjectDocument } from "@/lib/api/documents";
-import { uploadImport } from "@/lib/api/import";
-import { importFromOrgTemplate } from "@/lib/api/org-library";
+import { precheckDocx } from "@/lib/api/documents";
+import { markImportPending } from "@/lib/import-pending";
+import { startProjectUploads } from "@/lib/project-uploads";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n";
 import type { DocumentLanguage, Project } from "@/types/project";
 import type { OrgTemplateSummary } from "@/types/org-library";
@@ -26,15 +27,15 @@ interface CreateProjectFormProps {
   folderId?: string;
 }
 
-type Stage = "creating" | "srs" | "references";
+type Stage = "creating";
 
 let refSeq = 0;
 
 /**
  * Tạo dự án (UC-13/14, business-flow §1): tên + ô **SRS** (0–1 .docx, hoặc mẫu đã lưu của tổ chức) + ô chọn "Bổ sung các mục còn
  * thiếu theo mẫu chuẩn FlintFlow" + ô **Tài liệu tham khảo**. Người dùng không chọn chế độ, không khai dự án mới / có sẵn — BE
- * suy ra. Ngôn ngữ chỉ hỏi khi không có SRS (có SRS ⇒ theo file). Sau khi tạo: tải SRS (lỗi preflight vẫn vào dự án — màn đọc
- * khung hiện lý do), tải từng tài liệu tham khảo (lỗi chỉ báo, không chặn), rồi mở dự án.
+ * suy ra. Ngôn ngữ chỉ hỏi khi không có SRS (có SRS ⇒ theo file). Tạo xong mở dự án ngay; SRS và tài liệu tham khảo tải nền
+ * (`lib/project-uploads`), trang dự án hiện từng bước và báo lỗi tải.
  */
 export default function CreateProjectForm({ variant, onCreated, onCancel, folderId }: CreateProjectFormProps) {
   const t = useTranslations("app.createProject");
@@ -52,13 +53,11 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const [error, setError] = useState<string | null>(null);
   const [srsError, setSrsError] = useState<string | null>(null);
   const [refError, setRefError] = useState<string | null>(null);
-  /** Dự án đã tạo nhưng có tài liệu tham khảo tải lỗi — báo rồi để người dùng tự mở dự án. */
-  const [createdWithIssues, setCreatedWithIssues] = useState<Project | null>(null);
   const inputId = `project-name-${variant}`;
   const languageLabelId = `document-language-${variant}`;
   const submitting = stage !== null;
   const hasSrs = !!srsFile || !!orgTemplate;
-  const canSubmit = name.trim().length > 0 && !submitting && !createdWithIssues;
+  const canSubmit = name.trim().length > 0 && !submitting;
 
   const pickSrs = (file: File | null) => {
     setSrsError(null);
@@ -115,50 +114,49 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
       return;
     }
 
-    const projectId = project._id;
-    if (hasSrs) {
-      setStage("srs");
-      // File bị preflight từ chối / lỗi mạng: dự án vẫn có, màn đọc khung hiện lý do + ô chọn file khác
-      await (srsFile ? uploadImport(projectId, srsFile) : importFromOrgTemplate(projectId, orgTemplate!.id)).catch(() => null);
-    }
-    const failed: string[] = [];
-    if (references.length) {
-      setStage("references");
-      for (const ref of references) {
-        await uploadProjectDocument(projectId, ref.file).catch(() => failed.push(ref.file.name));
-      }
-    }
-    if (failed.length) {
-      setError(t("references.uploadFailed", { files: failed.join(", ") }));
-      setCreatedWithIssues(project);
-      setStage(null);
-      return;
-    }
-    // Thành công: giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần
+    // Không bắt chờ trong hộp thoại: file tải nền, trang dự án hiện các bước tích dần (lỗi tải ⇒ báo + thử lại ở đó)
+    if (hasSrs) markImportPending(project._id);
+    startProjectUploads(project._id, { projectName: project.name, srs: srsFile, orgTemplate: orgTemplate ? { id: orgTemplate.id, name: orgTemplate.name } : null, references: references.map((r) => r.file) });
+    // Giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần
     await onCreated(project);
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={inputId} className="text-body font-bold text-on-surface-medium">
-          {t("nameLabel")}
-        </label>
-        <input
-          id={inputId}
-          type="text"
-          value={name}
-          maxLength={NAME_MAX}
-          disabled={submitting}
-          onChange={(e) => setName(e.target.value)}
-          onFocus={(e) => {
-            if (name === defaultName) e.target.select();
-          }}
-          // Không viền, cùng nền với ô thả file; focus ⇒ nền trắng + vòng tím
-          className="h-10 px-3.5 rounded-control bg-surface-container text-body text-on-surface outline-none transition-colors hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30"
-        />
+      {/* Tên dự án + ngôn ngữ cùng một hàng; có SRS ⇒ ngôn ngữ theo file nên ô ngôn ngữ ẩn, tên chiếm cả hàng */}
+      <div className={`grid gap-4 ${hasSrs ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto]"}`}>
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <label htmlFor={inputId} className="text-caption font-bold uppercase tracking-wide text-on-surface-muted">
+            {t("nameLabel")}
+          </label>
+          <input
+            id={inputId}
+            type="text"
+            value={name}
+            maxLength={NAME_MAX}
+            disabled={submitting}
+            onChange={(e) => setName(e.target.value)}
+            onFocus={(e) => {
+              if (name === defaultName) e.target.select();
+            }}
+            // Không viền; focus ⇒ nền trắng + vòng tím
+            className="h-12 px-4 rounded-control bg-surface-container text-heading font-semibold text-on-surface outline-none transition-colors hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+        {!hasSrs && (
+          <div className="flex flex-col gap-1.5">
+            <span id={languageLabelId} className="text-caption font-bold uppercase tracking-wide text-on-surface-muted">
+              {t("language.label")}
+            </span>
+            <div className="h-12 flex items-center">
+              <DocumentLanguagePicker value={documentLanguage} onChange={setDocumentLanguage} disabled={submitting} labelledBy={languageLabelId} />
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Hai ô file cạnh nhau: SRS (file FlintFlow sửa) nền tím nhạt, tham khảo nền xám — khác vai trò nhìn là thấy */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
       <SrsSlot
         file={srsFile}
         orgTemplateName={orgTemplate?.name ?? null}
@@ -188,15 +186,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
         onMoveToSrs={moveToSrs}
         error={refError}
       />
-
-      {!hasSrs && (
-        <div className="flex flex-col gap-1.5">
-          <span id={languageLabelId} className="text-body font-bold text-on-surface-medium">
-            {t("language.label")}
-          </span>
-          <DocumentLanguagePicker value={documentLanguage} onChange={setDocumentLanguage} disabled={submitting} labelledBy={languageLabelId} />
-        </div>
-      )}
+      </div>
 
       {error && (
         <p role="alert" className="text-body text-on-error-container bg-error-container rounded-control px-3 py-2">
@@ -204,28 +194,20 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
         </p>
       )}
 
-      <div className={`flex items-center gap-2 ${variant === "dialog" ? "justify-end" : ""}`}>
-        {submitting && (
-          <p className="mr-auto text-body text-on-surface-muted" aria-live="polite">
-            {t(`stage.${stage}`)}
-          </p>
-        )}
-        {createdWithIssues ? (
-          <Button type="button" iconRight="arrow-right" onClick={() => void onCreated(createdWithIssues)}>
-            {t("openProject")}
+      <div className={`flex flex-wrap items-center gap-x-2 gap-y-3 pt-1 ${variant === "dialog" ? "justify-end" : ""}`}>
+        {/* Bấm Bắt đầu thì chuyện gì xảy ra — theo có SRS hay không (BE suy ra chế độ, người dùng không phải chọn) */}
+        <p className="mr-auto flex items-center gap-2 text-caption text-on-surface-variant" aria-live="polite">
+          {submitting && <Icon name="spinner" size={14} className="shrink-0 text-primary animate-spin" />}
+          {submitting ? t(`stage.${stage}`) : hasSrs ? t("outcome.withSrs") : t("outcome.noSrs")}
+        </p>
+        {onCancel && (
+          <Button variant="ghost" onClick={onCancel} disabled={submitting}>
+            {tc("cancel")}
           </Button>
-        ) : (
-          <>
-            {onCancel && (
-              <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-                {tc("cancel")}
-              </Button>
-            )}
-            <Button type="submit" disabled={!canSubmit} loading={submitting} iconRight="arrow-right">
-              {submitting ? t("submitting") : t("submit")}
-            </Button>
-          </>
         )}
+        <Button type="submit" disabled={!canSubmit} loading={submitting} iconRight="arrow-right">
+          {submitting ? t("submitting") : t("submit")}
+        </Button>
       </div>
     </form>
   );

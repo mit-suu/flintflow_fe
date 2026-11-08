@@ -9,9 +9,9 @@ describe("project-source-mode (hiển thị mode BE suy ra — FLF-335)", () => 
   });
 
   it("route bắt đầu theo mode: mọi dự án tải file lên vào wizard import", () => {
-    expect(getProjectStartRoute("p1", "import")).toBe("/projects/p1/import");
-    expect(getProjectStartRoute("p1", "customer_template")).toBe("/projects/p1/import");
-    expect(getProjectStartRoute("p1", "fpt")).toBe("/projects/p1");
+    expect(getProjectStartRoute("p1")).toBe("/projects/p1");
+    expect(getProjectStartRoute("p1")).toBe("/projects/p1");
+    expect(getProjectStartRoute("p1")).toBe("/projects/p1");
   });
 
   it("dự án tạo SRS đã chốt baseline (converted_from fpt) vẫn hiện là Tạo SRS", () => {

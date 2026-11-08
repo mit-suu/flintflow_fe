@@ -100,16 +100,16 @@ describe("CreateProjectForm — hộp Tạo dự án hai ô (business-flow §1)"
     await waitFor(() => expect(uploadProjectDocument).toHaveBeenCalledWith("p1", ref));
   });
 
-  it("tải tham khảo lỗi ⇒ báo tên file, không chặn: nút Mở dự án", async () => {
+  it("tải tham khảo lỗi không chặn: vào dự án ngay, file tải nền (lỗi báo ở trang dự án)", async () => {
     vi.mocked(uploadProjectDocument).mockRejectedValue(new Error("network"));
     const onCreated = vi.fn();
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
-    fireEvent.change(refInput(), { target: { files: [new File(["x"], "Bien ban.txt", { type: "text/plain" })] } });
+    const ref = new File(["x"], "Bien ban.txt", { type: "text/plain" });
+    fireEvent.change(refInput(), { target: { files: [ref] } });
     fireEvent.click(submit());
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Bien ban\.txt/);
-    expect(onCreated).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Mở dự án" }));
-    expect(onCreated).toHaveBeenCalledWith({ _id: "p1", mode: "import" });
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ _id: "p1", mode: "import" }));
+    await waitFor(() => expect(uploadProjectDocument).toHaveBeenCalledWith("p1", ref));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("lỗi tạo dự án ⇒ hiện dưới form, giữ nguyên lựa chọn để thử lại", async () => {

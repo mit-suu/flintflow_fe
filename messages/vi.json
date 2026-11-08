@@ -770,7 +770,7 @@
       "failed": "Không thể tạo dự án",
       "srs": {
         "label": "SRS",
-        "hint": "Một file .docx FlintFlow sẽ sửa và hoàn thiện — mẫu khách bắt buộc, dù còn trống, cũng tải vào đây. Không có SRS thì để trống.",
+        "hint": "File .docx FlintFlow sẽ sửa và hoàn thiện — kể cả mẫu khách còn trống. Không có thì bỏ qua.",
         "dropHint": ".docx · tối đa 40 MB",
         "change": "Đổi",
         "remove": "Bỏ {name}",
@@ -783,12 +783,11 @@
       },
       "references": {
         "label": "Tài liệu tham khảo",
-        "hint": "Biên bản họp, email, yêu cầu của khách… để FlintFlow dựa vào khi soạn và sửa. Có thể thêm sau trong chat.",
+        "hint": "Biên bản họp, email, yêu cầu của khách… để FlintFlow dựa vào. Thêm sau trong chat cũng được.",
         "dropHint": ".docx, .pdf, .doc, .md, .txt · tối đa 10 MB mỗi file",
         "remove": "Bỏ {name}",
         "checking": "Đang xem file…",
         "rejected": "Chưa thêm được: {files} — chỉ nhận .docx, .pdf, .doc, .md, .txt tối đa 10 MB.",
-        "uploadFailed": "Đã tạo dự án nhưng chưa tải được: {files}. Bạn có thể đính kèm lại trong chat của dự án.",
         "suggest": {
           "looksLikeSrs": "File này trông như một SRS. Bạn muốn FlintFlow sửa và hoàn thiện nó?",
           "otherVersion": "File này trông như một bản SRS khác. Nếu là bản cũ của file ở ô SRS, nên bỏ để tránh lẫn nội dung.",
@@ -808,11 +807,12 @@
         "use": "Dùng mẫu này"
       },
       "stage": {
-        "creating": "Đang tạo dự án…",
-        "srs": "Đang tải file SRS…",
-        "references": "Đang tải tài liệu tham khảo…"
+        "creating": "Đang tạo dự án…"
       },
-      "openProject": "Mở dự án"
+      "outcome": {
+        "withSrs": "FlintFlow đọc khung file trước — chưa tốn credit.",
+        "noSrs": "FlintFlow hỏi bạn từng bước để soạn SRS mới."
+      }
     },
     "projectDialogs": {
       "archive": {
@@ -2619,6 +2619,8 @@
         "summary": {
           "written": "SRS đã viết · {present}/{total} mục có nội dung",
           "template": "Khung mẫu · {present}/{total} mục có nội dung",
+          "writtenFull": "SRS đã viết · đủ khung",
+          "templateFull": "Khung mẫu · đủ khung",
           "legacy": "Sẵn sàng đọc file"
         },
         "next": {
@@ -2626,14 +2628,12 @@
           "mode3": "Còn {missing} mục trống. FlintFlow đọc phần đã có rồi chuyển sang soạn các mục còn thiếu cùng bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
           "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót."
         },
-        "mapTitle": "Các mục theo thứ tự trong file",
         "gapReport": "Tải báo cáo thiếu sót",
-        "status": {
-          "present": "Có",
-          "missing": "Còn trống",
-          "out_of_scope": "Ngoài phạm vi"
+        "stats": {
+          "withContent": "mục có nội dung",
+          "missing": "{count} còn trống",
+          "outOfScope": "{count} ngoài phạm vi"
         },
-        "outOfScopeNote": "Giữ nguyên, không kiểm",
         "credit": {
           "estimate": "Dự kiến ~<strong>{credits} credit</strong>",
           "none": "Đọc file này không tốn credit",
@@ -2649,6 +2649,47 @@
       "progress": {
         "title": "FlintFlow đang đọc file",
         "canLeave": "Có thể rời trang — FlintFlow vẫn đọc tiếp và giữ kết quả.",
+        "pausedTitle": "Đọc file đang tạm dừng",
+        "pause": {
+          "credits": {
+            "title": "{phase} tạm dừng vì hết credit",
+            "body": "Phần đã xong giữ nguyên. Nạp thêm credit rồi bấm Tiếp tục.",
+            "topUp": "Nạp credit"
+          },
+          "interrupted": {
+            "title": "{phase} bị gián đoạn",
+            "body": "Máy chủ khởi động lại hoặc gặp lỗi tạm thời. Phần đã đọc giữ nguyên — bấm Tiếp tục để chạy lại bước này."
+          },
+          "ai": {
+            "title": "{phase} tạm dừng vì AI lỗi",
+            "body": "AI đang lỗi hoặc quá tải, đã thử lại nhưng chưa được. Phần đã xong giữ nguyên — bấm Tiếp tục để chạy tiếp."
+          }
+        },
+        "stop": {
+          "label": "Dừng đọc",
+          "busy": "Đang dừng…",
+          "hint": "Mục đã đọc giữ nguyên, không trừ thêm credit."
+        },
+        "stopped": {
+          "title": "Đã dừng đọc file",
+          "body": "Đã đọc {done}/{total} mục — phần này giữ nguyên và không trừ thêm credit. Bấm Tiếp tục để đọc nốt từ chỗ dừng.",
+          "resume": "Tiếp tục",
+          "resuming": "Đang tiếp tục…"
+        },
+        "documentLabel": "Tài liệu của bạn",
+        "noSections": "Đang chuẩn bị danh sách mục…",
+        "readCount": "mục đã đọc",
+        "row": {
+          "done": "Đã đọc",
+          "active": "Đang đọc",
+          "todo": "Chờ",
+          "failed": "Lỗi"
+        },
+        "phaseHint": {
+          "read": "Trích nội dung từng mục của file",
+          "build": "Ghép thành bản gốc 0.1",
+          "check": "Soát chỗ thiếu và mâu thuẫn"
+        },
         "phasesLabel": "Các bước đọc file",
         "phase": {
           "read": "Đọc nội dung",
@@ -2661,12 +2702,6 @@
           "active": "đang làm",
           "todo": "chưa tới"
         },
-        "paused": {
-          "read": "Đọc nội dung",
-          "build": "Dựng tài liệu",
-          "check": "Kiểm tra"
-        },
-        "interrupted": "Bước dựng tài liệu bị gián đoạn",
         "reread": {
           "images": "AI đang quá tải — đang đọc lại ảnh {done}/{total}",
           "text": "AI đang quá tải — đang đọc lại phần chữ ({done}/{total} lượt)"
@@ -2696,6 +2731,52 @@
         "saving": "Đang lưu…",
         "saved": "Đã lưu. Dự án mới của tổ chức sẽ thấy mẫu này ở ô SRS khi tạo dự án.",
         "failed": "Chưa lưu được mẫu. Vui lòng thử lại."
+      },
+      "creating": {
+        "title": "Đang chuẩn bị dự án",
+        "hint": "File tải lên và đọc khung ngay bây giờ — chưa tốn credit. Xong FlintFlow mở màn đọc khung.",
+        "project": "Tạo dự án",
+        "srs": "Tải file SRS lên và đọc khung",
+        "references": "Tài liệu tham khảo {done}/{total}",
+        "preview": "Mở màn đọc khung",
+        "retry": "Thử lại",
+        "pickAnother": "Chọn file khác",
+        "fileFailed": "Chưa tải được {name}"
+      },
+      "absorb": {
+        "documentLabel": "Tài liệu của bạn",
+        "storeLabel": "FlintFlow nắm được",
+        "showAll": "Hiện tất cả mục",
+        "skip": "Bỏ qua hiệu ứng",
+        "replay": "Xem lại",
+        "hint": "Rê chuột vào một ô để thấy mục nào của file chảy vào đó; bấm để lọc.",
+        "status": {
+          "present": "Có",
+          "missing": "Còn trống",
+          "out_of_scope": "Ngoài phạm vi"
+        },
+        "bins": {
+          "overview": "Tổng quan",
+          "actors": "Tác nhân",
+          "usecases": "Use case",
+          "screens": "Màn hình",
+          "permissions": "Phân quyền",
+          "functions": "Chức năng",
+          "entities": "Thực thể",
+          "nfr": "Phi chức năng",
+          "rules": "Quy tắc nghiệp vụ",
+          "messages": "Thông báo",
+          "common": "Yêu cầu chung & thuật ngữ",
+          "verbatim": "Giữ nguyên văn"
+        },
+        "binCount": "{count} mục",
+        "binMissing": "{count} mục · còn trống — sẽ soạn",
+        "binVerbatim": "{count} mục riêng của file",
+        "binEmpty": "File chưa có — sẽ soạn",
+        "reading": "Đang đọc khung tài liệu",
+        "readingTitle": "Đang đọc khung tài liệu…",
+        "readingHint": "FlintFlow đọc mục lục của file để biết mục nào đã có — chưa tốn credit.",
+        "readingBin": "Đang đọc…"
       }
     },
     "srsAttachment": {

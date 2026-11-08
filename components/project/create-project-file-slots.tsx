@@ -65,15 +65,22 @@ function DropZone({ label, hint, accept, multiple = false, disabled = false, ico
         setOver(false);
         if (!disabled) take(e.dataTransfer.files);
       }}
-      className={`flex items-center gap-3 rounded-card px-4 transition-colors ${compact ? "py-2.5" : "py-4"} ${
-        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-      } ${over ? "bg-primary-container" : "bg-surface-container hover:bg-surface-container-high"} focus-within:ring-2 focus-within:ring-primary/30`}
+      // Ô trắng nằm trong thẻ của slot: trống ⇒ khối giữa (icon + lời mời + định dạng); đã có file ⇒ một dòng "Thêm file"
+      className={`group rounded-inner transition-[background-color,box-shadow] duration-200 ${
+        compact ? "flex items-center gap-2.5 px-3 py-2" : "flex-1 min-h-[132px] flex flex-col items-center justify-center gap-2 px-4 py-5 text-center"
+      } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
+        over ? "bg-primary-fixed ring-2 ring-primary" : "bg-surface-container-lowest/80 hover:bg-surface-container-lowest"
+      } focus-within:ring-2 focus-within:ring-primary/40`}
     >
-      <span className="w-9 h-9 shrink-0 rounded-control flex items-center justify-center bg-surface-container-lowest text-primary">
-        <Icon name={icon} size={18} />
+      <span
+        className={`shrink-0 rounded-full flex items-center justify-center text-primary transition-transform duration-200 ${
+          compact ? "w-7 h-7 bg-primary-soft" : "w-11 h-11 bg-primary-soft group-hover:-translate-y-0.5"
+        } ${over ? "-translate-y-0.5" : ""}`}
+      >
+        <Icon name={compact ? "plus" : icon} size={compact ? 14 : 20} />
       </span>
-      <span className="flex-1 min-w-0 flex flex-col">
-        <span className="text-body font-bold text-on-surface">{compact ? t("addMore") : t("drop")}</span>
+      <span className={`min-w-0 flex flex-col ${compact ? "flex-1" : "items-center gap-0.5"}`}>
+        <span className={`font-semibold text-on-surface ${compact ? "text-caption" : "text-body"}`}>{compact ? t("addMore") : t("drop")}</span>
         {!compact && <span className="text-caption text-on-surface-muted">{hint}</span>}
       </span>
       <input
@@ -95,6 +102,23 @@ function DropZone({ label, hint, accept, multiple = false, disabled = false, ico
   );
 }
 
+/** Đầu thẻ của một ô file: icon + tên ô + một dòng nói ô này dùng làm gì. */
+function SlotHeader({ id, icon, title, hint, tone }: { id: string; icon: IconName; title: string; hint: string; tone: "primary" | "neutral" }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className={`w-9 h-9 shrink-0 rounded-control flex items-center justify-center ${tone === "primary" ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-primary"}`}>
+        <Icon name={icon} size={18} />
+      </span>
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <h3 id={id} className="text-heading font-bold text-on-surface">
+          {title}
+        </h3>
+        <p className="text-caption leading-relaxed text-on-surface-variant">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
 interface FileChipProps {
   file: File;
   icon: IconName;
@@ -109,7 +133,7 @@ interface FileChipProps {
 /** Một file đã chọn: tên + cỡ, nút bỏ; phần gợi ý (nếu có) nằm ngay dưới. */
 function FileChip({ file, icon, disabled, onRemove, removeLabel, extra, children }: FileChipProps) {
   return (
-    <li className="flex flex-col gap-2 rounded-card bg-surface-container px-3 py-2.5">
+    <li className="flex flex-col gap-2 rounded-inner bg-surface-container-lowest px-3 py-2.5">
       <div className="flex items-center gap-2.5 min-w-0">
         <Icon name={icon} size={16} className="shrink-0 text-on-surface-muted" />
         <span className="flex-1 min-w-0 truncate text-body font-semibold text-on-surface" title={file.name}>
@@ -155,13 +179,8 @@ export function SrsSlot({ file, orgTemplateName, completeToStandard, disabled, o
   const hasSource = !!file || !!orgTemplateName;
 
   return (
-    <section aria-labelledby={`${checkboxId}-title`} className="flex flex-col gap-2">
-      <div className="flex flex-col gap-0.5">
-        <h3 id={`${checkboxId}-title`} className="text-body font-bold text-on-surface-medium">
-          {t("label")}
-        </h3>
-        <p className="text-caption text-on-surface-muted">{t("hint")}</p>
-      </div>
+    <section aria-labelledby={`${checkboxId}-title`} className="flex flex-col gap-3 rounded-card bg-primary-soft p-4">
+      <SlotHeader id={`${checkboxId}-title`} icon="file" title={t("label")} hint={t("hint")} tone="primary" />
 
       {file ? (
         <ul>
@@ -199,7 +218,7 @@ export function SrsSlot({ file, orgTemplateName, completeToStandard, disabled, o
           />
         </ul>
       ) : orgTemplateName ? (
-        <div className="flex items-center gap-2.5 rounded-card bg-surface-container px-3 py-2.5">
+        <div className="flex items-center gap-2.5 rounded-inner bg-surface-container-lowest px-3 py-2.5">
           <Icon name="file-template" size={16} className="shrink-0 text-primary" />
           <span className="flex-1 min-w-0 truncate text-body font-semibold text-on-surface">{t("orgTemplateChosen", { name: orgTemplateName })}</span>
           <button
@@ -273,13 +292,8 @@ export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep
   const t = useTranslations("app.createProject.references");
   const titleId = useId();
   return (
-    <section aria-labelledby={titleId} className="flex flex-col gap-2">
-      <div className="flex flex-col gap-0.5">
-        <h3 id={titleId} className="text-body font-bold text-on-surface-medium">
-          {t("label")}
-        </h3>
-        <p className="text-caption text-on-surface-muted">{t("hint")}</p>
-      </div>
+    <section aria-labelledby={titleId} className="flex flex-col gap-3 rounded-card bg-surface-container p-4">
+      <SlotHeader id={titleId} icon="attach" title={t("label")} hint={t("hint")} tone="neutral" />
       {files.length > 0 && (
         <ul className="flex flex-col gap-1.5">
           {files.map((ref) => {
@@ -293,8 +307,8 @@ export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep
                   </p>
                 )}
                 {suggest && (
-                  <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-control bg-surface-container-lowest px-3 py-2">
-                    <Icon name="sparkle" size={14} className="shrink-0 text-primary" />
+                  <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-control bg-primary-soft px-3 py-2">
+                    <Icon name="info" size={14} className="shrink-0 text-primary" />
                     <span className="flex-1 min-w-[180px] text-caption text-on-surface">{hasSrs ? t("suggest.otherVersion") : t("suggest.looksLikeSrs")}</span>
                     <span className="flex items-center gap-1">
                       {hasSrs ? (

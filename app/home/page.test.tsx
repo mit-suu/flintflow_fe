@@ -72,7 +72,7 @@ describe("Project Dashboard", () => {
     expect(screen.queryByText("Không có dự án khớp bộ lọc")).toBeNull();
   });
 
-  it("chưa có dự án ⇒ hộp Tạo dự án hai ô (SRS + tài liệu tham khảo) ngay trên trang; tạo xong tải lại và vào dự án", async () => {
+  it("chưa có dự án ⇒ hộp Tạo dự án hai ô (SRS + tài liệu tham khảo) ngay trên trang; tạo xong vào dự án ngay, không tải lại danh sách (lượt tải lại chen với lượt tải file SRS)", async () => {
     vi.mocked(listProjects).mockResolvedValue(ok([]));
     vi.mocked(createProjectFrom).mockResolvedValue(ok(project("p9")));
     renderPage();
@@ -86,7 +86,7 @@ describe("Project Dashboard", () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p9"));
     expect(createProjectFrom).toHaveBeenCalledWith({ name: "Dự án chưa đặt tên", has_srs_file: false, documentLanguage: "vi" });
-    expect(listProjects).toHaveBeenCalledTimes(2);
+    expect(listProjects).toHaveBeenCalledTimes(1);
   });
 
   it("có dự án ⇒ lưới đúng số card; lọc theo nguồn và trạng thái", async () => {
