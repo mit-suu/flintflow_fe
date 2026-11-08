@@ -27,8 +27,8 @@ export const IMPORT_STATUSES = [
 ] as const;
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 
-/** `paused` chỉ đặt ở hai bước gọi AI. */
-export type ImportPauseReason = "credits" | "resume_later";
+/** `paused` chỉ đặt ở hai bước gọi AI. `user`: người dùng bấm Dừng lúc đang đọc nội dung (`POST /import/pause`). */
+export type ImportPauseReason = "credits" | "resume_later" | "user";
 export interface Paused<R extends string = ImportPauseReason> {
   reason: R;
   at: IsoDateTime;

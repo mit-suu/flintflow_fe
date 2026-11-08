@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { continueImportFlow2, getImport, resumeImport, startExtraction, uploadImport } from "@/lib/api/import";
+import { continueImportFlow2, getImport, pauseImport, resumeImport, startExtraction, uploadImport } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
 import type { GetImportResponse, ImportStatus } from "@/types/import";
@@ -12,7 +12,7 @@ import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 /** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "start" | "finalize" | "resume";
+export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause";
 
 /** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
@@ -148,6 +148,8 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
         setStarted(true);
         return res;
       }),
+    /** Nút Dừng lúc đang đọc nội dung (#10b) — BE dừng trước lượt AI kế tiếp; `resume` chạy tiếp từ đúng chỗ dừng. */
+    pause: () => run("pause", () => pauseImport(projectId, importId)),
     /**
      * Bản ghi cũ chế độ 3 còn dừng ở `incomplete` (lượt mới BE tự chuyển) ⇒ Luồng 2. Thành công ⇒ dự án thành `fpt`, workspace
      * chạy từ Brief.

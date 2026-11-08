@@ -1,5 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import type { CreditEstimate, ImportedDocument, StructurePreview as Preview } from "@/types/import";
 import StructurePreview from "./structure-preview";
@@ -21,6 +21,9 @@ const estimate = (credits: number, available: number | null): CreditEstimate => 
 const handlers = () => ({ onStart: vi.fn(), onDownloadGapReport: vi.fn(), onPickAnother: vi.fn() });
 
 describe("StructurePreview — màn đọc khung (business-flow §3.1.2)", () => {
+  // Đã xem hiệu ứng cắt mục ⇒ vào thẳng trạng thái đã lắng (nhãn trạng thái + mục còn trống hiện đủ)
+  beforeEach(() => localStorage.setItem("ff:absorb-seen:preview", "1"));
+
   it("tóm tắt, bản đồ mục theo thứ tự file kèm trạng thái chữ (không chỉ màu), mục ngoài phạm vi có ghi chú; 1 dòng credit + Bắt đầu", () => {
     const h = handlers();
     renderWithIntl(<StructurePreview fileName="SRS.docx" preview={preview} estimate={estimate(12, 100)} credits={100} {...h} />);
@@ -30,7 +33,7 @@ describe("StructurePreview — màn đọc khung (business-flow §3.1.2)", () =>
     expect(rows[0]).toContain("1 Overview");
     expect(rows[1]).toContain("2.3 Business rules");
     expect(rows[1]).toContain("Còn trống");
-    expect(rows[3]).toContain("Giữ nguyên, không kiểm");
+    expect(rows[3]).toContain("Ngoài phạm vi");
     expect(screen.getByText(/~/)).toHaveTextContent("Dự kiến ~12 credit");
     expect(screen.getByText(/bạn còn 100/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
@@ -93,7 +96,25 @@ describe("ImportProgress — tiến trình đọc file", () => {
     expect(screen.getByText(/Có thể rời trang/)).toBeInTheDocument();
     const current = screen.getByRole("listitem", { current: "step" });
     expect(current).toHaveTextContent("Đọc nội dung");
-    expect(current).toHaveTextContent("1/2 mục");
+    expect(screen.getByText("mục đã đọc").parentElement).toHaveTextContent("1/2");
+  });
+
+  it("đang đọc nội dung ⇒ nút Dừng gọi onPause; người dùng đã dừng ⇒ thẻ Đã dừng + Tiếp tục (không phải banner lỗi)", () => {
+    const onPause = vi.fn();
+    const onResume = vi.fn();
+    const sections = [{ section_id: "fixed:1", status: "done" as const, fields_total: 1, fields_needing_review: 0, error: null }, { section_id: "fixed:2.1", status: "pending" as const, fields_total: 0, fields_needing_review: 0, error: null }];
+    const { unmount } = renderWithIntl(<ImportProgress doc={doc({})} sections={sections} onResume={onResume} onPause={onPause} />);
+    fireEvent.click(screen.getByRole("button", { name: /Dừng đọc/ }));
+    expect(onPause).toHaveBeenCalled();
+    unmount();
+
+    renderWithIntl(<ImportProgress doc={doc({ paused: { reason: "user", at: "2026-11-08T00:00:00.000Z" } })} sections={sections} onResume={onResume} onPause={onPause} />);
+    expect(screen.getByRole("heading", { name: "Đã dừng đọc file" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Đã đọc 1/2 mục");
+    expect(screen.queryByRole("button", { name: /Dừng đọc/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Tiếp tục/ }));
+    expect(onResume).toHaveBeenCalled();
   });
 
   it("dựng tài liệu bị dừng ⇒ banner Tiếp tục; AI quá tải ⇒ dòng đọc lại ảnh", () => {

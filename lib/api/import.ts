@@ -79,6 +79,13 @@ export const resumeImport = (projectId: string, importId: string) =>
     body: JSON.stringify({ import_id: importId }),
   });
 
+/** Dừng lượt đọc nội dung đang chạy (#10b): BE dừng trước lượt AI kế tiếp, không trừ thêm credit. Tiếp tục bằng `resumeImport`. */
+export const pauseImport = (projectId: string, importId: string) =>
+  apiCall<ExtractResponse>(`${base(projectId)}/import/pause`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId }),
+  });
+
 export const getGapReport = (projectId: string) => apiCall<GapReport>(`${base(projectId)}/gap-report`);
 
 /** Tải lần đầu ⇒ BE chuyển import sang `delivered`. */

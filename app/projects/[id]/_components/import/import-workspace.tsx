@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
-import PageSkeleton from "@/components/ui/PageSkeleton";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { logoutAndRedirect } from "@/lib/auth";
 import { downloadWordExport } from "@/lib/api/export";
@@ -21,8 +20,13 @@ import { useErrorText } from "../mode1/i18n";
 import { useImport } from "../../hooks/mode1/useImport";
 import { useMode1Project } from "../../hooks/mode1/useMode1Project";
 import ImportProgress from "./import-progress";
-import StructurePreview from "./structure-preview";
+import StructurePreview, { StructureReading } from "./structure-preview";
 import StructureChangeNotice from "../mode1/structure-change-notice";
+import CreationProgress from "./creation-progress";
+import ImportSkeleton from "./import-skeleton";
+import ReferenceUploadsNote from "./reference-uploads-note";
+import { markImportPending } from "@/lib/import-pending";
+import { retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
 
 interface ImportWorkspaceProps {
   projectId: string;
@@ -59,6 +63,16 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const doc = imp.doc;
   const status = doc?.status ?? null;
+  // File từ hộp Tạo dự án đang tải nền ⇒ hiện các bước tích dần; SRS tải xong ⇒ đọc lại lần import để mở màn đọc khung
+  const uploads = useProjectUploads(projectId);
+  const srsUpload = uploads?.items.find((i) => i.kind === "srs") ?? null;
+  const srsStatus = srsUpload?.status ?? null;
+  const reloadAfterUpload = imp.reload;
+  useEffect(() => {
+    if (srsStatus === "done") void reloadAfterUpload();
+  }, [srsStatus, reloadAfterUpload]);
+  // Lần mở trang sau (khi vẫn còn ở màn đọc file) hiện ngay skeleton của màn này
+  useEffect(() => markImportPending(projectId), [projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,9 +120,17 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
   };
 
   const showUpload = !doc || status === "preflight_rejected" || pickAnother;
+  // SRS từ hộp Tạo dự án: đang tải, hoặc tải xong mà chưa đọc lại được lần import (BE đang đọc khung) ⇒ hiện ngay bố cục màn đọc
+  // khung (trang đang quét, các ô ở 0) thay vì danh sách bước / ô tải file chớp qua; lỗi tải ⇒ màn bước có Thử lại
+  const srsFailed = srsUpload?.status === "failed" && !doc && !pickAnother;
+  const reading =
+    !!srsUpload && !pickAnother && (srsUpload.status === "uploading" || (srsUpload.status === "done" && (!doc || status === "uploaded" || status === "parsing")));
   const preview = imp.data?.structure_preview ?? null;
   const structure = imp.data?.target_structure ?? null;
-  const badge: { label: string; tone: BadgeTone } | null = !status
+  // Đang đọc khung (SRS vừa tải, BE chưa trả lần import) ⇒ badge hiện ngay, không chờ trạng thái import về
+  const badge: { label: string; tone: BadgeTone } | null = reading
+    ? { label: t("badge.reading"), tone: "info" }
+    : !status
     ? null
     : showUpload
       ? status === "preflight_rejected" && !pickAnother
@@ -121,7 +143,11 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
           : { label: t("badge.reading"), tone: "info" };
 
   const body = (() => {
-    if (imp.loading) return <PageSkeleton rows={3} label={t("loading")} />;
+    if (uploads && srsUpload && srsFailed) {
+      return <CreationProgress uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} onPickAnother={() => setPickAnother(true)} />;
+    }
+    if (srsUpload && reading) return <StructureReading fileName={srsUpload.name} />;
+    if (imp.loading) return <ImportSkeleton withHeader={false} label={t("loading")} />;
     if (showUpload) {
       return (
         <div className="flex flex-col gap-4">
@@ -160,12 +186,13 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
           onDownloadGapReport={() => void download("gap")}
           onPickAnother={() => setPickAnother(true)}
           unsureKind={doc.preflight.document_kind?.kind === "unknown"}
+          playKey={doc.id}
           footer={project?.template_intent === "fixed" ? <SaveOrgTemplateCard projectId={projectId} defaultName={doc.original_name.replace(/\.docx$/i, "")} /> : null}
         />
       );
     }
     if (doc && status && (RUN_STATUSES.includes(status) || doc.paused)) {
-      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} busy={imp.busy === "resume"} onResume={() => void imp.resume()} />;
+      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
       // Bản ghi cũ (trước khi đọc chạy một mạch) dừng ở bước xác nhận ⇒ Tiếp tục = đọc nốt một mạch
@@ -210,14 +237,15 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       );
     }
     // Xong (bản gốc 0.1 / sang soạn phần thiếu): trang đang đọc lại project để chuyển workspace
-    return <PageSkeleton rows={3} label={t("opening")} />;
+    return <ImportSkeleton withHeader={false} label={t("opening")} />;
   })();
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-surface-container-lowest">
-      <WorkspaceHeader project={project} user={user} baselineStatus={badge} onLogout={() => void logoutAndRedirect()} />
+      <WorkspaceHeader project={project} user={user} fallbackName={uploads?.projectName} baselineStatus={badge} onLogout={() => void logoutAndRedirect()} />
       <main className="flex-1 min-h-0 overflow-y-auto ff-scroll">
-        <div className="max-w-[760px] mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-4">
+        {/* Đang tải lần import / đang đọc khung / màn đọc khung: cột rộng như skeleton của trang (không bóp hẹp rồi nới ra) */}
+        <div className={`${imp.awaitingStart || reading || imp.loading || (!!doc && !!status && (RUN_STATUSES.includes(status) || !!doc.paused)) ? "max-w-[1180px]" : "max-w-[760px]"} mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-4`}>
           {(imp.error || downloadError) && (
             <div role="alert" className="flex items-center gap-3 rounded-control bg-error-container text-on-error-container px-4 py-3 text-body">
               <span className="flex-1">{imp.error ?? downloadError}</span>
@@ -234,6 +262,8 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
               </button>
             </div>
           )}
+          {/* Tài liệu tham khảo còn đang tải nền / lỗi — khi màn tiến trình đã nhường chỗ cho màn đọc khung */}
+          {!srsFailed && <ReferenceUploadsNote projectId={projectId} />}
           {body}
         </div>
       </main>

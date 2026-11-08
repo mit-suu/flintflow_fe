@@ -52,6 +52,8 @@ interface WorkspaceHeaderProps {
   /** Số vấn đề đang chặn chốt bản — badge đỏ, 0 thì không hiện. */
   verifyCount?: number;
   onLogout: () => void;
+  /** Tên hiện khi `project` chưa tải xong (vd tên vừa nhập ở hộp Tạo dự án). */
+  fallbackName?: string;
 }
 
 /**
@@ -62,6 +64,7 @@ export default function WorkspaceHeader({
   project,
   user,
   baselineStatus = null,
+  fallbackName,
   progressHidden = false,
   onShowProgress,
   currentStep = null,
@@ -96,7 +99,7 @@ export default function WorkspaceHeader({
         <span aria-hidden className="hidden sm:inline text-on-surface-subtle px-0.5">
           /
         </span>
-        <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || t("untitled")}</span>
+        <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || fallbackName || t("untitled")}</span>
         {baselineStatus && (
           // Trạng thái chốt bản là thứ cả Lead lẫn Analyst cần thấy MỌI LÚC (có bản chờ mình duyệt không,
           // bản mình gửi bị từ chối chưa), nên nó ở ngay breadcrumb. Hành động thì nằm trong panel — bấm

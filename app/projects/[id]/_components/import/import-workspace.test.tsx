@@ -50,7 +50,7 @@ describe("ImportWorkspace — upload SRS trong layout workspace", () => {
       }),
     });
     renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
-    expect(screen.getByRole("heading", { name: /SRS đã viết · 3\/3/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /SRS đã viết · đủ khung/ })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Bắt đầu/ }));
     expect(imp.current.start).toHaveBeenCalledWith(true);

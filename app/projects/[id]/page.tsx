@@ -88,6 +88,12 @@ import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
 import StructureChangeNotice from "./_components/mode1/structure-change-notice";
 import ImportWorkspace from "./_components/import/import-workspace";
+import ImportSkeleton from "./_components/import/import-skeleton";
+import { CreationProgressShell } from "./_components/import/creation-progress";
+import { retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
+import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
+import { clearImportPending, isImportPending } from "@/lib/import-pending";
+import { useImportPendingHint } from "./import-pending-hint";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
@@ -216,7 +222,17 @@ const subscribeNothing = () => () => {};
 const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
   // Server snapshot `none` ⇒ lần render hydrate khớp HTML server; ngay sau đó client đọc khung phải đã lưu
   const workspacePane = useSyncExternalStore(subscribeNothing, () => readWorkspacePane(projectId), () => "none" as const);
+  // Dự án đang ở màn đọc file SRS ⇒ đúng skeleton của màn đó (một kiểu skeleton, không chớp skeleton workspace)
+  // Snapshot server = cookie server đã đọc (layout) ⇒ HTML đầu và lần hydrate đã đúng skeleton
+  const pendingHint = useImportPendingHint();
+  const importPending = useSyncExternalStore(subscribeNothing, () => isImportPending(projectId), () => pendingHint);
   const t = useTranslations("workspace.page");
+  // Tab này vừa tạo dự án và đang tải file ⇒ hiện ngay các bước tích dần thay vì skeleton
+  const uploads = useProjectUploads(projectId);
+  if (uploads?.items.some((i) => i.kind === "srs" && i.status !== "done")) {
+    return <CreationProgressShell uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} />;
+  }
+  if (importPending) return <ImportSkeleton label={t("loading")} />;
   return (
   <div className="h-screen flex overflow-hidden bg-surface-container-lowest">
     {/* Giữ chỗ rail tiến độ trái — cùng bề rộng/chiều cao hàng với WorkspaceProgressRail */}
@@ -336,7 +352,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const params = useParams();
   const projectId = params?.id as string;
   const router = useRouter();
-  // Câu FE gửi thay user cũng theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
+
+  // Đã vào workspace soạn / sửa ⇒ không còn ở màn đọc file
+  useEffect(() => clearImportPending(projectId), [projectId]);  // Câu FE gửi thay user cũng theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
   const t = useTranslations("workspace");
   const tHook = useTranslations("workspace.hookErrors");
   const tLanguage = useTranslations("common.documentLanguage");
@@ -1917,6 +1935,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           pendingAttachments={ws.pendingAttachments}
           inputNotice={
             <>
+              {/* Tài liệu tham khảo từ hộp Tạo dự án còn đang tải nền / lỗi */}
+              <ReferenceUploadsNote projectId={projectId} className="mx-3 mb-2" />
               {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
               {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
               {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới — chỉ khi đã có bản gốc */}
