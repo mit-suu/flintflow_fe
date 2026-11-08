@@ -16,6 +16,7 @@ import { BackLink, Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, Se
 import { listCrs } from "@/lib/api/change-requests";
 import { moveProjectsToFolder } from "@/lib/api/folders";
 import { getProgress } from "@/lib/api/pipeline";
+import { cachedOpenCrs, cachedProgress, rememberOpenCrs } from "@/lib/progress-cache";
 import { moveProjectToFolder } from "@/lib/api/projects";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 import { projectsErrorText, useProjects } from "@/lib/hooks/use-projects";
@@ -105,32 +106,37 @@ export default function HomePage() {
    * Project (không có tiến độ), nên nạp `progress` riêng cho từng dự án — song song, và **lỗi của một
    * dự án không làm hỏng lưới**: dự án chưa có Spine trả `null` và hiện "Chưa bắt đầu".
    */
-  const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>({});
+  // Bắt đầu từ số đã biết trong tab (vào workspace rồi quay lại không chớp "Đang tải…"); mỗi thẻ cập nhật ngay khi request của nó
+  // về — không chờ dự án chậm nhất
+  const [progressById, setProgressById] = useState<Record<string, ProgressResponse | null>>(cachedProgress);
   /** Mode 1: số change request đang mở (UC-14) — lỗi của một dự án không làm hỏng lưới. */
-  const [openCrsById, setOpenCrsById] = useState<Record<string, number>>({});
+  const [openCrsById, setOpenCrsById] = useState<Record<string, number>>(cachedOpenCrs);
 
   useEffect(() => {
     if (projects.length === 0) return;
     let cancelled = false;
-    void Promise.all(
-      projects.map((project) =>
-        getProgress(project._id)
-          .then((res) => [project._id, res.data ?? null] as const)
-          .catch(() => [project._id, null] as const)
-      )
-    ).then((entries) => {
-      if (!cancelled) setProgressById(Object.fromEntries(entries));
-    });
-    const imported = projects.filter((p) => p.mode === "import" && p.import_state !== null);
-    void Promise.all(
-      imported.map((project) =>
-        listCrs(project._id)
-          .then((res) => [project._id, (res.data ?? []).filter((c) => !CR_TERMINAL_STATUSES.includes(c.status)).length] as const)
-          .catch(() => [project._id, 0] as const)
-      )
-    ).then((entries) => {
-      if (!cancelled) setOpenCrsById(Object.fromEntries(entries));
-    });
+    for (const project of projects) {
+      getProgress(project._id)
+        .then((res) => res.data ?? null)
+        // Lỗi: giữ số đã biết; chưa biết gì ⇒ `null` ("Chưa bắt đầu") để thẻ không kẹt ở "Đang tải…"
+        .catch(() => undefined)
+        .then((progress) => {
+          if (cancelled) return;
+          setProgressById((cur) => {
+            const next = progress === undefined ? (cur[project._id] ?? null) : progress;
+            return cur[project._id] === next ? cur : { ...cur, [project._id]: next };
+          });
+        });
+    }
+    for (const project of projects.filter((p) => p.mode === "import" && p.import_state !== null)) {
+      listCrs(project._id)
+        .then((res) => (res.data ?? []).filter((c) => !CR_TERMINAL_STATUSES.includes(c.status)).length)
+        .catch(() => 0)
+        .then((count) => {
+          rememberOpenCrs(project._id, count);
+          if (!cancelled) setOpenCrsById((cur) => (cur[project._id] === count ? cur : { ...cur, [project._id]: count }));
+        });
+    }
     return () => {
       cancelled = true;
     };
@@ -193,8 +199,9 @@ export default function HomePage() {
   };
 
   const handleCreated = async (project: Project) => {
-    await reload();
-    router.push(getProjectStartRoute(project._id, project.mode));
+    // Vào dự án ngay (file đang tải nền). Không đọc lại danh sách ở đây: trang chủ đang rời đi, còn lượt đọc lại kéo theo request
+    // tiến trình của từng dự án chen với lượt tải + đọc khung file SRS (BE chậm hẳn); quay lại trang chủ thì danh sách tự đọc mới
+    router.push(getProjectStartRoute(project._id));
   };
 
   const handleDropProject = async (folder: Folder, projectId: string) => {

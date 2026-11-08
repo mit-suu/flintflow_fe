@@ -3,11 +3,17 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import { createProjectFrom } from "@/lib/api/projects";
+import { precheckDocx } from "@/lib/api/documents";
+import { markImportPending } from "@/lib/import-pending";
+import { startProjectUploads } from "@/lib/project-uploads";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n";
-import type { DocumentLanguage, Project, ProjectStartKind } from "@/types/project";
+import type { DocumentLanguage, Project } from "@/types/project";
+import type { OrgTemplateSummary } from "@/types/org-library";
 import DocumentLanguagePicker from "./DocumentLanguagePicker";
-import ProjectStartPicker from "./ProjectStartPicker";
+import OrgTemplatePicker from "./OrgTemplatePicker";
+import { ReferenceSlot, SrsSlot, REFERENCE_MAX_BYTES, SRS_MAX_BYTES, isDocx, isReferenceType, type ReferenceFile } from "./create-project-file-slots";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 const NAME_MAX = 100; // khớp CreateProjectSchema ở BE
@@ -21,71 +27,106 @@ interface CreateProjectFormProps {
   folderId?: string;
 }
 
+type Stage = "creating";
+
+let refSeq = 0;
+
 /**
- * Tạo dự án (UC-13/14, FLF-335): chọn **Dự án mới** (hỏi thêm có mẫu bắt buộc không) hay **Dự án có sẵn**; không chọn chế độ —
- * BE suy ra. Một component cho cả empty state và dialog. Lỗi hiện ngay dưới form và giữ nguyên lựa chọn để user thử lại.
+ * Tạo dự án (UC-13/14, business-flow §1): tên + ô **SRS** (0–1 .docx, hoặc mẫu đã lưu của tổ chức) + ô chọn "Bổ sung các mục còn
+ * thiếu theo mẫu chuẩn FlintFlow" + ô **Tài liệu tham khảo**. Người dùng không chọn chế độ, không khai dự án mới / có sẵn — BE
+ * suy ra. Ngôn ngữ chỉ hỏi khi không có SRS (có SRS ⇒ theo file). Tạo xong mở dự án ngay; SRS và tài liệu tham khảo tải nền
+ * (`lib/project-uploads`), trang dự án hiện từng bước và báo lỗi tải.
  */
 export default function CreateProjectForm({ variant, onCreated, onCancel, folderId }: CreateProjectFormProps) {
   const t = useTranslations("app.createProject");
   const tc = useTranslations("app.common");
   const locale = useLocale();
   const defaultName = t("defaultName");
-  const [source, setSource] = useState<ProjectStartKind | null>(null);
-  const [hasRequiredTemplate, setHasRequiredTemplate] = useState<boolean | null>(null);
   const [name, setName] = useState(defaultName);
+  const [srsFile, setSrsFile] = useState<File | null>(null);
+  const [orgTemplate, setOrgTemplate] = useState<OrgTemplateSummary | null>(null);
+  const [completeToStandard, setCompleteToStandard] = useState(false);
+  const [references, setReferences] = useState<ReferenceFile[]>([]);
   // FLF-265 (D2): mặc định theo ngôn ngữ giao diện — user đang đọc tiếng gì thì tài liệu viết tiếng đó
   const [documentLanguage, setDocumentLanguage] = useState<DocumentLanguage>(isLocale(locale) ? locale : DEFAULT_LOCALE);
-  const [submitting, setSubmitting] = useState(false);
+  const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [srsError, setSrsError] = useState<string | null>(null);
+  const [refError, setRefError] = useState<string | null>(null);
   const inputId = `project-name-${variant}`;
   const languageLabelId = `document-language-${variant}`;
+  const submitting = stage !== null;
+  const hasSrs = !!srsFile || !!orgTemplate;
+  const canSubmit = name.trim().length > 0 && !submitting;
 
-  /** Dự án mới không mẫu soạn theo mẫu chuẩn FlintFlow ⇒ chọn ngôn ngữ; mọi trường hợp tải file lên theo file. */
-  const uploadsFile = source === "existing" || (source === "new" && hasRequiredTemplate === true);
-  const answered = source === "existing" || (source === "new" && hasRequiredTemplate !== null);
-  const canSubmit = answered && name.trim().length > 0 && !submitting;
+  const pickSrs = (file: File | null) => {
+    setSrsError(null);
+    if (file && !isDocx(file)) return setSrsError(t("srs.notDocx"));
+    if (file && file.size > SRS_MAX_BYTES) return setSrsError(t("srs.tooLarge"));
+    setSrsFile(file);
+    if (file) setOrgTemplate(null);
+    if (!file) setCompleteToStandard(false);
+  };
+
+  const addReferences = (files: File[]) => {
+    setRefError(null);
+    const rejected = files.filter((f) => !isReferenceType(f) || f.size > REFERENCE_MAX_BYTES);
+    if (rejected.length) setRefError(t("references.rejected", { files: rejected.map((f) => f.name).join(", ") }));
+    const added = files.filter((f) => !rejected.includes(f)).map((file) => ({ key: `ref-${++refSeq}`, file, ...(isDocx(file) ? {} : { precheck: null }) }));
+    if (!added.length) return;
+    setReferences((prev) => [...prev, ...added]);
+    // §3.6: file .docx trông như SRS ⇒ gợi ý (không chặn). Kiểm lỗi ⇒ coi như không phải SRS
+    for (const ref of added.filter((r) => isDocx(r.file))) {
+      precheckDocx(ref.file)
+        .then((res) => res.data ?? null)
+        .catch(() => null)
+        .then((precheck) => setReferences((prev) => prev.map((r) => (r.key === ref.key ? { ...r, precheck } : r))));
+    }
+  };
+
+  const moveToSrs = (key: string) => {
+    const ref = references.find((r) => r.key === key);
+    if (!ref) return;
+    setReferences((prev) => prev.filter((r) => r.key !== key));
+    pickSrs(ref.file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!source || !answered || !name.trim()) return;
-    setSubmitting(true);
+    if (!canSubmit) return;
+    setStage("creating");
     setError(null);
+    let project: Project;
     try {
       const res = await createProjectFrom({
         name: name.trim(),
-        source,
-        ...(source === "new" ? { has_required_template: hasRequiredTemplate === true } : {}),
+        has_srs_file: hasSrs,
+        ...(hasSrs && completeToStandard ? { complete_to_standard: true } : {}),
         ...(folderId ? { folderId } : {}),
-        // Tải file lên: ngôn ngữ theo file (D3) ⇒ không gửi
-        ...(uploadsFile ? {} : { documentLanguage }),
+        // Có SRS: ngôn ngữ theo file (D3) ⇒ không gửi
+        ...(hasSrs ? {} : { documentLanguage }),
       });
       if (!res.data) throw new Error(t("missingProject"));
-      await onCreated(res.data);
+      project = res.data;
     } catch (err) {
       setError(userErrorMessage(err, t("failed")));
-      setSubmitting(false);
+      setStage(null);
+      return;
     }
-    // Thành công: giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần
+
+    // Không bắt chờ trong hộp thoại: file tải nền, trang dự án hiện các bước tích dần (lỗi tải ⇒ báo + thử lại ở đó)
+    if (hasSrs) markImportPending(project._id);
+    startProjectUploads(project._id, { projectName: project.name, srs: srsFile, orgTemplate: orgTemplate ? { id: orgTemplate.id, name: orgTemplate.name } : null, references: references.map((r) => r.file) });
+    // Giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần
+    await onCreated(project);
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <ProjectStartPicker value={source} onChange={setSource} hasRequiredTemplate={hasRequiredTemplate} onHasRequiredTemplateChange={setHasRequiredTemplate} disabled={submitting} />
-
-      {uploadsFile ? (
-        <p className="text-body text-on-surface-muted -mt-1">{t("language.importHint")}</p>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          <span id={languageLabelId} className="text-body font-bold text-on-surface-medium">
-            {t("language.label")}
-          </span>
-          <DocumentLanguagePicker value={documentLanguage} onChange={setDocumentLanguage} disabled={submitting} labelledBy={languageLabelId} />
-        </div>
-      )}
-
-      <div className={`flex flex-col gap-3 ${variant === "inline" ? "sm:flex-row sm:items-end" : ""}`}>
-        <div className="flex flex-col gap-1.5 flex-1">
-          <label htmlFor={inputId} className="text-body font-bold text-on-surface-medium">
+      {/* Tên dự án + ngôn ngữ cùng một hàng; có SRS ⇒ ngôn ngữ theo file nên ô ngôn ngữ ẩn, tên chiếm cả hàng */}
+      <div className={`grid gap-4 ${hasSrs ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto]"}`}>
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <label htmlFor={inputId} className="text-caption font-bold uppercase tracking-wide text-on-surface-muted">
             {t("nameLabel")}
           </label>
           <input
@@ -93,36 +134,81 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
             type="text"
             value={name}
             maxLength={NAME_MAX}
+            disabled={submitting}
             onChange={(e) => setName(e.target.value)}
             onFocus={(e) => {
               if (name === defaultName) e.target.select();
             }}
-            // Không viền, cùng nền với thẻ chọn; focus ⇒ nền trắng + vòng tím
-            className="h-10 px-3.5 rounded-control bg-surface-container text-body text-on-surface outline-none transition-colors hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30"
+            // Không viền; focus ⇒ nền trắng + vòng tím
+            className="h-12 px-4 rounded-control bg-surface-container text-heading font-semibold text-on-surface outline-none transition-colors hover:bg-surface-container-high focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/30"
           />
         </div>
-        <div className={`flex items-center gap-2 ${variant === "dialog" ? "justify-end" : ""}`}>
-          {/* Gợi ý nằm cạnh nút đang mờ — giải thích vì sao chưa bấm được, không thêm một dòng riêng ở đáy */}
-          {!answered && variant === "dialog" && (
-            <p className="mr-auto text-body text-on-surface-muted">{t(source === "new" ? "answerTemplate" : "pickMode")}</p>
-          )}
-          {onCancel && (
-            <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-              {tc("cancel")}
-            </Button>
-          )}
-          <Button type="submit" disabled={!canSubmit} loading={submitting} iconRight="arrow-right">
-            {submitting ? t("submitting") : t("submit")}
-          </Button>
-        </div>
+        {!hasSrs && (
+          <div className="flex flex-col gap-1.5">
+            <span id={languageLabelId} className="text-caption font-bold uppercase tracking-wide text-on-surface-muted">
+              {t("language.label")}
+            </span>
+            <div className="h-12 flex items-center">
+              <DocumentLanguagePicker value={documentLanguage} onChange={setDocumentLanguage} disabled={submitting} labelledBy={languageLabelId} />
+            </div>
+          </div>
+        )}
       </div>
 
-      {!answered && variant === "inline" && <p className="text-body text-on-surface-muted -mt-2">{t(source === "new" ? "answerTemplate" : "pickMode")}</p>}
+      {/* Hai ô file cạnh nhau: SRS (file FlintFlow sửa) nền tím nhạt, tham khảo nền xám — khác vai trò nhìn là thấy */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+      <SrsSlot
+        file={srsFile}
+        orgTemplateName={orgTemplate?.name ?? null}
+        completeToStandard={completeToStandard}
+        disabled={submitting}
+        onFile={pickSrs}
+        onClearOrgTemplate={() => {
+          setOrgTemplate(null);
+          setCompleteToStandard(false);
+        }}
+        onCompleteToStandardChange={setCompleteToStandard}
+        orgTemplatePicker={<OrgTemplatePicker disabled={submitting} onPick={(tpl) => {
+          setOrgTemplate(tpl);
+          setSrsFile(null);
+          setSrsError(null);
+        }} />}
+        error={srsError}
+      />
+
+      <ReferenceSlot
+        files={references}
+        hasSrs={hasSrs}
+        disabled={submitting}
+        onAdd={addReferences}
+        onRemove={(key) => setReferences((prev) => prev.filter((r) => r.key !== key))}
+        onKeep={(key) => setReferences((prev) => prev.map((r) => (r.key === key ? { ...r, keep: true } : r)))}
+        onMoveToSrs={moveToSrs}
+        error={refError}
+      />
+      </div>
+
       {error && (
         <p role="alert" className="text-body text-on-error-container bg-error-container rounded-control px-3 py-2">
           {error}
         </p>
       )}
+
+      <div className={`flex flex-wrap items-center gap-x-2 gap-y-3 pt-1 ${variant === "dialog" ? "justify-end" : ""}`}>
+        {/* Bấm Bắt đầu thì chuyện gì xảy ra — theo có SRS hay không (BE suy ra chế độ, người dùng không phải chọn) */}
+        <p className="mr-auto flex items-center gap-2 text-caption text-on-surface-variant" aria-live="polite">
+          {submitting && <Icon name="spinner" size={14} className="shrink-0 text-primary animate-spin" />}
+          {submitting ? t(`stage.${stage}`) : hasSrs ? t("outcome.withSrs") : t("outcome.noSrs")}
+        </p>
+        {onCancel && (
+          <Button variant="ghost" onClick={onCancel} disabled={submitting}>
+            {tc("cancel")}
+          </Button>
+        )}
+        <Button type="submit" disabled={!canSubmit} loading={submitting} iconRight="arrow-right">
+          {submitting ? t("submitting") : t("submit")}
+        </Button>
+      </div>
     </form>
   );
 }

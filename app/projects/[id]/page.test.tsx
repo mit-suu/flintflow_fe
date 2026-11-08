@@ -36,9 +36,10 @@ afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
 describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
-  it("chưa import xong ⇒ chuyển sang wizard import", async () => {
+  it("chưa đọc xong file ⇒ màn tải / đọc khung ngay trong layout workspace, không chuyển sang trang /import", async () => {
     renderWithIntl(<WorkspacePage />);
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/projects/${P}/import`));
+    expect(await screen.findByText(/Tải file SRS|mục có nội dung|FlintFlow đang đọc/)).toBeInTheDocument();
+    expect(router.replace).not.toHaveBeenCalledWith(`/projects/${P}/import`);
   });
 
   it("mode 1 v3 (bám BPMN): import xong ⇒ không chạy step / ký v1 / waive; cột cờ có lối Tạo CR; sửa qua chat, không Hoàn tác / viết lại mục cũ", async () => {

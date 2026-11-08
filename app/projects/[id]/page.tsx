@@ -84,6 +84,16 @@ import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
 import { compareHref, crListHref, gapReportHref, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
+import { setPendingReupload } from "./_components/mode1/pending-reupload";
+import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
+import StructureChangeNotice from "./_components/mode1/structure-change-notice";
+import ImportWorkspace from "./_components/import/import-workspace";
+import ImportSkeleton from "./_components/import/import-skeleton";
+import { CreationProgressShell } from "./_components/import/creation-progress";
+import { retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
+import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
+import { clearImportPending, isImportPending } from "@/lib/import-pending";
+import { useImportPendingHint } from "./import-pending-hint";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
@@ -212,7 +222,17 @@ const subscribeNothing = () => () => {};
 const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
   // Server snapshot `none` ⇒ lần render hydrate khớp HTML server; ngay sau đó client đọc khung phải đã lưu
   const workspacePane = useSyncExternalStore(subscribeNothing, () => readWorkspacePane(projectId), () => "none" as const);
+  // Dự án đang ở màn đọc file SRS ⇒ đúng skeleton của màn đó (một kiểu skeleton, không chớp skeleton workspace)
+  // Snapshot server = cookie server đã đọc (layout) ⇒ HTML đầu và lần hydrate đã đúng skeleton
+  const pendingHint = useImportPendingHint();
+  const importPending = useSyncExternalStore(subscribeNothing, () => isImportPending(projectId), () => pendingHint);
   const t = useTranslations("workspace.page");
+  // Tab này vừa tạo dự án và đang tải file ⇒ hiện ngay các bước tích dần thay vì skeleton
+  const uploads = useProjectUploads(projectId);
+  if (uploads?.items.some((i) => i.kind === "srs" && i.status !== "done")) {
+    return <CreationProgressShell uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} />;
+  }
+  if (importPending) return <ImportSkeleton label={t("loading")} />;
   return (
   <div className="h-screen flex overflow-hidden bg-surface-container-lowest">
     {/* Giữ chỗ rail tiến độ trái — cùng bề rộng/chiều cao hàng với WorkspaceProgressRail */}
@@ -260,7 +280,7 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
 
 /**
  * Rẽ nhánh theo `project.mode`: mode 2 (`fpt`) ⇒ workspace pipeline. Mode 1 (`import`, upload SRS có sẵn) v2
- * (FLF-185): chưa import xong ⇒ wizard `/import`; import xong ⇒ **cùng workspace** (step theo template người dùng,
+ * (FLF-185): chưa import xong ⇒ màn đọc khung / tiến trình trong layout workspace (`ImportWorkspace`); import xong ⇒ **cùng workspace** (step theo template người dùng,
  * sửa qua chat tới baseline v1) + công cụ mode 1. Không đọc được project ⇒ workspace mode 2 tự xử lý lỗi/đăng nhập.
  */
 export default function WorkspacePage() {
@@ -272,6 +292,7 @@ export default function WorkspacePage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [convertedNotice, setConvertedNotice] = useState<string | null>(null);
   useEffect(() => onProjectModeMaybeChanged(() => setReloadKey((k) => k + 1)), []);
+  const reloadProject = useCallback(() => setReloadKey((k) => k + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -309,10 +330,11 @@ export default function WorkspacePage() {
   const importDone = !!project?.import_state && IMPORT_DONE_STATUSES.includes(project.import_state);
   useEffect(() => {
     if (isViewer) router.replace(`/projects/${projectId}/view`);
-    else if (isViewer === false && mode1 && !importDone) router.replace(`/projects/${projectId}/import`);
-  }, [isViewer, mode1, importDone, projectId, router]);
+  }, [isViewer, projectId, router]);
 
-  if (project === null || isViewer !== false || (mode1 && !importDone)) return <WorkspaceLoading projectId={projectId} />;
+  if (project === null || isViewer !== false) return <WorkspaceLoading projectId={projectId} />;
+  // Chưa đọc xong file SRS ⇒ màn đọc khung / tiến trình ngay trong layout workspace (không còn trang `/import` riêng)
+  if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} />;
   // Đổi mode ⇒ dựng lại workspace từ đầu (hook của mode 2 — step, gate — không mang sang mode 1)
   return <FptWorkspace key={mode1 ? "mode1" : "fpt"} mode1={mode1} initialNotice={mode1 ? convertedNotice : null} />;
 }
@@ -329,7 +351,10 @@ const MODE1_ACTION =
 function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean; initialNotice?: string | null }) {
   const params = useParams();
   const projectId = params?.id as string;
-  // Câu FE gửi thay user cũng theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
+  const router = useRouter();
+
+  // Đã vào workspace soạn / sửa ⇒ không còn ở màn đọc file
+  useEffect(() => clearImportPending(projectId), [projectId]);  // Câu FE gửi thay user cũng theo ngôn ngữ giao diện: BE lấy ngôn ngữ trả lời từ câu đó (FLF-260)
   const t = useTranslations("workspace");
   const tHook = useTranslations("workspace.hookErrors");
   const tLanguage = useTranslations("common.documentLanguage");
@@ -1588,7 +1613,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   };
 
   /** Lệnh sửa (chip "Sửa tài liệu") cũng đi qua bước chặn — lệnh dịch không được thành một lệnh sửa gửi cho AI. */
-  const sendEditInstruction = (text: string) => {
+  const sendEditInstruction = async (text: string) => {
     if (interceptLanguageCommand(text, "edit")) return;
     if (!mode1) return submitEditInstruction(text);
     // Lệnh sửa mới (thêm / sửa / xoá bất cứ gì) ⇒ thẻ "CR-xxx đã ghi vào bản nháp" của CR trước không còn là việc đang làm
@@ -1599,6 +1624,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     if (!crChat.detail && !crChat.pending && (useCaseTurnsRef.current || editUseCaseIntent(text))) {
       useCaseTurnsRef.current = [...(useCaseTurnsRef.current ?? []), text.trim()];
       return submitEditInstruction(text);
+    }
+    // §3.6: file đính kèm cùng lệnh vào kho tài liệu tham khảo (mọi chế độ) — đúng đường của chat: báo credit đọc file trước, tải xong
+    // mới mở CR; file trông như SRS thì hiện gợi ý cập nhật phiên bản
+    if (ws.pendingAttachments.length) {
+      if (!(await confirmAttachments(ws.pendingAttachments))) return;
+      if (!(await ws.uploadPendingAttachments())) return;
     }
     void crChat.send(text);
   };
@@ -1902,6 +1933,27 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   : undefined
           }
           pendingAttachments={ws.pendingAttachments}
+          inputNotice={
+            <>
+              {/* Tài liệu tham khảo từ hộp Tạo dự án còn đang tải nền / lỗi */}
+              <ReferenceUploadsNote projectId={projectId} className="mx-3 mb-2" />
+              {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
+              {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
+              {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới — chỉ khi đã có bản gốc */}
+              {mode1 && canEdit && ws.srsSuggestions[0] && (
+                <SrsAttachmentChip
+                  suggestion={ws.srsSuggestions[0]}
+                  onUpdateVersion={() => {
+                    const first = ws.srsSuggestions[0];
+                    setPendingReupload(first.file);
+                    ws.dismissSrsSuggestion(first.key);
+                    router.push(reuploadHref(projectId), { scroll: false });
+                  }}
+                  onKeepAsReference={() => ws.dismissSrsSuggestion(ws.srsSuggestions[0].key)}
+                />
+              )}
+            </>
+          }
           onSelectAttachment={ws.selectAttachment}
           onRemoveAttachment={ws.removeAttachment}
           headerStart={

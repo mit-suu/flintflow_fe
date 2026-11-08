@@ -27,8 +27,8 @@ export const IMPORT_STATUSES = [
 ] as const;
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 
-/** `paused` chỉ đặt ở hai bước gọi AI. */
-export type ImportPauseReason = "credits" | "resume_later";
+/** `paused` chỉ đặt ở hai bước gọi AI. `user`: người dùng bấm Dừng lúc đang đọc nội dung (`POST /import/pause`). */
+export type ImportPauseReason = "credits" | "resume_later" | "user";
 export interface Paused<R extends string = ImportPauseReason> {
   reason: R;
   at: IsoDateTime;
@@ -92,6 +92,8 @@ export interface ImportedDocument {
   reread?: { kind: "images" | "text"; done: number; total: number; section_id: string } | null;
   /** FLF-335: ý định lúc upload — file theo mẫu cố định hay cấu trúc tự do; bản ghi cũ `null` / thiếu (coi như `free`). */
   intent?: TemplateIntent | null;
+  /** Mục mà kết quả đọc cuối khác màn đọc khung (rỗng ⇒ khớp; `null` ⇒ chưa đọc xong / import cũ). */
+  structure_changes?: StructureChange[] | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }
@@ -309,6 +311,28 @@ export interface GetImportResponse {
   credit_estimate?: CreditEstimate | null;
   /** FLF-336 I-5: có sau lần finalize đầu (kể cả khi dừng ở `incomplete`). */
   target_structure?: TargetStructure | null;
+  /** Màn đọc khung: cấu trúc đích sơ bộ tính bằng Code lúc upload (trước Bắt đầu, không tốn credit). */
+  structure_preview?: StructurePreview | null;
+}
+
+/**
+ * Màn đọc khung (business-flow §3.1.2) — BE `structurePreviewSchema`. `sections` theo thứ tự heading trong file; `kind = template`
+ * khi phần lớn mục chưa có nội dung (khung mẫu để FlintFlow soạn).
+ */
+export interface StructurePreview {
+  summary: { present: number; missing: number; out_of_scope: number; kind: "written" | "template" };
+  sections: { section_id: string; title: string; status: TargetSectionStatus; order: number }[];
+  resolved_mode: 1 | 3 | 4;
+  intent: "fixed" | "free";
+  computed_at: string;
+}
+
+/** Mục mà kết quả đọc cuối khác bản sơ bộ — `absent` = không có ở một bên. */
+export interface StructureChange {
+  section_id: string;
+  title: string;
+  from: TargetSectionStatus | "absent";
+  to: TargetSectionStatus | "absent";
 }
 
 /** FLF-336 I-5 — bản đồ mục của file ⇒ cấu trúc đích (BE `targetStructureSchema`). */

@@ -69,11 +69,6 @@ export default function Mode1WorkspaceTools({
         <Link href={crListHref(projectId)} scroll={false} className={link}>
           {t("changeRequest")}
         </Link>
-        {!readOnly && (
-          <Link href={`/projects/${projectId}/import`} className={link}>
-            {t("importSrs")}
-          </Link>
-        )}
       </nav>
 
       {/* FLF-337: thay đổi AI tự qua (CR tự ghi ở mức "Chỉ ở mốc chốt") chưa xem — nhắc trước khi gửi gói / phát hành */}
