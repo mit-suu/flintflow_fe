@@ -6,6 +6,9 @@ export { clearDocumentImageCache } from "./document-image-cache";
 /** Mã lỗi BE khi ảnh đã được vẽ lại sau khi tài liệu dựng: tải lại tài liệu để lấy tham chiếu mới. */
 export const IMAGE_CHANGED = "IMAGE_CHANGED";
 
+/** Mã lỗi BE (`415`) khi ảnh gốc `media` có bytes nhưng không phải PNG/JPEG — lỗi vĩnh viễn, hiện chỗ giữ ảnh. */
+export const MEDIA_NOT_EMBEDDABLE = "MEDIA_NOT_EMBEDDABLE";
+
 const IMAGE_REF_PATTERN = /^image-ref:(diagram|media):([^:@]+)(?::([a-z]{2}))?@([0-9a-f]{16})$/;
 
 export interface ImageRef {
@@ -34,7 +37,8 @@ const errorOf = async (res: Response): Promise<ApiClientError> => {
 /**
  * Ảnh của tài liệu theo tham chiếu (`GET /document/image?ref=`) — bytes thô, đi qua `authFetch` (Bearer + refresh).
  * Blob được nhớ theo `projectId:token`: token có hash nội dung nên cùng khoá ⇒ cùng ảnh, vẽ lại ⇒ khoá mới.
- * Lỗi `409 IMAGE_CHANGED` / `404 IMAGE_NOT_FOUND` ném `ApiClientError` mang đúng mã đó.
+ * Lỗi (`409 IMAGE_CHANGED`, `415 MEDIA_NOT_EMBEDDABLE`, `404 IMAGE_NOT_FOUND`, `503 IMAGE_UNAVAILABLE`) ném
+ * `ApiClientError` mang đúng mã đó. Lượt lỗi không được nhớ — gọi lại là tải lại.
  */
 export const fetchDocumentImage = (projectId: string, token: string): Promise<Blob> => {
   const key = imageCacheKey(projectId, token);
