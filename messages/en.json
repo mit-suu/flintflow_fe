@@ -1500,6 +1500,8 @@
       "redrawing": "Drawing…",
       "redraw": "Redraw diagram",
       "diagramLoadFailed": "Could not load the diagram image.",
+      "mediaNotEmbedded": "The original image could not be embedded (unsupported format).",
+      "mediaLoadFailed": "Could not load the image.",
       "diagramNotDrawn": "Diagram could not be drawn",
       "diagramNotDrawnHint": "Retry to redraw this diagram from the current data.",
       "diagramNotDrawnReadOnly": "The diagram will appear once it is redrawn successfully.",

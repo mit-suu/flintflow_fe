@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import { ApiClientError } from "@/lib/api/client";
-import { fetchDocumentImage, IMAGE_CHANGED, parseImageRef } from "@/lib/api/document-images";
+import { fetchDocumentImage, IMAGE_CHANGED, MEDIA_NOT_EMBEDDABLE, parseImageRef } from "@/lib/api/document-images";
 import { fetchDiagramPng } from "@/lib/api/spine";
 import { tStep } from "@/lib/i18n";
 import { hookErrorText } from "@/lib/hook-errors";
@@ -204,18 +204,25 @@ const IMAGE_PLACEHOLDER_CLASS = "w-full min-h-[240px] grid place-items-center ro
 function DocumentImage({ projectId, png, caption }: { projectId: string; png: string; caption?: string }) {
   const t = useTranslations("workspace.document");
   const loadFailed = t("diagramLoadFailed");
+  const mediaLoadFailed = t("mediaLoadFailed");
   const onImageChanged = useContext(ImageChangedContext);
   const onImageChangedRef = useRef(onImageChanged);
   useEffect(() => {
     onImageChangedRef.current = onImageChanged;
   }, [onImageChanged]);
-  const isImageRef = parseImageRef(png) !== null;
+  const imageRef = parseImageRef(png);
+  const isImageRef = imageRef !== null;
+  const isMediaRef = imageRef?.kind === "media";
   const isDiagramRef = png.startsWith("diagram-ref:");
   const loadsRemotely = isImageRef || isDiagramRef;
   const directSrc = loadsRemotely ? null : `data:image/png;base64,${png}`;
   // Gắn kết quả với token đã tải: đổi `png` thì kết quả cũ (URL đã thu hồi) không bị dùng nhầm cho ảnh mới
   const [resolved, setResolved] = useState<{ png: string; url: string } | null>(null);
   const [failure, setFailure] = useState<{ png: string; message: string } | null>(null);
+  // Ảnh gốc mode 1 mà BE xác nhận không phải PNG/JPEG (`415`) ⇒ khung giữ chỗ + chú thích, không phải lỗi
+  const [notEmbedded, setNotEmbedded] = useState<string | null>(null);
+  // Bấm "Thử lại" ở ảnh gốc lỗi (404 / 503 / mạng) ⇒ tăng để effect tải lại; lượt lỗi không bị cache ở `lib/api`
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!loadsRemotely) return;
@@ -241,18 +248,44 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
           onImageChangedRef.current();
           return;
         }
-        setFailure({ png, message: userErrorMessage(err, loadFailed) });
+        // Chỉ khi BE xác nhận sai định dạng mới nói "định dạng không hỗ trợ" — lỗi khác không đoán lý do
+        if (isMediaRef && err instanceof ApiClientError && (err.status === 415 || err.code === MEDIA_NOT_EMBEDDABLE)) {
+          setNotEmbedded(png);
+          return;
+        }
+        // Ảnh gốc lỗi vì lý do khác (không còn trong tài liệu, storage tạm hỏng, mạng): câu trung tính + nút thử lại
+        setFailure({ png, message: isMediaRef ? mediaLoadFailed : userErrorMessage(err, loadFailed) });
       });
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-    // `loadFailed` chỉ là câu dự phòng — đổi ngôn ngữ không cần tải lại ảnh
+    // `loadFailed` / `mediaLoadFailed` chỉ là câu hiển thị — đổi ngôn ngữ không cần tải lại ảnh
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, png, isImageRef, loadsRemotely]);
+  }, [projectId, png, isImageRef, isMediaRef, loadsRemotely, attempt]);
 
   const src = directSrc ?? (resolved?.png === png ? resolved.url : null);
   const error = failure?.png === png ? failure.message : null;
+  if (notEmbedded === png) return <div className={IMAGE_PLACEHOLDER_CLASS}>{t("mediaNotEmbedded")}</div>;
+  if (error && isMediaRef) {
+    return (
+      <div className={IMAGE_PLACEHOLDER_CLASS}>
+        <div className="flex flex-col items-center gap-2">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setFailure(null);
+              setAttempt((n) => n + 1);
+            }}
+            className="not-italic text-primary hover:underline"
+          >
+            {t("retryDiagram")}
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (error) return <div className="text-caption text-error italic">{error}</div>;
   if (!src) return <div className={IMAGE_PLACEHOLDER_CLASS}>{t("imageLoading")}</div>;
   // eslint-disable-next-line @next/next/no-img-element -- ảnh render server-side (base64/blob), không phải asset tĩnh Next
