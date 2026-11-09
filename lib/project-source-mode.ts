@@ -16,7 +16,7 @@ export interface SourceModeOption {
 
 /**
  * Nhãn / icon / tone để **hiển thị** 3 `ProjectMode` của BE (card dự án, bộ lọc). Từ FLF-335 người dùng không chọn mode —
- * thẻ tạo dự án là `ProjectStartPicker` (`lib/project-start.ts`); mode do BE suy ra.
+ * hộp Tạo dự án chỉ có ô SRS + ô chọn "Bổ sung các mục còn thiếu…" (`components/project/CreateProjectForm.tsx`); mode do BE suy ra.
  */
 export const SOURCE_MODE_OPTIONS = [
   {
@@ -51,13 +51,8 @@ export const projectSourceMode = (project: Pick<Project, "mode" | "converted_fro
 export const getSourceModeOption = (mode: ProjectMode): SourceModeOption =>
   SOURCE_MODE_OPTIONS.find((o) => o.value === mode) ?? SOURCE_MODE_OPTIONS[2];
 
-const START_SEGMENT: Record<ProjectMode, string> = {
-  import: "/import",
-  // Dự án cũ mang giá trị này đi cùng wizard tải file (FLF-335)
-  customer_template: "/import",
-  fpt: "",
-};
-
-/** Chỗ duy nhất map mode → route đầu tiên sau khi tạo dự án. */
-export const getProjectStartRoute = (projectId: string, mode: ProjectMode) =>
-  `/projects/${projectId}${START_SEGMENT[mode]}`;
+/**
+ * Chỗ duy nhất map dự án → route đầu tiên sau khi tạo. Mọi mode vào thẳng trang dự án: màn đọc file SRS nằm trong layout workspace
+ * (không còn wizard `/import` riêng).
+ */
+export const getProjectStartRoute = (projectId: string) => `/projects/${projectId}`;

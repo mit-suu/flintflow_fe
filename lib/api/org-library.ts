@@ -4,7 +4,6 @@
  */
 import type { ContentEntry, ContentEntryInput, LibraryMatch, OrgTemplateSummary } from "@/types/org-library";
 import type { ImportedDocument } from "@/types/import";
-import type { TemplateIntent } from "@/types/project";
 import { apiCall } from "./client";
 
 const unwrap = <T>(res: { data: T | null }): T => {
@@ -32,8 +31,9 @@ export const deleteContentEntry = async (orgId: string, entryId: string): Promis
 const project = (projectId: string) => `/projects/${projectId}`;
 
 /** Dự án dùng mẫu đã lưu của tổ chức: import từ chính file mẫu, mapping heading áp sẵn (bỏ bước xác nhận). */
-export const importFromOrgTemplate = async (projectId: string, orgTemplateId: string, intent?: TemplateIntent): Promise<{ import: ImportedDocument }> =>
-  unwrap(await apiCall<{ import: ImportedDocument }>(`${project(projectId)}/import/from-org`, json("POST", { org_template_id: orgTemplateId, ...(intent ? { intent } : {}) })));
+/** Ý định với file BE lấy từ dự án (hộp Tạo dự án). */
+export const importFromOrgTemplate = async (projectId: string, orgTemplateId: string): Promise<{ import: ImportedDocument }> =>
+  unwrap(await apiCall<{ import: ImportedDocument }>(`${project(projectId)}/import/from-org`, json("POST", { org_template_id: orgTemplateId })));
 /** Lưu file mẫu + mapping đã xác nhận của lần import gần nhất làm mẫu của tổ chức. */
 export const saveImportToOrg = async (projectId: string, name: string): Promise<OrgTemplateSummary> =>
   unwrap(await apiCall<OrgTemplateSummary>(`${project(projectId)}/import/save-to-org`, json("POST", { name })));

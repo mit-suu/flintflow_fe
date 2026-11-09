@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
+import Button from "@/components/ui/Button";
 import { saveImportToOrg } from "@/lib/api/org-library";
 
 interface SaveOrgTemplateCardProps {
@@ -12,7 +13,7 @@ interface SaveOrgTemplateCardProps {
 
 /** FLF-278 trên FLF-335/336: lưu file mẫu + mapping đã xác nhận để dự án sau của tổ chức chọn lại, không phải tải và map lại. */
 export default function SaveOrgTemplateCard({ projectId, defaultName }: SaveOrgTemplateCardProps) {
-  const t = useTranslations("mode1.importWizard.saveToOrg");
+  const t = useTranslations("workspace.import.saveToOrg");
   const inputId = useId();
   const [name, setName] = useState(defaultName);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -28,10 +29,10 @@ export default function SaveOrgTemplateCard({ projectId, defaultName }: SaveOrgT
   };
 
   return (
-    <div className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-2">
-      <p className="text-body text-[#4B4842]">{t("help")}</p>
+    <div className="bg-surface-container-low rounded-card p-4 flex flex-col gap-2">
+      <p className="text-body text-on-surface-variant">{t("help")}</p>
       <div className="flex flex-wrap items-end gap-3">
-        <label htmlFor={inputId} className="flex flex-col gap-1 text-caption font-bold text-[#4B4842]">
+        <label htmlFor={inputId} className="flex flex-col gap-1 text-caption font-bold text-on-surface-medium">
           {t("nameLabel")}
           <input
             id={inputId}
@@ -39,25 +40,20 @@ export default function SaveOrgTemplateCard({ projectId, defaultName }: SaveOrgT
             maxLength={120}
             disabled={state === "saving" || state === "saved"}
             onChange={(e) => setName(e.target.value)}
-            className="h-9 w-[260px] rounded-[8px] border border-[#E4E1DC] bg-[#FAF9F7] px-2 text-body font-normal text-[#191817]"
+            className="h-9 w-[260px] max-w-full rounded-control bg-surface-container-lowest px-3 text-body font-normal text-on-surface outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
-        <button
-          type="button"
-          disabled={!name.trim() || state === "saving" || state === "saved"}
-          onClick={() => void save()}
-          className="px-4 py-2 rounded-[10px] border border-[#ECEAE5] bg-white text-[#191817] text-body font-bold cursor-pointer disabled:opacity-50"
-        >
+        <Button variant="secondary" size="sm" disabled={!name.trim() || state === "saved"} loading={state === "saving"} onClick={() => void save()}>
           {state === "saving" ? t("saving") : t("action")}
-        </button>
+        </Button>
       </div>
       {state === "saved" && (
-        <p role="status" className="text-caption text-[#1F7A45]">
+        <p role="status" className="text-caption text-success">
           {t("saved")}
         </p>
       )}
       {state === "failed" && (
-        <p role="alert" className="text-caption text-[#B03030]">
+        <p role="alert" className="text-caption text-on-error-container">
           {t("failed")}
         </p>
       )}

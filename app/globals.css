@@ -506,8 +506,8 @@ body {
   scrollbar-gutter: stable;
 }
 .ff-scroll::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 .ff-scroll::-webkit-scrollbar-track {
   background: transparent;
@@ -515,13 +515,13 @@ body {
 .ff-scroll::-webkit-scrollbar-thumb {
   background-color: transparent;
   border-radius: 999px;
-  /* Viền trong suốt + `background-clip: content-box` ⇒ phần được tô hẹp lại 3px mỗi bên VÀ lùi vào 10px ở hai
-     đầu. Chiều dài thumb do trình duyệt tính theo tỉ lệ nội dung, không đặt được; lùi hai đầu là cách duy nhất
-     làm nó ngắn lại mà không phải tự vẽ thanh cuộn bằng JS. */
-  border: 10px solid transparent;
-  border-left-width: 3px;
-  border-right-width: 3px;
+  /* Viền trong suốt 2px ĐỀU bốn phía + `background-clip: content-box` ⇒ phần tô rộng 8px, cách mép 2px, cả rãnh
+     12px vẫn là vùng bấm. Viền phải đều: bo góc bị chặn ở nửa bề rộng (6px), bán kính phần tô = 6 − viền, nên viền
+     ở hai đầu dày hơn 6px là hai đầu thành vuông. `min-height`/`min-width` giữ thumb đủ dài để kéo khi nội dung dài. */
+  border: 2px solid transparent;
   background-clip: content-box;
+  min-height: 40px;
+  min-width: 40px;
 }
 .ff-scroll:hover::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--color-on-surface) 18%, transparent);

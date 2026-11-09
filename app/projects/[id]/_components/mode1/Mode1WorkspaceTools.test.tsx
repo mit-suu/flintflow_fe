@@ -87,7 +87,8 @@ describe("Mode1WorkspaceTools", () => {
     const nav = screen.getByRole("navigation", { name: "Import & change request" });
     expect(within(nav).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
     expect(within(nav).getByRole("link", { name: "Change request" })).toHaveAttribute("href", `/projects/${P}?panel=cr`);
-    expect(within(nav).getByRole("link", { name: "Nhập SRS" })).toHaveAttribute("href", `/projects/${P}/import`);
+    // Lối tải phiên bản mới chỉ còn nút re-upload ở thanh trên — không còn link "Nhập SRS"
+    expect(within(nav).queryByRole("link", { name: "Nhập SRS" })).not.toBeInTheDocument();
   });
 
   it("hiện cờ + gói thay đổi (FLF-330) + bảng version; không còn kế hoạch step, ký baseline v1, Release riêng của bảng version", async () => {
@@ -153,11 +154,11 @@ describe("Mode1WorkspaceTools — Viewer (readOnly)", () => {
 });
 
 describe("Mode1WorkspaceTools — Analyst (không phải Lead)", () => {
-  it("vẫn có Nhập SRS nhưng không có Release (chỉ Lead release)", async () => {
+  it("không có Release (chỉ Lead release)", async () => {
     serveVersions([VERSION_00]);
     renderTools({ canRelease: false });
     const nav = screen.getByRole("navigation", { name: "Import & change request" });
-    expect(within(nav).getByRole("link", { name: "Nhập SRS" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Gap report" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
   });

@@ -762,15 +762,57 @@
       "language": {
         "label": "Document language",
         "vi": "Vietnamese",
-        "en": "English",
-        "importHint": "The document language follows the uploaded file."
+        "en": "English"
       },
-      "pickMode": "Pick a way to start above to continue.",
       "submitting": "Creating…",
       "submit": "Start",
       "missingProject": "The new project was not returned",
       "failed": "Could not create the project",
-      "answerTemplate": "Tell us whether the customer requires a template to continue."
+      "srs": {
+        "label": "SRS",
+        "hint": "A .docx file FlintFlow will edit and complete — a blank customer template works too. Skip if you have none.",
+        "dropHint": ".docx · up to 40 MB",
+        "change": "Change",
+        "remove": "Remove {name}",
+        "notDocx": "The SRS slot only accepts .docx files.",
+        "tooLarge": "The SRS file is larger than 40 MB. Compress the pictures in Word and choose it again.",
+        "orgTemplateChosen": "Organization template: {name}",
+        "completeToStandard": "Add the missing sections from the FlintFlow standard template",
+        "completeInfoLabel": "Explain this option",
+        "completeInfo": "By default FlintFlow keeps exactly the sections of your file so you can keep editing it. Tick this if you want FlintFlow to also draft the sections missing from the FlintFlow standard template (introduction, use cases, screens, non-functional requirements…)."
+      },
+      "references": {
+        "label": "Reference documents",
+        "hint": "Meeting notes, emails, customer requests… for FlintFlow to rely on. You can add more later in chat.",
+        "dropHint": ".docx, .pdf, .doc, .md, .txt · up to 10 MB each",
+        "remove": "Remove {name}",
+        "checking": "Checking file…",
+        "rejected": "Not added: {files} — only .docx, .pdf, .doc, .md, .txt up to 10 MB.",
+        "suggest": {
+          "looksLikeSrs": "This file looks like an SRS. Do you want FlintFlow to edit and complete it?",
+          "otherVersion": "This file looks like another SRS version. If it is an older copy of the file in the SRS slot, remove it to avoid mixing content.",
+          "moveToSrs": "Move to the SRS slot",
+          "keep": "Keep as reference",
+          "drop": "Remove this file"
+        }
+      },
+      "slots": {
+        "drop": "Drag a file here or click to choose",
+        "addMore": "Add files"
+      },
+      "orgTemplates": {
+        "toggle": "Or pick an organization template ({count})",
+        "title": "Saved organization templates",
+        "meta": "{file} · {headings} headings · used {uses} times",
+        "use": "Use this template"
+      },
+      "stage": {
+        "creating": "Creating the project…"
+      },
+      "outcome": {
+        "withSrs": "FlintFlow reads the file outline first — no credits used yet.",
+        "noSrs": "FlintFlow asks you step by step to draft a new SRS."
+      }
     },
     "projectDialogs": {
       "archive": {
@@ -1144,26 +1186,6 @@
           "cancel": "Cancel"
         }
       }
-    },
-    "projectStart": {
-      "groupLabel": "Where are you starting from?",
-      "new": {
-        "label": "New project",
-        "description": "No SRS yet. FlintFlow takes you from the idea to a complete SRS on the FlintFlow standard template — or on a template the customer requires."
-      },
-      "existing": {
-        "label": "Existing project",
-        "description": "You already have an SRS file in use (.docx). FlintFlow reads it, finds the gaps, helps complete it and tracks edits as change requests.",
-        "hint": "When you upload the file, FlintFlow asks whether it follows a fixed template or a free structure, then picks the right way of working."
-      },
-      "requiredTemplate": {
-        "question": "Does the customer require a specific template?",
-        "yes": "Yes",
-        "no": "No",
-        "hint": "Pick one to continue.",
-        "yesHint": "You will upload the template file (blank, with instructions or examples); FlintFlow drafts every section of the template, in its order.",
-        "noHint": "Drafted on the FlintFlow standard template, starting from an idea / notes."
-      }
     }
   },
   "workspace": {
@@ -1500,6 +1522,8 @@
       "redrawing": "Drawing…",
       "redraw": "Redraw diagram",
       "diagramLoadFailed": "Could not load the diagram image.",
+      "mediaNotEmbedded": "The original image could not be embedded (unsupported format).",
+      "mediaLoadFailed": "Could not load the image.",
       "diagramNotDrawn": "Diagram could not be drawn",
       "diagramNotDrawnHint": "Retry to redraw this diagram from the current data.",
       "diagramNotDrawnReadOnly": "The diagram will appear once it is redrawn successfully.",
@@ -1510,6 +1534,8 @@
       "emptyRunStep": "No content yet — run step {stepId} · {label}",
       "openStep": "Open step",
       "customTitle": "Section outside the FlintFlow standard template — kept verbatim from the uploaded file, edit via chat",
+      "templateSection": "Template section",
+      "templateSectionTitle": "A section of your uploaded template — printed at its place with its heading, edited through chat",
       "custom": "Custom section",
       "issuesTitle": "See this section's issues",
       "issuesAria": "See {count, plural, one {# issue} other {# issues}} in this section",
@@ -1692,6 +1718,7 @@
       "loading": "Loading document info…",
       "version": "Version",
       "redCount": "Red flags to be printed in §I",
+      "redOpenCount": "Open red flags",
       "downloadFailed": "Download failed",
       "downloading": "Downloading…",
       "downloadDraft": "Download draft ({extension})",
@@ -2572,6 +2599,200 @@
       "many": "Use organization content for {count} empty sections",
       "saved": "Saved to your organization's library",
       "saveFailed": "Could not save to the library. Please try again."
+    },
+    "import": {
+      "loading": "Loading the project file…",
+      "opening": "Opening the project…",
+      "closeError": "Dismiss error",
+      "parsing": "FlintFlow is reading the document outline…",
+      "badge": {
+        "upload": "No SRS file yet",
+        "ready": "Ready to start",
+        "reading": "Reading the file",
+        "incomplete": "Sections missing",
+        "rejected": "File not accepted"
+      },
+      "upload": {
+        "title": "Upload the SRS file (.docx)",
+        "again": "Upload the fixed file",
+        "cancel": "Keep the current file"
+      },
+      "preview": {
+        "pickAnother": "Choose another file",
+        "summary": {
+          "written": "Written SRS · {present}/{total} sections have content",
+          "template": "Template outline · {present}/{total} sections have content",
+          "writtenFull": "Written SRS · complete outline",
+          "templateFull": "Template · complete outline",
+          "legacy": "Ready to read the file"
+        },
+        "next": {
+          "mode1": "The file has the full outline. Press Start and FlintFlow reads the content and creates the original version 0.1 — then you edit the document in chat.",
+          "mode3": "{missing} sections are empty. FlintFlow reads what is there, then drafts the missing sections with you; the credits for drafting are shown after you approve the Brief.",
+          "mode4": "{missing} sections are missing compared with the FlintFlow standard template. After reading, only the DRAFT and the gap report can be downloaded for now."
+        },
+        "gapReport": "Download gap report",
+        "stats": {
+          "withContent": "sections with content",
+          "missing": "{count} empty",
+          "outOfScope": "{count} out of scope"
+        },
+        "credit": {
+          "estimate": "About <strong>{credits} credits</strong>",
+          "none": "Reading this file costs no credits",
+          "unknown": "The credit estimate is not available yet",
+          "balance": "you have {balance}",
+          "short": "Not enough credits to read the whole file.",
+          "topUp": "Top up credits"
+        },
+        "start": "Start",
+        "starting": "Starting…",
+        "unsureKind": "FlintFlow is not sure this is an SRS document. You can still start — check the sections below carefully, or choose another file."
+      },
+      "progress": {
+        "title": "FlintFlow is reading the file",
+        "canLeave": "You can leave this page — FlintFlow keeps reading and saves the result.",
+        "pausedTitle": "Reading is paused",
+        "pause": {
+          "credits": {
+            "title": "{phase} paused — out of credits",
+            "body": "Finished parts are kept. Top up, then press Continue.",
+            "topUp": "Top up credits"
+          },
+          "interrupted": {
+            "title": "{phase} was interrupted",
+            "body": "The server restarted or hit a temporary error. What was read is kept — press Continue to run this step again."
+          },
+          "ai": {
+            "title": "{phase} paused — AI error",
+            "body": "The AI is failing or overloaded and retries did not help. Finished parts are kept — press Continue to go on."
+          }
+        },
+        "stop": {
+          "label": "Stop reading",
+          "busy": "Stopping…",
+          "hint": "Sections already read are kept; no more credits are used."
+        },
+        "stopped": {
+          "title": "Reading stopped",
+          "body": "{done}/{total} sections read — kept as is, no more credits used. Continue to read the rest from where it stopped.",
+          "resume": "Continue",
+          "resuming": "Continuing…"
+        },
+        "documentLabel": "Your document",
+        "noSections": "Preparing the section list…",
+        "readCount": "sections read",
+        "row": {
+          "done": "Read",
+          "active": "Reading",
+          "todo": "Waiting",
+          "failed": "Failed"
+        },
+        "phaseHint": {
+          "read": "Extract the content of each section",
+          "build": "Assemble baseline 0.1",
+          "check": "Check for gaps and conflicts"
+        },
+        "phasesLabel": "Reading steps",
+        "phase": {
+          "read": "Read the content",
+          "build": "Build the document",
+          "check": "Check"
+        },
+        "sections": "{done}/{total} sections",
+        "state": {
+          "done": "done",
+          "active": "in progress",
+          "todo": "not started"
+        },
+        "reread": {
+          "images": "AI is overloaded — re-reading image {done}/{total}",
+          "text": "AI is overloaded — re-reading the text ({done}/{total} calls)"
+        }
+      },
+      "legacy": {
+        "fieldsReview": "This file reading stopped halfway in an earlier version. Press Continue to let FlintFlow finish it.",
+        "continue": "Continue"
+      },
+      "outcome": {
+        "mode3": {
+          "title": "The file is missing {missing} sections",
+          "body": "FlintFlow keeps the sections you wrote and drafts the missing ones with you in the workspace.",
+          "draft": "Draft the missing sections"
+        },
+        "mode4": {
+          "title": "The file is missing {missing} sections compared with the FlintFlow standard template",
+          "body": "For now only the DRAFT and the gap report can be downloaded.",
+          "draft": "Download the DRAFT",
+          "gapReport": "Download gap report"
+        }
+      },
+      "saveToOrg": {
+        "help": "Save this template file for your organization — later projects pick it in the SRS slot when created, and FlintFlow already knows its sections.",
+        "nameLabel": "Template name",
+        "action": "Save as organization template",
+        "saving": "Saving…",
+        "saved": "Saved. New projects in your organization will see this template in the SRS slot when created.",
+        "failed": "Could not save the template. Please try again."
+      },
+      "creating": {
+        "title": "Preparing your project",
+        "hint": "Your file is being uploaded and its outline read right now — no credits yet. FlintFlow opens the structure preview when it is done.",
+        "project": "Create the project",
+        "srs": "Upload the SRS file and read its outline",
+        "references": "Reference documents {done}/{total}",
+        "preview": "Open the structure preview",
+        "retry": "Retry",
+        "pickAnother": "Choose another file",
+        "fileFailed": "Could not upload {name}"
+      },
+      "absorb": {
+        "documentLabel": "Your document",
+        "storeLabel": "What FlintFlow understands",
+        "showAll": "Show all sections",
+        "skip": "Skip animation",
+        "replay": "Replay",
+        "hint": "Hover a box to see which sections of your file flow into it; click to filter.",
+        "status": {
+          "present": "Present",
+          "missing": "Empty",
+          "out_of_scope": "Out of scope"
+        },
+        "bins": {
+          "overview": "Overview",
+          "actors": "Actors",
+          "usecases": "Use cases",
+          "screens": "Screens",
+          "permissions": "Permissions",
+          "functions": "Functions",
+          "entities": "Entities",
+          "nfr": "Non-functional",
+          "rules": "Business rules",
+          "messages": "Messages",
+          "common": "Common requirements & glossary",
+          "verbatim": "Kept as written"
+        },
+        "binCount": "{count} sections",
+        "binMissing": "{count} sections · empty — will be drafted",
+        "binVerbatim": "{count} sections of your own",
+        "binEmpty": "Not in the file — will be drafted",
+        "reading": "Reading the document structure",
+        "readingTitle": "Reading the document structure…",
+        "readingHint": "FlintFlow reads the outline of your file to see which sections are there — no credits used yet.",
+        "readingBin": "Reading…"
+      }
+    },
+    "srsAttachment": {
+      "question": "“{name}” looks like an SRS. Is it a new version of the document?",
+      "stampHint": "This file was downloaded from this project.",
+      "update": "Update to the new version",
+      "keep": "Use as reference"
+    },
+    "structureChanges": {
+      "nowEmpty": "After reading in detail, {count, plural, one {section {names} is actually empty} other {sections {names} are actually empty}} — added to the sections to draft / complete.",
+      "nowFilled": "After reading in detail, {count, plural, one {section {names} already has content} other {sections {names} already have content}} — nothing to draft there.",
+      "other": "After reading in detail, {count, plural, one {section {names} differs} other {sections {names} differ}} from the structure preview.",
+      "dismiss": "Dismiss"
     }
   },
   "errors": {
@@ -2975,7 +3196,7 @@
         "impact": "Finding the related parts of the document…",
         "propose": "AI is drafting the proposed edits…",
         "verify": "Checking the proposals…",
-        "submit": "Sending to the Lead…",
+        "submit": "Writing to the draft…",
         "revise": "Locking again for revision…",
         "resume": "Resuming…",
         "amend": "Merging the edit into the change request…",
@@ -2990,6 +3211,17 @@
         "label": "Changes approved in the preview",
         "intro": "Exactly the changes you approved in the preview — no need to review each part again. Open an item to see the details.",
         "busy": "Preparing the changes you approved…"
+      },
+      "batch": {
+        "listAria": "Proposal list",
+        "more": "(+{count} fields)",
+        "expand": "Open details of {title}",
+        "collapse": "Collapse {title}",
+        "detailAria": "Proposal details {id}",
+        "ownAria": "Needs your separate review",
+        "ownTitle": "⚠ Needs your separate review ({count})",
+        "acceptAll": "Accept all ({count})",
+        "perRowHint": "Redo / drop a part: click ▸"
       },
       "requester": {
         "step": "Open a change request",
@@ -3073,7 +3305,7 @@
       "proposeNow": "Continue — AI proposes edits",
       "proposeStep": "③ Proposed edits — {settled}/{total} settled",
       "proposeLabel": "Proposed edits",
-      "proposeHint": "Go through each part: accept, redo it your way, or drop it. Once all are settled, the system checks them automatically.",
+      "proposeHint": "Accept every part that passed the checks at once with \"Accept all\"; click ▸ to view, redo or drop a part. Once all are settled, the system checks them automatically.",
       "proposeNone": "AI found no part that needs editing. Open the list below to bring back any part you still want to edit.",
       "manualStep": "④ Check — needs your action",
       "manualLabel": "Needs fixing",
@@ -3377,26 +3609,6 @@
     "crPages": {
       "opening": "Opening change request"
     },
-    "extractProgress": {
-      "title": "Extract fields by section",
-      "hint": "Tables with all matching columns are extracted deterministically (no credit cost); prose is extracted by AI, each run reserves credit up front and settles afterwards. You can leave this page — extraction keeps running on the server.",
-      "credits": "Available credit: {credits}",
-      "pausedWhat": "Field extraction",
-      "ready": "Mapping locked — {total, plural, =0 {the sections are} one {# section is} other {# sections are}} ready to extract.",
-      "starting": "Starting…",
-      "start": "Start extraction (AI)",
-      "runningSection": "Extracting {section}…",
-      "running": "Extracting…",
-      "stopped": "Stopped",
-      "progress": "{done}/{total} sections",
-      "status": {
-        "pending": "Pending",
-        "done": "Done",
-        "failed": "Failed"
-      },
-      "fields": "{count, plural, one {# field} other {# fields}}",
-      "needsReview": "{count} to review"
-    },
     "gapReport": {
       "redFlag": "Red flag",
       "yellowFlag": "Yellow flag",
@@ -3411,7 +3623,7 @@
       "tileYellow": "Yellow flags",
       "tileLowConfidence": "Uncertain data",
       "nextTitle": "Next step",
-      "nextBody": "Nothing to fix ⇒ download the report to send (done). Need fixes or want to add sections ⇒ create a change request (source: gap report).",
+      "nextBody": "Nothing to fix ⇒ download the report to send (done). Need fixes or to fill empty sections ⇒ create a change request (source: gap report).",
       "downloading": "Downloading…",
       "download": "Download gap report (.docx)",
       "createCr": "Needs fixes → Create change request",
@@ -3427,16 +3639,16 @@
         "uploaded": "Uploaded",
         "preflight_rejected": "File rejected",
         "awaiting_latest_confirm": "Awaiting latest-version confirmation",
-        "parsing": "Splitting into blocks",
-        "mapping_review": "Awaiting mapping confirmation",
-        "extracting": "Extracting fields",
-        "fields_review": "Awaiting field confirmation",
-        "baselining": "Ready to create baseline",
+        "parsing": "Reading the outline",
+        "mapping_review": "Ready to start",
+        "extracting": "Reading the content",
+        "fields_review": "Waiting to continue",
+        "baselining": "Building the document",
         "checking": "Checking",
         "gap_review": "Ready for change requests",
         "delivered": "Ready for change requests",
         "change_requested": "Editing via change request",
-        "incomplete": "Incomplete — your call",
+        "incomplete": "Sections missing",
         "drafting": "Writing the missing parts"
       },
       "crStatus": {
@@ -3633,7 +3845,9 @@
         "op_not_allowed": "Operation not allowed",
         "op_out_of_scope": "Edit outside the allowed scope",
         "conflict": "Conflicts with another change",
-        "import_needs_review": "Needs review"
+        "import_needs_review": "Needs review",
+        "template_section_absent": "The template has no such section",
+        "template_section_empty": "Template section is empty"
       },
       "violations": {
         "schema_invalid": "The AI proposed editing a place that does not exist in the document.",
@@ -3784,78 +3998,6 @@
         "CR_NOTHING_TO_APPROVE": "Every location is \"not related\", so there is nothing to approve. Change the conclusion of a location that needs editing (\"Edit manually\" button), or cancel the change request."
       }
     },
-    "importWizard": {
-      "loading": "Loading import status",
-      "stepsAria": "Import steps",
-      "steps": {
-        "upload": "Upload",
-        "start": "Credits & start",
-        "run": "Read file & baseline",
-        "runTemplate": "Read template"
-      },
-      "closeError": "Close error message",
-      "detectedLanguage": "Document language: <strong>{language}</strong> (detected from the file)",
-      "uploadFixed": "Upload the corrected file",
-      "unknownKindNote": "FlintFlow is not sure this file is an SRS: few familiar sections (Use Case, Requirements…). It can still be read, but review the extraction carefully at the confirmation step before moving on.",
-      "formatNote": "FlintFlow does not modify your file: the document is read and reprinted in the same order and with the same section headings as the original, but <b>Word formatting is not kept</b> (fonts, styles, header/footer, logo). Readable diagrams are redrawn; missing FlintFlow standard template sections are added. The original file can always be downloaded again.",
-      "parsing": "Splitting the document into blocks…",
-      "reload": "Reload",
-      "done": {
-        "body": "Import complete — the document is now version <strong>0.1</strong>. Every change goes through a change request; uncertain readings are flagged <strong>Needs review</strong>.",
-        "gapReport": "View gap report",
-        "openChat": "Open chat"
-      },
-      "languageVi": "Vietnamese",
-      "languageEn": "English",
-      "intent": {
-        "question": "Which structure does this file follow?",
-        "free": {
-          "label": "Free structure",
-          "description": "No particular template. FlintFlow compares it with the FlintFlow standard template: complete ⇒ edit via change requests, incomplete ⇒ fill the gaps and reorder."
-        },
-        "fixed": {
-          "label": "A fixed template",
-          "description": "The customer's or your company's template. FlintFlow drafts only the sections the template has, adds nothing and keeps the order."
-        }
-      },
-      "uploadTemplate": "Upload the required template (.docx)",
-      "uploadTemplateHint": "The Word .docx template the customer requires — blank, with instructions or examples. FlintFlow drafts every section of the template and keeps their order.",
-      "orgTemplates": {
-        "title": "Or use a template saved by your organization",
-        "help": "Import from the saved template file itself; the heading mapping confirmed in an earlier project is applied.",
-        "meta": "{file} · {headings} headings · used {uses} times",
-        "use": "Use this template"
-      },
-      "saveToOrg": {
-        "help": "Save this template file and the heading mapping you just confirmed for your organization — later projects pick it at the upload step without mapping again.",
-        "nameLabel": "Template name",
-        "action": "Save as organization template",
-        "saving": "Saving…",
-        "saved": "Saved. New projects in your organization will see this template at the upload step.",
-        "failed": "Could not save the template. Please try again."
-      },
-      "start": {
-        "title": "Ready to read the document",
-        "body": "Click Start once: FlintFlow reads the file, creates baseline <strong>0.1</strong>, runs the checks and opens the change-request page. Uncertain readings are still added to the baseline and flagged <strong>Needs review</strong> for you to check.",
-        "latest": "This is the latest version of the document — from now on every change goes through a change request.",
-        "pickAnother": "Choose another file",
-        "start": "Start",
-        "starting": "Starting…",
-        "shortHint": "Your balance does not cover this estimate — top up credits, then click Start.",
-        "topUp": "Top up credits"
-      },
-      "run": {
-        "extracting": "Reading the file…",
-        "baselining": "Creating baseline 0.1 (writing data, drawing diagrams)…",
-        "checking": "Baseline 0.1 created, now checking (AI + rules)…",
-        "hint": "Large documents can take a few minutes — you can leave this page, the work keeps running. The change-request page opens when it is done.",
-        "pausedWhat": "Reading the file and creating the baseline",
-        "interrupted": "Interrupted — the unfinished part has been rolled back. Click Continue to run it again.",
-        "legacy": "This import stopped at an old step (confirming data). Click Continue to create baseline 0.1 and run the checks — low-confidence items will be flagged Needs review.",
-        "continue": "Continue",
-        "pausedWhatTemplate": "Reading the template"
-      }
-    },
     "flagsPanel": {
       "intro": "The document has been imported — every change goes through a change request (created from the gap report, the “Edit document with preview” panel or an edit command in chat). Release is possible once there are no red flags.",
       "redAria": "Red flags blocking release",
@@ -3864,25 +4006,9 @@
       "prefillTitle": "Resolve flag: {message}",
       "prefillSection": "section {section}",
       "createCr": "Create CR",
-      "yellowNote": "{count, plural, one {# yellow flag} other {# yellow flags}} — not blocking release, see the gap report or the Verification panel."
-    },
-    "shell": {
-      "projects": "Projects",
-      "loading": "Loading…",
-      "modeBadge": "Existing SRS upload",
-      "modeBadgeTemplate": "Mandatory template",
-      "templateStatus": {
-        "parsing": "Reading template",
-        "extracting": "Reading template",
-        "incomplete": "Waiting to write missing sections"
-      },
-      "credits": "{credits} credits",
-      "needsBaseline": "Finish the import (baseline 0.1) first",
-      "tabs": {
-        "import": "Import SRS",
-        "document": "Document & versions",
-        "importTemplate": "Template"
-      }
+      "yellowNote": "{count, plural, one {# yellow flag} other {# yellow flags}} — not blocking release, see the gap report.",
+      "emptyTemplateAria": "Empty template sections",
+      "emptyTemplateTitle": "Empty template sections ({count})"
     },
     "popup": {
       "loadingVersions": "Loading versions…",
@@ -3897,8 +4023,7 @@
       "flagsTitle": "Flags & change requests",
       "navAria": "Import & change requests",
       "gapReport": "Gap report",
-      "changeRequest": "Change requests",
-      "importSrs": "Import SRS"
+      "changeRequest": "Change requests"
     },
     "reviewPackage": {
       "aria": "Change package awaiting review",
@@ -3915,6 +4040,8 @@
       "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
       "listAria": "Change requests in the package",
       "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
+      "blockedEditing": "{crId} is still being edited in the chat — write it to the draft before submitting or releasing.",
+      "blockedEditingNew": "A change request is being prepared in the chat — write it to the draft before submitting or releasing.",
       "blockedEmpty": "No change request to submit yet.",
       "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open — resolve via change requests before submitting to the Lead.",
       "submit": "Submit whole package to Lead",
@@ -3929,14 +4056,6 @@
       "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable — if something is wrong, release a new version.",
       "releasing": "Releasing…",
       "confirmRelease": "Confirm release"
-    },
-    "creditEstimate": {
-      "none": "Estimate: no AI runs needed — the rest is extracted deterministically at no credit cost.",
-      "estimate": "{remaining, select, yes {Estimate for the remainder} other {Estimated cost}}: <strong>~{calls} AI runs</strong>, <strong>~{credits} credits</strong>",
-      "balance": "(balance: {balance})",
-      "breakdown": "{text} text batches + {images} diagram images",
-      "short": "Balance too low: extraction will pause when credit runs out. Top up, then click Continue — finished parts are not charged again.",
-      "breakdownWithChecks": "{text} text batches + {images} diagram images + {checks} check calls"
     },
     "paused": {
       "title": "{what} is paused — {reason, select, credits {out of credit} interrupted {it was interrupted} other {AI failed after 2 retries}}",
@@ -3988,7 +4107,7 @@
       "prefillRef": "Re-uploaded file {name}",
       "failed": "Could not compare the file",
       "title": "Upload a copy edited outside FlintFlow",
-      "hint": "Compared block by block with the latest version; no new version is created. To apply the changes, create a change request from the differences.",
+      "hint": "Compared paragraph by paragraph with the latest version; no new version is created. To apply the changes, create a change request from the differences.",
       "summary": "<name></name> against version {version} ({at}): <summary></summary>",
       "createCr": "Create CR from differences"
     },
@@ -4066,36 +4185,6 @@
       "to": "To",
       "compare": "Compare",
       "pickDifferent": "Pick two different versions."
-    },
-    "readingResult": {
-      "aria": "Reading result",
-      "title": "Reading result",
-      "mapAria": "Section map against the target structure",
-      "mode": {
-        "1": "The file covers the target structure — {present} sections with content.",
-        "3": "The fixed template still has {missing} empty sections out of {present} with content. FlintFlow drafts only the sections the template has, adds nothing and keeps the order.",
-        "4": "The file is missing {missing} sections of the FlintFlow standard template ({present} present). Completing adds the missing sections and reorders the layout, keeping what you have."
-      },
-      "status": {
-        "present": "Present",
-        "missing": "To draft",
-        "out_of_scope": "Out of scope"
-      },
-      "ownerSteps": "step {steps}",
-      "outOfScopeNote": "{count, plural, =1 {1 section} other {# sections}} out of scope stay verbatim and move to the end of the document.",
-      "stopNote": "Stopping here leaves the project incomplete: reopen it later; only DRAFT exports.",
-      "stop": "Stop, download the gap report",
-      "downloading": "Downloading…",
-      "downloadFailed": "Could not download the gap report",
-      "complete": "Complete",
-      "completing": "Creating the baseline…",
-      "template": {
-        "title": "Template reading result",
-        "summary": "The template has {count} sections — FlintFlow drafts all of them, using the template's instructions and examples as hints, with no extra sections and the same order.",
-        "note": "FlintFlow reads the template's instructions and examples, asks you about the project, drafts {count, plural, =1 {1 section} other {# sections}} of the template for your review, then signs baseline 1.0 in the template layout.",
-        "action": "Write with FlintFlow",
-        "starting": "Switching to drafting…"
-      }
     },
     "referenceDocs": {
       "aria": "Reference documents",

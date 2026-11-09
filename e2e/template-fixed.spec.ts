@@ -104,8 +104,7 @@ test("mẫu bắt buộc: Luồng 1 → Luồng 2 cho phần còn thiếu", asyn
   await expect(reading.getByText(/Mẫu có \d+ mục — FlintFlow soạn toàn bộ/)).toBeVisible();
   await expect(reading.getByText("Có", { exact: true })).toHaveCount(0);
   // Dự án mới theo mẫu bắt buộc: không khoá mẫu còn trống thành bản gốc, không gap report
-  await expect(reading.getByRole("button", { name: "Hoàn thiện" })).toHaveCount(0);
-  await expect(reading.getByRole("button", { name: "Dừng, tải gap report" })).toHaveCount(0);
+  await expect(reading.getByRole("button", { name: "Tiếp tục sửa với FlintFlow" })).toHaveCount(0);
   await expect(reading.getByText("Sẽ soạn").first()).toBeVisible();
   console.log(`[e2e] kết quả đọc:\n${await reading.innerText()}`);
   await snap(page, "reading-result");

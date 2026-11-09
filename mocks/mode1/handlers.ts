@@ -118,7 +118,8 @@ const reviewPackage = () => {
     base_version: base,
     latest_version: latest,
     next_version: latest ? nextMajor(latest) : null,
-    draft_label: ids.length ? `${base ?? "v0"} · ${ids.length} thay đổi chưa duyệt` : (base ?? "v0"),
+    // Như BE: chưa phát hành bản nào ⇒ nhãn cho người đọc là "Bản gốc 0.1" (`base_version` vẫn mã v0)
+    draft_label: ids.length ? `${base && base !== "v0" ? base : "Bản gốc 0.1"} · ${ids.length} thay đổi chưa duyệt` : base && base !== "v0" ? base : "Bản gốc 0.1",
     change_requests: ids.map((id) => {
       const c = S().crs.get(id)!.change_request;
       return { cr_id: c.cr_id, title: c.title, requester: c.requester, source: { kind: c.source.kind, ref: c.source.ref ?? null }, result_doc_version: c.result_doc_version, written_at: now() };
@@ -691,10 +692,12 @@ export const mode1Handlers = [
       const form = await request.formData();
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
-      // FLF-335: ý định lúc upload (fixed / free); thiếu ⇒ free; dự án có mẫu bắt buộc luôn fixed
+      // FLF-335: ý định lúc upload (fixed / free); thiếu ⇒ free; chỉ dự án mới có mẫu bắt buộc luôn fixed (như BE
+      // `import.service#uploadImport`) — dự án có sẵn lấy đúng ý định của lần upload
       const intentRaw = form.get("intent");
       if (intentRaw !== null && intentRaw !== "fixed" && intentRaw !== "free") return fail(400, "VALIDATION_ERROR", "intent phải là fixed hoặc free");
-      const intent: TemplateIntent = S().project.template_intent === "fixed" ? "fixed" : intentRaw === "fixed" ? "fixed" : "free";
+      const locked = S().project.template_intent === "fixed" && S().project.start_kind === "new";
+      const intent: TemplateIntent = locked || intentRaw === "fixed" ? "fixed" : "free";
       S().project.template_intent = intent;
       const name = file.name;
       if (/other-project/i.test(name)) {

@@ -30,6 +30,8 @@ interface Mode1WorkspaceToolsProps {
   documentLanguage?: DocumentLanguage | null;
   /** Mở hộp dịch sang `locale` cho snapshot của `version` (tải theo ngôn ngữ khác còn mục chưa dịch); bỏ trống ⇒ không mời dịch. */
   onTranslate?: (locale: DocumentLanguage, version: string) => void;
+  /** Change request đang soạn ở khung chat (chưa ghi bản nháp) — khoá gửi duyệt / phát hành (xem `ReviewPackagePanel`). */
+  crInProgress?: string | null;
 }
 
 /**
@@ -47,6 +49,7 @@ export default function Mode1WorkspaceTools({
   refreshToken = 0,
   documentLanguage = null,
   onTranslate,
+  crInProgress = null,
 }: Mode1WorkspaceToolsProps) {
   const t = useTranslations("mode1.workspaceTools");
   const docs = useDocVersions(projectId, { refreshToken });
@@ -66,11 +69,6 @@ export default function Mode1WorkspaceTools({
         <Link href={crListHref(projectId)} scroll={false} className={link}>
           {t("changeRequest")}
         </Link>
-        {!readOnly && (
-          <Link href={`/projects/${projectId}/import`} className={link}>
-            {t("importSrs")}
-          </Link>
-        )}
       </nav>
 
       {/* FLF-337: thay đổi AI tự qua (CR tự ghi ở mức "Chỉ ở mốc chốt") chưa xem — nhắc trước khi gửi gói / phát hành */}
@@ -80,6 +78,7 @@ export default function Mode1WorkspaceTools({
         projectId={projectId}
         refreshToken={refreshToken}
         role={readOnly ? "viewer" : orgRole}
+        crInProgress={crInProgress}
         onChanged={() => {
           void docs.reload();
           onSpineChanged();

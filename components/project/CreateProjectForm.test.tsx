@@ -1,124 +1,145 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createProjectFrom } from "@/lib/api/projects";
+import { precheckDocx, uploadProjectDocument } from "@/lib/api/documents";
+import { uploadImport } from "@/lib/api/import";
 import { MESSAGES, renderWithIntl } from "@/test/intl";
 import CreateProjectForm from "./CreateProjectForm";
 
 const DEFAULT_PROJECT_NAME = MESSAGES.vi.app.createProject.defaultName;
 
 vi.mock("@/lib/api/projects", () => ({ createProjectFrom: vi.fn() }));
+vi.mock("@/lib/api/documents", () => ({ precheckDocx: vi.fn(), uploadProjectDocument: vi.fn() }));
+vi.mock("@/lib/api/import", () => ({ uploadImport: vi.fn() }));
+vi.mock("@/lib/api/org-library", () => ({ importFromOrgTemplate: vi.fn(), listOrgTemplates: vi.fn(async () => []) }));
 
 const submit = () => screen.getByRole("button", { name: /Bắt đầu|Đang tạo/ });
-const pickNew = (required: boolean) => {
-  fireEvent.click(screen.getByRole("radio", { name: /Dự án mới/ }));
-  fireEvent.click(screen.getByRole("radio", { name: required ? "Có" : "Không" }));
-};
+const docx = (name: string) => new File(["PK"], name, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+const srsInput = () => document.querySelector<HTMLInputElement>('input[type="file"][accept=".docx"]')!;
+const refInput = () => document.querySelector<HTMLInputElement>('input[type="file"][multiple]')!;
+const created = { data: { _id: "p1", mode: "import" }, error: null } as never;
 
-describe("CreateProjectForm (UC-13/14, FLF-335 — Dự án mới / Dự án có sẵn)", () => {
-  beforeEach(() => {
-    vi.mocked(createProjectFrom).mockReset();
-  });
+beforeEach(() => {
+  vi.mocked(createProjectFrom).mockReset().mockResolvedValue(created);
+  vi.mocked(uploadImport).mockReset().mockResolvedValue({ data: {}, error: null } as never);
+  vi.mocked(uploadProjectDocument).mockReset().mockResolvedValue({ data: {}, error: null } as never);
+  vi.mocked(precheckDocx).mockReset().mockResolvedValue({ data: { looks_like_srs: false, stamp: null }, error: null } as never);
+});
 
-  it("điền sẵn tên; khoá nút khi chưa chọn hoặc chưa trả lời câu mẫu bắt buộc hoặc tên rỗng", () => {
-    renderWithIntl(<CreateProjectForm variant="inline" onCreated={() => {}} />);
-    const name = screen.getByLabelText("Tên dự án");
-
-    expect(name).toHaveValue(DEFAULT_PROJECT_NAME);
-    expect(submit()).toBeDisabled();
-    expect(screen.getByText("Chọn một cách bắt đầu ở trên để tiếp tục.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("radio", { name: /Dự án mới/ }));
-    expect(submit()).toBeDisabled();
-    expect(screen.getByText(/Cho biết khách có bắt buộc theo mẫu không/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: "Không" }));
-    expect(submit()).toBeEnabled();
-
-    fireEvent.change(name, { target: { value: "   " } });
-    expect(submit()).toBeDisabled();
-  });
-
-  it("Dự án mới · không mẫu ⇒ gửi {name đã trim, source new, has_required_template false, ngôn ngữ} — không gửi mode", async () => {
-    const created = { _id: "p9", name: "Lumen", mode: "fpt" };
-    vi.mocked(createProjectFrom).mockResolvedValue({ data: created, error: null } as never);
-    const onCreated = vi.fn();
-    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
-
-    pickNew(false);
-    fireEvent.change(screen.getByLabelText("Tên dự án"), { target: { value: "  Lumen " } });
-    fireEvent.click(submit());
-
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
-    expect(createProjectFrom).toHaveBeenCalledWith({ name: "Lumen", source: "new", has_required_template: false, documentLanguage: "vi" });
-  });
-
-  it("Dự án mới · có mẫu bắt buộc ⇒ ngôn ngữ theo file (ẩn nhóm ngôn ngữ), has_required_template true", async () => {
-    vi.mocked(createProjectFrom).mockResolvedValue({ data: { _id: "p1", mode: "import" }, error: null } as never);
+describe("CreateProjectForm — hộp Tạo dự án hai ô (business-flow §1)", () => {
+  it("không còn câu hỏi Dự án mới / có sẵn; điền sẵn tên; tên rỗng ⇒ khoá nút", () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
-    pickNew(true);
-    expect(screen.queryByRole("radiogroup", { name: "Ngôn ngữ tài liệu" })).toBeNull();
-    expect(screen.getByText(MESSAGES.vi.app.createProject.language.importHint)).toBeInTheDocument();
-    fireEvent.click(submit());
-    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, source: "new", has_required_template: true }));
-  });
-
-  it("Dự án có sẵn ⇒ không hỏi mẫu, ngôn ngữ theo file, gửi source existing", async () => {
-    vi.mocked(createProjectFrom).mockResolvedValue({ data: { _id: "p1", mode: "import" }, error: null } as never);
-    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
-    fireEvent.click(screen.getByRole("radio", { name: /Dự án có sẵn/ }));
-    expect(screen.queryByRole("radiogroup", { name: /mẫu không/ })).toBeNull();
-    expect(submit()).toBeEnabled();
-    fireEvent.click(submit());
-    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, source: "existing" }));
-  });
-
-  it("lỗi hiện dưới form, giữ nguyên lựa chọn và tên để thử lại", async () => {
-    vi.mocked(createProjectFrom).mockRejectedValue(new Error("Hết hạn phiên"));
-    const onCreated = vi.fn();
-    renderWithIntl(<CreateProjectForm variant="inline" onCreated={onCreated} />);
-
-    pickNew(false);
-    fireEvent.click(submit());
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Hết hạn phiên");
-    expect(screen.getByRole("radio", { name: /Dự án mới/ })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: "Không" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByText(/Dự án có sẵn|Khách có bắt buộc/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Tên dự án")).toHaveValue(DEFAULT_PROJECT_NAME);
     expect(submit()).toBeEnabled();
-    expect(onCreated).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Tên dự án"), { target: { value: "  " } });
+    expect(submit()).toBeDisabled();
+  });
+
+  it("không có SRS ⇒ has_srs_file false + ngôn ngữ; ô chọn Bổ sung không hiện", async () => {
+    const onCreated = vi.fn();
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
+    expect(screen.queryByLabelText(/Bổ sung các mục còn thiếu/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Tên dự án"), { target: { value: "  Lumen  " } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: "Lumen", has_srs_file: false, documentLanguage: "vi" }));
+    expect(uploadImport).not.toHaveBeenCalled();
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ _id: "p1", mode: "import" }));
+  });
+
+  it("có SRS ⇒ ẩn chọn ngôn ngữ, gửi has_srs_file (không tick ⇒ không gửi complete_to_standard) rồi tải file lên /import", async () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    const file = docx("SRS.docx");
+    fireEvent.change(srsInput(), { target: { files: [file] } });
+    expect(screen.getByText("SRS.docx")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: /Ngôn ngữ tài liệu/ })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Bổ sung các mục còn thiếu/)).not.toBeChecked();
+    fireEvent.click(submit());
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: true }));
+    await waitFor(() => expect(uploadImport).toHaveBeenCalledWith("p1", file));
+  });
+
+  it("tick Bổ sung ⇒ complete_to_standard true; ⓘ có chữ giải thích nối vào ô chọn", async () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.change(srsInput(), { target: { files: [docx("SRS.docx")] } });
+    const checkbox = screen.getByLabelText(/Bổ sung các mục còn thiếu/);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(/Mặc định FlintFlow giữ đúng các mục của file/);
+    expect(checkbox).toHaveAccessibleDescription(/Mặc định FlintFlow giữ đúng các mục của file/);
+    fireEvent.click(checkbox);
+    fireEvent.click(submit());
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: true, complete_to_standard: true }));
+  });
+
+  it("ô SRS chỉ nhận .docx", () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.change(srsInput(), { target: { files: [new File(["x"], "SRS.pdf")] } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Ô SRS chỉ nhận file .docx.");
+    expect(screen.queryByText("SRS.pdf")).not.toBeInTheDocument();
+  });
+
+  it("tài liệu tham khảo trông như SRS khi ô SRS trống ⇒ gợi ý; Chuyển sang ô SRS ⇒ file vào ô SRS", async () => {
+    vi.mocked(precheckDocx).mockResolvedValue({ data: { looks_like_srs: true, stamp: null }, error: null } as never);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.change(refInput(), { target: { files: [docx("SRS cu.docx")] } });
+    expect(await screen.findByText(/File này trông như một SRS/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Chuyển sang ô SRS" }));
+    expect(screen.getByLabelText(/Bổ sung các mục còn thiếu/)).toBeInTheDocument();
+    expect(screen.queryByText(/File này trông như một SRS/)).not.toBeInTheDocument();
+  });
+
+  it("có SRS + tham khảo trông như SRS ⇒ cảnh báo bản khác, Giữ làm tham khảo ⇒ ẩn gợi ý; tham khảo tải lên sau khi tạo", async () => {
+    vi.mocked(precheckDocx).mockResolvedValue({ data: { looks_like_srs: true, stamp: null }, error: null } as never);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.change(srsInput(), { target: { files: [docx("SRS.docx")] } });
+    const ref = docx("SRS khac.docx");
+    fireEvent.change(refInput(), { target: { files: [ref] } });
+    expect(await screen.findByText(/trông như một bản SRS khác/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Giữ làm tham khảo" }));
+    expect(screen.queryByText(/trông như một bản SRS khác/)).not.toBeInTheDocument();
+    fireEvent.click(submit());
+    await waitFor(() => expect(uploadProjectDocument).toHaveBeenCalledWith("p1", ref));
+  });
+
+  it("tải tham khảo lỗi không chặn: vào dự án ngay, file tải nền (lỗi báo ở trang dự án)", async () => {
+    vi.mocked(uploadProjectDocument).mockRejectedValue(new Error("network"));
+    const onCreated = vi.fn();
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
+    const ref = new File(["x"], "Bien ban.txt", { type: "text/plain" });
+    fireEvent.change(refInput(), { target: { files: [ref] } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ _id: "p1", mode: "import" }));
+    await waitFor(() => expect(uploadProjectDocument).toHaveBeenCalledWith("p1", ref));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("lỗi tạo dự án ⇒ hiện dưới form, giữ nguyên lựa chọn để thử lại", async () => {
+    vi.mocked(createProjectFrom).mockRejectedValueOnce(new Error("boom"));
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.change(srsInput(), { target: { files: [docx("SRS.docx")] } });
+    fireEvent.click(submit());
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByText("SRS.docx")).toBeInTheDocument();
+    expect(submit()).toBeEnabled();
   });
 
   it("dialog có nút Huỷ gọi onCancel, không tạo gì", () => {
     const onCancel = vi.fn();
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} onCancel={onCancel} />);
     fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
-
-    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalled();
     expect(createProjectFrom).not.toHaveBeenCalled();
   });
-});
 
-describe("CreateProjectForm trong thư mục", () => {
-  it("có folderId ⇒ tạo thẳng trong thư mục (một request)", async () => {
-    vi.mocked(createProjectFrom).mockReset().mockResolvedValue({ data: { _id: "p1", mode: "fpt" }, error: null } as never);
+  it("có folderId ⇒ tạo thẳng trong thư mục", async () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} folderId="f1" />);
-
-    pickNew(false);
-    fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
-
-    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, source: "new", has_required_template: false, folderId: "f1", documentLanguage: "vi" }));
+    fireEvent.click(submit());
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: false, folderId: "f1", documentLanguage: "vi" }));
   });
 });
 
 describe("CreateProjectForm — ngôn ngữ tài liệu (FLF-265)", () => {
-  beforeEach(() => {
-    vi.mocked(createProjectFrom).mockReset().mockResolvedValue({ data: { _id: "p1", mode: "fpt" }, error: null } as never);
-  });
-
-  const languageGroup = () => screen.getByRole("radiogroup", { name: /Ngôn ngữ tài liệu|Document language/ });
-
   it("mặc định theo ngôn ngữ giao diện", () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
-    expect(languageGroup()).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Tiếng Việt" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "false");
   });
@@ -130,15 +151,12 @@ describe("CreateProjectForm — ngôn ngữ tài liệu (FLF-265)", () => {
 
   it("đổi được (chuột lẫn phím mũi tên) và gửi trong request", async () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
-    pickNew(false);
     fireEvent.click(screen.getByRole("radio", { name: "Tiếng Anh" }));
     expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "true");
-
     fireEvent.keyDown(screen.getByRole("radio", { name: "Tiếng Anh" }), { key: "ArrowRight" });
     expect(screen.getByRole("radio", { name: "Tiếng Việt" })).toHaveAttribute("aria-checked", "true");
     fireEvent.keyDown(screen.getByRole("radio", { name: "Tiếng Việt" }), { key: "ArrowLeft" });
-
     fireEvent.click(submit());
-    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, source: "new", has_required_template: false, documentLanguage: "en" }));
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: false, documentLanguage: "en" }));
   });
 });

@@ -1,4 +1,4 @@
-import type { ProjectDocument } from "@/types/document";
+import type { DocxPrecheck, ProjectDocument } from "@/types/document";
 import { apiCall } from "./client";
 
 export const listProjectDocuments = (projectId: string) =>
@@ -7,10 +7,18 @@ export const listProjectDocuments = (projectId: string) =>
 export const uploadProjectDocument = (projectId: string, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
-  return apiCall<ProjectDocument>(`/projects/${projectId}/documents`, {
+  // `precheck`: file trông như SRS (§3.6) — `null` khi BE kiểm lỗi
+  return apiCall<ProjectDocument & { precheck?: DocxPrecheck | null }>(`/projects/${projectId}/documents`, {
     method: "POST",
     body: formData,
   });
+};
+
+/** Hộp Tạo dự án: file ở ô Tài liệu tham khảo có trông như SRS không (không cần dự án, BE không lưu file). */
+export const precheckDocx = (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiCall<DocxPrecheck>("/projects/precheck-docx", { method: "POST", body: formData });
 };
 
 export const deleteProjectDocument = (projectId: string, documentId: string) =>

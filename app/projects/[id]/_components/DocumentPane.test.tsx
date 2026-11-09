@@ -691,6 +691,24 @@ describe("DocumentPane — Nhờ AI soạn mục riêng của mẫu bắt buộc
     expect(screen.queryByRole("button", { name: "Nhờ AI soạn" })).not.toBeInTheDocument();
   });
 
+  it("mẫu cố định (requiredTemplate): mục riêng là 'Mục của mẫu'; mục mẫu trống map vào mục FlintFlow cũng có Nhờ AI soạn", async () => {
+    const mapped = {
+      ...withCustom,
+      sections: [
+        ...withCustom.sections,
+        { id: "fixed:4.1", number: "3.1.2", heading: "Software Interfaces", level: 3, status: null, blocks: [] },
+      ],
+    } as RenderedDocument;
+    getDocument.mockResolvedValueOnce({ data: mapped, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+    const onDraftSection = vi.fn();
+    renderWithIntl(<DocumentPane projectId="p1" onDraftSection={onDraftSection} requiredTemplate />);
+    const buttons = await screen.findAllByRole("button", { name: "Nhờ AI soạn" });
+    fireEvent.click(buttons[buttons.length - 1]);
+    expect(onDraftSection).toHaveBeenLastCalledWith("§3.1.2 Software Interfaces");
+    expect(screen.getAllByText("Mục của mẫu").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Mục riêng")).not.toBeInTheDocument();
+  });
+
   it("mục riêng chỉ có chữ hướng dẫn của mẫu vẫn là mục trống: có Nhờ AI soạn, không có Lưu vào thư viện", async () => {
     const guidanceOnly = {
       ...withCustom,
@@ -850,6 +868,45 @@ describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
     renderWithIntl(<DocumentPane projectId="p1" />);
     expect(await screen.findByText(/Không tìm thấy ảnh|Không tải được hình sơ đồ/)).toBeInTheDocument();
     expect(getDocument).toHaveBeenCalledTimes(1);
+  });
+
+  const MEDIA = "image-ref:media:word%2Fmedia%2Fimage1.png@0123456789abcdef";
+  const NOT_EMBEDDED = "Không nhúng được ảnh gốc (định dạng không hỗ trợ).";
+
+  it("ảnh gốc media 415 MEDIA_NOT_EMBEDDABLE ⇒ khung giữ chỗ 'định dạng không hỗ trợ', không nút thử lại; caption vẫn hiện", async () => {
+    getDocument.mockResolvedValue({ data: withImage(MEDIA), error: null, meta });
+    fetchImage.mockRejectedValue(new ApiClientError(415, "MEDIA_NOT_EMBEDDABLE", NOT_EMBEDDED));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByText(NOT_EMBEDDED)).toBeInTheDocument();
+    expect(screen.queryByText("Không tải được ảnh.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Thử lại" })).toBeNull();
+    expect(screen.getByText("ERD")).toBeInTheDocument();
+    expect(getDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["404 (không còn trong tài liệu)", new ApiClientError(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh này trong tài liệu.")],
+    ["503 (storage tạm hỏng)", new ApiClientError(503, "IMAGE_UNAVAILABLE", "Tạm thời không tải được ảnh — thử lại sau.")],
+    ["mạng", new TypeError("Failed to fetch")]
+  ])("ảnh gốc media lỗi %s ⇒ câu trung tính + Thử lại, không nói 'định dạng không hỗ trợ'", async (_label, err) => {
+    getDocument.mockResolvedValue({ data: withImage(MEDIA), error: null, meta });
+    fetchImage.mockRejectedValue(err);
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByText("Không tải được ảnh.")).toBeInTheDocument();
+    expect(screen.queryByText(NOT_EMBEDDED)).toBeNull();
+    expect(screen.getByRole("button", { name: "Thử lại" })).toBeInTheDocument();
+  });
+
+  it("ảnh gốc media lỗi tạm thời ⇒ bấm Thử lại tải lại, lần sau được thì hiện ảnh", async () => {
+    getDocument.mockResolvedValue({ data: withImage(MEDIA), error: null, meta });
+    fetchImage
+      .mockRejectedValueOnce(new ApiClientError(503, "IMAGE_UNAVAILABLE", "Tạm thời không tải được ảnh — thử lại sau."))
+      .mockResolvedValueOnce(new Blob(["png"], { type: "image/png" }));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("img", { name: "ERD" })).toBeInTheDocument();
+    expect(fetchImage).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Không tải được ảnh.")).toBeNull();
   });
 });
 

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { takePendingReupload } from "./pending-reupload";
 import { useTranslations } from "next-intl";
 import { reuploadDocument } from "@/lib/api/import";
 import type { ReuploadDiff } from "@/types/import";
@@ -39,6 +40,10 @@ export default function ReuploadDiffView({ projectId }: { projectId: string }) {
   const [diff, setDiff] = useState<ReuploadDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // File vừa đính kèm trong chat + chọn "Cập nhật phiên bản mới" ⇒ so luôn, không bắt chọn lại (lấy một lần)
+  const [handoff] = useState(takePendingReupload);
+  const handoffSent = useRef(false);
+  const [handoffDone, setHandoffDone] = useState(false);
 
   const upload = async (file: File) => {
     setBusy(true);
@@ -53,9 +58,20 @@ export default function ReuploadDiffView({ projectId }: { projectId: string }) {
     }
   };
 
+  useEffect(() => {
+    if (!handoff || handoffSent.current) return;
+    handoffSent.current = true;
+    reuploadDocument(projectId, handoff)
+      .then((res) => setDiff(res.data))
+      .catch((err: unknown) => setError(L.errorText(err, t("failed"))))
+      .finally(() => setHandoffDone(true));
+    // Chỉ chạy một lần cho file được chuyển sang
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff]);
+
   return (
     <div className="flex flex-col gap-3">
-      <UploadStep busy={busy} onUpload={(file) => void upload(file)} title={t("title")} hint={t("hint")} />
+      <UploadStep busy={busy || (!!handoff && !handoffDone)} onUpload={(file) => void upload(file)} title={t("title")} hint={t("hint")} />
       {error && (
         <p role="alert" className="text-body text-[#B03030] bg-[#FDEDED] border border-[#F2CACA] rounded-[10px] px-3 py-2">
           {error}

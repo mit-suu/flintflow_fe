@@ -20,6 +20,11 @@ interface ReviewPackagePanelProps {
   onChanged: () => void;
   /** Đổi giá trị ⇒ tải lại gói (vd CR vừa ghi bản nháp ở khung chat). */
   refreshToken?: number;
+  /**
+   * Khung chat đang soạn một change request chưa ghi vào bản nháp: mã CR, `""` khi chưa có mã (đang chờ chọn nguồn).
+   * Có giá trị ⇒ khoá "Gửi Lead duyệt cả gói" và "Phát hành thẳng" — gói lúc đó thiếu đúng thay đổi đang sửa.
+   */
+  crInProgress?: string | null;
 }
 
 const REASON_MIN = 10;
@@ -29,7 +34,7 @@ const REASON_MIN = 10;
  * BA **gửi Lead duyệt cả gói** (cờ đỏ = 0) ⇒ bản nháp khoá; Lead **duyệt cả gói** (= phát hành số chính) hoặc **yêu cầu
  * sửa** kèm lý do ⇒ mở khoá. Lead tự làm thì phát hành thẳng từ đây. Không duyệt từng CR.
  */
-export default function ReviewPackagePanel({ projectId, role, onChanged, refreshToken = 0 }: ReviewPackagePanelProps) {
+export default function ReviewPackagePanel({ projectId, role, onChanged, refreshToken = 0, crInProgress = null }: ReviewPackagePanelProps) {
   const t = useTranslations("mode1.reviewPackage");
   const L = useMode1Labels();
   const [pkg, setPkg] = useState<ReviewPackage | null>(null);
@@ -85,7 +90,16 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
   const canSubmit = (role === "lead" || role === "analyst") && pkg.status !== "pending";
   const count = pkg.change_requests.length;
   const pending = pkg.status === "pending";
-  const submitBlocked = count === 0 ? t("blockedEmpty") : pkg.red_open > 0 ? t("blockedRed", { count: pkg.red_open }) : null;
+  const submitBlocked =
+    crInProgress !== null
+      ? crInProgress
+        ? t("blockedEditing", { crId: crInProgress })
+        : t("blockedEditingNew")
+      : count === 0
+        ? t("blockedEmpty")
+        : pkg.red_open > 0
+          ? t("blockedRed", { count: pkg.red_open })
+          : null;
   const btn = "px-3 py-1.5 rounded-[10px] text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
 
   return (
@@ -172,7 +186,12 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
             <button type="button" onClick={() => setAsking(null)} disabled={busy !== null} className={`${btn} border border-[#DCD8F0] bg-white text-[#4B4842]`}>
               {t("cancel")}
             </button>
-            <button type="button" disabled={busy !== null} onClick={() => void run("release", (v) => releaseDocument(projectId, v))} className={`${btn} bg-[#6A62C4] text-white`}>
+            <button
+              type="button"
+              disabled={busy !== null || (!pending && crInProgress !== null)}
+              onClick={() => void run("release", (v) => releaseDocument(projectId, v))}
+              className={`${btn} bg-[#6A62C4] text-white`}
+            >
               {busy === "release" ? t("releasing") : t("confirmRelease")}
             </button>
           </div>
