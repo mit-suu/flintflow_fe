@@ -71,7 +71,7 @@ test("mẫu bắt buộc: Luồng 1 → Luồng 2 cho phần còn thiếu", asyn
   await page.waitForURL(/\/projects\/[a-f0-9]{24}\/import$/, { timeout: 60_000 });
   const projectId = page.url().match(/projects\/([a-f0-9]{24})/)![1];
   console.log(`[e2e] project ${projectId}`);
-  await expect(page.getByText("Tải lên mẫu bắt buộc (.docx, trống hoặc điền dở)")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("Tải lên mẫu bắt buộc (.docx)")).toBeVisible({ timeout: 60_000 });
 
   // ── 2–3. Tải mẫu → (FLF-343) màn "Sẵn sàng đọc tài liệu": xác nhận bản mới nhất + Bắt đầu một lần ⇒ đọc file, so cấu trúc
   // đích (I-5) ⇒ kết quả đọc chế độ 3. Mapping heading tự động; màn xác nhận mapping (nếu còn hiện) thì kiểm phần nhỏ `slot:*`.
@@ -100,7 +100,9 @@ test("mẫu bắt buộc: Luồng 1 → Luồng 2 cho phần còn thiếu", asyn
     await action.click();
     await expect(action.first()).toBeHidden({ timeout: AI_TIMEOUT });
   }
-  await expect(reading.getByText(/Mẫu có \d+ mục đã có nội dung và \d+ mục còn trống/)).toBeVisible();
+  // FLF-378: FlintFlow soạn toàn bộ mục của mẫu — mọi mục "Sẽ soạn", không mục nào "Có"
+  await expect(reading.getByText(/Mẫu có \d+ mục — FlintFlow soạn toàn bộ/)).toBeVisible();
+  await expect(reading.getByText("Có", { exact: true })).toHaveCount(0);
   // Dự án mới theo mẫu bắt buộc: không khoá mẫu còn trống thành bản gốc, không gap report
   await expect(reading.getByRole("button", { name: "Tiếp tục sửa với FlintFlow" })).toHaveCount(0);
   await expect(reading.getByText("Sẽ soạn").first()).toBeVisible();
