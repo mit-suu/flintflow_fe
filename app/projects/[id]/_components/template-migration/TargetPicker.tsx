@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { listOrgTemplates } from "@/lib/api/org-library";
+import { versionFacts } from "@/lib/org-template-version";
 import type { OrgTemplateSummary } from "@/types/org-library";
 import type { PreviousTemplate, StartMigrationInput } from "@/types/template-migration";
 import type { MigrationTargetQuery } from "./href";
@@ -32,7 +33,7 @@ const publishedVersions = (tpl: OrgTemplateSummary): number[] => tpl.versions.fi
  */
 export default function TargetPicker({ orgId, canPublish, busy, preselect, previous, onStart }: TargetPickerProps) {
   const t = useTranslations("mode1.templateMigration.picker");
-  const fileId = useId();
+  const fileRef = useRef<HTMLInputElement>(null);
   const nameId = useId();
   const familyPickId = useId();
   const [loaded, setTemplates] = useState<OrgTemplateSummary[] | null>(null);
@@ -92,7 +93,7 @@ export default function TargetPicker({ orgId, canPublish, busy, preselect, previ
                 <li key={tpl.id} className={`flex flex-wrap items-center gap-3 rounded-control px-3 py-2 ${highlighted ? "bg-primary-soft" : "bg-surface-container-low"}`}>
                   <span className="flex-1 min-w-[160px] flex flex-col">
                     <span className="text-body font-semibold text-on-surface truncate">{tpl.name}</span>
-                    <span className="text-caption text-on-surface-muted truncate">{t("meta", { file: tpl.source_file_name, headings: tpl.heading_count })}</span>
+                    <span className="text-caption text-on-surface-muted truncate">{t("meta", versionFacts(tpl, version))}</span>
                   </span>
                   <select
                     aria-label={t("versionLabel", { name: tpl.name })}
@@ -121,17 +122,23 @@ export default function TargetPicker({ orgId, canPublish, busy, preselect, previ
         <h4 className="text-body font-extrabold text-on-surface">{t("fileTitle")}</h4>
         <p className="text-caption text-on-surface-muted">{canPublish ? t("fileHelpLead") : t("fileHelpAnalyst")}</p>
         <div className="flex flex-wrap items-end gap-3">
-          <label htmlFor={fileId} className="flex flex-col gap-1 text-caption font-bold text-on-surface-medium">
-            {t("fileLabel")}
-            <input
-              id={fileId}
-              type="file"
-              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              disabled={busy}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="text-body font-normal text-on-surface-variant"
-            />
-          </label>
+          <div className="flex flex-col gap-1">
+            <span className="text-caption font-bold text-on-surface-medium">{t("fileLabel")}</span>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                hidden
+                aria-label={t("fileLabel")}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => fileRef.current?.click()}>
+                {t("chooseFile")}
+              </Button>
+              <span className="text-body text-on-surface-variant truncate max-w-[240px]">{file ? file.name : t("noFile")}</span>
+            </div>
+          </div>
           {canPublish && (
             <label className="inline-flex items-center gap-2 text-caption font-bold text-on-surface-variant cursor-pointer">
               <input type="checkbox" checked={publish} disabled={busy} onChange={(e) => setPublish(e.target.checked)} />

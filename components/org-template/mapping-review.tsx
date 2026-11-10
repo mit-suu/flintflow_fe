@@ -87,6 +87,7 @@ export default function MappingReview({ headings, sectionOptions, onChange, disa
                 </div>
                 <select
                   id={selectId}
+                  aria-label={h.heading_text}
                   value={h.section_id}
                   disabled={disabled}
                   onChange={(e) => onChange(h.index, e.target.value)}

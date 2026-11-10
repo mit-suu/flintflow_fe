@@ -48,6 +48,9 @@
         "goals": "Product goals",
         "scope": "Release scope (in / out)",
         "high_rules": "High-level business rules",
+        "business_rules": "Business rules",
+        "messages": "Messages",
+        "functional_requirements": "Functional requirements",
         "context": "System context and external systems",
         "features": "Product functions overview",
         "platforms": "Platforms and operating environment",
@@ -4376,7 +4379,7 @@
       "cancelMigration": "Cancel template change",
       "banner": {
         "aria": "Template has a new version",
-        "message": "Template {name} has version {version} (this project follows version {current}).",
+        "message": "«{name}» has version {version} (this project follows version {current}).",
         "update": "Update",
         "later": "Later"
       },
@@ -4413,6 +4416,8 @@
         "fileHelpLead": "A new .docx becomes this project's template. As Lead you can also publish it to the organization library.",
         "fileHelpAnalyst": "The .docx is used for this project only and is not added to the organization library.",
         "fileLabel": "Template file (.docx)",
+        "chooseFile": "Choose file",
+        "noFile": "No file chosen",
         "publish": "Publish to the organization library",
         "nameLabel": "Template name in the library",
         "nameRequired": "Enter a template name to publish it to the library.",

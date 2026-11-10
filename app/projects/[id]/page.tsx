@@ -39,6 +39,7 @@ import ChatPane from "./_components/ChatPane";
 import ResizeHandle from "./_components/ResizeHandle";
 import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
 import { SectionNamesContext } from "./_components/mode1/i18n";
+import { sectionLabel as fptSectionLabel } from "@/lib/constants/fpt-sections";
 import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
 import BriefPanel, { briefHasData } from "./_components/BriefPanel";
@@ -65,7 +66,7 @@ import { isAiErrorCode } from "@/lib/ai-error-codes";
 import { useCreditGate } from "./hooks/useCreditGate";
 import CreditGateCard from "./_components/CreditGateCard";
 import AiErrorBanner from "./_components/AiErrorBanner";
-import { tStep } from "@/lib/i18n";
+import { DEFAULT_LOCALE, isLocale, tStep } from "@/lib/i18n";
 import type { TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
@@ -425,6 +426,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     () => new Map([...sectionLabels].map(([id, label]) => [id, label.replace(/^§/, "")])),
     [sectionLabels]
   );
+  /** Chưa có trong tài liệu đang hiển thị (vừa đổi mẫu, chưa đọc lại) ⇒ tên theo danh mục mục, không bao giờ mã thô. */
+  const panelSectionName = (id: string): string => panelSectionNames.get(id) ?? fptSectionLabel(id, isLocale(locale) ? locale : DEFAULT_LOCALE);
   const handleSectionsLoaded = useCallback(
     (sections: readonly RenderedSection[]) => setSectionLabels(new Map(sections.map((section) => [section.id, sectionLabel(section)]))),
     []
@@ -2350,7 +2353,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 readOnly={!canEdit}
                 canRelease={ws.orgRole === "lead"}
                 orgRole={ws.orgRole}
-                sectionName={(id) => panelSectionNames.get(id) ?? id}
+                sectionName={panelSectionName}
                 onTemplateChanged={handleTemplateChanged}
                 refreshToken={documentRefreshToken}
                 documentLanguage={documentLanguage}
@@ -2374,7 +2377,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 projectId={projectId}
                 orgRole={ws.orgRole}
                 flags={flags}
-                sectionName={(id) => panelSectionNames.get(id) ?? id}
+                sectionName={panelSectionName}
                 refreshToken={documentRefreshToken}
                 onChanged={handleTemplateChanged}
               />
@@ -2593,7 +2596,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             orgId={ws.project?.organizationId ?? getActiveOrgId()}
             orgRole={ws.orgRole}
             flags={flags}
-            sectionName={(id) => panelSectionNames.get(id) ?? id}
+            sectionName={panelSectionName}
             readOnly={!canEdit}
             onChanged={handleTemplateChanged}
           />

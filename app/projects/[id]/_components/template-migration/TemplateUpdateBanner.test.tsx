@@ -11,7 +11,7 @@ describe("TemplateUpdateBanner", () => {
   it("báo bản mới và mở màn đổi mẫu với đúng bản", () => {
     const onUpdate = vi.fn();
     renderWithIntl(<TemplateUpdateBanner projectId="p1" update={update} canEdit onUpdate={onUpdate} />);
-    expect(screen.getByText(/Mẫu Mẫu ngân hàng có bản 3/)).toBeInTheDocument();
+    expect(screen.getByText(/«Mẫu ngân hàng» có bản 3/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cập nhật" }));
     expect(onUpdate).toHaveBeenCalledWith({ templateId: "t1", version: 3 });
   });

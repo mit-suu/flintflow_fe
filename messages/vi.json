@@ -48,6 +48,9 @@
         "goals": "Mục tiêu sản phẩm",
         "scope": "Phạm vi phát hành (trong / ngoài)",
         "high_rules": "Quy tắc nghiệp vụ cấp cao",
+        "business_rules": "Quy tắc nghiệp vụ",
+        "messages": "Thông báo",
+        "functional_requirements": "Yêu cầu chức năng",
         "context": "Bối cảnh hệ thống và hệ thống ngoài",
         "features": "Tổng quan chức năng sản phẩm",
         "platforms": "Nền tảng và môi trường hoạt động",
@@ -4376,7 +4379,7 @@
       "cancelMigration": "Huỷ lần đổi mẫu",
       "banner": {
         "aria": "Mẫu có bản mới",
-        "message": "Mẫu {name} có bản {version} (dự án đang theo bản {current}).",
+        "message": "«{name}» có bản {version} (dự án đang theo bản {current}).",
         "update": "Cập nhật",
         "later": "Để sau"
       },
@@ -4413,6 +4416,8 @@
         "fileHelpLead": "File .docx mới làm mẫu của dự án. Lead có thể đăng luôn lên thư viện của tổ chức.",
         "fileHelpAnalyst": "File .docx chỉ dùng cho dự án này, không đăng lên thư viện của tổ chức.",
         "fileLabel": "File mẫu (.docx)",
+        "chooseFile": "Chọn file",
+        "noFile": "Chưa chọn file",
         "publish": "Đăng lên thư viện của tổ chức",
         "nameLabel": "Tên mẫu trong thư viện",
         "nameRequired": "Nhập tên mẫu để đăng lên thư viện.",

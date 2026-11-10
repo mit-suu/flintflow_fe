@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/intl";
-import MappingReview from "./mapping-review";
+import MappingReview, { useSectionOptions } from "./mapping-review";
 
 const options = [
   { id: "unmapped", label: "Không khớp" },
@@ -29,5 +29,15 @@ describe("MappingReview — rà mapping heading → section", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /Chỉ hiện mục cần xem \(1\)/ }));
     expect(screen.queryByText("Introduction")).not.toBeInTheDocument();
     expect(screen.getByText("Người dùng hệ thống")).toBeInTheDocument();
+  });
+
+  it("dòng chọn sẵn slot của mẫu khách hiện tên mục, không hiện mã slot", () => {
+    const Harness = () => (
+      <MappingReview headings={[{ index: 0, heading_text: "5.1 Business Rules", section_id: "slot:business_rules" }]} sectionOptions={useSectionOptions()} onChange={() => {}} />
+    );
+    renderWithIntl(<Harness />);
+    const select = screen.getByLabelText("5.1 Business Rules") as HTMLSelectElement;
+    expect(select.selectedOptions[0]).toHaveTextContent("Quy tắc nghiệp vụ");
+    expect(select).not.toHaveDisplayValue("slot:business_rules");
   });
 });

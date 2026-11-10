@@ -116,6 +116,8 @@ export default function DecisionGroups({ migration, busy, onDecide, onContinue }
 
 interface ChoiceSelectProps {
   id: string;
+  /** Tên rõ ràng cho trình đọc màn hình (nhãn hiển thị có thể kèm chữ phụ). */
+  ariaLabel: string;
   value: string | undefined;
   choices: string[];
   aiChoices: string[];
@@ -126,10 +128,11 @@ interface ChoiceSelectProps {
   onChange: (choice: string) => void;
 }
 
-function ChoiceSelect({ id, value, choices, aiChoices, busy, label, placeholder, aiSuffix, onChange }: ChoiceSelectProps) {
+function ChoiceSelect({ id, ariaLabel, value, choices, aiChoices, busy, label, placeholder, aiSuffix, onChange }: ChoiceSelectProps) {
   return (
     <select
       id={id}
+      aria-label={ariaLabel}
       value={value ?? ""}
       disabled={busy}
       onChange={(e) => e.target.value && onChange(e.target.value)}
@@ -165,7 +168,7 @@ function ExtraRow({ item, value, undecided, busy, label, onChoose }: RowCommon &
       </label>
       {undecided && <Badge tone="warning">{t("choose")}</Badge>}
       {item.choices.includes(DROP_FROM_PRINT_CHOICE) && <p className="basis-full text-caption text-on-surface-muted">{t("dropFromPrintHelp")}</p>}
-      <ChoiceSelect id={id} value={value} choices={item.choices} aiChoices={item.ai_choices} busy={busy} label={label} placeholder={t("pick")} aiSuffix={t("aiSuffix")} onChange={(c) => onChoose(item.id, c)} />
+      <ChoiceSelect id={id} ariaLabel={item.heading_text} value={value} choices={item.choices} aiChoices={item.ai_choices} busy={busy} label={label} placeholder={t("pick")} aiSuffix={t("aiSuffix")} onChange={(c) => onChoose(item.id, c)} />
     </li>
   );
 }
@@ -183,7 +186,7 @@ function ConflictRow({ item, title, target, value, undecided, busy, label, onCho
         <Badge tone="info">{t(`conflictKind.${item.kind}`)}</Badge>
         {undecided && <Badge tone="warning">{t("choose")}</Badge>}
         {item.choices.includes(DROP_FROM_PRINT_CHOICE) && <p className="basis-full text-caption text-on-surface-muted">{t("dropFromPrintHelp")}</p>}
-        <ChoiceSelect id={id} value={value} choices={item.choices} aiChoices={item.ai_choices} busy={busy} label={label} placeholder={t("pick")} aiSuffix={t("aiSuffix")} onChange={(c) => onChoose(item.id, c)} />
+        <ChoiceSelect id={id} ariaLabel={title} value={value} choices={item.choices} aiChoices={item.ai_choices} busy={busy} label={label} placeholder={t("pick")} aiSuffix={t("aiSuffix")} onChange={(c) => onChoose(item.id, c)} />
       </div>
       {item.kind === "table_columns" && (
         <p className="text-caption text-on-surface-muted break-words">

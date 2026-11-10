@@ -62,6 +62,16 @@ describe("TemplateMigrationScreen", () => {
     expect(screen.getByRole("button", { name: "Hoàn tác lần đổi mẫu" })).toBeInTheDocument();
   });
 
+  it("thẻ mục thiếu sau khi áp dụng hiện tên heading của mẫu mới, không phải mã mục thô", async () => {
+    const applied = migrationFixture({ state: "applied", applied_at: "2026-11-11T02:00:00.000Z", undecided: [] });
+    open(applied);
+    renderWithIntl(<TemplateMigrationScreen projectId="p1" orgId="o1" flags={flags} sectionName={(id) => id} orgRole="lead" />);
+    expect(await screen.findByText("Phạm vi")).toBeInTheDocument();
+    expect(screen.queryByText("custom:new")).not.toBeInTheDocument();
+    const href = screen.getByRole("link", { name: "Viết" }).getAttribute("href") ?? "";
+    expect(new URL(href, "http://localhost").searchParams.get("ref")).toBe("custom:new");
+  });
+
   it("mục thiếu lấy từ cờ đỏ còn mở: đã viết xong (hết cờ) thì không hiện", async () => {
     const applied = migrationFixture({ state: "applied", applied_at: "2026-11-11T02:00:00.000Z", undecided: [] });
     open(applied);

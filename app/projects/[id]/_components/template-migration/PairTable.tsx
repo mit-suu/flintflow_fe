@@ -88,6 +88,7 @@ export default function PairTable({ migration, busy, onEdit, onEditMapping, onCo
               </div>
               <select
                 id={selectId}
+                aria-label={old.heading_text}
                 value={pair.new_key ?? NONE}
                 disabled={busy}
                 onChange={(e) => onEdit([{ old_key: pair.old_key, new_key: e.target.value === NONE ? null : e.target.value }])}

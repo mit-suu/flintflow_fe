@@ -21,8 +21,8 @@ vi.mock("@/lib/api/org-library", () => ({
       skeleton: false,
       versions: [
         { version: 3, status: "draft" },
-        { version: 2, status: "published" },
-        { version: 1, status: "published" },
+        { version: 2, status: "published", source_file_name: "bank.docx", heading_count: 42 },
+        { version: 1, status: "published", source_file_name: "bank-old.docx", heading_count: 30 },
       ],
     },
     {
@@ -65,6 +65,7 @@ describe("OrgTemplatePicker — lối phụ của ô SRS (FLF-278)", () => {
     expect(select).toHaveValue("2");
     expect(screen.queryByRole("option", { name: "Bản 3" })).not.toBeInTheDocument();
     fireEvent.change(select, { target: { value: "1" } });
+    expect(screen.getByText("bank-old.docx · 30 heading · đã dùng 2 lần")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Mẫu ngân hàng/ }));
     expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: "t1" }), 1);
   });

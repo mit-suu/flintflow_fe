@@ -8,6 +8,8 @@ import { crPrefillHref } from "../mode1/prefill";
 export interface MissingSectionItem {
   id: string;
   label: string;
+  /** `section_id` của mục thiếu — làm tham chiếu nguồn của CR để người soạn biết đúng mục đích (không dùng nhãn). */
+  sectionId?: string;
   guidance?: string | null;
 }
 
@@ -45,7 +47,7 @@ export default function MissingSectionsCard({ projectId, items, canWrite, classN
                   title: t("prefillTitle", { label: item.label }),
                   description: t("prefillDescription", { label: item.label }),
                   source: "gap_report",
-                  ref: item.label,
+                  ref: item.sectionId ?? item.label,
                 })}
                 scroll={false}
                 className="text-caption font-bold text-primary hover:underline shrink-0"

@@ -21,15 +21,31 @@ vi.mock("@/lib/api/org-library", () => ({
       skeleton: false,
       versions: [
         { version: 4, status: "draft" },
-        { version: 3, status: "published" },
-        { version: 2, status: "published" },
-        { version: 1, status: "published" },
+        { version: 3, status: "published", source_file_name: "bank-v3.docx", heading_count: 42 },
+        { version: 2, status: "published", source_file_name: "bank-v2.docx", heading_count: 40 },
+        { version: 1, status: "published", source_file_name: "bank-v1.docx", heading_count: 30 },
       ],
     },
   ]),
 }));
 
 describe("TargetPicker", () => {
+  it("dòng thông tin theo bản đang chọn, không luôn là file của bản mới nhất", async () => {
+    renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} onStart={vi.fn()} />);
+    const select = await screen.findByLabelText("Bản của mẫu Mẫu ngân hàng");
+    expect(screen.getByText("bank-v3.docx · 42 mục")).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "1" } });
+    expect(screen.getByText("bank-v1.docx · 30 mục")).toBeInTheDocument();
+  });
+
+  it("chọn file bằng nút có chữ theo ngôn ngữ giao diện, hiện tên file đã chọn", () => {
+    renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} onStart={vi.fn()} />);
+    expect(screen.getByText("Chưa chọn file")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chọn file" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("File mẫu (.docx)"), { target: { files: [new File(["x"], "mau.docx")] } });
+    expect(screen.getByText("mau.docx")).toBeInTheDocument();
+  });
+
   it("chọn được bản cũ hơn và không cho chọn bản nháp", async () => {
     const onStart = vi.fn();
     renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} onStart={onStart} />);

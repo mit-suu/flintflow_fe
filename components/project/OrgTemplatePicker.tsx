@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import { listOrgTemplates } from "@/lib/api/org-library";
 import { getActiveOrgId } from "@/lib/api/token-store";
+import { versionFacts } from "@/lib/org-template-version";
 import type { OrgTemplateSummary } from "@/types/org-library";
 
 interface OrgTemplatePickerProps {
@@ -66,7 +67,7 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
                 <button type="button" disabled={disabled} onClick={() => onPick(tpl, version)} className="flex-1 min-w-0 text-left flex items-center gap-3 cursor-pointer disabled:opacity-50">
                   <span className="flex-1 min-w-0 flex flex-col">
                     <span className="text-body font-semibold text-on-surface truncate">{tpl.name}</span>
-                    <span className="text-caption text-on-surface-muted truncate">{t("meta", { file: tpl.source_file_name, headings: tpl.heading_count, uses: tpl.uses })}</span>
+                    <span className="text-caption text-on-surface-muted truncate">{t("meta", { ...versionFacts(tpl, version), uses: tpl.uses })}</span>
                   </span>
                   <span className="shrink-0 text-caption font-bold text-primary">{t("use")}</span>
                 </button>

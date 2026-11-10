@@ -115,7 +115,7 @@ export default function TemplateChangeEntry({ projectId, orgRole, flags, section
       <MissingSectionsCard
         projectId={projectId}
         canWrite
-        items={missing.map((f) => ({ id: f.id, label: sectionName(f.section_id) }))}
+        items={missing.map((f) => ({ id: f.id, label: sectionName(f.section_id), sectionId: f.section_id }))}
       />
     </section>
   );

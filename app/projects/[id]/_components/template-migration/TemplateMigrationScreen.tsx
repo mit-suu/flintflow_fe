@@ -161,7 +161,12 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
           <MissingSectionsCard
             projectId={projectId}
             canWrite={orgRole !== "viewer"}
-            items={openMigrationMissing(flags).map((f) => ({ id: f.id, label: sectionName(f.section_id) }))}
+            items={openMigrationMissing(flags).map((f) => ({
+              id: f.id,
+              // Tài liệu trong workspace có thể chưa đọc lại sau khi áp dụng ⇒ lấy tên từ chính lần đổi mẫu (heading của mẫu mới)
+              label: current.groups.missing.find((x) => x.section_id === f.section_id)?.heading_text ?? sectionName(f.section_id),
+              sectionId: f.section_id,
+            }))}
           />
           <div className="flex flex-wrap items-start gap-3">
             <RevertMigrationButton busy={m.busy === "revert"} blocked={m.revertBlocked} revertable={current.revertable} reason={current.revert_blocked_reason} onRevert={() => void afterChange(m.revert)} />
