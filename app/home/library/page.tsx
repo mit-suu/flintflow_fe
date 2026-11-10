@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState } from "react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import TopBar from "@/components/layout/TopBar";
 import { Button } from "@/components/ui";
+import TemplateLibraryList from "@/components/org-template/template-library-list";
 import { fetchOrganization } from "@/lib/api/orgs";
 import {
   deleteContentEntry,
-  deleteOrgTemplate,
   listContentLibrary,
   listOrgTemplates,
   updateContentEntry,
@@ -29,7 +29,6 @@ type Draft = { id: string | null; title: string; text: string } | null;
 export default function OrgLibraryPage() {
   const t = useTranslations("app.org.library");
   const tc = useTranslations("app.common");
-  const format = useFormatter();
   const titleId = useId();
   const textId = useId();
   // Như trang Thành viên: tổ chức đang mở đọc lúc render (token-store chỉ có ở trình duyệt, trang là client)
@@ -68,6 +67,10 @@ export default function OrgLibraryPage() {
     };
   }, [fetchAll, orgId]);
   const loading = orgId !== null && !loaded;
+
+  const reloadTemplates = useCallback(async () => {
+    if (orgId) setTemplates(await listOrgTemplates(orgId));
+  }, [orgId]);
 
   const run = async (action: (org: string) => Promise<void>) => {
     if (!orgId) return;
@@ -128,29 +131,7 @@ export default function OrgLibraryPage() {
                   {t("templates.title")}
                 </h2>
                 <p className="text-body text-on-surface-variant">{t("templates.help")}</p>
-                {templates.length === 0 ? (
-                  <p className="text-body text-on-surface-muted">{t("templates.empty")}</p>
-                ) : (
-                  <ul className="flex flex-col divide-y divide-outline-variant border border-outline-variant rounded-card">
-                    {templates.map((tpl) => (
-                      <li key={tpl.id} className="px-4 py-3 flex flex-wrap items-center gap-3">
-                        <div className="flex-1 min-w-[220px]">
-                          <p className="text-body font-bold text-on-surface">{tpl.name}</p>
-                          <p className="text-caption text-on-surface-muted">
-                            {t("templates.meta", {
-                              file: tpl.source_file_name,
-                              headings: tpl.heading_count,
-                              customs: tpl.custom_count,
-                              uses: tpl.uses,
-                              date: format.dateTime(new Date(tpl.created_at), { dateStyle: "medium" }),
-                            })}
-                          </p>
-                        </div>
-                        {canEdit && removeButton(`tpl:${tpl.id}`, () => void run((org) => deleteOrgTemplate(org, tpl.id)))}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {orgId && <TemplateLibraryList orgId={orgId} role={role} templates={templates} onChanged={reloadTemplates} />}
               </section>
 
               <section aria-labelledby="org-lib-content" className="flex flex-col gap-3">

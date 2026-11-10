@@ -9,6 +9,8 @@ import { crListHref, gapReportHref } from "./prefill";
 import ReviewPackagePanel from "./ReviewPackagePanel";
 import AutoPassedChip from "../AutoPassedChip";
 import VersionsPanel from "./VersionsPanel";
+import TemplateChangeEntry from "../template-migration/TemplateChangeEntry";
+import { openMigrationMissing } from "../template-migration/missing-flags";
 import type { OrgRole } from "@/types/organization";
 import type { DocumentLanguage } from "@/types/project";
 
@@ -32,6 +34,10 @@ interface Mode1WorkspaceToolsProps {
   onTranslate?: (locale: DocumentLanguage, version: string) => void;
   /** Change request đang soạn ở khung chat (chưa ghi bản nháp) — khoá gửi duyệt / phát hành (xem `ReviewPackagePanel`). */
   crInProgress?: string | null;
+  /** Tên mục dễ đọc theo `section_id` cho thẻ mục thiếu sau đổi mẫu. */
+  sectionName?: (sectionId: string) => string;
+  /** Đổi mẫu / hoàn tác xong: tải lại project (mẫu, ngôn ngữ, `template_update`) ngoài Spine / tài liệu. */
+  onTemplateChanged?: () => void;
 }
 
 /**
@@ -50,6 +56,8 @@ export default function Mode1WorkspaceTools({
   documentLanguage = null,
   onTranslate,
   crInProgress = null,
+  sectionName = (id) => id,
+  onTemplateChanged,
 }: Mode1WorkspaceToolsProps) {
   const t = useTranslations("mode1.workspaceTools");
   const docs = useDocVersions(projectId, { refreshToken });
@@ -61,6 +69,11 @@ export default function Mode1WorkspaceTools({
         <h4 className="text-body font-extrabold text-[#191817]">{t("flagsTitle")}</h4>
         <Mode1FlagsPanel projectId={projectId} flags={flags} readOnly={readOnly} />
       </section>
+
+      {/* FLF-395: đổi sang mẫu khác (hai chiều), hoàn tác, mục thiếu sau đổi mẫu */}
+      {!readOnly && (
+        <TemplateChangeEntry projectId={projectId} orgRole={orgRole} flags={flags} sectionName={sectionName} refreshToken={refreshToken} onChanged={onTemplateChanged} />
+      )}
 
       <nav className="flex flex-wrap gap-1.5" aria-label={t("navAria")}>
         <Link href={gapReportHref(projectId)} scroll={false} className={link}>
@@ -79,6 +92,7 @@ export default function Mode1WorkspaceTools({
         refreshToken={refreshToken}
         role={readOnly ? "viewer" : orgRole}
         crInProgress={crInProgress}
+        migrationMissing={openMigrationMissing(flags).length}
         onChanged={() => {
           void docs.reload();
           onSpineChanged();

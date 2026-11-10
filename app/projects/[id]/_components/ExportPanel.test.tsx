@@ -417,4 +417,11 @@ describe("ExportPanel — tải theo ngôn ngữ còn lại (FLF-334 B)", () => 
     fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
     expect(await screen.findByText(/chưa tải được bằng ngôn ngữ khác/)).toBeInTheDocument();
   });
+
+  it("còn cờ đỏ mục thiếu sau đổi mẫu ⇒ cảnh báo chưa phát hành được (vẫn tải bản nháp)", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
+    const flag = { id: "F1", level: "red" as const, rule_id: "template_section_migration_missing", section_id: "custom:new", message: "m", remediation_step: "", opened_at_version: 1, resolved_at: null, waived_by_user: false, waive_reason: null, waived_at_version: null };
+    renderWithIntl(<ExportPanel projectId="p1" onClose={() => {}} flags={[flag]} />);
+    expect(await screen.findByText(/Còn 1 mục của mẫu mới chưa viết/)).toBeInTheDocument();
+  });
 });

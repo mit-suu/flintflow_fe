@@ -31,7 +31,7 @@ export interface ProjectUploads {
 export interface ProjectFiles {
   projectName?: string;
   srs?: File | null;
-  orgTemplate?: { id: string; name: string } | null;
+  orgTemplate?: { id: string; name: string; /** Bản đã chọn; trống ⇒ bản đã đăng mới nhất. */ version?: number } | null;
   references: File[];
 }
 
@@ -52,10 +52,10 @@ const setItem = (projectId: string, key: string, status: UploadStatus) => {
   emit();
 };
 
-const run = async (projectId: string, item: UploadItem, orgTemplateId?: string) => {
+const run = async (projectId: string, item: UploadItem, orgTemplate?: { id: string; version?: number }) => {
   setItem(projectId, item.key, "uploading");
   try {
-    if (item.kind === "srs") await (orgTemplateId ? importFromOrgTemplate(projectId, orgTemplateId) : uploadImport(projectId, files.get(item.key)!));
+    if (item.kind === "srs") await (orgTemplate ? importFromOrgTemplate(projectId, orgTemplate.id, orgTemplate.version) : uploadImport(projectId, files.get(item.key)!));
     else await uploadProjectDocument(projectId, files.get(item.key)!);
     setItem(projectId, item.key, "done");
   } catch (err) {
@@ -69,7 +69,7 @@ let seq = 0;
 /** Bắt đầu tải mọi file của dự án vừa tạo (không chờ). */
 export const startProjectUploads = (projectId: string, input: ProjectFiles): void => {
   const items: UploadItem[] = [];
-  const orgId = input.orgTemplate?.id;
+  const orgTemplate = input.orgTemplate ? { id: input.orgTemplate.id, version: input.orgTemplate.version } : undefined;
   if (input.srs || input.orgTemplate) {
     const key = `srs-${++seq}`;
     if (input.srs) files.set(key, input.srs);
@@ -83,7 +83,7 @@ export const startProjectUploads = (projectId: string, input: ProjectFiles): voi
   if (!items.length) return;
   state.set(projectId, { items, startedAt: Date.now(), projectName: input.projectName });
   emit();
-  for (const item of items) void run(projectId, item, item.kind === "srs" ? orgId : undefined);
+  for (const item of items) void run(projectId, item, item.kind === "srs" ? orgTemplate : undefined);
 };
 
 /** Thử lại một file lỗi (file vẫn còn trong bộ nhớ của tab). */

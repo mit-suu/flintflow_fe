@@ -53,6 +53,7 @@ import AutoPassedChip from "./_components/AutoPassedChip";
 import { patchSkipConfirmSections, setReviewMode } from "@/lib/api/review-level";
 import { sectionTitleOf } from "@/lib/section-title";
 import ExportPanel from "./_components/ExportPanel";
+import ProjectPendingHeadingsCard from "@/components/org-template/project-pending-headings-card";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
@@ -82,6 +83,10 @@ import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
+import TemplateMigrationPopup from "./_components/template-migration/TemplateMigrationPopup";
+import TemplateUpdateBanner from "./_components/template-migration/TemplateUpdateBanner";
+import TemplateChangeEntry from "./_components/template-migration/TemplateChangeEntry";
+import { templateMigrationHref } from "./_components/template-migration/href";
 import { compareHref, crListHref, gapReportHref, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
@@ -95,6 +100,7 @@ import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
 import { clearImportPending, isImportPending } from "@/lib/import-pending";
 import { useImportPendingHint } from "./import-pending-hint";
 import { fetchOrganization } from "@/lib/api/orgs";
+import type { OrgRole } from "@/types/organization";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
@@ -315,10 +321,14 @@ export default function WorkspacePage() {
   // UC-47: Viewer không vào workspace (Spine, cờ, CR là dữ liệu làm việc — BE trả 403) ⇒ sang trang đọc tài liệu.
   // Lỗi đọc vai trò ⇒ coi như không phải Viewer (BE vẫn chặn).
   const [isViewer, setIsViewer] = useState<boolean | null>(null);
+  const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
   useEffect(() => {
     let cancelled = false;
     const orgId = getActiveOrgId();
-    (orgId ? fetchOrganization(orgId).then((org) => org.role === "viewer") : Promise.resolve(false))
+    (orgId ? fetchOrganization(orgId).then((org) => {
+          if (!cancelled) setOrgRole(org.role);
+          return org.role === "viewer";
+        }) : Promise.resolve(false))
       .catch(() => false)
       .then((viewer) => !cancelled && setIsViewer(viewer));
     return () => {
@@ -334,7 +344,7 @@ export default function WorkspacePage() {
 
   if (project === null || isViewer !== false) return <WorkspaceLoading projectId={projectId} />;
   // Chưa đọc xong file SRS ⇒ màn đọc khung / tiến trình ngay trong layout workspace (không còn trang `/import` riêng)
-  if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} />;
+  if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} orgRole={orgRole} />;
   // Đổi mode ⇒ dựng lại workspace từ đầu (hook của mode 2 — step, gate — không mang sang mode 1)
   return <FptWorkspace key={mode1 ? "mode1" : "fpt"} mode1={mode1} initialNotice={mode1 ? convertedNotice : null} />;
 }
@@ -719,6 +729,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   useEffect(() => {
     onSpineChangedRef.current = onSpineChanged;
   }, [onSpineChanged]);
+
+  /** Đổi mẫu / hoàn tác xong: mẫu, ngôn ngữ và `template_update` của project đổi theo — đọc lại ngoài Spine. */
+  const { replaceProject } = ws;
+  const handleTemplateChanged = useCallback(() => {
+    onSpineChanged();
+    void getProject(projectId)
+      .then((res) => res.data && replaceProject(res.data))
+      .catch(() => undefined);
+  }, [projectId, replaceProject, onSpineChanged]);
 
   /**
    * Vòng dịch xong / dừng giữa chừng (FLF-265): chữ dịch nằm ở lớp bản dịch, Spine và `spine_version` không đổi ⇒ chỉ
@@ -1393,6 +1412,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const onPipelineSession = ws.isPipelineActive;
   /** FLF-244: Viewer chỉ đọc — ẩn ô nhập, thẻ hỏi, thẻ cổng và mọi nút chạy bước (BE cũng chặn 403). */
   const canEdit = ws.canEdit;
+  /** Đổi mẫu cần baseline: mode 1, hoặc dự án mode 2 đã có baseline (chưa kịp chuyển mode / đang chờ Lead duyệt). */
+  const canChangeTemplate = mode1 || (spine?.baselines.length ?? 0) > 0;
   /** FLF-278: dự án theo mẫu bắt buộc (FLF-335) — mục riêng của mẫu còn trống có nút "Nhờ AI soạn". */
   const requiredTemplate = ws.project?.template_intent === "fixed";
   const gate = onPipelineSession && runner.state.status === "gate_ready" ? runner.state.gate : null;
@@ -1940,6 +1961,18 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <ReferenceUploadsNote projectId={projectId} className="mx-3 mb-2" />
               {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
               {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
+              {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
+              {canChangeTemplate && (
+                <TemplateUpdateBanner
+                  projectId={projectId}
+                  update={ws.project?.template_update}
+                  canEdit={canEdit}
+                  onUpdate={(target) => router.push(templateMigrationHref(projectId, target), { scroll: false })}
+                  className="mx-3 mb-2"
+                />
+              )}
+              {/* Mục BA tự đặt của mẫu khung tự lưu chờ duyệt (chỉ hiện khi dự án có khung riêng còn mục chờ) */}
+              {ws.ready && ws.project?.template_intent !== "fixed" && <ProjectPendingHeadingsCard projectId={projectId} canReview={canEdit} refreshToken={documentRefreshToken} className="mx-3 mb-2" />}
               {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới — chỉ khi đã có bản gốc */}
               {mode1 && canEdit && ws.srsSuggestions[0] && (
                 <SrsAttachmentChip
@@ -2317,6 +2350,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 readOnly={!canEdit}
                 canRelease={ws.orgRole === "lead"}
                 orgRole={ws.orgRole}
+                sectionName={(id) => panelSectionNames.get(id) ?? id}
+                onTemplateChanged={handleTemplateChanged}
                 refreshToken={documentRefreshToken}
                 documentLanguage={documentLanguage}
                 // CR đang soạn ở khung chat (chưa ghi bản nháp) ⇒ khoá gửi Lead duyệt / phát hành thẳng
@@ -2331,6 +2366,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                       }
                     : undefined
                 }
+              />
+            )}
+            {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được (cùng lý do chặn như mode 1) */}
+            {!mode1 && canChangeTemplate && canEdit && (
+              <TemplateChangeEntry
+                projectId={projectId}
+                orgRole={ws.orgRole}
+                flags={flags}
+                sectionName={(id) => panelSectionNames.get(id) ?? id}
+                refreshToken={documentRefreshToken}
+                onChanged={handleTemplateChanged}
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
@@ -2537,6 +2583,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       {mode1 && (
         <Suspense fallback={null}>
           <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} />
+        </Suspense>
+      )}
+      {/* Đổi mẫu: popup riêng (mode 2 đã có baseline cũng dùng, không mở gap report / CR) */}
+      {canChangeTemplate && (
+        <Suspense fallback={null}>
+          <TemplateMigrationPopup
+            projectId={projectId}
+            orgId={ws.project?.organizationId ?? getActiveOrgId()}
+            orgRole={ws.orgRole}
+            flags={flags}
+            sectionName={(id) => panelSectionNames.get(id) ?? id}
+            readOnly={!canEdit}
+            onChanged={handleTemplateChanged}
+          />
         </Suspense>
       )}
     </div>

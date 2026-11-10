@@ -13,6 +13,7 @@ import { versionFileName } from "@/types/doc-version";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { hookErrorText } from "@/lib/hook-errors";
+import { openMigrationMissing } from "./template-migration/missing-flags";
 
 interface ExportPanelProps {
   projectId: string;
@@ -145,6 +146,8 @@ export default function ExportPanel({
   // FLF-329: cờ đỏ đã waive (dữ liệu cũ) / giữ nguyên vẫn chặn ⇒ vẫn đếm
   const openRedFlags = flags?.filter((f) => f.level === "red" && !f.resolved_at).length;
   const redCount = openRedFlags ?? document?.flagsAppendix?.redOpen.length ?? 0;
+  // Mục của mẫu mới chưa viết sau đổi mẫu: chặn phát hành bản mới, bản nháp vẫn tải được
+  const migrationMissing = flags ? openMigrationMissing(flags).length : 0;
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -308,6 +311,12 @@ export default function ExportPanel({
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {migrationMissing > 0 && (
+          <div role="status" className="bg-accent-gold-soft rounded-control p-3 text-body text-accent-gold-text leading-relaxed">
+            {t("migrationMissing", { count: migrationMissing })}
           </div>
         )}
 

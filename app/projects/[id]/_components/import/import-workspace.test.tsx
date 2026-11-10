@@ -49,13 +49,28 @@ describe("ImportWorkspace — upload SRS trong layout workspace", () => {
         credit_estimate: { text_batches: 1, diagram_images: 0, ai_calls: 1, credits: 2, available_credits: 100 },
       }),
     });
-    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} orgRole="lead" />);
     expect(screen.getByRole("heading", { name: /SRS đã viết · đủ khung/ })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Bắt đầu/ }));
     expect(imp.current.start).toHaveBeenCalledWith(true);
     // File giữ khung ⇒ lưu làm mẫu tổ chức ngay tại màn này
     expect(screen.getByRole("button", { name: "Lưu làm mẫu của tổ chức" })).toBeInTheDocument();
+  });
+
+  it("Analyst không thấy lối lưu làm mẫu của tổ chức (chỉ Lead)", () => {
+    const d = doc({});
+    setImport({
+      awaitingStart: true,
+      doc: d,
+      data: data({
+        import: d,
+        structure_preview: { summary: { present: 3, missing: 0, out_of_scope: 0, kind: "written" }, sections: [{ section_id: "fixed:1", title: "1 Overview", status: "present", order: 0 }], resolved_mode: 1, intent: "fixed", computed_at: "2026-11-08T00:00:00.000Z" },
+        credit_estimate: { text_batches: 1, diagram_images: 0, ai_calls: 1, credits: 2, available_credits: 100 },
+      }),
+    });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} orgRole="analyst" />);
+    expect(screen.queryByRole("button", { name: "Lưu làm mẫu của tổ chức" })).not.toBeInTheDocument();
   });
 
   it("file bị từ chối ⇒ lý do + ô chọn file khác ngay tại màn", () => {

@@ -1,0 +1,77 @@
+import { fireEvent, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { renderWithIntl } from "@/test/intl";
+import TargetPicker from "./TargetPicker";
+
+vi.mock("@/lib/api/token-store", async (importOriginal) => ({ ...(await importOriginal<object>()), getActiveOrgId: () => "o1" }));
+vi.mock("@/lib/api/org-library", () => ({
+  listOrgTemplates: vi.fn(async () => [
+    {
+      id: "t1",
+      name: "Mẫu ngân hàng",
+      source_file_name: "bank.docx",
+      heading_count: 42,
+      custom_count: 9,
+      template_family: null,
+      uses: 2,
+      created_at: "2026-10-20T00:00:00.000Z",
+      latest_version: 3,
+      project_count: 1,
+      pending_count: 0,
+      skeleton: false,
+      versions: [
+        { version: 4, status: "draft" },
+        { version: 3, status: "published" },
+        { version: 2, status: "published" },
+        { version: 1, status: "published" },
+      ],
+    },
+  ]),
+}));
+
+describe("TargetPicker", () => {
+  it("chọn được bản cũ hơn và không cho chọn bản nháp", async () => {
+    const onStart = vi.fn();
+    renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} onStart={onStart} />);
+    const select = await screen.findByLabelText("Bản của mẫu Mẫu ngân hàng");
+    expect(Array.from((select as HTMLSelectElement).options).map((o) => o.value)).toEqual(["3", "2", "1"]);
+    fireEvent.change(select, { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Đổi sang mẫu Mẫu ngân hàng bản 1" }));
+    expect(onStart).toHaveBeenCalledWith({ kind: "template", template_id: "t1", version: 1 });
+  });
+
+  it("điền sẵn bản từ thông báo và có lối quay về mẫu trước", async () => {
+    const onStart = vi.fn();
+    renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={{ templateId: "t1", version: 2 }} previous={{ template_id: "t1", version: 1, name: "Mẫu ngân hàng", visibility: "org" }} onStart={onStart} />);
+    expect(((await screen.findByLabelText("Bản của mẫu Mẫu ngân hàng")) as HTMLSelectElement).value).toBe("2");
+    fireEvent.click(screen.getByRole("button", { name: "Quay về mẫu trước" }));
+    expect(onStart).toHaveBeenCalledWith({ kind: "template", template_id: "t1", version: 1 });
+  });
+
+  it("chỉ Lead thấy ô đăng lên thư viện; Analyst tải file làm bản riêng", async () => {
+    const onStart = vi.fn();
+    const file = new File(["x"], "mau.docx");
+    const { unmount } = renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} onStart={onStart} />);
+    expect(screen.queryByLabelText("Đăng lên thư viện của tổ chức")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("File mẫu (.docx)"), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: "Dùng file này" }));
+    expect(onStart).toHaveBeenCalledWith({ kind: "file", file });
+    unmount();
+
+    onStart.mockClear();
+    renderWithIntl(<TargetPicker orgId="o1" canPublish busy={false} preselect={null} previous={null} onStart={onStart} />);
+    fireEvent.change(screen.getByLabelText("File mẫu (.docx)"), { target: { files: [file] } });
+    fireEvent.click(screen.getByLabelText("Đăng lên thư viện của tổ chức"));
+    expect(screen.getByRole("button", { name: "Dùng file này" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Tên mẫu trong thư viện"), { target: { value: "Mẫu mới" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dùng file này" }));
+    expect(onStart).toHaveBeenCalledWith({ kind: "file", file, publish_to_org: true, name: "Mẫu mới" });
+
+    // Đăng thành bản mới của họ mẫu có sẵn: không cần tên, gửi template_id
+    onStart.mockClear();
+    fireEvent.change(await screen.findByLabelText("Đăng vào"), { target: { value: "t1" } });
+    expect(screen.queryByLabelText("Tên mẫu trong thư viện")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dùng file này" }));
+    expect(onStart).toHaveBeenCalledWith({ kind: "file", file, publish_to_org: true, template_id: "t1" });
+  });
+});

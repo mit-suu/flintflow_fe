@@ -634,6 +634,18 @@
       "org_invitation_rejected": {
         "title": "Yêu cầu mời thành viên bị từ chối",
         "body": "Lead đã từ chối lời mời {email} vào {org}."
+      },
+      "template_version_published": {
+        "title": "Mẫu của tổ chức có bản {version}",
+        "body": "{count, plural, one {# dự án đang} other {# dự án đang}} theo bản cũ. Mở dự án để cập nhật sang mẫu mới hoặc để sau."
+      },
+      "skeleton_headings_pending": {
+        "title": "Có {count} mục chờ duyệt cho mẫu khung",
+        "body": "Mục do BA tự đặt hoặc tên mục khác tên chuẩn chỉ vào mẫu của tổ chức sau khi được duyệt."
+      },
+      "template_migration_failed": {
+        "title": "Đổi mẫu bị kẹt",
+        "body": "Lần đổi mẫu không hoàn tất được sau nhiều lần thử. Mở dự án và chọn Khôi phục để quay về trước lần đổi mẫu."
       }
     },
     "common": {
@@ -804,7 +816,11 @@
         "toggle": "Hoặc chọn từ mẫu của tổ chức ({count})",
         "title": "Mẫu đã lưu của tổ chức",
         "meta": "{file} · {headings} heading · đã dùng {uses} lần",
-        "use": "Dùng mẫu này"
+        "use": "Dùng mẫu này",
+        "versionLabel": "Bản của mẫu {name}",
+        "versionLatest": "Bản {version} (mới nhất)",
+        "versionOption": "Bản {version}",
+        "nameWithVersion": "{name} · v{version}"
       },
       "stage": {
         "creating": "Đang tạo dự án…"
@@ -1169,9 +1185,38 @@
         "confirmDelete": "Xác nhận xoá",
         "templates": {
           "title": "Mẫu SRS đã lưu",
-          "help": "Lưu từ màn nhập tài liệu của một dự án đã xác nhận mapping heading. Dự án mới chọn lại ở bước tải file, không phải tải và map lại.",
+          "help": "Mẫu SRS của tổ chức, mỗi mẫu có nhiều bản. Lead tải file và đăng bản mới sau khi rà mapping heading; dự án mới chọn mẫu và bản ở bước tải file, không phải tải và map lại.",
           "empty": "Tổ chức chưa lưu mẫu nào.",
-          "meta": "{file} · {headings} heading · {customs} mục giữ nguyên văn · đã dùng {uses} lần · lưu {date}"
+          "meta": "{file} · {headings} heading · {customs} mục giữ nguyên văn · {projects} dự án · đã dùng {uses} lần · tạo {date}",
+          "latest": "Bản mới nhất: {version}",
+          "draftOnly": "Chưa đăng bản nào",
+          "skeleton": "Khung tự lưu",
+          "pending": "{count} mục chờ duyệt",
+          "pendingHint": "Duyệt trong thẻ “mục chờ duyệt” của dự án đã tạo ra khung này.",
+          "newTemplate": "Tải mẫu mới",
+          "newNameLabel": "Tên mẫu",
+          "pickFile": "Chọn file .docx",
+          "pickNewFile": "File .docx của mẫu mới",
+          "pickVersionFile": "File .docx của bản mới",
+          "publishNew": "Đăng bản mới",
+          "delete": "Xoá mẫu",
+          "deleteVersion": "Xoá bản",
+          "cancel": "Huỷ",
+          "confirmDelete": "Xác nhận xoá",
+          "confirmFamily": "{count, plural, =0 {Không có dự án nào theo mẫu này.} other {Đang có # dự án theo mẫu này.}} Dự án vẫn giữ file mẫu của mình. Xoá mẫu cùng mọi bản?",
+          "confirmVersion": "{count, plural, =0 {Không có dự án nào theo bản này.} other {Đang có # dự án theo bản này.}} Dự án vẫn giữ file mẫu của mình. Xoá bản này?",
+          "versionsLabel": "Các bản của mẫu {name}",
+          "versionName": "Bản {version}",
+          "versionMeta": "{date} · {projects} dự án · {file}",
+          "draft": "Nháp",
+          "latestBadge": "Mới nhất",
+          "reviewAndPublish": "Rà mapping và đăng",
+          "reviewTitle": "Rà mapping: {name} · bản {version}",
+          "publish": "Đăng bản này",
+          "reviewPending": "Duyệt mục chờ",
+          "hidePending": "Ẩn mục chờ",
+          "publishedBy": "đăng bởi {name}",
+          "publishedByFormer": "đăng bởi thành viên cũ"
         },
         "content": {
           "title": "Nội dung chuẩn theo mục",
@@ -1185,6 +1230,42 @@
           "save": "Lưu",
           "cancel": "Huỷ"
         }
+      },
+      "templateMapping": {
+        "help": "FlintFlow tự khớp từng heading của file mẫu với mục của mẫu chuẩn. Mục “Cần xem” là chỗ độ tin cậy thấp — kiểm tra rồi đổi mục nếu chưa đúng.",
+        "onlyReview": "Chỉ hiện mục cần xem ({count})",
+        "needsReview": "Cần xem",
+        "empty": "File mẫu không có heading nào.",
+        "listLabel": "Heading của file mẫu"
+      },
+      "pendingHeadings": {
+        "loading": "Đang tải danh sách mục chờ duyệt…",
+        "help": "Các mục dưới đây chỉ vào mẫu “{name}” của tổ chức sau khi được duyệt.",
+        "empty": "Không có mục nào cần duyệt.",
+        "listLabel": "Mục chờ duyệt",
+        "kindCustom": "Mục BA tự đặt",
+        "kindWording": "Tên khác tên chuẩn",
+        "pending": "Chờ duyệt",
+        "decided": {
+          "keep": "Đã giữ nguyên",
+          "generic": "Đã giữ dạng chung",
+          "drop": "Đã bỏ"
+        },
+        "standardTitle": "Tên chuẩn gần nhất: {title}",
+        "choiceLabel": "Chọn cách xử lý mục “{heading}”",
+        "choice": {
+          "keep": "Giữ nguyên",
+          "generic": "Giữ dạng chung",
+          "drop": "Bỏ"
+        },
+        "genericLabel": "Tên dạng chung (dùng '{'Tên khách hàng'}' thay cho tên riêng)",
+        "genericRequired": "Nhập tên dạng chung cho mục đã chọn “Giữ dạng chung”.",
+        "save": "Lưu quyết định",
+        "suggest": "Gợi ý tên chung ({credits, plural, one {# credit} other {# credit}})",
+        "cardTitle": "Mục chờ duyệt của mẫu khung",
+        "cardSummary": "{count} mục chờ duyệt cho mẫu khung của dự án",
+        "review": "Duyệt",
+        "hide": "Thu gọn"
       }
     }
   },
@@ -1737,7 +1818,8 @@
       "translateRest": "Dịch nốt",
       "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.",
       "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác — hãy tải theo ngôn ngữ tài liệu.",
-      "close": "Đóng"
+      "close": "Đóng",
+      "migrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Bản nháp vẫn tải được nhưng chưa phát hành bản mới được."
     },
     "change": {
       "title": "Sửa qua lệnh",
@@ -2330,7 +2412,9 @@
       "goal_not_covered": "Mục tiêu chưa được đáp ứng",
       "accepted_as_is": "Đã chấp nhận nguyên trạng",
       "template_section_absent": "Mẫu bắt buộc không có mục này",
-      "template_section_empty": "Mục của mẫu chưa có nội dung"
+      "template_section_empty": "Mục của mẫu chưa có nội dung",
+      "template_section_migration_missing": "Mẫu mới có mục này nhưng chưa có nội dung",
+      "section_reference_after_migration": "Nhắc số mục theo đánh số cũ"
     },
     "comments": {
       "role": {
@@ -2951,7 +3035,33 @@
       "retry": "Thử lại",
       "home": "Về trang chủ",
       "digest": "Mã lỗi: {digest}"
-    }
+    },
+    "TEMPLATE_MIGRATION_NO_BASELINE": "Chỉ đổi được mẫu sau khi tài liệu đã có baseline.",
+    "TEMPLATE_MIGRATION_OPEN": "Dự án đang có một lần đổi mẫu chưa xong. Tiếp tục hoặc huỷ lần đó trước.",
+    "TEMPLATE_MIGRATION_SAME_TEMPLATE": "Dự án đang theo mẫu này rồi. Chọn mẫu khác.",
+    "TEMPLATE_MIGRATION_STALE": "Tài liệu vừa thay đổi trong lúc chuẩn bị đổi mẫu. Kiểm lại các lựa chọn rồi tiếp tục.",
+    "TEMPLATE_MIGRATION_CONFLICT": "Có người vừa sửa lần đổi mẫu này. Tải lại rồi thử lại.",
+    "TEMPLATE_MIGRATION_INVALID_STATE": "Lần đổi mẫu không còn ở bước này. Tải lại để xem trạng thái mới nhất.",
+    "TEMPLATE_MIGRATION_UNDECIDED": "Còn mục cần chọn cách xử lý trước khi tiếp tục.",
+    "TEMPLATE_MIGRATION_APPLYING": "Dự án đang đổi mẫu nên chưa ghi được thay đổi nào vào tài liệu (xác nhận change request, phát hành, sửa trong chat). Chờ đổi mẫu xong rồi thử lại.",
+    "TEMPLATE_MIGRATION_REVERT_BLOCKED": "Đã có thay đổi ghi sau lần đổi mẫu nên không hoàn tác được. Dùng Đổi mẫu để quay về mẫu trước.",
+    "TEMPLATE_MIGRATION_LINKS_BROKEN": "Không áp dụng được vì liên kết giữa các mục sẽ bị gãy.",
+    "TEMPLATE_MIGRATION_SPINE_REJECTED": "Không áp dụng được vì nội dung sau khi đổi mẫu không hợp lệ.",
+    "TEMPLATE_MIGRATION_TARGET_UNAVAILABLE": "File của mẫu đích không còn trên kho lưu trữ. Chọn mẫu khác.",
+    "TEMPLATE_MIGRATION_BUILD_FAILED": "Không dựng được file tài liệu theo mẫu mới. Thử mẫu hoặc file khác.",
+    "TEMPLATE_MIGRATION_TRANSLATION_FAILED": "Dịch nội dung sang ngôn ngữ của mẫu mới không thành công. Chưa ghi gì, thử lại sau.",
+    "TEMPLATE_MIGRATION_FILE_TOO_LARGE": "File mẫu quá lớn hoặc quá phức tạp.",
+    "TEMPLATE_MIGRATION_NO_SNAPSHOT": "Lần đổi mẫu không còn bản chụp để hoàn tác.",
+    "ORG_TEMPLATE_IN_USE_BY_MIGRATION": "Mẫu này đang là đích của một lần đổi mẫu chưa kết thúc.",
+    "TEMPLATE_MIGRATION_MAPPING_LOCKED": "Mẫu của tổ chức đã khoá mapping. Chỉ sửa được mapping của file mẫu tải lên riêng cho dự án.",
+    "ORG_TEMPLATE_VERSION_PUBLISHED": "Bản này đã được đăng hoặc không thuộc thư viện của tổ chức.",
+    "ORG_TEMPLATE_VERSION_CONFLICT": "Có người vừa đăng bản mới của mẫu này. Tải lại rồi thử lại.",
+    "ORG_TEMPLATE_NOT_FOUND": "Không tìm thấy mẫu của tổ chức.",
+    "ORG_TEMPLATE_VERSION_NOT_FOUND": "Không tìm thấy bản này của mẫu.",
+    "SKELETON_CONFLICT": "Mẫu khung vừa được người khác duyệt. Tải lại để xem.",
+    "SKELETON_NOT_FOUND": "Dự án chưa có mẫu khung tự lưu.",
+    "SKELETON_SUGGEST_FAILED": "Không gợi ý được tên chung. Thử lại sau.",
+    "IMPORT_FILE_REJECTED": "Không đọc được file này."
   },
   "maintenance": {
     "metaTitle": "Đang bảo trì · FlintFlow",
@@ -3673,7 +3783,8 @@
         "viewer_comment": "Góp ý của người xem",
         "verbal": "Yêu cầu miệng (ghi rõ người yêu cầu)",
         "chat": "Lệnh sửa trong chat (CR cũ)",
-        "reference_document": "Tài liệu tham khảo (rút yêu cầu)"
+        "reference_document": "Tài liệu tham khảo (rút yêu cầu)",
+        "template_migration": "Đổi mẫu tài liệu"
       },
       "foundBy": {
         "spine_link": "Liên kết field",
@@ -3847,7 +3958,9 @@
         "conflict": "Xung đột với thay đổi khác",
         "import_needs_review": "Cần xem",
         "template_section_absent": "Mẫu không có mục này",
-        "template_section_empty": "Mục của mẫu còn trống"
+        "template_section_empty": "Mục của mẫu còn trống",
+        "template_section_migration_missing": "Mẫu mới có mục này nhưng chưa có nội dung",
+        "section_reference_after_migration": "Nhắc số mục theo đánh số cũ"
       },
       "violations": {
         "schema_invalid": "AI đề xuất sửa vào một chỗ không có trong tài liệu.",
@@ -4017,7 +4130,8 @@
       "reuploadTitle": "Re-upload file đã sửa",
       "crTitleWithId": "Change request {id}",
       "crTitle": "Change request",
-      "backToList": "← Danh sách change request"
+      "backToList": "← Danh sách change request",
+      "templateTitle": "Đổi mẫu tài liệu"
     },
     "workspaceTools": {
       "flagsTitle": "Cờ & change request",
@@ -4055,7 +4169,8 @@
       "confirmChanges": "Gửi yêu cầu sửa",
       "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
       "releasing": "Đang phát hành…",
-      "confirmRelease": "Xác nhận phát hành"
+      "confirmRelease": "Xác nhận phát hành",
+      "blockedMigrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Viết xong (qua change request) mới gửi duyệt hoặc phát hành được."
     },
     "paused": {
       "title": "{what} đang tạm dừng — {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
@@ -4242,6 +4357,181 @@
       "creating": "Đang tạo…",
       "problems": "{count, plural, =1 {Còn 1 mục} other {Còn # mục}} thiếu lý do bỏ hoặc câu trả lời.",
       "approveFailed": "Không duyệt được danh sách"
+    },
+    "templateMigration": {
+      "loading": "Đang tải…",
+      "actionFailed": "Thao tác đổi mẫu không thành công",
+      "stepsLabel": "Các bước đổi mẫu",
+      "steps": {
+        "target": "Chọn mẫu",
+        "pairs": "Ghép mục",
+        "groups": "Quyết định",
+        "summary": "Áp dụng"
+      },
+      "stale": "Dữ liệu tài liệu vừa thay đổi trong lúc chuẩn bị nên chưa áp dụng. Kiểm lại các lựa chọn ở bước này rồi tiếp tục.",
+      "applyingElsewhere": "Lần đổi mẫu này đang được áp dụng ở một phiên khác. Chờ xong rồi tải lại.",
+      "refresh": "Tải lại",
+      "appliedNote": "Đã chuyển tài liệu sang mẫu {name} (bản {version}).",
+      "changeAgain": "Đổi sang mẫu khác",
+      "cancelMigration": "Huỷ lần đổi mẫu",
+      "banner": {
+        "aria": "Mẫu có bản mới",
+        "message": "Mẫu {name} có bản {version} (dự án đang theo bản {current}).",
+        "update": "Cập nhật",
+        "later": "Để sau"
+      },
+      "entry": {
+        "aria": "Đổi mẫu tài liệu",
+        "title": "Mẫu tài liệu",
+        "help": "Chuyển nội dung sang mẫu khác: bản mới hơn, bản cũ hơn hoặc file tải lên. Mục khớp được chép nguyên, mục thiếu và mục thừa do bạn quyết.",
+        "openHelp": "Đang có một lần đổi mẫu chưa xong.",
+        "change": "Đổi mẫu",
+        "resume": "Tiếp tục đổi mẫu",
+        "noBaseline": "Chưa có baseline. Chỉ đổi được mẫu sau khi tài liệu đã có baseline.",
+        "draftLocked": "Bản nháp đang chờ Lead duyệt. Duyệt xong mới đổi mẫu được.",
+        "applying": "Lần đổi mẫu đang được áp dụng. Chờ xong rồi tiếp tục.",
+        "loadFailed": "Không tải được trạng thái đổi mẫu",
+        "applyFailed": "Áp dụng đổi mẫu bị kẹt sau nhiều lần phục hồi. Bản nháp vẫn giữ nguyên như trước lần đổi mẫu; bấm Khôi phục để đóng lần đổi mẫu này rồi thử lại.",
+        "restore": "Khôi phục"
+      },
+      "picker": {
+        "intro": "Chọn mẫu mà tài liệu sẽ chuyển sang. Chọn được bản bất kỳ của mẫu tổ chức, kể cả bản cũ hơn bản đang dùng.",
+        "previous": "Quay về mẫu dùng trước lần đổi gần nhất (bản {version}). Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ.",
+        "previousNamed": "Quay về mẫu {name} (bản {version}) dùng trước lần đổi gần nhất. Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ.",
+        "usePrevious": "Quay về mẫu trước",
+        "orgTitle": "Mẫu của tổ chức",
+        "loading": "Đang tải danh sách mẫu…",
+        "loadFailed": "Không tải được danh sách mẫu. Bạn vẫn có thể tải file mẫu lên.",
+        "orgEmpty": "Tổ chức chưa có mẫu đã đăng.",
+        "meta": "{file} · {headings} mục",
+        "versionLabel": "Bản của mẫu {name}",
+        "versionLatest": "Bản {version} (mới nhất)",
+        "versionOption": "Bản {version}",
+        "use": "Đổi sang bản này",
+        "useAria": "Đổi sang mẫu {name} bản {version}",
+        "fileTitle": "Tải file mẫu",
+        "fileHelpLead": "File .docx mới làm mẫu của dự án. Lead có thể đăng luôn lên thư viện của tổ chức.",
+        "fileHelpAnalyst": "File .docx chỉ dùng cho dự án này, không đăng lên thư viện của tổ chức.",
+        "fileLabel": "File mẫu (.docx)",
+        "publish": "Đăng lên thư viện của tổ chức",
+        "nameLabel": "Tên mẫu trong thư viện",
+        "nameRequired": "Nhập tên mẫu để đăng lên thư viện.",
+        "useFile": "Dùng file này",
+        "familyLabel": "Đăng vào",
+        "familyNew": "Mẫu mới trong thư viện",
+        "familyNext": "Bản mới của {name}",
+        "previousPrivate": "Quay về mẫu {name} (bản {version}) — bản riêng của dự án, lưu từ file mẫu dự án dùng trước lần đổi gần nhất. Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ."
+      },
+      "pairs": {
+        "help": "Mỗi mục của tài liệu hiện tại được ghép với một mục của mẫu mới. Sửa cặp nếu hệ thống ghép chưa đúng. Heading của từng use case, chức năng, màn hình đi theo mục cha nên không hiện riêng.",
+        "mappingSummary": "Cách đọc heading của mẫu mới",
+        "reviewCount": "{count} cặp cần xem lại",
+        "listLabel": "Ghép mục cũ với mục mới",
+        "needsReview": "Cần xem",
+        "manual": "Bạn sửa",
+        "noPair": "Không ghép",
+        "confirm": "Xác nhận ghép mục",
+        "mappingEditable": "File mẫu này là của riêng dự án: sửa mục FlintFlow mà mỗi heading của mẫu mới thuộc về, hệ thống ghép và phân nhóm lại ngay.",
+        "mappingLocked": "Mẫu của tổ chức đã được Lead rà ở thư viện nên chỉ xem ở đây. Sửa cặp ở danh sách bên dưới."
+      },
+      "groups": {
+        "restored": "{count} mục chưa sửa sẽ trở lại nguyên bản",
+        "conflictTitle": "Cần chọn cách đặt ({count})",
+        "conflictHelp": "Bảng đổi cột, mục bị tách hoặc bảng Record of Changes khác mẫu cũ. Chọn một cách, hoặc để AI sắp xếp (tính credit).",
+        "conflictKind": {
+          "table_columns": "Bảng đổi cột",
+          "split_section": "Mục bị tách",
+          "record_of_changes": "Record of Changes"
+        },
+        "columnsOld": "Cột cũ: {columns}",
+        "columnsNew": "Cột mới: {columns}",
+        "extraTitle": "Mục không có chỗ trong mẫu mới ({count})",
+        "extraHelp": "Không tự xoá: giữ thành mục riêng, chuyển vào một mục thiếu của mẫu mới hoặc xoá.",
+        "followers": "kèm {count} mục con",
+        "missingTitle": "Mục mẫu mới có, tài liệu chưa có ({count})",
+        "missingHelp": "Thêm vào trống kèm chữ hướng dẫn của mẫu. Mục cần nội dung bị cờ đỏ và chặn phát hành cho tới khi bạn viết xong.",
+        "needsContent": "Cần viết",
+        "matchedTitle": "Mục khớp, chép nguyên ({count})",
+        "droppedNote": "{count} heading nhóm không có nội dung nên được bỏ.",
+        "needsReview": "Cần xem",
+        "editedTitle": "Đã sửa sau lần đổi mẫu trước ({count})",
+        "editedHelp": "Giữ: giữ nội dung đang có theo mẫu cũ. Bỏ: trả về nội dung nguyên bản trước khi sửa (lịch sử change request vẫn giữ).",
+        "editedMeta": "{count} lần sửa",
+        "keep": "Giữ",
+        "discard": "Bỏ",
+        "keepAll": "Giữ hết",
+        "discardAll": "Hoàn tác hết",
+        "choose": "Cần chọn",
+        "pick": "Chọn cách xử lý…",
+        "aiSuffix": "(dùng AI)",
+        "undecided": "Còn {count} mục cần chọn",
+        "continue": "Tiếp tục",
+        "dropFromPrintHelp": "Bỏ khỏi bản in: dữ liệu vẫn được giữ trong tài liệu và trở lại khi hoàn tác. Chỉ mục văn bản tự do mới xoá được."
+      },
+      "choices": {
+        "keep_custom": "Giữ thành mục riêng",
+        "delete": "Xoá",
+        "map_by_header": "Ghép theo tên cột",
+        "keep_old_table": "Giữ bảng cũ",
+        "ai_resolve": "Để AI sắp xếp",
+        "move_to": "Chuyển vào “{target}”",
+        "to": "Đặt vào “{target}”",
+        "drop_from_print": "Bỏ khỏi bản in"
+      },
+      "summary": {
+        "intro": "Tài liệu sẽ chuyển sang mẫu {name} (bản {version}). Xem lại rồi áp dụng.",
+        "countsLabel": "Số mục theo nhóm",
+        "rows": {
+          "matched": "Mục khớp",
+          "missing": "Mục thiếu",
+          "extra": "Mục thừa",
+          "conflict": "Cần chọn cách đặt",
+          "restored": "Trở lại nguyên bản",
+          "edited": "Đã sửa sau lần đổi"
+        },
+        "creditTitle": "Credit ước tính",
+        "creditTranslation": "Dịch ({batches} lô)",
+        "creditMoves": "Chuyển mục cấu trúc ({count})",
+        "creditAi": "AI sắp xếp ({count})",
+        "creditTotal": "Tổng",
+        "creditNote": "Chỉ là ước tính, chốt và trừ khi áp dụng.",
+        "languageChange": "Mẫu mới dùng ngôn ngữ khác: nội dung sẽ được dịch từ {from} sang {to} và ghi đè vào tài liệu. Ngôn ngữ tài liệu đổi theo mẫu. Các version đã phát hành vẫn tải đúng ngôn ngữ cũ.",
+        "language": {
+          "vi": "tiếng Việt",
+          "en": "tiếng Anh"
+        },
+        "linksNote": "Bỏ sửa có thể làm gãy liên kết giữa các mục. Hệ thống kiểm trước khi ghi và báo nếu có.",
+        "linksBroken": "Chưa áp dụng được vì liên kết giữa các mục sẽ bị gãy:",
+        "cancel": "Huỷ đổi mẫu",
+        "apply": "Áp dụng",
+        "applying": "Đang áp dụng…",
+        "languageChangeNoTranslation": "Mẫu mới dùng ngôn ngữ khác: ngôn ngữ tài liệu sẽ đổi từ {from} sang {to}. Nội dung không bị dịch lại và không tốn credit dịch.",
+        "linksBrokenHelp": "Bỏ sửa các mục này làm gãy liên kết. Chọn Giữ cho mục liên quan (hoặc Giữ hết) để áp dụng được."
+      },
+      "missing": {
+        "aria": "Mục thiếu sau khi đổi mẫu",
+        "title": "{count} mục của mẫu mới chưa có nội dung",
+        "blocksRelease": "Chặn phát hành",
+        "write": "Viết",
+        "prefillTitle": "Viết nội dung cho mục {label}",
+        "prefillDescription": "Mục {label} có trong mẫu mới nhưng tài liệu cũ chưa có. Soạn nội dung cho mục này."
+      },
+      "revert": {
+        "action": "Hoàn tác lần đổi mẫu",
+        "confirmQuestion": "Hoàn tác sẽ trả mẫu, file nền, ngôn ngữ và nội dung về đúng trạng thái trước lần đổi mẫu này. Tiếp tục?",
+        "keep": "Không hoàn tác",
+        "confirm": "Hoàn tác",
+        "blocked": "Đã có thay đổi được ghi sau lần đổi mẫu nên không hoàn tác được. Dùng Đổi mẫu để quay về mẫu trước, mọi change request đã ghi vẫn được giữ.",
+        "reason": {
+          "not_latest": "Chỉ hoàn tác được lần đổi mẫu mới nhất.",
+          "migration_open": "Đang có một lần đổi mẫu khác chưa xong nên chưa hoàn tác được.",
+          "running": "Lần đổi mẫu đang chạy, chưa hoàn tác được.",
+          "has_later_changes": "Đã có thay đổi được ghi sau lần đổi mẫu nên không hoàn tác được. Dùng Đổi mẫu để quay về mẫu trước, mọi change request đã ghi vẫn được giữ."
+        }
+      },
+      "revertingElsewhere": "Lần đổi mẫu này đang được hoàn tác. Chờ xong rồi tải lại.",
+      "applyFailed": "Áp dụng đổi mẫu bị kẹt sau nhiều lần phục hồi. Bản nháp vẫn giữ nguyên như trước lần đổi mẫu; bấm Khôi phục để đóng lần đổi mẫu này rồi thử lại.",
+      "restore": "Khôi phục"
     }
   }
 }

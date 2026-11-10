@@ -138,4 +138,19 @@ describe("ReviewPackagePanel (FLF-330 — gói duyệt kiểu pull request)", ()
     expect(await screen.findByText("v0 · 2 thay đổi chưa duyệt")).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  it("còn mục thiếu sau đổi mẫu ⇒ khoá gửi duyệt / phát hành thẳng và nêu lý do", async () => {
+    serve(pkg());
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={() => {}} migrationMissing={2} />);
+    expect(await screen.findByText(/Còn 2 mục của mẫu mới chưa viết/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gửi Lead duyệt cả gói" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Phát hành thẳng (Lead)" })).toBeDisabled();
+  });
+
+  it("gói đang chờ duyệt: Lead không duyệt cả gói được khi còn mục thiếu", async () => {
+    serve(pkg({ status: "pending", submission: { status: "pending", submitted_by: "u1", submitted_at: "2026-10-26T03:00:00.000Z", spine_version: 7, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] } }));
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={() => {}} migrationMissing={1} />);
+    expect(await screen.findByRole("button", { name: "Duyệt cả gói & phát hành" })).toBeDisabled();
+    expect(screen.getByText(/Còn 1 mục của mẫu mới chưa viết/)).toBeInTheDocument();
+  });
 });
