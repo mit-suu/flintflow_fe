@@ -1011,6 +1011,22 @@ export const mode1Handlers = [
       return ok(list.reverse());
     }),
   ),
+  // BF §3.2: mục đang có bản sửa chưa xác nhận của CR chưa đóng
+  http.get(
+    api("/projects/:projectId/change-requests/pending-sections"),
+    mode1(() => {
+      const open = [...S().crs.values()].filter((d) => !["written", "released", "cancelled", "rejected", "dropped"].includes(d.change_request.status));
+      const by = new Map<string, { cr_id: string; who: string }[]>();
+      for (const d of open)
+        for (const l of d.locations) {
+          if (!["edit", "comment"].includes(l.conclusion ?? "") || !l.section_id || l.section_id === "misc") continue;
+          const list = by.get(l.section_id) ?? [];
+          if (!list.some((x) => x.cr_id === d.change_request.cr_id)) list.push({ cr_id: d.change_request.cr_id, who: d.change_request.requester });
+          by.set(l.section_id, list);
+        }
+      return ok([...by].map(([section_id, items]) => ({ section_id, title: section_id, items })));
+    }),
+  ),
   http.get(
     api("/projects/:projectId/change-requests/:crId"),
     mode1(({ params }) => {

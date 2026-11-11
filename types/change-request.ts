@@ -83,6 +83,8 @@ export interface Cr {
   base_doc_version: string;
   result_doc_version: string | null;
   created_by: string;
+  /** Tên người tạo CR (BA giữ đề xuất) — BF §3.2 "treo ở người đó". */
+  created_by_name?: string | null;
   submitted_at: IsoDateTime | null;
   decided_by: string | null;
   closed_reason: string | null;
@@ -304,3 +306,10 @@ export type Mode1ErrorCode =
   | "IMPORT_FILE_REJECTED"
   | "IMPORT_STAMP_FOREIGN_PROJECT"
   | "RELEASE_RED_FLAGS_OPEN";
+
+/** BF §3.2: mục của tài liệu đang có bản sửa chưa xác nhận (CR chưa đóng), ai giữ — `GET …/change-requests/pending-sections`. */
+export interface PendingSection {
+  section_id: string;
+  title: string;
+  items: { cr_id: string; who: string }[];
+}

@@ -30,12 +30,12 @@ afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
 /** Khung chat tối giản: luồng CR + ô nhập gửi qua `chat.send` như workspace. */
-function Harness() {
+function Harness({ myUserId = null }: { myUserId?: string | null }) {
   const chat = useCrChat(P);
   const [text, setText] = useState("");
   return (
     <>
-      <Mode1CrThread projectId={P} chat={chat} me="Lan" />
+      <Mode1CrThread projectId={P} chat={chat} me="Lan" myUserId={myUserId} />
       <input aria-label="Ô chat" placeholder={chat.inputHint} value={text} onChange={(e) => setText(e.target.value)} />
       <button
         type="button"
@@ -312,6 +312,16 @@ describe("Mode1CrThread — bước đề xuất gom một danh sách (FLF-375)"
     fireEvent.click(within(card).getByRole("button", { name: "Dùng “Người mua” theo yêu cầu của tôi" }));
     await waitFor(() => expect(S().crs.get("CR-001")!.locations[0].reason).toBe("Soạn lại theo hướng: Dùng “Người mua” theo yêu cầu của tôi"));
     expect(S().crs.get("CR-001")!.locations[0].conflict).toBeNull();
+  });
+
+  it("BF §3.2: người khác mở CR đã sẵn sàng ⇒ thấy 'đang treo ở X', không có nút xác nhận", async () => {
+    const d = await proposalsOf(1);
+    d.change_request.status = "ready_to_submit";
+    d.change_request.created_by = "user-lan";
+    d.change_request.created_by_name = "Lan";
+    renderWithIntl(<Harness myUserId="user-huy" />);
+    expect(await screen.findByText(/đang treo ở Lan/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).not.toBeInTheDocument();
   });
 
   it("5 phần đều đạt ⇒ danh sách gọn, bấm một lần Đồng ý tất cả ⇒ CR đi tiếp tới xác nhận", async () => {

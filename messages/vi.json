@@ -1539,6 +1539,8 @@
       "custom": "Mục riêng",
       "issuesTitle": "Xem vấn đề của mục này",
       "issuesAria": "Xem {count} vấn đề của mục này",
+      "pendingProposal": "{who} ({crId}) có bản sửa chưa xác nhận ở mục này",
+      "pendingProposalsAria": "Bản sửa chưa xác nhận của người khác",
       "commentsTitle": "Xem góp ý của mục này",
       "comment": "Góp ý",
       "editSection": "Sửa mục này",
@@ -3324,6 +3326,7 @@
       "readyText": "✓ Mọi đề xuất đã đạt kiểm tra. Xác nhận để ghi ngay vào bản nháp chung — Lead sẽ duyệt cả gói khi phát hành.",
       "submit": "Xác nhận & ghi vào bản nháp",
       "readyMore": "Còn muốn sửa thêm? Gõ tiếp ở ô chat — lệnh mới được gộp vào {crId}.",
+      "notRequester": "Đề xuất này đang treo ở {who} — chỉ người đó xác nhận được (người xác nhận đứng tên thay đổi). Bạn xem được mọi chỗ; cần đổi khác thì tạo change request của bạn.",
       "pausedWhat": "Bước AI",
       "continue": "Tiếp tục",
       "kinds": {

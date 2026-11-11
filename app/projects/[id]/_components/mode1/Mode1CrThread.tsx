@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrLocation, type CrStatus } from "@/types/change-request";
+import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrDetail, type CrLocation, type CrStatus } from "@/types/change-request";
 import { fromApprovedPreview, inApprovedBatch, isFailing, type CrChat, type CrChatPrefill, type CrChatSource } from "../../hooks/mode1/useCrChat";
 import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
@@ -576,7 +576,33 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
  * nhắn riêng): lệnh sửa của người dùng ⇒ ① làm rõ (câu hỏi + gợi ý + tài liệu) ⇒ ② phần liên quan ⇒ ③ đề xuất — mọi
  * phần cần quyết, kể cả phần AI bỏ sót và phần trượt kiểm (Đồng ý / Sửa lại / Bỏ) ⇒ ④ kiểm ⇒ Gửi cho Lead.
  */
-export default function Mode1CrThread({ projectId, chat, me }: { projectId: string; chat: CrChat; me: string }) {
+/**
+ * BF §3.2: đề xuất chưa xác nhận **treo ở người yêu cầu** — người khác mở CR này chỉ thấy "đang treo ở X", không có nút
+ * xác nhận (họ không có bối cảnh, người xác nhận đứng tên thay đổi).
+ */
+function ReadyToSubmit({ c, chat, myUserId }: { c: CrDetail["change_request"]; chat: CrChat; myUserId: string | null }) {
+  const t = useTranslations("mode1.crThread");
+  const notMine = myUserId !== null && c.created_by !== myUserId;
+  return (
+    <AiBubble step={t("readyStep")} label={t("readyLabel")}>
+      {notMine ? (
+        <p className="text-[#8A6D1F]">{t("notRequester", { who: c.created_by_name ?? c.requester })}</p>
+      ) : (
+        <>
+          <p>{t("readyText")}</p>
+          <div className="flex gap-1.5">
+            <button type="button" disabled={chat.busy !== null} onClick={chat.submit} className={`${btn} btn-gradient-primary text-white`}>
+              {t("submit")}
+            </button>
+          </div>
+          <p className="text-on-surface-muted text-body">{t("readyMore", { crId: c.cr_id })}</p>
+        </>
+      )}
+    </AiBubble>
+  );
+}
+
+export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: { projectId: string; chat: CrChat; me: string; myUserId?: string | null }) {
   const t = useTranslations("mode1.crThread");
   const { sectionTitle, crStatus } = useMode1Labels();
   const locTitle = useLocTitle();
@@ -785,17 +811,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
           </div>
         </AiBubble>
       )}
-      {c.status === "ready_to_submit" && (
-        <AiBubble step={t("readyStep")} label={t("readyLabel")}>
-          <p>{t("readyText")}</p>
-          <div className="flex gap-1.5">
-            <button type="button" disabled={busy} onClick={chat.submit} className={`${btn} btn-gradient-primary text-white`}>
-              {t("submit")}
-            </button>
-          </div>
-          <p className="text-on-surface-muted text-body">{t("readyMore", { crId: c.cr_id })}</p>
-        </AiBubble>
-      )}
+      {c.status === "ready_to_submit" && <ReadyToSubmit c={c} chat={chat} myUserId={myUserId} />}
 
       {chat.replies.map((r, i) => (
         <div key={i} className="flex flex-col gap-2">
