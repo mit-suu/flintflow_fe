@@ -15,6 +15,7 @@ import type { User } from "@/types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { uploadReferenceDocument, type DocumentVersionChooser } from "@/lib/reference-upload";
 import { fileFingerprint, splitDuplicateFiles } from "@/lib/file-fingerprint";
+import { listProjectDocuments } from "@/lib/api/documents";
 import type { SrsAttachmentSuggestion } from "../_components/mode1/srs-attachment-chip";
 
 /** Thông báo ở pill toast của trang — có thể là: */
@@ -33,10 +34,10 @@ export type SessionNoticeKey =
 /**
  * Hook không gọi `useTranslations` (lỗi ghi trong callback/effect, test `renderHook` không có provider — xem
  * `lib/hook-errors.ts`) nên thông báo là MÃ: `{ key }` ⇒ trang dịch `workspace.session.<key>`; `{ text }` ⇒ câu BE đã dịch
- * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung). `attachmentDuplicate` kèm `files`
- * là tên các tệp trùng vừa bị bỏ (FLF-398).
+ * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung). `attachmentDuplicate` (FLF-398):
+ * `files` = tệp trùng tệp đang đính kèm, `inProject` = tệp trùng tài liệu đã có trong dự án (`tên tệp → "tài liệu" (D<n>)`).
  */
-export type WorkspaceNotice = { key: SessionNoticeKey; error?: string; files?: string } | { text: string };
+export type WorkspaceNotice = { key: SessionNoticeKey; error?: string; files?: string; inProject?: string } | { text: string };
 
 const NO_MESSAGE = "@";
 const errorNotice = (error: unknown, key: SessionNoticeKey): WorkspaceNotice => {
@@ -449,8 +450,9 @@ export function useWorkspace(
   const attachmentPrintsRef = useRef(new WeakMap<File, string>());
 
   /**
-   * Thêm tệp đính kèm. FLF-398: tệp trùng nội dung với tệp đang đính kèm (kể cả đổi tên) hoặc trùng nhau trong cùng lượt chọn ⇒
-   * không thêm, báo ở toast. Trùng với tài liệu đã có trong dự án thì BE báo lúc gửi.
+   * Thêm tệp đính kèm. FLF-398: tệp trùng nội dung (kể cả đổi tên) với tệp đang đính kèm, với tệp khác trong cùng lượt chọn,
+   * hoặc với **tài liệu đã có trong dự án** (`contentHash` của `GET /documents`) ⇒ không thêm, báo ngay ở toast. Không đọc được
+   * danh sách tài liệu ⇒ bỏ qua bước so này (BE vẫn chặn lúc gửi).
    */
   const selectAttachment = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -466,11 +468,36 @@ export function useWorkspace(
         known.add(print);
       }
       const { kept, duplicates } = await splitDuplicateFiles(picked, known);
-      kept.forEach(({ file, fingerprint }) => prints.set(file, fingerprint));
-      if (kept.length) setPendingAttachments((prev) => [...prev, ...kept.map((k) => k.file)]);
-      if (duplicates.length) setNotice({ key: "attachmentDuplicate", files: duplicates.map((f) => f.name).join(", ") });
+      const inProject = new Map<string, { name: string; code: number | null }>();
+      try {
+        for (const doc of (await listProjectDocuments(projectId)).data ?? []) {
+          if (doc.contentHash) inProject.set(doc.contentHash, { name: doc.originalName, code: doc.docCode ?? null });
+        }
+      } catch {
+        // Không đọc được danh sách ⇒ không so; BE trả DUPLICATE_DOCUMENT lúc gửi
+      }
+      const fresh = kept.filter((k) => !inProject.has(k.fingerprint));
+      const existing = kept.filter((k) => inProject.has(k.fingerprint));
+      fresh.forEach(({ file, fingerprint }) => prints.set(file, fingerprint));
+      if (fresh.length) setPendingAttachments((prev) => [...prev, ...fresh.map((k) => k.file)]);
+      if (duplicates.length || existing.length) {
+        setNotice({
+          key: "attachmentDuplicate",
+          ...(duplicates.length ? { files: duplicates.map((f) => f.name).join(", ") } : {}),
+          ...(existing.length
+            ? {
+                inProject: existing
+                  .map(({ file, fingerprint }) => {
+                    const doc = inProject.get(fingerprint)!;
+                    return `${file.name} → "${doc.name}"${doc.code ? ` (D${doc.code})` : ""}`;
+                  })
+                  .join(", "),
+              }
+            : {}),
+        });
+      }
     },
-    [pendingAttachments]
+    [pendingAttachments, projectId]
   );
 
   const removeAttachment = useCallback(

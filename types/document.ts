@@ -152,6 +152,8 @@ export interface ProjectDocument {
   summaryStatus: "pending" | "success" | "failed";
   /** Số tài liệu `D<n>` (FLF-292). */
   docCode?: number | null;
+  /** FLF-398: SHA-256 nội dung file — FE so lúc chọn tệp để báo "đã có trong dự án". Tài liệu cũ chưa có ⇒ `null`. */
+  contentHash?: string | null;
   /** FLF-398: các bản cũ tài liệu này đã thay ("Thay bản cũ") — chỉ có ở `GET /documents`. */
   replaces?: DocumentRef[];
   createdAt: string;

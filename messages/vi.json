@@ -1489,6 +1489,7 @@
       "attachmentOnly": "[Đính kèm tài liệu]",
       "uploadFailed": "Không thể tải tệp đính kèm lên",
       "attachmentDuplicate": "Đã đính kèm: {files} — không thêm lần nữa.",
+      "attachmentInProject": "Đã có trong dự án: {files} — không đính kèm lại.",
       "knowledgeFailed": "Không tra được kho tri thức",
       "stopped": "Đã dừng AI.",
       "knowledgeDisabled": "Tính năng hỏi kiến thức đang tắt trên máy chủ."

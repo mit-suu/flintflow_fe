@@ -1839,7 +1839,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const noticeText = (notice: WorkspaceNotice): string => {
     if ("text" in notice) return notice.text;
     if (notice.key === "deleteFailed") return t("session.deleteFailed", { error: notice.error ?? t("session.error") });
-    if (notice.key === "attachmentDuplicate") return t("session.attachmentDuplicate", { files: notice.files ?? "" });
+    if (notice.key === "attachmentDuplicate") {
+      return [
+        notice.files ? t("session.attachmentDuplicate", { files: notice.files }) : "",
+        notice.inProject ? t("session.attachmentInProject", { files: notice.inProject }) : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
     return t(`session.${notice.key}`);
   };
   const shownToast = toast ?? (ws.notice ? noticeText(ws.notice) : null);

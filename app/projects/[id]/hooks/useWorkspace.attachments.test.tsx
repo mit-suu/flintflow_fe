@@ -9,12 +9,13 @@ import type { ChangeEvent } from "react";
 import { mockServer } from "@/mocks/server";
 import { MOCK_PROJECT_ID, resetMockState } from "@/mocks/state";
 import { ApiClientError } from "@/lib/api/client";
-import { uploadProjectDocument } from "@/lib/api/documents";
+import { listProjectDocuments, uploadProjectDocument } from "@/lib/api/documents";
+import { fileFingerprint } from "@/lib/file-fingerprint";
 import { useWorkspace } from "./useWorkspace";
 
 vi.mock("@/lib/auth", async (importOriginal) => ({ ...(await importOriginal<object>()), isAuthenticated: () => true }));
 vi.mock("@/lib/api/token-store", async (importOriginal) => ({ ...(await importOriginal<object>()), getActiveOrgId: () => null }));
-vi.mock("@/lib/api/documents", async (importOriginal) => ({ ...(await importOriginal<object>()), uploadProjectDocument: vi.fn() }));
+vi.mock("@/lib/api/documents", async (importOriginal) => ({ ...(await importOriginal<object>()), uploadProjectDocument: vi.fn(), listProjectDocuments: vi.fn() }));
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
@@ -22,6 +23,7 @@ afterAll(() => mockServer.close());
 beforeEach(() => {
   resetMockState();
   vi.mocked(uploadProjectDocument).mockReset();
+  vi.mocked(listProjectDocuments).mockReset().mockResolvedValue({ data: [], error: null } as never);
 });
 
 const V1 = { id: "d1", name: "SRS_KhachHang_v1.docx", doc_code: 1 };
@@ -79,6 +81,26 @@ describe("useWorkspace — đính kèm trùng / bản mới (FLF-398)", () => {
     expect(result.current.pendingAttachments.map((f) => f.name)).toEqual(["bien-ban.docx", "email.txt"]);
     expect(result.current.notice).toEqual({ key: "attachmentDuplicate", files: "bien-ban (1).docx, email copy.txt" });
     expect(uploadProjectDocument).not.toHaveBeenCalled();
+  });
+
+  it("chọn tệp trùng tài liệu đã có trong dự án ⇒ không đính kèm, báo tên tài liệu + mã ngay lúc chọn", async () => {
+    const hash = await fileFingerprint(new File(["Biên bản họp"], "x"));
+    vi.mocked(listProjectDocuments).mockResolvedValue({ data: [{ _id: "d1", originalName: "Bien ban.docx", docCode: 1, contentHash: hash }], error: null } as never);
+    const { result } = renderHook(() => useWorkspace(MOCK_PROJECT_ID));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    await act(async () => result.current.selectAttachment(pick([new File(["Biên bản họp"], "bien-ban (1).docx"), new File(["Email"], "email.txt")])));
+
+    expect(result.current.pendingAttachments.map((f) => f.name)).toEqual(["email.txt"]);
+    expect(result.current.notice).toEqual({ key: "attachmentDuplicate", inProject: 'bien-ban (1).docx → "Bien ban.docx" (D1)' });
+    expect(uploadProjectDocument).not.toHaveBeenCalled();
+  });
+
+  it("không đọc được danh sách tài liệu ⇒ vẫn đính kèm (BE chặn lúc gửi)", async () => {
+    vi.mocked(listProjectDocuments).mockRejectedValue(new Error("network"));
+    const { result } = renderHook(() => useWorkspace(MOCK_PROJECT_ID));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    await act(async () => result.current.selectAttachment(pick([new File(["a"], "a.txt")])));
+    expect(result.current.pendingAttachments.map((f) => f.name)).toEqual(["a.txt"]);
   });
 
   it("lỗi khác ⇒ false, giữ tệp để thử lại", async () => {
