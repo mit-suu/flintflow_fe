@@ -3,22 +3,18 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
 import { listCrs } from "@/lib/api/change-requests";
 import { listFlags } from "@/lib/api/flags";
 import type { Flag } from "@/types/spine";
 import { CR_TERMINAL_STATUSES, type Cr } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
-import ChangeRequestForm from "./ChangeRequestForm";
 import ReferenceDocumentsPanel from "./ReferenceDocumentsPanel";
 import { useErrorText, useMode1Labels } from "./i18n";
-import { crHref, crPrefillHref, type CrPrefill } from "./prefill";
+import { crHref, crPrefillHref } from "./prefill";
 
 interface ChangeRequestListProps {
   projectId: string;
-  /** Điền sẵn từ gap report / re-upload / chat (`?new=1&…`) ⇒ mở form ngay. */
-  prefill: CrPrefill | null;
-  /** Viewer: chỉ xem danh sách, prefill không mở form. */
+  /** Viewer: chỉ xem danh sách. */
   readOnly?: boolean;
 }
 
@@ -39,19 +35,16 @@ export const statusTone = (status: Cr["status"]): string =>
         : "bg-[#F2F1FB] text-[#554DB0]";
 
 /**
- * Danh sách change request (UC-48). Không có nút tạo mới: CR tạo qua chat (`Mode1CrThread`); form chỉ mở khi một lối vào
- * khác điền sẵn (`?new=1&…` — gap report, comment, cờ, re-upload).
+ * Danh sách change request (UC-48). FLF-375 — CR chỉ tạo bằng chat (BF C-1): không có form tạo CR; lối vào khác (gap
+ * report, comment, cờ, re-upload) mở khung chat với câu yêu cầu điền sẵn (`crPrefillHref`).
  */
-export default function ChangeRequestList({ projectId, prefill, readOnly = false }: ChangeRequestListProps) {
+export default function ChangeRequestList({ projectId, readOnly = false }: ChangeRequestListProps) {
   const t = useTranslations("mode1.crList");
   const L = useMode1Labels();
   // Hàm ổn định (đọc nhãn qua ref) — đổi ngôn ngữ không tải lại danh sách
   const errorText = useErrorText();
-  const router = useRouter();
   const [crs, setCrs] = useState<Cr[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(prefill !== null && !readOnly);
-  // `formOpen` chỉ còn tắt được (Huỷ) — không có nút mở lại
   const [filter, setFilter] = useState<Filter>("open");
   const [review, setReview] = useState<Flag[] | null>(null);
   const [reviewError, setReviewError] = useState(false);
@@ -99,14 +92,6 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
         <p className="text-body text-[#8A867E]">{t("intro")}</p>
       </div>
 
-      {formOpen && (
-        <ChangeRequestForm
-          projectId={projectId}
-          prefill={prefill}
-          onCancel={() => setFormOpen(false)}
-          onCreated={(d) => router.push(crHref(projectId, d.change_request.cr_id), { scroll: false })}
-        />
-      )}
 
       {error && (
         <p role="alert" className="text-body text-[#B03030]">
@@ -134,7 +119,8 @@ export default function ChangeRequestList({ projectId, prefill, readOnly = false
                     // Không điền nguồn: cờ do import đặt không thuộc nguồn CR nào (gap report, email…) — người dùng tự chọn
                     href={crPrefillHref(projectId, {
                       title: t("needsReview.prefillTitle", { message: shortText(reviewText(f)) }),
-                      description: [reviewText(f), f.target_id ?? ""].filter(Boolean).join("\n"),
+                      // FLF-375: câu điền sẵn vào ô chat — không kèm path Spine (`actors[id=A02].kind`) mà người dùng không đọc được
+                      description: reviewText(f),
                       ref: f.section_id ? L.sectionName(f.section_id) : undefined,
                     })}
                     scroll={false}

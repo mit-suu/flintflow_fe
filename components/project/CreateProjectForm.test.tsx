@@ -100,12 +100,31 @@ describe("CreateProjectForm — hộp Tạo dự án hai ô (business-flow §1)"
     await waitFor(() => expect(uploadProjectDocument).toHaveBeenCalledWith("p1", ref));
   });
 
+  it("FLF-398: chọn lại file trùng nội dung (kể cả đổi tên) hoặc chọn 2 file giống nhau ⇒ chỉ giữ một, báo trùng", async () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    const a = new File(["Biên bản họp 15/10"], "Bien ban.txt", { type: "text/plain" });
+    fireEvent.change(refInput(), { target: { files: [a] } });
+    expect(await screen.findByText("Bien ban.txt")).toBeInTheDocument();
+
+    fireEvent.change(refInput(), { target: { files: [new File(["Biên bản họp 15/10"], "Bien ban (1).txt", { type: "text/plain" })] } });
+    expect(await screen.findByText(/Đã có trong danh sách: Bien ban \(1\)\.txt/)).toBeInTheDocument();
+    expect(screen.queryByText("Bien ban (1).txt")).not.toBeInTheDocument();
+
+    const email = new File(["Email khách"], "email.txt", { type: "text/plain" });
+    fireEvent.change(refInput(), { target: { files: [email, new File(["Email khách"], "email copy.txt", { type: "text/plain" })] } });
+    expect(await screen.findByText("email.txt")).toBeInTheDocument();
+    expect(screen.getByText(/Đã có trong danh sách: email copy\.txt/)).toBeInTheDocument();
+    expect(screen.queryByText("email copy.txt")).not.toBeInTheDocument();
+  });
+
   it("tải tham khảo lỗi không chặn: vào dự án ngay, file tải nền (lỗi báo ở trang dự án)", async () => {
     vi.mocked(uploadProjectDocument).mockRejectedValue(new Error("network"));
     const onCreated = vi.fn();
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={onCreated} />);
     const ref = new File(["x"], "Bien ban.txt", { type: "text/plain" });
     fireEvent.change(refInput(), { target: { files: [ref] } });
+    // FLF-398: file vào danh sách sau khi đọc xong (so trùng nội dung)
+    await screen.findByText("Bien ban.txt");
     fireEvent.click(submit());
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ _id: "p1", mode: "import" }));
     await waitFor(() => expect(uploadProjectDocument).toHaveBeenCalledWith("p1", ref));

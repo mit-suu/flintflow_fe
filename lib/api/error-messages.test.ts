@@ -17,6 +17,18 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(localizeApiError("EMAIL_NOT_VERIFIED", "Email chưa được xác thực.")).toBe("Your email isn't verified yet. Please check your inbox.");
   });
 
+  it("FLF-398 DUPLICATE_DOCUMENT ⇒ câu nêu tài liệu đã có (tên có gạch dưới vẫn hiện); trùng bản cũ ⇒ nêu bản đang thay", () => {
+    setPage("vi");
+    const doc = { id: "d1", name: "SRS_KhachHang_v1.docx", doc_code: 1 };
+    expect(new ApiClientError(409, "DUPLICATE_DOCUMENT", "x", { document: doc }).message).toBe('Tài liệu này đã có trong dự án: "SRS_KhachHang_v1.docx" (D1).');
+    expect(
+      new ApiClientError(409, "DUPLICATE_DOCUMENT", "x", { document: doc, superseded_by: { id: "d2", name: "SRS_KhachHang_v2.docx", doc_code: 2 } }).message
+    ).toBe('"SRS_KhachHang_v1.docx" (D1) là bản cũ, đã được thay bởi "SRS_KhachHang_v2.docx" (D2).');
+    expect(localizeApiError("DUPLICATE_DOCUMENT", "x")).toBe("Tài liệu này đã có trong dự án.");
+    setPage("en");
+    expect(localizeApiError("DUPLICATE_DOCUMENT", "x", undefined, { document: doc })).toBe('This document is already in the project: "SRS_KhachHang_v1.docx" (D1).');
+  });
+
   it("FILE_TOO_LARGE có meta.max_mb (upload SRS) ⇒ câu nêu giới hạn MB + cách nén ảnh; không meta ⇒ câu chung", () => {
     setPage("vi");
     expect(new ApiClientError(413, "FILE_TOO_LARGE", "File vượt giới hạn 40 MB.", { max_mb: 40 }).message).toBe(

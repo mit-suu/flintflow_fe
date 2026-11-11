@@ -1011,6 +1011,22 @@ export const mode1Handlers = [
       return ok(list.reverse());
     }),
   ),
+  // BF §3.2: mục đang có bản sửa chưa xác nhận của CR chưa đóng
+  http.get(
+    api("/projects/:projectId/change-requests/pending-sections"),
+    mode1(() => {
+      const open = [...S().crs.values()].filter((d) => !["written", "released", "cancelled", "rejected", "dropped"].includes(d.change_request.status));
+      const by = new Map<string, { cr_id: string; who: string }[]>();
+      for (const d of open)
+        for (const l of d.locations) {
+          if (!["edit", "comment"].includes(l.conclusion ?? "") || !l.section_id || l.section_id === "misc") continue;
+          const list = by.get(l.section_id) ?? [];
+          if (!list.some((x) => x.cr_id === d.change_request.cr_id)) list.push({ cr_id: d.change_request.cr_id, who: d.change_request.requester });
+          by.set(l.section_id, list);
+        }
+      return ok([...by].map(([section_id, items]) => ({ section_id, title: section_id, items })));
+    }),
+  ),
   http.get(
     api("/projects/:projectId/change-requests/:crId"),
     mode1(({ params }) => {
@@ -1069,6 +1085,30 @@ export const mode1Handlers = [
       setCrStatus(d, "clarifying");
       runClarify(d);
       return okCr(d);
+    }),
+  ),
+
+  // FLF-375 (BF nguyên tắc 9): tin nhắn khi CR đang mở — câu hỏi (kết thúc bằng "?") ⇒ AI trả lời, CR giữ nguyên;
+  // còn lại là lệnh sửa ⇒ gộp vào CR như `/amend`.
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/messages"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      const text = String((await readJson(request)).text ?? "").trim();
+      if (!text) return fail(400, "VALIDATION_ERROR", "Cần nội dung tin nhắn");
+      if (/\?\s*$/.test(text)) {
+        return ok({ ...withCurrent(d), message: { kind: "answer" as const, reply: `Trả lời (mock): ${text}` } });
+      }
+      if (!(CR_AMENDABLE_STATUSES as readonly string[]).includes(cr.status)) return invalidTransition(cr, "clarifying");
+      cr.amendments.push({ text, at: now() });
+      cr.paused = null;
+      if (cr.status !== "draft") {
+        setCrStatus(d, "clarifying");
+        runClarify(d);
+      }
+      return ok({ ...withCurrent(d), message: { kind: "amended" as const } });
     }),
   ),
 
@@ -1139,7 +1179,8 @@ export const mode1Handlers = [
         section_id: e.section_id,
         section_title: e.section_title,
         current_text: valueText(e.value),
-        found_by: vector ? (i === 0 ? ["spine_link", "vector"] : ["vector"]) : ["keyword"],
+        // FLF-375: CR tạo từ bản xem trước đã duyệt ⇒ BE gắn nguồn `preview` cho các chỗ thuộc lô đã duyệt
+        found_by: cr.seed?.ops.length ? ["preview"] : vector ? (i === 0 ? ["spine_link", "vector"] : ["vector"]) : ["keyword"],
         vector_score: vector ? Number((0.91 - i * 0.04).toFixed(2)) : null,
         entity_paths: [],
         owner_step: null,
@@ -1223,6 +1264,8 @@ export const mode1Handlers = [
       loc.proposal = { ...(loc.proposal ?? { old_text: loc.current_text, comment_text: null, spine_ops: [], assumptions: [] }), new_text: `${loc.current_text} (${instruction})`, assumptions: [] };
       loc.manual = true;
       loc.verify = null;
+      // FLF-375: soạn lại trên nội dung hiện tại ⇒ hết xung đột (như BE)
+      loc.conflict = null;
       regroup(d);
       if (cr.status === "ready_to_submit") setCrStatus(d, "verifying");
       return okCr(d);

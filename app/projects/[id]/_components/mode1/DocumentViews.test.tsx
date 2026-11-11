@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
@@ -11,7 +11,7 @@ import GapReportView, { gapReportPrefill } from "./GapReportView";
 import ReuploadDiffView from "./ReuploadDiffView";
 import VersionCompare from "./VersionCompare";
 import VersionsPanel from "./VersionsPanel";
-import { readCrPrefill } from "./prefill";
+import { readChatCrDraft } from "./prefill";
 import { labelsFor } from "./test-labels";
 
 const P = MODE1_PROJECT_ID;
@@ -51,9 +51,10 @@ describe("GapReportView (UC-23)", () => {
     expect(screen.queryByRole("link", { name: "Tạo CR bổ sung mục thiếu" })).not.toBeInTheDocument();
 
     const link = screen.getByRole("link", { name: "Cần sửa → Tạo change request" });
-    const prefill = readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams);
-    expect(prefill).toMatchObject({ source: "gap_report", title: "Sửa theo gap report" });
-    expect(prefill?.description).toContain("NFR-02 trỏ tới UC-99 không tồn tại");
+    const prefill = readChatCrDraft(new URL(link.getAttribute("href")!, "http://x").searchParams);
+    expect(prefill).toMatchObject({ source: "gap_report" });
+    expect(prefill?.text.split("\n")[0]).toBe("Sửa theo gap report");
+    expect(prefill?.text).toContain("NFR-02 trỏ tới UC-99 không tồn tại");
 
     fireEvent.click(screen.getByRole("button", { name: "Tải gap report (.docx)" }));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
@@ -127,6 +128,6 @@ describe("VersionCompare (UC-55) và ReuploadDiffView (UC-24)", () => {
     expect(await screen.findByText(/1 thêm · 0 xoá · 1 sửa · 0 di chuyển/)).toBeInTheDocument();
     expect(mode1State.mode1State.versions).toHaveLength(1);
     const href = screen.getByRole("link", { name: "Tạo CR từ khác biệt" }).getAttribute("href")!;
-    expect(readCrPrefill(new URL(href, "http://x").searchParams)).toMatchObject({ source: "reupload" });
+    expect(readChatCrDraft(new URL(href, "http://x").searchParams)).toMatchObject({ source: "reupload" });
   });
 });

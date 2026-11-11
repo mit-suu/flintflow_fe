@@ -9,7 +9,7 @@ import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
 import { importToGapReview } from "@/mocks/mode1/flows";
 import type { ReuploadDiff } from "@/types/import";
-import { readCrPrefill } from "./prefill";
+import { readChatCrDraft } from "./prefill";
 import ReuploadDiffView, { reuploadPrefill } from "./ReuploadDiffView";
 import { labelsFor } from "./test-labels";
 
@@ -138,8 +138,9 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     expect(typeof sent).toBe("object");
     expect(screen.getByText("SRS_sua.docx")).toBeInTheDocument();
     expect(screen.getByText(/so với bản 0.2/)).toBeInTheDocument();
-    expect(readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams)).toEqual({
-      ...reuploadPrefill(DIFF, labelsFor()),
+    const { title, description } = reuploadPrefill(DIFF, labelsFor());
+    expect(readChatCrDraft(new URL(link.getAttribute("href")!, "http://x").searchParams)).toEqual({
+      text: `${title}\n${description}`,
       source: "reupload",
       ref: "File tải lại SRS_sua.docx",
     });

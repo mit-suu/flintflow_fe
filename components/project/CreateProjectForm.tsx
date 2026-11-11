@@ -13,6 +13,7 @@ import type { DocumentLanguage, Project } from "@/types/project";
 import type { OrgTemplateSummary } from "@/types/org-library";
 import DocumentLanguagePicker from "./DocumentLanguagePicker";
 import OrgTemplatePicker from "./OrgTemplatePicker";
+import { splitDuplicateFiles } from "@/lib/file-fingerprint";
 import { ReferenceSlot, SrsSlot, REFERENCE_MAX_BYTES, SRS_MAX_BYTES, isDocx, isReferenceType, type ReferenceFile } from "./create-project-file-slots";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
@@ -55,11 +56,13 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const [error, setError] = useState<string | null>(null);
   const [srsError, setSrsError] = useState<string | null>(null);
   const [refError, setRefError] = useState<string | null>(null);
+  // FLF-398: đang đọc file tham khảo vừa chọn (so trùng) ⇒ khoá Bắt đầu, file chưa vào danh sách thì không bị bỏ sót
+  const [checkingRefs, setCheckingRefs] = useState(0);
   const inputId = `project-name-${variant}`;
   const languageLabelId = `document-language-${variant}`;
   const submitting = stage !== null;
   const hasSrs = !!srsFile || !!orgTemplate;
-  const canSubmit = name.trim().length > 0 && !submitting;
+  const canSubmit = name.trim().length > 0 && !submitting && checkingRefs === 0;
 
   const pickSrs = (file: File | null) => {
     setSrsError(null);
@@ -70,11 +73,19 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
     if (!file) setCompleteToStandard(false);
   };
 
-  const addReferences = (files: File[]) => {
+  const addReferences = async (files: File[]) => {
     setRefError(null);
     const rejected = files.filter((f) => !isReferenceType(f) || f.size > REFERENCE_MAX_BYTES);
-    if (rejected.length) setRefError(t("references.rejected", { files: rejected.map((f) => f.name).join(", ") }));
-    const added = files.filter((f) => !rejected.includes(f)).map((file) => ({ key: `ref-${++refSeq}`, file, ...(isDocx(file) ? {} : { precheck: null }) }));
+    // FLF-398: file trùng nội dung với file đã có trong danh sách (kể cả đổi tên) hoặc trùng nhau trong lượt chọn ⇒ không thêm
+    const known = new Set(references.flatMap((r) => (r.fingerprint ? [r.fingerprint] : [])));
+    setCheckingRefs((n) => n + 1);
+    const { kept, duplicates } = await splitDuplicateFiles(files.filter((f) => !rejected.includes(f)), known).finally(() => setCheckingRefs((n) => n - 1));
+    const errors = [
+      ...(rejected.length ? [t("references.rejected", { files: rejected.map((f) => f.name).join(", ") })] : []),
+      ...(duplicates.length ? [t("references.duplicate", { files: duplicates.map((f) => f.name).join(", ") })] : []),
+    ];
+    if (errors.length) setRefError(errors.join(" "));
+    const added: ReferenceFile[] = kept.map(({ file, fingerprint }) => ({ key: `ref-${++refSeq}`, file, fingerprint, ...(isDocx(file) ? {} : { precheck: null }) }));
     if (!added.length) return;
     setReferences((prev) => [...prev, ...added]);
     // §3.6: file .docx trông như SRS ⇒ gợi ý (không chặn). Kiểm lỗi ⇒ coi như không phải SRS

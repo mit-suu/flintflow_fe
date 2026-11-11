@@ -2,16 +2,21 @@
 
 import { useSyncExternalStore } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { uploadProjectDocument } from "@/lib/api/documents";
 import { uploadImport } from "@/lib/api/import";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
+import { uploadReferenceDocument } from "@/lib/reference-upload";
+import type { DocumentUploadChoice, DocumentVersionCandidate } from "@/types/document";
 
 /**
  * Tải file của hộp Tạo dự án **sau khi đã vào trang dự án** (không bắt người dùng chờ trong hộp thoại): SRS (hoặc mẫu tổ chức) và
  * tài liệu tham khảo chạy song song, trạng thái từng file để trang dự án hiện các bước tích dần. Giữ trong bộ nhớ của tab — tải lại
  * trang giữa chừng thì mất (dự án vẫn còn, màn đọc file hiện lại ô tải SRS).
+ *
+ * FLF-398 (tài liệu tham khảo): tải **lần lượt** (BE bắt được cả file trùng nhau trong cùng lượt chọn). `choosing` = file có vẻ là
+ * bản mới của tài liệu đã có, chờ người dùng chọn (`chooseProjectUploadVersion`); `skipped` = không tải — trùng hệt (`note` là câu
+ * báo) hoặc người dùng Bỏ qua.
  */
-export type UploadStatus = "uploading" | "done" | "failed";
+export type UploadStatus = "uploading" | "done" | "failed" | "choosing" | "skipped";
 
 export interface UploadItem {
   key: string;
@@ -19,6 +24,10 @@ export interface UploadItem {
   name: string;
   size: number | null;
   status: UploadStatus;
+  /** `choosing`: tài liệu đang dùng mà file này có thể là bản mới của nó. */
+  candidates?: DocumentVersionCandidate[];
+  /** `skipped` vì trùng hệt: câu báo (đã dịch, nêu tài liệu đã có). */
+  note?: string;
 }
 
 export interface ProjectUploads {
@@ -40,27 +49,42 @@ interface UploadsStore {
   state: Map<string, ProjectUploads>;
   files: Map<string, File>;
   listeners: Set<() => void>;
+  /** FLF-398: file đang chờ người dùng chọn (`choosing`) ⇒ hàm trả lựa chọn cho lượt tải đang treo. */
+  choices?: Map<string, (choice: DocumentUploadChoice | null) => void>;
 }
 const store: UploadsStore = ((globalThis as { __ffProjectUploads?: UploadsStore }).__ffProjectUploads ??= { state: new Map(), files: new Map(), listeners: new Set() });
+const choices = (store.choices ??= new Map());
 const { state, files, listeners } = store;
 const emit = () => listeners.forEach((l) => l());
 
-const setItem = (projectId: string, key: string, status: UploadStatus) => {
+const patchItem = (projectId: string, key: string, patch: Partial<UploadItem>) => {
   const current = state.get(projectId);
   if (!current) return;
-  state.set(projectId, { ...current, items: current.items.map((i) => (i.key === key ? { ...i, status } : i)) });
+  state.set(projectId, { ...current, items: current.items.map((i) => (i.key === key ? { ...i, ...patch } : i)) });
   emit();
 };
 
 const run = async (projectId: string, item: UploadItem, orgTemplate?: { id: string; version?: number }) => {
-  setItem(projectId, item.key, "uploading");
+  patchItem(projectId, item.key, { status: "uploading", candidates: undefined, note: undefined });
   try {
-    if (item.kind === "srs") await (orgTemplate ? importFromOrgTemplate(projectId, orgTemplate.id, orgTemplate.version) : uploadImport(projectId, files.get(item.key)!));
-    else await uploadProjectDocument(projectId, files.get(item.key)!);
-    setItem(projectId, item.key, "done");
+    if (item.kind === "srs") {
+      await (orgTemplate ? importFromOrgTemplate(projectId, orgTemplate.id, orgTemplate.version) : uploadImport(projectId, files.get(item.key)!));
+      patchItem(projectId, item.key, { status: "done" });
+      return;
+    }
+    const result = await uploadReferenceDocument(
+      projectId,
+      files.get(item.key)!,
+      (_file, candidates) =>
+        new Promise((resolve) => {
+          choices.set(item.key, resolve);
+          patchItem(projectId, item.key, { status: "choosing", candidates });
+        })
+    );
+    patchItem(projectId, item.key, result.kind === "uploaded" ? { status: "done" } : { status: "skipped", note: result.kind === "duplicate" ? result.message : undefined });
   } catch (err) {
     // File bị preflight từ chối vẫn tạo lần import (lý do hiện ở màn đọc file) ⇒ coi như đã tải xong
-    setItem(projectId, item.key, err instanceof ApiClientError && err.code === "IMPORT_FILE_REJECTED" ? "done" : "failed");
+    patchItem(projectId, item.key, { status: err instanceof ApiClientError && err.code === "IMPORT_FILE_REJECTED" ? "done" : "failed" });
   }
 };
 
@@ -83,7 +107,31 @@ export const startProjectUploads = (projectId: string, input: ProjectFiles): voi
   if (!items.length) return;
   state.set(projectId, { items, startedAt: Date.now(), projectName: input.projectName });
   emit();
-  for (const item of items) void run(projectId, item, item.kind === "srs" ? orgTemplate : undefined);
+  // SRS song song với tài liệu tham khảo; tài liệu tham khảo lần lượt (FLF-398: file sau so được với file trước)
+  for (const item of items) if (item.kind === "srs") void run(projectId, item, orgTemplate);
+  void (async () => {
+    for (const item of items) if (item.kind === "reference") await run(projectId, item);
+  })();
+};
+
+/** FLF-398: trả lời file đang `choosing` — Thay bản cũ / Giữ cả hai, hoặc `null` = Bỏ qua (không tải). */
+export const chooseProjectUploadVersion = (projectId: string, key: string, choice: DocumentUploadChoice | null): void => {
+  const resolve = choices.get(key);
+  if (!resolve) return;
+  choices.delete(key);
+  patchItem(projectId, key, { status: "uploading", candidates: undefined });
+  resolve(choice);
+};
+
+/** FLF-398: ẩn dòng báo của một file đã xong (vd file trùng hệt đã được báo). Hết dòng ⇒ bỏ theo dõi. */
+export const dismissProjectUpload = (projectId: string, key: string): void => {
+  const current = state.get(projectId);
+  if (!current) return;
+  files.delete(key);
+  const items = current.items.filter((i) => i.key !== key);
+  if (items.length) state.set(projectId, { ...current, items });
+  else state.delete(projectId);
+  emit();
 };
 
 /** Thử lại một file lỗi (file vẫn còn trong bộ nhớ của tab). */
@@ -95,7 +143,12 @@ export const retryProjectUpload = (projectId: string, key: string): void => {
 /** Bỏ theo dõi khi mọi file đã xong và trang không cần hiện nữa. */
 export const clearProjectUploads = (projectId: string): void => {
   const current = state.get(projectId);
-  current?.items.forEach((i) => files.delete(i.key));
+  current?.items.forEach((i) => {
+    files.delete(i.key);
+    // File đang chờ chọn ⇒ coi như Bỏ qua, lượt tải đang treo kết thúc
+    choices.get(i.key)?.(null);
+    choices.delete(i.key);
+  });
   state.delete(projectId);
   emit();
 };

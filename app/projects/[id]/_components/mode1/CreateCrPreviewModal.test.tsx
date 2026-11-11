@@ -7,7 +7,7 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PreviewResult } from "@/types/pipeline";
 import CreateCrPreviewModal from "./CreateCrPreviewModal";
-import { readCrPrefill } from "./prefill";
+import { readChatCrDraft } from "./prefill";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
@@ -35,12 +35,10 @@ describe("CreateCrPreviewModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tạo CR" }));
     expect(push).toHaveBeenCalledTimes(1);
     const href = push.mock.calls[0][0] as string;
-    expect(href.startsWith("/projects/p1?panel=cr&")).toBe(true);
-    expect(readCrPrefill(new URLSearchParams(href.split("?")[1]))).toEqual({
-      title: "Đổi tên actor A03 thành Administrator",
-      description: "Đổi tên actor A03 thành Administrator\nvì khách yêu cầu",
+    expect(href.startsWith("/projects/p1?crdraft=1&")).toBe(true);
+    expect(readChatCrDraft(new URLSearchParams(href.split("?")[1]))).toEqual({
+      text: "Đổi tên actor A03 thành Administrator\nĐổi tên actor A03 thành Administrator\nvì khách yêu cầu",
       source: "verbal",
-      ref: undefined,
       preview_id: "pv-1",
     });
   });
@@ -57,6 +55,6 @@ describe("CreateCrPreviewModal", () => {
     expect(screen.getByText(/Bản xem trước lỗi — vẫn tạo được change request/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tạo CR (không kèm bản xem trước)" }));
     const href = push.mock.calls[0][0] as string;
-    expect(readCrPrefill(new URLSearchParams(href.split("?")[1]))).toMatchObject({ description: "Đổi tầm nhìn sản phẩm", source: "verbal", preview_id: undefined });
+    expect(readChatCrDraft(new URLSearchParams(href.split("?")[1]))).toMatchObject({ text: "Đổi tầm nhìn sản phẩm", source: "verbal", preview_id: undefined });
   });
 });

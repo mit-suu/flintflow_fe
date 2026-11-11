@@ -30,12 +30,12 @@ afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
 /** Khung chat tối giản: luồng CR + ô nhập gửi qua `chat.send` như workspace. */
-function Harness() {
+function Harness({ myUserId = null }: { myUserId?: string | null }) {
   const chat = useCrChat(P);
   const [text, setText] = useState("");
   return (
     <>
-      <Mode1CrThread projectId={P} chat={chat} me="Lan" />
+      <Mode1CrThread projectId={P} chat={chat} me="Lan" myUserId={myUserId} />
       <input aria-label="Ô chat" placeholder={chat.inputHint} value={text} onChange={(e) => setText(e.target.value)} />
       <button
         type="button"
@@ -182,7 +182,9 @@ describe("Mode1CrThread — CR trong khung chat", () => {
 
     const bad = screen.getByRole("article", { name: `Đề xuất ${failing.location_id}` });
     expect(within(bad).getByText("Chưa đạt")).toBeInTheDocument();
-    expect(within(bad).getByLabelText("Lý do chưa đạt")).toHaveTextContent("Đề xuất không thay đổi gì ở phần tử này");
+    // FLF-375: không in thông báo luật nội bộ — một câu nhắc gõ hướng sửa hoặc bỏ
+    expect(within(bad).getByLabelText("Lý do chưa đạt")).toHaveTextContent("Mình chưa sửa tự động được chỗ này sau 2 lần thử.");
+    expect(within(bad).queryByText(/Đề xuất không thay đổi gì ở phần tử này/)).not.toBeInTheDocument();
     const missing = screen.getByRole("article", { name: `Đề xuất ${skipped.location_id}` });
     expect(within(missing).getByText("Chưa có đề xuất")).toBeInTheDocument();
 
@@ -201,7 +203,7 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     expect(cr().status).toBe("ready_to_submit");
   });
 
-  it("phần chưa đạt ở mục riêng: \"Tự sửa\" từng đoạn (không JSON) ⇒ lưu = đã đồng ý ⇒ tự kiểm lại", async () => {
+  it("phần chưa đạt: chỉ có ô gõ hướng cho AI soạn lại — không còn tab “✎ Tự sửa” / sửa tay nội dung (FLF-375)", async () => {
     const first = renderWithIntl(<Harness />);
     await say("Ghi rõ lịch họp nhóm");
     await click("Lan · yêu cầu miệng");
@@ -212,33 +214,31 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     const d = S().crs.get("CR-001")!;
     d.locations.splice(1);
     const loc = d.locations[0];
-    const path = "custom_sections[id=CS02]";
-    const value = JSON.stringify({ id: "CS02", heading: "Team Notes", level: 2, source: "import", blocks: [{ kind: "paragraph", text: "Họp hằng tuần", rows: null, image_ref: null }] });
-    Object.assign(loc, {
-      path,
-      section_id: "custom:CS02",
-      section_title: "Team Notes",
-      owner_step: null,
-      current_text: value,
-      conclusion: "edit",
-      proposal: { old_text: value, new_text: value, comment_text: null, spine_ops: [], assumptions: [] },
-      verify: { code_ok: false, violations: [{ rule: "edit_no_change", message: "Đề xuất không thay đổi gì ở phần tử này" }], ai_flags: [], at: new Date().toISOString() },
-    });
-    S().locks.set(path, "CR-001");
+    loc.conclusion = "edit";
+    loc.verify = { code_ok: false, violations: [{ rule: "value_changed", message: "Giá trị hiện tại khác old_text" }], ai_flags: [], at: new Date().toISOString() };
     d.change_request.status = "manual_fix";
 
     renderWithIntl(<Harness />);
     const card = await screen.findByRole("article", { name: `Đề xuất ${loc.location_id}` });
-    expect(within(card).getByRole("tab", { name: "✨ Nhờ AI soạn lại" })).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(within(card).getByRole("tab", { name: "✎ Tự sửa" }));
-    fireEvent.change(within(card).getByLabelText("Đoạn 1"), { target: { value: "Họp mỗi thứ Hai lúc 9 giờ" } });
-    fireEvent.click(within(card).getByRole("button", { name: "Lưu bản tự sửa" }));
+    expect(within(card).queryByRole("tab")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: /Lưu bản tự sửa|Tự sửa/ })).not.toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "AI soạn lại" })).toBeInTheDocument();
+    // vi phạm value_changed ⇒ báo chỗ này vừa được sửa ở nơi khác
+    expect(within(card).getByLabelText("Lý do chưa đạt")).toHaveTextContent("Chỗ này vừa được sửa ở nơi khác");
+  });
 
-    expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
-    const saved = S().crs.get("CR-001")!.locations[0];
-    expect(saved.manual).toBe(true);
-    expect(saved.proposal?.new_text).toContain("Họp mỗi thứ Hai lúc 9 giờ");
-    expect(cr().status).toBe("ready_to_submit");
+  it("hỏi giữa chừng (câu hỏi) ⇒ AI trả lời trong khung chat, KHÔNG gộp thành yêu cầu bổ sung", async () => {
+    renderWithIntl(<Harness />);
+    await say("Đổi ngưỡng phản hồi thành 1 giây");
+    await click("Lan · yêu cầu miệng");
+    await screen.findByLabelText("Phần liên quan");
+    const status = cr().status;
+
+    await say("Có cần vẽ lại hình không?");
+    expect(await screen.findByText("Trả lời (mock): Có cần vẽ lại hình không?")).toBeInTheDocument();
+    expect(screen.getByText("Có cần vẽ lại hình không?")).toBeInTheDocument();
+    expect(cr().amendments).toEqual([]);
+    expect(cr().status).toBe(status);
   });
 });
 
@@ -261,6 +261,69 @@ const proposalsOf = async (n: number) => {
 };
 
 describe("Mode1CrThread — bước đề xuất gom một danh sách (FLF-375)", () => {
+  it("người khác vừa sửa cùng chỗ (conflict) ⇒ thẻ so sánh 3 cột, không nút ghi đè; Bỏ yêu cầu ⇒ không liên quan", async () => {
+    const d = await proposalsOf(1);
+    const loc = d.locations[0];
+    loc.conflict = {
+      at_proposal: "Ngưỡng 2 giây",
+      current: "Ngưỡng 3 giây",
+      proposal: "Ngưỡng 1 giây",
+      changed_by: "Minh",
+      changed_at: "2026-11-11T02:15:00.000Z",
+      proposed_at: "2026-11-11T02:00:00.000Z"
+    };
+    d.change_request.status = "manual_fix";
+
+    renderWithIntl(<Harness />);
+    const conflict = await screen.findByLabelText("Chỗ bị người khác sửa trong lúc chờ");
+    expect(conflict).toHaveTextContent("1 chỗ đã được người khác sửa");
+    const card = within(conflict).getByRole("article");
+    // BF §3.2: giờ người kia sửa và giờ AI soạn; ① so ② / ① so ③ tô màu như Track Changes
+    expect(card).toHaveTextContent(/đã được Minh sửa lúc \d{2}:\d{2}, sau khi AI soạn đề xuất cho bạn \(\d{2}:\d{2}\)/);
+    expect(within(card).getByText("Ngưỡng 2 giây")).toBeInTheDocument();
+    expect(within(card).getAllByRole("deletion").map((e) => e.textContent)).toEqual(["2", "2"]);
+    expect(within(card).getAllByRole("insertion").map((e) => e.textContent)).toEqual(["3", "1"]);
+    expect(within(card).getByRole("button", { name: "AI soạn lại trên nội dung hiện tại" })).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: /ghi đè/i })).not.toBeInTheDocument();
+
+    fireEvent.click(within(card).getByRole("button", { name: "Bỏ yêu cầu" }));
+    await waitFor(() => expect(S().crs.get("CR-001")!.locations[0].conclusion).toBe("not_related"));
+    expect(S().crs.get("CR-001")!.locations[0].reason).toBe("Bỏ vì mục đã được Minh sửa");
+  });
+
+  it("yêu cầu gốc đụng thẳng phần vừa sửa ⇒ AI hỏi lại trong chat với gợi ý; chọn gợi ý ⇒ AI soạn lại theo câu trả lời", async () => {
+    const d = await proposalsOf(1);
+    const loc = d.locations[0];
+    loc.conflict = {
+      at_proposal: "Khách đặt hàng",
+      current: "Khách hàng đặt hàng",
+      proposal: "Người mua đặt hàng",
+      changed_by: "Minh",
+      changed_at: null,
+      question: { text: "Minh vừa đổi “Khách” thành “Khách hàng”, còn yêu cầu của bạn muốn đổi thành “Người mua”. Giữ bản nào?", suggestions: ["Dùng “Người mua” theo yêu cầu của tôi", "Giữ “Khách hàng” của Minh và soạn phần còn lại"] }
+    };
+    d.change_request.status = "manual_fix";
+
+    renderWithIntl(<Harness />);
+    const card = within(await screen.findByLabelText("Chỗ bị người khác sửa trong lúc chờ")).getByRole("article");
+    expect(within(card).getByLabelText("AI hỏi lại")).toHaveTextContent("Giữ bản nào?");
+    // Chưa trả lời thì không có nút soạn lại tự chọn
+    expect(within(card).queryByRole("button", { name: "AI soạn lại trên nội dung hiện tại" })).not.toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "Dùng “Người mua” theo yêu cầu của tôi" }));
+    await waitFor(() => expect(S().crs.get("CR-001")!.locations[0].reason).toBe("Soạn lại theo hướng: Dùng “Người mua” theo yêu cầu của tôi"));
+    expect(S().crs.get("CR-001")!.locations[0].conflict).toBeNull();
+  });
+
+  it("BF §3.2: người khác mở CR đã sẵn sàng ⇒ thấy 'đang treo ở X', không có nút xác nhận", async () => {
+    const d = await proposalsOf(1);
+    d.change_request.status = "ready_to_submit";
+    d.change_request.created_by = "user-lan";
+    d.change_request.created_by_name = "Lan";
+    renderWithIntl(<Harness myUserId="user-huy" />);
+    expect(await screen.findByText(/đang treo ở Lan/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).not.toBeInTheDocument();
+  });
+
   it("5 phần đều đạt ⇒ danh sách gọn, bấm một lần Đồng ý tất cả ⇒ CR đi tiếp tới xác nhận", async () => {
     await proposalsOf(5);
     renderWithIntl(<Harness />);

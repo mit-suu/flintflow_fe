@@ -3,29 +3,21 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { CR_MAX_MATERIALS, CR_TERMINAL_STATUSES, MAX_REDO_PER_LOCATION, type CrDetail, type CrLocation } from "@/types/change-request";
+import { CR_TERMINAL_STATUSES, type CrLocation } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useChangeRequest } from "../../hooks/mode1/useChangeRequest";
 import ChangeGroupPanel from "./ChangeGroupPanel";
 import ClarifyPanel from "./ClarifyPanel";
-import { MaterialAdder, MaterialList } from "./CrMaterials";
+import { MaterialList } from "./CrMaterials";
 import CrTimeline from "./CrTimeline";
 import ImpactList from "./ImpactList";
 import { useMode1Labels } from "./i18n";
-import PausedBanner from "./PausedBanner";
 import ReasonDialog from "./ReasonDialog";
 import { crListHref } from "./prefill";
 
 /** Vị trí AI cần (đề xuất lại): chưa kết luận, hoặc kiểm trượt mà không phải sửa tay — cùng luật `needsProposal` BE. */
 export const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion === null || (l.verify !== null && !l.verify.code_ok));
 
-/** Trạng thái BE cho phép sửa tay vị trí (`location.service`). */
-const EDITABLE = ["impact_review", "proposing", "manual_fix", "ready_to_submit"] as const;
-
-/** Bước AI có tên riêng trong banner tạm dừng; trạng thái khác ⇒ "Bước AI". */
-const PAUSED_WHAT = ["clarifying", "proposing", "verifying"] as const;
-const pausedKey = (status: CrDetail["change_request"]["status"]): (typeof PAUSED_WHAT)[number] | "other" =>
-  (PAUSED_WHAT as readonly string[]).includes(status) ? (status as (typeof PAUSED_WHAT)[number]) : "other";
 
 interface CrWorkspaceProps {
   projectId: string;
@@ -60,16 +52,6 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
   const after = (p: Promise<boolean>) => void p.then((ok) => ok && onChanged?.());
   const terminal = CR_TERMINAL_STATUSES.includes(c.status);
   const allRejected = groups.length > 0 && groups.every((g) => g.decision === "rejected");
-  // Phase 7: tài liệu bổ sung chỉ thêm / xoá được trước khi tìm vị trí (BE: draft, awaiting_answers)
-  const materialsEditable = !readOnly && (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
-  const materialAdder = (
-    <MaterialAdder
-      busy={cr.busy === "material"}
-      full={c.materials.length >= CR_MAX_MATERIALS}
-      onAddText={(name, text) => cr.addMaterialText(name, text)}
-      onAddFile={(file) => cr.addMaterialFile(file)}
-    />
-  );
 
   const primary = (label: string, onClick: () => void, busyLabel = t("running")) => (
     <button
@@ -82,55 +64,17 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
     </button>
   );
 
-  /** Việc tiếp theo theo trạng thái — không suy diễn gì ngoài dữ liệu BE trả. */
+  /**
+   * FLF-375: popup CR chỉ để xem lại / Lead duyệt gói. Mọi bước của CR đang mở (làm rõ, đề xuất, kiểm, xác nhận) làm trong
+   * khung chat — một chỗ làm việc, không có bộ nút thứ hai.
+   */
   let next: ReactNode = null;
-  if (c.paused) {
-    next = <PausedBanner paused={c.paused} what={t(`paused.${pausedKey(c.status)}`)} busy={cr.busy === "resume"} onResume={() => after(cr.action("resume"))} />;
-  } else if (c.status === "draft" || c.status === "clarifying") {
+  if (c.paused || (!terminal && c.status !== "in_review")) {
     next = (
-      <Step text={t("draftText")}>
-        {primary(t("draftButton"), () => after(cr.action("clarify")), t("draftBusy"))}
-      </Step>
-    );
-  } else if (c.status === "impact_review" && locations.length === 0) {
-    next = (
-      <Step text={t("impactText")}>
-        {primary(t("impactButton"), () => after(cr.action("impact")), t("impactBusy"))}
-      </Step>
-    );
-  } else if (c.status === "impact_review" || (c.status === "proposing" && locations.some(needsProposal))) {
-    const failing = locations.filter((l) => l.verify && !l.verify.code_ok);
-    const redo = failing.length > 0;
-    // FLF-332 (C-5): "AI đang tự sửa lần n/2" — n = lượt làm lại sắp chạy của vị trí trượt nhiều nhất
-    const attempt = Math.min(MAX_REDO_PER_LOCATION, Math.max(0, ...failing.map((l) => l.redo_count)) + 1);
-    // AI đã chạy mà còn vị trí chưa kết luận (model bỏ sót) ⇒ nói rõ, cho chọn chạy lại hoặc sửa tay
-    const missed = c.status === "proposing" && !redo ? locations.filter((l) => l.conclusion === null).length : 0;
-    const text = redo
-      ? t("proposeRedoText", { attempt, max: MAX_REDO_PER_LOCATION })
-      : missed > 0 && missed < locations.length
-        ? t("proposeMissedText", { count: missed })
-        : t("proposeText");
-    next = (
-      <Step text={text}>
-        {primary(redo ? t("proposeRedoButton", { attempt, max: MAX_REDO_PER_LOCATION }) : t("proposeButton"), () => after(cr.action("propose")), redo ? t("proposeRedoBusy", { attempt, max: MAX_REDO_PER_LOCATION }) : t("proposeBusy"))}
-      </Step>
-    );
-  } else if (c.status === "proposing" || c.status === "verifying") {
-    next = (
-      <Step text={t("verifyText")}>
-        {primary(t("verifyButton"), () => after(cr.action("verify")), t("verifyBusy"))}
-      </Step>
-    );
-  } else if (c.status === "manual_fix") {
-    next = (
-      <Step tone="warn" text={t("manualText")}>
-        {primary(t("manualButton"), () => after(cr.action("verify")), t("verifyBusy"))}
-      </Step>
-    );
-  } else if (c.status === "ready_to_submit") {
-    next = (
-      <Step text={t("readyText")}>
-        {primary(t("readyButton"), () => after(cr.action("submit")), t("readyBusy"))}
+      <Step text={t("inChatText", { status: L.crStatus(c.status) })}>
+        <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-body font-bold">
+          {t("openInChat")}
+        </Link>
       </Step>
     );
   } else if (c.status === "in_review") {
@@ -207,18 +151,13 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
         </p>
       )}
 
-      {(c.materials.length > 0 || (materialsEditable && c.status === "draft")) && (
+      {c.materials.length > 0 && (
         <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[14px] p-3.5" aria-label={t("materialsAria")}>
           <h3 className="font-bold text-[#191817] text-body">{t("materialsTitle", { count: c.materials.length })}</h3>
-          {c.status === "draft" && (
-            <p className="text-body text-[#6B6862]">{t("materialsHint")}</p>
-          )}
           <MaterialList
             items={c.materials.map((m) => ({ key: m.material_id, name: m.name, kind: m.kind, text: m.text, truncated: m.truncated, round: m.round }))}
-            onRemove={materialsEditable ? (id) => void cr.removeMaterial(id) : undefined}
-            busy={cr.busy === "material"}
+            busy={false}
           />
-          {materialsEditable && c.status === "draft" && materialAdder}
         </section>
       )}
 
@@ -237,10 +176,9 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
         <ClarifyPanel
           key={`${c.clarifications.length}:${pending_questions.join("|")}`}
           cr={c}
-          pendingQuestions={c.status === "awaiting_answers" && !readOnly ? pending_questions : []}
-          busy={cr.busy === "answers"}
-          onAnswer={(answers) => after(cr.answer(answers))}
-          materials={c.status === "awaiting_answers" && materialsEditable ? materialAdder : undefined}
+          pendingQuestions={[]}
+          busy={false}
+          onAnswer={() => undefined}
         />
       )}
 
@@ -264,13 +202,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
           onDecide={(gid, decision, reason) => after(cr.decide(gid, decision, reason))}
         />
       ) : (
-        <ImpactList
-          locations={locations}
-          editable={!readOnly && (EDITABLE as readonly string[]).includes(c.status) && !c.paused}
-          busy={cr.busy === "patch"}
-          onPatch={(locId, body) => after(cr.patch(locId, body))}
-          onOwnerDraft={!readOnly && c.status === "manual_fix" && !c.paused ? (locId, instruction) => after(cr.ownerDraft(locId, instruction)) : undefined}
-        />
+        <ImpactList locations={locations} />
       )}
 
       <ReasonDialog

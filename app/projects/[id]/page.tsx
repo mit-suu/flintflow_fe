@@ -65,6 +65,8 @@ import { fetchBalance } from "@/lib/api/billing";
 import { isAiErrorCode } from "@/lib/ai-error-codes";
 import { useCreditGate } from "./hooks/useCreditGate";
 import CreditGateCard from "./_components/CreditGateCard";
+import { useDocumentVersionGate } from "./hooks/useDocumentVersionGate";
+import DocumentVersionCard from "@/components/project/DocumentVersionCard";
 import AiErrorBanner from "./_components/AiErrorBanner";
 import { DEFAULT_LOCALE, isLocale, tStep } from "@/lib/i18n";
 import type { TranslationStatus } from "@/types/document";
@@ -81,6 +83,7 @@ import RunPill from "./_components/RunPill";
 import { recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1CrThread from "./_components/mode1/Mode1CrThread";
+import { usePendingSections } from "./hooks/mode1/usePendingSections";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
@@ -88,7 +91,7 @@ import TemplateMigrationPopup from "./_components/template-migration/TemplateMig
 import TemplateUpdateBanner from "./_components/template-migration/TemplateUpdateBanner";
 import TemplateChangeEntry from "./_components/template-migration/TemplateChangeEntry";
 import { templateMigrationHref } from "./_components/template-migration/href";
-import { compareHref, crListHref, gapReportHref, reuploadHref } from "./_components/mode1/prefill";
+import { compareHref, crListHref, gapReportHref, readChatCrDraft, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
@@ -96,7 +99,7 @@ import StructureChangeNotice from "./_components/mode1/structure-change-notice";
 import ImportWorkspace from "./_components/import/import-workspace";
 import ImportSkeleton from "./_components/import/import-skeleton";
 import { CreationProgressShell } from "./_components/import/creation-progress";
-import { retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
+import { chooseProjectUploadVersion, dismissProjectUpload, retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
 import { clearImportPending, isImportPending } from "@/lib/import-pending";
 import { useImportPendingHint } from "./import-pending-hint";
@@ -237,7 +240,7 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
   // Tab này vừa tạo dự án và đang tải file ⇒ hiện ngay các bước tích dần thay vì skeleton
   const uploads = useProjectUploads(projectId);
   if (uploads?.items.some((i) => i.kind === "srs" && i.status !== "done")) {
-    return <CreationProgressShell uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} />;
+    return <CreationProgressShell uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} onChoose={(key, choice) => chooseProjectUploadVersion(projectId, key, choice)} onDismiss={(key) => dismissProjectUpload(projectId, key)} />;
   }
   if (importPending) return <ImportSkeleton label={t("loading")} />;
   return (
@@ -394,7 +397,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [confirmCredits, t]
   );
-  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments });
+  // FLF-398: tệp đính kèm có vẻ là bản mới của tài liệu đã có ⇒ thẻ hỏi Thay bản cũ / Giữ cả hai trong khung chat
+  const versionGate = useDocumentVersionGate();
+  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments, chooseDocumentVersion: versionGate.choose });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
   const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
@@ -635,6 +640,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    * Chưa `ws.ready` thì chưa tải (projectId rỗng ⇒ hook đứng yên).
    */
   const doc = useDocument(ws.ready ? projectId : "", "draft", undefined, documentRefreshToken, documentLanguage);
+  // BF §3.2: mục đang có bản sửa chưa xác nhận của người khác (mode 1)
+  const pendingSections = usePendingSections(projectId, mode1 && ws.ready, documentRefreshToken);
   const { markPending: markDocumentPending, clearPending: clearDocumentPending } = doc;
 
   /**
@@ -1357,6 +1364,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     }, 0);
   };
 
+  // FLF-375 — CR chỉ tạo bằng chat (BF C-1): link từ gap report / comment / cờ / bản xem trước (`crPrefillHref`) đặt câu yêu
+  // cầu vào ô chat và nhớ nguồn cho thẻ chọn nguồn; người dùng đọc / sửa câu rồi gửi. Chạy một lần khi khung sẵn sàng.
+  const crDraftRead = useRef(false);
+  useEffect(() => {
+    if (!mode1 || !ws.ready || crDraftRead.current) return;
+    crDraftRead.current = true;
+    const draft = readChatCrDraft(new URLSearchParams(window.location.search));
+    if (!draft) return;
+    crChat.setPrefill({ kind: draft.source, ref: draft.ref, requester: draft.requester, previewId: draft.preview_id, commentId: draft.comment_id });
+    startEditing(draft.text);
+    router.replace(`/projects/${projectId}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ đọc link một lần lúc mở trang
+  }, [mode1, ws.ready]);
+
   /** "Tôi muốn sửa" ở cổng chốt: chỉ đưa con trỏ vào ô chat — gõ xong gửi đi là yêu cầu sửa của cổng, không bật chip sửa tài liệu. */
   const focusChatInput = () => {
     document.getElementById("flintflow-chat-input")?.focus();
@@ -1530,7 +1551,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep && !reopenable;
   // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
   const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
-  const aiWorking = runner.state.busy || stepRunningElsewhere;
+  // FLF-398: đang tải tệp đính kèm cũng là đang bận — gửi lần nữa lúc này sẽ chạy bước chồng lên lượt đang tải
+  const aiWorking = runner.state.busy || stepRunningElsewhere || ws.uploadingAttachments;
   /**
    * Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). Gồm cả bước tới lượt đang
    * `revision_requested` (bị mở lại, hoà giải): thiếu nó thì tin nhắn rơi vào hỏi đáp thường, AI chỉ trả lời "xem như
@@ -1843,6 +1865,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const noticeText = (notice: WorkspaceNotice): string => {
     if ("text" in notice) return notice.text;
     if (notice.key === "deleteFailed") return t("session.deleteFailed", { error: notice.error ?? t("session.error") });
+    if (notice.key === "attachmentDuplicate") {
+      return [
+        notice.files ? t("session.attachmentDuplicate", { files: notice.files }) : "",
+        notice.inProject ? t("session.attachmentInProject", { files: notice.inProject }) : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
     return t(`session.${notice.key}`);
   };
   const shownToast = toast ?? (ws.notice ? noticeText(ws.notice) : null);
@@ -1941,7 +1971,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
           onSendMessage={(custom) => void sendFromChat(custom)}
-          sending={ws.sending || (!mode1 && aiWorking)}
+          sending={ws.sending || ws.uploadingAttachments || (!mode1 && aiWorking)}
           // Nút dừng / Esc: lượt chat đang stream ⇒ huỷ nó; không thì lượt chạy step của tab này ⇒ huỷ như "Huỷ lượt".
           // Step chạy ở tab khác (`stepRunningElsewhere`) không dừng từ đây — vẫn qua thanh tiến độ.
           onStop={ws.sending ? ws.stopMessage : !mode1 && runner.state.busy ? () => void runner.cancel() : undefined}
@@ -2048,7 +2078,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             !mode1 && canEdit && onPipelineSession && runner.state.status === "needs_input" ? (
               <ElicitPanel
                 questions={runner.state.questions}
-                onSubmit={(answers) => {
+                onSubmit={async (answers) => {
+                  // FLF-398: tệp đang đính kèm ở ô chat đi cùng lượt trả lời (như trả lời bằng chữ) — tải xong mới gửi đáp án;
+                  // tải lỗi ⇒ không gửi, tệp giữ nguyên để thử lại (toast báo lỗi)
+                  if (!(await ws.uploadPendingAttachments())) return;
                   setCardAnswers({ key: "", answers: [] });
                   keepAskInHistory();
                   showCardAnswers(answers);
@@ -2057,14 +2090,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 chatDraft={ws.inputMessage}
                 onChatDraftUsed={() => ws.setInputMessage("")}
                 onCardChange={(answers) => setCardAnswers({ key: questionSetKey, answers })}
-                sending={runner.state.busy}
+                sending={runner.state.busy || ws.uploadingAttachments}
               />
             ) : undefined
           }
         >
           {showOpening && <ChatOpening disabled={aiWorking} onPick={(chip) => void sendFromChat(chip.message, chip.intent)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
-          {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} />}
+          {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
@@ -2142,6 +2175,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             />
           )}
           {creditGate.pending && <CreditGateCard {...creditGate.pending} onRun={creditGate.run} onCancel={creditGate.cancel} />}
+          {versionGate.pending && <DocumentVersionCard {...versionGate.pending} onChoose={versionGate.answer} />}
           {ws.aiError && (
             <AiErrorBanner what={t("aiError.chat")} message={ws.aiError.message} retried={false} busy={ws.sending} onRetry={() => void ws.retryAiError()} onLater={ws.dismissAiError} />
           )}
@@ -2310,6 +2344,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           // nhưng chỉ trên bản đã phát hành, nên ở bản nháp chỉ mở cho Lead/Analyst.
           onCommentSection={canEdit ? startComment : undefined}
           commentCountOf={(sectionId) => comments.openCountBySection.get(sectionId) ?? 0}
+          pendingProposalsOf={mode1 ? (sectionId) => pendingSections.get(sectionId)?.items ?? [] : undefined}
           onOpenSectionComments={() => openComments()}
           rewriteError={!editCardOpen ? hookError(changes.error) : null}
           onSectionsLoaded={handleSectionsLoaded}

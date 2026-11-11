@@ -6,13 +6,14 @@ import MissingSectionsCard from "./MissingSectionsCard";
 const items = [{ id: "f1", label: "Phạm vi", guidance: "[Nêu phạm vi]" }];
 
 describe("MissingSectionsCard", () => {
-  it("nút Viết mở form change request điền sẵn tên mục", () => {
+  // FLF-375: change request chỉ tạo bằng chat ⇒ "Viết" mở khung chat với câu yêu cầu điền sẵn (`crdraft`), không còn form CR
+  it("nút Viết mở khung chat với câu yêu cầu change request điền sẵn tên mục", () => {
     renderWithIntl(<MissingSectionsCard projectId="p1" items={items} canWrite />);
     expect(screen.getByText("Chặn phát hành")).toBeInTheDocument();
     const href = screen.getByRole("link", { name: "Viết" }).getAttribute("href") ?? "";
     const params = new URL(href, "http://localhost").searchParams;
-    expect(params.get("panel")).toBe("cr");
-    expect(params.get("new")).toBe("1");
+    expect(params.get("crdraft")).toBe("1");
+    expect(params.get("text")).toContain("Phạm vi");
     expect(params.get("ref")).toBe("Phạm vi");
     expect(params.get("source")).toBe("gap_report");
   });

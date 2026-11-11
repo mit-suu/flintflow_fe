@@ -13,7 +13,9 @@ import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { uploadProjectDocument } from "@/lib/api/documents";
+import { uploadReferenceDocument, type DocumentVersionChooser } from "@/lib/reference-upload";
+import { fileFingerprint, splitDuplicateFiles } from "@/lib/file-fingerprint";
+import { listProjectDocuments } from "@/lib/api/documents";
 import type { SrsAttachmentSuggestion } from "../_components/mode1/srs-attachment-chip";
 
 /** Thông báo ở pill toast của trang — có thể là: */
@@ -26,14 +28,16 @@ export type SessionNoticeKey =
   | "knowledgeFailed"
   | "stopped"
   | "knowledgeDisabled"
-  | "sendFailed";
+  | "sendFailed"
+  | "attachmentDuplicate";
 
 /**
  * Hook không gọi `useTranslations` (lỗi ghi trong callback/effect, test `renderHook` không có provider — xem
  * `lib/hook-errors.ts`) nên thông báo là MÃ: `{ key }` ⇒ trang dịch `workspace.session.<key>`; `{ text }` ⇒ câu BE đã dịch
- * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung).
+ * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung). `attachmentDuplicate` (FLF-398):
+ * `files` = tệp trùng tệp đang đính kèm, `inProject` = tệp trùng tài liệu đã có trong dự án (`tên tệp → "tài liệu" (D<n>)`).
  */
-export type WorkspaceNotice = { key: SessionNoticeKey; error?: string } | { text: string };
+export type WorkspaceNotice = { key: SessionNoticeKey; error?: string; files?: string; inProject?: string } | { text: string };
 
 const NO_MESSAGE = "@";
 const errorNotice = (error: unknown, key: SessionNoticeKey): WorkspaceNotice => {
@@ -55,6 +59,11 @@ export interface UseWorkspaceOptions {
    * không gửi; tệp và chữ giữ nguyên trong ô chat.
    */
   confirmAttachments?: (files: File[]) => Promise<boolean>;
+  /**
+   * FLF-398: tệp đính kèm có vẻ là bản mới của tài liệu đã có ⇒ hỏi Thay bản cũ / Giữ cả hai / Bỏ qua (thẻ trong khung chat).
+   * Không truyền ⇒ giữ cả hai (như trước FLF-398).
+   */
+  chooseDocumentVersion?: DocumentVersionChooser;
 }
 
 /** Lượt chat gãy vì AI lỗi (FLF-332): giữ lại để "Thử lại ngay" gửi lại đúng tin đó. */
@@ -69,7 +78,12 @@ export interface ChatAiError {
 /** Khoá gợi ý file trông như SRS — tăng dần, hai file cùng tên trong một lượt không đụng nhau. */
 let srsSuggestionSeq = 0;
 
-export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT, confirmAttachments }: UseWorkspaceOptions = {}) {
+const KEEP_BOTH: DocumentVersionChooser = async () => ({ keepBoth: true });
+
+export function useWorkspace(
+  projectId: string,
+  { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT, confirmAttachments, chooseDocumentVersion = KEEP_BOTH }: UseWorkspaceOptions = {}
+) {
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -77,6 +91,12 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  /**
+   * Đang tải tệp đính kèm (BE đọc + tóm tắt từng tệp, có thể vài chục giây). Trang tính vào "AI đang bận": bấm gửi lần nữa lúc
+   * này từng chạy bước song song với lượt đang tải ⇒ lượt đầu tải xong đụng `STEP_NOT_RUNNABLE` "đang chạy ở lượt trước".
+   */
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+  const uploadingRef = useRef(false);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
   /** Đang chờ câu trả lời tri thức — luồng đó không stream chữ nên `streamingMessage` không nói được gì. */
   const [knowledgePending, setKnowledgePending] = useState(false);
@@ -244,23 +264,37 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
   /**
    * Tải các tệp đang đính kèm lên `/documents` (dùng chung cho chat hỏi đáp và chat khởi động bước — FLF-221). Lỗi ⇒
    * `false`, giữ nguyên danh sách đính kèm để user thử lại; không có tệp nào ⇒ `true`.
+   * FLF-398: tệp trùng hệt tài liệu đã có ⇒ không tải, báo ở toast (không tính là lỗi); có thể là bản mới ⇒ hỏi qua
+   * `chooseDocumentVersion`, Bỏ qua ⇒ tệp đó không tải.
    */
   const uploadPendingAttachments = useCallback(async (): Promise<boolean> => {
     if (pendingAttachments.length === 0) return true;
+    // Lượt tải trước chưa xong ⇒ không tải lần hai, nơi gọi dừng (không gửi / không chạy bước)
+    if (uploadingRef.current) return false;
+    uploadingRef.current = true;
+    setUploadingAttachments(true);
     try {
       const suggestions: SrsAttachmentSuggestion[] = [];
+      const duplicates: string[] = [];
       for (const file of pendingAttachments) {
-        const precheck = (await uploadProjectDocument(projectId, file)).data?.precheck ?? null;
+        const result = await uploadReferenceDocument(projectId, file, chooseDocumentVersion);
+        if (result.kind === "duplicate") duplicates.push(result.message);
+        if (result.kind !== "uploaded") continue;
+        const precheck = result.document?.precheck ?? null;
         if (precheck?.looks_like_srs) suggestions.push({ key: `${file.name}:${++srsSuggestionSeq}`, file, fromThisProject: precheck.stamp?.project_id === projectId });
       }
       setPendingAttachments([]);
       if (suggestions.length) setSrsSuggestions((prev) => [...prev, ...suggestions]);
+      if (duplicates.length) setNotice({ text: duplicates.join(" ") });
       return true;
     } catch (err) {
       setNotice(errorNotice(err, "uploadFailed"));
       return false;
+    } finally {
+      uploadingRef.current = false;
+      setUploadingAttachments(false);
     }
-  }, [pendingAttachments, projectId]);
+  }, [pendingAttachments, projectId, chooseDocumentVersion]);
 
   const dismissSrsSuggestion = useCallback((key: string) => setSrsSuggestions((prev) => prev.filter((x) => x.key !== key)), []);
 
@@ -425,12 +459,59 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
   // Rời trang giữa lượt ⇒ đóng luồng để BE không sinh tiếp
   useEffect(() => () => streamAbortRef.current?.abort(), []);
 
-  const selectAttachment = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    setPendingAttachments((prev) => [...prev, ...Array.from(files)]);
-    event.target.value = "";
-  }, []);
+  /** FLF-398: dấu nội dung của tệp đang đính kèm (tính một lần mỗi tệp). */
+  const attachmentPrintsRef = useRef(new WeakMap<File, string>());
+
+  /**
+   * Thêm tệp đính kèm. FLF-398: tệp trùng nội dung (kể cả đổi tên) với tệp đang đính kèm, với tệp khác trong cùng lượt chọn,
+   * hoặc với **tài liệu đã có trong dự án** (`contentHash` của `GET /documents`) ⇒ không thêm, báo ngay ở toast. Không đọc được
+   * danh sách tài liệu ⇒ bỏ qua bước so này (BE vẫn chặn lúc gửi).
+   */
+  const selectAttachment = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      const picked = Array.from(files);
+      event.target.value = "";
+      const prints = attachmentPrintsRef.current;
+      const known = new Set<string>();
+      for (const file of pendingAttachments) {
+        const print = prints.get(file) ?? (await fileFingerprint(file));
+        prints.set(file, print);
+        known.add(print);
+      }
+      const { kept, duplicates } = await splitDuplicateFiles(picked, known);
+      const inProject = new Map<string, { name: string; code: number | null }>();
+      try {
+        for (const doc of (await listProjectDocuments(projectId)).data ?? []) {
+          if (doc.contentHash) inProject.set(doc.contentHash, { name: doc.originalName, code: doc.docCode ?? null });
+        }
+      } catch {
+        // Không đọc được danh sách ⇒ không so; BE trả DUPLICATE_DOCUMENT lúc gửi
+      }
+      const fresh = kept.filter((k) => !inProject.has(k.fingerprint));
+      const existing = kept.filter((k) => inProject.has(k.fingerprint));
+      fresh.forEach(({ file, fingerprint }) => prints.set(file, fingerprint));
+      if (fresh.length) setPendingAttachments((prev) => [...prev, ...fresh.map((k) => k.file)]);
+      if (duplicates.length || existing.length) {
+        setNotice({
+          key: "attachmentDuplicate",
+          ...(duplicates.length ? { files: duplicates.map((f) => f.name).join(", ") } : {}),
+          ...(existing.length
+            ? {
+                inProject: existing
+                  .map(({ file, fingerprint }) => {
+                    const doc = inProject.get(fingerprint)!;
+                    return `${file.name} → "${doc.name}"${doc.code ? ` (D${doc.code})` : ""}`;
+                  })
+                  .join(", "),
+              }
+            : {}),
+        });
+      }
+    },
+    [pendingAttachments, projectId]
+  );
 
   const removeAttachment = useCallback(
     (fileName: string) => setPendingAttachments((prev) => prev.filter((f) => f.name !== fileName)),
@@ -457,6 +538,7 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       inputMessage,
       setInputMessage,
       sending,
+      uploadingAttachments,
       streamingMessage,
       knowledgePending,
       knowledgeDisabled,
@@ -497,6 +579,7 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
       activeSession,
       inputMessage,
       sending,
+      uploadingAttachments,
       streamingMessage,
       knowledgePending,
       knowledgeDisabled,

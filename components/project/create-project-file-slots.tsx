@@ -22,6 +22,8 @@ export interface ReferenceFile {
   precheck?: DocxPrecheck | null;
   /** Người dùng đã chọn giữ làm tham khảo — không hiện gợi ý nữa. */
   keep?: boolean;
+  /** FLF-398: dấu nội dung (SHA-256) — chọn lại file trùng nội dung thì không thêm. */
+  fingerprint?: string;
 }
 
 const formatSize = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
@@ -65,8 +67,9 @@ function DropZone({ label, hint, accept, multiple = false, disabled = false, ico
         setOver(false);
         if (!disabled) take(e.dataTransfer.files);
       }}
-      // Ô trắng nằm trong thẻ của slot: trống ⇒ khối giữa (icon + lời mời + định dạng); đã có file ⇒ một dòng "Thêm file"
-      className={`group rounded-inner transition-[background-color,box-shadow] duration-200 ${
+      // Ô trắng nằm trong thẻ của slot: trống ⇒ khối giữa (icon + lời mời + định dạng); đã có file ⇒ một dòng "Thêm file".
+      // `relative`: input `sr-only` (absolute) phải bám ô này; thiếu thì nó bám khung nhìn, thoát overflow của AppShell và kéo dài cả trang
+      className={`group relative rounded-inner transition-[background-color,box-shadow] duration-200 ${
         compact ? "flex items-center gap-2.5 px-3 py-2" : "flex-1 min-h-[132px] flex flex-col items-center justify-center gap-2 px-4 py-5 text-center"
       } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
         over ? "bg-primary-fixed ring-2 ring-primary" : "bg-surface-container-lowest/80 hover:bg-surface-container-lowest"
@@ -133,7 +136,8 @@ interface FileChipProps {
 /** Một file đã chọn: tên + cỡ, nút bỏ; phần gợi ý (nếu có) nằm ngay dưới. */
 function FileChip({ file, icon, disabled, onRemove, removeLabel, extra, children }: FileChipProps) {
   return (
-    <li className="flex flex-col gap-2 rounded-inner bg-surface-container-lowest px-3 py-2.5">
+    // `relative`: giữ input "Đổi" (`sr-only`, absolute) trong dòng này, không để nó kéo dài trang
+    <li className="relative flex flex-col gap-2 rounded-inner bg-surface-container-lowest px-3 py-2.5">
       <div className="flex items-center gap-2.5 min-w-0">
         <Icon name={icon} size={16} className="shrink-0 text-on-surface-muted" />
         <span className="flex-1 min-w-0 truncate text-body font-semibold text-on-surface" title={file.name}>

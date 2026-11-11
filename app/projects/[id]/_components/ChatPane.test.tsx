@@ -11,7 +11,7 @@ import { importToGapReview } from "@/mocks/mode1/flows";
 import { useWorkspace } from "../hooks/useWorkspace";
 import ChatPane from "./ChatPane";
 import CrPrefillCard from "./mode1/CrPrefillCard";
-import { readCrPrefill } from "./mode1/prefill";
+import { readChatCrDraft } from "./mode1/prefill";
 import type { ChatSession } from "@/types/chat";
 
 vi.mock("@/lib/api/chat", () => ({
@@ -204,8 +204,8 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     expect(within(card).getByText("Đổi tên actor Student thành Learner").tagName).toBe("BLOCKQUOTE");
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
-    const prefill = readCrPrefill(new URL(href, "http://x").searchParams);
-    expect(prefill).toMatchObject({ title: "Đổi tên actor Student thành Learner", description: "Đổi tên actor Student thành Learner", source: "verbal" });
+    const prefill = readChatCrDraft(new URL(href, "http://x").searchParams);
+    expect(prefill, "câu trùng giữa tiêu đề và mô tả chỉ đặt một lần vào ô chat").toMatchObject({ text: "Đổi tên actor Student thành Learner", source: "verbal" });
     expect(prefill?.ref).toMatch(/^chat:/);
     expect(mode1State.crs.size, "3.1 là việc của BA — không tự tạo CR").toBe(0);
 
@@ -236,8 +236,8 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     const card = screen.getByRole("status");
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}?panel=cr&`)).toBe(true);
-    expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({ title: "Đổi tên actor", description: "Đổi tên actor Student", source: "verbal", ref: undefined });
+    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}?crdraft=1&`)).toBe(true);
+    expect(readChatCrDraft(new URL(href, "http://x").searchParams)).toEqual({ text: "Đổi tên actor\nĐổi tên actor Student", source: "verbal" });
   });
 });
 

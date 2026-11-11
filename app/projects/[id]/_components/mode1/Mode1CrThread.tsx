@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
-import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrLocation, type CrStatus } from "@/types/change-request";
-import { fromApprovedPreview, isFailing, type CrChat, type CrChatSource } from "../../hooks/mode1/useCrChat";
+import { useLocale, useTranslations } from "next-intl";
+import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrDetail, type CrLocation, type CrStatus } from "@/types/change-request";
+import { fromApprovedPreview, inApprovedBatch, isFailing, type CrChat, type CrChatPrefill, type CrChatSource } from "../../hooks/mode1/useCrChat";
 import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
-import FieldChanges from "./FieldChanges";
+import { OthersPending, ProposalDiff, useLocTitle } from "./LocationDisplay";
 import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
 import { useMode1Labels } from "./i18n";
+import { diffTokens } from "@/lib/word-diff";
 import PausedBanner from "./PausedBanner";
-import ValueEditor from "./ValueEditor";
 
 function UserBubble({ children }: { children: ReactNode }) {
   return <div className="self-end max-w-[85%] bg-primary-soft text-on-surface rounded-[14px] rounded-br-[4px] px-3 py-2 text-body whitespace-pre-wrap">{children}</div>;
@@ -29,13 +29,14 @@ function AiBubble({ step, children, label }: { step?: string; children: ReactNod
 const btn = "px-3 py-1 rounded-[8px] text-body font-bold disabled:opacity-50 cursor-pointer";
 
 /** 3.1 trong chat: chọn nguồn + người yêu cầu cho lệnh sửa đầu tiên. */
-function RequesterCard({ me, busy, onStart, onCancel }: { me: string; busy: boolean; onStart: (s: CrChatSource) => void; onCancel: () => void }) {
+function RequesterCard({ me, busy, onStart, onCancel, prefill }: { me: string; busy: boolean; onStart: (s: CrChatSource) => void; onCancel: () => void; prefill?: CrChatPrefill | null }) {
   const t = useTranslations("mode1.crThread.requester");
   const { crSource } = useMode1Labels();
-  const [other, setOther] = useState(false);
-  const [kind, setKind] = useState<CrChatSource["kind"]>("stakeholder_email");
-  const [requester, setRequester] = useState("");
-  const [ref, setRef] = useState("");
+  // FLF-375: lối vào khác đã biết nguồn (gap report, comment…) ⇒ mở sẵn form với đúng nguồn / tham chiếu / người yêu cầu
+  const [other, setOther] = useState(!!prefill?.kind);
+  const [kind, setKind] = useState<CrChatSource["kind"]>(prefill?.kind ?? "stakeholder_email");
+  const [requester, setRequester] = useState(prefill?.requester ?? "");
+  const [ref, setRef] = useState(prefill?.ref ?? "");
   return (
     <AiBubble step={t("step")} label={t("label")}>
       <p>{t("intro")}</p>
@@ -157,42 +158,88 @@ function RedraftBox({ loc, chat, onClose, autoFocus = true }: { loc: CrLocation;
 }
 
 /**
- * Chỗ sửa một phần (3.9): hai cách — **Nhờ AI soạn lại** (gõ hướng sửa) hoặc **Tự sửa** (sửa thẳng nội dung theo từng trường
- * / đoạn). Bản tự sửa tính luôn là đã đồng ý.
+ * Chỗ sửa một phần (3.9): gõ hướng sửa để AI soạn lại. FLF-375 (BF nguyên tắc 6): người dùng không sửa tay nội dung —
+ * không còn tab "Tự sửa".
  */
 function EditPanel({ loc, chat, editing }: { loc: CrLocation; chat: CrChat; editing: boolean }) {
-  const t = useTranslations("mode1.crThread.edit");
-  const [mode, setMode] = useState<"ai" | "manual">("ai");
-  const oldText = loc.proposal?.old_text ?? loc.current_text;
-  const tab = (value: "ai" | "manual", label: string) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={mode === value}
-      onClick={() => setMode(value)}
-      className={`px-2.5 py-1 rounded-[8px] text-body font-bold ${mode === value ? "bg-on-surface text-surface" : "text-on-surface-muted hover:bg-surface-container"}`}
-    >
-      {label}
-    </button>
-  );
   return (
     <div className="flex flex-col gap-1.5 rounded-[10px] bg-surface-container-lowest border border-outline-variant p-2">
-      <div role="tablist" aria-label={t("tablistAria", { id: loc.location_id })} className="flex gap-1">
-        {tab("ai", t("tabAi"))}
-        {tab("manual", t("tabManual"))}
-      </div>
-      {mode === "ai" ? (
-        <RedraftBox loc={loc} chat={chat} autoFocus={editing} onClose={editing ? chat.cancelRedraft : undefined} />
-      ) : (
-        <ValueEditor
-          oldText={oldText}
-          startText={loc.proposal?.new_text ?? oldText}
-          busy={chat.busy === "manual"}
-          onSave={(value) => void chat.manualEdit(loc.location_id, value)}
-          onCancel={editing ? chat.cancelRedraft : () => setMode("ai")}
-        />
-      )}
+      <RedraftBox loc={loc} chat={chat} autoFocus={editing} onClose={editing ? chat.cancelRedraft : undefined} />
     </div>
+  );
+}
+
+/**
+ * FLF-375 — BF §3.2 "Hai người sửa cùng lúc": lúc xác nhận, người khác đã sửa đúng phần đề xuất định đổi ⇒ không ghi;
+ * so sánh 3 cột (lúc AI soạn · hiện tại · đề xuất của bạn) + **AI soạn lại trên nội dung hiện tại** / **Bỏ yêu cầu**.
+ * Không có nút ghi đè.
+ */
+function ConflictCard({ loc, chat, request }: { loc: CrLocation; chat: CrChat; request: string }) {
+  const t = useTranslations("mode1.crThread.conflict");
+  const locale = useLocale();
+  const title = useLocTitle()(loc);
+  const c = loc.conflict!;
+  const busy = chat.busy !== null;
+  const clock = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : null);
+  const when = clock(c.changed_at);
+  const since = clock(c.proposed_at);
+  // BF §3.2: ① so với ② = người khác đã đổi gì; ① so với ③ = mình định đổi gì — chỗ khác nhau tô màu như Track Changes
+  const marked = (body: string | null, ins: string) =>
+    body === null
+      ? "—"
+      : diffTokens(c.at_proposal, body).map((tk, i) => (
+          <span key={i}>
+            {tk.kind === "same" ? tk.text : tk.kind === "del" ? <del className="text-[#B03030]">{tk.text}</del> : <ins className={`no-underline rounded px-0.5 ${ins}`}>{tk.text}</ins>}{" "}
+          </span>
+        ));
+  const col = (head: string, body: ReactNode, tone: string) => (
+    <div className={`rounded-[8px] border px-2 py-1.5 ${tone}`}>
+      <p className="text-caption font-bold mb-0.5">{head}</p>
+      <p className="whitespace-pre-wrap break-words">{body}</p>
+    </div>
+  );
+  return (
+    <article className="rounded-[12px] border border-[#EFD9A6] bg-[#FBF4E4] p-2.5 flex flex-col gap-2" aria-label={t("aria", { title })}>
+      <p className="font-bold text-[#8A6D1F]">⚠ {when && since ? t("titleTimed", { title, who: c.changed_by, when, since }) : t("title", { title, who: c.changed_by })}</p>
+      <div className="grid grid-cols-1 gap-1.5">
+        {col(since ? `${t("atProposal")} (${since})` : t("atProposal"), c.at_proposal, "border-outline-variant bg-white")}
+        {col(t("current", { who: when ? `${c.changed_by}, ${when}` : c.changed_by }), marked(c.current, "bg-[#D6E4FA]"), "border-[#BFD3F2] bg-[#F2F6FD]")}
+        {col(t("yours"), marked(c.proposal, "bg-[#CDEBD8]"), "border-[#BFE6CE] bg-[#F3FAF6]")}
+      </div>
+      <p className="text-caption text-on-surface-muted">{t("legend")}</p>
+      <p className="text-caption text-on-surface-muted">{t("request", { request })}</p>
+      {c.question ? (
+        // BF §3.2: yêu cầu gốc đụng thẳng phần vừa sửa ⇒ AI hỏi lại trong chat, không tự chọn
+        <div className="rounded-[8px] bg-white border border-[#EFD9A6] px-2.5 py-1.5 flex flex-col gap-1.5" aria-label={t("question")}>
+          <p className="font-bold text-on-surface">🤖 {c.question.text}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {c.question.suggestions.map((s) => (
+              <button key={s} type="button" disabled={busy} onClick={() => void chat.redraft(loc.location_id, s)} className={`${btn} bg-on-surface text-surface`}>
+                {s}
+              </button>
+            ))}
+            <button type="button" disabled={busy} onClick={() => chat.startRedraft(loc.location_id)} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
+              {t("answerOther")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <div className="flex flex-wrap gap-1.5">
+        {!c.question && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void chat.redraft(loc.location_id, t("redraftInstruction", { who: c.changed_by, request }))}
+            className={`${btn} bg-on-surface text-surface`}
+          >
+            {t("redraft")}
+          </button>
+        )}
+        <button type="button" disabled={busy} onClick={() => chat.reject(loc, t("dropReason", { who: c.changed_by }))} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
+          {t("drop")}
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -203,7 +250,8 @@ function EditPanel({ loc, chat, editing }: { loc: CrLocation; chat: CrChat; edit
 function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   const t = useTranslations("mode1.crThread.loc");
   const tDiagram = useTranslations("mode1.originalDiagram");
-  const { pathLabel, sectionTitle, humanizeText } = useMode1Labels();
+  const { sectionTitle, humanizeText } = useMode1Labels();
+  const locTitle = useLocTitle();
   const p = loc.proposal;
   const failed = isFailing(loc);
   const missing = loc.conclusion === null;
@@ -218,8 +266,8 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   return (
     <article id={`cr-loc-${loc.location_id}`} className={`scroll-mt-4 rounded-[12px] border ${tone} p-2.5 flex flex-col gap-1.5`} aria-label={t("aria", { id: loc.location_id })}>
       <header className="flex items-start gap-2">
-        <p className="flex-1 min-w-0 text-body font-bold text-on-surface" title={loc.path}>
-          {diagram ? diagramLocationTitle(loc, tDiagram) : pathLabel(loc.path)}
+        <p className="flex-1 min-w-0 text-body font-bold text-on-surface">
+          {diagram ? diagramLocationTitle(loc, tDiagram) : locTitle(loc)}
           <span className="block text-caption font-medium text-on-surface-muted">{sectionTitle(loc.section_id, loc.section_title)}</span>
         </p>
         {failed ? (
@@ -234,19 +282,16 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
       </header>
 
       {missing && <p className="text-[#8A6D1F]">{t("missingHint")}</p>}
-      {loc.conclusion === "edit" && p && (diagram ? <OriginalDiagramChange loc={loc} /> : <FieldChanges oldText={p.old_text} newText={p.new_text} />)}
+      {loc.conclusion === "edit" && p && (diagram ? <OriginalDiagramChange loc={loc} /> : <ProposalDiff loc={loc} />)}
+      <OthersPending loc={loc} />
       {loc.conclusion === "comment" && p?.comment_text && <p className="text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {humanizeText(p.comment_text)}</p>}
       {loc.reason && !missing && !diagram && <p className="text-on-surface-muted">{t("reason", { reason: humanizeText(loc.reason) })}</p>}
       <AssumptionsNote assumptions={p?.assumptions} />
 
       {failed && (
+        // FLF-375: không in thông báo luật nội bộ (op_not_allowed, path…) — AI nói bằng lời chỗ nào chưa sửa được
         <div className="rounded-[8px] bg-white border border-[#F2CACA] px-2.5 py-1.5" aria-label={t("failedAria")}>
-          <p className="font-bold text-[#B03030]">{t("failedTitle")}</p>
-          <ul className="list-disc pl-5 text-[#8A4141]">
-            {loc.verify!.violations.map((v, i) => (
-              <li key={i}>{humanizeText(v.message)}</li>
-            ))}
-          </ul>
+          <p className="text-[#8A4141]">{loc.verify!.violations.some((v) => v.rule === "value_changed") ? t("askChanged") : t("askFailed")}</p>
         </div>
       )}
       {!failed && (loc.verify?.ai_flags.length ?? 0) > 0 && (
@@ -296,7 +341,8 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
 function ApprovedBatch({ locations, failing, chat }: { locations: CrLocation[]; failing: CrLocation[]; chat: CrChat }) {
   const t = useTranslations("mode1.crThread.approved");
   const tDiagram = useTranslations("mode1.originalDiagram");
-  const { pathLabel, sectionTitle } = useMode1Labels();
+  const { sectionTitle } = useMode1Labels();
+  const locTitle = useLocTitle();
   return (
     <AiBubble step={t("step", { count: locations.length })} label={t("label")}>
       <p className="text-on-surface-muted">{t("intro")}</p>
@@ -305,11 +351,11 @@ function ApprovedBatch({ locations, failing, chat }: { locations: CrLocation[]; 
           <li key={l.location_id}>
             <details>
               <summary className="cursor-pointer">
-                <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : pathLabel(l.path)}</strong>
+                <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : locTitle(l)}</strong>
                 <span className="text-on-surface-muted"> — {sectionTitle(l.section_id, l.section_title)}</span>
               </summary>
               <div className="mt-1.5">
-                {l.proposal && (isDiagramLocation(l) ? <OriginalDiagramChange loc={l} /> : <FieldChanges oldText={l.proposal.old_text} newText={l.proposal.new_text} />)}
+                {l.proposal && (isDiagramLocation(l) ? <OriginalDiagramChange loc={l} /> : <ProposalDiff loc={l} />)}
                 <AssumptionsNote assumptions={l.proposal?.assumptions} />
               </div>
             </details>
@@ -331,30 +377,65 @@ function ApprovedBatch({ locations, failing, chat }: { locations: CrLocation[]; 
  * FLF-375: phần phải quyết riêng (thẻ có nút riêng, "Đồng ý tất cả" không duyệt luôn) — trượt kiểm, AI chưa đề xuất, thay
  * sơ đồ gốc (§4.13), hoặc có lưu ý của AI.
  */
-const needsOwnCard = (l: CrLocation): boolean => isFailing(l) || l.conclusion === null || isDiagramLocation(l) || (l.verify?.ai_flags.length ?? 0) > 0;
+const needsOwnCard = (l: CrLocation): boolean => isFailing(l) || l.conclusion === null || isDiagramLocation(l) || (l.verify?.ai_flags.length ?? 0) > 0 || !!l.conflict;
 
 const SHORT = 40;
 const short = (s: string): string => (s.length > SHORT ? `${s.slice(0, SHORT - 1)}…` : s);
+
+/**
+ * FLF-375: đoạn khác nhau của "trước → sau" — bỏ phần đầu / cuối giống nhau để dòng tóm tắt không thành "A… → A…"
+ * (vd mô tả dự án chỉ đổi một câu ở giữa).
+ */
+const changedSlice = (before: string, after: string): { before: string; after: string } => {
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) start++;
+  let end = 0;
+  while (end < before.length - start && end < after.length - start && before[before.length - 1 - end] === after[after.length - 1 - end]) end++;
+  // lùi về đầu từ để không cắt giữa chữ
+  while (start > 0 && /\S/.test(before[start - 1] ?? "")) start--;
+  const lead = start > 0 ? "…" : "";
+  const cut = (s: string) => `${lead}${s.slice(start, s.length - end).trim()}${end > 0 ? "…" : ""}`;
+  return { before: cut(before), after: cut(after) };
+};
 
 /** Một dòng trong danh sách gom: tiêu đề + "cũ → mới" rút gọn; bấm ▸ mở chi tiết kèm Sửa lại / Bỏ của riêng dòng. */
 function BatchRow({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   const t = useTranslations("mode1.crThread.batch");
   const tLoc = useTranslations("mode1.crThread.loc");
-  const { pathLabel, sectionTitle, humanizeText, fieldChanges } = useMode1Labels();
+  const { sectionTitle, humanizeText, fieldChanges } = useMode1Labels();
+  const locTitle = useLocTitle();
   const editing = chat.redraftFor === loc.location_id;
   const [open, setOpen] = useState(false);
   const expanded = open || editing;
   const p = loc.proposal;
   const accepted = chat.isAccepted(loc);
   const busy = chat.busy !== null;
-  const changes = loc.conclusion === "edit" && p ? fieldChanges(p.old_text, p.new_text) : [];
+  const d = loc.display;
+  // FLF-375: dòng tóm tắt bằng câu (xoá / thêm / trước → sau); CR cũ chưa có `display` ⇒ so từng trường như trước
+  const changes = d
+    ? d.change === "edit"
+      ? // Chữ chính không đổi (đổi ở trường phụ) ⇒ so từng trường như cũ; phần bị bỏ hẳn ⇒ "(xoá)" thay vì "……"
+        d.before === d.after && p
+        ? fieldChanges(p.old_text, p.new_text).map((c) => changedSlice(c.before, c.after))
+        : d.after === null
+          ? // Đề xuất chưa chạy thử được — không phải xoá; bước kiểm sẽ bắt và AI soạn lại
+            [{ before: d.before ?? "", after: t("noPreview") }]
+          : [changedSlice(d.before ?? "", d.after)].map((x) => (x.after.replace(/…/g, "").trim() ? x : { ...x, after: t("removed") }))
+      : d.change === "remove"
+        ? [{ before: d.label, after: t("removed") }]
+        : d.change === "add"
+          ? [{ before: "", after: d.after ?? d.label }]
+          : []
+    : loc.conclusion === "edit" && p
+      ? fieldChanges(p.old_text, p.new_text)
+      : [];
   const first = changes[0];
-  const title = pathLabel(loc.path);
+  const title = locTitle(loc);
 
   return (
     <li id={`cr-loc-${loc.location_id}`} className={`scroll-mt-4 rounded-[10px] border ${accepted ? "border-[#BFE6CE] bg-[#F3FAF6]" : "border-outline-variant bg-white"} px-2.5 py-1.5`}>
       <div className="flex items-start gap-2">
-        <p className="flex-1 min-w-0 text-body" title={loc.path}>
+        <p className="flex-1 min-w-0 text-body">
           <strong className="text-on-surface">{sectionTitle(loc.section_id, loc.section_title)}</strong>
           <span className="text-on-surface-muted"> — {title}</span>
           {first ? (
@@ -386,7 +467,8 @@ function BatchRow({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
       </div>
       {expanded && (
         <div className="mt-1.5 flex flex-col gap-1.5" aria-label={t("detailAria", { id: loc.location_id })}>
-          {loc.conclusion === "edit" && p && <FieldChanges oldText={p.old_text} newText={p.new_text} />}
+          {loc.conclusion === "edit" && p && <ProposalDiff loc={loc} />}
+          <OthersPending loc={loc} />
           {loc.conclusion === "comment" && p?.comment_text && <p className="text-[#3B4FA8] bg-[#EEF1FB] rounded-[8px] px-2.5 py-1.5">💬 {humanizeText(p.comment_text)}</p>}
           {loc.reason && <p className="text-on-surface-muted">{tLoc("reason", { reason: humanizeText(loc.reason) })}</p>}
           <AssumptionsNote assumptions={p?.assumptions} />
@@ -421,13 +503,7 @@ function ProposalBatch({ locations, chat }: { locations: CrLocation[]; chat: CrC
   const pending = rows.filter((l) => !chat.isAccepted(l));
   return (
     <div className="flex flex-col gap-2">
-      {rows.length > 0 && (
-        <ul className="flex flex-col gap-1" aria-label={t("listAria")}>
-          {rows.map((l) => (
-            <BatchRow key={l.location_id} loc={l} chat={chat} />
-          ))}
-        </ul>
-      )}
+      {/* FLF-375 (spec 04): việc cần bạn quyết lên đầu; phần đã đạt kiểm thu gọn bên dưới */}
       {own.length > 0 && (
         <section className="flex flex-col gap-2" aria-label={t("ownAria")}>
           <p className="font-bold text-[#8A6D1F]">{t("ownTitle", { count: own.length })}</p>
@@ -435,6 +511,13 @@ function ProposalBatch({ locations, chat }: { locations: CrLocation[]; chat: CrC
             <LocationCard key={l.location_id} loc={l} chat={chat} />
           ))}
         </section>
+      )}
+      {rows.length > 0 && (
+        <ul className="flex flex-col gap-1" aria-label={t("listAria")}>
+          {rows.map((l) => (
+            <BatchRow key={l.location_id} loc={l} chat={chat} />
+          ))}
+        </ul>
       )}
       {pending.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
@@ -452,7 +535,8 @@ function ProposalBatch({ locations, chat }: { locations: CrLocation[]; chat: CrC
 function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrChat }) {
   const t = useTranslations("mode1.crThread.dropped");
   const tDiagram = useTranslations("mode1.originalDiagram");
-  const { pathLabel, humanizeText } = useMode1Labels();
+  const { humanizeText } = useMode1Labels();
+  const locTitle = useLocTitle();
   if (!locations.length) return null;
   return (
     <details className="text-body text-on-surface-muted">
@@ -461,7 +545,7 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
         {locations.map((l) => (
           <li key={l.location_id} className="flex flex-col gap-1">
             <span>
-              <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : pathLabel(l.path)}</strong>
+              <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : locTitle(l)}</strong>
               {l.reason ? ` — ${humanizeText(l.reason)}` : ""}
             </span>
             {isDiagramLocation(l) ? (
@@ -492,9 +576,36 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
  * nhắn riêng): lệnh sửa của người dùng ⇒ ① làm rõ (câu hỏi + gợi ý + tài liệu) ⇒ ② phần liên quan ⇒ ③ đề xuất — mọi
  * phần cần quyết, kể cả phần AI bỏ sót và phần trượt kiểm (Đồng ý / Sửa lại / Bỏ) ⇒ ④ kiểm ⇒ Gửi cho Lead.
  */
-export default function Mode1CrThread({ projectId, chat, me }: { projectId: string; chat: CrChat; me: string }) {
+/**
+ * BF §3.2: đề xuất chưa xác nhận **treo ở người yêu cầu** — người khác mở CR này chỉ thấy "đang treo ở X", không có nút
+ * xác nhận (họ không có bối cảnh, người xác nhận đứng tên thay đổi).
+ */
+function ReadyToSubmit({ c, chat, myUserId }: { c: CrDetail["change_request"]; chat: CrChat; myUserId: string | null }) {
   const t = useTranslations("mode1.crThread");
-  const { pathLabel, sectionTitle, humanizeText, crStatus } = useMode1Labels();
+  const notMine = myUserId !== null && c.created_by !== myUserId;
+  return (
+    <AiBubble step={t("readyStep")} label={t("readyLabel")}>
+      {notMine ? (
+        <p className="text-[#8A6D1F]">{t("notRequester", { who: c.created_by_name ?? c.requester })}</p>
+      ) : (
+        <>
+          <p>{t("readyText")}</p>
+          <div className="flex gap-1.5">
+            <button type="button" disabled={chat.busy !== null} onClick={chat.submit} className={`${btn} btn-gradient-primary text-white`}>
+              {t("submit")}
+            </button>
+          </div>
+          <p className="text-on-surface-muted text-body">{t("readyMore", { crId: c.cr_id })}</p>
+        </>
+      )}
+    </AiBubble>
+  );
+}
+
+export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: { projectId: string; chat: CrChat; me: string; myUserId?: string | null }) {
+  const t = useTranslations("mode1.crThread");
+  const { sectionTitle, crStatus } = useMode1Labels();
+  const locTitle = useLocTitle();
   const d = chat.detail;
   const busy = chat.busy !== null;
 
@@ -546,7 +657,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
                 <p>{t("fromPreview")}</p>
               </AiBubble>
             )}
-            <RequesterCard me={me} busy={busy} onStart={(s) => void chat.startCr(s)} onCancel={chat.cancelPending} />
+            <RequesterCard me={me} busy={busy} onStart={(s) => void chat.startCr(s)} onCancel={chat.cancelPending} prefill={chat.prefill} />
           </>
         )}
         {busyLine}
@@ -562,6 +673,7 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
   const proposed = c.status !== "draft" && c.status !== "clarifying" && c.status !== "awaiting_answers" && c.status !== "impact_review";
   const settled = toReview.filter((l) => l.conclusion !== null && !isFailing(l) && chat.isAccepted(l)).length;
   const blockers = [...chat.failing, ...chat.unconcluded.filter((l) => !isFailing(l))];
+  const conflicts = d.locations.filter((l) => !!l.conflict);
   const jump = (locId: string) => document.getElementById(`cr-loc-${locId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   const materialsEditable = (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
   const approved = fromApprovedPreview(d);
@@ -622,14 +734,24 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
         </AiBubble>
       )}
 
-      {approved && proposed && <ApprovedBatch locations={toReview.filter((l) => !isFailing(l))} failing={toReview.filter(isFailing)} chat={chat} />}
+      {approved && proposed && (
+        <ApprovedBatch locations={toReview.filter((l) => inApprovedBatch(d, l))} failing={toReview.filter((l) => l.found_by.includes("preview") && isFailing(l))} chat={chat} />
+      )}
+      {/* FLF-375: chỗ ngoài lô đã duyệt (AI đề xuất thêm, sơ đồ gốc vẽ lại) ⇒ người dùng quyết như mọi CR */}
+      {approved && proposed && toReview.some((l) => !l.found_by.includes("preview")) && (
+        <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")}>
+          <p className="text-on-surface-muted">{t("proposeHint")}</p>
+          <ProposalBatch locations={toReview.filter((l) => !l.found_by.includes("preview"))} chat={chat} />
+          <DroppedList locations={dropped} chat={chat} />
+        </AiBubble>
+      )}
 
       {!approved && d.locations.length > 0 && (
         <AiBubble step={t("impactStep", { count: d.locations.length })} label={t("impactLabel")}>
           <ul className="list-disc pl-5">
             {d.locations.map((l) => (
-              <li key={l.location_id} title={l.path}>
-                {sectionTitle(l.section_id, l.section_title)} — {pathLabel(l.path)}
+              <li key={l.location_id}>
+                {sectionTitle(l.section_id, l.section_title)} — {locTitle(l)}
               </li>
             ))}
           </ul>
@@ -655,7 +777,15 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
         </AiBubble>
       )}
 
-      {c.status === "manual_fix" && !c.paused && (
+      {conflicts.length > 0 && (
+        <AiBubble step={t("conflictStep")} label={t("conflictLabel")}>
+          <p>{t("conflictIntro", { count: conflicts.length })}</p>
+          {conflicts.map((l) => (
+            <ConflictCard key={l.location_id} loc={l} chat={chat} request={c.description} />
+          ))}
+        </AiBubble>
+      )}
+      {c.status === "manual_fix" && !c.paused && conflicts.length === 0 && (
         <AiBubble step={t("manualStep")} label={t("manualLabel")}>
           {blockers.length > 0 ? (
             <>
@@ -664,12 +794,9 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
                 {blockers.map((l) => (
                   <li key={l.location_id}>
                     <button type="button" onClick={() => jump(l.location_id)} className="text-left underline text-[#B03030] font-semibold">
-                      {pathLabel(l.path)}
+                      {sectionTitle(l.section_id, l.section_title)} — {locTitle(l)}
                     </button>
-                    <span className="text-on-surface-muted">
-                      {" "}
-                      — {l.conclusion === null ? t("blockerMissing") : l.verify?.violations[0]?.message ? humanizeText(l.verify.violations[0].message) : t("blockerFailed")}
-                    </span>
+                    <span className="text-on-surface-muted"> — {l.conclusion === null ? t("blockerMissing") : t("blockerFailed")}</span>
                   </li>
                 ))}
               </ul>
@@ -684,18 +811,16 @@ export default function Mode1CrThread({ projectId, chat, me }: { projectId: stri
           </div>
         </AiBubble>
       )}
-      {c.status === "ready_to_submit" && (
-        <AiBubble step={t("readyStep")} label={t("readyLabel")}>
-          <p>{t("readyText")}</p>
-          <div className="flex gap-1.5">
-            <button type="button" disabled={busy} onClick={chat.submit} className={`${btn} btn-gradient-primary text-white`}>
-              {t("submit")}
-            </button>
-          </div>
-          <p className="text-on-surface-muted text-body">{t("readyMore", { crId: c.cr_id })}</p>
-        </AiBubble>
-      )}
+      {c.status === "ready_to_submit" && <ReadyToSubmit c={c} chat={chat} myUserId={myUserId} />}
 
+      {chat.replies.map((r, i) => (
+        <div key={i} className="flex flex-col gap-2">
+          <UserBubble>{r.question}</UserBubble>
+          <AiBubble label={t("replyLabel")}>
+            <p className="whitespace-pre-wrap">{r.reply}</p>
+          </AiBubble>
+        </div>
+      ))}
       {c.paused && <PausedBanner paused={c.paused} what={t("pausedWhat")} busy={chat.busy === "resume"} onResume={chat.resume} />}
       {!busy && !c.paused && c.status !== "manual_fix" && chat.canContinue && (
         <div>

@@ -70,6 +70,8 @@ interface DocumentPaneProps {
   onCommentSection?: (anchor: { sectionId: string; label: string }) => void;
   /** Số góp ý đang mở của một mục — vẽ chấm số trên header mục, bấm mở panel Góp ý. */
   commentCountOf?: (sectionId: string) => number;
+  /** BF §3.2: người khác đang có bản sửa chưa xác nhận ở mục này (mode 1). */
+  pendingProposalsOf?: (sectionId: string) => { cr_id: string; who: string }[];
   onOpenSectionComments?: (sectionId: string) => void;
   /**
    * Chip trạng thái duy nhất trên header: số vấn đề phải xử lý (cờ đỏ + mục cần viết lại) và số gợi ý (cờ vàng).
@@ -597,6 +599,7 @@ function SectionView({
   onSaveToLibrary,
   onComment,
   commentCount = 0,
+  pendingProposals = [],
   onOpenComments,
   onRedraw,
   onRedrawDiagram,
@@ -609,6 +612,8 @@ function SectionView({
   onComment?: (sectionLabel: string) => void;
   /** Số góp ý đang mở của mục này. */
   commentCount?: number;
+  /** BF §3.2: CR chưa đóng của người khác đang có đề xuất ở mục này. */
+  pendingProposals?: { cr_id: string; who: string }[];
   onOpenComments?: () => void;
   onRedraw?: () => Promise<void>;
   onRedrawDiagram?: (diagramId: string) => Promise<void>;
@@ -661,6 +666,12 @@ function SectionView({
             {section.heading}
           </h5>
           {showEmpty && <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />}
+          {pendingProposals.length > 0 && (
+            // BF §3.2 "Hai người sửa cùng lúc": không khoá, chỉ báo ai đang có bản sửa chưa xác nhận ở mục này
+            <span className="text-caption font-bold text-[#8A6D1F]" aria-label={t("pendingProposalsAria")}>
+              {pendingProposals.map((p) => t("pendingProposal", { who: p.who, crId: p.cr_id })).join(" · ")}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {custom && (
@@ -807,6 +818,7 @@ function DocumentPaneView({
   onUseLibraryAll,
   onCommentSection,
   commentCountOf,
+  pendingProposalsOf,
   onOpenSectionComments,
   issues,
   onOpenIssues,
@@ -1023,6 +1035,7 @@ function DocumentPaneView({
               onSaveToLibrary={onSaveToLibrary ? () => onSaveToLibrary(section.id) : undefined}
               onComment={onCommentSection ? (label) => onCommentSection({ sectionId: section.id, label }) : undefined}
               commentCount={commentCountOf?.(section.id) ?? 0}
+              pendingProposals={pendingProposalsOf?.(section.id) ?? []}
               onOpenComments={onOpenSectionComments ? () => onOpenSectionComments(section.id) : undefined}
               onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
               onRedrawDiagram={onRedrawDiagram}

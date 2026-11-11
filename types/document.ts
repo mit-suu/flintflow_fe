@@ -150,6 +150,32 @@ export interface ProjectDocument {
   tokenCount?: number | null;
   summary?: string | null;
   summaryStatus: "pending" | "success" | "failed";
+  /** Số tài liệu `D<n>` (FLF-292). */
+  docCode?: number | null;
+  /** FLF-398: SHA-256 nội dung file — FE so lúc chọn tệp để báo "đã có trong dự án". Tài liệu cũ chưa có ⇒ `null`. */
+  contentHash?: string | null;
+  /** FLF-398: các bản cũ tài liệu này đã thay ("Thay bản cũ") — chỉ có ở `GET /documents`. */
+  replaces?: DocumentRef[];
   createdAt: string;
   updatedAt: string;
 }
+
+/** FLF-398: tham chiếu gọn tới một tài liệu tham khảo (trong `meta` lỗi upload và `replaces`). */
+export interface DocumentRef {
+  id: string;
+  name: string;
+  doc_code: number | null;
+}
+
+/**
+ * FLF-398: tài liệu đang dùng mà file vừa tải có thể là bản mới của nó (`409 POSSIBLE_NEW_VERSION` → `meta.candidates`).
+ * `same_name`: cùng tên gốc sau khi bỏ dấu phiên bản (`_v1`, `(1)`, `- Copy`…); `similar_content`: nội dung giống ≥ 70%.
+ */
+export interface DocumentVersionCandidate extends DocumentRef {
+  reason: "same_name" | "similar_content";
+  /** Độ giống nội dung 0..1. */
+  similarity: number;
+}
+
+/** FLF-398: lựa chọn gửi kèm lần tải lại sau `POSSIBLE_NEW_VERSION`. */
+export type DocumentUploadChoice = { replaceDocumentId: string } | { keepBoth: true };
