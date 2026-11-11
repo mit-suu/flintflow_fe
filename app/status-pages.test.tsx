@@ -8,7 +8,7 @@ vi.mock("next-intl/server", () => ({ getTranslations: vi.fn() }));
 
 const boom = Object.assign(new Error("render hỏng"), { digest: "abc123" });
 
-describe("app/error.tsx — trang lỗi FlintFlow", () => {
+describe("app/error.tsx - trang lỗi FlintFlow", () => {
   beforeEach(() => vi.spyOn(console, "error").mockImplementation(() => undefined));
   afterEach(() => vi.restoreAllMocks());
 

@@ -61,18 +61,18 @@ const say = async (text: string) => {
 const click = async (name: string | RegExp) => fireEvent.click(await screen.findByRole("button", { name }));
 const cr = () => S().crs.get("CR-001")!.change_request;
 
-describe("Mode1CrThread — CR trong khung chat", () => {
+describe("Mode1CrThread - CR trong khung chat", () => {
   it("lệnh sửa ⇒ chọn người yêu cầu ⇒ AI hỏi (chip gợi ý) ⇒ phần liên quan ⇒ đồng ý đề xuất ⇒ tự kiểm ⇒ gửi Lead", async () => {
     renderWithIntl(<Harness />);
     expect(await screen.findByLabelText("Hướng dẫn sửa tài liệu")).toBeInTheDocument();
 
-    await say("Đăng xuất mọi thiết bị — yêu cầu còn mơ hồ");
-    expect(screen.getByText("Đăng xuất mọi thiết bị — yêu cầu còn mơ hồ")).toBeInTheDocument();
+    await say("Đăng xuất mọi thiết bị - yêu cầu còn mơ hồ");
+    expect(screen.getByText("Đăng xuất mọi thiết bị - yêu cầu còn mơ hồ")).toBeInTheDocument();
     await click("Lan · yêu cầu miệng");
 
     // 3.1 xong ⇒ CR mở, 3.2 tự chạy ⇒ AI hỏi kèm gợi ý
     const q = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
-    expect(cr()).toMatchObject({ source: { kind: "verbal" }, requester: "Lan", description: "Đăng xuất mọi thiết bị — yêu cầu còn mơ hồ", status: "awaiting_answers" });
+    expect(cr()).toMatchObject({ source: { kind: "verbal" }, requester: "Lan", description: "Đăng xuất mọi thiết bị - yêu cầu còn mơ hồ", status: "awaiting_answers" });
     expect(screen.getByPlaceholderText("Trả lời câu hỏi của AI…")).toBeInTheDocument();
     fireEvent.click(within(q).getByRole("radio", { name: "Có, áp cho mọi thiết bị" }));
     fireEvent.click(within(q).getByRole("radio", { name: "Không cần thông báo" }));
@@ -81,7 +81,7 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     // 3.4 tự chạy ⇒ dừng ở danh sách phần liên quan
     const related = await screen.findByLabelText("Phần liên quan");
     expect(within(related).getAllByRole("listitem").length).toBeGreaterThan(0);
-    await click("Tiếp tục — AI đề xuất sửa");
+    await click("Tiếp tục - AI đề xuất sửa");
 
     // 3.6 ⇒ đồng ý đề xuất sửa (FLF-375: một nút cho cả danh sách) ⇒ 3.7 tự chạy ⇒ sẵn sàng
     const proposals = await screen.findByLabelText("Đề xuất sửa");
@@ -97,13 +97,13 @@ describe("Mode1CrThread — CR trong khung chat", () => {
 
   it("CR đã ghi xong ⇒ lệnh sửa mới (sửa thường hay thêm use case) ẩn thẻ “đã ghi vào bản nháp” của CR trước", async () => {
     renderWithIntl(<Harness />);
-    await say("Đăng xuất mọi thiết bị — yêu cầu còn mơ hồ");
+    await say("Đăng xuất mọi thiết bị - yêu cầu còn mơ hồ");
     await click("Lan · yêu cầu miệng");
     const q = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
     fireEvent.click(within(q).getByRole("radio", { name: "Có, áp cho mọi thiết bị" }));
     fireEvent.click(within(q).getByRole("radio", { name: "Không cần thông báo" }));
     fireEvent.click(within(q).getByRole("button", { name: "Gửi câu trả lời" }));
-    await click("Tiếp tục — AI đề xuất sửa");
+    await click("Tiếp tục - AI đề xuất sửa");
     fireEvent.click(within(await screen.findByLabelText("Đề xuất sửa")).getByRole("button", { name: /^Đồng ý tất cả/ }));
     await click("Xác nhận & ghi vào bản nháp");
     expect(await screen.findByLabelText("Đã ghi vào bản nháp")).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     renderWithIntl(<Harness />);
     await say("Đổi ngưỡng phản hồi thành 1 giây");
     await click("Lan · yêu cầu miệng");
-    await click("Tiếp tục — AI đề xuất sửa");
+    await click("Tiếp tục - AI đề xuất sửa");
     const proposals = await screen.findByLabelText("Đề xuất sửa");
     // FLF-375: Sửa lại / Bỏ của từng phần nằm trong chi tiết của dòng — bấm ▸ để mở
     fireEvent.click(within(proposals).getAllByRole("button", { name: /^Mở chi tiết/ })[0]);
@@ -156,7 +156,7 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     const first = renderWithIntl(<Harness />);
     await say("Đổi ngưỡng phản hồi thành 1 giây");
     await click("Lan · yêu cầu miệng");
-    await click("Tiếp tục — AI đề xuất sửa");
+    await click("Tiếp tục - AI đề xuất sửa");
     await screen.findByLabelText("Đề xuất sửa");
     first.unmount();
 
@@ -203,11 +203,11 @@ describe("Mode1CrThread — CR trong khung chat", () => {
     expect(cr().status).toBe("ready_to_submit");
   });
 
-  it("phần chưa đạt: chỉ có ô gõ hướng cho AI soạn lại — không còn tab “✎ Tự sửa” / sửa tay nội dung (FLF-375)", async () => {
+  it("phần chưa đạt: chỉ có ô gõ hướng cho AI soạn lại - không còn tab “✎ Tự sửa” / sửa tay nội dung (FLF-375)", async () => {
     const first = renderWithIntl(<Harness />);
     await say("Ghi rõ lịch họp nhóm");
     await click("Lan · yêu cầu miệng");
-    await click("Tiếp tục — AI đề xuất sửa");
+    await click("Tiếp tục - AI đề xuất sửa");
     await screen.findByLabelText("Đề xuất sửa");
     first.unmount();
 
@@ -247,7 +247,7 @@ const proposalsOf = async (n: number) => {
   const first = renderWithIntl(<Harness />);
   await say("Đổi ngưỡng phản hồi thành 1 giây");
   await click("Lan · yêu cầu miệng");
-  await click("Tiếp tục — AI đề xuất sửa");
+  await click("Tiếp tục - AI đề xuất sửa");
   await screen.findByLabelText("Đề xuất sửa");
   first.unmount();
   const d = S().crs.get("CR-001")!;
@@ -260,7 +260,7 @@ const proposalsOf = async (n: number) => {
   return d;
 };
 
-describe("Mode1CrThread — bước đề xuất gom một danh sách (FLF-375)", () => {
+describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", () => {
   it("người khác vừa sửa cùng chỗ (conflict) ⇒ thẻ so sánh 3 cột, không nút ghi đè; Bỏ yêu cầu ⇒ không liên quan", async () => {
     const d = await proposalsOf(1);
     const loc = d.locations[0];
@@ -338,7 +338,7 @@ describe("Mode1CrThread — bước đề xuất gom một danh sách (FLF-375)"
     expect(cr().status).toBe("ready_to_submit");
   });
 
-  it("phần chưa đề xuất / sơ đồ gốc / có lưu ý AI vẫn là thẻ riêng — Đồng ý tất cả chỉ duyệt phần còn lại", async () => {
+  it("phần chưa đề xuất / sơ đồ gốc / có lưu ý AI vẫn là thẻ riêng - Đồng ý tất cả chỉ duyệt phần còn lại", async () => {
     const d = await proposalsOf(5);
     const [, missing, diagram, flagged] = d.locations;
     Object.assign(missing, { conclusion: null, proposal: null });
@@ -390,7 +390,7 @@ function PreviewHarness({ onWritten }: { onWritten?: (crId: string) => void }) {
   );
 }
 
-describe("Mode1CrThread — CR từ bản xem trước (FLF-318)", () => {
+describe("Mode1CrThread - CR từ bản xem trước (FLF-318)", () => {
   it("Tạo change request từ bản xem trước ⇒ thẻ nói rõ CR mang đúng thay đổi đã xem; chọn người yêu cầu ⇒ CR kèm preview_id + đoạn hỏi đáp", async () => {
     renderWithIntl(<PreviewHarness />);
     await click("Tạo CR từ bản xem trước");
@@ -416,7 +416,7 @@ describe("Mode1CrThread — CR từ bản xem trước (FLF-318)", () => {
     expect(cr().status).toBe("ready_to_submit");
     const summary = screen.getByLabelText("Thay đổi đã duyệt ở bản xem trước");
     expect(within(summary).getByText(/Đúng các thay đổi bạn đã duyệt ở bản xem trước/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Tiếp tục — AI đề xuất sửa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tiếp tục - AI đề xuất sửa" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Đồng ý" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Phần liên quan")).not.toBeInTheDocument();
 

@@ -95,7 +95,7 @@ const PAGES: readonly [string, ReactElement, string][] = [
   ["hồ sơ", <ProfilePage key="p" />, "Your profile"],
 ];
 
-describe("Trang tài khoản — song ngữ", () => {
+describe("Trang tài khoản - song ngữ", () => {
   it.each(PAGES)("bản en của trang %s dịch tiêu đề và không còn chữ tiếng Việt", async (_name, page, heading) => {
     const { container } = renderInShell(page, "en");
     await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(heading));

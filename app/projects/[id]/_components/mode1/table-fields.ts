@@ -58,9 +58,9 @@ export const tableFields = (t: Mode1T, spine: Pick<SpineLabels, "entityLabel" | 
     const entity = entityOfPath(path);
     const g = group(entity);
     const field = g?.fields.find((f) => tableFieldPath(g.entity, f) === path);
-    if (g && field) return `${tableGroupLabel(g.entity)} — ${tableItemLabel(g.entity, field)}`;
+    if (g && field) return `${tableGroupLabel(g.entity)} - ${tableItemLabel(g.entity, field)}`;
     const rawField = path.split("].")[1] ?? path;
-    return `${entity ? tableGroupLabel(entity) : t("fields.other")} — ${spine.fieldLabel(rawField)}`;
+    return `${entity ? tableGroupLabel(entity) : t("fields.other")} - ${spine.fieldLabel(rawField)}`;
   };
 
   /** Vai trò cột theo dữ liệu (FLF-252) ⇒ nhãn ngắn cho người dùng; vai trò lạ ⇒ rỗng. */

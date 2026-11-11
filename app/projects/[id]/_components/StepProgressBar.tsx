@@ -150,7 +150,7 @@ export default function StepProgressBar({
                     type="button"
                     disabled={!clickable}
                     onClick={() => onSelectStep(step.id)}
-                    aria-label={sections ? `${stepLabel(step.id)} — ${t("templateSectionsTitle", { sections })}` : stepLabel(step.id)}
+                    aria-label={sections ? `${stepLabel(step.id)} - ${t("templateSectionsTitle", { sections })}` : stepLabel(step.id)}
                     aria-current={isCurrent ? "step" : undefined}
                     title={(sections ? `${t("templateSectionsTitle", { sections })}\n` : "") + t("stepTitle", {
                       id: step.id,

@@ -32,7 +32,7 @@ describe("BriefPanel (FLF-221)", () => {
   it("nói rõ đây là Brief, chưa phải SRS; đang tải Spine thì là skeleton giữ chỗ", () => {
     render(<BriefPanel spine={null} />);
     expect(screen.getByRole("heading", { name: "Tóm tắt đang hình thành" })).toBeTruthy();
-    expect(screen.getByText("Tóm tắt ý tưởng — chưa phải tài liệu SRS")).toBeTruthy();
+    expect(screen.getByText("Tóm tắt ý tưởng - chưa phải tài liệu SRS")).toBeTruthy();
     expect(screen.getByLabelText("Đang tải tóm tắt").getAttribute("aria-busy")).toBe("true");
     expect(screen.queryByText("Tầm nhìn")).toBeNull();
     expect(screen.queryByText(/Những điều tôi đang hiểu/)).toBeNull();

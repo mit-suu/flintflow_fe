@@ -39,7 +39,7 @@ const ORGS: AdminOrg[] = [
 
 const META = { page: 1, limit: 20, total: 2, totalPages: 1 };
 
-describe("AdminOrgsPage — UC-90 danh sách tổ chức", () => {
+describe("AdminOrgsPage - UC-90 danh sách tổ chức", () => {
   beforeEach(() => {
     vi.mocked(fetchAdminOrgs).mockReset().mockResolvedValue({ items: ORGS, meta: META });
     vi.mocked(adjustAdminOrgCredits).mockReset();

@@ -147,7 +147,7 @@ describe("useChanges", () => {
   });
 });
 
-describe("useChanges — cổng đồng bộ trước khi gửi và 409", () => {
+describe("useChanges - cổng đồng bộ trước khi gửi và 409", () => {
   it("syncBeforeSend chạy trước /changes/preview và base_version lấy SAU cổng", async () => {
     const baseVersion = await seedActor();
     const previewSpy = vi.spyOn(spineApi, "previewChanges");

@@ -101,8 +101,8 @@ describe("TranslateDialog (FLF-265)", () => {
     const { onDone } = openDialog();
     await confirm();
 
-    const notice = await screen.findByText(/Không dịch thêm được mục nào — còn 20 mục giữ chữ gốc/);
-    expect(notice.parentElement).toHaveTextContent("Đã dịch 80 mục trước khi dừng — phần này được giữ.");
+    const notice = await screen.findByText(/Không dịch thêm được mục nào - còn 20 mục giữ chữ gốc/);
+    expect(notice.parentElement).toHaveTextContent("Đã dịch 80 mục trước khi dừng - phần này được giữ.");
     expect(mockTranslation.runCalls).toBe(2);
     expect(onDone).toHaveBeenCalledWith({ translated: 80, remaining: 20, creditsUsed: 6 });
   });
@@ -128,7 +128,7 @@ describe("TranslateDialog (FLF-265)", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Không đủ credit để dịch tiếp");
-    expect(alert).toHaveTextContent("Đã dịch 80 mục trước khi dừng — phần này được giữ.");
+    expect(alert).toHaveTextContent("Đã dịch 80 mục trước khi dừng - phần này được giữ.");
     expect(alert).toHaveTextContent("Đã dùng 4 credit.");
     expect(onDone).toHaveBeenCalledWith({ translated: 80, remaining: 20, creditsUsed: 4 });
   });
@@ -139,7 +139,7 @@ describe("TranslateDialog (FLF-265)", () => {
     openDialog();
     await confirm();
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Tài liệu đang được dịch ở một lượt khác — đợi lượt đó xong rồi thử lại.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Tài liệu đang được dịch ở một lượt khác - đợi lượt đó xong rồi thử lại.");
     expect(statusReads).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Thử lại" }));
 
@@ -154,7 +154,7 @@ describe("TranslateDialog (FLF-265)", () => {
     await confirm();
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Chưa dịch được lúc này — AI trả kết quả không đọc được. Thử lại sau ít phút.");
+    expect(alert).toHaveTextContent("Chưa dịch được lúc này - AI trả kết quả không đọc được. Thử lại sau ít phút.");
     expect(alert).not.toHaveTextContent("translate_document");
     expect(screen.getByRole("button", { name: "Thử lại" })).toBeInTheDocument();
   });
@@ -167,16 +167,16 @@ describe("TranslateDialog (FLF-265)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(MESSAGES.vi.errors.ORG_ROLE_FORBIDDEN);
   });
 
-  it("không còn mục nào: dịch đủ ⇒ báo đã dịch đủ; ngôn ngữ gốc ⇒ báo không cần dịch — không có nút Dịch", async () => {
+  it("không còn mục nào: dịch đủ ⇒ báo đã dịch đủ; ngôn ngữ gốc ⇒ báo không cần dịch - không có nút Dịch", async () => {
     mockTranslation.missing = 0;
     const { unmount } = openDialog();
-    expect(await screen.findByText("Tài liệu đã dịch đủ sang tiếng Việt — không còn mục nào cần dịch.")).toBeInTheDocument();
+    expect(await screen.findByText("Tài liệu đã dịch đủ sang tiếng Việt - không còn mục nào cần dịch.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Dịch ngay" })).toBeNull();
     unmount();
 
     mockState.project.documentLanguage = "en";
     openDialog();
-    expect(await screen.findByText("Tài liệu đang ở ngôn ngữ gốc — không có gì cần dịch.")).toBeInTheDocument();
+    expect(await screen.findByText("Tài liệu đang ở ngôn ngữ gốc - không có gì cần dịch.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Dịch ngay" })).toBeNull();
     expect(mockTranslation.runCalls).toBe(0);
   });
@@ -193,7 +193,7 @@ describe("TranslateDialog (FLF-265)", () => {
     expect(screen.getByText("Đang dừng sau lượt đang chạy…")).toBeInTheDocument();
     runs.release(0, { translated: 40, remaining: 60, credits_used: 2 });
 
-    expect(await screen.findByText("Đã dừng — đã dịch 40 mục, còn 60 mục giữ chữ gốc.")).toBeInTheDocument();
+    expect(await screen.findByText("Đã dừng - đã dịch 40 mục, còn 60 mục giữ chữ gốc.")).toBeInTheDocument();
     expect(runs.calls()).toBe(1);
     expect(onDone).toHaveBeenCalledWith({ translated: 40, remaining: 60, creditsUsed: 2 });
 
@@ -253,7 +253,7 @@ describe("TranslateDialog (FLF-265)", () => {
   });
 });
 
-describe("TranslateDialog — locale (FLF-334 B)", () => {
+describe("TranslateDialog - locale (FLF-334 B)", () => {
   it("locale ⇒ status đọc ?locale=, run gửi locale trong body", async () => {
     const statusUrls: string[] = [];
     const runBodies: unknown[] = [];

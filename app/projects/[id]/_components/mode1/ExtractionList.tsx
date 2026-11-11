@@ -149,7 +149,7 @@ export default function ExtractionList({ projectId, extraction, onApproved, read
                   </div>
                   <p className="text-body text-[#191817]">{L.humanizeText(item.text)}</p>
                   <p className="text-caption text-[#8A867E] italic">
-                    “{item.quote}” — {paraLabel(item)}
+                    “{item.quote}” - {paraLabel(item)}
                   </p>
                   {item.entity_paths.length > 0 && <p className="text-caption text-[#8A867E]">{t("touches", { paths: item.entity_paths.join(", ") })}</p>}
                   {!s.include && !approved && !readOnly && (

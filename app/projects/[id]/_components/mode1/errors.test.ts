@@ -14,7 +14,7 @@ const apiError = (code: string, message = "thông điệp BE", meta?: Record<str
 
 describe("errorText", () => {
   it("mã có trong bảng ⇒ câu tiếng Việt của FE, không phải chữ BE", () => {
-    expect(errorText(apiError("BASELINE_BLOCKED"))).toBe("Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.");
+    expect(errorText(apiError("BASELINE_BLOCKED"))).toBe("Còn cờ đỏ chưa xử lý - chưa ký baseline v1 được.");
     expect(errorText(apiError("INSUFFICIENT_CREDIT"))).toContain("nạp thêm");
     expect(errorText(apiError("RATE_LIMIT_EXCEEDED")), "L8: phải nói tới tài khoản nhà cung cấp").toContain("nhà cung cấp AI");
   });

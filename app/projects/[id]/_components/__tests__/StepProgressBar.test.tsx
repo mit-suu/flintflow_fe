@@ -47,7 +47,7 @@ describe("StepProgressBar", () => {
     renderWithIntl(<StepProgressBar steps={tagged} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
     const lines = screen.getAllByTestId("step-template-sections");
     expect(lines.map((l) => l.textContent)).toEqual(["→ 1.1 Purpose · 1.2 Scope"]);
-    const withSections = screen.getByRole("button", { name: `${stepLabel("S-2.5")} — Soạn mục của mẫu: 1.1 Purpose · 1.2 Scope` });
+    const withSections = screen.getByRole("button", { name: `${stepLabel("S-2.5")} - Soạn mục của mẫu: 1.1 Purpose · 1.2 Scope` });
     expect(withSections).toHaveAttribute("title", expect.stringContaining("Soạn mục của mẫu: 1.1 Purpose · 1.2 Scope"));
     expect(screen.getByRole("button", { name: stepLabel("S-3.1") })).not.toHaveTextContent("→");
   });
@@ -78,7 +78,7 @@ describe("StepProgressBar", () => {
     expect(screen.getByRole("button", { name: stepLabel("S-3.2") })).toBeDisabled();
   });
 
-  it("FLF-312: mẫu FPT không bắt buộc — bước không còn nhãn Thiếu", () => {
+  it("FLF-312: mẫu FPT không bắt buộc - bước không còn nhãn Thiếu", () => {
     const list = [step("S-2.5", "accepted"), step("S-3.1", "pending"), step("S-7.1", "pending")];
     renderWithIntl(<StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
     expect(screen.queryByText(/Thiếu/)).not.toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("StepProgressBar", () => {
   });
 });
 
-describe("StepProgressBar — vòng S-5 theo màn", () => {
+describe("StepProgressBar - vòng S-5 theo màn", () => {
   const loopStep = (id: string, status: StepSummary["status"] = "pending"): StepSummary => ({ ...step(id, status), phase: "S-5" });
 
   it("màn chưa động tới gom thành chip '+N màn để lại'; màn đã chạy/đang chạy vẫn hiện chấm", () => {

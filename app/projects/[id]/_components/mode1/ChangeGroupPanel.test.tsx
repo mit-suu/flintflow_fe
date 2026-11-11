@@ -44,13 +44,13 @@ const LOCATIONS = [
 const G1 = "G1";
 const article = (id = G1) => screen.getByRole("article", { name: `Nhóm ${id}` });
 
-describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)", () => {
+describe("ChangeGroupPanel - duyệt từng nhóm thay đổi (UC-51, UC-52)", () => {
   it("không có nhóm ⇒ không render", () => {
     const { container } = renderWithIntl(<ChangeGroupPanel groups={[]} locations={LOCATIONS} canDecide onDecide={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("mỗi nhóm chỉ liệt kê vị trí của nó: diff cho sửa, comment cho chỉ comment, “—” khi chưa kết luận", () => {
+  it("mỗi nhóm chỉ liệt kê vị trí của nó: diff cho sửa, comment cho chỉ comment, “-” khi chưa kết luận", () => {
     renderWithIntl(
       <ChangeGroupPanel
         groups={[group("G1", ["L001", "L002"]), group("G2", ["L003"])]}
@@ -68,7 +68,7 @@ describe("ChangeGroupPanel — duyệt từng nhóm thay đổi (UC-51, UC-52)",
     expect(within(g1).getByTitle("x[id=L002]")).toHaveTextContent("Product Overview · Chỉ comment");
     expect(within(g1).getByText("💬 Xác nhận với PM")).toBeInTheDocument();
     expect(within(g1).queryByText(/L003/)).not.toBeInTheDocument();
-    expect(within(article("G2")).getByTitle("x[id=L003]")).toHaveTextContent("Product Overview · —");
+    expect(within(article("G2")).getByTitle("x[id=L003]")).toHaveTextContent("Product Overview · -");
     expect(within(g1).getByText("Chờ duyệt")).toBeInTheDocument();
   });
 

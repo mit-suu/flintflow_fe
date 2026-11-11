@@ -57,7 +57,7 @@ describe("PhaseNavBar", () => {
     expect(screen.queryByText("BUOC-CON")).toBeNull();
   });
 
-  it("chỉ hiện phase có step trong danh sách BE (mode 1: step không áp dụng bị bỏ — FLF-185)", () => {
+  it("chỉ hiện phase có step trong danh sách BE (mode 1: step không áp dụng bị bỏ - FLF-185)", () => {
     renderWithIntl(<PhaseNavBar {...defaultProps} />);
     for (const name of ["Ý tưởng", "Phân tích", "Chi tiết màn", "Kiểm & chốt"]) expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Người dùng" }).closest("li")).toHaveAttribute("data-state", "active");

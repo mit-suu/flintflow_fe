@@ -22,7 +22,7 @@ describe("DiffPreviewModal", () => {
   it("hiện bảng phần thay đổi (tên, không phải path) / trước / sau từ preview.changes", () => {
     renderWithIntl(<DiffPreviewModal preview={basePreview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
 
-    expect(screen.getByText("Tác nhân A03 — Tên")).toHaveAttribute("title", "actors[id=A03].name");
+    expect(screen.getByText("Tác nhân A03 - Tên")).toHaveAttribute("title", "actors[id=A03].name");
     expect(screen.getByRole("columnheader", { name: "Phần thay đổi" })).toBeInTheDocument();
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.getByText("Administrator")).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe("DiffPreviewModal", () => {
     // mã luật lạ ⇒ không in; path ⇒ tên phần tử
     expect(screen.queryByText(/invariant_3_dead_reference/)).not.toBeInTheDocument();
     expect(screen.getByText("Tham chiếu chết", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText(/Màn hình S14 — Tính năng/)).toBeInTheDocument();
+    expect(screen.getByText(/Màn hình S14 - Tính năng/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Xác nhận" })).toBeDisabled();
   });
 
@@ -107,7 +107,7 @@ describe("DiffPreviewModal", () => {
 
     expect(screen.getByText("2.1 Actors", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Sơ đồ sẽ vẽ lại: 1")).toBeInTheDocument();
-    expect(screen.getByText(/Đang được nhắc tới ở: Use case UC01 — Tác nhân/)).toBeInTheDocument();
+    expect(screen.getByText(/Đang được nhắc tới ở: Use case UC01 - Tác nhân/)).toBeInTheDocument();
     expect(screen.queryByText(/fixed:|\[id=/)).not.toBeInTheDocument();
   });
 
@@ -117,7 +117,7 @@ describe("DiffPreviewModal", () => {
   });
 });
 
-describe("DiffPreviewModal — FLF-177", () => {
+describe("DiffPreviewModal - FLF-177", () => {
   it("BUG-27: diff rỗng thì KHÔNG có nút Xác nhận", () => {
     const empty: PreviewResult = { ...basePreview, ops: [], changes: [] };
     renderWithIntl(<DiffPreviewModal preview={empty} onCancel={vi.fn()} onConfirm={vi.fn()} />);
@@ -136,7 +136,7 @@ describe("DiffPreviewModal — FLF-177", () => {
     expect(onConfirm).toHaveBeenCalled();
   });
 
-  describe("FLF-297 — thêm use case", () => {
+  describe("FLF-297 - thêm use case", () => {
     const spine = {
       actors: [{ id: "A01", name: "Lecturer", kind: "human", description: "" }],
       functions: [{ id: "F01", name: "Take Attendance" }],

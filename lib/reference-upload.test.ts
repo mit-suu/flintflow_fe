@@ -14,7 +14,7 @@ const duplicate = () =>
 
 beforeEach(() => vi.mocked(uploadProjectDocument).mockReset());
 
-describe("FLF-398 — uploadReferenceDocument", () => {
+describe("FLF-398 - uploadReferenceDocument", () => {
   it("tải được ngay ⇒ uploaded, không hỏi", async () => {
     vi.mocked(uploadProjectDocument).mockResolvedValueOnce({ data: { _id: "d2" } } as never);
     const choose = vi.fn();

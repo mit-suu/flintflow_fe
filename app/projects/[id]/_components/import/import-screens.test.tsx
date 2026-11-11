@@ -20,7 +20,7 @@ const preview: Preview = {
 const estimate = (credits: number, available: number | null): CreditEstimate => ({ text_batches: 3, diagram_images: 1, ai_calls: 4, credits, available_credits: available });
 const handlers = () => ({ onStart: vi.fn(), onDownloadGapReport: vi.fn(), onPickAnother: vi.fn() });
 
-describe("StructurePreview — màn đọc khung (business-flow §3.1.2)", () => {
+describe("StructurePreview - màn đọc khung (business-flow §3.1.2)", () => {
   // Đã xem hiệu ứng cắt mục ⇒ vào thẳng trạng thái đã lắng (nhãn trạng thái + mục còn trống hiện đủ)
   beforeEach(() => localStorage.setItem("ff:absorb-seen:preview", "1"));
 
@@ -90,7 +90,7 @@ const doc = (over: Partial<ImportedDocument>): ImportedDocument =>
     ...over,
   }) as ImportedDocument;
 
-describe("ImportProgress — tiến trình đọc file", () => {
+describe("ImportProgress - tiến trình đọc file", () => {
   it("ba pha chữ thường; pha hiện tại đánh dấu bước đang làm, kèm x/y mục; có thể rời trang", () => {
     renderWithIntl(<ImportProgress doc={doc({})} sections={[{ section_id: "fixed:1", status: "done", fields_total: 1, fields_needing_review: 0, error: null }, { section_id: "fixed:2.1", status: "pending", fields_total: 0, fields_needing_review: 0, error: null }]} onResume={() => {}} />);
     expect(screen.getByText(/Có thể rời trang/)).toBeInTheDocument();

@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("HomeFrame", () => {
-  it("chưa có tổ chức: khung tối giản — không thanh bên, không tải dự án, có Đăng xuất", () => {
+  it("chưa có tổ chức: khung tối giản - không thanh bên, không tải dự án, có Đăng xuất", () => {
     vi.mocked(getActiveOrgId).mockReturnValue(null);
     renderWithIntl(<HomeFrame user={user}><p>màn onboarding</p></HomeFrame>);
 
@@ -68,7 +68,7 @@ describe("HomeFrame", () => {
   });
 });
 
-describe("HomeFrame — tên người dùng đưa xuống khung", () => {
+describe("HomeFrame - tên người dùng đưa xuống khung", () => {
   it("hồ sơ có tên ⇒ thay tên đoán từ email bằng tên thật", async () => {
     pathname = "/home";
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");
@@ -91,7 +91,7 @@ describe("HomeFrame — tên người dùng đưa xuống khung", () => {
   });
 });
 
-describe("HomeFrame — ngôn ngữ tài khoản (FLF-259)", () => {
+describe("HomeFrame - ngôn ngữ tài khoản (FLF-259)", () => {
   it("có hồ sơ ⇒ đưa cho useAccountLocaleSync (trước đó là null)", async () => {
     pathname = "/home";
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");

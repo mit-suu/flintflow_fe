@@ -14,7 +14,7 @@ const props = {
 };
 
 // Credit chỉ còn ở header (WorkspaceHeader): ô nhập không hiện giá mỗi tin hay số dư, cũng không gọi BE ước giá.
-describe("ChatInput — không hiện credit", () => {
+describe("ChatInput - không hiện credit", () => {
   it("ô nhập thường và thu gọn đều không có chữ credit / msg / còn N", () => {
     const { container, rerender } = renderWithIntl(<ChatInput {...props} />);
     expect(container).not.toHaveTextContent(/credit|\/ msg|còn \d/);
@@ -30,7 +30,7 @@ describe("ChatInput — không hiện credit", () => {
 });
 
 // FLF-279: chip "Hỏi kiến thức BA" đứng cạnh chip "Sửa tài liệu" — hai chế độ gửi phải thấy được cùng lúc.
-describe("ChatInput — chip Hỏi kiến thức BA", () => {
+describe("ChatInput - chip Hỏi kiến thức BA", () => {
   const chip = () => screen.queryByRole("button", { name: /Hỏi kiến thức BA/ });
 
   it("chỉ hiện khi có handler, và ẩn khi thu gọn hoặc khi máy chủ tắt tính năng", () => {
@@ -82,7 +82,7 @@ describe("ChatInput — chip Hỏi kiến thức BA", () => {
 });
 
 // Dừng AI như Esc của Claude Code: đang chạy ⇒ nút gửi thành nút dừng, Esc ở đâu trong trang cũng dừng.
-describe("ChatInput — dừng AI", () => {
+describe("ChatInput - dừng AI", () => {
   it("đang chạy và có onStop ⇒ nút Dừng AI thay nút gửi, bấm thì gọi onStop", () => {
     const onStop = vi.fn();
     renderWithIntl(<ChatInput {...props} sending onStop={onStop} />);

@@ -46,7 +46,7 @@ const location = (over: Partial<CrLocation> = {}): CrLocation => ({
 
 const result = () => screen.getByLabelText("Kết quả kiểm L001");
 
-describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () => {
+describe("VerifyResult - kết quả kiểm một vị trí (C-5, UC-82)", () => {
   it("chưa kiểm ⇒ không render", () => {
     const { container } = renderWithIntl(<VerifyResult location={location()} />);
     expect(container).toBeEmptyDOMElement();
@@ -77,7 +77,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     );
     const badge = within(result()).getByText("Kiểm tra tự động: chưa đạt");
     expect(badge.className).toContain("text-[#B03030]");
-    const line = within(result()).getByText("AI chưa sửa tự động được chỗ này — gõ hướng sửa trong khung chat, hoặc bỏ chỗ này.");
+    const line = within(result()).getByText("AI chưa sửa tự động được chỗ này - gõ hướng sửa trong khung chat, hoặc bỏ chỗ này.");
     expect(line.className).toContain("text-[#B03030]");
     expect(within(result()).queryByText(/Text block đã đổi so với old_text/)).not.toBeInTheDocument();
     expect(within(result()).queryByText(/Xoá actor còn được use case tham chiếu/)).not.toBeInTheDocument();
@@ -100,12 +100,12 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
         })}
       />
     );
-    expect(within(result()).getByText("Chỗ này vừa được sửa ở nơi khác — AI soạn lại trên nội dung hiện tại.")).toBeInTheDocument();
+    expect(within(result()).getByText("Chỗ này vừa được sửa ở nơi khác - AI soạn lại trên nội dung hiện tại.")).toBeInTheDocument();
     expect(within(result()).queryByText(/AI chưa sửa tự động được/)).not.toBeInTheDocument();
     expect(within(result()).queryByText(/Giá trị hiện tại khác old_text/)).not.toBeInTheDocument();
   });
 
-  it("AI soát nhất quán chỉ ra cờ vàng — code vẫn đạt, không chặn", () => {
+  it("AI soát nhất quán chỉ ra cờ vàng - code vẫn đạt, không chặn", () => {
     renderWithIntl(
       <VerifyResult
         location={location({ verify: { code_ok: true, violations: [], ai_flags: [{ rule: "AI-CONSISTENCY", message: "Tiêu đề cột bảng chưa đổi theo" }], at: AT } })}
@@ -149,7 +149,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     expect(within(box).queryByText(failed.verify!.violations[0].message)).not.toBeInTheDocument();
   });
 
-  it("FLF-375: PATCH vị trí chỉ mang kết luận + lý do (không gửi new_value) — bỏ một chỗ được chấp nhận", async () => {
+  it("FLF-375: PATCH vị trí chỉ mang kết luận + lý do (không gửi new_value) - bỏ một chỗ được chấp nhận", async () => {
     await importToGapReview();
     const { change_request } = await newCr();
     const cr = change_request.cr_id;

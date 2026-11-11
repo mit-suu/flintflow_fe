@@ -67,7 +67,7 @@ export default function ProposalCard({ location }: ProposalCardProps) {
         <span className="font-bold text-[#191817]">
           {isDiagramLocation(location) ? diagramLocationTitle(location, tDiagram) : sectionTitle(location.section_id, location.section_title)}
         </span>
-        {!isDiagramLocation(location) && <span className="text-[#4B4842]">— {locTitle(location)}</span>}
+        {!isDiagramLocation(location) && <span className="text-[#4B4842]">- {locTitle(location)}</span>}
         {location.found_by.map((f) => {
           // Chip "Theo nghĩa" mang luôn độ khớp. `vector_score` tuỳ chọn ⇒ chỉ format khi thật là số:
           // `?? 0` sẽ in "0%", một con số sai, khác hẳn với "không có số".

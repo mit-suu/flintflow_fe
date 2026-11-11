@@ -57,12 +57,12 @@ describe("Mode1FlagsPanel", () => {
       />
     );
     expect(screen.getByText("Không còn cờ đỏ nào.")).toBeInTheDocument();
-    expect(screen.getByText(/1 cờ vàng — không chặn release/)).toBeInTheDocument();
+    expect(screen.getByText(/1 cờ vàng - không chặn release/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
   });
 });
 
-describe("Mode1FlagsPanel — Viewer (readOnly)", () => {
+describe("Mode1FlagsPanel - Viewer (readOnly)", () => {
   it("vẫn liệt kê cờ đỏ nhưng không có lối Tạo CR", () => {
     renderWithIntl(<Mode1FlagsPanel projectId={P} flags={[flag("F1")]} readOnly />);
     const list = screen.getByRole("region", { name: "Cờ đỏ đang chặn release" });

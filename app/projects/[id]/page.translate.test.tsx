@@ -35,7 +35,7 @@ beforeEach(() => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-describe("WorkspacePage — dịch tài liệu (FLF-265)", () => {
+describe("WorkspacePage - dịch tài liệu (FLF-265)", () => {
   it("dự án vi còn mục chưa dịch: chip + cảnh báo trên tài liệu ⇒ hộp Dịch tài liệu ⇒ dịch xong tài liệu tự tải lại", async () => {
     mockState.project.documentLanguage = "vi";
     renderWithIntl(<WorkspacePage />);
@@ -64,7 +64,7 @@ describe("WorkspacePage — dịch tài liệu (FLF-265)", () => {
   }, 30_000);
 });
 
-describe("WorkspacePage — tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
+describe("WorkspacePage - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
   it("dự án en: Export chọn Tiếng Việt ⇒ 409 TRANSLATION_INCOMPLETE ⇒ “Dịch nốt” mở hộp dịch với ?locale=vi", async () => {
     const exportUrls: string[] = [];
     const statusUrls: string[] = [];
@@ -99,7 +99,7 @@ describe("WorkspacePage — tải theo ngôn ngữ còn lại (FLF-334 B)", () =
   }, 30_000);
 });
 
-describe("WorkspacePage — dự án chuyển từ mode 2 tải version theo ngôn ngữ còn lại (FLF-334 B)", () => {
+describe("WorkspacePage - dự án chuyển từ mode 2 tải version theo ngôn ngữ còn lại (FLF-334 B)", () => {
   it("1.0 other_language_available ⇒ “Tải bản Tiếng Việt” 409 ⇒ “Dịch nốt” mở hộp dịch với ?locale=vi&version=1.0", async () => {
     Object.assign(mockState.project, { mode: "import", import_state: "delivered", converted_from: "fpt", documentLanguage: "en" });
     const statusUrls: string[] = [];

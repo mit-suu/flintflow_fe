@@ -43,7 +43,7 @@ vi.mock("@/lib/api/org-library", () => ({
   ]),
 }));
 
-describe("OrgTemplatePicker — lối phụ của ô SRS (FLF-278)", () => {
+describe("OrgTemplatePicker - lối phụ của ô SRS (FLF-278)", () => {
   it("thu gọn một dòng; mở ra chọn mẫu đã đăng (mặc định bản mới nhất), không hiện họ chỉ có bản nháp", async () => {
     const onPick = vi.fn();
     renderWithIntl(<OrgTemplatePicker onPick={onPick} />);

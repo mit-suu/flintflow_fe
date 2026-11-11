@@ -102,7 +102,7 @@ describe("CommentsPanel", () => {
       />
     );
     fireEvent.click(screen.getByRole("button", { name: "Tất cả" }));
-    expect(container.textContent).toContain("Giữ nguyên — Khách chốt giữ nguyên.");
+    expect(container.textContent).toContain("Giữ nguyên - Khách chốt giữ nguyên.");
   });
 
   it("góp ý đã thành CR ⇒ hiện mã CR, không có nút xử lý góp ý", async () => {

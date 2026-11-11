@@ -91,7 +91,7 @@ describe("answerValue / formatAnswers", () => {
     expect(answerValue(undefined, false)).toBeNull();
   });
 
-  it("AI trả lời bằng tiếng Anh (FLF-260) đánh dấu '(Recommended)' — cũng bỏ đuôi khi gửi", () => {
+  it("AI trả lời bằng tiếng Anh (FLF-260) đánh dấu '(Recommended)' - cũng bỏ đuôi khi gửi", () => {
     expect(answerValue({ selected: ["Web app (Recommended)"], custom: "" }, false)).toBe("Web app");
     expect(answerValue({ selected: ["Web app (Recommended)", "Mobile app"], custom: " Kiosk " }, true)).toEqual(["Web app", "Mobile app", "Kiosk"]);
   });
@@ -102,7 +102,7 @@ describe("answerValue / formatAnswers", () => {
   });
 });
 
-describe("ElicitPanel — câu mở và câu có lựa chọn", () => {
+describe("ElicitPanel - câu mở và câu có lựa chọn", () => {
   const qs = [
     { id: "Q1", text: "Mô tả quy trình đặt lịch?" },
     { id: "Q2", text: "Nền tảng?", options: [{ label: "Web" }, { label: "Mobile" }] },
@@ -138,7 +138,7 @@ describe("ElicitPanel — câu mở và câu có lựa chọn", () => {
   });
 });
 
-describe("QuestionStepperInput — thu gọn", () => {
+describe("QuestionStepperInput - thu gọn", () => {
   it("thu gọn còn một dòng câu hỏi, ẩn lựa chọn và nút gửi; mở lại giữ nguyên lựa chọn", () => {
     renderWithIntl(<QuestionStepperInput questions={[questions[0]]} onSubmit={vi.fn()} />);
     fireEvent.click(screen.getByRole("radio", { name: /Xe cũ/ }));

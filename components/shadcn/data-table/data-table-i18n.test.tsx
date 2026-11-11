@@ -33,7 +33,7 @@ const renderShared = (locale: Locale, rows: Row[] = []) =>
     locale
   );
 
-describe("Data table + khối dùng chung — song ngữ", () => {
+describe("Data table + khối dùng chung - song ngữ", () => {
   it("vi giữ nguyên nhãn cũ", () => {
     renderShared("vi");
     expect(screen.getByText("Không có dữ liệu.")).toBeInTheDocument();

@@ -51,7 +51,7 @@ describe("activityLines (FLF-221)", () => {
     const lines = activityLines(
       [
         { type: "ops_applied", step_id: "B-0.1", txn: "t", spine_version: 2, changes: [], summary: [{ kind: "update", collection: "project", id: null, title_vi: "system_name: Internal Hub" }] },
-        { type: "auto_accepted", step_id: "B-0.2", reason_vi: "Đã chốt ở bước trước — không cần hỏi lại" },
+        { type: "auto_accepted", step_id: "B-0.2", reason_vi: "Đã chốt ở bước trước - không cần hỏi lại" },
         { type: "draft", step_id: "B-1.1", attempt: 1 },
       ],
       false

@@ -101,7 +101,7 @@ test("mẫu bắt buộc: Luồng 1 → Luồng 2 cho phần còn thiếu", asyn
     await expect(action.first()).toBeHidden({ timeout: AI_TIMEOUT });
   }
   // FLF-378: FlintFlow soạn toàn bộ mục của mẫu — mọi mục "Sẽ soạn", không mục nào "Có"
-  await expect(reading.getByText(/Mẫu có \d+ mục — FlintFlow soạn toàn bộ/)).toBeVisible();
+  await expect(reading.getByText(/Mẫu có \d+ mục - FlintFlow soạn toàn bộ/)).toBeVisible();
   await expect(reading.getByText("Có", { exact: true })).toHaveCount(0);
   // Dự án mới theo mẫu bắt buộc: không khoá mẫu còn trống thành bản gốc, không gap report
   await expect(reading.getByRole("button", { name: "Tiếp tục sửa với FlintFlow" })).toHaveCount(0);

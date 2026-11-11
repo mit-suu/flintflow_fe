@@ -57,7 +57,7 @@ afterAll(() => mockServer.close());
 
 const pollVersion = () => act(async () => void document.dispatchEvent(new Event("visibilitychange")));
 
-describe("WorkspacePage — tài liệu tự bám bản mới", () => {
+describe("WorkspacePage - tài liệu tự bám bản mới", () => {
   it("revision tài liệu đổi ở nơi khác ⇒ tải lại tài liệu đúng một lần; không poll /document hay /progress", async () => {
     renderWithIntl(<WorkspacePage />);
     await screen.findByText(/1\. Product Overview/);

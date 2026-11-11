@@ -187,7 +187,7 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
             {report.unrendered_diagrams.map((d) => (
               <li key={`${d.kind}:${d.diagram_id}`}>
                 {L.humanizeText(d.title)}
-                <span className="text-[#6B6760]"> — {d.reason === "error" ? t("renderError") : t("notRendered")}</span>
+                <span className="text-[#6B6760]"> - {d.reason === "error" ? t("renderError") : t("notRendered")}</span>
               </li>
             ))}
           </ul>
@@ -200,7 +200,7 @@ export default function GapReportView({ projectId, projectName, onChanged, readO
           <ul className="text-body text-[#33312D] flex flex-col gap-1">
             {report.low_confidence_fields.map((f) => (
               <li key={`${f.section_id}|${f.path}`}>
-                <span title={f.path}>{L.pathLabel(f.path, f.entity_name)}</span> — {formatPercent(f.confidence)}
+                <span title={f.path}>{L.pathLabel(f.path, f.entity_name)}</span> - {formatPercent(f.confidence)}
               </li>
             ))}
           </ul>

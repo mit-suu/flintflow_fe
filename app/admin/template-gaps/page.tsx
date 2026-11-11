@@ -64,7 +64,7 @@ export default function AdminTemplateGapsPage() {
                       <td className="px-5 py-2.5">{row.samples.join(" · ")}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{row.projects}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{row.empty}</td>
-                      <td className="px-5 py-2.5 text-muted-foreground">{row.suggested_destination ? sectionLabel(row.suggested_destination, "vi") : "—"}</td>
+                      <td className="px-5 py-2.5 text-muted-foreground">{row.suggested_destination ? sectionLabel(row.suggested_destination, "vi") : "-"}</td>
                     </tr>
                   ))}
                 </tbody>
