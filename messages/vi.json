@@ -31,6 +31,19 @@
       "lastPage": "Tới trang cuối",
       "goToPage": "Tới trang {page}"
     },
+    "documentVersion": {
+      "aria": "Có thể là bản mới của tài liệu đã có",
+      "title": "{file} có vẻ là bản mới của một tài liệu đã có",
+      "intro": "Thay bản cũ: AI chỉ đọc bản mới, bản cũ ẩn khỏi danh sách nhưng các trích dẫn cũ vẫn mở được. Giữ cả hai: dùng cả hai tài liệu.",
+      "candidate": "{name} (D{code})",
+      "candidateNoCode": "{name}",
+      "sameName": "cùng tên",
+      "similar": "nội dung giống {percent}%",
+      "pick": "Bản cần thay",
+      "replace": "Thay bản cũ",
+      "keepBoth": "Giữ cả hai",
+      "skip": "Bỏ qua file này"
+    },
     "documentLanguage": {
       "vi": "Tiếng Việt",
       "en": "English"
@@ -2744,7 +2757,9 @@
         "preview": "Mở màn đọc khung",
         "retry": "Thử lại",
         "pickAnother": "Chọn file khác",
-        "fileFailed": "Chưa tải được {name}"
+        "fileFailed": "Chưa tải được {name}",
+        "fileDuplicate": "{name}: {message}",
+        "dismiss": "Đóng"
       },
       "absorb": {
         "documentLabel": "Tài liệu của bạn",
@@ -2822,6 +2837,11 @@
     "FILE_REQUIRED": "Vui lòng chọn một file.",
     "UNSUPPORTED_FILE_TYPE": "Chỉ hỗ trợ file PDF, DOCX, MD, TXT.",
     "DOCUMENT_NOT_FOUND": "Không tìm thấy tài liệu.",
+    "DUPLICATE_DOCUMENT": "Tài liệu này đã có trong dự án.",
+    "DUPLICATE_DOCUMENT_NAMED": "Tài liệu này đã có trong dự án: {name}.",
+    "DUPLICATE_DOCUMENT_SUPERSEDED": "{name} là bản cũ, đã được thay bởi {newer}.",
+    "POSSIBLE_NEW_VERSION": "Có vẻ đây là bản mới của một tài liệu đã có — chọn thay bản cũ hay giữ cả hai.",
+    "DOCUMENT_ALREADY_SUPERSEDED": "Tài liệu cần thay đã được bản khác thay trước đó — tải lại danh sách rồi thử lại.",
     "INSUFFICIENT_CREDIT": "Không đủ credit cho thao tác này. Hãy nạp thêm credit.",
     "INTENT_NOT_FOUND": "Không tìm thấy giao dịch.",
     "PACKAGE_NOT_FOUND": "Không tìm thấy gói credit.",

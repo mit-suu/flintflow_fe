@@ -9,6 +9,7 @@ import type { ProjectUploads, UploadItem, UploadStatus } from "@/lib/project-upl
 import { logoutAndRedirect } from "@/lib/auth";
 import WorkspaceHeader from "../WorkspaceHeader";
 import { StructureReading } from "./structure-preview";
+import ReferenceUploadItems, { type ReferenceUploadActions } from "./reference-upload-items";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
@@ -37,9 +38,8 @@ function Elapsed({ since }: { since: number }) {
   return <span className="tabular-nums">{Math.max(0, Math.round((now - since) / 1000))}s</span>;
 }
 
-interface CreationProgressProps {
+interface CreationProgressProps extends ReferenceUploadActions {
   uploads: ProjectUploads;
-  onRetry: (key: string) => void;
   /** Tải SRS lỗi ⇒ chọn file khác ngay tại đây. */
   onPickAnother?: () => void;
 }
@@ -48,11 +48,12 @@ interface CreationProgressProps {
  * Các bước ngay sau khi bấm Tạo dự án (file tải nền, không bắt chờ trong hộp thoại): ✓ Tạo dự án → tải file SRS lên và đọc khung →
  * tài liệu tham khảo x/y. Mỗi bước xong thì tích; lỗi thì báo + thử lại. SRS xong ⇒ trang tự mở màn đọc khung.
  */
-export default function CreationProgress({ uploads, onRetry, onPickAnother }: CreationProgressProps) {
+export default function CreationProgress({ uploads, onRetry, onChoose, onDismiss, onPickAnother }: CreationProgressProps) {
   const t = useTranslations("workspace.import.creating");
   const srs = uploads.items.find((i) => i.kind === "srs") ?? null;
   const refs = uploads.items.filter((i) => i.kind === "reference");
-  const refsDone = refs.filter((r) => r.status === "done").length;
+  // FLF-398: file trùng hệt / Bỏ qua (`skipped`) cũng là đã xong — không tải
+  const refsDone = refs.filter((r) => r.status === "done" || r.status === "skipped").length;
   const refsStatus: UploadStatus | "pending" = !refs.length ? "pending" : refs.some((r) => r.status === "failed") ? "failed" : refsDone === refs.length ? "done" : "uploading";
 
   const rows: { key: string; status: UploadStatus | "pending"; title: string; detail?: React.ReactNode; files?: UploadItem[] }[] = [
@@ -120,19 +121,10 @@ export default function CreationProgress({ uploads, onRetry, onPickAnother }: Cr
                 </span>
               )}
             </div>
-            {row.files && row.files.some((f) => f.status === "failed") && (
-              <ul className="ml-9 flex flex-col gap-1">
-                {row.files
-                  .filter((f) => f.status === "failed")
-                  .map((f) => (
-                    <li key={f.key} className="flex items-center gap-2 text-caption text-on-error-container">
-                      <span className="flex-1 min-w-0 truncate">{t("fileFailed", { name: f.name })}</span>
-                      <Button size="sm" variant="ghost" icon="refresh" onClick={() => onRetry(f.key)}>
-                        {t("retry")}
-                      </Button>
-                    </li>
-                  ))}
-              </ul>
+            {row.files && (
+              <div className="ml-9">
+                <ReferenceUploadItems items={row.files} onRetry={onRetry} onChoose={onChoose} onDismiss={onDismiss} />
+              </div>
             )}
           </motion.li>
         ))}
@@ -153,7 +145,7 @@ export default function CreationProgress({ uploads, onRetry, onPickAnother }: Cr
  * Khung khi trang dự án còn đang đọc project nhưng tab này đang tải file của dự án vừa tạo: SRS đang tải ⇒ hiện ngay màn đọc khung
  * (trang đang quét), cùng bố cục với màn sau đó; tải lỗi ⇒ các bước có Thử lại.
  */
-export function CreationProgressShell({ uploads, onRetry }: { uploads: ProjectUploads; onRetry: (key: string) => void }) {
+export function CreationProgressShell({ uploads, ...actions }: { uploads: ProjectUploads } & ReferenceUploadActions) {
   const t = useTranslations("workspace.import");
   const srs = uploads.items.find((i) => i.kind === "srs");
   const reading = srs?.status === "uploading";
@@ -169,7 +161,7 @@ export function CreationProgressShell({ uploads, onRetry }: { uploads: ProjectUp
       />
       <main className="flex-1 min-h-0 overflow-y-auto ff-scroll">
         <div className={`${reading ? "max-w-[1180px]" : "max-w-[760px]"} mx-auto w-full px-4 sm:px-6 py-8`}>
-          {reading ? <StructureReading fileName={srs.name} /> : <CreationProgress uploads={uploads} onRetry={onRetry} />}
+          {reading ? <StructureReading fileName={srs.name} /> : <CreationProgress uploads={uploads} {...actions} />}
         </div>
       </main>
     </div>

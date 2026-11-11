@@ -63,6 +63,8 @@ import { fetchBalance } from "@/lib/api/billing";
 import { isAiErrorCode } from "@/lib/ai-error-codes";
 import { useCreditGate } from "./hooks/useCreditGate";
 import CreditGateCard from "./_components/CreditGateCard";
+import { useDocumentVersionGate } from "./hooks/useDocumentVersionGate";
+import DocumentVersionCard from "@/components/project/DocumentVersionCard";
 import AiErrorBanner from "./_components/AiErrorBanner";
 import { tStep } from "@/lib/i18n";
 import type { TranslationStatus } from "@/types/document";
@@ -90,7 +92,7 @@ import StructureChangeNotice from "./_components/mode1/structure-change-notice";
 import ImportWorkspace from "./_components/import/import-workspace";
 import ImportSkeleton from "./_components/import/import-skeleton";
 import { CreationProgressShell } from "./_components/import/creation-progress";
-import { retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
+import { chooseProjectUploadVersion, dismissProjectUpload, retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
 import { clearImportPending, isImportPending } from "@/lib/import-pending";
 import { useImportPendingHint } from "./import-pending-hint";
@@ -230,7 +232,7 @@ const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
   // Tab này vừa tạo dự án và đang tải file ⇒ hiện ngay các bước tích dần thay vì skeleton
   const uploads = useProjectUploads(projectId);
   if (uploads?.items.some((i) => i.kind === "srs" && i.status !== "done")) {
-    return <CreationProgressShell uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} />;
+    return <CreationProgressShell uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} onChoose={(key, choice) => chooseProjectUploadVersion(projectId, key, choice)} onDismiss={(key) => dismissProjectUpload(projectId, key)} />;
   }
   if (importPending) return <ImportSkeleton label={t("loading")} />;
   return (
@@ -383,7 +385,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [confirmCredits, t]
   );
-  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments });
+  // FLF-398: tệp đính kèm có vẻ là bản mới của tài liệu đã có ⇒ thẻ hỏi Thay bản cũ / Giữ cả hai trong khung chat
+  const versionGate = useDocumentVersionGate();
+  const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments, chooseDocumentVersion: versionGate.choose });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
   const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
@@ -2120,6 +2124,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             />
           )}
           {creditGate.pending && <CreditGateCard {...creditGate.pending} onRun={creditGate.run} onCancel={creditGate.cancel} />}
+          {versionGate.pending && <DocumentVersionCard {...versionGate.pending} onChoose={versionGate.answer} />}
           {ws.aiError && (
             <AiErrorBanner what={t("aiError.chat")} message={ws.aiError.message} retried={false} busy={ws.sending} onRetry={() => void ws.retryAiError()} onLater={ws.dismissAiError} />
           )}

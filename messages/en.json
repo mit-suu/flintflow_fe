@@ -31,6 +31,19 @@
       "lastPage": "Go to last page",
       "goToPage": "Go to page {page}"
     },
+    "documentVersion": {
+      "aria": "Possibly a new version of an existing document",
+      "title": "{file} looks like a new version of an existing document",
+      "intro": "Replace: the AI only reads the new version; the old one is hidden from the list but old citations still open. Keep both: use both documents.",
+      "candidate": "{name} (D{code})",
+      "candidateNoCode": "{name}",
+      "sameName": "same name",
+      "similar": "{percent}% similar content",
+      "pick": "Version to replace",
+      "replace": "Replace old version",
+      "keepBoth": "Keep both",
+      "skip": "Skip this file"
+    },
     "documentLanguage": {
       "vi": "Vietnamese",
       "en": "English"
@@ -2744,7 +2757,9 @@
         "preview": "Open the structure preview",
         "retry": "Retry",
         "pickAnother": "Choose another file",
-        "fileFailed": "Could not upload {name}"
+        "fileFailed": "Could not upload {name}",
+        "fileDuplicate": "{name}: {message}",
+        "dismiss": "Dismiss"
       },
       "absorb": {
         "documentLabel": "Your document",
@@ -2822,6 +2837,11 @@
     "FILE_REQUIRED": "Please choose a file.",
     "UNSUPPORTED_FILE_TYPE": "Only PDF, DOCX, MD and TXT files are supported.",
     "DOCUMENT_NOT_FOUND": "Document not found.",
+    "DUPLICATE_DOCUMENT": "This document is already in the project.",
+    "DUPLICATE_DOCUMENT_NAMED": "This document is already in the project: {name}.",
+    "DUPLICATE_DOCUMENT_SUPERSEDED": "{name} is an old version, already replaced by {newer}.",
+    "POSSIBLE_NEW_VERSION": "This looks like a new version of an existing document — choose to replace the old one or keep both.",
+    "DOCUMENT_ALREADY_SUPERSEDED": "The document to replace was already replaced by another version — reload the list and try again.",
     "INSUFFICIENT_CREDIT": "Not enough credits for this action. Please top up.",
     "INTENT_NOT_FOUND": "Transaction not found.",
     "PACKAGE_NOT_FOUND": "Credit package not found.",

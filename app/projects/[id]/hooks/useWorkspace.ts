@@ -13,7 +13,7 @@ import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { uploadProjectDocument } from "@/lib/api/documents";
+import { uploadReferenceDocument, type DocumentVersionChooser } from "@/lib/reference-upload";
 import type { SrsAttachmentSuggestion } from "../_components/mode1/srs-attachment-chip";
 
 /** Thông báo ở pill toast của trang — có thể là: */
@@ -55,6 +55,11 @@ export interface UseWorkspaceOptions {
    * không gửi; tệp và chữ giữ nguyên trong ô chat.
    */
   confirmAttachments?: (files: File[]) => Promise<boolean>;
+  /**
+   * FLF-398: tệp đính kèm có vẻ là bản mới của tài liệu đã có ⇒ hỏi Thay bản cũ / Giữ cả hai / Bỏ qua (thẻ trong khung chat).
+   * Không truyền ⇒ giữ cả hai (như trước FLF-398).
+   */
+  chooseDocumentVersion?: DocumentVersionChooser;
 }
 
 /** Lượt chat gãy vì AI lỗi (FLF-332): giữ lại để "Thử lại ngay" gửi lại đúng tin đó. */
@@ -69,7 +74,12 @@ export interface ChatAiError {
 /** Khoá gợi ý file trông như SRS — tăng dần, hai file cùng tên trong một lượt không đụng nhau. */
 let srsSuggestionSeq = 0;
 
-export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT, confirmAttachments }: UseWorkspaceOptions = {}) {
+const KEEP_BOTH: DocumentVersionChooser = async () => ({ keepBoth: true });
+
+export function useWorkspace(
+  projectId: string,
+  { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT, confirmAttachments, chooseDocumentVersion = KEEP_BOTH }: UseWorkspaceOptions = {}
+) {
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -244,23 +254,30 @@ export function useWorkspace(projectId: string, { attachmentOnlyText = DEFAULT_A
   /**
    * Tải các tệp đang đính kèm lên `/documents` (dùng chung cho chat hỏi đáp và chat khởi động bước — FLF-221). Lỗi ⇒
    * `false`, giữ nguyên danh sách đính kèm để user thử lại; không có tệp nào ⇒ `true`.
+   * FLF-398: tệp trùng hệt tài liệu đã có ⇒ không tải, báo ở toast (không tính là lỗi); có thể là bản mới ⇒ hỏi qua
+   * `chooseDocumentVersion`, Bỏ qua ⇒ tệp đó không tải.
    */
   const uploadPendingAttachments = useCallback(async (): Promise<boolean> => {
     if (pendingAttachments.length === 0) return true;
     try {
       const suggestions: SrsAttachmentSuggestion[] = [];
+      const duplicates: string[] = [];
       for (const file of pendingAttachments) {
-        const precheck = (await uploadProjectDocument(projectId, file)).data?.precheck ?? null;
+        const result = await uploadReferenceDocument(projectId, file, chooseDocumentVersion);
+        if (result.kind === "duplicate") duplicates.push(result.message);
+        if (result.kind !== "uploaded") continue;
+        const precheck = result.document?.precheck ?? null;
         if (precheck?.looks_like_srs) suggestions.push({ key: `${file.name}:${++srsSuggestionSeq}`, file, fromThisProject: precheck.stamp?.project_id === projectId });
       }
       setPendingAttachments([]);
       if (suggestions.length) setSrsSuggestions((prev) => [...prev, ...suggestions]);
+      if (duplicates.length) setNotice({ text: duplicates.join(" ") });
       return true;
     } catch (err) {
       setNotice(errorNotice(err, "uploadFailed"));
       return false;
     }
-  }, [pendingAttachments, projectId]);
+  }, [pendingAttachments, projectId, chooseDocumentVersion]);
 
   const dismissSrsSuggestion = useCallback((key: string) => setSrsSuggestions((prev) => prev.filter((x) => x.key !== key)), []);
 
