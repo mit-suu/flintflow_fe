@@ -91,6 +91,12 @@ export function useWorkspace(
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  /**
+   * Đang tải tệp đính kèm (BE đọc + tóm tắt từng tệp, có thể vài chục giây). Trang tính vào "AI đang bận": bấm gửi lần nữa lúc
+   * này từng chạy bước song song với lượt đang tải ⇒ lượt đầu tải xong đụng `STEP_NOT_RUNNABLE` "đang chạy ở lượt trước".
+   */
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+  const uploadingRef = useRef(false);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
   /** Đang chờ câu trả lời tri thức — luồng đó không stream chữ nên `streamingMessage` không nói được gì. */
   const [knowledgePending, setKnowledgePending] = useState(false);
@@ -263,6 +269,10 @@ export function useWorkspace(
    */
   const uploadPendingAttachments = useCallback(async (): Promise<boolean> => {
     if (pendingAttachments.length === 0) return true;
+    // Lượt tải trước chưa xong ⇒ không tải lần hai, nơi gọi dừng (không gửi / không chạy bước)
+    if (uploadingRef.current) return false;
+    uploadingRef.current = true;
+    setUploadingAttachments(true);
     try {
       const suggestions: SrsAttachmentSuggestion[] = [];
       const duplicates: string[] = [];
@@ -280,6 +290,9 @@ export function useWorkspace(
     } catch (err) {
       setNotice(errorNotice(err, "uploadFailed"));
       return false;
+    } finally {
+      uploadingRef.current = false;
+      setUploadingAttachments(false);
     }
   }, [pendingAttachments, projectId, chooseDocumentVersion]);
 
@@ -525,6 +538,7 @@ export function useWorkspace(
       inputMessage,
       setInputMessage,
       sending,
+      uploadingAttachments,
       streamingMessage,
       knowledgePending,
       knowledgeDisabled,
@@ -565,6 +579,7 @@ export function useWorkspace(
       activeSession,
       inputMessage,
       sending,
+      uploadingAttachments,
       streamingMessage,
       knowledgePending,
       knowledgeDisabled,

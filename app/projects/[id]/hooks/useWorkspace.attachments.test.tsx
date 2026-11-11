@@ -103,6 +103,33 @@ describe("useWorkspace — đính kèm trùng / bản mới (FLF-398)", () => {
     expect(result.current.pendingAttachments.map((f) => f.name)).toEqual(["a.txt"]);
   });
 
+  it("đang tải ⇒ gọi lần hai trả false, không tải lần hai (không chạy bước chồng lên lượt đang tải)", async () => {
+    let release!: () => void;
+    vi.mocked(uploadProjectDocument).mockImplementation(
+      () => new Promise((resolve) => (release = () => resolve({ data: { _id: "d1", precheck: null } } as never)))
+    );
+    const { result } = renderHook(() => useWorkspace(MOCK_PROJECT_ID));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    await act(async () => result.current.selectAttachment(pick([new File(["a"], "a.txt")])));
+
+    let first!: Promise<boolean>;
+    act(() => {
+      first = result.current.uploadPendingAttachments();
+    });
+    await waitFor(() => expect(result.current.uploadingAttachments).toBe(true));
+    let second = true;
+    await act(async () => {
+      second = await result.current.uploadPendingAttachments();
+    });
+    expect(second).toBe(false);
+    await act(async () => {
+      release();
+      expect(await first).toBe(true);
+    });
+    expect(uploadProjectDocument).toHaveBeenCalledTimes(1);
+    expect(result.current.uploadingAttachments).toBe(false);
+  });
+
   it("lỗi khác ⇒ false, giữ tệp để thử lại", async () => {
     vi.mocked(uploadProjectDocument).mockRejectedValue(new ApiClientError(400, "UNSUPPORTED_FILE_TYPE", "Chỉ hỗ trợ"));
     const { result } = renderHook(() => useWorkspace(MOCK_PROJECT_ID));

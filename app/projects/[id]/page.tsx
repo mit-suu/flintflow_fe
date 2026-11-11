@@ -387,8 +387,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   );
   // FLF-398: tệp đính kèm có vẻ là bản mới của tài liệu đã có ⇒ thẻ hỏi Thay bản cũ / Giữ cả hai trong khung chat
   const versionGate = useDocumentVersionGate();
-  /** FLF-398: đang tải tệp đính kèm trước khi gửi đáp án của thẻ câu hỏi ⇒ khoá nút gửi. */
-  const [uploadingAnswer, setUploadingAnswer] = useState(false);
   const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments, chooseDocumentVersion: versionGate.choose });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
@@ -1526,7 +1524,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep && !reopenable;
   // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
   const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
-  const aiWorking = runner.state.busy || stepRunningElsewhere;
+  // FLF-398: đang tải tệp đính kèm cũng là đang bận — gửi lần nữa lúc này sẽ chạy bước chồng lên lượt đang tải
+  const aiWorking = runner.state.busy || stepRunningElsewhere || ws.uploadingAttachments;
   /**
    * Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). Gồm cả bước tới lượt đang
    * `revision_requested` (bị mở lại, hoà giải): thiếu nó thì tin nhắn rơi vào hỏi đáp thường, AI chỉ trả lời "xem như
@@ -1945,7 +1944,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           inputMessage={ws.inputMessage}
           setInputMessage={ws.setInputMessage}
           onSendMessage={(custom) => void sendFromChat(custom)}
-          sending={ws.sending || (!mode1 && aiWorking)}
+          sending={ws.sending || ws.uploadingAttachments || (!mode1 && aiWorking)}
           // Nút dừng / Esc: lượt chat đang stream ⇒ huỷ nó; không thì lượt chạy step của tab này ⇒ huỷ như "Huỷ lượt".
           // Step chạy ở tab khác (`stepRunningElsewhere`) không dừng từ đây — vẫn qua thanh tiến độ.
           onStop={ws.sending ? ws.stopMessage : !mode1 && runner.state.busy ? () => void runner.cancel() : undefined}
@@ -2043,11 +2042,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 onSubmit={async (answers) => {
                   // FLF-398: tệp đang đính kèm ở ô chat đi cùng lượt trả lời (như trả lời bằng chữ) — tải xong mới gửi đáp án;
                   // tải lỗi ⇒ không gửi, tệp giữ nguyên để thử lại (toast báo lỗi)
-                  if (ws.pendingAttachments.length) {
-                    setUploadingAnswer(true);
-                    const uploaded = await ws.uploadPendingAttachments().finally(() => setUploadingAnswer(false));
-                    if (!uploaded) return;
-                  }
+                  if (!(await ws.uploadPendingAttachments())) return;
                   setCardAnswers({ key: "", answers: [] });
                   keepAskInHistory();
                   showCardAnswers(answers);
@@ -2056,7 +2051,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 chatDraft={ws.inputMessage}
                 onChatDraftUsed={() => ws.setInputMessage("")}
                 onCardChange={(answers) => setCardAnswers({ key: questionSetKey, answers })}
-                sending={runner.state.busy || uploadingAnswer}
+                sending={runner.state.busy || ws.uploadingAttachments}
               />
             ) : undefined
           }
