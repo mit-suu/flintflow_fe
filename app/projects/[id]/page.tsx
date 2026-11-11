@@ -387,6 +387,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   );
   // FLF-398: tệp đính kèm có vẻ là bản mới của tài liệu đã có ⇒ thẻ hỏi Thay bản cũ / Giữ cả hai trong khung chat
   const versionGate = useDocumentVersionGate();
+  /** FLF-398: đang tải tệp đính kèm trước khi gửi đáp án của thẻ câu hỏi ⇒ khoá nút gửi. */
+  const [uploadingAnswer, setUploadingAnswer] = useState(false);
   const ws = useWorkspace(projectId, { attachmentOnlyText: t("session.attachmentOnly"), confirmAttachments, chooseDocumentVersion: versionGate.choose });
   /** Mode 1 v3 phase 8: change request chạy trong khung chat bên trái. */
   // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
@@ -2031,7 +2033,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             !mode1 && canEdit && onPipelineSession && runner.state.status === "needs_input" ? (
               <ElicitPanel
                 questions={runner.state.questions}
-                onSubmit={(answers) => {
+                onSubmit={async (answers) => {
+                  // FLF-398: tệp đang đính kèm ở ô chat đi cùng lượt trả lời (như trả lời bằng chữ) — tải xong mới gửi đáp án;
+                  // tải lỗi ⇒ không gửi, tệp giữ nguyên để thử lại (toast báo lỗi)
+                  if (ws.pendingAttachments.length) {
+                    setUploadingAnswer(true);
+                    const uploaded = await ws.uploadPendingAttachments().finally(() => setUploadingAnswer(false));
+                    if (!uploaded) return;
+                  }
                   setCardAnswers({ key: "", answers: [] });
                   keepAskInHistory();
                   showCardAnswers(answers);
@@ -2040,7 +2049,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 chatDraft={ws.inputMessage}
                 onChatDraftUsed={() => ws.setInputMessage("")}
                 onCardChange={(answers) => setCardAnswers({ key: questionSetKey, answers })}
-                sending={runner.state.busy}
+                sending={runner.state.busy || uploadingAnswer}
               />
             ) : undefined
           }
