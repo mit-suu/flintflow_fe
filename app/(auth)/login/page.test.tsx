@@ -29,7 +29,7 @@ const submit = (email: string, password: string) => {
   fireEvent.click(screen.getByRole("button", { name: /^Đăng nhập$/ }));
 };
 
-describe("LoginPage — Ghi nhớ đăng nhập", () => {
+describe("LoginPage - Ghi nhớ đăng nhập", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
@@ -82,7 +82,7 @@ describe("LoginPage — Ghi nhớ đăng nhập", () => {
   });
 });
 
-describe("LoginPage — ngôn ngữ của tài khoản (FLF-259)", () => {
+describe("LoginPage - ngôn ngữ của tài khoản (FLF-259)", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
@@ -116,7 +116,7 @@ describe("LoginPage — ngôn ngữ của tài khoản (FLF-259)", () => {
   });
 });
 
-describe("LoginPage — câu lỗi của BE theo ngôn ngữ đang hiển thị", () => {
+describe("LoginPage - câu lỗi của BE theo ngôn ngữ đang hiển thị", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
@@ -162,7 +162,7 @@ describe("LoginPage — câu lỗi của BE theo ngôn ngữ đang hiển thị"
   });
 });
 
-describe("LoginPage — tài khoản bị khoá hiện lý do (UC-03, FLF-345)", () => {
+describe("LoginPage - tài khoản bị khoá hiện lý do (UC-03, FLF-345)", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);

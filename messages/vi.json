@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "title": "FlintFlow — Nền tảng đặc tả phần mềm bằng AI",
+    "title": "FlintFlow - Nền tảng đặc tả phần mềm bằng AI",
     "description": "Công cụ đặc tả phần mềm bằng AI cho doanh nghiệp"
   },
   "common": {
@@ -112,8 +112,8 @@
       "systemError": "Hệ thống gặp lỗi khi xử lý bước này. Nội dung đã ghi trước đó vẫn được giữ.",
       "baselineBlocked": "Chưa ký được baseline: còn cờ đỏ chưa xử lý. Xử lý hoặc bỏ qua có lý do từng cờ rồi Accept lại.",
       "noWorkingDraft": "Dự án chưa có nội dung nào để dựng tài liệu.",
-      "notPipelineSession": "Phiên chat này chỉ để hỏi đáp — quy trình soạn tài liệu chạy ở phiên chính. Bấm \"Về phiên chính\" để tiếp tục.",
-      "orgRoleForbidden": "Vai trò Viewer chỉ xem được tài liệu — không chạy bước AI hay sửa nội dung. Nhờ Lead đổi vai trò nếu cần.",
+      "notPipelineSession": "Phiên chat này chỉ để hỏi đáp - quy trình soạn tài liệu chạy ở phiên chính. Bấm \"Về phiên chính\" để tiếp tục.",
+      "orgRoleForbidden": "Vai trò Viewer chỉ xem được tài liệu - không chạy bước AI hay sửa nội dung. Nhờ Lead đổi vai trò nếu cần.",
       "opInvalid": "Không tìm thấy mục cần sửa, hoặc mục đó đã tồn tại. Hãy nói rõ tên mục (ví dụ: màn “Đặt lịch”, chức năng “Huỷ lịch”).",
       "streamClosed": "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ."
     }
@@ -426,13 +426,13 @@
       "fair": "Khá",
       "strong": "Mạnh"
     },
-    "notUsable": "{level} — chưa dùng được",
+    "notUsable": "{level} - chưa dùng được",
     "issue": {
       "too_short": "Mật khẩu phải có ít nhất {min} ký tự.",
       "too_long": "Mật khẩu tối đa {max} ký tự.",
-      "not_ascii": "Mật khẩu chỉ dùng chữ không dấu, chữ số và ký tự đặc biệt trên bàn phím — không dùng tiếng Việt có dấu hay khoảng trắng.",
+      "not_ascii": "Mật khẩu chỉ dùng chữ không dấu, chữ số và ký tự đặc biệt trên bàn phím - không dùng tiếng Việt có dấu hay khoảng trắng.",
       "not_complex": "Mật khẩu phải có ít nhất {classes} trong 4 nhóm: chữ thường, chữ HOA, chữ số, ký tự đặc biệt.",
-      "not_strong_enough": "Mật khẩu chưa đủ mạnh — cần từ {long} ký tự, hoặc có đủ cả 4 nhóm ký tự."
+      "not_strong_enough": "Mật khẩu chưa đủ mạnh - cần từ {long} ký tự, hoặc có đủ cả 4 nhóm ký tự."
     }
   },
   "app": {
@@ -555,7 +555,7 @@
       },
       "topupRequest": "Báo Lead nạp credit",
       "topupRequesting": "Đang báo…",
-      "topupRequested": "{count, plural, =0 {Đã ghi nhận yêu cầu — Lead sẽ thấy ở mục Credits.} one {Đã báo # Lead. Nạp xong bạn sẽ nhận thông báo; mở lại dự án và bấm tiếp tục.} other {Đã báo # Lead. Nạp xong bạn sẽ nhận thông báo; mở lại dự án và bấm tiếp tục.}}",
+      "topupRequested": "{count, plural, =0 {Đã ghi nhận yêu cầu - Lead sẽ thấy ở mục Credits.} one {Đã báo # Lead. Nạp xong bạn sẽ nhận thông báo; mở lại dự án và bấm tiếp tục.} other {Đã báo # Lead. Nạp xong bạn sẽ nhận thông báo; mở lại dự án và bấm tiếp tục.}}",
       "topupRequestFailed": "Chưa báo được Lead. Vui lòng thử lại.",
       "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead.",
       "packageLabel": "Gói {credits} credit",
@@ -589,7 +589,7 @@
       "notFound": "Không tìm thấy giao dịch",
       "amountToPay": "Số tiền cần chuyển",
       "receive": "Nhận {credits} credit",
-      "succeeded": "Thanh toán thành công — đã cộng {credits} credit vào tài khoản.",
+      "succeeded": "Thanh toán thành công - đã cộng {credits} credit vào tài khoản.",
       "failed": "Giao dịch không thành công. Vui lòng tạo giao dịch mới.",
       "qrAlt": "Mã VietQR thanh toán",
       "description": "Nội dung chuyển khoản (bắt buộc, nhập đúng)",
@@ -617,7 +617,7 @@
       },
       "credit_topped_up": {
         "title": "Tổ chức đã được nạp {credits} credit",
-        "body": "Ví còn {available} credit khả dụng. Mở lại dự án và bấm tiếp tục — bước đang dừng không tự chạy."
+        "body": "Ví còn {available} credit khả dụng. Mở lại dự án và bấm tiếp tục - bước đang dừng không tự chạy."
       },
       "payment_failed": {
         "title": "Thanh toán thất bại",
@@ -685,7 +685,7 @@
       },
       "soonItem": "{label} · {soon}",
       "soonItemSr": "{label} ({soon})",
-      "soonItemTitle": "{label} — {soon}",
+      "soonItemTitle": "{label} - {soon}",
       "recentTitle": "Gần đây",
       "recentNav": "Dự án gần đây",
       "feedback": "Gửi góp ý",
@@ -712,7 +712,7 @@
       "import": {
         "label": "Upload SRS có sẵn",
         "shortLabel": "SRS có sẵn",
-        "description": "Có file .docx — FlintFlow kiểm tra lỗ hổng và giúp sửa"
+        "description": "Có file .docx - FlintFlow kiểm tra lỗ hổng và giúp sửa"
       },
       "customerTemplate": {
         "label": "Mẫu bắt buộc của khách",
@@ -736,10 +736,10 @@
         "loading": "Đang tải…",
         "done": "Đã hoàn tất",
         "resume": "Mở để tiếp tục",
-        "notStarted": "Chưa bắt đầu — mở để mô tả ý tưởng"
+        "notStarted": "Chưa bắt đầu - mở để mô tả ý tưởng"
       },
       "mode1": {
-        "notUploaded": "Chưa tải SRS lên — mở để upload .docx",
+        "notUploaded": "Chưa tải SRS lên - mở để upload .docx",
         "importing": "Nhập SRS: {state}",
         "openCrs": "{count, plural, other {# change request}} đang mở"
       },
@@ -788,7 +788,7 @@
       "failed": "Không thể tạo dự án",
       "srs": {
         "label": "SRS",
-        "hint": "File .docx FlintFlow sẽ sửa và hoàn thiện — kể cả mẫu khách còn trống. Không có thì bỏ qua.",
+        "hint": "File .docx FlintFlow sẽ sửa và hoàn thiện - kể cả mẫu khách còn trống. Không có thì bỏ qua.",
         "dropHint": ".docx · tối đa 40 MB",
         "change": "Đổi",
         "remove": "Bỏ {name}",
@@ -808,8 +808,8 @@
         "summary": "{count} file · {size}",
         "clearAll": "Xoá hết",
         "listLabel": "File tham khảo đã chọn",
-        "rejected": "Chưa thêm được: {files} — chỉ nhận .docx, .pdf, .doc, .md, .txt tối đa 10 MB.",
-        "duplicate": "Đã có trong danh sách: {files} — không thêm lần nữa.",
+        "rejected": "Chưa thêm được: {files} - chỉ nhận .docx, .pdf, .doc, .md, .txt tối đa 10 MB.",
+        "duplicate": "Đã có trong danh sách: {files} - không thêm lần nữa.",
         "suggest": {
           "looksLikeSrs": "File này trông như một SRS. Bạn muốn FlintFlow sửa và hoàn thiện nó?",
           "otherVersion": "File này trông như một bản SRS khác. Nếu là bản cũ của file ở ô SRS, nên bỏ để tránh lẫn nội dung.",
@@ -840,7 +840,7 @@
         "creating": "Đang tạo dự án…"
       },
       "outcome": {
-        "withSrs": "FlintFlow đọc khung file trước — chưa tốn credit.",
+        "withSrs": "FlintFlow đọc khung file trước - chưa tốn credit.",
         "noSrs": "FlintFlow hỏi bạn từng bước để soạn SRS mới."
       }
     },
@@ -898,9 +898,9 @@
       },
       "estimate": "{count, plural, other {# mục}} · ~{credits} credit",
       "direction": "Từ chữ gốc {source} sang {target}",
-      "detail": "Chỉ dịch các mục đang hiện chữ gốc, kể cả chữ trên sơ đồ; mục đã dịch giữ nguyên. Credit trừ theo từng lô thật sự chạy — dừng giữa chừng thì phần đã dịch vẫn được giữ.",
-      "nothingToTranslate": "Tài liệu đang ở ngôn ngữ gốc — không có gì cần dịch.",
-      "allTranslated": "Tài liệu đã dịch đủ sang {language} — không còn mục nào cần dịch.",
+      "detail": "Chỉ dịch các mục đang hiện chữ gốc, kể cả chữ trên sơ đồ; mục đã dịch giữ nguyên. Credit trừ theo từng lô thật sự chạy - dừng giữa chừng thì phần đã dịch vẫn được giữ.",
+      "nothingToTranslate": "Tài liệu đang ở ngôn ngữ gốc - không có gì cần dịch.",
+      "allTranslated": "Tài liệu đã dịch đủ sang {language} - không còn mục nào cần dịch.",
       "start": "Dịch ngay",
       "running": "Đang dịch…",
       "stopping": "Đang dừng sau lượt đang chạy…",
@@ -909,13 +909,13 @@
       "closeHint": "Đóng hộp này hoặc bấm Dừng: việc dịch dừng sau lượt đang chạy, phần đã dịch được giữ.",
       "stop": "Dừng",
       "done": "Đã dịch xong {count, plural, other {# mục}}.",
-      "stopped": "Đã dừng — đã dịch {count, plural, other {# mục}}, còn {remaining} mục giữ chữ gốc.",
-      "stalled": "Không dịch thêm được mục nào — còn {remaining} mục giữ chữ gốc. Thử lại sau ít phút.",
+      "stopped": "Đã dừng - đã dịch {count, plural, other {# mục}}, còn {remaining} mục giữ chữ gốc.",
+      "stalled": "Không dịch thêm được mục nào - còn {remaining} mục giữ chữ gốc. Thử lại sau ít phút.",
       "insufficientCredit": "Không đủ credit để dịch tiếp. Nạp thêm credit rồi chạy lại.",
-      "runningElsewhere": "Tài liệu đang được dịch ở một lượt khác — đợi lượt đó xong rồi thử lại.",
-      "unreadable": "Chưa dịch được lúc này — AI trả kết quả không đọc được. Thử lại sau ít phút.",
+      "runningElsewhere": "Tài liệu đang được dịch ở một lượt khác - đợi lượt đó xong rồi thử lại.",
+      "unreadable": "Chưa dịch được lúc này - AI trả kết quả không đọc được. Thử lại sau ít phút.",
       "runFailed": "Không dịch được tài liệu",
-      "kept": "Đã dịch {count, plural, other {# mục}} trước khi dừng — phần này được giữ.",
+      "kept": "Đã dịch {count, plural, other {# mục}} trước khi dừng - phần này được giữ.",
       "creditsUsed": "Đã dùng {credits} credit.",
       "continue": "Dịch tiếp"
     },
@@ -925,7 +925,7 @@
       "moveTitle": "Chuyển vào thư mục",
       "moveFailed": "Không thể chuyển dự án",
       "noFolder": "Để ngoài thư mục",
-      "noFolders": "Chưa có thư mục nào — tạo ở hàng Thư mục trên dashboard.",
+      "noFolders": "Chưa có thư mục nào - tạo ở hàng Thư mục trên dashboard.",
       "createTitle": "Thư mục mới",
       "editTitle": "Sửa thư mục",
       "createFailed": "Không thể tạo thư mục",
@@ -944,7 +944,7 @@
       "searchPlaceholder": "Tìm dự án…",
       "legend": "Dự án có thể thêm",
       "inOtherFolder": " · đang ở thư mục khác",
-      "noneMoved": "Không có dự án nào được chuyển — có thể dự án đã bị xoá hoặc chuyển nơi khác.",
+      "noneMoved": "Không có dự án nào được chuyển - có thể dự án đã bị xoá hoặc chuyển nơi khác.",
       "failed": "Không thể thêm dự án vào thư mục",
       "title": "Thêm dự án có sẵn vào “{folder}”",
       "allInFolder": "Mọi dự án đang làm đã nằm trong thư mục này. Dùng “Dự án mới” để tạo dự án ngay trong thư mục.",
@@ -967,9 +967,9 @@
     },
     "home": {
       "onboardingTitle": "Bắt đầu dự án SRS đầu tiên",
-      "onboardingBody": "Chọn nơi bạn bắt đầu — FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.",
+      "onboardingBody": "Chọn nơi bạn bắt đầu - FlintFlow sẽ dẫn bạn qua đúng quy trình cho trường hợp đó.",
       "viewerEmptyTitle": "Tổ chức chưa có dự án nào",
-      "viewerEmptyBody": "Bạn đang xem với vai trò Viewer — dự án do Lead hoặc Analyst tạo sẽ hiện ở đây.",
+      "viewerEmptyBody": "Bạn đang xem với vai trò Viewer - dự án do Lead hoặc Analyst tạo sẽ hiện ở đây.",
       "searchLabel": "Tìm dự án theo tên",
       "searchPlaceholder": "Tìm dự án…",
       "newProject": "Dự án mới",
@@ -1046,10 +1046,10 @@
       "credits": "Credit hiện có",
       "creditAmount": "{credits} credit",
       "creditOrg": "của tổ chức {org}",
-      "creditNoOrg": "Chưa chọn tổ chức — credit nằm ở ví của tổ chức",
+      "creditNoOrg": "Chưa chọn tổ chức - credit nằm ở ví của tổ chức",
       "toBilling": "Thanh toán & credit →",
       "createPasswordTitle": "Tạo mật khẩu",
-      "createPasswordBody": "Tài khoản của bạn đang đăng nhập bằng Google nên chưa có mật khẩu. Tạo mật khẩu để có thể đăng nhập bằng email <b>{email}</b> — vẫn dùng Google được như cũ.",
+      "createPasswordBody": "Tài khoản của bạn đang đăng nhập bằng Google nên chưa có mật khẩu. Tạo mật khẩu để có thể đăng nhập bằng email <b>{email}</b> - vẫn dùng Google được như cũ.",
       "createPasswordCta": "Tạo mật khẩu qua email →",
       "createPasswordNote": "Chúng tôi sẽ gửi mã OTP tới email của bạn. Sau khi tạo, bạn sẽ cần đăng nhập lại.",
       "changePasswordTitle": "Đổi mật khẩu",
@@ -1143,13 +1143,13 @@
           "creating": "Đang tạo…",
           "codeTitle": "Mã mời vừa tạo",
           "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn.",
-          "emailRequired": "Hãy nhập email người được mời — mã mời sẽ được gửi tới email đó.",
-          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn — nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này.",
+          "emailRequired": "Hãy nhập email người được mời - mã mời sẽ được gửi tới email đó.",
+          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn - nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này.",
           "requestTitle": "Đề xuất mời thành viên",
           "requestCta": "Gửi yêu cầu cho Lead duyệt",
           "requesting": "Đang gửi…",
           "requestSentTitle": "Đã gửi yêu cầu",
-          "requestSent": "Lead sẽ duyệt yêu cầu mời {email}. Khi được duyệt, mã mời mới được gửi tới email đó — bạn sẽ nhận thông báo."
+          "requestSent": "Lead sẽ duyệt yêu cầu mời {email}. Khi được duyệt, mã mời mới được gửi tới email đó - bạn sẽ nhận thông báo."
         },
         "invitations": {
           "title": "Lời mời",
@@ -1170,7 +1170,7 @@
           "approve": "Duyệt",
           "reject": "Từ chối",
           "cancelRequest": "Huỷ yêu cầu",
-          "approvedTitle": "Đã duyệt — mã mời",
+          "approvedTitle": "Đã duyệt - mã mời",
           "approvedBody": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây.",
           "dismiss": "Đóng"
         },
@@ -1192,14 +1192,14 @@
           "save": "Lưu",
           "saving": "Đang lưu…"
         },
-        "soleLeadHint": "Bạn là Lead duy nhất — hãy chỉ định một thành viên khác làm Lead trước khi rời.",
+        "soleLeadHint": "Bạn là Lead duy nhất - hãy chỉ định một thành viên khác làm Lead trước khi rời.",
         "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới.",
         "analystHint": "Bạn gửi được yêu cầu mời; Lead duyệt thì mã mới được gửi tới email người được mời. Chỉ Lead đổi vai trò hoặc xoá thành viên."
       },
       "library": {
         "title": "Thư viện mẫu",
         "intro": "Mẫu SRS đã lưu của tổ chức, dùng lại khi tạo dự án theo mẫu khách hàng.",
-        "readOnly": "Bạn đang ở vai trò chỉ xem — chỉ Lead và Analyst được xoá mẫu.",
+        "readOnly": "Bạn đang ở vai trò chỉ xem - chỉ Lead và Analyst được xoá mẫu.",
         "loading": "Đang tải thư viện…",
         "delete": "Xoá",
         "confirmDelete": "Xác nhận xoá",
@@ -1236,7 +1236,7 @@
   "workspace": {
     "shell": {
       "loading": "Đang tải không gian làm việc SRS…",
-      "conflict": "Tài liệu vừa đổi ở phiên khác — đã tải lại, vui lòng thử lại.",
+      "conflict": "Tài liệu vừa đổi ở phiên khác - đã tải lại, vui lòng thử lại.",
       "saveFailed": "Không lưu được thay đổi",
       "acceptedNotice": "Bước <b>{step}</b> ({label}) đã chốt. Muốn đổi nội dung, gửi yêu cầu sửa qua chat.",
       "close": "Đóng",
@@ -1265,12 +1265,12 @@
       "backAria": "Về bước {step}",
       "back": "Về {step}",
       "verify": "Kiểm & chốt",
-      "verifyIssues": "Kiểm & chốt — {count} vấn đề cần xử lý",
+      "verifyIssues": "Kiểm & chốt - {count} vấn đề cần xử lý",
       "verifyHint": "Kiểm tra tài liệu và chốt baseline",
       "viewHint": "Xem tài liệu chỉ đọc và comment",
       "view": "Xem & comment",
       "tools": "Công cụ",
-      "toolsPending": "{label} — {count} mục chờ bạn quyết",
+      "toolsPending": "{label} - {count} mục chờ bạn quyết",
       "enterFocus": "Mở rộng trang (ẩn thanh trên)",
       "account": "Tài khoản",
       "credits": "credits"
@@ -1296,9 +1296,9 @@
       "aria": "Tiến độ theo bước",
       "label": "Bước",
       "percent": "{percent}% hoàn thành",
-      "stepTitle": "{id} · {label} — {status}",
+      "stepTitle": "{id} · {label} - {status}",
       "current": "đang làm",
-      "reopenable": "màn đang để trống — bấm để mở lại",
+      "reopenable": "màn đang để trống - bấm để mở lại",
       "status": {
         "accepted": "đã chốt",
         "in_progress": "đang làm",
@@ -1306,7 +1306,7 @@
         "pending": "chưa tới",
         "skipped": "bỏ qua"
       },
-      "dormantTitle": "{count} màn đang để lại (placeholder) — mỗi màn có {steps} bước S-5, chỉ mở khi màn có function. Thêm feature/function cho màn để chạy các bước này.",
+      "dormantTitle": "{count} màn đang để lại (placeholder) - mỗi màn có {steps} bước S-5, chỉ mở khi màn có function. Thêm feature/function cho màn để chạy các bước này.",
       "dormant": "+{count} màn để lại",
       "templateSections": "→ {sections}",
       "templateSectionsTitle": "Soạn mục của mẫu: {sections}"
@@ -1321,8 +1321,8 @@
       "incomplete": "chưa hoàn thiện",
       "commentsLoadFailed": "Không tải được comment",
       "draftLabel": "nháp",
-      "viewerPickBaseline": "Viewer chỉ comment được trên phiên bản đã phát hành — chọn một bản baseline ở trên.",
-      "viewerNoBaseline": "Viewer chỉ comment được trên phiên bản đã phát hành — dự án chưa có bản nào.",
+      "viewerPickBaseline": "Viewer chỉ comment được trên phiên bản đã phát hành - chọn một bản baseline ở trên.",
+      "viewerNoBaseline": "Viewer chỉ comment được trên phiên bản đã phát hành - dự án chưa có bản nào.",
       "downloadFailed": "Tải file thất bại",
       "postFailed": "Không đăng được comment. Vui lòng thử lại.",
       "replyFailed": "Không gửi được trả lời. Vui lòng thử lại.",
@@ -1343,18 +1343,18 @@
       "title": "Trò chuyện và duyệt",
       "emptyTitle": "Bắt đầu bước hiện tại",
       "emptyBody": "Gõ vào ô chat để AI bắt đầu: AI hỏi phần còn thiếu rồi soạn nháp. Có thể đính kèm tài liệu tham khảo.",
-      "notPipeline": "Phiên này không phải phiên pipeline — lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.",
+      "notPipeline": "Phiên này không phải phiên pipeline - lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.",
       "editPlaceholder": "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator",
       "stepDivider": "Bắt đầu bước {step}",
       "knowledgePending": "Đang tra kho tri thức…",
-      "sideSession": "Phiên hỏi đáp — hỏi AI về dự án, hoặc bật \"Sửa tài liệu\" để sửa. Quy trình soạn tài liệu chạy ở phiên chính.",
+      "sideSession": "Phiên hỏi đáp - hỏi AI về dự án, hoặc bật \"Sửa tài liệu\" để sửa. Quy trình soạn tài liệu chạy ở phiên chính.",
       "goToPipeline": "Về phiên chính",
       "knowledgePlaceholder": "Hỏi một câu về nghiệp vụ BA, vd: Khi nào thì dùng include thay vì extend?",
       "answerDirectly": "Hoặc trả lời trực tiếp…"
     },
     "chatOpening": {
       "aria": "Bắt đầu dự án",
-      "greeting": "Chào bạn! Kể cho mình nghe ý tưởng phần mềm bạn muốn làm — ai sẽ dùng, dùng để làm gì, vì sao bạn muốn làm nó. Kể được bao nhiêu cứ kể, mình chỉ hỏi thêm phần còn thiếu.",
+      "greeting": "Chào bạn! Kể cho mình nghe ý tưởng phần mềm bạn muốn làm - ai sẽ dùng, dùng để làm gì, vì sao bạn muốn làm nó. Kể được bao nhiêu cứ kể, mình chỉ hỏi thêm phần còn thiếu.",
       "hint": "Hoặc bắt đầu từ một gợi ý:",
       "suggestionsAria": "Gợi ý bắt đầu",
       "chips": {
@@ -1390,7 +1390,7 @@
       "editHint": "Gõ lệnh sửa tài liệu, xem trước rồi mới áp dụng",
       "knowledgeMode": "Hỏi kiến thức BA",
       "knowledgeOff": "Tắt để quay lại trò chuyện",
-      "knowledgeHint": "Hỏi kiến thức nghiệp vụ BA / ISO 29148 — câu trả lời có trích dẫn nguồn, không tốn credit",
+      "knowledgeHint": "Hỏi kiến thức nghiệp vụ BA / ISO 29148 - câu trả lời có trích dẫn nguồn, không tốn credit",
       "attachLabel": "Đính kèm tài liệu tham khảo",
       "stopLabel": "Dừng AI",
       "stop": "Dừng AI (Esc)",
@@ -1440,7 +1440,7 @@
       "warnNoOps": "AI không soạn được nội dung nào ở lượt này",
       "warnEmpty": "Chạy xong nhưng mục vẫn trống",
       "warnEmptySections": "{base}. Còn trống: {titles}. Duyệt vẫn chốt được bước nhưng cờ \"mục trống\" sẽ còn, bạn bổ sung qua chat hoặc bỏ qua cờ ở panel Kiểm tra nếu mục này không áp dụng.",
-      "warnNoOpsHint": "{base} — bạn nhắn tôi cần bổ sung gì qua chat, hoặc làm lại ở menu ⋯ nhé.",
+      "warnNoOpsHint": "{base} - bạn nhắn tôi cần bổ sung gì qua chat, hoặc làm lại ở menu ⋯ nhé.",
       "regenerate": "↻ Làm lại · còn {count} lần",
       "acceptAsIs": "✓ Duyệt như hiện tại",
       "leadOnly": "Chỉ Lead ký được baseline. Bạn nộp baseline để Lead duyệt ở panel Kiểm tra.",
@@ -1449,7 +1449,7 @@
       "wantEdit": "Tôi muốn sửa",
       "more": "Thêm lựa chọn",
       "tableSummary": "Xem bảng: {title} ({count} dòng)",
-      "tableTruncated": "và {count} dòng nữa — xem đủ trong tài liệu.",
+      "tableTruncated": "và {count} dòng nữa - xem đủ trong tài liệu.",
       "acceptSkipSections": "Chấp nhận, không hỏi lại {count, plural, =1 {phần này} other {# phần này}}"
     },
     "stepLog": {
@@ -1519,8 +1519,8 @@
       "sendFailed": "Không thể gửi tin nhắn",
       "attachmentOnly": "[Đính kèm tài liệu]",
       "uploadFailed": "Không thể tải tệp đính kèm lên",
-      "attachmentDuplicate": "Đã đính kèm: {files} — không thêm lần nữa.",
-      "attachmentInProject": "Đã có trong dự án: {files} — không đính kèm lại.",
+      "attachmentDuplicate": "Đã đính kèm: {files} - không thêm lần nữa.",
+      "attachmentInProject": "Đã có trong dự án: {files} - không đính kèm lại.",
       "knowledgeFailed": "Không tra được kho tri thức",
       "stopped": "Đã dừng AI.",
       "knowledgeDisabled": "Tính năng hỏi kiến thức đang tắt trên máy chủ."
@@ -1531,7 +1531,7 @@
     },
     "hookErrors": {
       "docLoadFailed": "Không tải được tài liệu",
-      "spineNotReady": "Spine chưa tải xong — thử lại sau giây lát.",
+      "spineNotReady": "Spine chưa tải xong - thử lại sau giây lát.",
       "flagsLoadFailed": "Không tải được danh sách cờ",
       "waiveFailed": "Chưa bỏ qua được vấn đề này. Vui lòng thử lại.",
       "keepFailed": "Chưa ghi được lý do giữ nguyên. Vui lòng thử lại.",
@@ -1559,7 +1559,7 @@
       "newerVersionApply": "Cập nhật",
       "awaitingReaccept": "Chờ duyệt lại",
       "viewAt": "xem tại {step} · {label}",
-      "incomplete": "Chưa hoàn thiện — nội dung sẽ có khi step sở hữu section chạy.",
+      "incomplete": "Chưa hoàn thiện - nội dung sẽ có khi step sở hữu section chạy.",
       "untitled": "Dự án",
       "reload": "↻ Tải lại",
       "loading": "Đang tải tài liệu…",
@@ -1576,13 +1576,13 @@
       "diagramNotDrawnReadOnly": "Sơ đồ sẽ hiện khi được vẽ lại thành công.",
       "retryDiagram": "Thử lại",
       "imageAlt": "Diagram",
-      "emptyMode1": "Mục còn trống — tạo change request (nguồn gap report) để bổ sung.",
+      "emptyMode1": "Mục còn trống - tạo change request (nguồn gap report) để bổ sung.",
       "incompleteShort": "Chưa hoàn thiện",
-      "emptyRunStep": "Chưa có nội dung — chạy step {stepId} · {label}",
+      "emptyRunStep": "Chưa có nội dung - chạy step {stepId} · {label}",
       "openStep": "Mở step",
-      "customTitle": "Mục ngoài mẫu chuẩn FlintFlow — giữ nguyên văn từ file upload, sửa qua chat",
+      "customTitle": "Mục ngoài mẫu chuẩn FlintFlow - giữ nguyên văn từ file upload, sửa qua chat",
       "templateSection": "Mục của mẫu",
-      "templateSectionTitle": "Mục của mẫu bạn tải lên — in đúng vị trí và tiêu đề của mẫu, sửa qua chat",
+      "templateSectionTitle": "Mục của mẫu bạn tải lên - in đúng vị trí và tiêu đề của mẫu, sửa qua chat",
       "custom": "Mục riêng",
       "issuesTitle": "Xem vấn đề của mục này",
       "issuesAria": "Xem {count} vấn đề của mục này",
@@ -1591,14 +1591,14 @@
       "commentsTitle": "Xem góp ý của mục này",
       "comment": "Góp ý",
       "editSection": "Sửa mục này",
-      "heading": "SRS — {name}",
+      "heading": "SRS - {name}",
       "openIssuesTitle": "Mở danh sách vấn đề của tài liệu",
       "blockingCount": "{count} vấn đề cần xử lý",
       "suggestionCount": "{count} gợi ý nên xem",
       "noIssues": "Không có vấn đề",
       "refreshing": "Đang làm mới tài liệu",
       "refresh": "Tải lại tài liệu",
-      "refreshFailed": "Chưa làm mới được tài liệu — đang hiển thị bản trước đó. Bấm nút làm mới để thử lại. ({error})",
+      "refreshFailed": "Chưa làm mới được tài liệu - đang hiển thị bản trước đó. Bấm nút làm mới để thử lại. ({error})",
       "updatedSections": "Đã cập nhật mục {sections}",
       "updatedMany": "Đã cập nhật {count} mục",
       "updatedGeneric": "Tài liệu đã cập nhật",
@@ -1643,7 +1643,7 @@
       "keepFailed": "Không ghi được lý do giữ nguyên",
       "keptEdit": "Sửa lý do giữ nguyên",
       "keptReason": "Đã giữ nguyên: {reason}",
-      "waiveReasonLabel": "Lý do (tối thiểu {min} ký tự) — sẽ in kèm trong tài liệu",
+      "waiveReasonLabel": "Lý do (tối thiểu {min} ký tự) - sẽ in kèm trong tài liệu",
       "waivePlaceholder": "Vì sao chấp nhận để nguyên vấn đề này?",
       "waiveSubmit": "Bỏ qua vấn đề",
       "waiveFailed": "Không bỏ qua được vấn đề này",
@@ -1686,7 +1686,7 @@
       "action": {
         "confirm": {
           "title": "Cần bạn xác nhận",
-          "hint": "AI tự giả định — cho biết đúng hay sai."
+          "hint": "AI tự giả định - cho biết đúng hay sai."
         },
         "fix": {
           "title": "Cần bạn sửa nội dung",
@@ -1694,11 +1694,11 @@
         },
         "fill": {
           "title": "Mục bắt buộc còn trống",
-          "hint": "Bước viết mục này đã chốt mà chưa điền gì — mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat."
+          "hint": "Bước viết mục này đã chốt mà chưa điền gì - mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat."
         },
         "reaccept": {
           "title": "Cần bạn duyệt lại",
-          "hint": "Bước soạn mục này đã mở lại — chạy lại bước rồi duyệt để gỡ."
+          "hint": "Bước soạn mục này đã mở lại - chạy lại bước rồi duyệt để gỡ."
         },
         "redraw": {
           "title": "Vẽ lại sơ đồ",
@@ -1706,7 +1706,7 @@
         },
         "run_step": {
           "title": "Sẽ điền ở bước sau",
-          "hint": "Chưa phải lỗi — AI điền khi chạy tới các bước này."
+          "hint": "Chưa phải lỗi - AI điền khi chạy tới các bước này."
         }
       },
       "draftInChat": "Nhờ AI soạn",
@@ -1733,7 +1733,7 @@
       "colKind": "Loại",
       "colLabel": "Nhãn",
       "empty": {
-        "upstream": "Không sinh ra từ thực thể nào — đây là gốc.",
+        "upstream": "Không sinh ra từ thực thể nào - đây là gốc.",
         "downstream": "Chưa có thực thể nào sinh ra từ đây.",
         "lateral": "Không có quan hệ ngang."
       },
@@ -1774,13 +1774,13 @@
       "noWorkingDraft": "Dự án chưa có nội dung nào để xuất ra tài liệu.",
       "emptySource": "Dự án chưa có nội dung nào để xuất ở nguồn này.",
       "language": "Ngôn ngữ",
-      "untranslated": "Còn {count} mục chưa dịch — file sẽ in chữ gốc ở các mục này. Vẫn tải được.",
+      "untranslated": "Còn {count} mục chưa dịch - file sẽ in chữ gốc ở các mục này. Vẫn tải được.",
       "translateFirst": "Dịch tài liệu trước",
       "fileLanguage": "Ngôn ngữ file",
       "translationIncomplete": "Còn {count} mục chưa dịch sang {language} nên chưa tải được bản này.",
       "translateRest": "Dịch nốt",
       "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.",
-      "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác — hãy tải theo ngôn ngữ tài liệu.",
+      "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác - hãy tải theo ngôn ngữ tài liệu.",
       "close": "Đóng"
     },
     "change": {
@@ -1823,15 +1823,15 @@
         "derived": "mục suy ra",
         "other": "liên quan"
       },
-      "noChangeNote": "Nội dung của các mục này vẫn đúng — xác nhận để gỡ cờ “đã cũ”.",
+      "noChangeNote": "Nội dung của các mục này vẫn đúng - xác nhận để gỡ cờ “đã cũ”.",
       "colPath": "Phần thay đổi",
       "colBefore": "Trước",
       "colAfter": "Sau",
-      "unlinked": "Use case {names} chưa gắn chức năng nào. Sau khi áp dụng, phần truy vết sẽ báo thiếu — nên nói rõ chức năng liên quan trong yêu cầu, hoặc bổ sung ngay sau đó.",
+      "unlinked": "Use case {names} chưa gắn chức năng nào. Sau khi áp dụng, phần truy vết sẽ báo thiếu - nên nói rõ chức năng liên quan trong yêu cầu, hoặc bổ sung ngay sau đó.",
       "impactSections": "Mục:",
       "impactDiagrams": "Sơ đồ sẽ vẽ lại: {count}",
       "impactReferrers": "Đang được nhắc tới ở: {refs}",
-      "baselineNote": "Tài liệu đã có baseline — thay đổi này sẽ được ghi thành một change request (mã CR cấp khi áp dụng).",
+      "baselineNote": "Tài liệu đã có baseline - thay đổi này sẽ được ghi thành một change request (mã CR cấp khi áp dụng).",
       "requester": "Người yêu cầu",
       "requesterPlaceholder": "Ví dụ: Chị Lan (phòng Đào tạo)",
       "source": "Nguồn",
@@ -1875,7 +1875,7 @@
       "modeFast": "Chế độ nhanh",
       "modeCoaching": "Chế độ kèm cặp",
       "unconfirmed": "{count} giả định chờ xác nhận",
-      "missing": "Chưa có {label} — quay lại bước tương ứng để ghi.",
+      "missing": "Chưa có {label} - quay lại bước tương ứng để ghi.",
       "missingVision": "tầm nhìn (B-1.1)",
       "missingGoals": "mục tiêu (B-1.1)",
       "missingNotes": "ghi chú nào (B-0.1 → B-1.6)",
@@ -1885,7 +1885,7 @@
       "risks": "Rủi ro & câu hỏi mở",
       "panel": {
         "title": "Tóm tắt đang hình thành",
-        "subtitle": "Tóm tắt ý tưởng — chưa phải tài liệu SRS",
+        "subtitle": "Tóm tắt ý tưởng - chưa phải tài liệu SRS",
         "updating": "AI đang cập nhật",
         "loadingAria": "Đang tải tóm tắt",
         "systemName": "Tên hệ thống",
@@ -1913,7 +1913,7 @@
       "confirmDrop": "Bỏ hẳn vì nội dung sai?",
       "drop": "Bỏ",
       "keep": "Thôi",
-      "dropHint": "Chỉ bỏ khi nội dung sai — chưa làm bản này thì chọn Để dành ở ô trên",
+      "dropHint": "Chỉ bỏ khi nội dung sai - chưa làm bản này thì chọn Để dành ở ô trên",
       "dropEntry": "Bỏ mục này",
       "intro": "{count} ghi chú. Đổi đích nếu đang nhắm sai chỗ; chọn §5.4 để dành lại cho bản sau. Chỉ bỏ khi nội dung sai.",
       "vision": "Tầm nhìn",
@@ -1926,7 +1926,7 @@
       "solo": "Cần duyệt riêng",
       "right": "Đúng",
       "wrong": "Sai",
-      "wrongHint": "Giá trị đang dựa trên giả định này sai — cần sửa lại chỗ đó",
+      "wrongHint": "Giá trị đang dựa trên giả định này sai - cần sửa lại chỗ đó",
       "intro": "{count} giả định chờ xác nhận. Xác nhận đúng thì nội dung giữ nguyên; báo sai thì phần dựa trên nó cần sửa lại.",
       "confirmRest": "Xác nhận {count} giả định còn lại"
     },
@@ -1977,7 +1977,7 @@
     },
     "gateFlags": {
       "keepFailed": "Chưa giữ nguyên được vấn đề này, bạn thử lại nhé.",
-      "blocking": "Chưa ký được baseline — còn {count} cờ đỏ chưa xử lý:",
+      "blocking": "Chưa ký được baseline - còn {count} cờ đỏ chưa xử lý:",
       "goToBlockedLabel": "Xem chỗ bị chặn: {message}",
       "goToBlocked": "Xem chỗ bị chặn",
       "red": "Vấn đề cần xử lý: ",
@@ -2059,11 +2059,11 @@
       "fallbackUpdated": "Tôi đã cập nhật: {parts}{rest}. Bạn xem giúp, ổn thì mình đi tiếp nhé."
     },
     "elicit": {
-      "missing": "Còn {count} câu tự luận chưa trả lời: {questions}. Gõ câu trả lời ở ô chat{numbered, select, yes { (đánh số 1), 2)… theo thứ tự câu)} other {}} rồi bấm Gửi — hoặc bấm Gửi lần nữa để AI tự giả định."
+      "missing": "Còn {count} câu tự luận chưa trả lời: {questions}. Gõ câu trả lời ở ô chat{numbered, select, yes { (đánh số 1), 2)… theo thứ tự câu)} other {}} rồi bấm Gửi - hoặc bấm Gửi lần nữa để AI tự giả định."
     },
     "questionReview": {
       "aria": "Câu trả lời của bạn",
-      "unanswered": "Chưa trả lời — AI sẽ tự giả định"
+      "unanswered": "Chưa trả lời - AI sẽ tự giả định"
     },
     "knowledge": {
       "sourceLabel": "Nguồn {ref}: {source} · {section}",
@@ -2087,8 +2087,8 @@
       "switchTitle": "Đổi tài liệu sang {language}?",
       "sameTitle": "Tài liệu đang là {language}",
       "lockedTitle": "Dự án upload giữ ngôn ngữ của file tải lên",
-      "switchToSource": "{language} là ngôn ngữ gốc của tài liệu — chỉ đổi ngôn ngữ hiển thị và bản xuất, không cần dịch, không tốn credit.",
-      "switchTranslate": "Nội dung hiện có cần dịch sang {language}. Số mục và credit ước tính hiện ở bước tiếp theo — bạn xác nhận rồi mới dịch.",
+      "switchToSource": "{language} là ngôn ngữ gốc của tài liệu - chỉ đổi ngôn ngữ hiển thị và bản xuất, không cần dịch, không tốn credit.",
+      "switchTranslate": "Nội dung hiện có cần dịch sang {language}. Số mục và credit ước tính hiện ở bước tiếp theo - bạn xác nhận rồi mới dịch.",
       "sameMissing": "Còn {count} mục chưa dịch, đang hiện chữ gốc.",
       "sameNothing": "Không cần đổi gì.",
       "lockedNote": "Ngôn ngữ tài liệu theo đúng file bạn đã tải lên, không đổi hay dịch được.",
@@ -2214,8 +2214,8 @@
       }
     },
     "editLock": {
-      "pendingLead": "Tài liệu đang chờ Lead duyệt — tạm khoá sửa cho tới khi Lead duyệt hoặc từ chối",
-      "runnerBusy": "Bước đang chạy — đợi chạy xong rồi hãy sửa tài liệu",
+      "pendingLead": "Tài liệu đang chờ Lead duyệt - tạm khoá sửa cho tới khi Lead duyệt hoặc từ chối",
+      "runnerBusy": "Bước đang chạy - đợi chạy xong rồi hãy sửa tài liệu",
       "needsInput": "Trả lời câu hỏi của bước đang chạy trước đã"
     },
     "userText": {
@@ -2230,7 +2230,7 @@
       "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. "
     },
     "aiSettings": {
-      "aria": "Cách AI làm việc với bạn — {mode}",
+      "aria": "Cách AI làm việc với bạn - {mode}",
       "title": "Cách AI làm việc với bạn",
       "heading": "AI dừng chờ duyệt",
       "modes": {
@@ -2241,7 +2241,7 @@
       "hints": {
         "strict": "Dừng chờ bạn duyệt ở mọi bước.",
         "fast": "Tự duyệt trong giai đoạn; dừng ở cuối giai đoạn, cuối mỗi màn và khi cần bạn quyết.",
-        "milestones": "AI tự qua mọi bước, chỉ dừng ở mốc chốt: chốt ý tưởng, duyệt Brief, tầm nhìn / mục tiêu, danh sách màn, MoSCoW, ký baseline — và khi AI cần hỏi, có cờ đỏ mới, xoá nội dung."
+        "milestones": "AI tự qua mọi bước, chỉ dừng ở mốc chốt: chốt ý tưởng, duyệt Brief, tầm nhìn / mục tiêu, danh sách màn, MoSCoW, ký baseline - và khi AI cần hỏi, có cờ đỏ mới, xoá nội dung."
       },
       "hardGates": "Mức nào cũng dừng ở cổng cứng và trước khi tài liệu đi ra ngoài. Mức duyệt không phụ thuộc độ tự tin của AI. Sau baseline: ở “Chỉ ở mốc chốt” change request qua kiểm sẽ tự ghi vào bản nháp.",
       "changeFailed": "Không đổi được mức duyệt",
@@ -2269,8 +2269,8 @@
       "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}"
     },
     "aiError": {
-      "title": "{what}: AI lỗi{retried, select, yes {, đã thử lại 2 lần} other {}} — credit đã hoàn",
-      "body": "Nội dung đã duyệt giữ nguyên. Thử lại ngay (kiểm credit lại từ đầu) hoặc để sau — mở lại dự án sẽ chạy tiếp từ đây.",
+      "title": "{what}: AI lỗi{retried, select, yes {, đã thử lại 2 lần} other {}} - credit đã hoàn",
+      "body": "Nội dung đã duyệt giữ nguyên. Thử lại ngay (kiểm credit lại từ đầu) hoặc để sau - mở lại dự án sẽ chạy tiếp từ đây.",
       "retry": "Thử lại ngay",
       "retrying": "Đang thử lại…",
       "later": "Để sau",
@@ -2282,14 +2282,14 @@
     },
     "page": {
       "loading": "Đang tải không gian làm việc SRS",
-      "convertedNotice": "Baseline đã chốt — dự án chuyển sang chế độ quản lý thay đổi, mọi chỉnh sửa đi qua Change Request",
-      "redrawNotFound": "Không tìm thấy sơ đồ này — tải lại trang rồi thử lại.",
+      "convertedNotice": "Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi, mọi chỉnh sửa đi qua Change Request",
+      "redrawNotFound": "Không tìm thấy sơ đồ này - tải lại trang rồi thử lại.",
       "redrawFailed": "Không vẽ lại được sơ đồ",
       "turnNeedsInput": "AI đang chờ bạn trả lời",
       "turnGateReady": "Có nội dung mới chờ bạn duyệt",
       "baselinePendingLead": "1 bản chờ bạn duyệt",
       "baselinePending": "Chờ Lead duyệt",
-      "baselineRejectedComments": "Lead chưa duyệt — {count} góp ý",
+      "baselineRejectedComments": "Lead chưa duyệt - {count} góp ý",
       "baselineRejected": "Lead chưa duyệt",
       "baselineVersion": "Baseline {version}",
       "baselineNotLoaded": "Chưa đọc được tài liệu. Vui lòng tải lại trang.",
@@ -2313,8 +2313,8 @@
       "placeholderWorking": "AI đang làm…",
       "placeholderGate": "Muốn sửa gì thì bạn nhắn tôi nhé…",
       "placeholderStart": "Kể ý tưởng hoặc điều bạn muốn AI làm…",
-      "placeholderStartTemplate": "Mẫu đã sẵn sàng — kể ý tưởng dự án (ai dùng, làm gì, mục tiêu) để FlintFlow soạn đủ các mục của mẫu…",
-      "viewerNotice": "Bạn đang xem với vai trò Viewer — chỉ đọc được tài liệu, không gửi tin hay chạy bước AI.",
+      "placeholderStartTemplate": "Mẫu đã sẵn sàng - kể ý tưởng dự án (ai dùng, làm gì, mục tiêu) để FlintFlow soạn đủ các mục của mẫu…",
+      "viewerNotice": "Bạn đang xem với vai trò Viewer - chỉ đọc được tài liệu, không gửi tin hay chạy bước AI.",
       "staleNotice": "Bước <strong>{step}</strong> đã chốt, nhưng <strong>{sections}</strong> đã cũ so với dữ liệu bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.",
       "rerunStep": "Cập nhật lại bước này",
       "keeping": "Đang duyệt…",
@@ -2328,20 +2328,20 @@
     },
     "toasts": {
       "redrawn": "Đã vẽ lại sơ đồ",
-      "assumptionEdited": "Đã sửa giả định — AI đã cập nhật bản tiếng Anh trong tài liệu",
+      "assumptionEdited": "Đã sửa giả định - AI đã cập nhật bản tiếng Anh trong tài liệu",
       "assumptionEditFailed": "Chưa sửa được giả định: {error}",
       "changesApplied": "Đã áp dụng {count} thay đổi",
       "noChange": "Đã xác nhận: nội dung không đổi",
       "undone": "Đã hoàn tác lần sửa gần nhất",
       "languageSwitched": "Đã đổi tài liệu sang {language}",
-      "aiBusyAsk": "AI đang làm — đợi xong lượt này rồi hỏi tiếp nhé",
-      "aiBusyChat": "AI đang làm — đợi xong lượt này rồi nhắn tiếp nhé",
-      "gateBlocked": "Chưa chốt được bước này — xử lý nốt phần đang chặn ở thẻ duyệt rồi quay lại nhé",
+      "aiBusyAsk": "AI đang làm - đợi xong lượt này rồi hỏi tiếp nhé",
+      "aiBusyChat": "AI đang làm - đợi xong lượt này rồi nhắn tiếp nhé",
+      "gateBlocked": "Chưa chốt được bước này - xử lý nốt phần đang chặn ở thẻ duyệt rồi quay lại nhé",
       "stepKept": "Đã duyệt lại {step} giữ nguyên nội dung"
     },
     "turnNotice": {
-      "title": "(1) Đến lượt bạn — FlintFlow",
-      "notification": "FlintFlow — đến lượt bạn"
+      "title": "(1) Đến lượt bạn - FlintFlow",
+      "notification": "FlintFlow - đến lượt bạn"
     },
     "flagRules": {
       "section_empty": "Mục còn trống",
@@ -2394,14 +2394,14 @@
       "defaultAuthor": "Người dùng",
       "fixedTitle": "Đã nhờ AI sửa theo góp ý này. Mục có bước đã duyệt thì bước đó mở lại để soạn lại.",
       "fixed": "Đã sửa",
-      "keepTitle": "Không sửa — nêu lý do để Lead đọc khi duyệt lại",
+      "keepTitle": "Không sửa - nêu lý do để Lead đọc khi duyệt lại",
       "keep": "Giữ nguyên",
       "keepQuestion": "Vì sao giữ nguyên?",
       "keepPlaceholder": "vd: Khách đã xác nhận giữ cách gọi này trong hợp đồng.",
       "cancel": "Huỷ",
       "saveReason": "Lưu lý do",
       "resolvedFixed": "Đã sửa theo góp ý.",
-      "resolvedKept": "Giữ nguyên — {reason}",
+      "resolvedKept": "Giữ nguyên - {reason}",
       "title": "Góp ý",
       "close": "Đóng góp ý",
       "rejectionFocus": "Góp ý của lượt Lead từ chối baseline",
@@ -2449,13 +2449,13 @@
         "writePlaceholder": "Viết comment",
         "post": "Đăng comment",
         "hint": "Rê chuột lên một mục hoặc đoạn trong tài liệu rồi bấm 💬 để ghim comment.",
-        "clearFocus": "Đang lọc theo chỗ ghim — xem tất cả comment",
+        "clearFocus": "Đang lọc theo chỗ ghim - xem tất cả comment",
         "emptyOpen": "Không có comment nào đang mở.",
         "emptyClosed": "Chưa có comment nào được xử lý hay chuyển thành CR."
       },
       "fixByChat": "Nhờ AI sửa",
       "fixByChatTitle": "Mở ô chat sửa với nội dung góp ý điền sẵn; áp xong góp ý tự thành Đã sửa",
-      "ownerStep": "Thuộc bước {steps} — xử lý “đã sửa” sẽ mở lại bước này"
+      "ownerStep": "Thuộc bước {steps} - xử lý “đã sửa” sẽ mở lại bước này"
     },
     "decisions": {
       "topic": {
@@ -2490,7 +2490,7 @@
       "confirmApproveTitle": "Duyệt baseline?",
       "confirmLockTitle": "Chốt baseline?",
       "confirmBody": "Bản SRS hiện tại sẽ được đóng dấu version và <b>khoá vĩnh viễn</b>. Đây là bản gửi ra ngoài được.",
-      "confirmNote": "Sau khi khoá thì không sửa vào bản này được nữa — mọi thay đổi về sau phải đi qua change request và phát hành version mới.",
+      "confirmNote": "Sau khi khoá thì không sửa vào bản này được nữa - mọi thay đổi về sau phải đi qua change request và phát hành version mới.",
       "cancel": "Huỷ",
       "approveAndLock": "Duyệt và khoá",
       "lockAndLock": "Chốt và khoá",
@@ -2502,12 +2502,12 @@
       "reject": "Từ chối",
       "pendingForAnalyst": "Đã gửi Lead duyệt lúc {time}. Chờ Lead quyết.",
       "rejected": "<b>Lead chưa duyệt:</b> {reason}",
-      "rejectionProgress": "{done}/{total} góp ý đã xử lý — xem",
+      "rejectionProgress": "{done}/{total} góp ý đã xử lý - xem",
       "resubmit": "Gửi lại",
       "submitToLead": "Gửi Lead duyệt",
       "rejectModal": {
         "title": "Từ chối baseline",
-        "needComment": "Từ chối phải kèm góp ý ghim vào đúng chỗ cần sửa — Analyst mới biết sửa gì, và bước đã duyệt của mục đó mới mở lại được.",
+        "needComment": "Từ chối phải kèm góp ý ghim vào đúng chỗ cần sửa - Analyst mới biết sửa gì, và bước đã duyệt của mục đó mới mở lại được.",
         "howTo": "Bấm <b>“Góp ý”</b> trên mục cần sửa trong tài liệu, rồi quay lại đây.",
         "later": "Để sau",
         "openComments": "Mở Góp ý",
@@ -2518,7 +2518,7 @@
         "cancel": "Huỷ",
         "reject": "Từ chối"
       },
-      "resubmitBlockedComments": "{count, plural, =1 {Còn 1 góp ý} other {Còn # góp ý}} chưa có kết luận — nhờ AI sửa hoặc giữ nguyên + lý do rồi gửi lại."
+      "resubmitBlockedComments": "{count, plural, =1 {Còn 1 góp ý} other {Còn # góp ý}} chưa có kết luận - nhờ AI sửa hoặc giữ nguyên + lý do rồi gửi lại."
     },
     "projectRecord": {
       "tabsLabel": "Hồ sơ dự án",
@@ -2528,7 +2528,7 @@
         "sources": "Nguồn",
         "history": "Lịch sử"
       },
-      "viewerNote": "Bạn đang xem với vai trò Viewer — chỉ xem hồ sơ, không chốt hay sửa được.",
+      "viewerNote": "Bạn đang xem với vai trò Viewer - chỉ xem hồ sơ, không chốt hay sửa được.",
       "briefTitle": "Tóm tắt Brief",
       "briefHint": "Ý tưởng sản phẩm đã chốt ở giai đoạn Brief.",
       "decisionsTitle": "Quyết định đã chốt ({count})",
@@ -2541,7 +2541,7 @@
       "notesTitle": "Ghi chú",
       "notesHint": "Chọn giữ, để dành cho phụ lục, hoặc bỏ từng ghi chú.",
       "risksTitle": "Rủi ro & câu hỏi mở ({count})",
-      "risksHint": "Điều chưa ngã ngũ — trả lời trong chat khi AI hỏi tới.",
+      "risksHint": "Điều chưa ngã ngũ - trả lời trong chat khi AI hỏi tới.",
       "screensTitle": "Màn hình sẽ đặc tả",
       "screensHint": "Thứ tự các màn AI đặc tả chi tiết. Để lại màn chưa cần làm ở vòng này.",
       "nothingPending": "Hiện chưa có gì chờ bạn quyết.",
@@ -2551,7 +2551,7 @@
     "sources": {
       "loading": "Đang tải nguồn tài liệu…",
       "count": "{count} mục có nguồn từ tài liệu",
-      "assumptions": "{count} điều AI đang tự giả định — xác nhận ở tab “Chờ bạn quyết”",
+      "assumptions": "{count} điều AI đang tự giả định - xác nhận ở tab “Chờ bạn quyết”",
       "empty": "Chưa có mục nào được viết từ tài liệu. Đính kèm biên bản họp, email hoặc transcript ở khung chat, AI sẽ đọc và ghi lại đoạn gốc cho từng yêu cầu.",
       "deletedDocument": "Tài liệu đã xoá",
       "groupHeading": "{label} ({count})",
@@ -2633,7 +2633,7 @@
     "autoPassed": {
       "chip": "{count, plural, =1 {1 thay đổi tự qua chưa xem} other {# thay đổi tự qua chưa xem}}",
       "listAria": "Thay đổi AI tự qua",
-      "note": "AI đã tự duyệt những bước này. Xem nếu muốn — không bắt buộc xem hết trước khi gửi.",
+      "note": "AI đã tự duyệt những bước này. Xem nếu muốn - không bắt buộc xem hết trước khi gửi.",
       "markSeen": "Đã xem",
       "markAllSeen": "Đánh dấu đã xem tất cả"
     },
@@ -2664,7 +2664,7 @@
           "legacy": "Sẵn sàng đọc file"
         },
         "next": {
-          "mode1": "File đủ khung. Bấm Bắt đầu để FlintFlow đọc nội dung và tạo bản gốc 0.1 — sau đó bạn sửa tài liệu qua chat.",
+          "mode1": "File đủ khung. Bấm Bắt đầu để FlintFlow đọc nội dung và tạo bản gốc 0.1 - sau đó bạn sửa tài liệu qua chat.",
           "mode3": "Còn {missing} mục trống. FlintFlow đọc phần đã có rồi chuyển sang soạn các mục còn thiếu cùng bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
           "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót."
         },
@@ -2684,11 +2684,11 @@
         },
         "start": "Bắt đầu",
         "starting": "Đang bắt đầu…",
-        "unsureKind": "FlintFlow chưa chắc đây là tài liệu SRS. Bạn vẫn bắt đầu được — hãy xem kỹ các mục bên dưới, hoặc chọn file khác."
+        "unsureKind": "FlintFlow chưa chắc đây là tài liệu SRS. Bạn vẫn bắt đầu được - hãy xem kỹ các mục bên dưới, hoặc chọn file khác."
       },
       "progress": {
         "title": "FlintFlow đang đọc file",
-        "canLeave": "Có thể rời trang — FlintFlow vẫn đọc tiếp và giữ kết quả.",
+        "canLeave": "Có thể rời trang - FlintFlow vẫn đọc tiếp và giữ kết quả.",
         "pausedTitle": "Đọc file đang tạm dừng",
         "pause": {
           "credits": {
@@ -2698,11 +2698,11 @@
           },
           "interrupted": {
             "title": "{phase} bị gián đoạn",
-            "body": "Máy chủ khởi động lại hoặc gặp lỗi tạm thời. Phần đã đọc giữ nguyên — bấm Tiếp tục để chạy lại bước này."
+            "body": "Máy chủ khởi động lại hoặc gặp lỗi tạm thời. Phần đã đọc giữ nguyên - bấm Tiếp tục để chạy lại bước này."
           },
           "ai": {
             "title": "{phase} tạm dừng vì AI lỗi",
-            "body": "AI đang lỗi hoặc quá tải, đã thử lại nhưng chưa được. Phần đã xong giữ nguyên — bấm Tiếp tục để chạy tiếp."
+            "body": "AI đang lỗi hoặc quá tải, đã thử lại nhưng chưa được. Phần đã xong giữ nguyên - bấm Tiếp tục để chạy tiếp."
           }
         },
         "stop": {
@@ -2712,7 +2712,7 @@
         },
         "stopped": {
           "title": "Đã dừng đọc file",
-          "body": "Đã đọc {done}/{total} mục — phần này giữ nguyên và không trừ thêm credit. Bấm Tiếp tục để đọc nốt từ chỗ dừng.",
+          "body": "Đã đọc {done}/{total} mục - phần này giữ nguyên và không trừ thêm credit. Bấm Tiếp tục để đọc nốt từ chỗ dừng.",
           "resume": "Tiếp tục",
           "resuming": "Đang tiếp tục…"
         },
@@ -2743,8 +2743,8 @@
           "todo": "chưa tới"
         },
         "reread": {
-          "images": "AI đang quá tải — đang đọc lại ảnh {done}/{total}",
-          "text": "AI đang quá tải — đang đọc lại phần chữ ({done}/{total} lượt)"
+          "images": "AI đang quá tải - đang đọc lại ảnh {done}/{total}",
+          "text": "AI đang quá tải - đang đọc lại phần chữ ({done}/{total} lượt)"
         }
       },
       "legacy": {
@@ -2765,7 +2765,7 @@
         }
       },
       "saveToOrg": {
-        "help": "Lưu file mẫu này cho tổ chức — dự án sau chọn lại ngay ở ô SRS khi tạo dự án, FlintFlow hiểu sẵn các mục của mẫu.",
+        "help": "Lưu file mẫu này cho tổ chức - dự án sau chọn lại ngay ở ô SRS khi tạo dự án, FlintFlow hiểu sẵn các mục của mẫu.",
         "nameLabel": "Tên mẫu",
         "action": "Lưu làm mẫu của tổ chức",
         "saving": "Đang lưu…",
@@ -2774,7 +2774,7 @@
       },
       "creating": {
         "title": "Đang chuẩn bị dự án",
-        "hint": "File tải lên và đọc khung ngay bây giờ — chưa tốn credit. Xong FlintFlow mở màn đọc khung.",
+        "hint": "File tải lên và đọc khung ngay bây giờ - chưa tốn credit. Xong FlintFlow mở màn đọc khung.",
         "project": "Tạo dự án",
         "srs": "Tải file SRS lên và đọc khung",
         "references": "Tài liệu tham khảo {done}/{total}",
@@ -2812,12 +2812,12 @@
           "verbatim": "Giữ nguyên văn"
         },
         "binCount": "{count} mục",
-        "binMissing": "{count} mục · còn trống — sẽ soạn",
+        "binMissing": "{count} mục · còn trống - sẽ soạn",
         "binVerbatim": "{count} mục riêng của file",
-        "binEmpty": "File chưa có — sẽ soạn",
+        "binEmpty": "File chưa có - sẽ soạn",
         "reading": "Đang đọc khung tài liệu",
         "readingTitle": "Đang đọc khung tài liệu…",
-        "readingHint": "FlintFlow đọc mục lục của file để biết mục nào đã có — chưa tốn credit.",
+        "readingHint": "FlintFlow đọc mục lục của file để biết mục nào đã có - chưa tốn credit.",
         "readingBin": "Đang đọc…"
       }
     },
@@ -2828,8 +2828,8 @@
       "keep": "Dùng làm tham khảo"
     },
     "structureChanges": {
-      "nowEmpty": "Sau khi đọc chi tiết, {count, plural, one {mục {names} thực ra còn trống} other {các mục {names} thực ra còn trống}} — đã thêm vào danh sách cần soạn / bổ sung.",
-      "nowFilled": "Sau khi đọc chi tiết, {count, plural, one {mục {names} đã có nội dung} other {các mục {names} đã có nội dung}} — không cần soạn thêm.",
+      "nowEmpty": "Sau khi đọc chi tiết, {count, plural, one {mục {names} thực ra còn trống} other {các mục {names} thực ra còn trống}} - đã thêm vào danh sách cần soạn / bổ sung.",
+      "nowFilled": "Sau khi đọc chi tiết, {count, plural, one {mục {names} đã có nội dung} other {các mục {names} đã có nội dung}} - không cần soạn thêm.",
       "other": "Sau khi đọc chi tiết, {count, plural, one {mục {names} khác} other {các mục {names} khác}} với màn đọc khung.",
       "dismiss": "Đóng thông báo"
     }
@@ -2843,7 +2843,7 @@
     "INVALID_TOKEN": "Liên kết không hợp lệ hoặc đã được sử dụng.",
     "TOKEN_ALREADY_USED": "Liên kết này đã được sử dụng trước đó.",
     "TOKEN_EXPIRED": "Liên kết đã hết hạn. Vui lòng yêu cầu gửi lại.",
-    "TOKEN_REUSE_DETECTED": "Phát hiện phiên đăng nhập bị dùng lại — mọi phiên đã bị đăng xuất để bảo vệ tài khoản.",
+    "TOKEN_REUSE_DETECTED": "Phát hiện phiên đăng nhập bị dùng lại - mọi phiên đã bị đăng xuất để bảo vệ tài khoản.",
     "UNAUTHORIZED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "INVALID_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "MISSING_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
@@ -2853,8 +2853,8 @@
     "USER_NOT_FOUND": "Không tìm thấy người dùng.",
     "RATE_LIMIT_EXCEEDED": "Dịch vụ AI đang quá tải. Vui lòng thử lại sau ít phút.",
     "PROJECT_NOT_FOUND": "Không tìm thấy dự án hoặc bạn không có quyền truy cập.",
-    "DOCUMENT_LANGUAGE_LOCKED": "Dự án import SRS có sẵn dùng ngôn ngữ của file tải lên — không đổi được ngôn ngữ tài liệu.",
-    "TRANSLATION_RUNNING": "Tài liệu đang được dịch ở một lượt khác — đợi lượt đó xong rồi thử lại.",
+    "DOCUMENT_LANGUAGE_LOCKED": "Dự án import SRS có sẵn dùng ngôn ngữ của file tải lên - không đổi được ngôn ngữ tài liệu.",
+    "TRANSLATION_RUNNING": "Tài liệu đang được dịch ở một lượt khác - đợi lượt đó xong rồi thử lại.",
     "NAME_REQUIRED": "Vui lòng nhập tên dự án.",
     "CHAT_SESSION_NOT_FOUND": "Không tìm thấy phiên chat.",
     "CONTENT_REQUIRED": "Tin nhắn không được để trống.",
@@ -2864,8 +2864,8 @@
     "DUPLICATE_DOCUMENT": "Tài liệu này đã có trong dự án.",
     "DUPLICATE_DOCUMENT_NAMED": "Tài liệu này đã có trong dự án: {name}.",
     "DUPLICATE_DOCUMENT_SUPERSEDED": "{name} là bản cũ, đã được thay bởi {newer}.",
-    "POSSIBLE_NEW_VERSION": "Có vẻ đây là bản mới của một tài liệu đã có — chọn thay bản cũ hay giữ cả hai.",
-    "DOCUMENT_ALREADY_SUPERSEDED": "Tài liệu cần thay đã được bản khác thay trước đó — tải lại danh sách rồi thử lại.",
+    "POSSIBLE_NEW_VERSION": "Có vẻ đây là bản mới của một tài liệu đã có - chọn thay bản cũ hay giữ cả hai.",
+    "DOCUMENT_ALREADY_SUPERSEDED": "Tài liệu cần thay đã được bản khác thay trước đó - tải lại danh sách rồi thử lại.",
     "INSUFFICIENT_CREDIT": "Không đủ credit cho thao tác này. Hãy nạp thêm credit.",
     "INTENT_NOT_FOUND": "Không tìm thấy giao dịch.",
     "PACKAGE_NOT_FOUND": "Không tìm thấy gói credit.",
@@ -2877,36 +2877,36 @@
     "SPINE_NOT_FOUND": "Không tìm thấy dữ liệu tài liệu của dự án.",
     "STEP_NOT_FOUND": "Không tìm thấy bước này.",
     "FLAG_NOT_FOUND": "Không tìm thấy cờ.",
-    "FLAG_NOT_WAIVABLE": "Vấn đề này không bỏ qua được — cần sửa dữ liệu.",
+    "FLAG_NOT_WAIVABLE": "Vấn đề này không bỏ qua được - cần sửa dữ liệu.",
     "BASELINE_NOT_FOUND": "Baseline không tồn tại.",
     "DIAGRAM_NOT_FOUND": "Không tìm thấy diagram.",
     "SPINE_VERSION_CONFLICT": "Tài liệu vừa được thay đổi ở phiên khác. Vui lòng tải lại rồi thử lại.",
     "REGENERATE_LIMIT": "Đã hết 3 lượt Regenerate cho bước này.",
-    "CALL_LIMIT": "Bước này đã dùng hết 8 lượt gọi AI — chỉ còn Accept hoặc Accept as-is.",
+    "CALL_LIMIT": "Bước này đã dùng hết 8 lượt gọi AI - chỉ còn Accept hoặc Accept as-is.",
     "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
     "NO_WORKING_DRAFT": "Dự án chưa có nội dung nào để dựng tài liệu.",
     "PDF_EXPORT_UNAVAILABLE": "Chưa xuất được PDF lúc này. Bạn hãy thử lại sau ít phút, hoặc tải bản Word.",
     "TRANSLATION_INCOMPLETE": "Tài liệu còn mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT_ONE": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
-    "DOCUMENT_LANGUAGE_UNAVAILABLE": "Bản này chưa tải được bằng ngôn ngữ khác — chỉ tải được theo ngôn ngữ tài liệu của dự án.",
+    "DOCUMENT_LANGUAGE_UNAVAILABLE": "Bản này chưa tải được bằng ngôn ngữ khác - chỉ tải được theo ngôn ngữ tài liệu của dự án.",
     "NOTHING_TO_UNDO": "Không còn thay đổi nào để hoàn tác.",
-    "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa thể ghi baseline.",
-    "BASELINE_ALREADY_SUBMITTED": "Tài liệu đang chờ Lead duyệt — không gửi lại được.",
+    "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý - chưa thể ghi baseline.",
+    "BASELINE_ALREADY_SUBMITTED": "Tài liệu đang chờ Lead duyệt - không gửi lại được.",
     "NO_PENDING_SUBMISSION": "Không có bản nào đang chờ duyệt. Vui lòng tải lại trang.",
     "REJECTION_COMMENTS_OPEN": "Còn góp ý của lượt Lead từ chối trước chưa xử lý.",
     "COMMENT_NOT_OPEN": "Góp ý này đã được xử lý.",
-    "COMMENT_ANCHOR_NOT_FOUND": "Chỗ ghim không còn trong bản đang đọc — tải lại rồi ghim lại.",
+    "COMMENT_ANCHOR_NOT_FOUND": "Chỗ ghim không còn trong bản đang đọc - tải lại rồi ghim lại.",
     "COMMENT_VERSION_FORBIDDEN": "Vai trò của bạn chỉ góp ý được trên bản đã phát hành.",
-    "NOT_PIPELINE_SESSION": "Phiên này chỉ để hỏi đáp — quy trình chạy ở phiên chính.",
-    "PIPELINE_SESSION_LOCKED": "Không xoá được phiên chính — phiên này giữ tiến trình soạn tài liệu.",
+    "NOT_PIPELINE_SESSION": "Phiên này chỉ để hỏi đáp - quy trình chạy ở phiên chính.",
+    "PIPELINE_SESSION_LOCKED": "Không xoá được phiên chính - phiên này giữ tiến trình soạn tài liệu.",
     "NOT_IMPLEMENTED": "Tính năng này chưa được hỗ trợ.",
     "NO_DATA": "Không nhận được dữ liệu từ máy chủ.",
     "NO_ACTIVE_ORG": "Bạn chưa chọn tổ chức để làm việc.",
     "ORG_FORBIDDEN": "Bạn không thuộc tổ chức này.",
     "ORG_NOT_FOUND": "Không tìm thấy tổ chức.",
     "ORG_ROLE_FORBIDDEN": "Vai trò của bạn không được phép thực hiện thao tác này.",
-    "LAST_LEAD": "Tổ chức phải còn ít nhất một Lead — hãy chỉ định người khác làm Lead trước.",
+    "LAST_LEAD": "Tổ chức phải còn ít nhất một Lead - hãy chỉ định người khác làm Lead trước.",
     "ALREADY_MEMBER": "Bạn đã là thành viên của tổ chức này.",
     "INVITE_INVALID": "Mã mời không dùng được: đã hết hạn, đã dùng hoặc đã bị thu hồi.",
     "INVITE_NOT_FOUND": "Không tìm thấy lời mời.",
@@ -2917,8 +2917,8 @@
     "MEMBER_NOT_FOUND": "Không tìm thấy thành viên trong tổ chức.",
     "ORG_NAME_MISMATCH": "Tên xác nhận không khớp với tên tổ chức.",
     "ORG_HAS_OTHER_MEMBERS": "Chỉ xoá được tổ chức khi bạn là thành viên duy nhất.",
-    "ORG_BUSY": "Tổ chức đang có lượt gọi AI chạy dở — thử lại sau ít phút.",
-    "ORG_PAYMENT_PENDING": "Tổ chức đang có thanh toán chờ xử lý — thử lại khi thanh toán kết thúc.",
+    "ORG_BUSY": "Tổ chức đang có lượt gọi AI chạy dở - thử lại sau ít phút.",
+    "ORG_PAYMENT_PENDING": "Tổ chức đang có thanh toán chờ xử lý - thử lại khi thanh toán kết thúc.",
     "SCHEMA_MISMATCH": "AI trả kết quả không đúng dạng. Thử lại, hoặc nói rõ hơn yêu cầu.",
     "PARSE_FAILED": "AI trả kết quả không đọc được. Thử lại, hoặc nói rõ hơn yêu cầu.",
     "UNKNOWN_ERROR": "Có lỗi xảy ra. Vui lòng thử lại sau.",
@@ -2959,7 +2959,7 @@
     "INVALID_INTENT_ID": "Giao dịch không hợp lệ.",
     "PAYMENT_REQUIRED": "Gói này cần thanh toán trước khi kích hoạt.",
     "PAYMENT_ORDER_NOT_FOUND": "Không tìm thấy giao dịch trên cổng thanh toán.",
-    "ASSUMPTION_NOT_FOUND": "Không tìm thấy mục cần sửa — có thể nó vừa được thay đổi. Tải lại rồi thử lại.",
+    "ASSUMPTION_NOT_FOUND": "Không tìm thấy mục cần sửa - có thể nó vừa được thay đổi. Tải lại rồi thử lại.",
     "NEEDS_USER_INPUT": "AI chưa tạo được nội dung hợp lệ sau nhiều lần thử. Bạn có thể chạy lại, hoặc nói rõ hơn yêu cầu ở ô chat.",
     "SPINE_SCHEMA_INVALID": "Dữ liệu tài liệu sau khi sửa không hợp lệ nên chưa được lưu. Vui lòng thử lại.",
     "CHANGE_INVALID": "Thay đổi không hợp lệ nên chưa được lưu. Vui lòng thử lại.",
@@ -2991,7 +2991,7 @@
     "page": {
       "eyebrow": "Lỗi hệ thống",
       "title": "Đã có lỗi xảy ra",
-      "body": "FlintFlow gặp sự cố khi hiển thị trang này. Dữ liệu của bạn vẫn an toàn — hãy thử lại, hoặc về trang chủ.",
+      "body": "FlintFlow gặp sự cố khi hiển thị trang này. Dữ liệu của bạn vẫn an toàn - hãy thử lại, hoặc về trang chủ.",
       "retry": "Thử lại",
       "home": "Về trang chủ",
       "digest": "Mã lỗi: {digest}"
@@ -3001,7 +3001,7 @@
     "metaTitle": "Đang bảo trì · FlintFlow",
     "eyebrow": "Bảo trì hệ thống",
     "title": "FlintFlow đang bảo trì",
-    "body": "Chúng tôi đang nâng cấp hệ thống để phục vụ bạn tốt hơn. Vui lòng quay lại sau ít phút — dự án và tài liệu của bạn không bị ảnh hưởng.",
+    "body": "Chúng tôi đang nâng cấp hệ thống để phục vụ bạn tốt hơn. Vui lòng quay lại sau ít phút - dự án và tài liệu của bạn không bị ảnh hưởng.",
     "home": "Về trang chủ"
   },
   "admin": {
@@ -3134,8 +3134,8 @@
     },
     "adjust": {
       "title": "Điều chỉnh credit",
-      "walletSummary": "{name} — số dư {balance} · đang giữ {reserved} · khả dụng <b>{available}</b>",
-      "noWallet": "{name} — chưa có ví; ví sẽ được tạo khi điều chỉnh lần đầu.",
+      "walletSummary": "{name} - số dư {balance} · đang giữ {reserved} · khả dụng <b>{available}</b>",
+      "noWallet": "{name} - chưa có ví; ví sẽ được tạo khi điều chỉnh lần đầu.",
       "direction": "Loại điều chỉnh",
       "add": "Cộng credit",
       "subtract": "Trừ credit",
@@ -3253,7 +3253,7 @@
       "approved": {
         "step": "Thay đổi đã duyệt ({count} phần)",
         "label": "Thay đổi đã duyệt ở bản xem trước",
-        "intro": "Đúng các thay đổi bạn đã duyệt ở bản xem trước — không cần duyệt lại từng phần. Mở từng mục để xem chi tiết.",
+        "intro": "Đúng các thay đổi bạn đã duyệt ở bản xem trước - không cần duyệt lại từng phần. Mở từng mục để xem chi tiết.",
         "busy": "Đang chuẩn bị đúng các thay đổi đã duyệt…"
       },
       "batch": {
@@ -3318,19 +3318,19 @@
         "aiFlagsAria": "Lưu ý của AI",
         "aiFlagsTitle": "Lưu ý (không chặn):",
         "skipMissing": "Bỏ qua phần này (không cần đổi)",
-        "dropThis": "Bỏ phần này — không sửa nữa",
+        "dropThis": "Bỏ phần này - không sửa nữa",
         "accept": "Đồng ý",
         "redo": "Sửa lại",
         "keepDiagram": "Giữ hình gốc",
         "reject": "Bỏ",
         "othersPending": "{who} ({crId}) có bản sửa chưa xác nhận ở mục này",
         "askFailed": "Mình chưa sửa tự động được chỗ này sau 2 lần thử. Bạn gõ hướng sửa bên dưới, hoặc bỏ chỗ này khỏi change request.",
-        "askChanged": "Chỗ này vừa được sửa ở nơi khác — AI sẽ soạn lại trên nội dung hiện tại."
+        "askChanged": "Chỗ này vừa được sửa ở nơi khác - AI sẽ soạn lại trên nội dung hiện tại."
       },
       "dropped": {
         "summary": "Không sửa {count} phần (không liên quan hoặc bạn đã bỏ)",
-        "recheckDiagram": "Xét lại — thay bằng sơ đồ vẽ lại nếu hình đã lệch",
-        "bringBack": "Đưa lại — nhờ AI soạn đề xuất"
+        "recheckDiagram": "Xét lại - thay bằng sơ đồ vẽ lại nếu hình đã lệch",
+        "bringBack": "Đưa lại - nhờ AI soạn đề xuất"
       },
       "errorClose": "Đóng thông báo lỗi",
       "rootAria": "Sửa tài liệu qua chat",
@@ -3341,23 +3341,23 @@
       "guideLabel": "Hướng dẫn sửa tài liệu",
       "fromPreviewLabel": "Tạo change request từ bản xem trước",
       "fromPreview": "Change request sẽ mang đúng các thay đổi bạn vừa xem trước. Chọn nguồn và người yêu cầu để tạo; tài liệu chỉ đổi khi Lead duyệt.",
-      "guide": "Gõ yêu cầu sửa tài liệu bên dưới, vd <em>“Thêm yêu cầu hiệu năng cho màn tra cứu”</em>. AI dẫn bạn từng bước: hỏi lại chỗ còn thiếu, chỉ ra phần liên quan, đề xuất sửa để bạn đồng ý — rồi gửi cho Lead duyệt.",
+      "guide": "Gõ yêu cầu sửa tài liệu bên dưới, vd <em>“Thêm yêu cầu hiệu năng cho màn tra cứu”</em>. AI dẫn bạn từng bước: hỏi lại chỗ còn thiếu, chỉ ra phần liên quan, đề xuất sửa để bạn đồng ý - rồi gửi cho Lead duyệt.",
       "crAria": "Change request {crId} trong chat",
       "openCr": "Mở trang CR",
       "clarifyStep": "① Làm rõ",
       "clarifyLabel": "Làm rõ",
       "missingInfoLabel": "Dữ kiện còn thiếu",
-      "missingInfoTitle": "Còn thiếu dữ kiện — AI sẽ tự giả định và đánh dấu ở từng đề xuất:",
+      "missingInfoTitle": "Còn thiếu dữ kiện - AI sẽ tự giả định và đánh dấu ở từng đề xuất:",
       "impactStep": "② Phần liên quan ({count})",
       "impactLabel": "Phần liên quan",
-      "proposeNow": "Tiếp tục — AI đề xuất sửa",
-      "proposeStep": "③ Đề xuất sửa — đã chốt {settled}/{total}",
+      "proposeNow": "Tiếp tục - AI đề xuất sửa",
+      "proposeStep": "③ Đề xuất sửa - đã chốt {settled}/{total}",
       "proposeLabel": "Đề xuất sửa",
       "proposeHint": "Phần đã đạt kiểm tra đồng ý một lần bằng \"Đồng ý tất cả\"; bấm ▸ để xem, sửa lại hoặc bỏ từng phần. Chốt hết thì hệ thống tự kiểm tra.",
       "proposeNone": "AI thấy không phần nào cần sửa. Mở danh sách bên dưới để đưa lại phần nào bạn vẫn muốn sửa.",
-      "manualStep": "④ Kiểm tra — cần bạn xử lý",
+      "manualStep": "④ Kiểm tra - cần bạn xử lý",
       "manualLabel": "Cần sửa",
-      "manualBlockers": "AI đã thử 2 lần mà <strong>{count} phần</strong> vẫn chưa đạt. Sửa lại (gõ hướng sửa ngay trong thẻ) hoặc bỏ từng phần — xong là hệ thống tự kiểm lại:",
+      "manualBlockers": "AI đã thử 2 lần mà <strong>{count} phần</strong> vẫn chưa đạt. Sửa lại (gõ hướng sửa ngay trong thẻ) hoặc bỏ từng phần - xong là hệ thống tự kiểm lại:",
       "blockerMissing": "chưa có đề xuất",
       "blockerFailed": "chưa đạt",
       "manualCleared": "Các phần chưa đạt đã được sửa lại hoặc bỏ. Đồng ý các đề xuất mới rồi kiểm lại.",
@@ -3365,10 +3365,10 @@
       "verifyNow": "Kiểm lại ngay",
       "readyStep": "④ Kiểm tra đạt",
       "readyLabel": "Sẵn sàng gửi",
-      "readyText": "✓ Mọi đề xuất đã đạt kiểm tra. Xác nhận để ghi ngay vào bản nháp chung — Lead sẽ duyệt cả gói khi phát hành.",
+      "readyText": "✓ Mọi đề xuất đã đạt kiểm tra. Xác nhận để ghi ngay vào bản nháp chung - Lead sẽ duyệt cả gói khi phát hành.",
       "submit": "Xác nhận & ghi vào bản nháp",
-      "readyMore": "Còn muốn sửa thêm? Gõ tiếp ở ô chat — lệnh mới được gộp vào {crId}.",
-      "notRequester": "Đề xuất này đang treo ở {who} — chỉ người đó xác nhận được (người xác nhận đứng tên thay đổi). Bạn xem được mọi chỗ; cần đổi khác thì tạo change request của bạn.",
+      "readyMore": "Còn muốn sửa thêm? Gõ tiếp ở ô chat - lệnh mới được gộp vào {crId}.",
+      "notRequester": "Đề xuất này đang treo ở {who} - chỉ người đó xác nhận được (người xác nhận đứng tên thay đổi). Bạn xem được mọi chỗ; cần đổi khác thì tạo change request của bạn.",
       "pausedWhat": "Bước AI",
       "continue": "Tiếp tục",
       "kinds": {
@@ -3381,10 +3381,10 @@
         "add": "Thêm:",
         "before": "Trước",
         "after": "Sau",
-        "noPreview": "Đề xuất này chưa xem trước được (có tham chiếu chưa đúng) — bước kiểm tra sẽ bắt và AI soạn lại."
+        "noPreview": "Đề xuất này chưa xem trước được (có tham chiếu chưa đúng) - bước kiểm tra sẽ bắt và AI soạn lại."
       },
       "conflict": {
-        "aria": "So sánh 3 cột — {title}",
+        "aria": "So sánh 3 cột - {title}",
         "title": "{title} đã được {who} sửa sau khi AI soạn đề xuất cho bạn. Đề xuất của bạn chưa được ghi.",
         "atProposal": "① Lúc AI soạn",
         "current": "② Hiện tại ({who})",
@@ -3401,7 +3401,7 @@
       },
       "conflictStep": "Có người vừa sửa cùng chỗ",
       "conflictLabel": "Chỗ bị người khác sửa trong lúc chờ",
-      "conflictIntro": "{count, plural, other {# chỗ}} đã được người khác sửa trong lúc bạn chờ xác nhận. Chưa ghi gì — xem so sánh và chọn cách xử lý (không có nút ghi đè để không xoá phần người khác vừa sửa).",
+      "conflictIntro": "{count, plural, other {# chỗ}} đã được người khác sửa trong lúc bạn chờ xác nhận. Chưa ghi gì - xem so sánh và chọn cách xử lý (không có nút ghi đè để không xoá phần người khác vừa sửa).",
       "replyLabel": "AI trả lời"
     },
     "crChat": {
@@ -3409,9 +3409,9 @@
       "hintRedraft": "Gõ hướng sửa lại cho đề xuất đang chọn…",
       "hintAnswer": "Trả lời câu hỏi của AI…",
       "hintAmend": "Gõ thêm lệnh sửa để gộp vào {crId}…",
-      "multiQuestion": "AI đang hỏi nhiều câu — trả lời ở thẻ câu hỏi phía trên (chọn gợi ý hoặc gõ từng câu).",
-      "paused": "Bước AI đang tạm dừng — bấm “Tiếp tục” ở phía trên trước.",
-      "running": "AI đang chạy — đợi xong bước này rồi gõ tiếp."
+      "multiQuestion": "AI đang hỏi nhiều câu - trả lời ở thẻ câu hỏi phía trên (chọn gợi ý hoặc gõ từng câu).",
+      "paused": "Bước AI đang tạm dừng - bấm “Tiếp tục” ở phía trên trước.",
+      "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp."
     },
     "crWorkspace": {
       "loading": "Đang tải change request",
@@ -3427,10 +3427,10 @@
       "draftText": "AI đọc yêu cầu và tài liệu đính kèm, hỏi lại nếu còn mơ hồ hoặc thiếu dữ kiện để viết nội dung (tốn credit).",
       "draftButton": "Bắt đầu làm rõ (AI)",
       "draftBusy": "AI đang làm rõ…",
-      "impactText": "Tìm mọi chỗ trong tài liệu liên quan tới yêu cầu (qua liên kết giữa các phần, mã được nhắc tới, từ khoá) và giữ chúng cho CR này để không ai sửa chồng — không tốn credit.",
+      "impactText": "Tìm mọi chỗ trong tài liệu liên quan tới yêu cầu (qua liên kết giữa các phần, mã được nhắc tới, từ khoá) và giữ chúng cho CR này để không ai sửa chồng - không tốn credit.",
       "impactButton": "Tìm vị trí ảnh hưởng & khoá",
       "impactBusy": "Đang tìm…",
-      "proposeRedoText": "Một số đề xuất trượt kiểm — AI đang tự sửa lần {attempt}/{max} các vị trí đó (có tính credit); vẫn trượt sau {max} lần thì bạn sửa tay.",
+      "proposeRedoText": "Một số đề xuất trượt kiểm - AI đang tự sửa lần {attempt}/{max} các vị trí đó (có tính credit); vẫn trượt sau {max} lần thì bạn sửa tay.",
       "proposeMissedText": "AI chưa kết luận {count} vị trí. Bấm chạy lại, hoặc dùng \"Sửa tay\" ở từng vị trí bên dưới để tự kết luận.",
       "proposeText": "AI đề xuất cho từng vị trí: sửa, chỉ comment, hoặc không liên quan kèm lý do (tốn credit).",
       "proposeRedoButton": "AI tự sửa lần {attempt}/{max}",
@@ -3440,40 +3440,40 @@
       "verifyText": "Kiểm tra tự động (nội dung gốc chưa bị sửa ở chỗ khác, dữ liệu hợp lệ, không phát sinh lỗi đỏ mới) và AI soát tính nhất quán (chỉ cảnh báo vàng).",
       "verifyButton": "Kiểm đề xuất",
       "verifyBusy": "Đang kiểm…",
-      "manualText": "AI đã làm lại 2 lần mà vẫn trượt kiểm. Sửa các vị trí chưa đạt bên dưới — “Nhờ AI sửa theo quy tắc” để AI viết lại theo quy tắc soạn của phần đó, hoặc sửa trực tiếp — rồi kiểm lại; hoặc huỷ change request.",
+      "manualText": "AI đã làm lại 2 lần mà vẫn trượt kiểm. Sửa các vị trí chưa đạt bên dưới - “Nhờ AI sửa theo quy tắc” để AI viết lại theo quy tắc soạn của phần đó, hoặc sửa trực tiếp - rồi kiểm lại; hoặc huỷ change request.",
       "manualButton": "Kiểm lại",
       "readyText": "Mọi vị trí đã có kết luận và đạt kiểm. Xác nhận để ghi ngay vào bản nháp chung; vị trí nào không muốn đổi thì đặt “không liên quan” trước.",
       "readyButton": "Xác nhận & ghi vào bản nháp",
       "readyBusy": "Đang ghi…",
-      "noGroupsText": "Không có nhóm thay đổi nào để duyệt — mọi vị trí đều kết luận \"không liên quan\". Sửa lại CR để kết luận lại từng vị trí, hoặc đóng CR.",
+      "noGroupsText": "Không có nhóm thay đổi nào để duyệt - mọi vị trí đều kết luận \"không liên quan\". Sửa lại CR để kết luận lại từng vị trí, hoặc đóng CR.",
       "allRejectedText": "Mọi nhóm đều bị từ chối. Sửa lại CR (khoá lại phần tử, AI đề xuất lại) hoặc đóng CR.",
       "closeCr": "Đóng CR",
       "reviseButton": "Sửa lại CR",
       "reviseBusy": "Đang khoá lại…",
       "reviewText": "Change request theo luồng cũ: duyệt hoặc từ chối từng nhóm. Khi nhóm cuối được quyết mà có nhóm được duyệt ⇒ thay đổi được ghi vào bản nháp.",
-      "writtenText": "Đã ghi vào bản nháp (bản {version}) — tải bản có đánh dấu (Track Changes + comment, tác giả {crId}) ở mục Version; gửi Lead duyệt cả gói ở mục Gói thay đổi.",
-      "writtenNewText": "Đã ghi vào bản mới — tải bản có đánh dấu (Track Changes + comment, tác giả {crId}) ở mục Version.",
+      "writtenText": "Đã ghi vào bản nháp (bản {version}) - tải bản có đánh dấu (Track Changes + comment, tác giả {crId}) ở mục Version; gửi Lead duyệt cả gói ở mục Gói thay đổi.",
+      "writtenNewText": "Đã ghi vào bản mới - tải bản có đánh dấu (Track Changes + comment, tác giả {crId}) ở mục Version.",
       "viewDoc": "Xem tài liệu",
       "closedText": "{status}.",
-      "closedReasonText": "{status} — {reason}.",
-      "viewerText": "Bạn đang xem với vai trò Viewer — chỉ Lead hoặc Analyst thao tác được change request.",
+      "closedReasonText": "{status} - {reason}.",
+      "viewerText": "Bạn đang xem với vai trò Viewer - chỉ Lead hoặc Analyst thao tác được change request.",
       "breadcrumb": "Change request",
       "meta": " · yêu cầu bởi {requester} · tạo {created} · trên bản {version}",
       "cancelCr": "Huỷ CR",
       "seedAria": "Bản xem trước đính kèm",
-      "seed": "Đính kèm bản xem trước ({count} thay đổi) — AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất.",
-      "seedTargets": "Đính kèm bản xem trước ({count} thay đổi trên {targets} phần tử) — AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất.",
+      "seed": "Đính kèm bản xem trước ({count} thay đổi) - AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất.",
+      "seedTargets": "Đính kèm bản xem trước ({count} thay đổi trên {targets} phần tử) - AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất.",
       "materialsAria": "Tài liệu bổ sung của CR",
       "materialsTitle": "Tài liệu bổ sung ({count})",
-      "materialsHint": "Đính kèm email, biên bản, đặc tả… có dữ kiện cho thay đổi (con số, luật, luồng, trường dữ liệu) — AI viết theo đúng tài liệu thay vì tự đoán.",
+      "materialsHint": "Đính kèm email, biên bản, đặc tả… có dữ kiện cho thay đổi (con số, luật, luồng, trường dữ liệu) - AI viết theo đúng tài liệu thay vì tự đoán.",
       "errorClose": "Đóng thông báo lỗi",
       "missingInfoAria": "Dữ kiện còn thiếu",
-      "missingInfoTitle": "Còn thiếu dữ kiện — AI sẽ tự giả định và đánh dấu ở từng đề xuất để người duyệt xác nhận:",
+      "missingInfoTitle": "Còn thiếu dữ kiện - AI sẽ tự giả định và đánh dấu ở từng đề xuất để người duyệt xác nhận:",
       "closeTitle": "Đóng change request",
       "cancelTitle": "Huỷ change request",
       "closeDescription": "Mọi nhóm đã bị từ chối. Đóng CR sẽ mở khoá toàn bộ block, CR chuyển sang trạng thái từ chối.",
       "cancelDescription": "Huỷ sẽ mở khoá mọi block CR đang giữ. Không ghi gì vào tài liệu.",
-      "inChatText": "Change request này đang ở bước “{status}”. Mọi việc (trả lời câu hỏi, đồng ý, gõ hướng sửa, xác nhận ghi) làm trong khung chat bên trái — ở đây chỉ để xem lại.",
+      "inChatText": "Change request này đang ở bước “{status}”. Mọi việc (trả lời câu hỏi, đồng ý, gõ hướng sửa, xác nhận ghi) làm trong khung chat bên trái - ở đây chỉ để xem lại.",
       "openInChat": "Mở trong khung chat"
     },
     "crForm": {
@@ -3489,15 +3489,15 @@
       "descriptionLabel": "Mô tả thay đổi",
       "descriptionPlaceholder": "Cần đổi gì, vì sao…",
       "previewAria": "Bản xem trước đính kèm",
-      "preview": "Đính kèm bản xem trước từ panel “Sửa tài liệu có xem trước” — AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất. Tài liệu chỉ đổi sau khi CR được duyệt.",
+      "preview": "Đính kèm bản xem trước từ panel “Sửa tài liệu có xem trước” - AI dùng làm gợi ý khi làm rõ, tìm vị trí và đề xuất. Tài liệu chỉ đổi sau khi CR được duyệt.",
       "commentAria": "Comment nguồn",
-      "fromComment": "Tạo từ comment {id} — tạo xong, comment chuyển sang “Đã thành CR” và người viết comment được báo.",
+      "fromComment": "Tạo từ comment {id} - tạo xong, comment chuyển sang “Đã thành CR” và người viết comment được báo.",
       "materialsAria": "Tài liệu bổ sung",
       "materialsTitle": "Tài liệu bổ sung (không bắt buộc)",
       "materialsHint": "Email, biên bản họp, đặc tả… có dữ kiện cho thay đổi (con số, luật, luồng, trường dữ liệu). AI viết theo tài liệu; thiếu dữ kiện thì AI sẽ hỏi thêm sau khi tạo.",
-      "maxPasted": "Dán tối đa {max} đoạn văn bản khi tạo — đính kèm file, hoặc thêm sau trong change request.",
+      "maxPasted": "Dán tối đa {max} đoạn văn bản khi tạo - đính kèm file, hoặc thêm sau trong change request.",
       "source": "Nguồn *",
-      "sourcePick": "— Chọn nguồn —",
+      "sourcePick": "- Chọn nguồn -",
       "requester": "Người yêu cầu *",
       "requesterPlaceholder": "Ví dụ: PM Lan",
       "ref": "Tham chiếu nguồn",
@@ -3511,7 +3511,7 @@
     },
     "crList": {
       "title": "Change request",
-      "intro": "Tài liệu đã có baseline — mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.",
+      "intro": "Tài liệu đã có baseline - mọi sửa đổi đi qua change request: làm rõ, tìm vị trí, đề xuất, kiểm, duyệt rồi ghi Track Changes.",
       "filterAria": "Lọc change request",
       "filters": {
         "open": "Đang mở",
@@ -3542,8 +3542,8 @@
       "roundCreate": "lúc tạo CR",
       "roundAnswer": "khi trả lời vòng {round}",
       "removeAria": "Xoá tài liệu {name}",
-      "truncated": "Tài liệu dài — AI chỉ đọc phần đầu (20 000 ký tự).",
-      "full": "Đã đủ số tài liệu tối đa — xoá bớt để thêm tài liệu khác.",
+      "truncated": "Tài liệu dài - AI chỉ đọc phần đầu (20 000 ký tự).",
+      "full": "Đã đủ số tài liệu tối đa - xoá bớt để thêm tài liệu khác.",
       "nameAria": "Tên tài liệu",
       "namePlaceholder": "Tên, ví dụ: Email PM 23/09",
       "textAria": "Nội dung tài liệu",
@@ -3556,11 +3556,11 @@
       "fileAria": "Chọn file tài liệu bổ sung",
       "accept": ".docx, .pdf, .txt, .md hoặc ảnh (ảnh tốn 1 credit để AI đọc)",
       "assumptionsAria": "Giả định cần xác nhận",
-      "assumptionsTitle": "⚠ Giả định cần xác nhận — tài liệu và câu trả lời chưa nói:"
+      "assumptionsTitle": "⚠ Giả định cần xác nhận - tài liệu và câu trả lời chưa nói:"
     },
     "crPrefill": {
       "title": "Muốn sửa tài liệu? Hãy tạo change request",
-      "body": "Tài liệu đã import — mọi thay đổi phải qua change request để được làm rõ, tìm vị trí ảnh hưởng, kiểm và duyệt trước khi ghi.",
+      "body": "Tài liệu đã import - mọi thay đổi phải qua change request để được làm rõ, tìm vị trí ảnh hưởng, kiểm và duyệt trước khi ghi.",
       "dismiss": "Bỏ qua",
       "create": "Tạo change request"
     },
@@ -3581,7 +3581,7 @@
       "create": "Tạo CR",
       "createNoPreview": "Tạo CR (không kèm bản xem trước)",
       "note": "Thay đổi này sẽ thành change request (điền nguồn và người yêu cầu ở bước sau). Tài liệu chỉ đổi khi CR được duyệt.",
-      "noteInvalid": "Bản xem trước lỗi — vẫn tạo được change request từ câu lệnh; AI sẽ làm rõ, tìm vị trí và đề xuất trong CR."
+      "noteInvalid": "Bản xem trước lỗi - vẫn tạo được change request từ câu lệnh; AI sẽ làm rõ, tìm vị trí và đề xuất trong CR."
     },
     "proposalCard": {
       "manualAria": "Sửa tay {id}",
@@ -3601,8 +3601,8 @@
       "rewriting": "AI đang viết lại…",
       "rewrite": "Viết lại đề xuất (AI)",
       "aria": "Vị trí {id}",
-      "vectorTitle": "Máy tìm ra vị trí này vì nội dung gần nghĩa với yêu cầu, không phải vì trùng từ — nên đọc kỹ trước khi duyệt.",
-      "emptySlot": "mục trống — thêm mới",
+      "vectorTitle": "Máy tìm ra vị trí này vì nội dung gần nghĩa với yêu cầu, không phải vì trùng từ - nên đọc kỹ trước khi duyệt.",
+      "emptySlot": "mục trống - thêm mới",
       "ownerStep": "· phần “{step}”",
       "manualBadge": "sửa tay",
       "related": "liên quan: {paths}",
@@ -3623,11 +3623,11 @@
     },
     "clarify": {
       "round": "Vòng {round}",
-      "unknown": "Chưa biết — AI sẽ giả định",
+      "unknown": "Chưa biết - AI sẽ giả định",
       "aria": "Trả lời câu hỏi làm rõ",
       "need": "AI cần thêm thông tin trước khi tìm vị trí và viết nội dung (vòng {round}/{max}):",
-      "needConfirm": "Change request khác với nội dung đang có trong tài liệu — chọn cách xử lý trước khi đi tiếp (vòng {round}):",
-      "hint": "Chọn một gợi ý hoặc tự nhập câu trả lời. Câu chưa biết thì “Bỏ qua” — AI sẽ tự giả định và đánh dấu để người duyệt xác nhận."
+      "needConfirm": "Change request khác với nội dung đang có trong tài liệu - chọn cách xử lý trước khi đi tiếp (vòng {round}):",
+      "hint": "Chọn một gợi ý hoặc tự nhập câu trả lời. Câu chưa biết thì “Bỏ qua” - AI sẽ tự giả định và đánh dấu để người duyệt xác nhận."
     },
     "reasonDialog": {
       "reasonAria": "Lý do",
@@ -3643,7 +3643,7 @@
         "rejected": "Từ chối"
       },
       "aria": "Nhóm {id}",
-      "assumed": "Nhóm này có {count} giả định AI tự đặt — xác nhận với người yêu cầu trước khi duyệt, hoặc ghi rõ trong lý do.",
+      "assumed": "Nhóm này có {count} giả định AI tự đặt - xác nhận với người yêu cầu trước khi duyệt, hoặc ghi rõ trong lý do.",
       "reason": "Lý do: {reason} · ",
       "approveAria": "Lý do duyệt {id}",
       "rejectAria": "Lý do từ chối {id}",
@@ -3679,7 +3679,7 @@
         "activity": "Sơ đồ hoạt động",
         "deployment": "Sơ đồ triển khai"
       },
-      "title": "Hình gốc — {kinds}",
+      "title": "Hình gốc - {kinds}",
       "titleFallback": "Hình gốc của tài liệu",
       "aria": "Thay hình gốc",
       "replace": "🖼 Thay hình gốc bằng sơ đồ FlintFlow vẽ lại từ dữ liệu mới",
@@ -3691,8 +3691,8 @@
       "ok": "Kiểm tra tự động: đạt",
       "fail": "Kiểm tra tự động: chưa đạt",
       "redo": "AI đã làm lại {count}/{max} lần",
-      "notFixedYet": "AI chưa sửa tự động được chỗ này — gõ hướng sửa trong khung chat, hoặc bỏ chỗ này.",
-      "changedElsewhere": "Chỗ này vừa được sửa ở nơi khác — AI soạn lại trên nội dung hiện tại."
+      "notFixedYet": "AI chưa sửa tự động được chỗ này - gõ hướng sửa trong khung chat, hoặc bỏ chỗ này.",
+      "changedElsewhere": "Chỗ này vừa được sửa ở nơi khác - AI soạn lại trên nội dung hiện tại."
     },
     "crPages": {
       "opening": "Đang mở change request"
@@ -3705,7 +3705,7 @@
       "prefillRef": "Gap report bản {version}",
       "downloadFailed": "Không tải được file gap report",
       "loading": "Đang tải gap report",
-      "title": "Gap report — bản {version}",
+      "title": "Gap report - bản {version}",
       "generatedAt": "Tạo lúc {at}. Cờ đỏ phải xử lý trước khi release; cờ vàng là khuyến nghị.",
       "tileRed": "Cờ đỏ",
       "tileYellow": "Cờ vàng",
@@ -3717,7 +3717,7 @@
       "createCr": "Cần sửa → Tạo change request",
       "flagsBySection": "Cờ theo mục",
       "unrenderedTitle": "Hình chưa vẽ được",
-      "unrenderedHint": "Không chặn ký baseline — vẽ lại ở workspace khi máy chủ vẽ hình sẵn sàng.",
+      "unrenderedHint": "Không chặn ký baseline - vẽ lại ở workspace khi máy chủ vẽ hình sẵn sàng.",
       "renderError": "vẽ lỗi",
       "notRendered": "chưa vẽ",
       "lowConfidenceTitle": "Dữ liệu AI trích chưa chắc chắn"
@@ -4067,37 +4067,37 @@
         "loadGapReport": "Không tải được gap report"
       },
       "codes": {
-        "INSUFFICIENT_CREDIT": "Không đủ credit cho bước AI này — nạp thêm rồi thử lại.",
-        "SPINE_VERSION_CONFLICT": "Dữ liệu vừa thay đổi ở phiên khác — đã tải lại, vui lòng thử lại.",
+        "INSUFFICIENT_CREDIT": "Không đủ credit cho bước AI này - nạp thêm rồi thử lại.",
+        "SPINE_VERSION_CONFLICT": "Dữ liệu vừa thay đổi ở phiên khác - đã tải lại, vui lòng thử lại.",
         "PROJECT_MODE_MISMATCH": "Dự án này không phải dự án upload SRS (mode 1).",
-        "IMPORT_STAMP_FOREIGN_PROJECT": "File này được xuất từ một dự án khác — không nhập vào dự án này được.",
+        "IMPORT_STAMP_FOREIGN_PROJECT": "File này được xuất từ một dự án khác - không nhập vào dự án này được.",
         "IMPORT_NEEDS_LATEST_CONFIRM": "Hãy xác nhận đây là bản mới nhất trước.",
         "CR_REQUIRES_BASELINE": "Cần hoàn tất import (baseline 0.1) trước khi tạo change request.",
-        "RELEASE_RED_FLAGS_OPEN": "Còn cờ đỏ chưa xử lý — chưa release được.",
-        "CR_VALUE_CHANGED": "Phần tử vừa bị sửa ở chỗ khác sau khi đề xuất — chạy lại đề xuất rồi kiểm lại.",
-        "CORE_STEP_REQUIRED": "Bước này luôn chạy hoặc đã có dữ liệu — không tắt được.",
+        "RELEASE_RED_FLAGS_OPEN": "Còn cờ đỏ chưa xử lý - chưa release được.",
+        "CR_VALUE_CHANGED": "Phần tử vừa bị sửa ở chỗ khác sau khi đề xuất - chạy lại đề xuất rồi kiểm lại.",
+        "CORE_STEP_REQUIRED": "Bước này luôn chạy hoặc đã có dữ liệu - không tắt được.",
         "STEP_NOT_IN_PLAN": "Step không có trong kế hoạch của dự án.",
-        "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.",
+        "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý - chưa ký baseline v1 được.",
         "RATE_LIMIT_EXCEEDED": "Máy chủ AI từ chối phục vụ (hết hạn mức, chưa gắn thanh toán, hoặc gọi quá nhanh). Kiểm tra tài khoản nhà cung cấp AI rồi thử lại.",
-        "AI_PROVIDER_ERROR": "Máy chủ AI lỗi hoặc trả về rỗng — thử lại; còn lặp lại thì xem log máy chủ.",
-        "MODE1_NO_STEPS": "Dự án upload SRS không chạy step — sửa tài liệu qua change request.",
-        "MODE1_NO_SIGNOFF": "Dự án upload SRS không ký baseline v1 — release khi hết cờ đỏ.",
-        "MODE1_NO_WAIVE": "Dự án upload SRS không waive cờ — xử lý cờ bằng change request.",
-        "IMPORT_REUPLOAD_NO_STAMP": "File không mang stamp của dự án — chỉ file tải từ FlintFlow mới so khác biệt được.",
-        "CR_NO_OWNER_STEP": "Vị trí này thuộc mục riêng, không có quy tắc soạn để AI sửa — dùng “Sửa trực tiếp”.",
-        "PREVIEW_EXPIRED": "Bản xem trước đã hết hạn — bấm “Xem trước thay đổi” lại.",
+        "AI_PROVIDER_ERROR": "Máy chủ AI lỗi hoặc trả về rỗng - thử lại; còn lặp lại thì xem log máy chủ.",
+        "MODE1_NO_STEPS": "Dự án upload SRS không chạy step - sửa tài liệu qua change request.",
+        "MODE1_NO_SIGNOFF": "Dự án upload SRS không ký baseline v1 - release khi hết cờ đỏ.",
+        "MODE1_NO_WAIVE": "Dự án upload SRS không waive cờ - xử lý cờ bằng change request.",
+        "IMPORT_REUPLOAD_NO_STAMP": "File không mang stamp của dự án - chỉ file tải từ FlintFlow mới so khác biệt được.",
+        "CR_NO_OWNER_STEP": "Vị trí này thuộc mục riêng, không có quy tắc soạn để AI sửa - dùng “Sửa trực tiếp”.",
+        "PREVIEW_EXPIRED": "Bản xem trước đã hết hạn - bấm “Xem trước thay đổi” lại.",
         "CR_NOTHING_TO_APPROVE": "Mọi vị trí đều là \"không liên quan\" nên không có gì để duyệt. Sửa kết luận ở vị trí cần đổi (nút \"Sửa tay\"), hoặc huỷ change request."
       }
     },
     "flagsPanel": {
-      "intro": "Tài liệu đã import — mọi thay đổi đi qua change request (tạo từ gap report, panel “Sửa tài liệu có xem trước” hoặc lệnh sửa trong chat). Release được khi hết cờ đỏ.",
+      "intro": "Tài liệu đã import - mọi thay đổi đi qua change request (tạo từ gap report, panel “Sửa tài liệu có xem trước” hoặc lệnh sửa trong chat). Release được khi hết cờ đỏ.",
       "redAria": "Cờ đỏ đang chặn release",
       "redTitle": "Cờ đỏ đang chặn release ({count})",
       "noRed": "Không còn cờ đỏ nào.",
       "prefillTitle": "Xử lý cờ: {message}",
       "prefillSection": "mục {section}",
       "createCr": "Tạo CR",
-      "yellowNote": "{count} cờ vàng — không chặn release, xem ở gap report.",
+      "yellowNote": "{count} cờ vàng - không chặn release, xem ở gap report.",
       "emptyTemplateAria": "Mục của mẫu còn trống",
       "emptyTemplateTitle": "Mục của mẫu còn trống ({count})"
     },
@@ -4127,29 +4127,29 @@
       "loading": "Đang tải gói thay đổi…",
       "loadFailed": "Không tải được gói thay đổi",
       "actionFailed": "Thao tác không thành công",
-      "lockedNote": "Gói đang chờ Lead duyệt — bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
+      "lockedNote": "Gói đang chờ Lead duyệt - bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
       "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
       "listAria": "Change request trong gói",
       "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
-      "blockedEditing": "Đang sửa {crId} ở khung chat — xác nhận ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
-      "blockedEditingNew": "Đang soạn change request ở khung chat — ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
+      "blockedEditing": "Đang sửa {crId} ở khung chat - xác nhận ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
+      "blockedEditingNew": "Đang soạn change request ở khung chat - ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
       "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
-      "blockedRed": "Còn {count} cờ đỏ — xử lý qua change request trước khi gửi Lead duyệt.",
+      "blockedRed": "Còn {count} cờ đỏ - xử lý qua change request trước khi gửi Lead duyệt.",
       "submit": "Gửi Lead duyệt cả gói",
       "resubmit": "Gửi lại cho Lead",
       "sending": "Đang gửi…",
       "approveAll": "Duyệt cả gói & phát hành",
       "requestChanges": "Yêu cầu sửa",
       "releaseDirect": "Phát hành thẳng (Lead)",
-      "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) — BA sẽ đọc lý do này",
+      "reasonLabel": "Lý do yêu cầu sửa (tối thiểu {min} ký tự) - BA sẽ đọc lý do này",
       "cancel": "Huỷ",
       "confirmChanges": "Gửi yêu cầu sửa",
-      "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến — sai thì phát hành bản mới.",
+      "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến - sai thì phát hành bản mới.",
       "releasing": "Đang phát hành…",
       "confirmRelease": "Xác nhận phát hành"
     },
     "paused": {
-      "title": "{what} đang tạm dừng — {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
+      "title": "{what} đang tạm dừng - {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
       "creditsBody": "Nạp thêm credit rồi bấm Tiếp tục. Phần đã xong được giữ, không tính tiền lại.",
       "aiBody": "Credit đã giữ được hoàn lại. Bấm Tiếp tục để chạy lại từ chỗ dừng, hoặc để sau.",
       "topUp": "Nạp credit",
@@ -4160,8 +4160,8 @@
       "opening": "Đang mở gap report"
     },
     "preflight": {
-      "titleNamed": "“{name}” chưa nhập được — {count} vấn đề cần sửa:",
-      "title": "File chưa nhập được — {count} vấn đề cần sửa:",
+      "titleNamed": "“{name}” chưa nhập được - {count} vấn đề cần sửa:",
+      "title": "File chưa nhập được - {count} vấn đề cần sửa:",
       "codes": {
         "NOT_DOCX": "Không phải file Word .docx",
         "CORRUPT_ZIP": "File hỏng",
@@ -4175,7 +4175,7 @@
         "PARSE_FAILED": "Không tách được tài liệu"
       },
       "otherIssue": "Vấn đề khác",
-      "location": "Vị trí: đoạn thứ {ord} — “{text}”",
+      "location": "Vị trí: đoạn thứ {ord} - “{text}”",
       "howTo": "Cách sửa: {fix}",
       "howToFix": {
         "LEGACY_DOC": "Mở bằng Word, chọn File → Save As → Word Document (.docx).",
@@ -4205,7 +4205,7 @@
     "uploadStep": {
       "title": "Tải lên SRS có sẵn (.docx)",
       "hint": "File Word .docx tối đa {max} MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.",
-      "tooLarge": "File {name} nặng {size} MB, lớn hơn giới hạn {max} MB — hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.",
+      "tooLarge": "File {name} nặng {size} MB, lớn hơn giới hạn {max} MB - hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.",
       "uploading": "Đang tải lên và kiểm tra file…"
     },
     "valueEditor": {
@@ -4215,12 +4215,12 @@
       "paragraphBlock": "Đoạn {n}",
       "removeAria": "Xoá đoạn {n}",
       "remove": "Xoá",
-      "imageKept": "(ảnh trong tài liệu — giữ nguyên)",
+      "imageKept": "(ảnh trong tài liệu - giữ nguyên)",
       "tableAria": "Bảng {n}",
       "paragraphAria": "Đoạn {n}",
       "addParagraph": "+ Thêm đoạn",
       "addListItem": "+ Thêm gạch đầu dòng",
-      "listHint": "Phần này là danh sách nhiều mục — sửa trực tiếp nội dung bên dưới.",
+      "listHint": "Phần này là danh sách nhiều mục - sửa trực tiếp nội dung bên dưới.",
       "newContent": "Nội dung mới",
       "invalidFormat": "Nội dung chưa đúng định dạng.",
       "content": "Nội dung",
@@ -4236,14 +4236,14 @@
     },
     "versions": {
       "checkingFlags": "Đang kiểm cờ…",
-      "redFlagsOpen": "Còn {count} cờ đỏ — xử lý qua change request trước khi release.",
+      "redFlagsOpen": "Còn {count} cờ đỏ - xử lý qua change request trước khi release.",
       "noDocument": "Chưa có tài liệu.",
       "downloadFailed": "Không tải được file",
       "releaseFailed": "Release không thành công",
       "releaseTitle": "Release",
       "releaseHint": "Đóng dấu bản major tiếp theo, khoá baseline và tạo bản sạch (đã Accept mọi Track Changes). Gom mọi change request đã ghi từ lần release trước.",
       "confirmQuestion": "Release từ bản {version}? Sau khi release, sửa tiếp phải qua change request mới.",
-      "alreadyReleased": "Bản mới nhất đã là bản release và chưa có change request nào ghi sau đó — release lại chỉ đóng số mới.",
+      "alreadyReleased": "Bản mới nhất đã là bản release và chưa có change request nào ghi sau đó - release lại chỉ đóng số mới.",
       "cancel": "Huỷ",
       "releasing": "Đang release…",
       "confirmRelease": "Xác nhận release",
@@ -4304,8 +4304,8 @@
     },
     "extraction": {
       "aria": "Danh sách yêu cầu rút từ {name}",
-      "title": "{name} — {count, plural, =1 {1 yêu cầu} other {# yêu cầu}}",
-      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick — tài liệu thành nguồn của phần tử.",
+      "title": "{name} - {count, plural, =1 {1 yêu cầu} other {# yêu cầu}}",
+      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick - tài liệu thành nguồn của phần tử.",
       "creditsUsed": "đã dùng {credits} credit",
       "approvedAt": "danh sách đã duyệt",
       "labels": {

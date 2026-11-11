@@ -21,7 +21,7 @@ const EDGE_FIELDS = [
 
 const node = (kind: string, id: string, label: string) => ({ kind: kind as never, id, label });
 
-describe("TRACE_DIR — bảng chiều của cạnh truy vết", () => {
+describe("TRACE_DIR - bảng chiều của cạnh truy vết", () => {
   it("khai đủ mọi field có thể thành cạnh", () => {
     for (const field of EDGE_FIELDS) expect(TRACE_DIR[field], field).toBeDefined();
     expect(Object.keys(TRACE_DIR).sort()).toEqual([...EDGE_FIELDS].sort());
@@ -32,7 +32,7 @@ describe("TRACE_DIR — bảng chiều của cạnh truy vết", () => {
   });
 });
 
-describe("groupTrace — chia node theo chiều quanh một gốc", () => {
+describe("groupTrace - chia node theo chiều quanh một gốc", () => {
   it("actor: chỉ có 'dẫn tới' (use case thực hiện, màn được phân quyền), không có nguồn", () => {
     const res: TraceabilityResponse = {
       nodes: [node("actor", "A01", "Receptionist"), node("use_case", "UC-03", "Book appointment"), node("screen", "S-02", "Appointment list")],
@@ -122,7 +122,7 @@ describe("groupTrace — chia node theo chiều quanh một gốc", () => {
     expect(groupTrace({ nodes: [], edges: [] }, "A99")).toEqual({ root: null, upstream: [], downstream: [], lateral: [] });
   });
 
-  it("mỗi lời gọi trả đối tượng riêng — không chia nhau mảng dùng chung", () => {
+  it("mỗi lời gọi trả đối tượng riêng - không chia nhau mảng dùng chung", () => {
     const a = groupTrace({ nodes: [], edges: [] }, "A99");
     a.downstream.push({ kind: "actor", id: "X", label: "X", field: "f" });
     expect(groupTrace({ nodes: [], edges: [] }, "A99").downstream).toEqual([]);
@@ -137,10 +137,10 @@ describe("groupTrace — chia node theo chiều quanh một gốc", () => {
 
 const spine = (over: Partial<Spine>): Spine => ({ actors: [], use_cases: [], functions: [], screens: [], entities: [], nfrs: [], features: [], business_rules: [], ...over }) as Spine;
 
-describe("traceEntityOptions — danh sách chọn lấy từ Spine đang mở", () => {
-  it("loại có `name` ⇒ nhãn 'mã — tên'", () => {
+describe("traceEntityOptions - danh sách chọn lấy từ Spine đang mở", () => {
+  it("loại có `name` ⇒ nhãn 'mã - tên'", () => {
     const options = traceEntityOptions(spine({ actors: [{ id: "A01", name: "Receptionist" }] as never }), "actor");
-    expect(options).toEqual([{ value: "A01", label: "A01 — Receptionist" }]);
+    expect(options).toEqual([{ value: "A01", label: "A01 - Receptionist" }]);
   });
 
   it("NFR và business rule không có `name` ⇒ nhãn lấy `statement`", () => {
@@ -148,8 +148,8 @@ describe("traceEntityOptions — danh sách chọn lấy từ Spine đang mở",
       nfrs: [{ id: "NFR-P01", statement: "Response under 2 seconds" }] as never,
       business_rules: [{ id: "BR-07", statement: "Only one active booking per patient" }] as never,
     });
-    expect(traceEntityOptions(s, "nfr")).toEqual([{ value: "NFR-P01", label: "NFR-P01 — Response under 2 seconds" }]);
-    expect(traceEntityOptions(s, "business_rule")[0].label).toBe("BR-07 — Only one active booking per patient");
+    expect(traceEntityOptions(s, "nfr")).toEqual([{ value: "NFR-P01", label: "NFR-P01 - Response under 2 seconds" }]);
+    expect(traceEntityOptions(s, "business_rule")[0].label).toBe("BR-07 - Only one active booking per patient");
   });
 
   it("statement dài bị cắt để không phá bề rộng dropdown", () => {

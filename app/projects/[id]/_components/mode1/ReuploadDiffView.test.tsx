@@ -63,13 +63,13 @@ const DIFF: ReuploadDiff = {
   ],
 };
 
-describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 1.4)", () => {
+describe("ReuploadDiffView - tải lại bản sửa ngoài FlintFlow (UC-24, 1.4)", () => {
   it("file project khác (422 IMPORT_STAMP_FOREIGN_PROJECT) ⇒ báo lỗi thân thiện, không có diff", async () => {
     await importToGapReview();
     rejectForeignOnce();
     renderWithIntl(<ReuploadDiffView projectId={P} />);
     pick("SRS_other-project.docx");
-    expect(await screen.findByRole("alert")).toHaveTextContent("File này được xuất từ một dự án khác — không nhập vào dự án này được.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("File này được xuất từ một dự án khác - không nhập vào dự án này được.");
     expect(screen.queryByRole("link", { name: "Tạo CR từ khác biệt" })).not.toBeInTheDocument();
     expect(mode1State.mode1State.reuploads).toHaveLength(0);
   });

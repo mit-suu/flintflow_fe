@@ -15,7 +15,7 @@ const ANALYST = process.env.E2E_ANALYST_EMAIL ?? "flf275-analyst@flintflow.test"
 const PASSWORD = process.env.E2E_SANDBOX_PASSWORD ?? "Flf275@test";
 
 /** Nút mở panel kiểm & chốt trên header (rail trái cũng có nút cùng tên cho giai đoạn S-9). */
-const verifyButton = (page: Page) => page.getByTitle(/Kiểm tra tài liệu và chốt baseline|Kiểm & chốt —/);
+const verifyButton = (page: Page) => page.getByTitle(/Kiểm tra tài liệu và chốt baseline|Kiểm & chốt -/);
 
 /** Đăng nhập qua form thật rồi mở thẳng workspace của dự án sân test. */
 const openWorkspace = async (page: Page, email: string): Promise<void> => {
@@ -52,7 +52,7 @@ test.describe("FLF-275 · vòng duyệt baseline trên giao diện", () => {
      * sân đó nên bỏ qua thay vì đỏ; chạy máy dev sau khi seed thì kịch bản chạy đủ.
      */
     const probe = await request.post(`${API}/auth/login`, { data: { email: ANALYST, password: PASSWORD } });
-    test.skip(!probe.ok(), `chưa có sân test FLF-275 (${ANALYST}) — seed rồi chạy lại`);
+    test.skip(!probe.ok(), `chưa có sân test FLF-275 (${ANALYST}) - seed rồi chạy lại`);
 
     // ── Analyst gửi Lead duyệt ────────────────────────────────────────────
     const analystCtx = await browser.newContext();
@@ -104,14 +104,14 @@ test.describe("FLF-275 · vòng duyệt baseline trên giao diện", () => {
     await analyst.waitForLoadState("networkidle");
     await openVerification(analyst);
     await expect(analyst.getByText(/Thiếu tiêu chí đo được/).first()).toBeVisible({ timeout: 20_000 });
-    await analyst.getByRole("button", { name: /góp ý đã xử lý — xem/ }).click();
+    await analyst.getByRole("button", { name: /góp ý đã xử lý - xem/ }).click();
     await expect(analyst.getByText(/Góp ý của lượt Lead từ chối baseline/)).toBeVisible();
 
     // "Giữ nguyên kèm lý do" (UC-47 nhánh không nhờ AI) ⇒ bước sở hữu mục mở lại
     await analyst.getByRole("button", { name: "Giữ nguyên" }).first().click();
     await analyst.locator('textarea[id^="keep-"]').fill("Khách đã chốt cách gọi này trong hợp đồng.");
     await analyst.getByRole("button", { name: "Lưu lý do" }).click();
-    await expect(analyst.getByText(/Giữ nguyên — Khách đã chốt/)).toBeVisible({ timeout: 20_000 });
+    await expect(analyst.getByText(/Giữ nguyên - Khách đã chốt/)).toBeVisible({ timeout: 20_000 });
 
     // Gửi lại: BE chặn vì bước vừa mở lại làm mục cũ ⇒ FE phải nói đúng việc phải làm
     await openVerification(analyst);

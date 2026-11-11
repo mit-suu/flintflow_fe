@@ -25,7 +25,7 @@ beforeEach(() => {
   Object.defineProperty(window, "location", { value: { ...window.location, reload }, writable: true });
 });
 
-describe("OrgGuard (BPMN Flow 10.6 — chặn trước khi BE trả 409)", () => {
+describe("OrgGuard (BPMN Flow 10.6 - chặn trước khi BE trả 409)", () => {
   it("token đã mang orgId thì vào thẳng, không gọi BE", async () => {
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");
 

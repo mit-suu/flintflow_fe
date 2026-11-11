@@ -55,7 +55,7 @@ describe("Modal", () => {
   });
 });
 
-describe("Modal — focus", () => {
+describe("Modal - focus", () => {
   function Harness() {
     const [open, setOpen] = useState(false);
     return (
@@ -92,7 +92,7 @@ describe("Modal — focus", () => {
   });
 });
 
-describe("Modal — hộp chồng lên hộp", () => {
+describe("Modal - hộp chồng lên hộp", () => {
   it("Escape chỉ đóng hộp mở sau cùng; hộp dưới vẫn mở", () => {
     const closeBottom = vi.fn();
     const closeTop = vi.fn();

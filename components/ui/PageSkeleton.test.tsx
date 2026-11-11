@@ -3,7 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it } from "vitest";
 import PageSkeleton from "./PageSkeleton";
 
-describe("PageSkeleton — khối giữ chỗ lúc vào trang", () => {
+describe("PageSkeleton - khối giữ chỗ lúc vào trang", () => {
   it("mặc định là variant `page`, có nhãn cho trình đọc màn hình", () => {
     renderWithIntl(<PageSkeleton label="Đang tải hồ sơ" />);
 
@@ -12,7 +12,7 @@ describe("PageSkeleton — khối giữ chỗ lúc vào trang", () => {
     expect(root).toHaveAttribute("data-variant", "page");
   });
 
-  it("`rows` quyết định số khối giữ chỗ — mỗi khối là một vệt gradient `.ff-skeleton`", () => {
+  it("`rows` quyết định số khối giữ chỗ - mỗi khối là một vệt gradient `.ff-skeleton`", () => {
     const { container } = renderWithIntl(<PageSkeleton variant="list" rows={3} />);
 
     // 3 dòng × (avatar + 2 dòng chữ + mốc thời gian)

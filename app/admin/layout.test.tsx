@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: 
 vi.mock("@/lib/auth", () => ({ isAuthenticated: () => false, getUserRole: () => "admin", clearAuthToken: vi.fn() }));
 vi.mock("@/lib/api", () => ({ refreshSession: () => new Promise(() => {}) }));
 
-describe("app/admin/layout — theo ngôn ngữ người dùng", () => {
+describe("app/admin/layout - theo ngôn ngữ người dùng", () => {
   it("locale en ⇒ admin hiện tiếng Anh", async () => {
     renderWithIntl(await AdminLayout({ children: <p>admin page</p> }), "en");
     expect(await screen.findByRole("status", { name: "Checking access..." })).toBeInTheDocument();
@@ -27,7 +27,7 @@ describe("app/admin/layout — theo ngôn ngữ người dùng", () => {
     expect(await screen.findByRole("status", { name: "Đang kiểm tra quyền truy cập..." })).toBeInTheDocument();
   });
 
-  it("không tự khai `lang` — `<html lang>` của root layout là nguồn duy nhất", async () => {
+  it("không tự khai `lang` - `<html lang>` của root layout là nguồn duy nhất", async () => {
     renderWithIntl(await AdminLayout({ children: <p>admin page</p> }), "en");
     const block = await screen.findByRole("status", { name: "Checking access..." });
     expect(block.closest("[lang]")).toBeNull();

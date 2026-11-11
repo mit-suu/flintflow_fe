@@ -24,7 +24,7 @@ describe("FolderCard", () => {
     expect(onOpen).toHaveBeenCalledWith(folder);
   });
 
-  it("menu ⋮: Đổi tên, Xoá thư mục — không mở thư mục", () => {
+  it("menu ⋮: Đổi tên, Xoá thư mục - không mở thư mục", () => {
     const onOpen = vi.fn();
     const onDelete = vi.fn();
     renderWithIntl(<FolderCard folder={folder} onOpen={onOpen} onRename={() => {}} onDelete={onDelete} />);
@@ -43,7 +43,7 @@ describe("FolderCard", () => {
   });
 });
 
-describe("FolderCard — thả dự án vào", () => {
+describe("FolderCard - thả dự án vào", () => {
   const dataTransfer = (types: string[], data: Record<string, string> = {}) => ({
     types,
     getData: (t: string) => data[t] ?? "",
@@ -77,7 +77,7 @@ describe("FolderCard — thả dự án vào", () => {
   });
 });
 
-describe("Màu thư mục — tím dành cho card dự án", () => {
+describe("Màu thư mục - tím dành cho card dự án", () => {
   it("bảng chọn không có tím; thư mục violet cũ quy về xanh dương", () => {
     expect(FOLDER_COLOR_ORDER).not.toContain("violet");
     expect(pickableFolderColor("violet")).toBe("blue");

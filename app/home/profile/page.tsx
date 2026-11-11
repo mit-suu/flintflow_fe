@@ -154,7 +154,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
         <InfoRow label={t("joined")}>
           {user.createdAt
             ? format.dateTime(new Date(user.createdAt), { day: "numeric", month: "numeric", year: "numeric" })
-            : "—"}
+            : "-"}
         </InfoRow>
 
         <InfoRow label={t("credits")}>

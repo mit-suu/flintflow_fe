@@ -108,7 +108,7 @@ describe("ChangeRequestList", () => {
     expect(screen.getByRole("heading", { name: "Change request" })).toBeInTheDocument();
   });
 
-  it("không có nút / form tạo CR — CR tạo qua chat (FLF-375)", async () => {
+  it("không có nút / form tạo CR - CR tạo qua chat (FLF-375)", async () => {
     serveList(LIST);
     renderWithIntl(<ChangeRequestList projectId={P} />);
     await waitFor(() => expect(rows()).toHaveLength(2));
@@ -124,7 +124,7 @@ describe("ChangeRequestList", () => {
   });
 });
 
-describe("ChangeRequestList — Viewer (readOnly)", () => {
+describe("ChangeRequestList - Viewer (readOnly)", () => {
   it("xem được danh sách, không có nút tạo CR", async () => {
     serveList(LIST);
     renderWithIntl(<ChangeRequestList projectId={P} readOnly />);
@@ -133,14 +133,14 @@ describe("ChangeRequestList — Viewer (readOnly)", () => {
   });
 });
 
-describe("ChangeRequestList — Cần xem (FLF-343)", () => {
+describe("ChangeRequestList - Cần xem (FLF-343)", () => {
   const flag = (id: string, rule_id: string, over: Record<string, unknown> = {}) => ({
     id,
     level: "yellow",
     rule_id,
     section_id: "fixed:2.1",
     target_id: "actors[id=A02].kind",
-    message: `Cần xem: tác nhân ${id} — độ tin 55%`,
+    message: `Cần xem: tác nhân ${id} - độ tin 55%`,
     remediation_step: null,
     opened_at_version: 3,
     resolved_at: null,
@@ -164,7 +164,7 @@ describe("ChangeRequestList — Cần xem (FLF-343)", () => {
     renderWithIntl(<ChangeRequestList projectId={P} />);
     const section = await screen.findByRole("region", { name: "Cần xem (2)" });
     expect(within(section).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(section).getByText("Dữ liệu đọc chưa chắc: Tác nhân A02 — Loại")).toBeInTheDocument();
+    expect(within(section).getByText("Dữ liệu đọc chưa chắc: Tác nhân A02 - Loại")).toBeInTheDocument();
     expect(within(section).getByText("Khớp mục chưa chắc: 5.1 Business Rules")).toBeInTheDocument();
     const links = within(section).getAllByRole("link", { name: "Tạo CR" });
     const href = links[0].getAttribute("href")!;

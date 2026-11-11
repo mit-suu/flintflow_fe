@@ -29,7 +29,7 @@ beforeEach(async () => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-describe("CrWorkspace — tài liệu, dữ kiện thiếu, giả định (chỉ xem)", () => {
+describe("CrWorkspace - tài liệu, dữ kiện thiếu, giả định (chỉ xem)", () => {
   it("tài liệu bổ sung của CR hiện ở popup, không có nút dán / chọn file / xoá", async () => {
     const { change_request } = await newCr();
     S().crs.get(change_request.cr_id)!.change_request.materials = [

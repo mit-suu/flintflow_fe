@@ -43,7 +43,7 @@ function GroupCard({ group, locations, canDecide, onDecide, busy }: { group: CrG
         <div key={l.location_id} className="text-body border-l-2 border-[#ECEAE5] pl-2.5">
           {/* F6: hiển thị theo mục của tài liệu; path Spine chỉ để tra (tooltip) */}
           <p className="text-caption text-[#8A867E]" title={l.path}>
-            {sectionTitle(l.section_id, l.section_title) || pathLabel(l.path)} · {l.conclusion ? conclusion(l.conclusion) : "—"}
+            {sectionTitle(l.section_id, l.section_title) || pathLabel(l.path)} · {l.conclusion ? conclusion(l.conclusion) : "-"}
           </p>
           {l.conclusion === "edit" && l.proposal ? (
             <FieldChanges oldText={l.proposal.old_text} newText={l.proposal.new_text} />

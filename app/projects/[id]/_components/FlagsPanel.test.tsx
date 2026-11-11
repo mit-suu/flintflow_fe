@@ -198,7 +198,7 @@ describe("FlagsPanel", () => {
   });
 });
 
-describe("FlagsPanel — FLF-198", () => {
+describe("FlagsPanel - FLF-198", () => {
   it("nhiều giả định chưa xác nhận ⇒ có nút Đúng hết gửi đủ id trong một lượt", () => {
     const assumption = (id: string): Flag => ({
       ...baseFlag,
@@ -235,7 +235,7 @@ describe("FlagsPanel — FLF-198", () => {
   });
 });
 
-describe("FlagsPanel — FLF-177", () => {
+describe("FlagsPanel - FLF-177", () => {
   const yellow: Flag = { ...baseFlag, id: "FL10", level: "yellow", rule_id: "orphan_actor", message: "Actor lẻ", remediation_step: "S-3.2" };
   const stale: Flag = { ...baseFlag, id: "FL11", rule_id: "diagram_stale", target_id: "D05", message: "Hình D05 không còn khớp dữ liệu", remediation_step: "S-5.3@S03" };
 
@@ -254,7 +254,7 @@ describe("FlagsPanel — FLF-177", () => {
   });
 });
 
-describe("FlagsPanel — bấm chấm đỏ trên tài liệu", () => {
+describe("FlagsPanel - bấm chấm đỏ trên tài liệu", () => {
   const reaccept: Flag = { ...baseFlag, id: "FL20", rule_id: "section_awaiting_reaccept", section_id: "fixed:1", remediation_step: "S-1.1" };
   const other: Flag = { ...baseFlag, id: "FL21", rule_id: "section_awaiting_reaccept", section_id: "fixed:2.1", remediation_step: "S-2.1" };
 
@@ -277,7 +277,7 @@ describe("FlagsPanel — bấm chấm đỏ trên tài liệu", () => {
   });
 });
 
-describe("FlagsPanel — mục của mẫu còn trống (FLF-278)", () => {
+describe("FlagsPanel - mục của mẫu còn trống (FLF-278)", () => {
   it("cờ template_section_empty có nút Nhờ AI soạn kèm nhãn mục; cờ khác không có", () => {
     const empty: Flag = { ...baseFlag, id: "FL30", level: "yellow", rule_id: "template_section_empty", section_id: "custom:CS07", message: "Mục \"Document Conventions\" của mẫu chưa có nội dung" };
     const onDraftSection = vi.fn();
@@ -296,7 +296,7 @@ describe("FlagsPanel — mục của mẫu còn trống (FLF-278)", () => {
   });
 });
 
-describe("FlagsPanel — Vẽ lại tất cả một lượt", () => {
+describe("FlagsPanel - Vẽ lại tất cả một lượt", () => {
   const stale = (id: string, target: string, section: string): Flag => ({
     ...baseFlag,
     id,

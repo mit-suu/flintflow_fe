@@ -28,7 +28,7 @@ export const valueDiff = (t: Mode1T, spine: Pick<SpineLabels, "readableValue">) 
 
   /** Khối JSON không tách được field (mảng, giá trị đơn) ⇒ chữ đọc được; không phải JSON ⇒ giữ nguyên. */
   const readableText = (text: string | null | undefined): string => {
-    if (!text) return "—";
+    if (!text) return "-";
     try {
       return spine.readableValue(JSON.parse(text));
     } catch {

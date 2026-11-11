@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import OrgTemplatePicker from "./OrgTemplatePicker";
 
 const BANK = { id: "t1", name: "Mẫu ngân hàng", source_file_name: "bank.docx", heading_count: 42, custom_count: 9, template_family: "ieee29148", uses: 2, created_at: "2026-10-20T00:00:00.000Z" };
-const HIS = { ...BANK, id: "t2", name: "Bệnh viện — HIS", source_file_name: "his.docx" };
+const HIS = { ...BANK, id: "t2", name: "Bệnh viện - HIS", source_file_name: "his.docx" };
 
 vi.mock("@/lib/api/token-store", async (importOriginal) => ({ ...(await importOriginal<object>()), getActiveOrgId: () => "o1" }));
 vi.mock("@/lib/api/org-library", () => ({
@@ -16,7 +16,7 @@ vi.mock("@/lib/api/org-library", () => ({
   }),
 }));
 
-describe("OrgTemplatePicker — lối phụ của ô SRS (FLF-278)", () => {
+describe("OrgTemplatePicker - lối phụ của ô SRS (FLF-278)", () => {
   // Chạy đầu tiên: số mẫu được nhớ theo tổ chức trong tab, các test sau đã có số sẵn
   it("nút hiện ngay khi mở hộp (chưa chờ BE), số mẫu điền vào khi BE trả về", async () => {
     renderWithIntl(<OrgTemplatePicker onPick={vi.fn()} />);
@@ -46,7 +46,7 @@ describe("OrgTemplatePicker — lối phụ của ô SRS (FLF-278)", () => {
 
     fireEvent.change(screen.getByRole("searchbox", { name: "Tìm mẫu" }), { target: { value: "bệnh" } });
     await waitFor(() => expect(screen.queryByText("Mẫu ngân hàng")).not.toBeInTheDocument());
-    expect(screen.getByText("Bệnh viện — HIS")).toBeInTheDocument();
+    expect(screen.getByText("Bệnh viện - HIS")).toBeInTheDocument();
     expect(listOrgTemplatesPage).toHaveBeenCalledWith("o1", expect.objectContaining({ q: "bệnh" }));
 
     fireEvent.change(screen.getByRole("searchbox", { name: "Tìm mẫu" }), { target: { value: "xyz" } });

@@ -79,7 +79,7 @@ describe("ProjectActionDialogs", () => {
   });
 });
 
-describe("ProjectActionDialogs — ngôn ngữ tài liệu (FLF-265)", () => {
+describe("ProjectActionDialogs - ngôn ngữ tài liệu (FLF-265)", () => {
   const fpt: Project = { ...project, mode: "fpt", documentLanguage: "en" };
 
   beforeEach(() => {
@@ -124,7 +124,7 @@ describe("ProjectActionDialogs — ngôn ngữ tài liệu (FLF-265)", () => {
   });
 });
 
-describe("ProjectActionDialogs — đổi ký pháp ERD (FLF-324)", () => {
+describe("ProjectActionDialogs - đổi ký pháp ERD (FLF-324)", () => {
   beforeEach(() => {
     vi.mocked(setErdNotation).mockReset().mockResolvedValue({ data: { ...project, erdNotation: "crowsfoot" }, error: null } as never);
   });
@@ -161,7 +161,7 @@ describe("ProjectActionDialogs — đổi ký pháp ERD (FLF-324)", () => {
   });
 });
 
-describe("ProjectActionDialogs — đổi ngôn ngữ rồi mời dịch phần đã có (FLF-265, phase 1 §1.7)", () => {
+describe("ProjectActionDialogs - đổi ngôn ngữ rồi mời dịch phần đã có (FLF-265, phase 1 §1.7)", () => {
   const fpt: Project = { ...project, mode: "fpt", documentLanguage: "en" };
   const missing: TranslationStatus = { locale: "vi", source_locale: "en", total: 120, missing: 120, batches: 3, estimated_credits: 6 };
 

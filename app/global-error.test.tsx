@@ -6,7 +6,7 @@ import GlobalError from "./global-error";
 // thì React đã đánh dấu `document` là "đã gắn listener" từ root trước ⇒ sự kiện click của root này không chạy.
 const boom = Object.assign(new Error("render hỏng"), { digest: "abc123" });
 
-describe("app/global-error.tsx — lỗi ở root layout", () => {
+describe("app/global-error.tsx - lỗi ở root layout", () => {
   beforeEach(() => vi.spyOn(console, "error").mockImplementation(() => undefined));
   afterEach(() => {
     vi.restoreAllMocks();

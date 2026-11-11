@@ -18,7 +18,7 @@ const VI = flatten(vi);
 const EN = flatten(en);
 
 describe("messages vi ↔ en", () => {
-  it("cùng một tập key — thêm chuỗi ở vi thì phải có bản en và ngược lại", () => {
+  it("cùng một tập key - thêm chuỗi ở vi thì phải có bản en và ngược lại", () => {
     expect(Object.keys(EN).sort()).toEqual(Object.keys(VI).sort());
   });
 
@@ -27,7 +27,7 @@ describe("messages vi ↔ en", () => {
     expect(empty).toEqual([]);
   });
 
-  it("cùng tham số và thẻ rich text — dịch không được làm rơi `{count}` hay `<em>`", () => {
+  it("cùng tham số và thẻ rich text - dịch không được làm rơi `{count}` hay `<em>`", () => {
     const mismatched = Object.keys(VI).filter(
       (key) => JSON.stringify(placeholders(VI[key])) !== JSON.stringify(placeholders(EN[key] ?? ""))
     );

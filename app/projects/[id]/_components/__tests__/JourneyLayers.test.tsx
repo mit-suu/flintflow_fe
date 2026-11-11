@@ -7,7 +7,7 @@ import { stepDividers } from "../ChatPane";
 import { writeBadgeOf } from "../ChatBubble";
 import type { Decision, Spine } from "@/types/spine";
 
-describe("DecisionsPanel — tab Đã chốt (R4)", () => {
+describe("DecisionsPanel - tab Đã chốt (R4)", () => {
   const decision = (over: Partial<Decision> = {}): Decision => ({
     id: "DC01",
     topic_key: "uptime",
@@ -43,7 +43,7 @@ describe("DecisionsPanel — tab Đã chốt (R4)", () => {
   });
 });
 
-describe("Chat — phân đoạn theo bước và nhãn ghi (BUG-24, BUG-09)", () => {
+describe("Chat - phân đoạn theo bước và nhãn ghi (BUG-24, BUG-09)", () => {
   it("chèn dấu phân đoạn mỗi khi đổi bước", () => {
     const messages = [
       { role: "user" as const, content: "a", step: "S-5.4@S04", createdAt: "" },

@@ -59,7 +59,7 @@ describe("useAccountLocaleSync", () => {
     consoleError.mockRestore();
   });
 
-  it("chỉ chạy một lần mỗi lần tải trang — rerender hay remount không refresh / lưu lại", () => {
+  it("chỉ chạy một lần mỗi lần tải trang - rerender hay remount không refresh / lưu lại", () => {
     const first = renderHookWithIntl(({ account }) => useAccountLocaleSync(account), "vi", {
       initialProps: { account: { locale: "en" as const } },
     });

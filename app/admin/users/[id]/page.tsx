@@ -253,7 +253,7 @@ export default function AdminUserDetailPage() {
                             {org.wallet ? num(org.wallet.balance) : t("common.noWallet")}
                           </TableCell>
                           <TableCell className="text-end">
-                            {org.wallet ? num(org.wallet.reserved) : "—"}
+                            {org.wallet ? num(org.wallet.reserved) : "-"}
                           </TableCell>
                         </TableRow>
                       ))
@@ -298,7 +298,7 @@ export default function AdminUserDetailPage() {
                           </TableCell>
                           <TableCell className="font-mono text-caption">{tx.actionType}</TableCell>
                           <TableCell className="text-end">{num(tx.amount)}</TableCell>
-                          <TableCell className="text-end">{tx.balanceAfter == null ? "—" : num(tx.balanceAfter)}</TableCell>
+                          <TableCell className="text-end">{tx.balanceAfter == null ? "-" : num(tx.balanceAfter)}</TableCell>
                         </TableRow>
                       ))
                     )}

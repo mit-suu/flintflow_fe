@@ -53,7 +53,7 @@ beforeEach(() => {
 const setup = (onSpineChanged = vi.fn()) =>
   renderHook(() => useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 12, onSpineChanged }));
 
-describe("stepRunnerReducer — nguồn state và lượt đã tách", () => {
+describe("stepRunnerReducer - nguồn state và lượt đã tách", () => {
   it("state dựng lại từ run-state mang nguồn `restored`; lượt chạy trực tiếp là `live`", () => {
     expect(stepRunnerReducer(initialRunnerState, { type: "start", stepId: "S-3.1" }).source).toBe("live");
     expect(stepRunnerReducer(initialRunnerState, { type: "restored", state: run({}) }).source).toBe("restored");
@@ -85,7 +85,7 @@ describe("stepRunnerReducer — nguồn state và lượt đã tách", () => {
   });
 });
 
-describe("useStepRunner — trả lời khi không còn SSE", () => {
+describe("useStepRunner - trả lời khi không còn SSE", () => {
   it("reload giữa lúc chờ → trả lời → theo dõi run-state tới GateCard, không cần F5 thêm", async () => {
     getActiveRunState.mockResolvedValue({ data: run({}) });
     getRunState

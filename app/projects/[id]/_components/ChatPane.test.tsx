@@ -71,7 +71,7 @@ const renderPane = (
 
 // FLF-279: lượt tri thức không stream chữ, nên nếu không vẽ gì thì khung chat im lặng hoàn toàn trong
 // lúc chờ — đúng cái acceptance criteria muốn tránh.
-describe("ChatPane — chờ câu trả lời tri thức", () => {
+describe("ChatPane - chờ câu trả lời tri thức", () => {
   it("hiện dòng chờ có role=status khi knowledgePending", () => {
     renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true });
 
@@ -84,7 +84,7 @@ describe("ChatPane — chờ câu trả lời tri thức", () => {
     expect(screen.queryByText("Đang tra kho tri thức…")).not.toBeInTheDocument();
   });
 
-  it("dòng chờ thắng bong bóng chữ chạy — lượt tri thức không có chữ nên bong bóng đó sẽ rỗng", () => {
+  it("dòng chờ thắng bong bóng chữ chạy - lượt tri thức không có chữ nên bong bóng đó sẽ rỗng", () => {
     renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true, isStreaming: true, streamingMessage: "" });
 
     expect(screen.getByRole("status")).toHaveTextContent("Đang tra kho tri thức…");
@@ -92,7 +92,7 @@ describe("ChatPane — chờ câu trả lời tri thức", () => {
   });
 });
 
-describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip (FLF-244)", () => {
+describe("ChatPane - phiên phụ hỏi đáp được, lệnh sửa qua chip (FLF-244)", () => {
   beforeEach(() => {
     vi.mocked(estimateActionCost).mockClear();
   });
@@ -125,7 +125,7 @@ describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip 
     expect(onGoToPipeline).toHaveBeenCalledTimes(1);
   });
 
-  it("readOnlyNotice (Viewer): không có ô nhập, nút gửi hay chip sửa — chỉ dòng thông báo", () => {
+  it("readOnlyNotice (Viewer): không có ô nhập, nút gửi hay chip sửa - chỉ dòng thông báo", () => {
     renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { readOnlyNotice: "Bạn đang xem với vai trò Viewer" });
 
     expect(screen.getByRole("note")).toHaveTextContent("Bạn đang xem với vai trò Viewer");
@@ -154,7 +154,7 @@ describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip 
   });
 });
 
-describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change request (G9, BR-03)", () => {
+describe("ChatPane - mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change request (G9, BR-03)", () => {
   beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
   beforeEach(async () => {
     resetMockState();
@@ -193,7 +193,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
   };
 
-  it("mode 1 v3 (BPMN 3.1): lệnh sửa ⇒ thẻ mời tạo CR, form 3.1 điền sẵn (yêu cầu miệng, ref chat) — BE không tự tạo CR; không alert, tin nhắn tạm được gỡ", async () => {
+  it("mode 1 v3 (BPMN 3.1): lệnh sửa ⇒ thẻ mời tạo CR, form 3.1 điền sẵn (yêu cầu miệng, ref chat) - BE không tự tạo CR; không alert, tin nhắn tạm được gỡ", async () => {
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     const error = vi.spyOn(console, "error");
     renderWithIntl(<Mode1Chat />);
@@ -207,7 +207,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     const prefill = readChatCrDraft(new URL(href, "http://x").searchParams);
     expect(prefill, "câu trùng giữa tiêu đề và mô tả chỉ đặt một lần vào ô chat").toMatchObject({ text: "Đổi tên actor Student thành Learner", source: "verbal" });
     expect(prefill?.ref).toMatch(/^chat:/);
-    expect(mode1State.crs.size, "3.1 là việc của BA — không tự tạo CR").toBe(0);
+    expect(mode1State.crs.size, "3.1 là việc của BA - không tự tạo CR").toBe(0);
 
     // tin nhắn tạm (optimistic) bị gỡ, ô nhập đã xoá, không alert / console.error cho luồng bình thường này
     await waitFor(() => expect(screen.getByRole("button", { name: "Gửi tin nhắn" })).toBeInTheDocument());
@@ -241,7 +241,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
   });
 });
 
-describe("ChatPane — nhãn đời thường, credit chỉ ở header", () => {
+describe("ChatPane - nhãn đời thường, credit chỉ ở header", () => {
   it("nhãn bước ở đầu khung và dòng chia bước không lộ mã B-x.y / S-x.y (mã nằm trong tooltip)", () => {
     const session: ChatSession = {
       ...baseSession,
@@ -271,7 +271,7 @@ describe("ChatPane — nhãn đời thường, credit chỉ ở header", () => {
   });
 });
 
-describe("ChatPane — thẻ chọn của câu hỏi làm rõ lệnh sửa (FLF-311)", () => {
+describe("ChatPane - thẻ chọn của câu hỏi làm rõ lệnh sửa (FLF-311)", () => {
   const withLastAi = (content: string): ChatSession =>
     ({
       ...baseSession,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describeConversation, editUseCaseIntent } from "./use-case-intent";
 
-describe("editUseCaseIntent (FLF-318) — cùng luật BE", () => {
+describe("editUseCaseIntent (FLF-318) - cùng luật BE", () => {
   it("thêm / xoá theo động từ đứng trước; không nhắc use case ⇒ null", () => {
     expect(editUseCaseIntent("thêm UC phúc khảo điểm cho học sinh")).toBe("add");
     expect(editUseCaseIntent("xoá UC phúc khảo điểm")).toBe("remove");

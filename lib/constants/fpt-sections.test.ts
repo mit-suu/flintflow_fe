@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compareFileOrder, compareOutlineLabels, isProvisionalSection, plainHeading, provisionalLabel, sectionLabel, sectionLabelIn } from "./fpt-sections";
 
-describe("fpt-sections — nhãn section tạm (FLF-312)", () => {
+describe("fpt-sections - nhãn section tạm (FLF-312)", () => {
   const headings = [
     { block_id: "B0030", heading_text: "3.2 Authentication" },
     { block_id: "B0031", heading_text: "3.2.1 Register account" },

@@ -26,7 +26,7 @@ afterAll(() => mockServer.close());
 const version = async () => (await getSpine(P)).data!.spine_version;
 
 describe("useDocument", () => {
-  it("lượt đọc đầu đã có tài liệu — BE dựng bản còn thiếu, FE không phải xin ghép", async () => {
+  it("lượt đọc đầu đã có tài liệu - BE dựng bản còn thiếu, FE không phải xin ghép", async () => {
     const { result } = renderHook(() => useDocument(P, "draft"));
 
     expect(result.current.loading).toBe(true);
@@ -89,7 +89,7 @@ describe("useDocument", () => {
   });
 });
 
-describe("useDocument — ngôn ngữ tài liệu (FLF-265)", () => {
+describe("useDocument - ngôn ngữ tài liệu (FLF-265)", () => {
   beforeEach(() => resetMockTranslationState());
 
   it("dự án vi ⇒ `translation` là `meta.translation` của BE; dự án en (ngôn ngữ gốc) ⇒ null", async () => {
@@ -142,7 +142,7 @@ describe("useDocument — ngôn ngữ tài liệu (FLF-265)", () => {
   });
 });
 
-describe("useDocument — tải lại lỗi, so bản, vùng chờ", () => {
+describe("useDocument - tải lại lỗi, so bản, vùng chờ", () => {
   const respondWith = (data: RenderedDocument) =>
     mockServer.use(
       http.get("*/projects/:projectId/document", () =>

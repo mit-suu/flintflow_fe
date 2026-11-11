@@ -73,12 +73,12 @@ const serveReport = (report: GapReport = REPORT, docx: () => Response = () => do
 const docxFile = (name?: string) =>
   new HttpResponse("docx-bytes", { status: 200, headers: name ? { "Content-Disposition": `attachment; filename="${name}"` } : {} });
 
-describe("GapReportView — gap report (UC-23, 1.13)", () => {
-  it("ô tổng hợp đỏ/vàng/độ tin thấp (không còn ô mục FPT — FLF-312); cờ theo section có tên section và mã luật", async () => {
+describe("GapReportView - gap report (UC-23, 1.13)", () => {
+  it("ô tổng hợp đỏ/vàng/độ tin thấp (không còn ô mục FPT - FLF-312); cờ theo section có tên section và mã luật", async () => {
     serveReport();
     renderWithIntl(<GapReportView projectId={P} />);
 
-    expect(await screen.findByText("Gap report — bản 0.1")).toBeInTheDocument();
+    expect(await screen.findByText("Gap report - bản 0.1")).toBeInTheDocument();
     const tile = (label: string) => screen.getByText(label, { selector: "span" }).parentElement!;
     expect(tile("Cờ đỏ")).toHaveTextContent("1");
     expect(tile("Cờ đỏ").className).toContain("text-[#B03030]");
@@ -102,10 +102,10 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
   it("không liệt kê mục FPT thiếu / tiêu đề ngoài mẫu; field độ tin thấp theo tên kèm %", async () => {
     serveReport();
     renderWithIntl(<GapReportView projectId={P} />);
-    await screen.findByText("Gap report — bản 0.1");
+    await screen.findByText("Gap report - bản 0.1");
 
     expect(screen.queryByText(/mẫu FPT còn thiếu|Tiêu đề mục ngoài mẫu FPT|Mục bắt buộc không có/)).not.toBeInTheDocument();
-    expect(screen.getByText("Tác nhân A02 — Loại").closest("li")).toHaveTextContent("— 55%");
+    expect(screen.getByText("Tác nhân A02 - Loại").closest("li")).toHaveTextContent("- 55%");
     // nợ T4: hình chưa vẽ (import lúc thiếu PlantUML) chỉ là thông tin, không phải cờ
     expect(screen.getByText(/Sơ đồ use case/).closest("li")).toHaveTextContent("chưa vẽ");
   });
@@ -120,7 +120,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
       low_confidence_fields: [],
     });
     renderWithIntl(<GapReportView projectId={P} />);
-    await screen.findByText("Gap report — bản 0.3");
+    await screen.findByText("Gap report - bản 0.3");
 
     expect(screen.queryByText("Cờ theo section")).not.toBeInTheDocument();
     expect(screen.queryByText("Section bắt buộc không có trong tài liệu")).not.toBeInTheDocument();
@@ -174,7 +174,7 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     renderWithIntl(<GapReportView projectId={P} />);
     expect(screen.getByRole("status", { name: "Đang tải gap report" })).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(screen.queryByText(/Gap report — bản/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Gap report - bản/)).not.toBeInTheDocument();
   });
 });
 

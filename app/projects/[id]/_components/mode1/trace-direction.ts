@@ -160,6 +160,6 @@ export const traceEntityOptions = (spine: Spine, kind: TraceabilityEntity): { va
   return (list as { id: string; name?: string; statement?: string }[]).map((item) => {
     const text = item.name ?? item.statement ?? "";
     const short = text.length > SHORT ? `${text.slice(0, SHORT - 1)}…` : text;
-    return { value: item.id, label: short ? `${item.id} — ${short}` : item.id };
+    return { value: item.id, label: short ? `${item.id} - ${short}` : item.id };
   });
 };

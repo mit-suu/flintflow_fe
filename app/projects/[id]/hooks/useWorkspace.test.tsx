@@ -42,7 +42,7 @@ const mount = async () => {
   return hook;
 };
 
-describe("useWorkspace — phiên chính và phiên phụ (FLF-244)", () => {
+describe("useWorkspace - phiên chính và phiên phụ (FLF-244)", () => {
   it("vào workspace mở phiên chính kèm đủ lịch sử, dù phiên phụ mới hơn", async () => {
     const { result } = await mount();
 
@@ -96,7 +96,7 @@ describe("useWorkspace — phiên chính và phiên phụ (FLF-244)", () => {
   });
 });
 
-describe("useWorkspace — vai trò trong org (FLF-244)", () => {
+describe("useWorkspace - vai trò trong org (FLF-244)", () => {
   const orgHandler = (role: string) =>
     http.get("*/orgs/:orgId", ({ params }) =>
       Response.json({ data: { id: params.orgId, name: "Nhóm A", role, memberCount: 2 }, error: null })
@@ -123,7 +123,7 @@ describe("useWorkspace — vai trò trong org (FLF-244)", () => {
   });
 });
 
-describe("useWorkspace — replaceProject (FLF-265 §3.7)", () => {
+describe("useWorkspace - replaceProject (FLF-265 §3.7)", () => {
   it("thay project bằng bản BE vừa trả ⇒ ngôn ngữ tài liệu mới có ngay, không tải lại workspace", async () => {
     const { result } = await mount();
     expect(result.current.project?.documentLanguage).not.toBe("vi");
@@ -138,7 +138,7 @@ describe("useWorkspace — replaceProject (FLF-265 §3.7)", () => {
  * (`streamSse` phát `error` mà KHÔNG ném, nên `catch` không chạy). Luồng này không stream chữ, nên im
  * lặng nghĩa là user chỉ thấy spinner tắt đi.
  */
-describe("useWorkspace — lượt hỏi tri thức (FLF-279)", () => {
+describe("useWorkspace - lượt hỏi tri thức (FLF-279)", () => {
   const ask = async (result: { current: ReturnType<typeof useWorkspace> }) => {
     await act(async () => {
       await result.current.sendMessage("chat", "Trần lượt gọi model là bao nhiêu?", { knowledge: true });
@@ -190,7 +190,7 @@ describe("useWorkspace — lượt hỏi tri thức (FLF-279)", () => {
   });
 });
 
-describe("useWorkspace — dừng lượt chat (stopMessage)", () => {
+describe("useWorkspace - dừng lượt chat (stopMessage)", () => {
   it("dừng giữa stream ⇒ huỷ fetch, bỏ chữ dở, giữ tin user, báo đã dừng, hết trạng thái gửi", async () => {
     let aborted = false;
     mockServer.use(

@@ -122,7 +122,7 @@ describe("DocumentPane", () => {
     expect(screen.getAllByText(/Chưa hoàn thiện/)).toHaveLength(1);
   });
 
-  it("nút Làm mới chỉ tải lại — không còn trạng thái đã cũ nào để người dùng tự xử lý", async () => {
+  it("nút Làm mới chỉ tải lại - không còn trạng thái đã cũ nào để người dùng tự xử lý", async () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
 
     renderWithIntl(<DocumentPane projectId="p1" />);
@@ -264,8 +264,8 @@ describe("DocumentPane", () => {
     const rules = document.querySelector("[data-section-id=\"fixed:5.1\"]") as HTMLElement;
     // FLF-312: mẫu FPT không bắt buộc — mục trống không mang nhãn "Thiếu"
     expect(rules).not.toHaveTextContent("Thiếu");
-    expect(rules).toHaveTextContent("Chưa có nội dung — chạy step S-7.1");
-    expect(document.querySelector("[data-section-id=\"fixed:4.2.4\"]")).toHaveTextContent("Chưa có nội dung — chạy step S-6.5");
+    expect(rules).toHaveTextContent("Chưa có nội dung - chạy step S-7.1");
+    expect(document.querySelector("[data-section-id=\"fixed:4.2.4\"]")).toHaveTextContent("Chưa có nội dung - chạy step S-6.5");
     const appendix = document.querySelector("[data-section-id=\"custom:CS02\"]") as HTMLElement;
     expect(appendix).toHaveTextContent("Mục riêng");
     expect(appendix.querySelector("h5")?.textContent).toBe("Phụ lục A Biên bản họp");
@@ -274,7 +274,7 @@ describe("DocumentPane", () => {
   });
 });
 
-describe("DocumentPane — nút Vẽ lại sơ đồ theo mục", () => {
+describe("DocumentPane - nút Vẽ lại sơ đồ theo mục", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   // Đúng dạng BE trả: `GET /document` đã thay `diagram-ref:<id>` bằng PNG base64 — ảnh KHÔNG mang id sơ đồ
   const withErd: RenderedDocument = {
@@ -300,7 +300,7 @@ describe("DocumentPane — nút Vẽ lại sơ đồ theo mục", () => {
   });
 
   it("vẽ lại lỗi ⇒ báo ngay dưới sơ đồ", async () => {
-    const onRedrawSection = vi.fn().mockRejectedValue(new Error("Không tìm thấy sơ đồ này — tải lại trang rồi thử lại."));
+    const onRedrawSection = vi.fn().mockRejectedValue(new Error("Không tìm thấy sơ đồ này - tải lại trang rồi thử lại."));
     renderWithIntl(<DocumentPane projectId="p1" onRedrawSection={onRedrawSection} hasDiagrams={() => true} />);
     fireEvent.click(await screen.findByRole("button", { name: "Vẽ lại sơ đồ" }));
     expect(await screen.findByText(/Không tìm thấy sơ đồ này/)).toBeInTheDocument();
@@ -318,7 +318,7 @@ describe("DocumentPane — nút Vẽ lại sơ đồ theo mục", () => {
   });
 });
 
-describe("DocumentPane — khung sơ đồ vẽ lỗi", () => {
+describe("DocumentPane - khung sơ đồ vẽ lỗi", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   // BE giữ chỗ hình vẽ lỗi bằng `diagram-error:<id>` thay vì bỏ hình khỏi mục
   const withFailed: RenderedDocument = {
@@ -330,7 +330,7 @@ describe("DocumentPane — khung sơ đồ vẽ lỗi", () => {
         heading: "Use Case Diagram",
         level: 3,
         status: "accepted",
-        blocks: [{ type: "image", png: "diagram-error:D02-3", caption: "Use Cases — Authentication — diagram could not be drawn yet" }],
+        blocks: [{ type: "image", png: "diagram-error:D02-3", caption: "Use Cases - Authentication - diagram could not be drawn yet" }],
       },
     ],
   };
@@ -365,7 +365,7 @@ describe("DocumentPane — khung sơ đồ vẽ lỗi", () => {
   });
 });
 
-describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
+describe("DocumentPane - ngôn ngữ tài liệu (FLF-265)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const draftMeta = { assembled_at_version: 5, spine_version: 5, stale: false };
   const chip = () => screen.getByTitle(/^Ngôn ngữ tài liệu/);
@@ -449,7 +449,7 @@ describe("DocumentPane — ngôn ngữ tài liệu (FLF-265)", () => {
   });
 });
 
-describe("DocumentPane — nút làm mới chỉ icon", () => {
+describe("DocumentPane - nút làm mới chỉ icon", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const meta = { assembled_at_version: 5, spine_version: 5, stale: false };
   const button = (name: string) => screen.getByRole("button", { name });
@@ -492,7 +492,7 @@ describe("DocumentPane — nút làm mới chỉ icon", () => {
     expect(button("Tải lại tài liệu").querySelector("svg")).not.toHaveClass("animate-spin");
   });
 
-  it("tự tải (refreshToken tăng) cũng xoay + khoá — một nguồn trạng thái cho mọi lượt làm mới", async () => {
+  it("tự tải (refreshToken tăng) cũng xoay + khoá - một nguồn trạng thái cho mọi lượt làm mới", async () => {
     let release: () => void = () => {};
     getDocument
       .mockResolvedValueOnce({ data: fixture, error: null, meta })
@@ -528,7 +528,7 @@ describe("DocumentPane — nút làm mới chỉ icon", () => {
   });
 });
 
-describe("DocumentPane — mục đang / vừa cập nhật", () => {
+describe("DocumentPane - mục đang / vừa cập nhật", () => {
   const meta = { assembled_at_version: 5, spine_version: 5, stale: false };
   const makeDoc = (over: Partial<UseDocumentResult> = {}): UseDocumentResult => ({
     document: fixture,
@@ -665,7 +665,7 @@ describe("followsHeading", () => {
   });
 });
 
-describe("DocumentPane — Nhờ AI soạn mục riêng của mẫu bắt buộc (FLF-278)", () => {
+describe("DocumentPane - Nhờ AI soạn mục riêng của mẫu bắt buộc (FLF-278)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const withCustom: RenderedDocument = {
     ...fixture,
@@ -743,7 +743,7 @@ describe("DocumentPane — Nhờ AI soạn mục riêng của mẫu bắt buộc
   });
 });
 
-describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
+describe("DocumentPane - ảnh theo tham chiếu image-ref", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const fetchImage = vi.mocked(documentImages.fetchDocumentImage);
   const TOKEN = "image-ref:diagram:D1@0123456789abcdef";
@@ -847,7 +847,7 @@ describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
 
   it.each([
     ["404 (không còn trong tài liệu)", new ApiClientError(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh này trong tài liệu.")],
-    ["503 (storage tạm hỏng)", new ApiClientError(503, "IMAGE_UNAVAILABLE", "Tạm thời không tải được ảnh — thử lại sau.")],
+    ["503 (storage tạm hỏng)", new ApiClientError(503, "IMAGE_UNAVAILABLE", "Tạm thời không tải được ảnh - thử lại sau.")],
     ["mạng", new TypeError("Failed to fetch")]
   ])("ảnh gốc media lỗi %s ⇒ câu trung tính + Thử lại, không nói 'định dạng không hỗ trợ'", async (_label, err) => {
     getDocument.mockResolvedValue({ data: withImage(MEDIA), error: null, meta });
@@ -861,7 +861,7 @@ describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
   it("ảnh gốc media lỗi tạm thời ⇒ bấm Thử lại tải lại, lần sau được thì hiện ảnh", async () => {
     getDocument.mockResolvedValue({ data: withImage(MEDIA), error: null, meta });
     fetchImage
-      .mockRejectedValueOnce(new ApiClientError(503, "IMAGE_UNAVAILABLE", "Tạm thời không tải được ảnh — thử lại sau."))
+      .mockRejectedValueOnce(new ApiClientError(503, "IMAGE_UNAVAILABLE", "Tạm thời không tải được ảnh - thử lại sau."))
       .mockResolvedValueOnce(new Blob(["png"], { type: "image/png" }));
     renderWithIntl(<DocumentPane projectId="p1" />);
     fireEvent.click(await screen.findByRole("button", { name: "Thử lại" }));
@@ -871,7 +871,7 @@ describe("DocumentPane — ảnh theo tham chiếu image-ref", () => {
   });
 });
 
-describe("DocumentPane — dải Có bản mới", () => {
+describe("DocumentPane - dải Có bản mới", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   beforeEach(() => {
     getDocument.mockReset();

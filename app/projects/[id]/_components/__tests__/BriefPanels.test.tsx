@@ -18,7 +18,7 @@ const addendum = (id: string, target: string, topic = id): Addendum => ({
   captured_at: AT,
 });
 
-describe("AssumptionSweepPanel — duyệt lẻ hay duyệt lô", () => {
+describe("AssumptionSweepPanel - duyệt lẻ hay duyệt lô", () => {
   it("giả định chạm ngưỡng NFR hoặc bất biến phải duyệt lẻ", () => {
     expect(needsSingleReview({ path: "nfrs[id=N08].threshold" })).toBe(true);
     expect(needsSingleReview({ path: "project.stakes" })).toBe(true);
@@ -41,7 +41,7 @@ describe("AssumptionSweepPanel — duyệt lẻ hay duyệt lô", () => {
   });
 });
 
-describe("AddendumTriagePanel — để dành là đổi đích, không phải xoá", () => {
+describe("AddendumTriagePanel - để dành là đổi đích, không phải xoá", () => {
   it("để dành ⇒ set target_section = fixed:5.4 (S-7.4 nhặt sau)", () => {
     expect(buildRetargetOp("AD08", PARKED_SECTION)).toEqual({
       op: "set",
@@ -55,7 +55,7 @@ describe("AddendumTriagePanel — để dành là đổi đích, không phải x
     expect(buildRetargetOp("AD03", "fixed:2.1").reason).toBe("B-2.2 đổi đích");
   });
 
-  it("bỏ hẳn là op remove — chỉ dùng khi nội dung sai", () => {
+  it("bỏ hẳn là op remove - chỉ dùng khi nội dung sai", () => {
     expect(buildDropOp("AD09")).toEqual({
       op: "remove",
       path: "addendum[id=AD09]",
@@ -64,7 +64,7 @@ describe("AddendumTriagePanel — để dành là đổi đích, không phải x
   });
 });
 
-describe("AddendumTriagePanel — thẻ ghi chú bằng ngôn ngữ user", () => {
+describe("AddendumTriagePanel - thẻ ghi chú bằng ngôn ngữ user", () => {
   it("tiêu đề là mục tài liệu tiếng Việt, không hiện khoá topic thô, không hiện bản tiếng Anh", () => {
     render(<AddendumTriagePanel spine={{ addendum: [addendum("AD05", "fixed:2.1", "Hospital context")] }} onSubmitOps={() => undefined} />);
     expect(screen.getByText("nội dung AD05")).toBeTruthy();
@@ -74,7 +74,7 @@ describe("AddendumTriagePanel — thẻ ghi chú bằng ngôn ngữ user", () =>
   });
 });
 
-describe("BriefSummaryCard — nhóm ghi chú theo mục tài liệu", () => {
+describe("BriefSummaryCard - nhóm ghi chú theo mục tài liệu", () => {
   it("gom theo target_section và sắp xếp ổn định", () => {
     const groups = groupByTarget([
       addendum("AD03", "fixed:2.1"),
@@ -106,7 +106,7 @@ describe("BriefSummaryCard — nhóm ghi chú theo mục tài liệu", () => {
   });
 });
 
-describe("BriefSummaryCard — addendum lõi", () => {
+describe("BriefSummaryCard - addendum lõi", () => {
   const baseProject = {
     name: "P", system_name: null, vision: "English vision", goals: ["English goal"], type: null, domain: null, complexity: null,
     form_factor: [], stakes: null, working_mode: null, review_mode: "balanced", release_scope: { in: [], out: [] },

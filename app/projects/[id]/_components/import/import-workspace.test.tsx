@@ -37,7 +37,7 @@ const setImport = (over: Record<string, unknown>) => {
 
 beforeEach(() => setImport({}));
 
-describe("ImportWorkspace — upload SRS trong layout workspace", () => {
+describe("ImportWorkspace - upload SRS trong layout workspace", () => {
   it("chờ Bắt đầu ⇒ màn đọc khung; Bắt đầu gửi kèm xác nhận bản mới nhất (không hỏi thêm câu nào)", () => {
     const d = doc({});
     setImport({

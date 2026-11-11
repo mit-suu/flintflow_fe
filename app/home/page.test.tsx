@@ -249,7 +249,7 @@ describe("Project Dashboard", () => {
   });
 });
 
-describe("Project Dashboard — Viewer chỉ xem", () => {
+describe("Project Dashboard - Viewer chỉ xem", () => {
   const FOLDER = { _id: "f1", name: "Khách A", color: "blue", projectCount: 0, createdAt: "", updatedAt: "" };
 
   beforeEach(() => {

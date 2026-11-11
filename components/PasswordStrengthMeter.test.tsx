@@ -19,7 +19,7 @@ describe("PasswordStrengthMeter", () => {
   it("qua hết luật cứng nhưng chưa tới ngưỡng ⇒ báo rõ còn thiếu gì", () => {
     renderWithIntl(<PasswordStrengthMeter password="muaroi2!" />);
 
-    expect(screen.getByText(/Trung bình — chưa dùng được/)).toBeInTheDocument();
+    expect(screen.getByText(/Trung bình - chưa dùng được/)).toBeInTheDocument();
     expect(screen.getByText(/từ 12 ký tự, hoặc có đủ cả 4 nhóm/)).toBeInTheDocument();
   });
 
@@ -41,7 +41,7 @@ describe("PasswordStrengthMeter", () => {
   it("locale en ⇒ chữ và ngưỡng đều sang tiếng Anh", () => {
     renderWithIntl(<PasswordStrengthMeter password="muaroi2!" />, "en");
 
-    expect(screen.getByText(/Medium — not usable yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Medium - not usable yet/)).toBeInTheDocument();
     expect(screen.getByText(/use 12 characters or more/)).toBeInTheDocument();
   });
 });

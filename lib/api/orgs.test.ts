@@ -4,7 +4,7 @@ import { onOrganizationChanged, renameOrganization } from "./orgs";
 
 vi.mock("./client", () => ({ apiCall: vi.fn() }));
 
-describe("renameOrganization — phát sự kiện đổi tổ chức", () => {
+describe("renameOrganization - phát sự kiện đổi tổ chức", () => {
   const listener = vi.fn();
   let unsubscribe: () => void;
 

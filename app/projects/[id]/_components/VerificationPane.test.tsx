@@ -69,7 +69,7 @@ describe("VerificationPane", () => {
     expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
   });
 
-  it("cờ vàng vẫn là Bỏ qua — nó không chặn chốt bản", () => {
+  it("cờ vàng vẫn là Bỏ qua - nó không chặn chốt bản", () => {
     renderWithIntl(
       <VerificationPane
         {...baseProps}

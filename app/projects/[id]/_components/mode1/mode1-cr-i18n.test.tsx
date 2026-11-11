@@ -79,7 +79,7 @@ const renderAll = (locale: "vi" | "en") =>
     locale
   );
 
-describe("Change request mode 1 — song ngữ", () => {
+describe("Change request mode 1 - song ngữ", () => {
   it("vi giữ nguyên chữ cũ", () => {
     renderAll("vi");
     expect(screen.getByRole("heading", { name: "Vị trí ảnh hưởng (2)" })).toBeInTheDocument();

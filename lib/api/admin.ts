@@ -258,4 +258,4 @@ export const formatUsd = (value: number) =>
   `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 
 export const formatDateTime = (value: string | null, locale: Locale = DEFAULT_LOCALE) =>
-  value ? new Date(value).toLocaleString(LOCALE_TAG[locale]) : "—";
+  value ? new Date(value).toLocaleString(LOCALE_TAG[locale]) : "-";
