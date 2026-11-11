@@ -63,7 +63,7 @@ const pick = (label: string, version: string) => {
   fireEvent.mouseDown(screen.getByRole("option", { name: version }));
 };
 
-describe("VersionCompare — so sánh 2 version theo block (UC-55)", () => {
+describe("VersionCompare - so sánh 2 version theo block (UC-55)", () => {
   it("ít hơn 2 version ⇒ báo không so sánh được", () => {
     renderWithIntl(<VersionCompare projectId={P} versions={[version("0.1", "imported")]} />);
     expect(screen.getByText("Cần ít nhất 2 version để so sánh.")).toBeInTheDocument();

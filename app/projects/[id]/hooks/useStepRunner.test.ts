@@ -112,7 +112,7 @@ describe("stepRunnerReducer", () => {
     expect(ready.gate?.payload?.flags?.red_delta).toBe(-1);
   });
 
-  it("BUG-07: khôi phục sau reload — đang hỏi thì dựng lại form, ở gate thì dựng lại thẻ duyệt", () => {
+  it("BUG-07: khôi phục sau reload - đang hỏi thì dựng lại form, ở gate thì dựng lại thẻ duyệt", () => {
     const base = {
       step_id: "S-3.1",
       run_id: "r1",

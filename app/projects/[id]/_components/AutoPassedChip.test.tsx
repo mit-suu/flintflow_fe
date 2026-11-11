@@ -11,7 +11,7 @@ beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-describe("AutoPassedChip (FLF-337 — thay đổi tự qua chưa xem)", () => {
+describe("AutoPassedChip (FLF-337 - thay đổi tự qua chưa xem)", () => {
   beforeEach(() =>
     setMockAutoPassed([
       { id: "ap1", step_id: "S-2.1", label_vi: "Actor", reason_vi: "Bước không có gì cần bạn quyết", at: "2026-10-27T01:00:00.000Z", seen: false },

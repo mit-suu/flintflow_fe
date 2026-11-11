@@ -68,7 +68,7 @@ export default function ChangeRequestList({ projectId, readOnly = false }: Chang
   const reviewText = (f: Flag): string =>
     f.target_id && /^(project\.|[a-z_]+\[)/.test(f.target_id)
       ? t("needsReview.field", { what: L.pathLabel(f.target_id) })
-      : t("needsReview.mapping", { section: f.section_id ? L.sectionName(f.section_id) : "—" });
+      : t("needsReview.mapping", { section: f.section_id ? L.sectionName(f.section_id) : "-" });
 
   // "Cần xem" (FLF-343): cờ do BE đặt lúc import — FE chỉ lọc theo luật, không tự suy ra
   useEffect(() => {

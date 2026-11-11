@@ -36,7 +36,7 @@ const tagsOf = (id: string) =>
     .getAllByText(/^(Liên kết field|Nhắc mã|Từ khoá)$/)
     .map((el) => el.textContent);
 
-describe("ImpactList — vị trí ảnh hưởng (C-3, UC-50)", () => {
+describe("ImpactList - vị trí ảnh hưởng (C-3, UC-50)", () => {
   it("không có vị trí ⇒ không render", () => {
     const { container } = renderWithIntl(<ImpactList locations={[]} />);
     expect(container).toBeEmptyDOMElement();
@@ -84,7 +84,7 @@ describe("ImpactList — vị trí ảnh hưởng (C-3, UC-50)", () => {
     expect(tagsOf("L005")).toEqual(["Liên kết field"]);
   });
 
-  it("FLF-375: danh sách chỉ đọc — không có nút sửa tay / sửa trực tiếp ở bất kỳ vị trí nào", () => {
+  it("FLF-375: danh sách chỉ đọc - không có nút sửa tay / sửa trực tiếp ở bất kỳ vị trí nào", () => {
     renderWithIntl(<ImpactList locations={LOCATIONS} />);
     expect(screen.getAllByRole("article")).toHaveLength(5);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();

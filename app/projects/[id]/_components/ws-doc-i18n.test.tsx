@@ -169,7 +169,7 @@ describe.each<Locale>(["en"])("ws-doc i18n (%s)", (locale) => {
       locale
     );
     await waitFor(() => expect(screen.getByText("Vision statement")).toBeInTheDocument());
-    expect(screen.getByText("SRS — Project")).toBeInTheDocument();
+    expect(screen.getByText("SRS - Project")).toBeInTheDocument();
     expect(vietnameseLeftovers(container)).toEqual([]);
     // Modal render qua portal ⇒ đo cả document
     expect(vietnameseLeftovers(document.body)).toEqual([]);

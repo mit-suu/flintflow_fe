@@ -16,7 +16,7 @@ const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 
 const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
 
-describe("GateCard — FLF-337 Chấp nhận, không hỏi lại phần này", () => {
+describe("GateCard - FLF-337 Chấp nhận, không hỏi lại phần này", () => {
   it("bước chạm section ⇒ menu có mục không hỏi lại; chọn ⇒ gửi section rồi Accept; bước không chạm section ⇒ không có mục", () => {
     const onAction = vi.fn();
     const onSkip = vi.fn();
@@ -36,7 +36,7 @@ describe("GateCard — FLF-337 Chấp nhận, không hỏi lại phần này", (
   });
 });
 
-describe("GateCard — tin nhắn AI + chip", () => {
+describe("GateCard - tin nhắn AI + chip", () => {
   it("hiện lời AI (message_vi), chip Đúng rồi đi tiếp / Tôi muốn sửa, và không còn khung form cũ", () => {
     const payload = { type: "gate_ready", step_id: "B-0.1", actions: ALL, regenerate_used: 0, calls_used: 2, message_vi: "Mình hiểu đây là app đặt lịch khám. Bạn xem giúp nhé." } as GateReadyEvent;
     renderWithIntl(<GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
@@ -128,7 +128,7 @@ describe("GateCard — tin nhắn AI + chip", () => {
         empty_sections: [],
         summary: [],
         new_assumptions: [],
-        no_change_reason: "Nền tảng đã chốt ở bước Kể hết ý tưởng — không cần hỏi lại.",
+        no_change_reason: "Nền tảng đã chốt ở bước Kể hết ý tưởng - không cần hỏi lại.",
       } as unknown as GateReadyEvent;
       renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} regenerateUsed={0} wroteOps={false} payload={settled} onAction={vi.fn()} />);
       expect(screen.queryByText(/AI không soạn được nội dung nào ở lượt này/)).not.toBeInTheDocument();
@@ -160,7 +160,7 @@ describe("GateCard — tin nhắn AI + chip", () => {
   });
 });
 
-describe("GateCard — dự án cũ chưa có message_vi", () => {
+describe("GateCard - dự án cũ chưa có message_vi", () => {
   const payload: GateReadyEvent = {
     type: "gate_ready",
     step_id: "S-4.3",
@@ -203,11 +203,11 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
   it("chỉ có giả định hoặc không có gì ⇒ vẫn là một câu đọc được", () => {
     expect(fallbackGateMessage([], undefined, tVi)).toBe("Tôi đã xong bước này. Bạn xem giúp, ổn thì mình đi tiếp nhé.");
     // FLF-260: lý do "không đổi gì" theo ngôn ngữ phiên ⇒ câu bọc cùng ngôn ngữ
-    expect(fallbackGateMessage([], "Nền tảng đã chốt — không cần hỏi lại.", tVi, "vi")).toBe(
-      "Bước này không thay đổi tài liệu: Nền tảng đã chốt — không cần hỏi lại. Bạn xem giúp, ổn thì mình đi tiếp nhé."
+    expect(fallbackGateMessage([], "Nền tảng đã chốt - không cần hỏi lại.", tVi, "vi")).toBe(
+      "Bước này không thay đổi tài liệu: Nền tảng đã chốt - không cần hỏi lại. Bạn xem giúp, ổn thì mình đi tiếp nhé."
     );
-    expect(fallbackGateMessage([], "The platform is already settled — no need to ask again.", tVi, "vi")).toBe(
-      "This step doesn't change the document: The platform is already settled — no need to ask again. Take a look — if it looks right, let's move on."
+    expect(fallbackGateMessage([], "The platform is already settled - no need to ask again.", tVi, "vi")).toBe(
+      "This step doesn't change the document: The platform is already settled - no need to ask again. Take a look - if it looks right, let's move on."
     );
     expect(fallbackGateMessage([{ kind: "add", collection: "assumptions", id: "AS3", title_vi: "X" }], undefined, tVi)).toMatch(/^Tôi đã xong bước này/);
   });
@@ -215,10 +215,10 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
   it("giao diện tiếng Anh: câu tạm tiếng Anh; lý do tiếng Việt vẫn giữ câu bọc cùng ngôn ngữ với lý do", () => {
     expect(
       fallbackGateMessage([{ kind: "update", collection: "project", id: null, title_vi: "complexity: small" }], undefined, tEn, "en")
-    ).toBe("I’ve updated: updated 1 project info (Complexity: Small). Take a look — if it looks right, let’s move on.");
-    expect(fallbackGateMessage([], undefined, tEn, "en")).toBe("I’ve finished this step. Take a look — if it looks right, let’s move on.");
+    ).toBe("I’ve updated: updated 1 project info (Complexity: Small). Take a look - if it looks right, let’s move on.");
+    expect(fallbackGateMessage([], undefined, tEn, "en")).toBe("I’ve finished this step. Take a look - if it looks right, let’s move on.");
     expect(fallbackGateMessage([], "Already settled", tEn, "en")).toBe(
-      "This step doesn’t change the document: Already settled. Take a look — if it looks right, let’s move on."
+      "This step doesn’t change the document: Already settled. Take a look - if it looks right, let’s move on."
     );
     expect(fallbackGateMessage([], "Nền tảng đã chốt", tEn, "en")).toMatch(/^Bước này không thay đổi tài liệu: Nền tảng đã chốt\./);
   });
@@ -311,7 +311,7 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
         stepId="S-5.3@S03"
         actions={ALL}
         regenerateUsed={0}
-        payload={{ ...payload, summary: [], new_assumptions: [], no_change_reason: "Bước sổ sách của vòng màn hình — không có nội dung để ghi." }}
+        payload={{ ...payload, summary: [], new_assumptions: [], no_change_reason: "Bước sổ sách của vòng màn hình - không có nội dung để ghi." }}
         onAction={vi.fn()}
       />
     );
@@ -330,7 +330,7 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
   });
 });
 
-describe("GateCard — cờ và bảng", () => {
+describe("GateCard - cờ và bảng", () => {
   it("cờ đỏ chặn baseline ⇒ một câu + chip Xem chỗ bị chặn dẫn tới step xử lý", () => {
     const onGoToStep = vi.fn();
     renderWithIntl(
@@ -458,7 +458,7 @@ describe("unsettledAssumptions", () => {
     expect(unsettledAssumptions(undefined, [A("AS-STEP")], undefined).map((a) => a.id)).toEqual(["AS-STEP"]);
   });
 
-  it("bỏ giả định đã chốt trong Spine — khôi phục sau reload không xác nhận lại", () => {
+  it("bỏ giả định đã chốt trong Spine - khôi phục sau reload không xác nhận lại", () => {
     expect(unsettledAssumptions([A("AS1"), A("AS2")], undefined, new Set(["AS2"])).map((a) => a.id)).toEqual(["AS1"]);
     expect(unsettledAssumptions(undefined, undefined, new Set(["AS1"]))).toEqual([]);
   });

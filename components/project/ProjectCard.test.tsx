@@ -19,7 +19,7 @@ const progress = (over: Partial<ProgressResponse["progress"]> = {}, readiness: P
   sections: [],
 });
 
-describe("nextStepLabel — việc tiếp theo lấy từ step registry", () => {
+describe("nextStepLabel - việc tiếp theo lấy từ step registry", () => {
   it("đang tải ⇒ nói đang tải, không hiện nhãn sai", () => {
     expect(nextStepLabel(undefined, tNext())).toBe("Đang tải…");
   });
@@ -52,7 +52,7 @@ describe("nextStepLabel — việc tiếp theo lấy từ step registry", () => 
   });
 });
 
-describe("ProjectCard — màu và nhãn theo source mode", () => {
+describe("ProjectCard - màu và nhãn theo source mode", () => {
   const baseProject: Project = {
     _id: "p1",
     name: "Lumen",
@@ -75,7 +75,7 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(container.querySelector("article")?.className.split(/\s+/)).toContain("bg-surface-card");
   });
 
-  it("nguồn mặc định (Mẫu chuẩn FlintFlow) không ghi nhãn — gần như mọi dự án đều là nó", () => {
+  it("nguồn mặc định (Mẫu chuẩn FlintFlow) không ghi nhãn - gần như mọi dự án đều là nó", () => {
     renderWithIntl(<ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
     expect(screen.queryByText("Mẫu chuẩn FlintFlow")).toBeNull();
   });
@@ -206,7 +206,7 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
   });
 });
 
-describe("phasePosition — đếm theo phase để thanh không thụt lùi khi tổng bước được chốt", () => {
+describe("phasePosition - đếm theo phase để thanh không thụt lùi khi tổng bước được chốt", () => {
   it.each([
     [undefined, { done: 0, current: -1 }],
     [null, { done: 0, current: -1 }],

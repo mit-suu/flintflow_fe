@@ -49,7 +49,7 @@ const renderLoaded = async (user: AdminUserDetail = ACTIVE_USER) => {
   await screen.findByText("Trạng thái tài khoản");
 };
 
-describe("AdminUserDetailPage — khoá / mở khoá tài khoản", () => {
+describe("AdminUserDetailPage - khoá / mở khoá tài khoản", () => {
   beforeEach(() => {
     vi.mocked(fetchAdminUser).mockReset();
     vi.mocked(setAdminUserStatus).mockReset();

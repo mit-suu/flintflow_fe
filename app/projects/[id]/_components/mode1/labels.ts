@@ -19,7 +19,7 @@ export const CONCLUSION_KINDS: readonly LocationConclusion[] = ["edit", "comment
 const DATE_LOCALES: Readonly<Record<string, string>> = { vi: "vi-VN", en: "en-GB" };
 
 export const formatDateTime = (iso: string | null | undefined, locale = "vi"): string => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(DATE_LOCALES[locale] ?? locale, { dateStyle: "short", timeStyle: "short" });
 };

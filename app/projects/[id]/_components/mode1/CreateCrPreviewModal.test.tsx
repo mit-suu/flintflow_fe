@@ -52,7 +52,7 @@ describe("CreateCrPreviewModal", () => {
         onCancel={vi.fn()}
       />
     );
-    expect(screen.getByText(/Bản xem trước lỗi — vẫn tạo được change request/)).toBeInTheDocument();
+    expect(screen.getByText(/Bản xem trước lỗi - vẫn tạo được change request/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tạo CR (không kèm bản xem trước)" }));
     const href = push.mock.calls[0][0] as string;
     expect(readChatCrDraft(new URLSearchParams(href.split("?")[1]))).toMatchObject({ text: "Đổi tầm nhìn sản phẩm", source: "verbal", preview_id: undefined });

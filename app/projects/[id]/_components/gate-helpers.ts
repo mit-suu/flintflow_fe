@@ -86,7 +86,7 @@ const VIETNAMESE_LETTER = /[àáạảãâầấậẩẫăằắặẳẵèé�
  */
 const NO_CHANGE_IN_REASON_LANGUAGE: Record<"vi" | "en", (reason: string) => string> = {
   vi: (reason) => `Bước này không thay đổi tài liệu: ${reason}. Bạn xem giúp, ổn thì mình đi tiếp nhé.`,
-  en: (reason) => `This step doesn't change the document: ${reason}. Take a look — if it looks right, let's move on.`,
+  en: (reason) => `This step doesn't change the document: ${reason}. Take a look - if it looks right, let's move on.`,
 };
 /** Số nhóm / số mục mỗi nhóm nêu tên trong câu tạm — dài hơn thì user đọc tài liệu. */
 const FALLBACK_MAX_GROUPS = 4;

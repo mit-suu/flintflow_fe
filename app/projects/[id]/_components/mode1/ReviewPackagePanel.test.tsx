@@ -57,7 +57,7 @@ const serve = (initial: ReviewPackage) => {
   return calls;
 };
 
-describe("ReviewPackagePanel (FLF-330 — gói duyệt kiểu pull request)", () => {
+describe("ReviewPackagePanel (FLF-330 - gói duyệt kiểu pull request)", () => {
   it("Analyst: thấy nhãn bản nháp + danh sách CR; Gửi Lead duyệt ⇒ pending, bản nháp khoá, không có nút của Lead", async () => {
     const calls = serve(pkg());
     const onChanged = vi.fn();

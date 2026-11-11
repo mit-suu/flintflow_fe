@@ -19,7 +19,7 @@ const tra = (id: string) => {
   fireEvent.click(screen.getByRole("button", { name: "Tra" }));
 };
 
-describe("TraceabilityMap — bản đồ truy vết có chiều", () => {
+describe("TraceabilityMap - bản đồ truy vết có chiều", () => {
   const getTraceability = vi.mocked(spineApi.getTraceability);
 
   beforeEach(() => {
@@ -172,7 +172,7 @@ const SPINE = {
   business_rules: [],
 } as never;
 
-describe("TraceabilityMap — chọn thực thể từ Spine đang mở", () => {
+describe("TraceabilityMap - chọn thực thể từ Spine đang mở", () => {
   const getTraceability = vi.mocked(spineApi.getTraceability);
 
   beforeEach(() => {
@@ -183,13 +183,13 @@ describe("TraceabilityMap — chọn thực thể từ Spine đang mở", () => 
   it("có spine ⇒ chọn bằng danh sách tên, không còn ô gõ mã", () => {
     renderWithIntl(<TraceabilityMap projectId="p1" spine={SPINE} />);
     expect(screen.queryByLabelText("Mã thực thể")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("A01 — Receptionist");
+    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("A01 - Receptionist");
   });
 
   it("chọn phần tử khác ⇒ tra đúng mã đó", async () => {
     renderWithIntl(<TraceabilityMap projectId="p1" spine={SPINE} />);
     fireEvent.click(screen.getByRole("combobox", { name: "Mục" }));
-    fireEvent.mouseDown(screen.getByRole("option", { name: "A02 — Doctor" }));
+    fireEvent.mouseDown(screen.getByRole("option", { name: "A02 - Doctor" }));
     fireEvent.click(screen.getByRole("button", { name: "Tra" }));
 
     await screen.findByText("Không tìm thấy thực thể này trong tài liệu.");
@@ -200,7 +200,7 @@ describe("TraceabilityMap — chọn thực thể từ Spine đang mở", () => 
     renderWithIntl(<TraceabilityMap projectId="p1" spine={SPINE} />);
     fireEvent.click(screen.getByRole("combobox", { name: "Loại" }));
     fireEvent.mouseDown(screen.getByRole("option", { name: "Use case" }));
-    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("UC-03 — Book appointment");
+    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("UC-03 - Book appointment");
 
     fireEvent.click(screen.getByRole("button", { name: "Tra" }));
     await screen.findByText("Không tìm thấy thực thể này trong tài liệu.");

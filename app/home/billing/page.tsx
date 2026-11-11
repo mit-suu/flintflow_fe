@@ -35,7 +35,7 @@ const signedAmount = (tx: CreditTransaction) => {
 };
 
 /** Ô không có dữ liệu (dòng cũ chưa ghi step / token, giao dịch không gắn dự án). */
-const EMPTY_CELL = "—";
+const EMPTY_CELL = "-";
 
 const PAYMENT_TONE: Record<PaymentIntentStatus, BadgeTone> = {
   succeeded: "success",

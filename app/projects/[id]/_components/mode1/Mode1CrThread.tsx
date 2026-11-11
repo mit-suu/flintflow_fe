@@ -186,7 +186,7 @@ function ConflictCard({ loc, chat, request }: { loc: CrLocation; chat: CrChat; r
   // BF §3.2: ① so với ② = người khác đã đổi gì; ① so với ③ = mình định đổi gì — chỗ khác nhau tô màu như Track Changes
   const marked = (body: string | null, ins: string) =>
     body === null
-      ? "—"
+      ? "-"
       : diffTokens(c.at_proposal, body).map((tk, i) => (
           <span key={i}>
             {tk.kind === "same" ? tk.text : tk.kind === "del" ? <del className="text-[#B03030]">{tk.text}</del> : <ins className={`no-underline rounded px-0.5 ${ins}`}>{tk.text}</ins>}{" "}
@@ -352,7 +352,7 @@ function ApprovedBatch({ locations, failing, chat }: { locations: CrLocation[]; 
             <details>
               <summary className="cursor-pointer">
                 <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : locTitle(l)}</strong>
-                <span className="text-on-surface-muted"> — {sectionTitle(l.section_id, l.section_title)}</span>
+                <span className="text-on-surface-muted"> - {sectionTitle(l.section_id, l.section_title)}</span>
               </summary>
               <div className="mt-1.5">
                 {l.proposal && (isDiagramLocation(l) ? <OriginalDiagramChange loc={l} /> : <ProposalDiff loc={l} />)}
@@ -437,7 +437,7 @@ function BatchRow({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
       <div className="flex items-start gap-2">
         <p className="flex-1 min-w-0 text-body">
           <strong className="text-on-surface">{sectionTitle(loc.section_id, loc.section_title)}</strong>
-          <span className="text-on-surface-muted"> — {title}</span>
+          <span className="text-on-surface-muted"> - {title}</span>
           {first ? (
             <span className="block text-caption">
               <del className="text-[#B03030]">{short(first.before)}</del>
@@ -546,7 +546,7 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
           <li key={l.location_id} className="flex flex-col gap-1">
             <span>
               <strong className="text-on-surface">{isDiagramLocation(l) ? diagramLocationTitle(l, tDiagram) : locTitle(l)}</strong>
-              {l.reason ? ` — ${humanizeText(l.reason)}` : ""}
+              {l.reason ? ` - ${humanizeText(l.reason)}` : ""}
             </span>
             {isDiagramLocation(l) ? (
               // BE tính lại ngay (không AI): dữ liệu hình thể hiện đã đổi thì đề xuất thay hình quay lại
@@ -751,7 +751,7 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
           <ul className="list-disc pl-5">
             {d.locations.map((l) => (
               <li key={l.location_id}>
-                {sectionTitle(l.section_id, l.section_title)} — {locTitle(l)}
+                {sectionTitle(l.section_id, l.section_title)} - {locTitle(l)}
               </li>
             ))}
           </ul>
@@ -794,9 +794,9 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
                 {blockers.map((l) => (
                   <li key={l.location_id}>
                     <button type="button" onClick={() => jump(l.location_id)} className="text-left underline text-[#B03030] font-semibold">
-                      {sectionTitle(l.section_id, l.section_title)} — {locTitle(l)}
+                      {sectionTitle(l.section_id, l.section_title)} - {locTitle(l)}
                     </button>
-                    <span className="text-on-surface-muted"> — {l.conclusion === null ? t("blockerMissing") : t("blockerFailed")}</span>
+                    <span className="text-on-surface-muted"> - {l.conclusion === null ? t("blockerMissing") : t("blockerFailed")}</span>
                   </li>
                 ))}
               </ul>

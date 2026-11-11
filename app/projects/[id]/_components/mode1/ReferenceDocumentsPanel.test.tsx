@@ -15,7 +15,7 @@ beforeEach(() => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-describe("ReferenceDocumentsPanel (FLF-338 — tài liệu tham khảo ⇒ rút yêu cầu)", () => {
+describe("ReferenceDocumentsPanel (FLF-338 - tài liệu tham khảo ⇒ rút yêu cầu)", () => {
   it("liệt kê tài liệu; Rút yêu cầu ⇒ hỏi credit trước (cổng cứng §3.6); Chạy ⇒ danh sách rút hiện ra; duyệt ⇒ onCrsCreated", async () => {
     const onCrsCreated = vi.fn();
     renderWithIntl(<ReferenceDocumentsPanel projectId={MODE1_PROJECT_ID} onCrsCreated={onCrsCreated} />);
@@ -26,7 +26,7 @@ describe("ReferenceDocumentsPanel (FLF-338 — tài liệu tham khảo ⇒ rút 
     expect(dialog).toHaveTextContent(/tốn ~1 credit/);
     fireEvent.click(screen.getByRole("button", { name: "Chạy" }));
 
-    expect(await screen.findByRole("heading", { name: /minutes.txt — 3 yêu cầu/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /minutes.txt - 3 yêu cầu/ })).toBeInTheDocument();
     expect(screen.getByText("3 yêu cầu chờ duyệt")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Rút lại" })).toBeInTheDocument();
 

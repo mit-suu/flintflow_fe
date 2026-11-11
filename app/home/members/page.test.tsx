@@ -87,7 +87,7 @@ beforeEach(() => {
   vi.mocked(decodeJwt).mockReturnValue({ userId: ME });
 });
 
-describe("trang thành viên — Lead", () => {
+describe("trang thành viên - Lead", () => {
   it("đổi vai trò một thành viên khác", async () => {
     setup("lead");
     vi.mocked(changeMemberRole).mockResolvedValue(member("u-2", "viewer", "Bình"));
@@ -149,7 +149,7 @@ describe("trang thành viên — Lead", () => {
   it("BE từ chối vì BR-02 thì hiện câu lỗi đã dịch", async () => {
     setup("lead");
     vi.mocked(changeMemberRole).mockRejectedValue(
-      new Error("Tổ chức phải còn ít nhất một Lead — hãy chỉ định người khác làm Lead trước.")
+      new Error("Tổ chức phải còn ít nhất một Lead - hãy chỉ định người khác làm Lead trước.")
     );
     renderWithIntl(<MembersPage />);
 
@@ -158,7 +158,7 @@ describe("trang thành viên — Lead", () => {
   });
 });
 
-describe("trang thành viên — không phải Lead", () => {
+describe("trang thành viên - không phải Lead", () => {
   it("Viewer chỉ xem, không có công cụ quản lý và không tải lời mời", async () => {
     setup("viewer");
     renderWithIntl(<MembersPage />);
@@ -266,7 +266,7 @@ describe("xoá tổ chức", () => {
 });
 
 describe("góp ý UI tổ chức (kiểm bằng Playwright 2026-10-04)", () => {
-  it("email người được mời là bắt buộc — bỏ trống thì báo, không gọi BE", async () => {
+  it("email người được mời là bắt buộc - bỏ trống thì báo, không gọi BE", async () => {
     setup("lead");
     renderWithIntl(<MembersPage />);
 
@@ -384,7 +384,7 @@ describe("đổi tên tổ chức (UC-80)", () => {
   });
 });
 
-describe("FLF-303 — Analyst đề xuất mời, Lead duyệt", () => {
+describe("FLF-303 - Analyst đề xuất mời, Lead duyệt", () => {
   const awaiting: Invitation = {
     id: "inv-9",
     email: "moi@flintflow.test",

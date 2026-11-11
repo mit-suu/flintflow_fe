@@ -139,14 +139,14 @@ const expectSameAsUpload = (upload: Buffer, downloaded: Buffer, what: string) =>
   const missing = expected.filter((t) => !actual.includes(t));
   const extra = actual.filter((t) => !expected.includes(t));
   console.log(`[e2e] ${what}: ${actual.length}/${expected.length} đoạn; thiếu ${missing.length}, thừa ${extra.length}`);
-  if (missing.length || extra.length) console.log(`[e2e] ${what} — thiếu: ${JSON.stringify(missing.slice(0, 5))} · thừa: ${JSON.stringify(extra.slice(0, 5))}`);
+  if (missing.length || extra.length) console.log(`[e2e] ${what} - thiếu: ${JSON.stringify(missing.slice(0, 5))} · thừa: ${JSON.stringify(extra.slice(0, 5))}`);
   expect(actual, `${what}: chữ y hệt file upload`).toEqual(expected);
   expect(actual.join("\n")).not.toContain("Import SRS");
   expect(actual.join("\n")).not.toMatch(/Baseline 0\.1 signed|Ký baseline 0\.1/);
   expect(headerXml(downloaded), `${what}: watermark DRAFT`).toContain('string="DRAFT"');
 };
 
-test.describe("Upload SRS có sẵn — tải về giống file upload", () => {
+test.describe("Upload SRS có sẵn - tải về giống file upload", () => {
   test("cấu trúc FlintFlow đủ mục: bản 0.1 và Export Word bản nháp chữ y hệt file upload", async ({ page, request }) => {
     test.skip(!FPT_DOCX, "đặt E2E_EXISTING_FPT_DOCX");
     await login(page);
@@ -198,7 +198,7 @@ test.describe("Upload SRS có sẵn — tải về giống file upload", () => {
     await expect(reading.getByText(/^bước S-/)).toHaveCount(0);
     await expect(reading.getByText(/giữ nguyên file của bạn làm bản gốc 0\.1 rồi mở chỗ sửa/)).toBeVisible();
     // Badge trạng thái ở header theo đúng trạng thái import (lỗi cũ: vẫn "Đang trích field")
-    await expect(page.getByText("Chưa hoàn thiện — chờ bạn quyết")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Chưa hoàn thiện - chờ bạn quyết")).toBeVisible({ timeout: 30_000 });
     await snap(page, "gap-reading");
 
     await reading.getByRole("button", { name: "Tiếp tục sửa với FlintFlow" }).click();

@@ -47,7 +47,7 @@ const proposal = (over: Partial<NonNullable<CrLocation["proposal"]>> = {}): NonN
 const card = () => screen.getByRole("article", { name: "Vị trí L001" });
 
 // FLF-279 phần B (§4.17): chip "Theo nghĩa" từng trống chữ vì `LocationFoundBy` ở FE thiếu `vector`.
-describe("ProposalCard — vị trí tìm theo nghĩa", () => {
+describe("ProposalCard - vị trí tìm theo nghĩa", () => {
   const chip = () => screen.getByText(/^Theo nghĩa/);
 
   it("chip mang nhãn và độ khớp", () => {
@@ -83,7 +83,7 @@ describe("ProposalCard — vị trí tìm theo nghĩa", () => {
   });
 });
 
-describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81, FLF-186)", () => {
+describe("ProposalCard - đề xuất cho một phần tử Spine (C-4, UC-81, FLF-186)", () => {
   it("chưa kết luận: hiện mục, tên phần tử, nguồn tìm thấy, bước sở hữu; không có huy hiệu kết luận", () => {
     renderWithIntl(
       <ProposalCard
@@ -93,7 +93,7 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
     const c = card();
     // FLF-375: tiêu đề = mục của tài liệu rồi “— tên chỗ” (CR cũ chưa có `display` ⇒ nhãn path, không lộ [id=…])
     expect(within(c).getByText("2.2.2 Use Case Descriptions")).toBeInTheDocument();
-    expect(within(c).getByText("— Use case UC-2.4")).toBeInTheDocument();
+    expect(within(c).getByText("- Use case UC-2.4")).toBeInTheDocument();
     expect(c.textContent).not.toContain("[id=");
     expect(within(c).getByText("Liên kết field")).toBeInTheDocument();
     expect(within(c).getByText("Nhắc mã")).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe("ProposalCard — đề xuất cho một phần tử Spine (C-4, UC-81,
   });
 });
 
-describe("ProposalCard — chỉ đọc (FLF-375: thao tác làm trong khung chat)", () => {
+describe("ProposalCard - chỉ đọc (FLF-375: thao tác làm trong khung chat)", () => {
   it("không có nút sửa tay / sửa trực tiếp / nhờ AI sửa, không form giá trị mới", () => {
     renderWithIntl(<ProposalCard location={location({ conclusion: "edit", owner_step: "S-6.4", manual: true, proposal: proposal({ new_text: NEW }) })} />);
     const c = card();
@@ -155,7 +155,7 @@ describe("ProposalCard — chỉ đọc (FLF-375: thao tác làm trong khung cha
     expect(within(c).queryByText("sửa tay")).not.toBeInTheDocument();
   });
 
-  it("có `display` ⇒ tiêu đề “mục — loại: tên”, thay đổi hiện dạng câu trước / sau (không diff JSON)", () => {
+  it("có `display` ⇒ tiêu đề “mục - loại: tên”, thay đổi hiện dạng câu trước / sau (không diff JSON)", () => {
     renderWithIntl(
       <ProposalCard
         location={location({
@@ -167,7 +167,7 @@ describe("ProposalCard — chỉ đọc (FLF-375: thao tác làm trong khung cha
     );
     const c = card();
     expect(within(c).getByText("2.2.2 Use Case Descriptions")).toBeInTheDocument();
-    expect(within(c).getByText(/^— .+: Đăng xuất$/)).toBeInTheDocument();
+    expect(within(c).getByText(/^- .+: Đăng xuất$/)).toBeInTheDocument();
     expect(within(c).getByText("Đăng xuất khỏi trình duyệt hiện tại.").tagName).toBe("DEL");
     expect(within(c).getByText("Đăng xuất khỏi mọi thiết bị.").tagName).toBe("INS");
     expect(within(c).queryByLabelText("Thay đổi theo field")).not.toBeInTheDocument();
@@ -179,8 +179,8 @@ describe("ProposalCard — chỉ đọc (FLF-375: thao tác làm trong khung cha
   });
 });
 
-describe("ProposalCard — vị trí sơ đồ gốc (§4.13)", () => {
-  const image = { kind: "image", text: "Figure 2 — Use case", rows: null, image_ref: "word/media/image2.png", diagram: { kind: "usecase", source_hash: "h" } };
+describe("ProposalCard - vị trí sơ đồ gốc (§4.13)", () => {
+  const image = { kind: "image", text: "Figure 2 - Use case", rows: null, image_ref: "word/media/image2.png", diagram: { kind: "usecase", source_hash: "h" } };
   const para = { kind: "paragraph", text: "Vẽ bằng draw.io.", rows: null, image_ref: null };
   const before = json({ id: "CS03", heading: "", level: 3, source: "import", blocks: [para, image] });
   const after = json({ id: "CS03", heading: "", level: 3, source: "import", blocks: [para] });
@@ -194,11 +194,11 @@ describe("ProposalCard — vị trí sơ đồ gốc (§4.13)", () => {
       />
     );
     const card = screen.getByRole("article", { name: "Vị trí L001" });
-    expect(within(card).getByText("Hình gốc — Sơ đồ use case")).toBeInTheDocument();
+    expect(within(card).getByText("Hình gốc - Sơ đồ use case")).toBeInTheDocument();
     expect(within(card).getByText("Hình gốc")).toBeInTheDocument();
     const change = within(card).getByLabelText("Thay hình gốc");
     expect(change).toHaveTextContent("Sơ đồ use case");
-    expect(change).toHaveTextContent("Figure 2 — Use case");
+    expect(change).toHaveTextContent("Figure 2 - Use case");
     expect(within(card).queryByLabelText("Thay đổi theo field")).toBeNull();
   });
 

@@ -7,7 +7,7 @@ import type { DocumentVersionCandidate } from "@/types/document";
 const V1: DocumentVersionCandidate = { id: "d1", name: "SRS_KhachHang_v1.docx", doc_code: 1, reason: "same_name", similarity: 0.42 };
 const DRAFT: DocumentVersionCandidate = { id: "d2", name: "Draft.docx", doc_code: 2, reason: "similar_content", similarity: 0.83 };
 
-describe("DocumentVersionCard (FLF-398 — có thể là bản mới của tài liệu đã có)", () => {
+describe("DocumentVersionCard (FLF-398 - có thể là bản mới của tài liệu đã có)", () => {
   it("một ứng viên: hiện tên + mã + lý do; Thay bản cũ / Giữ cả hai / Bỏ qua gọi đúng lựa chọn", () => {
     const onChoose = vi.fn();
     renderWithIntl(<DocumentVersionCard fileName="SRS_KhachHang_v2.docx" candidates={[V1]} onChoose={onChoose} />);

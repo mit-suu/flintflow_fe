@@ -35,7 +35,7 @@ beforeEach(() => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
+describe("WorkspacePage - project mode 1 (v3 bám BPMN)", () => {
   it("chưa đọc xong file ⇒ màn tải / đọc khung ngay trong layout workspace, không chuyển sang trang /import", async () => {
     renderWithIntl(<WorkspacePage />);
     expect(await screen.findByText(/Tải file SRS|mục có nội dung|FlintFlow đang đọc/)).toBeInTheDocument();
@@ -74,10 +74,10 @@ describe("WorkspacePage — project mode 1 (v3 bám BPMN)", () => {
     expect(screen.queryByLabelText("Hướng dẫn sửa tài liệu")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hoàn tác" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Viết lại/ })).not.toBeInTheDocument();
-  }, 30_000); // dựng cả workspace trên msw — chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts) // dựng cả workspace trên msw — chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts)
+  }, 30_000); // dựng cả workspace trên msw - chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts) // dựng cả workspace trên msw - chậm khi cả suite cùng chạy (hạn chờ findBy*/waitFor ở test/setup.ts)
 });
 
-describe("WorkspacePage — FLF-318: Lead chốt baseline dự án tạo SRS", () => {
+describe("WorkspacePage - FLF-318: Lead chốt baseline dự án tạo SRS", () => {
   it("dự án đổi sang mode import sau khi duyệt ⇒ không tải lại trang, workspace chuyển sang mode 1 kèm thông báo", async () => {
     await importToGapReview();
     // Lần đọc đầu: dự án còn là tạo SRS; sau khi duyệt BE trả mode import + converted_from
@@ -103,12 +103,12 @@ describe("WorkspacePage — FLF-318: Lead chốt baseline dự án tạo SRS", (
     converted = true;
     act(() => signalProjectModeMaybeChanged());
     expect(await screen.findByRole("complementary", { name: "Cờ, change request & version" })).toBeInTheDocument();
-    expect(screen.getByText(/Baseline đã chốt — dự án chuyển sang chế độ quản lý thay đổi/)).toBeInTheDocument();
+    expect(screen.getByText(/Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi/)).toBeInTheDocument();
     expect(router.replace).not.toHaveBeenCalled();
   }, 30_000);
 });
 
-describe("WorkspacePage — FLF-318: thêm / xoá use case ở mode 1 đi vòng hỏi đáp như trước baseline", () => {
+describe("WorkspacePage - FLF-318: thêm / xoá use case ở mode 1 đi vòng hỏi đáp như trước baseline", () => {
   it("lệnh 'thêm UC …' ⇒ gọi bản xem trước (không mở CR ngay); lệnh khác ⇒ mở CR như cũ", async () => {
     await importToGapReview();
     const previews: string[] = [];

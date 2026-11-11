@@ -64,7 +64,7 @@ describe("ProfilePage", () => {
   it("FLF-310: chưa chọn tổ chức ⇒ không hiện số credit, báo credit nằm ở ví tổ chức", async () => {
     await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
     expect(screen.queryByText("0 credit")).not.toBeInTheDocument();
-    expect(screen.getByText("Chưa chọn tổ chức — credit nằm ở ví của tổ chức")).toBeInTheDocument();
+    expect(screen.getByText("Chưa chọn tổ chức - credit nằm ở ví của tổ chức")).toBeInTheDocument();
   });
 
   it("sửa tên hiển thị ⇒ gọi updateMyName và hiện tên mới", async () => {

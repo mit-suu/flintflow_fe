@@ -20,7 +20,7 @@ beforeEach(() => {
   vi.mocked(uploadProjectDocument).mockReset();
 });
 
-describe("project-uploads — tài liệu tham khảo (FLF-398)", () => {
+describe("project-uploads - tài liệu tham khảo (FLF-398)", () => {
   it("tải lần lượt; file trùng ⇒ skipped kèm câu báo; Đóng ⇒ ẩn dòng", async () => {
     const order: string[] = [];
     vi.mocked(uploadProjectDocument).mockImplementation(async (_p, file) => {

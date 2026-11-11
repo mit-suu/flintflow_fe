@@ -147,7 +147,7 @@ describe("tổ chức đang mở", () => {
   });
 });
 
-describe("AppShell — số dư theo vai trò", () => {
+describe("AppShell - số dư theo vai trò", () => {
   beforeEach(() => {
     vi.mocked(fetchBalance).mockClear();
   });

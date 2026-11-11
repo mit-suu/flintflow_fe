@@ -42,7 +42,7 @@ afterAll(() => mockServer.close());
 
 const version = async () => (await getSpine(P)).data!.spine_version;
 
-describe("view/page.tsx — read-only projection (UC 1.14)", () => {
+describe("view/page.tsx - read-only projection (UC 1.14)", () => {
   it("có heading section, ẩn hoàn toàn flags/readiness/stale/by/reason của change", async () => {
     const base_version = await version();
     await applyChanges(P, {
@@ -94,7 +94,7 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
   });
 });
 
-describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
+describe("view/page.tsx - comment ghim vào nội dung (UC-49)", () => {
   it("bấm 💬 ở một mục ⇒ soạn comment ghim vào mục đó trên bản nháp ⇒ đăng xong hiện trong panel + số comment cạnh mục", async () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
 
@@ -142,7 +142,7 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
 
     renderWithIntl(<ReadOnlyDocumentPage />);
 
-    expect(await screen.findByText(/Viewer chỉ comment được trên phiên bản đã phát hành — dự án chưa có bản nào/)).toBeInTheDocument();
+    expect(await screen.findByText(/Viewer chỉ comment được trên phiên bản đã phát hành - dự án chưa có bản nào/)).toBeInTheDocument();
     expect(await screen.findByText(/1\. Product Overview/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Comment mục/ })).not.toBeInTheDocument();
     // Không có bản phát hành ⇒ không có nút tải; quay về danh sách dự án, không về workspace
@@ -241,7 +241,7 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
   });
 });
 
-describe("view/page.tsx — chip ngôn ngữ chỉ đọc (FLF-265)", () => {
+describe("view/page.tsx - chip ngôn ngữ chỉ đọc (FLF-265)", () => {
   beforeEach(() => resetMockTranslationState());
 
   const chip = async () => {

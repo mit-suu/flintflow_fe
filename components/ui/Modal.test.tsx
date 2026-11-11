@@ -55,7 +55,7 @@ describe("Modal", () => {
   });
 });
 
-describe("Modal — focus", () => {
+describe("Modal - focus", () => {
   function Harness() {
     const [open, setOpen] = useState(false);
     return (

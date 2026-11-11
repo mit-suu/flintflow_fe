@@ -36,8 +36,8 @@ const short = (
   deletedText: string,
   readableValue: (value: unknown, names?: RefNames) => string
 ): string => {
-  if (value === undefined) return "—";
-  if (value === null) return "—";
+  if (value === undefined) return "-";
+  if (value === null) return "-";
   if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return deletedText;
   const text = readableValue(resolveRefs(field, value, names), names);
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;

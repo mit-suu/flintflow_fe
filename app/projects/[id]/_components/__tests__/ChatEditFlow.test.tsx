@@ -136,7 +136,7 @@ describe("EditHistory", () => {
   });
 });
 
-describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
+describe("ChatInput - chip Sửa tài liệu & thu gọn", () => {
   const inputProps = {
     inputMessage: "",
     setInputMessage: vi.fn(),

@@ -10,7 +10,7 @@ const clearCookies = () => {
   }
 };
 
-describe("saveAuthToken — chế độ Ghi nhớ tài khoản", () => {
+describe("saveAuthToken - chế độ Ghi nhớ tài khoản", () => {
   afterEach(() => {
     localStorage.clear();
     sessionStorage.clear();

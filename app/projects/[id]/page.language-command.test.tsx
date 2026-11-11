@@ -86,7 +86,7 @@ const type = async (text: string) => {
 /** Lượt gửi tới AI: chạy bước, trả lời, cổng, chat hỏi đáp, lệnh sửa. */
 const aiWrites = () => writes.filter((w) => /\/steps\/|\/phases\/|\/messages\/stream|\/changes|\/change-requests/.test(w.path));
 
-describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FLF-265 §3.7)", () => {
+describe("WorkspacePage - lệnh đổi ngôn ngữ tài liệu trong chat (FLF-265 §3.7)", () => {
   it("dự án en: lệnh dịch sang tiếng Việt ⇒ thẻ xác nhận, không gửi cho AI; Đồng ý ⇒ PATCH ngôn ngữ, chip đổi, mở hộp dịch", async () => {
     renderWithIntl(<WorkspacePage />);
     expect(await screen.findByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("EN");
@@ -195,7 +195,7 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
   }, 30_000);
 });
 
-describe("WorkspacePage mode 1 — lệnh đổi ngôn ngữ (D3)", () => {
+describe("WorkspacePage mode 1 - lệnh đổi ngôn ngữ (D3)", () => {
   it("dự án upload: thẻ báo giữ ngôn ngữ file, không đổi; Gửi như tin nhắn ⇒ câu đi vào luồng CR như cũ", async () => {
     nav.id = MODE1_PROJECT_ID;
     await importToGapReview();

@@ -101,7 +101,7 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
     expect(screen.queryByRole("note")).toBeNull();
   });
 
-  it("chưa biết vai trò thì vẫn hiện nút — BE vẫn chặn, Lead không bị mất nút", async () => {
+  it("chưa biết vai trò thì vẫn hiện nút - BE vẫn chặn, Lead không bị mất nút", async () => {
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
     expect(await screen.findByRole("button", { name: "Mua ngay" })).toBeInTheDocument();
   });
@@ -127,7 +127,7 @@ describe("không hạ gói (FLF-347)", () => {
   });
 });
 
-describe("trang thanh toán — tiếng Anh", () => {
+describe("trang thanh toán - tiếng Anh", () => {
   it("thẻ gói credit không còn chữ tiếng Việt: tên gói, đơn vị, giá", async () => {
     activeOrg.value = { id: "org-1", name: "Team A", role: "lead" };
     const { container } = renderWithIntl(

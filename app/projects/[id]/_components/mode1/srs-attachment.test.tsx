@@ -11,7 +11,7 @@ vi.mock("@/lib/api/import", () => ({ getImport: vi.fn(), reuploadDocument: vi.fn
 
 const file = new File(["PK"], "SRS v2.docx");
 
-describe("SrsAttachmentChip — file đính kèm trông như SRS (business-flow §3.6)", () => {
+describe("SrsAttachmentChip - file đính kèm trông như SRS (business-flow §3.6)", () => {
   it("có dấu version của dự án ⇒ chọn sẵn Cập nhật phiên bản mới", () => {
     const onUpdate = vi.fn();
     renderWithIntl(<SrsAttachmentChip suggestion={{ key: "k", file, fromThisProject: true }} onUpdateVersion={onUpdate} onKeepAsReference={() => {}} />);
@@ -33,7 +33,7 @@ describe("SrsAttachmentChip — file đính kèm trông như SRS (business-flow 
   });
 });
 
-describe("Chuyển file sang báo cáo khác biệt — không bắt chọn lại", () => {
+describe("Chuyển file sang báo cáo khác biệt - không bắt chọn lại", () => {
   it("lấy một lần; ReuploadDiffView so luôn file vừa chuyển", async () => {
     vi.mocked(reuploadDocument).mockResolvedValue({ data: { id: "r1", original_name: "SRS v2.docx", against_version: "0.1", created_at: "2026-11-08T00:00:00.000Z", summary: { added: 1, removed: 0, modified: 0, moved: 0 }, blocks: [] }, error: null } as never);
     setPendingReupload(file);
@@ -43,7 +43,7 @@ describe("Chuyển file sang báo cáo khác biệt — không bắt chọn lạ
   });
 });
 
-describe("StructureChangeNotice — kết quả đọc cuối lệch màn đọc khung", () => {
+describe("StructureChangeNotice - kết quả đọc cuối lệch màn đọc khung", () => {
   beforeEach(() => localStorage.clear());
 
   it("báo một lần, đóng thì nhớ theo dự án", async () => {

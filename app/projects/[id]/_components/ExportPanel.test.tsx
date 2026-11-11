@@ -112,7 +112,7 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("FLF-356: dự án import (baseline 0.1) ⇒ draft _v0.1_DRAFT, baseline _v0.1 — không gộp về _v0", async () => {
+  it("FLF-356: dự án import (baseline 0.1) ⇒ draft _v0.1_DRAFT, baseline _v0.1 - không gộp về _v0", async () => {
     const names: string[] = [];
     vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
@@ -177,7 +177,7 @@ describe("ExportPanel", () => {
   });
 });
 
-describe("ExportPanel — chọn định dạng Word / PDF (FLF-316)", () => {
+describe("ExportPanel - chọn định dạng Word / PDF (FLF-316)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const downloadWordExport = vi.mocked(exportApi.downloadWordExport);
   const downloadPdfExport = vi.mocked(exportApi.downloadPdfExport);
@@ -247,7 +247,7 @@ describe("ExportPanel — chọn định dạng Word / PDF (FLF-316)", () => {
   });
 });
 
-describe("ExportPanel — ngôn ngữ tài liệu (FLF-265)", () => {
+describe("ExportPanel - ngôn ngữ tài liệu (FLF-265)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const downloadWordExport = vi.mocked(exportApi.downloadWordExport);
   const listBaselines = vi.mocked(exportApi.listBaselines);
@@ -316,7 +316,7 @@ describe("ExportPanel — ngôn ngữ tài liệu (FLF-265)", () => {
   });
 });
 
-describe("ExportPanel — tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
+describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
   const getDocument = vi.mocked(exportApi.getDocument);
   const downloadWordExport = vi.mocked(exportApi.downloadWordExport);
   const listBaselines = vi.mocked(exportApi.listBaselines);

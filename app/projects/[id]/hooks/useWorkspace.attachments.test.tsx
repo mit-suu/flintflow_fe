@@ -29,7 +29,7 @@ beforeEach(() => {
 const V1 = { id: "d1", name: "SRS_KhachHang_v1.docx", doc_code: 1 };
 const pick = (files: File[]) => ({ target: { files, value: "" } }) as unknown as ChangeEvent<HTMLInputElement>;
 
-describe("useWorkspace — đính kèm trùng / bản mới (FLF-398)", () => {
+describe("useWorkspace - đính kèm trùng / bản mới (FLF-398)", () => {
   it("trùng hệt ⇒ báo tên tài liệu đã có, không lỗi; bản mới ⇒ hỏi rồi tải lại kèm replaceDocumentId", async () => {
     vi.mocked(uploadProjectDocument).mockImplementation(async (_p, file, choice) => {
       if (file.name === "copy.docx") throw new ApiClientError(409, "DUPLICATE_DOCUMENT", "dup", { document: V1 });

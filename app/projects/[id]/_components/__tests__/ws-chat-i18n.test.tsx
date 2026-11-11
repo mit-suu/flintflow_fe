@@ -63,7 +63,7 @@ const preview = {
   impact: { sections: ["fixed:2.1"] },
 } as unknown as PreviewResult;
 
-describe("Khung chat — song ngữ", () => {
+describe("Khung chat - song ngữ", () => {
   it("vi giữ nguyên chữ cũ", () => {
     renderPane("vi");
     expect(screen.getByRole("heading", { name: "Trò chuyện và duyệt" })).toBeInTheDocument();
