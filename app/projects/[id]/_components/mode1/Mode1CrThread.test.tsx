@@ -264,22 +264,54 @@ describe("Mode1CrThread — bước đề xuất gom một danh sách (FLF-375)"
   it("người khác vừa sửa cùng chỗ (conflict) ⇒ thẻ so sánh 3 cột, không nút ghi đè; Bỏ yêu cầu ⇒ không liên quan", async () => {
     const d = await proposalsOf(1);
     const loc = d.locations[0];
-    loc.conflict = { at_proposal: "Ngưỡng 2 giây", current: "Ngưỡng 3 giây", proposal: "Ngưỡng 1 giây", changed_by: "Minh", changed_at: null };
+    loc.conflict = {
+      at_proposal: "Ngưỡng 2 giây",
+      current: "Ngưỡng 3 giây",
+      proposal: "Ngưỡng 1 giây",
+      changed_by: "Minh",
+      changed_at: "2026-11-11T02:15:00.000Z",
+      proposed_at: "2026-11-11T02:00:00.000Z"
+    };
     d.change_request.status = "manual_fix";
 
     renderWithIntl(<Harness />);
     const conflict = await screen.findByLabelText("Chỗ bị người khác sửa trong lúc chờ");
     expect(conflict).toHaveTextContent("1 chỗ đã được người khác sửa");
     const card = within(conflict).getByRole("article");
+    // BF §3.2: giờ người kia sửa và giờ AI soạn; ① so ② / ① so ③ tô màu như Track Changes
+    expect(card).toHaveTextContent(/đã được Minh sửa lúc \d{2}:\d{2}, sau khi AI soạn đề xuất cho bạn \(\d{2}:\d{2}\)/);
     expect(within(card).getByText("Ngưỡng 2 giây")).toBeInTheDocument();
-    expect(within(card).getByText("Ngưỡng 3 giây")).toBeInTheDocument();
-    expect(within(card).getByText("Ngưỡng 1 giây")).toBeInTheDocument();
+    expect(within(card).getAllByRole("deletion").map((e) => e.textContent)).toEqual(["2", "2"]);
+    expect(within(card).getAllByRole("insertion").map((e) => e.textContent)).toEqual(["3", "1"]);
     expect(within(card).getByRole("button", { name: "AI soạn lại trên nội dung hiện tại" })).toBeInTheDocument();
     expect(within(card).queryByRole("button", { name: /ghi đè/i })).not.toBeInTheDocument();
 
     fireEvent.click(within(card).getByRole("button", { name: "Bỏ yêu cầu" }));
     await waitFor(() => expect(S().crs.get("CR-001")!.locations[0].conclusion).toBe("not_related"));
     expect(S().crs.get("CR-001")!.locations[0].reason).toBe("Bỏ vì mục đã được Minh sửa");
+  });
+
+  it("yêu cầu gốc đụng thẳng phần vừa sửa ⇒ AI hỏi lại trong chat với gợi ý; chọn gợi ý ⇒ AI soạn lại theo câu trả lời", async () => {
+    const d = await proposalsOf(1);
+    const loc = d.locations[0];
+    loc.conflict = {
+      at_proposal: "Khách đặt hàng",
+      current: "Khách hàng đặt hàng",
+      proposal: "Người mua đặt hàng",
+      changed_by: "Minh",
+      changed_at: null,
+      question: { text: "Minh vừa đổi “Khách” thành “Khách hàng”, còn yêu cầu của bạn muốn đổi thành “Người mua”. Giữ bản nào?", suggestions: ["Dùng “Người mua” theo yêu cầu của tôi", "Giữ “Khách hàng” của Minh và soạn phần còn lại"] }
+    };
+    d.change_request.status = "manual_fix";
+
+    renderWithIntl(<Harness />);
+    const card = within(await screen.findByLabelText("Chỗ bị người khác sửa trong lúc chờ")).getByRole("article");
+    expect(within(card).getByLabelText("AI hỏi lại")).toHaveTextContent("Giữ bản nào?");
+    // Chưa trả lời thì không có nút soạn lại tự chọn
+    expect(within(card).queryByRole("button", { name: "AI soạn lại trên nội dung hiện tại" })).not.toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "Dùng “Người mua” theo yêu cầu của tôi" }));
+    await waitFor(() => expect(S().crs.get("CR-001")!.locations[0].reason).toBe("Soạn lại theo hướng: Dùng “Người mua” theo yêu cầu của tôi"));
+    expect(S().crs.get("CR-001")!.locations[0].conflict).toBeNull();
   });
 
   it("5 phần đều đạt ⇒ danh sách gọn, bấm một lần Đồng ý tất cả ⇒ CR đi tiếp tới xác nhận", async () => {

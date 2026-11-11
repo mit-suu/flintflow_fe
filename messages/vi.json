@@ -3348,7 +3348,11 @@
         "redraft": "AI soạn lại trên nội dung hiện tại",
         "drop": "Bỏ yêu cầu",
         "redraftInstruction": "Áp yêu cầu gốc lên nội dung hiện tại, giữ nguyên phần {who} vừa sửa. Yêu cầu gốc: {request}. Nếu yêu cầu gốc đụng thẳng phần vừa sửa thì hỏi lại tôi, không tự chọn.",
-        "dropReason": "Bỏ vì mục đã được {who} sửa"
+        "dropReason": "Bỏ vì mục đã được {who} sửa",
+        "titleTimed": "{title} đã được {who} sửa lúc {when}, sau khi AI soạn đề xuất cho bạn ({since}). Đề xuất của bạn chưa được ghi.",
+        "legend": "Tô màu như Track Changes: gạch ngang = chữ bị bỏ, nền màu = chữ thêm vào (so với ①).",
+        "question": "AI hỏi lại",
+        "answerOther": "Trả lời cách khác…"
       },
       "conflictStep": "Có người vừa sửa cùng chỗ",
       "conflictLabel": "Chỗ bị người khác sửa trong lúc chờ",

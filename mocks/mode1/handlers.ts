@@ -1248,6 +1248,8 @@ export const mode1Handlers = [
       loc.proposal = { ...(loc.proposal ?? { old_text: loc.current_text, comment_text: null, spine_ops: [], assumptions: [] }), new_text: `${loc.current_text} (${instruction})`, assumptions: [] };
       loc.manual = true;
       loc.verify = null;
+      // FLF-375: soạn lại trên nội dung hiện tại ⇒ hết xung đột (như BE)
+      loc.conflict = null;
       regroup(d);
       if (cr.status === "ready_to_submit") setCrStatus(d, "verifying");
       return okCr(d);

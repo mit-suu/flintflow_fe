@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrLocation, type CrStatus } from "@/types/change-request";
 import { fromApprovedPreview, inApprovedBatch, isFailing, type CrChat, type CrChatPrefill, type CrChatSource } from "../../hooks/mode1/useCrChat";
 import ClarifyPanel from "./ClarifyPanel";
@@ -10,6 +10,7 @@ import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import { OthersPending, ProposalDiff, useLocTitle } from "./LocationDisplay";
 import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
 import { useMode1Labels } from "./i18n";
+import { diffTokens } from "@/lib/word-diff";
 import PausedBanner from "./PausedBanner";
 
 function UserBubble({ children }: { children: ReactNode }) {
@@ -175,33 +176,65 @@ function EditPanel({ loc, chat, editing }: { loc: CrLocation; chat: CrChat; edit
  */
 function ConflictCard({ loc, chat, request }: { loc: CrLocation; chat: CrChat; request: string }) {
   const t = useTranslations("mode1.crThread.conflict");
+  const locale = useLocale();
   const title = useLocTitle()(loc);
   const c = loc.conflict!;
   const busy = chat.busy !== null;
-  const col = (head: string, body: string | null, tone: string) => (
+  const clock = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : null);
+  const when = clock(c.changed_at);
+  const since = clock(c.proposed_at);
+  // BF §3.2: ① so với ② = người khác đã đổi gì; ① so với ③ = mình định đổi gì — chỗ khác nhau tô màu như Track Changes
+  const marked = (body: string | null, ins: string) =>
+    body === null
+      ? "—"
+      : diffTokens(c.at_proposal, body).map((tk, i) => (
+          <span key={i}>
+            {tk.kind === "same" ? tk.text : tk.kind === "del" ? <del className="text-[#B03030]">{tk.text}</del> : <ins className={`no-underline rounded px-0.5 ${ins}`}>{tk.text}</ins>}{" "}
+          </span>
+        ));
+  const col = (head: string, body: ReactNode, tone: string) => (
     <div className={`rounded-[8px] border px-2 py-1.5 ${tone}`}>
       <p className="text-caption font-bold mb-0.5">{head}</p>
-      <p className="whitespace-pre-wrap break-words">{body ?? "—"}</p>
+      <p className="whitespace-pre-wrap break-words">{body}</p>
     </div>
   );
   return (
     <article className="rounded-[12px] border border-[#EFD9A6] bg-[#FBF4E4] p-2.5 flex flex-col gap-2" aria-label={t("aria", { title })}>
-      <p className="font-bold text-[#8A6D1F]">⚠ {t("title", { title, who: c.changed_by })}</p>
+      <p className="font-bold text-[#8A6D1F]">⚠ {when && since ? t("titleTimed", { title, who: c.changed_by, when, since }) : t("title", { title, who: c.changed_by })}</p>
       <div className="grid grid-cols-1 gap-1.5">
-        {col(t("atProposal"), c.at_proposal, "border-outline-variant bg-white")}
-        {col(t("current", { who: c.changed_by }), c.current, "border-[#BFD3F2] bg-[#F2F6FD]")}
-        {col(t("yours"), c.proposal, "border-[#BFE6CE] bg-[#F3FAF6]")}
+        {col(since ? `${t("atProposal")} (${since})` : t("atProposal"), c.at_proposal, "border-outline-variant bg-white")}
+        {col(t("current", { who: when ? `${c.changed_by}, ${when}` : c.changed_by }), marked(c.current, "bg-[#D6E4FA]"), "border-[#BFD3F2] bg-[#F2F6FD]")}
+        {col(t("yours"), marked(c.proposal, "bg-[#CDEBD8]"), "border-[#BFE6CE] bg-[#F3FAF6]")}
       </div>
+      <p className="text-caption text-on-surface-muted">{t("legend")}</p>
       <p className="text-caption text-on-surface-muted">{t("request", { request })}</p>
+      {c.question ? (
+        // BF §3.2: yêu cầu gốc đụng thẳng phần vừa sửa ⇒ AI hỏi lại trong chat, không tự chọn
+        <div className="rounded-[8px] bg-white border border-[#EFD9A6] px-2.5 py-1.5 flex flex-col gap-1.5" aria-label={t("question")}>
+          <p className="font-bold text-on-surface">🤖 {c.question.text}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {c.question.suggestions.map((s) => (
+              <button key={s} type="button" disabled={busy} onClick={() => void chat.redraft(loc.location_id, s)} className={`${btn} bg-on-surface text-surface`}>
+                {s}
+              </button>
+            ))}
+            <button type="button" disabled={busy} onClick={() => chat.startRedraft(loc.location_id)} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
+              {t("answerOther")}
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void chat.redraft(loc.location_id, t("redraftInstruction", { who: c.changed_by, request }))}
-          className={`${btn} bg-on-surface text-surface`}
-        >
-          {t("redraft")}
-        </button>
+        {!c.question && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void chat.redraft(loc.location_id, t("redraftInstruction", { who: c.changed_by, request }))}
+            className={`${btn} bg-on-surface text-surface`}
+          >
+            {t("redraft")}
+          </button>
+        )}
         <button type="button" disabled={busy} onClick={() => chat.reject(loc, t("dropReason", { who: c.changed_by }))} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
           {t("drop")}
         </button>

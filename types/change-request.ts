@@ -169,6 +169,10 @@ export interface CrLocationConflict {
   proposal: string | null;
   changed_by: string;
   changed_at: IsoDateTime | null;
+  /** Thời điểm AI soạn đề xuất ① (BF §3.2: "Lúc AI soạn (9:00)"). */
+  proposed_at?: IsoDateTime | null;
+  /** BF §3.2: AI hỏi lại khi yêu cầu gốc đụng thẳng phần vừa sửa — trả lời bằng gợi ý hoặc gõ tự do. */
+  question?: { text: string; suggestions: string[] } | null;
 }
 
 /** FLF-375: `POST …/messages` — lệnh sửa gộp vào CR, câu hỏi được trả lời. */
