@@ -49,7 +49,7 @@ const renderDashboard = (locale: Locale) =>
     locale
   );
 
-describe("Dashboard — song ngữ", () => {
+describe("Dashboard - song ngữ", () => {
   beforeEach(() => {
     vi.mocked(listProjects).mockResolvedValue({ data: [PROJECT], error: null } as never);
     vi.mocked(listFolders).mockResolvedValue({ data: [], error: null } as never);
@@ -70,7 +70,7 @@ describe("Dashboard — song ngữ", () => {
     expect(vietnameseLeftovers(container)).toEqual([]);
   });
 
-  it("FLF-265: en — form tạo dự án và menu card có nhãn ngôn ngữ tài liệu tiếng Anh, mặc định English", async () => {
+  it("FLF-265: en - form tạo dự án và menu card có nhãn ngôn ngữ tài liệu tiếng Anh, mặc định English", async () => {
     renderDashboard("en");
     await waitFor(() => expect(screen.getByRole("link", { name: "Projects" })).toBeInTheDocument());
 

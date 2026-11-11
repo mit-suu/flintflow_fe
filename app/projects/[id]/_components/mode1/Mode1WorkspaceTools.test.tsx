@@ -140,7 +140,7 @@ describe("Mode1WorkspaceTools", () => {
   });
 });
 
-describe("Mode1WorkspaceTools — Viewer (readOnly)", () => {
+describe("Mode1WorkspaceTools - Viewer (readOnly)", () => {
   it("không có Nhập SRS và Release; vẫn có Gap report, Change request và bảng version", async () => {
     serveVersions([VERSION_00]);
     renderTools({ readOnly: true });
@@ -153,7 +153,7 @@ describe("Mode1WorkspaceTools — Viewer (readOnly)", () => {
   });
 });
 
-describe("Mode1WorkspaceTools — Analyst (không phải Lead)", () => {
+describe("Mode1WorkspaceTools - Analyst (không phải Lead)", () => {
   it("không có Release (chỉ Lead release)", async () => {
     serveVersions([VERSION_00]);
     renderTools({ canRelease: false });

@@ -30,7 +30,7 @@ const click = async (name: string | RegExp) => fireEvent.click(await screen.find
 /** Nút bước cũ của popup CR — FLF-375: mọi bước làm trong khung chat, popup chỉ xem. */
 const STEP_BUTTONS = ["Bắt đầu làm rõ (AI)", "Tìm vị trí ảnh hưởng & khoá", "AI đề xuất sửa", "Kiểm đề xuất", "Kiểm lại", "Xác nhận & ghi vào bản nháp", "Tiếp tục"];
 
-describe("CrWorkspace — popup chỉ xem (FLF-375: CR làm trong khung chat)", () => {
+describe("CrWorkspace - popup chỉ xem (FLF-375: CR làm trong khung chat)", () => {
   it.each([
     ["mới tạo", [] as const],
     ["đã làm rõ", ["clarify"] as const],
@@ -73,7 +73,7 @@ describe("CrWorkspace — popup chỉ xem (FLF-375: CR làm trong khung chat)", 
   });
 });
 
-describe("CrWorkspace — CR cũ in_review và huỷ CR", () => {
+describe("CrWorkspace - CR cũ in_review và huỷ CR", () => {
   it("CR cũ in_review (nộp trước FLF-330): từ chối group cần lý do ≥ 10 ký tự; mọi group bị từ chối ⇒ đóng CR có lý do", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify"]);
@@ -129,8 +129,8 @@ describe("CrWorkspace — CR cũ in_review và huỷ CR", () => {
   });
 });
 
-describe("CrWorkspace — Viewer (readOnly)", () => {
-  it("chỉ xem: không có nút bước tiếp theo, không Huỷ CR — chỉ lời nhắc vai trò", async () => {
+describe("CrWorkspace - Viewer (readOnly)", () => {
+  it("chỉ xem: không có nút bước tiếp theo, không Huỷ CR - chỉ lời nhắc vai trò", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact"]);
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} readOnly />);

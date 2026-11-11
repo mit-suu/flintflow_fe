@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyAccountLocale, DEFAULT_LOCALE, localeOf, resolveLocale, tPhase, tPhaseOfStep, tStep } from "./i18n";
 import { getStepDef } from "./constants/step-registry";
 
-describe("tStep — nhãn lấy từ step registry, không có bảng dịch chép tay", () => {
+describe("tStep - nhãn lấy từ step registry, không có bảng dịch chép tay", () => {
   it("step thường: đúng label_vi / label_en của registry", () => {
     const def = getStepDef("S-3.1")!;
     expect(tStep("S-3.1", "vi")).toBe(def.label_vi);
@@ -25,7 +25,7 @@ describe("tStep — nhãn lấy từ step registry, không có bảng dịch ch�
     expect(tStep("S-5.2@nonscreen", "vi")).toBe("Kích hoạt & mô tả · không màn hình");
   });
 
-  it("step lạ trả về chính id — hiện sai còn hơn hiện rỗng", () => {
+  it("step lạ trả về chính id - hiện sai còn hơn hiện rỗng", () => {
     expect(tStep("KHONG-CO", "vi")).toBe("KHONG-CO");
   });
 
@@ -68,7 +68,7 @@ describe("localeOf", () => {
   });
 });
 
-describe("resolveLocale — cookie → Accept-Language → vi", () => {
+describe("resolveLocale - cookie → Accept-Language → vi", () => {
   it("cookie hợp lệ thắng header", () => {
     expect(resolveLocale("en", "vi-VN,vi;q=0.9")).toBe("en");
     expect(resolveLocale("vi", "en-US,en;q=0.9")).toBe("vi");
@@ -95,7 +95,7 @@ describe("resolveLocale — cookie → Accept-Language → vi", () => {
   });
 });
 
-describe("applyAccountLocale — ngôn ngữ tài khoản sau khi đăng nhập (T25 · P6)", () => {
+describe("applyAccountLocale - ngôn ngữ tài khoản sau khi đăng nhập (T25 · P6)", () => {
   it("locale hợp lệ ⇒ ghi cookie, trả locale đó; thiếu / null / lạ ⇒ không đụng cookie, trả null", () => {
     document.cookie = "NEXT_LOCALE=vi; path=/";
     expect(applyAccountLocale(undefined)).toBeNull();

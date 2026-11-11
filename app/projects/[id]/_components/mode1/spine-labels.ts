@@ -211,7 +211,7 @@ export const spineLabels = (t: Mode1T, localeName: string, sectionNames?: Readon
       field = null;
     }
     if (entityName && parts[0].selector) out[0] += ` (${entityName})`;
-    return field ? `${out.join(" › ")} — ${fieldLabel(field)}` : out.join(" › ");
+    return field ? `${out.join(" › ")} - ${fieldLabel(field)}` : out.join(" › ");
   };
 
   /** Nhãn mục theo ngôn ngữ — dùng chung `lib/constants/fpt-sections` (namespace `common.fptSections`). */
@@ -251,16 +251,16 @@ export const spineLabels = (t: Mode1T, localeName: string, sectionNames?: Readon
 
   /** Giá trị Spine ⇒ chữ đọc được (không JSON): mảng nối ", ", object "Tên: …; Mô tả: …", rỗng "—". */
   const readableValue = (value: unknown, names?: RefNames): string => {
-    if (value === undefined || value === null || value === "") return "—";
+    if (value === undefined || value === null || value === "") return "-";
     if (typeof value === "string") return value;
     if (typeof value === "boolean") return t(value ? "spine.boolean.yes" : "spine.boolean.no");
     if (typeof value === "number") return String(value);
-    if (Array.isArray(value)) return value.length ? value.map((v) => readableValue(v, names)).join(", ") : "—";
+    if (Array.isArray(value)) return value.length ? value.map((v) => readableValue(v, names)).join(", ") : "-";
     if (typeof value === "object") {
       const entries = Object.entries(value as Record<string, unknown>).filter(([k]) => !k.startsWith("_"));
       return entries.length
         ? entries.map(([k, v]) => `${fieldLabel(k)}: ${readableValue(resolveRefs(k, v, names), names)}`).join("; ")
-        : "—";
+        : "-";
     }
     return String(value);
   };

@@ -26,7 +26,7 @@ beforeEach(() => {
   vi.mocked(precheckDocx).mockReset().mockResolvedValue({ data: { looks_like_srs: false, stamp: null }, error: null } as never);
 });
 
-describe("CreateProjectForm — hộp Tạo dự án hai ô (business-flow §1)", () => {
+describe("CreateProjectForm - hộp Tạo dự án hai ô (business-flow §1)", () => {
   it("không còn câu hỏi Dự án mới / có sẵn; điền sẵn tên; tên rỗng ⇒ khoá nút", () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
     expect(screen.queryByText(/Dự án có sẵn|Khách có bắt buộc/)).not.toBeInTheDocument();
@@ -156,7 +156,7 @@ describe("CreateProjectForm — hộp Tạo dự án hai ô (business-flow §1)"
   });
 });
 
-describe("CreateProjectForm — ngôn ngữ tài liệu (FLF-265)", () => {
+describe("CreateProjectForm - ngôn ngữ tài liệu (FLF-265)", () => {
   it("mặc định theo ngôn ngữ giao diện", () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
     expect(screen.getByRole("radio", { name: "Tiếng Việt" })).toHaveAttribute("aria-checked", "true");

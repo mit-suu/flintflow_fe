@@ -145,7 +145,7 @@ const inShell = (page: React.ReactNode) => (
   </AdminSearchProvider>
 );
 
-describe("Admin — song ngữ", () => {
+describe("Admin - song ngữ", () => {
   it("vi giữ nguyên chữ cũ của khung admin và trang số liệu", async () => {
     renderWithIntl(inShell(<AdminMetricsPage />), "vi");
     expect(await screen.findByText("Số liệu hệ thống")).toBeInTheDocument();

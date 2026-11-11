@@ -239,12 +239,12 @@ test.describe("luồng Brief với model thật", () => {
       const existing = await api<{ name: string }>(request, "get", `/projects/${projectId}`);
       expect(existing.data?.name, `project ${projectId} phải tồn tại`).toBeTruthy();
       PROJECT_NAME = existing.data!.name;
-      note("note", "-", `chạy tiếp project ${projectId} — ${PROJECT_NAME}`);
+      note("note", "-", `chạy tiếp project ${projectId} - ${PROJECT_NAME}`);
     } else {
       const created = await api<{ _id: string }>(request, "post", "/projects", { name: PROJECT_NAME, mode: "fpt", documentLanguage: "en" });
       expect(created.data?._id, `tạo project: ${created.error?.message}`).toBeTruthy();
       projectId = created.data!._id;
-      note("note", "-", `project ${projectId} — ${PROJECT_NAME}`);
+      note("note", "-", `project ${projectId} - ${PROJECT_NAME}`);
     }
 
     if (REVIEW_MODE && !RESUME_ID) {
@@ -370,7 +370,7 @@ test.describe("luồng Brief với model thật", () => {
       await expect(acceptButton).toBeVisible({ timeout: 60_000 });
       await screenshot(page, `gate-${run.step_id}`);
       const gateText = (await gateCard.count()) > 0 ? await gateCard.last().innerText() : "";
-      note("gate", run.step_id, gateText.trim() || "(cổng duyệt dạng tin nhắn AI — xem tin AI ngay trước)");
+      note("gate", run.step_id, gateText.trim() || "(cổng duyệt dạng tin nhắn AI - xem tin AI ngay trước)");
 
       // Một lần mỗi lượt chạy: sửa nền tảng bằng chat khi AI đã chốt nền tảng
       if (situations.gateCorrection === 0) {
@@ -396,7 +396,7 @@ test.describe("luồng Brief với model thật", () => {
         return true;
       } catch (err) {
         failures++;
-        note("note", label, `thao tác lỗi (${failures}): ${err instanceof Error ? err.message.split("\n")[0] : String(err)} — tải lại trang`);
+        note("note", label, `thao tác lỗi (${failures}): ${err instanceof Error ? err.message.split("\n")[0] : String(err)} - tải lại trang`);
         await screenshot(page, `action-error-${label}`);
         expect(failures, "luồng gãy: thao tác UI lỗi quá 5 lần").toBeLessThanOrEqual(5);
         await page.reload({ timeout: 180_000 }).catch(() => undefined);
@@ -440,7 +440,7 @@ test.describe("luồng Brief với model thật", () => {
                 await tab.waitForTimeout(1_000);
               }
               if (!settled) {
-                note("note", run.step_id, "tab thứ hai: lượt không dừng ở câu hỏi / cổng — không đo được");
+                note("note", run.step_id, "tab thứ hai: lượt không dừng ở câu hỏi / cổng - không đo được");
                 return;
               }
               const doneAt = Date.now();
@@ -474,7 +474,7 @@ test.describe("luồng Brief với model thật", () => {
       }
       if (run?.status === "interrupted" || (run?.status === "running" && !run.alive)) {
         retries++;
-        note("note", run.step_id, `lượt bị gián đoạn (${run.error?.code ?? "không mã"}) — Chạy lại lần ${retries}`);
+        note("note", run.step_id, `lượt bị gián đoạn (${run.error?.code ?? "không mã"}) - Chạy lại lần ${retries}`);
         await screenshot(page, `interrupted-${run.step_id}`);
         expect(retries, "luồng gãy: gián đoạn quá 3 lần").toBeLessThanOrEqual(3);
         const rerun = page.getByRole("button", { name: "Chạy lại" }).first();
@@ -503,7 +503,7 @@ test.describe("luồng Brief với model thật", () => {
       idleSince ||= Date.now();
       if (Date.now() - idleSince > 90_000) {
         await screenshot(page, `stuck-${summary.current_step}`);
-        note("note", summary.current_step ?? "?", "UI đứng yên 90 giây — tải lại trang");
+        note("note", summary.current_step ?? "?", "UI đứng yên 90 giây - tải lại trang");
         await page.reload();
         idleSince = Date.now();
       }
@@ -575,7 +575,7 @@ const renderTranscript = (session: ChatSession | null, projectId: string, starte
     .map(([k, v]) => `${k}: ${v > 0 ? `có (${v})` : "**chưa gặp**"}`)
     .join(" · ");
   return [
-    `# Transcript — ${PROJECT_NAME}`,
+    `# Transcript - ${PROJECT_NAME}`,
     "",
     `- Project: \`${projectId}\` · review_mode: ${REVIEW_MODE ?? "mặc định"}`,
     `- Kết quả: ${done ? `tới hết ${LAST_BRIEF_STEP}` : "**chưa tới hết Brief**"} · ${minutes} phút · ${userTurns} tin user`,

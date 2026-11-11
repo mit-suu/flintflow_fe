@@ -65,7 +65,7 @@ describe("BaselineApprovalPanel", () => {
       <BaselineApprovalPanel
         {...props}
         role="analyst"
-        error="Còn cờ đỏ chưa xử lý — chưa thể ghi baseline."
+        error="Còn cờ đỏ chưa xử lý - chưa thể ghi baseline."
         blockingFlags={[{ id: "F-1", message: "Nội dung §2.1 Actors đang chờ duyệt lại", remediation_step: "S-2.1" }]}
       />
     );

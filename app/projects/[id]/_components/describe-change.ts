@@ -32,7 +32,7 @@ type KnownOp = typeof OPS extends Set<infer K> ? K : never;
 
 /** Rút gọn giá trị để hiện trên một dòng. */
 export const shortValue = (value: unknown, max = 60, locale: Locale = DEFAULT_LOCALE): string => {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined) return "-";
   // Không JSON: object/mảng thành "Tên: …; Mô tả: …" (FLF-247)
   const text = spineFor(locale).readableValue(value);
   return text.length > max ? `${text.slice(0, max)}…` : text;

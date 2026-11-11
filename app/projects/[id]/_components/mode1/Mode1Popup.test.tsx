@@ -41,7 +41,7 @@ const open = (q: string, readOnly = false) => {
   return renderWithIntl(<Mode1Popup projectId={P} readOnly={readOnly} />);
 };
 
-describe("Mode1Popup — gap report / change request dạng popup trên màn Tài liệu & version", () => {
+describe("Mode1Popup - gap report / change request dạng popup trên màn Tài liệu & version", () => {
   beforeEach(() => router.replace.mockClear());
 
   it("không có panel ⇒ không hiện gì", () => {

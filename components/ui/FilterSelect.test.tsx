@@ -24,7 +24,7 @@ describe("FilterSelect", () => {
     expect(screen.getByRole("listbox")).toHaveClass("right-0");
   });
 
-  it("align=start canh trái — nút sát mép trái khung hẹp thì menu không tràn ra ngoài rồi bị cắt", () => {
+  it("align=start canh trái - nút sát mép trái khung hẹp thì menu không tràn ra ngoài rồi bị cắt", () => {
     renderWithIntl(<FilterSelect label="Loại" value="active" options={OPTIONS} onChange={() => {}} align="start" />);
     fireEvent.click(screen.getByRole("combobox", { name: "Loại" }));
     expect(screen.getByRole("listbox")).toHaveClass("left-0");

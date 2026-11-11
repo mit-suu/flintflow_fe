@@ -12,7 +12,7 @@ const base = {
   total: 38,
 };
 
-describe("CreditGateCard (FLF-332 — cổng cứng xác nhận credit)", () => {
+describe("CreditGateCard (FLF-332 - cổng cứng xác nhận credit)", () => {
   it("hiện từng dòng, tổng ước tính và số khả dụng; Chạy / Huỷ gọi đúng callback", () => {
     const onRun = vi.fn();
     const onCancel = vi.fn();

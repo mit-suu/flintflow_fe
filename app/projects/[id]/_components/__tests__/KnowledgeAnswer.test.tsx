@@ -20,7 +20,7 @@ const K2: KnowledgeCitation = {
   source_kind: "standard",
 };
 
-describe("KnowledgeAnswer — có trích dẫn", () => {
+describe("KnowledgeAnswer - có trích dẫn", () => {
   it("mỗi nhãn thành một nút bấm được; bấm ra source, section và nhãn loại nguồn", () => {
     renderWithIntl(<KnowledgeAnswer reply="Trần 8 lượt [K1], theo chuẩn [K2]." grounded citations={[K1, K2]} />);
 
@@ -68,7 +68,7 @@ describe("KnowledgeAnswer — có trích dẫn", () => {
   });
 });
 
-describe("KnowledgeAnswer — không đủ căn cứ", () => {
+describe("KnowledgeAnswer - không đủ căn cứ", () => {
   const refusal = "Không đủ căn cứ trong kho tri thức của FlintFlow để trả lời câu này.";
 
   it("hiện khối Không đủ căn cứ, không phải tin lỗi hệ thống", () => {
@@ -85,7 +85,7 @@ describe("KnowledgeAnswer — không đủ căn cứ", () => {
   });
 });
 
-describe("ChatBubble — tin tri thức", () => {
+describe("ChatBubble - tin tri thức", () => {
   const aiMessage = (data: object): ChatMessage => ({
     role: "ai",
     content: JSON.stringify(data),

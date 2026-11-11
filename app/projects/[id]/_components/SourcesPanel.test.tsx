@@ -32,7 +32,7 @@ const sources: RequirementSource[] = [
   },
 ];
 
-describe("SourcesPanel — nguồn tài liệu của yêu cầu (FLF-292)", () => {
+describe("SourcesPanel - nguồn tài liệu của yêu cầu (FLF-292)", () => {
   it("nhóm theo loại (use case trước), hiện chữ gốc, tên tài liệu và số đoạn", () => {
     renderWithIntl(<SourcesPanel spine={spine} sources={sources} loading={false} error={null} />);
 

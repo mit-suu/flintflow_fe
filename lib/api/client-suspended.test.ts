@@ -25,7 +25,7 @@ const loadClient = async () => {
   return import("./client");
 };
 
-describe("authFetch / refreshSession — ACCOUNT_SUSPENDED (FLF-345)", () => {
+describe("authFetch / refreshSession - ACCOUNT_SUSPENDED (FLF-345)", () => {
   beforeEach(() => {
     sessionStorage.clear();
     localStorage.clear();

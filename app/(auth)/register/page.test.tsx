@@ -7,7 +7,7 @@ import RegisterPage from "./page";
 vi.mock("next/navigation", () => ({ useRouter: vi.fn() }));
 vi.mock("../../../components/GoogleButton", () => ({ default: () => null }));
 
-describe("RegisterPage — ô xác nhận mật khẩu", () => {
+describe("RegisterPage - ô xác nhận mật khẩu", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
   });
@@ -51,7 +51,7 @@ describe("RegisterPage — ô xác nhận mật khẩu", () => {
     renderWithIntl(<RegisterPage />);
     fillPasswords("muaroi2!");
 
-    expect(screen.getByText(/Trung bình — chưa dùng được/)).toBeInTheDocument();
+    expect(screen.getByText(/Trung bình - chưa dùng được/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Tạo tài khoản$/ })).toBeDisabled();
   });
 

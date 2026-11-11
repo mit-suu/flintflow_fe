@@ -51,7 +51,7 @@ const renderPanel = (props: { role: OrgRole | null; comments?: SrsComment[]; can
 };
 
 describe("CommentPanel (UC-49)", () => {
-  it("Viewer chỉ thấy Trả lời — không Resolve, không Tạo CR", () => {
+  it("Viewer chỉ thấy Trả lời - không Resolve, không Tạo CR", () => {
     const { card } = renderPanel({ role: "viewer" });
     expect(within(card).getByRole("button", { name: "Trả lời" })).toBeInTheDocument();
     expect(within(card).queryByRole("button", { name: "Đánh dấu đã xử lý" })).not.toBeInTheDocument();

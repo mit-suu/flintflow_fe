@@ -76,7 +76,7 @@ export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: Dec
         <li key={decision.id} className="bg-white border border-[#ECEAE5] rounded-[10px] p-2.5 flex flex-col gap-1">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-body font-bold text-[#191817]">{topicLabel(decision.topic_key, t)}</span>
-            <span className="text-caption text-[#8A867E] shrink-0" title={`${decision.step_id} — ${decision.question}`}>
+            <span className="text-caption text-[#8A867E] shrink-0" title={`${decision.step_id} - ${decision.question}`}>
               {stepLabel(decision.step_id)}
             </span>
           </div>

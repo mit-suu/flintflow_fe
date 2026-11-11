@@ -48,7 +48,7 @@ const serveApprove = () => {
   return calls;
 };
 
-describe("ExtractionList (FLF-338 §3.6.1 — BA duyệt danh sách rút yêu cầu)", () => {
+describe("ExtractionList (FLF-338 §3.6.1 - BA duyệt danh sách rút yêu cầu)", () => {
   it("hiện nhãn, trích dẫn + mã đoạn, thẻ câu hỏi gom; nút tạo khoá tới khi có người yêu cầu và câu trả lời; mục trùng không tính vào số CR", async () => {
     renderWithIntl(<ExtractionList projectId={P} extraction={extraction()} onApproved={vi.fn()} />);
     expect(screen.getByText("Mới")).toBeInTheDocument();

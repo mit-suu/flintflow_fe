@@ -40,12 +40,12 @@ const withRevision = async () => {
 };
 
 describe("GapReportView (UC-23)", () => {
-  it("tổng hợp cờ (không còn mục FPT thiếu — FLF-312); nút tạo CR điền sẵn nguồn gap_report; tải docx", async () => {
+  it("tổng hợp cờ (không còn mục FPT thiếu - FLF-312); nút tạo CR điền sẵn nguồn gap_report; tải docx", async () => {
     await importToGapReview();
     const onChanged = vi.fn();
     renderWithIntl(<GapReportView projectId={P} projectName="Lumen" onChanged={onChanged} />);
 
-    expect(await screen.findByText("Gap report — bản 0.1")).toBeInTheDocument();
+    expect(await screen.findByText("Gap report - bản 0.1")).toBeInTheDocument();
     expect(screen.getByText("NFR-02 trỏ tới UC-99 không tồn tại")).toBeInTheDocument();
     expect(screen.queryByText(/mẫu FPT còn thiếu|Tiêu đề mục ngoài mẫu FPT|Mục bắt buộc/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Tạo CR bổ sung mục thiếu" })).not.toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("GapReportView (UC-23)", () => {
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
   });
 
-  it("gapReportPrefill chỉ liệt kê cờ đỏ trên nội dung đã có — bỏ section_empty", () => {
+  it("gapReportPrefill chỉ liệt kê cờ đỏ trên nội dung đã có - bỏ section_empty", () => {
     const text = gapReportPrefill({
       project_id: P,
       doc_version: "0.1",
@@ -79,7 +79,7 @@ describe("GapReportView (UC-23)", () => {
   });
 });
 
-describe("VersionsPanel — version & release (Flow 6, UC-57)", () => {
+describe("VersionsPanel - version & release (Flow 6, UC-57)", () => {
   it("còn cờ đỏ ⇒ Release bị khoá kèm lý do", async () => {
     await importToGapReview();
     const versions = (await listVersions(P)).data!;

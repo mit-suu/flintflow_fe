@@ -78,12 +78,12 @@ const serveRelease = (res: () => Response) => {
 
 const releaseButton = () => screen.getByRole("button", { name: "Release" });
 
-describe("VersionsPanel — nút Release (BR-04, Flow 6)", () => {
+describe("VersionsPanel - nút Release (BR-04, Flow 6)", () => {
   it("còn cờ đỏ ⇒ Release tắt, title + dòng lý do nêu số cờ đỏ", () => {
     renderPanel({ redOpen: 3 });
     expect(releaseButton()).toBeDisabled();
-    expect(releaseButton()).toHaveAttribute("title", "Còn 3 cờ đỏ — xử lý qua change request trước khi release.");
-    expect(screen.getByText("Còn 3 cờ đỏ — xử lý qua change request trước khi release.")).toBeInTheDocument();
+    expect(releaseButton()).toHaveAttribute("title", "Còn 3 cờ đỏ - xử lý qua change request trước khi release.");
+    expect(screen.getByText("Còn 3 cờ đỏ - xử lý qua change request trước khi release.")).toBeInTheDocument();
     fireEvent.click(releaseButton());
     expect(screen.queryByRole("button", { name: "Xác nhận release" })).not.toBeInTheDocument();
   });
@@ -148,7 +148,7 @@ describe("VersionsPanel — nút Release (BR-04, Flow 6)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận release" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Còn cờ đỏ chưa xử lý — chưa release được.");
+    expect(alert).toHaveTextContent("Còn cờ đỏ chưa xử lý - chưa release được.");
     expect(within(alert).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["NFR-P02 thiếu ngưỡng", "Thiếu mục 5.3"]);
     expect(props.onReleased).not.toHaveBeenCalled();
   });
@@ -163,7 +163,7 @@ describe("VersionsPanel — nút Release (BR-04, Flow 6)", () => {
   });
 });
 
-describe("VersionsPanel — danh sách version và tải file", () => {
+describe("VersionsPanel - danh sách version và tải file", () => {
   it("nhãn loại version, link CR đã ghi, chọn version gọi onSelect", () => {
     const props = renderPanel({ versions: RELEASED, selected: "0.2" });
     const items = screen.getAllByRole("listitem");
@@ -236,7 +236,7 @@ describe("VersionsPanel — danh sách version và tải file", () => {
   });
 });
 
-describe("VersionsPanel — Viewer (readOnly)", () => {
+describe("VersionsPanel - Viewer (readOnly)", () => {
   it("không có mục Release, vẫn xem được các version", () => {
     renderPanel({ readOnly: true });
     expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
@@ -258,7 +258,7 @@ describe("VersionsPanel — Viewer (readOnly)", () => {
   });
 });
 
-describe("VersionsPanel — dự án tạo SRS đã chốt baseline (FLF-318)", () => {
+describe("VersionsPanel - dự án tạo SRS đã chốt baseline (FLF-318)", () => {
   it("bản 1.0 là bản Lead ký: nhãn baseline đã ký, tải bản sạch, không có nút tải file gốc", () => {
     renderPanel({ versions: [{ ...version("1.0", "imported"), has_original_file: false, baseline_id: "BL001" }], selected: "1.0" });
     expect(screen.getByText("Bản baseline đã ký")).toBeInTheDocument();
@@ -267,7 +267,7 @@ describe("VersionsPanel — dự án tạo SRS đã chốt baseline (FLF-318)", 
   });
 });
 
-describe("VersionsPanel — tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
+describe("VersionsPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
   const signed = { ...version("1.0", "imported"), has_original_file: false, baseline_id: "BL001", other_language_available: true };
   const draft = { ...version("1.1", "cr_revision", ["CR-001"]), other_language_available: false };
 

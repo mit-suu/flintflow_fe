@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SOURCE_MODE_OPTIONS, getProjectStartRoute, getSourceModeOption, projectSourceMode } from "./project-source-mode";
 
-describe("project-source-mode (hiển thị mode BE suy ra — FLF-335)", () => {
+describe("project-source-mode (hiển thị mode BE suy ra - FLF-335)", () => {
   it("đủ 3 mode, mỗi mode một lần, không còn trạng thái soon", () => {
     expect(SOURCE_MODE_OPTIONS.map((o) => o.value).sort()).toEqual(["customer_template", "fpt", "import"]);
     expect(SOURCE_MODE_OPTIONS.some((o) => "status" in o)).toBe(false);
