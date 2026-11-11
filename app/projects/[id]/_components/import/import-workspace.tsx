@@ -26,7 +26,7 @@ import CreationProgress from "./creation-progress";
 import ImportSkeleton from "./import-skeleton";
 import ReferenceUploadsNote from "./reference-uploads-note";
 import { markImportPending } from "@/lib/import-pending";
-import { retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
+import { chooseProjectUploadVersion, dismissProjectUpload, retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
 
 interface ImportWorkspaceProps {
   projectId: string;
@@ -144,7 +144,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
 
   const body = (() => {
     if (uploads && srsUpload && srsFailed) {
-      return <CreationProgress uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} onPickAnother={() => setPickAnother(true)} />;
+      return <CreationProgress uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} onChoose={(key, choice) => chooseProjectUploadVersion(projectId, key, choice)} onDismiss={(key) => dismissProjectUpload(projectId, key)} onPickAnother={() => setPickAnother(true)} />;
     }
     if (srsUpload && reading) return <StructureReading fileName={srsUpload.name} />;
     if (imp.loading) return <ImportSkeleton withHeader={false} label={t("loading")} />;

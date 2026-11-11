@@ -62,12 +62,26 @@ export const genericErrorMessage = (locale: Locale = currentLocale()): string =>
  */
 const FALLBACK_CODES: ReadonlySet<string> = new Set(["UNKNOWN_ERROR", "PARSE_ERROR", "STREAM_FAILED", "EXPORT_FAILED", "DOWNLOAD_FAILED", "DIAGRAM_FETCH_FAILED"]);
 
+type DocumentRefMeta = { name: string; doc_code?: number | null };
+const isDocumentRef = (value: unknown): value is DocumentRefMeta => typeof value === "object" && value !== null && typeof (value as DocumentRefMeta).name === "string";
+/** `"SRS_v1.docx" (D1)` — tên trong ngoặc kép, kèm mã tài liệu nếu có. */
+const documentLabel = (doc: DocumentRefMeta): string => `"${doc.name}"${typeof doc.doc_code === "number" ? ` (D${doc.doc_code})` : ""}`;
+
 /**
  * Câu dịch kèm số liệu từ `meta` của BE. Hiện chỉ `FILE_TOO_LARGE` có `meta.max_mb` (upload SRS mode 1, 413) ⇒ câu nêu giới
  * hạn theo MB; không có `meta` (upload khác) ⇒ câu chung của mã.
  */
 const withMeta = (code: string | null | undefined, locale: Locale, meta?: Record<string, unknown>): string | undefined => {
   if (code === "FILE_TOO_LARGE" && typeof meta?.max_mb === "number") return ERRORS[locale].FILE_TOO_LARGE_LIMIT.replace("{max_mb}", String(meta.max_mb));
+  // FLF-398: tài liệu tham khảo trùng hệt — nêu tên (+ mã D<n>) tài liệu đã có; trùng bản cũ đã bị thay ⇒ nêu bản đang thay nó.
+  // Câu dựng ở FE: tên file như `SRS_KhachHang_v1.docx` làm câu BE trông như text kỹ thuật (`looksTechnical`).
+  if (code === "DUPLICATE_DOCUMENT" && isDocumentRef(meta?.document)) {
+    const name = documentLabel(meta.document);
+    if (isDocumentRef(meta.superseded_by)) {
+      return ERRORS[locale].DUPLICATE_DOCUMENT_SUPERSEDED.replace("{name}", name).replace("{newer}", documentLabel(meta.superseded_by));
+    }
+    return ERRORS[locale].DUPLICATE_DOCUMENT_NAMED.replace("{name}", name);
+  }
   // FLF-334 B: tải theo ngôn ngữ khác còn mục chưa dịch — nói rõ bao nhiêu
   if (code === "TRANSLATION_INCOMPLETE" && typeof meta?.missing === "number") {
     const one = new Intl.PluralRules(locale).select(meta.missing) === "one";
