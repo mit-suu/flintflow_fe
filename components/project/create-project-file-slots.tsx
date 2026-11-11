@@ -22,6 +22,8 @@ export interface ReferenceFile {
   precheck?: DocxPrecheck | null;
   /** Người dùng đã chọn giữ làm tham khảo — không hiện gợi ý nữa. */
   keep?: boolean;
+  /** FLF-398: dấu nội dung (SHA-256) — chọn lại file trùng nội dung thì không thêm. */
+  fingerprint?: string;
 }
 
 const formatSize = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);

@@ -801,6 +801,7 @@
         "remove": "Remove {name}",
         "checking": "Checking file…",
         "rejected": "Not added: {files} — only .docx, .pdf, .doc, .md, .txt up to 10 MB.",
+        "duplicate": "Already in the list: {files} — not added again.",
         "suggest": {
           "looksLikeSrs": "This file looks like an SRS. Do you want FlintFlow to edit and complete it?",
           "otherVersion": "This file looks like another SRS version. If it is an older copy of the file in the SRS slot, remove it to avoid mixing content.",

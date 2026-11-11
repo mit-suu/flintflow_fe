@@ -801,6 +801,7 @@
         "remove": "Bỏ {name}",
         "checking": "Đang xem file…",
         "rejected": "Chưa thêm được: {files} — chỉ nhận .docx, .pdf, .doc, .md, .txt tối đa 10 MB.",
+        "duplicate": "Đã có trong danh sách: {files} — không thêm lần nữa.",
         "suggest": {
           "looksLikeSrs": "File này trông như một SRS. Bạn muốn FlintFlow sửa và hoàn thiện nó?",
           "otherVersion": "File này trông như một bản SRS khác. Nếu là bản cũ của file ở ô SRS, nên bỏ để tránh lẫn nội dung.",
