@@ -21,7 +21,8 @@ interface TemplateMigrationScreenProps {
   projectId: string;
   orgRole: OrgRole | null;
   /** Org của dự án — nguồn danh sách mẫu để chọn. */
-  orgId: string | null;
+  /** `undefined` = dự án chưa tải xong, chưa biết org. */
+  orgId: string | null | undefined;
   /** Cờ đang mở của dự án: mục thiếu sau đổi mẫu lấy từ cờ đỏ, không từ ảnh chụp lúc áp dụng. */
   flags: readonly Flag[];
   sectionName: (sectionId: string) => string;

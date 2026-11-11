@@ -2630,7 +2630,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <Suspense fallback={null}>
           <TemplateMigrationPopup
             projectId={projectId}
-            orgId={ws.project?.organizationId ?? getActiveOrgId()}
+            // Dự án chưa tải ⇒ `undefined` (bước chọn mẫu hiện đang tải): lấy tạm org đang mở sẽ hiện nhầm danh sách / "chưa có mẫu"
+            orgId={ws.project ? (ws.project.organizationId ?? getActiveOrgId()) : undefined}
             orgRole={ws.orgRole}
             flags={flags}
             sectionName={panelSectionName}

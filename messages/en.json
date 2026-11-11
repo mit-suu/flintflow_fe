@@ -4486,7 +4486,15 @@
         "versionLabel": "Version of template {name}",
         "versionLatest": "Version {version} (latest)",
         "versionOption": "Version {version}",
-        "use": "Switch to this version",
+        "use": "Switch to this template",
+        "searchLabel": "Search templates",
+        "searchPlaceholder": "Search by template or file name…",
+        "noMatch": "No template matches \"{query}\".",
+        "pickHint": "Pick a template from the list.",
+        "selectedLabel": "Selected: {name}",
+        "versionPick": "Version",
+        "badgeCurrent": "Current",
+        "badgeNew": "New version",
         "isCurrent": "The project already uses this version",
         "useAria": "Switch to template {name} version {version}",
         "fileTitle": "Upload a template file",
@@ -4502,7 +4510,7 @@
         "familyLabel": "Publish to",
         "familyNew": "A new template",
         "familyNext": "New version of {name}",
-        "previousPrivate": "Go back to {name} (version {version}) — the project's own copy of the template file it used before the latest change. Untouched sections return to the original; for edited ones you choose to keep or drop the edit."
+        "previousPrivate": "Go back to {name} (version {version}): the project's own copy of the template file it used before the latest change. Untouched sections return to the original; for edited ones you choose to keep or drop the edit."
       },
       "pairs": {
         "help": "Each section of the current document is matched to a section of the new template. Fix a pair if the match is wrong. Headings of individual use cases, functions and screens follow their parent section, so they are not listed separately.",

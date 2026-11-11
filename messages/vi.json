@@ -4486,7 +4486,15 @@
         "versionLabel": "Bản của mẫu {name}",
         "versionLatest": "Bản {version} (mới nhất)",
         "versionOption": "Bản {version}",
-        "use": "Đổi sang bản này",
+        "use": "Đổi sang mẫu này",
+        "searchLabel": "Tìm mẫu",
+        "searchPlaceholder": "Tìm theo tên mẫu hoặc tên file…",
+        "noMatch": "Không có mẫu nào khớp \"{query}\".",
+        "pickHint": "Chọn một mẫu trong danh sách.",
+        "selectedLabel": "Đã chọn: {name}",
+        "versionPick": "Bản",
+        "badgeCurrent": "Đang theo",
+        "badgeNew": "Có bản mới",
         "isCurrent": "Dự án đang theo bản này",
         "useAria": "Đổi sang mẫu {name} bản {version}",
         "fileTitle": "Tải file mẫu",
@@ -4502,7 +4510,7 @@
         "familyLabel": "Đăng vào",
         "familyNew": "Mẫu mới trong thư viện",
         "familyNext": "Bản mới của {name}",
-        "previousPrivate": "Quay về mẫu {name} (bản {version}) — bản riêng của dự án, lưu từ file mẫu dự án dùng trước lần đổi gần nhất. Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ."
+        "previousPrivate": "Quay về mẫu {name} (bản {version}): bản riêng của dự án, lưu từ file mẫu dự án dùng trước lần đổi gần nhất. Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ."
       },
       "pairs": {
         "help": "Mỗi mục của tài liệu hiện tại được ghép với một mục của mẫu mới. Sửa cặp nếu hệ thống ghép chưa đúng. Heading của từng use case, chức năng, màn hình đi theo mục cha nên không hiện riêng.",

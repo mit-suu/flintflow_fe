@@ -11,7 +11,8 @@ import TemplateMigrationScreen from "./TemplateMigrationScreen";
 
 interface TemplateMigrationPopupProps {
   projectId: string;
-  orgId: string | null;
+  /** `undefined` = dự án chưa tải xong, chưa biết org. */
+  orgId: string | null | undefined;
   orgRole: OrgRole | null;
   flags: readonly Flag[];
   sectionName: (sectionId: string) => string;

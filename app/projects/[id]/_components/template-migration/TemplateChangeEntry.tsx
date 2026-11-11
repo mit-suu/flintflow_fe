@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
+import Skeleton from "@/components/ui/Skeleton";
 import { listBaselines } from "@/lib/api/export";
 import { getReviewPackage } from "@/lib/api/versions";
 import type { Flag } from "@/types/spine";
@@ -85,29 +87,48 @@ export default function TemplateChangeEntry({ projectId, orgRole, flags, section
   };
 
   return (
-    <section aria-label={t("aria")} className="flex flex-col gap-2.5">
-      <h4 className="text-body font-extrabold text-on-surface">{t("title")}</h4>
-      {current !== undefined && (
-        <p className="text-body font-semibold text-on-surface break-words">{t(currentKey(current), { name: current?.name ?? "", version: current?.version ?? 0 })}</p>
-      )}
-      <p className="text-caption text-on-surface-muted leading-relaxed">{m.open ? t("openHelp") : t("help")}</p>
-      <div className="flex flex-wrap items-center gap-2">
+    // Thẻ phẳng nền trắng trên panel xám: icon + tên + mẫu đang theo một khối, nút "Đổi mẫu" dạng nhạt ở góc (panel đã có nút
+    // chính của gói thay đổi, không để hai nút tím đặc tranh nhau)
+    <section aria-label={t("aria")} className="flex flex-col gap-3 rounded-card bg-surface-container-lowest p-4">
+      <div className="flex items-start gap-3">
+        <span className="shrink-0 w-9 h-9 rounded-control bg-primary-soft text-primary flex items-center justify-center">
+          <Icon name="file-template" size={18} />
+        </span>
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <h4 className="text-caption font-bold uppercase tracking-wide text-on-surface-muted">{t("title")}</h4>
+          {current === undefined ? (
+            <Skeleton className="h-5 w-56 max-w-full" />
+          ) : (
+            <p className="text-body font-semibold text-on-surface break-words">{t(currentKey(current), { name: current?.name ?? "", version: current?.version ?? 0 })}</p>
+          )}
+        </div>
         {reason ? (
-          <Button size="sm" variant="secondary" disabled title={reason}>
+          <Button size="sm" variant="secondary" disabled title={reason} className="shrink-0">
             {m.open ? t("resume") : t("change")}
           </Button>
         ) : (
           <Link
             href={templateMigrationHref(projectId)}
             scroll={false}
-            className="h-8 px-3.5 inline-flex items-center rounded-control bg-primary text-on-primary hover:bg-primary-hover text-body font-bold"
+            className="shrink-0 h-8 px-3.5 inline-flex items-center gap-1.5 rounded-control bg-primary-soft text-primary hover:bg-primary-fixed text-body font-bold transition-colors"
           >
             {m.open ? t("resume") : t("change")}
+            <Icon name="arrow-right" size={14} />
           </Link>
         )}
-        {m.latestApplied && !m.open && <RevertMigrationButton busy={m.busy === "revert"} blocked={m.revertBlocked} revertable={m.latestApplied.revertable} reason={m.latestApplied.revert_blocked_reason} onRevert={() => void revert()} />}
       </div>
-      {reason && <p className="text-caption text-accent-gold-text">{reason}</p>}
+      <p className="text-caption text-on-surface-muted leading-relaxed">{m.open ? t("openHelp") : t("help")}</p>
+      {m.latestApplied && !m.open && (
+        <div className="flex flex-wrap items-center gap-2">
+          <RevertMigrationButton busy={m.busy === "revert"} blocked={m.revertBlocked} revertable={m.latestApplied.revertable} reason={m.latestApplied.revert_blocked_reason} onRevert={() => void revert()} />
+        </div>
+      )}
+      {reason && (
+        <p className="flex items-start gap-1.5 rounded-control bg-accent-gold-soft px-3 py-2 text-caption text-accent-gold-text">
+          <Icon name="info" size={14} className="shrink-0 mt-0.5" />
+          {reason}
+        </p>
+      )}
       {failed && (
         <div role="alert" className="rounded-card bg-error-container p-3 flex flex-col items-start gap-2 text-body text-on-error-container">
           <p>{t("applyFailed")}</p>
