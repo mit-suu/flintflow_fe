@@ -7,7 +7,7 @@ import Icon from "@/components/ui/Icon";
 import { listOrgTemplates } from "@/lib/api/org-library";
 import { versionFacts } from "@/lib/org-template-version";
 import type { OrgTemplateSummary } from "@/types/org-library";
-import type { PreviousTemplate, StartMigrationInput } from "@/types/template-migration";
+import type { PreviousTemplate, StartMigrationInput, TemplateCurrent } from "@/types/template-migration";
 import type { MigrationTargetQuery } from "./href";
 
 interface TargetPickerProps {
@@ -20,6 +20,8 @@ interface TargetPickerProps {
   preselect: MigrationTargetQuery | null;
   /** Mẫu dự án đang theo trước lần đổi gần nhất — lối tắt "quay về". */
   previous: PreviousTemplate | null;
+  /** Mẫu + bản dự án đang theo — không cho chọn lại đúng bản đó (BE trả `409 TEMPLATE_MIGRATION_SAME_TEMPLATE`). */
+  current?: Pick<TemplateCurrent, "template_id" | "version"> | null;
   onStart: (input: StartMigrationInput) => void;
 }
 
@@ -31,7 +33,7 @@ const publishedVersions = (tpl: OrgTemplateSummary): number[] => tpl.versions.fi
  * Bước 1 — chọn mẫu đích: mẫu của tổ chức (bản bất kỳ, kể cả cũ hơn bản đang theo) hoặc file .docx tải lên. Tải danh sách lỗi hoặc
  * tổ chức chưa có mẫu ⇒ vẫn còn đường tải file.
  */
-export default function TargetPicker({ orgId, canPublish, busy, preselect, previous, onStart }: TargetPickerProps) {
+export default function TargetPicker({ orgId, canPublish, busy, preselect, previous, current = null, onStart }: TargetPickerProps) {
   const t = useTranslations("mode1.templateMigration.picker");
   const fileRef = useRef<HTMLInputElement>(null);
   const nameId = useId();
@@ -89,6 +91,7 @@ export default function TargetPicker({ orgId, canPublish, busy, preselect, previ
               const versions = publishedVersions(tpl);
               const version = versionOf(tpl);
               const highlighted = preselect?.templateId === tpl.id;
+              const isCurrent = current?.template_id === tpl.id && current.version === version;
               return (
                 <li key={tpl.id} className={`flex flex-wrap items-center gap-3 rounded-control px-3 py-2 ${highlighted ? "bg-primary-soft" : "bg-surface-container-low"}`}>
                   <span className="flex-1 min-w-[160px] flex flex-col">
@@ -108,9 +111,13 @@ export default function TargetPicker({ orgId, canPublish, busy, preselect, previ
                       </option>
                     ))}
                   </select>
-                  <Button size="sm" disabled={busy} onClick={() => onStart({ kind: "template", template_id: tpl.id, version })} aria-label={t("useAria", { name: tpl.name, version })}>
-                    {t("use")}
-                  </Button>
+                  {isCurrent ? (
+                    <span className="text-caption font-bold text-on-surface-muted">{t("isCurrent")}</span>
+                  ) : (
+                    <Button size="sm" disabled={busy} onClick={() => onStart({ kind: "template", template_id: tpl.id, version })} aria-label={t("useAria", { name: tpl.name, version })}>
+                      {t("use")}
+                    </Button>
+                  )}
                 </li>
               );
             })}

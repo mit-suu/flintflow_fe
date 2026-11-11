@@ -8,9 +8,10 @@ import { listBaselines } from "@/lib/api/export";
 import { getReviewPackage } from "@/lib/api/versions";
 import type { Flag } from "@/types/spine";
 import type { OrgRole } from "@/types/organization";
+import type { TemplateCurrent } from "@/types/template-migration";
 import { useTemplateMigration } from "../../hooks/useTemplateMigration";
 import { templateMigrationHref } from "./href";
-import { openMigrationMissing } from "./missing-flags";
+import { migrationMissingLabel, openMigrationMissing } from "./missing-flags";
 import MissingSectionsCard from "./MissingSectionsCard";
 import RevertMigrationButton from "./RevertMigrationButton";
 
@@ -24,14 +25,19 @@ interface TemplateChangeEntryProps {
   refreshToken?: number;
   /** Hoàn tác xong: tài liệu, cờ, project cần đọc lại. */
   onChanged?: () => void;
+  /** `GET /projects/:id` → `template_current`: mẫu đang theo; `null` = file mẫu của chính dự án; `undefined` = chưa tải ⇒ không ghi gì. */
+  current?: TemplateCurrent | null;
 }
+
+/** Dòng "đang theo mẫu …" của thẻ. */
+const currentKey = (c: TemplateCurrent | null) => (c === null ? "currentOwnFile" : c.kind === "project" ? "currentProject" : c.kind === "skeleton" ? "currentSkeleton" : "currentOrg");
 
 /**
  * Lối vào "Đổi mẫu" trong panel công cụ của workspace. Disable kèm lý do: chưa có baseline, bản nháp đang chờ Lead duyệt, lần đổi mẫu
  * đang áp dụng. Đang có lần đổi mẫu mở ⇒ nút thành "Tiếp tục đổi mẫu". Sau khi áp dụng: hoàn tác (khi còn được) + mục thiếu có nút viết.
  * Viewer không thấy (BE chặn 403).
  */
-export default function TemplateChangeEntry({ projectId, orgRole, flags, sectionName, refreshToken = 0, onChanged }: TemplateChangeEntryProps) {
+export default function TemplateChangeEntry({ projectId, orgRole, flags, sectionName, refreshToken = 0, onChanged, current }: TemplateChangeEntryProps) {
   const t = useTranslations("mode1.templateMigration.entry");
   const allowed = orgRole === "lead" || orgRole === "analyst";
   const m = useTemplateMigration(projectId, { enabled: allowed, fallbackError: t("loadFailed") });
@@ -81,6 +87,9 @@ export default function TemplateChangeEntry({ projectId, orgRole, flags, section
   return (
     <section aria-label={t("aria")} className="flex flex-col gap-2.5">
       <h4 className="text-body font-extrabold text-on-surface">{t("title")}</h4>
+      {current !== undefined && (
+        <p className="text-body font-semibold text-on-surface break-words">{t(currentKey(current), { name: current?.name ?? "", version: current?.version ?? 0 })}</p>
+      )}
       <p className="text-caption text-on-surface-muted leading-relaxed">{m.open ? t("openHelp") : t("help")}</p>
       <div className="flex flex-wrap items-center gap-2">
         {reason ? (
@@ -115,7 +124,7 @@ export default function TemplateChangeEntry({ projectId, orgRole, flags, section
       <MissingSectionsCard
         projectId={projectId}
         canWrite
-        items={missing.map((f) => ({ id: f.id, label: sectionName(f.section_id), sectionId: f.section_id }))}
+        items={missing.map((f) => ({ id: f.id, label: migrationMissingLabel(f) ?? sectionName(f.section_id), sectionId: f.section_id }))}
       />
     </section>
   );

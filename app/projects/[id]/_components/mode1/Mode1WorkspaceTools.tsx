@@ -13,6 +13,7 @@ import TemplateChangeEntry from "../template-migration/TemplateChangeEntry";
 import { openMigrationMissing } from "../template-migration/missing-flags";
 import type { OrgRole } from "@/types/organization";
 import type { DocumentLanguage } from "@/types/project";
+import type { TemplateCurrent } from "@/types/template-migration";
 
 interface Mode1WorkspaceToolsProps {
   projectId: string;
@@ -38,6 +39,8 @@ interface Mode1WorkspaceToolsProps {
   sectionName?: (sectionId: string) => string;
   /** Đổi mẫu / hoàn tác xong: tải lại project (mẫu, ngôn ngữ, `template_update`) ngoài Spine / tài liệu. */
   onTemplateChanged?: () => void;
+  /** Mẫu dự án đang theo (`template_current`) cho thẻ "Mẫu tài liệu"; `undefined` = project chưa tải. */
+  templateCurrent?: TemplateCurrent | null;
 }
 
 /**
@@ -58,6 +61,7 @@ export default function Mode1WorkspaceTools({
   crInProgress = null,
   sectionName = (id) => id,
   onTemplateChanged,
+  templateCurrent,
 }: Mode1WorkspaceToolsProps) {
   const t = useTranslations("mode1.workspaceTools");
   const docs = useDocVersions(projectId, { refreshToken });
@@ -72,7 +76,7 @@ export default function Mode1WorkspaceTools({
 
       {/* FLF-395: đổi sang mẫu khác (hai chiều), hoàn tác, mục thiếu sau đổi mẫu */}
       {!readOnly && (
-        <TemplateChangeEntry projectId={projectId} orgRole={orgRole} flags={flags} sectionName={sectionName} refreshToken={refreshToken} onChanged={onTemplateChanged} />
+        <TemplateChangeEntry projectId={projectId} orgRole={orgRole} flags={flags} sectionName={sectionName} refreshToken={refreshToken} onChanged={onTemplateChanged} current={templateCurrent} />
       )}
 
       <nav className="flex flex-wrap gap-1.5" aria-label={t("navAria")}>

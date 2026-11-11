@@ -90,4 +90,13 @@ describe("TargetPicker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dùng file này" }));
     expect(onStart).toHaveBeenCalledWith({ kind: "file", file, publish_to_org: true, template_id: "t1" });
   });
+
+  it("bản dự án đang theo không có nút đổi sang; chọn bản khác của cùng mẫu thì có", async () => {
+    renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} current={{ template_id: "t1", version: 3 }} onStart={vi.fn()} />);
+    const select = await screen.findByLabelText("Bản của mẫu Mẫu ngân hàng");
+    expect(screen.getByText("Dự án đang theo bản này")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Đổi sang mẫu Mẫu ngân hàng bản 3" })).not.toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "2" } });
+    expect(screen.getByRole("button", { name: "Đổi sang mẫu Mẫu ngân hàng bản 2" })).toBeInTheDocument();
+  });
 });

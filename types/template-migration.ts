@@ -61,6 +61,8 @@ export interface MissingItem {
   section_id: string;
   needs_content: boolean;
   guidance: string | null;
+  /** Mục thừa đã chọn "chuyển vào" mục này — mục nhận nội dung, không còn phải viết (BE đặt `needs_content = false`). */
+  moved_in?: string[];
 }
 
 export interface ExtraItem {
@@ -208,4 +210,12 @@ export interface TemplateUpdate {
   name: string;
   current_version: number;
   latest_version: number;
+}
+
+/** `GET /projects/:id` → `template_current`: mẫu dự án đang theo (mọi thành viên); `null` = file mẫu của chính dự án. */
+export interface TemplateCurrent {
+  template_id: string;
+  name: string;
+  version: number;
+  kind: "org" | "skeleton" | "project";
 }

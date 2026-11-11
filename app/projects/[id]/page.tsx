@@ -2355,6 +2355,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 orgRole={ws.orgRole}
                 sectionName={panelSectionName}
                 onTemplateChanged={handleTemplateChanged}
+                templateCurrent={ws.project ? (ws.project.template_current ?? null) : undefined}
                 refreshToken={documentRefreshToken}
                 documentLanguage={documentLanguage}
                 // CR đang soạn ở khung chat (chưa ghi bản nháp) ⇒ khoá gửi Lead duyệt / phát hành thẳng
@@ -2380,6 +2381,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 sectionName={panelSectionName}
                 refreshToken={documentRefreshToken}
                 onChanged={handleTemplateChanged}
+                current={ws.project ? (ws.project.template_current ?? null) : undefined}
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
@@ -2599,6 +2601,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             sectionName={panelSectionName}
             readOnly={!canEdit}
             onChanged={handleTemplateChanged}
+            current={ws.project?.template_current ?? null}
           />
         </Suspense>
       )}

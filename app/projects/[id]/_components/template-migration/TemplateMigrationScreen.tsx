@@ -5,12 +5,12 @@ import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import type { OrgRole } from "@/types/organization";
 import type { Flag } from "@/types/spine";
-import type { Migration } from "@/types/template-migration";
+import type { Migration, TemplateCurrent } from "@/types/template-migration";
 import { isOpenMigration } from "@/types/template-migration";
 import { useTemplateMigration } from "../../hooks/useTemplateMigration";
 import DecisionGroups from "./DecisionGroups";
 import type { MigrationTargetQuery } from "./href";
-import { openMigrationMissing } from "./missing-flags";
+import { migrationMissingLabel, openMigrationMissing } from "./missing-flags";
 import MissingSectionsCard from "./MissingSectionsCard";
 import PairTable from "./PairTable";
 import RevertMigrationButton from "./RevertMigrationButton";
@@ -29,6 +29,8 @@ interface TemplateMigrationScreenProps {
   preselect?: MigrationTargetQuery | null;
   /** Áp dụng / hoàn tác xong: tài liệu, cờ, project cần đọc lại. */
   onChanged?: () => void;
+  /** Mẫu + bản dự án đang theo (`GET /projects/:id` → `template_current`) — bước chọn mẫu không cho chọn lại đúng bản đó. */
+  currentTemplate?: TemplateCurrent | null;
 }
 
 const STEPS = ["target", "pairs", "groups", "summary"] as const;
@@ -46,7 +48,7 @@ const stepOf = (m: Migration | null): Step | "applying" | "failed" | "applied" =
  * Màn đổi mẫu (popup `panel=template`): chọn mẫu đích → ghép mục → quyết định theo nhóm (đổi ngược: Giữ / Hoàn tác) → tóm tắt + credit →
  * áp dụng. Mọi bước đọc/ghi qua `useTemplateMigration` (BE là nguồn sự thật); 409 dữ liệu đổi giữa chừng đưa về bước nhóm kèm thông báo.
  */
-export default function TemplateMigrationScreen({ projectId, orgId, orgRole, flags, sectionName, preselect = null, onChanged }: TemplateMigrationScreenProps) {
+export default function TemplateMigrationScreen({ projectId, orgId, orgRole, flags, sectionName, preselect = null, onChanged, currentTemplate = null }: TemplateMigrationScreenProps) {
   const t = useTranslations("mode1.templateMigration");
   const m = useTemplateMigration(projectId, { detail: true, fallbackError: t("actionFailed") });
   // Có đích điền sẵn (nút Cập nhật của thông báo) mà chưa có lần đổi mẫu mở ⇒ vào thẳng bước chọn mẫu, không hiện kết quả cũ
@@ -102,6 +104,7 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
           busy={m.busy === "start"}
           preselect={preselect}
           previous={m.latestApplied?.previous_template ?? null}
+          current={currentTemplate}
           onStart={(input) => void afterChange(() => m.start(input))}
         />
       )}
@@ -163,8 +166,8 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
             canWrite={orgRole !== "viewer"}
             items={openMigrationMissing(flags).map((f) => ({
               id: f.id,
-              // Tài liệu trong workspace có thể chưa đọc lại sau khi áp dụng ⇒ lấy tên từ chính lần đổi mẫu (heading của mẫu mới)
-              label: current.groups.missing.find((x) => x.section_id === f.section_id)?.heading_text ?? sectionName(f.section_id),
+              // Tài liệu trong workspace có thể chưa đọc lại sau khi áp dụng ⇒ tên lấy từ câu cờ, rồi từ chính lần đổi mẫu (heading của mẫu mới)
+              label: migrationMissingLabel(f) ?? current.groups.missing.find((x) => x.section_id === f.section_id)?.heading_text ?? sectionName(f.section_id),
               sectionId: f.section_id,
             }))}
           />

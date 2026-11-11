@@ -1,5 +1,5 @@
 import type { ImportStatus } from "./import";
-import type { TemplateUpdate } from "./template-migration";
+import type { TemplateCurrent, TemplateUpdate } from "./template-migration";
 
 export type ProjectStatus = "active" | "archived";
 
@@ -57,6 +57,8 @@ export interface Project {
   organizationId?: string | null;
   /** FLF-395: bản mẫu tổ chức mới hơn bản dự án đang theo — BE chỉ trả cho Lead / Analyst; còn lại `null` / thiếu. */
   template_update?: TemplateUpdate | null;
+  /** FLF-395: mẫu dự án đang theo (thẻ "Mẫu tài liệu"); `null` / thiếu = file mẫu của chính dự án. */
+  template_current?: TemplateCurrent | null;
   /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */
   folderId?: string | null;
   /** Lần mở gần nhất (BE ghi khi `GET /projects/:id`); null = chưa mở. */

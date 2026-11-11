@@ -118,4 +118,21 @@ describe("TemplateChangeEntry", () => {
     expect(api.listBaselines).not.toHaveBeenCalled();
     expect(api.listTemplateMigrations).not.toHaveBeenCalled();
   });
+
+  it("ghi mẫu đang theo; tên mục thiếu lấy theo câu cờ (mẫu có nhiều heading cùng section_id)", async () => {
+    setup({ migrations: [summary()] });
+    const flag: Flag = { ...redMissing, section_id: "fixed:5.4", message: 'Mục "User Documentation" có trong mẫu mới nhưng tài liệu cũ không có — chưa chốt bản được tới khi viết nội dung' };
+    renderWithIntl(
+      <TemplateChangeEntry projectId="p1" orgRole="lead" flags={[flag]} sectionName={() => "Other Requirements"} current={{ template_id: "t1", version: 2, name: "Mẫu IEEE", kind: "org" }} />
+    );
+    expect(await screen.findByText("Đang theo: Mẫu IEEE · bản 2")).toBeInTheDocument();
+    expect(screen.getByText("User Documentation")).toBeInTheDocument();
+    expect(screen.queryByText("Other Requirements")).not.toBeInTheDocument();
+  });
+
+  it("dự án theo file mẫu của chính nó ⇒ ghi rõ, không để trống", async () => {
+    setup();
+    renderWithIntl(<TemplateChangeEntry projectId="p1" orgRole="lead" flags={[]} sectionName={(id) => id} current={null} />);
+    expect(await screen.findByText("Đang theo file mẫu của chính dự án (chưa gắn mẫu tổ chức).")).toBeInTheDocument();
+  });
 });
