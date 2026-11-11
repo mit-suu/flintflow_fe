@@ -1488,6 +1488,7 @@
       "sendFailed": "Could not send the message",
       "attachmentOnly": "[Attached document]",
       "uploadFailed": "Could not upload the attachment",
+      "attachmentDuplicate": "Already attached: {files} — not added again.",
       "knowledgeFailed": "Could not search the knowledge base",
       "stopped": "AI stopped.",
       "knowledgeDisabled": "Knowledge questions are turned off on the server."

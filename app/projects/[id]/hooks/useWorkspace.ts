@@ -14,6 +14,7 @@ import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { uploadReferenceDocument, type DocumentVersionChooser } from "@/lib/reference-upload";
+import { fileFingerprint, splitDuplicateFiles } from "@/lib/file-fingerprint";
 import type { SrsAttachmentSuggestion } from "../_components/mode1/srs-attachment-chip";
 
 /** Thông báo ở pill toast của trang — có thể là: */
@@ -26,14 +27,16 @@ export type SessionNoticeKey =
   | "knowledgeFailed"
   | "stopped"
   | "knowledgeDisabled"
-  | "sendFailed";
+  | "sendFailed"
+  | "attachmentDuplicate";
 
 /**
  * Hook không gọi `useTranslations` (lỗi ghi trong callback/effect, test `renderHook` không có provider — xem
  * `lib/hook-errors.ts`) nên thông báo là MÃ: `{ key }` ⇒ trang dịch `workspace.session.<key>`; `{ text }` ⇒ câu BE đã dịch
- * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung).
+ * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung). `attachmentDuplicate` kèm `files`
+ * là tên các tệp trùng vừa bị bỏ (FLF-398).
  */
-export type WorkspaceNotice = { key: SessionNoticeKey; error?: string } | { text: string };
+export type WorkspaceNotice = { key: SessionNoticeKey; error?: string; files?: string } | { text: string };
 
 const NO_MESSAGE = "@";
 const errorNotice = (error: unknown, key: SessionNoticeKey): WorkspaceNotice => {
@@ -442,12 +445,33 @@ export function useWorkspace(
   // Rời trang giữa lượt ⇒ đóng luồng để BE không sinh tiếp
   useEffect(() => () => streamAbortRef.current?.abort(), []);
 
-  const selectAttachment = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    setPendingAttachments((prev) => [...prev, ...Array.from(files)]);
-    event.target.value = "";
-  }, []);
+  /** FLF-398: dấu nội dung của tệp đang đính kèm (tính một lần mỗi tệp). */
+  const attachmentPrintsRef = useRef(new WeakMap<File, string>());
+
+  /**
+   * Thêm tệp đính kèm. FLF-398: tệp trùng nội dung với tệp đang đính kèm (kể cả đổi tên) hoặc trùng nhau trong cùng lượt chọn ⇒
+   * không thêm, báo ở toast. Trùng với tài liệu đã có trong dự án thì BE báo lúc gửi.
+   */
+  const selectAttachment = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      const picked = Array.from(files);
+      event.target.value = "";
+      const prints = attachmentPrintsRef.current;
+      const known = new Set<string>();
+      for (const file of pendingAttachments) {
+        const print = prints.get(file) ?? (await fileFingerprint(file));
+        prints.set(file, print);
+        known.add(print);
+      }
+      const { kept, duplicates } = await splitDuplicateFiles(picked, known);
+      kept.forEach(({ file, fingerprint }) => prints.set(file, fingerprint));
+      if (kept.length) setPendingAttachments((prev) => [...prev, ...kept.map((k) => k.file)]);
+      if (duplicates.length) setNotice({ key: "attachmentDuplicate", files: duplicates.map((f) => f.name).join(", ") });
+    },
+    [pendingAttachments]
+  );
 
   const removeAttachment = useCallback(
     (fileName: string) => setPendingAttachments((prev) => prev.filter((f) => f.name !== fileName)),

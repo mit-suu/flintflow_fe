@@ -39,7 +39,7 @@ describe("useWorkspace — đính kèm trùng / bản mới (FLF-398)", () => {
     await waitFor(() => expect(result.current.ready).toBe(true));
 
     const files = [new File(["copy"], "copy.docx"), new File(["v2"], "SRS_KhachHang_v2.docx")];
-    act(() => result.current.selectAttachment(pick(files)));
+    await act(async () => result.current.selectAttachment(pick(files)));
     let ok = false;
     await act(async () => {
       ok = await result.current.uploadPendingAttachments();
@@ -63,18 +63,29 @@ describe("useWorkspace — đính kèm trùng / bản mới (FLF-398)", () => {
     });
     const { result } = renderHook(() => useWorkspace(MOCK_PROJECT_ID));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectAttachment(pick([new File(["v2"], "SRS_KhachHang_v2.docx")])));
+    await act(async () => result.current.selectAttachment(pick([new File(["v2"], "SRS_KhachHang_v2.docx")])));
     await act(async () => {
       await result.current.uploadPendingAttachments();
     });
     expect(uploadProjectDocument).toHaveBeenLastCalledWith(MOCK_PROJECT_ID, expect.any(File), { keepBoth: true });
   });
 
+  it("chọn tệp trùng nội dung với tệp đang đính kèm (kể cả đổi tên) / 2 tệp giống nhau ⇒ chỉ giữ một, báo tên tệp bỏ", async () => {
+    const { result } = renderHook(() => useWorkspace(MOCK_PROJECT_ID));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    await act(async () => result.current.selectAttachment(pick([new File(["Biên bản"], "bien-ban.docx")])));
+    await act(async () => result.current.selectAttachment(pick([new File(["Biên bản"], "bien-ban (1).docx"), new File(["Email"], "email.txt"), new File(["Email"], "email copy.txt")])));
+
+    expect(result.current.pendingAttachments.map((f) => f.name)).toEqual(["bien-ban.docx", "email.txt"]);
+    expect(result.current.notice).toEqual({ key: "attachmentDuplicate", files: "bien-ban (1).docx, email copy.txt" });
+    expect(uploadProjectDocument).not.toHaveBeenCalled();
+  });
+
   it("lỗi khác ⇒ false, giữ tệp để thử lại", async () => {
     vi.mocked(uploadProjectDocument).mockRejectedValue(new ApiClientError(400, "UNSUPPORTED_FILE_TYPE", "Chỉ hỗ trợ"));
     const { result } = renderHook(() => useWorkspace(MOCK_PROJECT_ID));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectAttachment(pick([new File(["x"], "x.exe")])));
+    await act(async () => result.current.selectAttachment(pick([new File(["x"], "x.exe")])));
     let ok = true;
     await act(async () => {
       ok = await result.current.uploadPendingAttachments();
