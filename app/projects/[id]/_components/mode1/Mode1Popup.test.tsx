@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("./GapReportView", () => ({ default: () => <p>nội dung gap report</p> }));
 vi.mock("./CrWorkspace", () => ({ default: ({ crId }: { crId: string }) => <p>chi tiết {crId}</p> }));
 vi.mock("./ChangeRequestList", () => ({
-  default: ({ prefill }: { prefill: { title?: string } | null }) => <p>danh sách CR{prefill ? ` · điền sẵn: ${prefill.title}` : ""}</p>,
+  default: (props: Record<string, unknown>) => <p>danh sách CR{"prefill" in props ? " · có prefill" : ""}</p>,
 }));
 vi.mock("./ReuploadDiffView", () => ({ default: ({ projectId }: { projectId: string }) => <p>re-upload · {projectId}</p> }));
 vi.mock("./VersionCompare", () => ({ default: ({ versions }: { versions: { version: string }[] }) => <p>so sánh · {versions.length} version</p> }));
@@ -57,10 +57,10 @@ describe("Mode1Popup — gap report / change request dạng popup trên màn Tà
     expect(router.replace).toHaveBeenCalledWith(`/projects/${P}`, { scroll: false });
   });
 
-  it("panel=cr ⇒ danh sách CR; kèm new=1&… ⇒ form điền sẵn", () => {
+  it("panel=cr ⇒ danh sách CR; link cũ kèm new=1&… cũng chỉ hiện danh sách (FLF-375: không còn form tạo CR)", () => {
     open("panel=cr&new=1&title=B%E1%BB%95%20sung%20m%E1%BB%A5c&source=gap_report");
     expect(screen.getByRole("dialog", { name: "Change request" })).toBeInTheDocument();
-    expect(screen.getByText("danh sách CR · điền sẵn: Bổ sung mục")).toBeInTheDocument();
+    expect(screen.getByText("danh sách CR")).toBeInTheDocument();
   });
 
   it("panel=compare ⇒ popup So sánh version, nhận danh sách version đã tải, không đếm cờ đỏ", () => {

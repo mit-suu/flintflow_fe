@@ -143,7 +143,36 @@ export interface CrLocation {
     at: IsoDateTime;
   } | null;
   group_id: string | null;
+  /** FLF-375: tên chỗ + nội dung trước / sau người đọc được (không mã nội bộ) — hiện cái này, không tự ghép path / id. */
+  display?: CrLocationDisplay;
+  /** FLF-375 (BF §3.2 "Hai người sửa cùng lúc"): lúc xác nhận, người khác đã sửa đúng phần đề xuất định đổi ⇒ so 3 cột. */
+  conflict?: CrLocationConflict | null;
+  /** FLF-375: CR khác chưa đóng đang có bản sửa chưa xác nhận ở đúng chỗ này. */
+  others_pending?: { cr_id: string; requester: string }[];
 }
+
+export interface CrLocationDisplay {
+  /** Tên mảng Spine (`use_cases`, `nfrs`…) hoặc khối văn bản của file (`paragraph` · `table` · `image`). */
+  kind: string;
+  label: string;
+  change: "edit" | "add" | "remove" | "comment" | "none";
+  before: string | null;
+  after: string | null;
+}
+
+export interface CrLocationConflict {
+  /** ① lúc AI soạn */
+  at_proposal: string;
+  /** ② hiện tại (người khác vừa sửa) */
+  current: string;
+  /** ③ đề xuất của bạn */
+  proposal: string | null;
+  changed_by: string;
+  changed_at: IsoDateTime | null;
+}
+
+/** FLF-375: `POST …/messages` — lệnh sửa gộp vào CR, câu hỏi được trả lời. */
+export type CrMessageOutcome = { kind: "amended" } | { kind: "answer"; reply: string };
 
 export type GroupDecision = "pending" | "approved" | "rejected";
 
@@ -200,14 +229,13 @@ export interface AnswersRequest {
   answers: string[];
 }
 
+/**
+ * Quyết định một chỗ: chấp nhận đề xuất AI (`edit` / `comment`) hoặc giữ nguyên / bỏ (`not_related` + lý do).
+ * FLF-375 (BF nguyên tắc 6): không gửi nội dung tự gõ — muốn khác thì gõ hướng sửa cho AI (`draftInOwnerStep`).
+ */
 export interface PatchLocationRequest {
   conclusion?: LocationConclusion;
   reason?: string;
-  /** FLF-186: giá trị mới của cả phần tử ⇒ op `set` tại `path`. */
-  new_value?: unknown;
-  /** FLF-186: op Spine tự viết thay `new_value`. */
-  spine_ops?: Record<string, unknown>[];
-  comment_text?: string;
 }
 
 export interface GroupDecisionRequest {

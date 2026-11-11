@@ -82,7 +82,7 @@ import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
-import { compareHref, crListHref, gapReportHref, reuploadHref } from "./_components/mode1/prefill";
+import { compareHref, crListHref, gapReportHref, readChatCrDraft, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
@@ -1334,6 +1334,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       input?.setSelectionRange(input.value.length, input.value.length);
     }, 0);
   };
+
+  // FLF-375 — CR chỉ tạo bằng chat (BF C-1): link từ gap report / comment / cờ / bản xem trước (`crPrefillHref`) đặt câu yêu
+  // cầu vào ô chat và nhớ nguồn cho thẻ chọn nguồn; người dùng đọc / sửa câu rồi gửi. Chạy một lần khi khung sẵn sàng.
+  const crDraftRead = useRef(false);
+  useEffect(() => {
+    if (!mode1 || !ws.ready || crDraftRead.current) return;
+    crDraftRead.current = true;
+    const draft = readChatCrDraft(new URLSearchParams(window.location.search));
+    if (!draft) return;
+    crChat.setPrefill({ kind: draft.source, ref: draft.ref, requester: draft.requester, previewId: draft.preview_id, commentId: draft.comment_id });
+    startEditing(draft.text);
+    router.replace(`/projects/${projectId}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ đọc link một lần lúc mở trang
+  }, [mode1, ws.ready]);
 
   /** "Tôi muốn sửa" ở cổng chốt: chỉ đưa con trỏ vào ô chat — gõ xong gửi đi là yêu cầu sửa của cổng, không bật chip sửa tài liệu. */
   const focusChatInput = () => {

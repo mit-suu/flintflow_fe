@@ -31,6 +31,10 @@ export const ENTITY_KEYS = [
   "custom_sections",
   "diagrams",
   "assumptions",
+  // FLF-375: chỗ CR chạm tới trong tài liệu upload — hiện bằng tên, không bằng tên mảng tiếng Anh
+  "verifications",
+  "references",
+  "deployment_nodes",
 ] as const;
 
 const isEntity = (name: string): boolean => (ENTITY_KEYS as readonly string[]).includes(name);

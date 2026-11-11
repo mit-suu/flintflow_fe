@@ -1,16 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { CrLocation, LocationConclusion, PatchLocationRequest } from "@/types/change-request";
+import type { CrLocation, LocationConclusion } from "@/types/change-request";
 import ProposalCard, { isVectorOnlyLocation } from "./ProposalCard";
 
+/** FLF-375: danh sách chỉ đọc ở popup CR — thao tác làm trong khung chat (BF nguyên tắc 6). */
 interface ImpactListProps {
   locations: CrLocation[];
-  editable: boolean;
-  onPatch: (locationId: string, body: PatchLocationRequest) => void;
-  /** BPMN 3.9 (CR `manual_fix`): sửa đề xuất trong step sở hữu. Không truyền ⇒ không có nút. */
-  onOwnerDraft?: (locationId: string, instruction: string) => void;
-  busy?: boolean;
 }
 
 /** Thứ tự đếm trong dòng tóm tắt — cùng thứ tự kết luận ở `CONCLUSION_LABELS`. */
@@ -20,7 +16,7 @@ const CONCLUSIONS: readonly LocationConclusion[] = ["edit", "comment", "not_rela
  * 3.4–3.6 Vị trí ảnh hưởng (C-3, UC-50) — phần tử Spine tìm tất định qua liên kết, mã/tên được nhắc và từ khoá; phần tử đã
  * khoá cho CR này. Khi AI đã đề xuất, mỗi vị trí mang kết luận sửa / chỉ comment / không liên quan.
  */
-export default function ImpactList({ locations, editable, onPatch, onOwnerDraft, busy = false }: ImpactListProps) {
+export default function ImpactList({ locations }: ImpactListProps) {
   const t = useTranslations("mode1.impactList");
   if (locations.length === 0) return null;
   const counts = locations.reduce<Record<string, number>>((acc, l) => {
@@ -43,14 +39,7 @@ export default function ImpactList({ locations, editable, onPatch, onOwnerDraft,
         </span>
       </div>
       {locations.map((l) => (
-        <ProposalCard
-          key={l.location_id}
-          location={l}
-          editable={editable}
-          busy={busy}
-          onPatch={(body) => onPatch(l.location_id, body)}
-          onOwnerDraft={onOwnerDraft ? (instruction) => onOwnerDraft(l.location_id, instruction) : undefined}
-        />
+        <ProposalCard key={l.location_id} location={l} />
       ))}
     </section>
   );

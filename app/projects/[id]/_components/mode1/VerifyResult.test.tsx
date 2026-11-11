@@ -59,7 +59,7 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     expect(within(result()).queryByText(/AI đã làm lại/)).not.toBeInTheDocument();
   });
 
-  it("vi phạm code ⇒ đỏ (trượt) kèm thông điệp + mã luật", () => {
+  it("vi phạm code ⇒ đỏ (trượt) + MỘT câu dễ hiểu, không in thông điệp / mã luật nội bộ (FLF-375)", () => {
     renderWithIntl(
       <VerifyResult
         location={location({
@@ -77,12 +77,32 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     );
     const badge = within(result()).getByText("Kiểm tra tự động: chưa đạt");
     expect(badge.className).toContain("text-[#B03030]");
-    const red = within(result()).getByText(/Text block đã đổi so với old_text/);
-    expect(red.closest("p")!.className).toContain("text-[#B03030]");
-    // mã luật lạ ⇒ không in mã, chỉ để tra ở tooltip
-    expect(red).toHaveAttribute("title", "OLD_TEXT_MISMATCH");
-    expect(within(result()).queryByText(/OLD_TEXT_MISMATCH/)).not.toBeInTheDocument();
-    expect(within(result()).getByText(/Xoá actor còn được use case tham chiếu/)).toBeInTheDocument();
+    const line = within(result()).getByText("AI chưa sửa tự động được chỗ này — gõ hướng sửa trong khung chat, hoặc bỏ chỗ này.");
+    expect(line.className).toContain("text-[#B03030]");
+    expect(within(result()).queryByText(/Text block đã đổi so với old_text/)).not.toBeInTheDocument();
+    expect(within(result()).queryByText(/Xoá actor còn được use case tham chiếu/)).not.toBeInTheDocument();
+    expect(within(result()).queryByText(/OLD_TEXT_MISMATCH|SPINE_INVARIANT/)).not.toBeInTheDocument();
+  });
+
+  it("có vi phạm value_changed ⇒ báo chỗ này vừa được sửa ở nơi khác", () => {
+    renderWithIntl(
+      <VerifyResult
+        location={location({
+          verify: {
+            code_ok: false,
+            violations: [
+              { rule: "OLD_TEXT_MISMATCH", message: "x" },
+              { rule: "value_changed", message: "Giá trị hiện tại khác old_text" },
+            ],
+            ai_flags: [],
+            at: AT,
+          },
+        })}
+      />
+    );
+    expect(within(result()).getByText("Chỗ này vừa được sửa ở nơi khác — AI soạn lại trên nội dung hiện tại.")).toBeInTheDocument();
+    expect(within(result()).queryByText(/AI chưa sửa tự động được/)).not.toBeInTheDocument();
+    expect(within(result()).queryByText(/Giá trị hiện tại khác old_text/)).not.toBeInTheDocument();
   });
 
   it("AI soát nhất quán chỉ ra cờ vàng — code vẫn đạt, không chặn", () => {
@@ -105,23 +125,40 @@ describe("VerifyResult — kết quả kiểm một vị trí (C-5, UC-82)", () 
     expect(within(result()).getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
   });
 
-  it("trên mock: sửa tay vẫn trượt ⇒ CR sang manual_fix, vị trí mang kết quả đỏ + cờ vi phạm", async () => {
+  it("trên mock: AI làm lại vẫn trượt ⇒ CR sang manual_fix, vị trí mang kết quả đỏ + câu nhắc gõ hướng sửa trong chat", async () => {
+    await importToGapReview();
+    // mock: tiêu đề chứa FAIL ⇒ new_text đề xuất chứa FAIL ⇒ kiểm trượt, AI làm lại tới mức tối đa
+    const { change_request } = await newCr("Đăng xuất mọi thiết bị FAIL");
+    const cr = change_request.cr_id;
+    await crSteps(cr, ["clarify", "impact", "propose"]);
+    // mỗi lần kiểm trượt AI làm lại (về proposing) tới MAX_REDO_PER_LOCATION, lần kế ⇒ manual_fix
+    for (let i = 0; i <= MAX_REDO_PER_LOCATION; i++) {
+      await runCrAction(P, cr, "verify");
+      if ((await getCr(P, cr)).data!.change_request.status !== "proposing") break;
+      await runCrAction(P, cr, "propose");
+    }
+
+    const detail = (await getCr(P, cr)).data!;
+    expect(detail.change_request.status).toBe("manual_fix");
+    const failed = detail.locations.find((l) => l.verify && !l.verify.code_ok)!;
+    expect(failed.verify!.violations.length).toBeGreaterThan(0);
+    renderWithIntl(<VerifyResult location={failed} />);
+    const box = screen.getByLabelText(`Kết quả kiểm ${failed.location_id}`);
+    expect(within(box).getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
+    expect(within(box).getByText(/AI chưa sửa tự động được chỗ này|Chỗ này vừa được sửa ở nơi khác/)).toBeInTheDocument();
+    expect(within(box).queryByText(failed.verify!.violations[0].message)).not.toBeInTheDocument();
+  });
+
+  it("FLF-375: PATCH vị trí chỉ mang kết luận + lý do (không gửi new_value) — bỏ một chỗ được chấp nhận", async () => {
     await importToGapReview();
     const { change_request } = await newCr();
     const cr = change_request.cr_id;
     const proposed = await crSteps(cr, ["clarify", "impact", "propose"]);
     const target = proposed.locations.find((l) => l.conclusion === "edit") ?? proposed.locations[0];
-    await patchLocation(P, cr, target.location_id, { conclusion: "edit", new_value: { id: "NFR-P02", statement: "FAIL text" } });
-    await runCrAction(P, cr, "verify");
-
-    const detail = (await getCr(P, cr)).data!;
-    expect(detail.change_request.status).toBe("manual_fix");
-    const failed = detail.locations.find((l) => l.location_id === target.location_id)!;
-    expect(failed.manual).toBe(true);
-    renderWithIntl(<VerifyResult location={failed} />);
-    const box = screen.getByLabelText(`Kết quả kiểm ${failed.location_id}`);
-    expect(within(box).getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
-    expect(failed.verify!.violations.length).toBeGreaterThan(0);
-    expect(within(box).getByText(new RegExp(failed.verify!.violations[0].message.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeInTheDocument();
+    const res = await patchLocation(P, cr, target.location_id, { conclusion: "not_related", reason: "Người yêu cầu bỏ đề xuất này" });
+    expect(res.error).toBeNull();
+    const after = res.data!.locations.find((l) => l.location_id === target.location_id)!;
+    expect(after.conclusion).toBe("not_related");
+    expect(after.reason).toBe("Người yêu cầu bỏ đề xuất này");
   });
 });

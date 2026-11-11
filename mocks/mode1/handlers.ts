@@ -1072,6 +1072,30 @@ export const mode1Handlers = [
     }),
   ),
 
+  // FLF-375 (BF nguyên tắc 9): tin nhắn khi CR đang mở — câu hỏi (kết thúc bằng "?") ⇒ AI trả lời, CR giữ nguyên;
+  // còn lại là lệnh sửa ⇒ gộp vào CR như `/amend`.
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/messages"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      const text = String((await readJson(request)).text ?? "").trim();
+      if (!text) return fail(400, "VALIDATION_ERROR", "Cần nội dung tin nhắn");
+      if (/\?\s*$/.test(text)) {
+        return ok({ ...withCurrent(d), message: { kind: "answer" as const, reply: `Trả lời (mock): ${text}` } });
+      }
+      if (!(CR_AMENDABLE_STATUSES as readonly string[]).includes(cr.status)) return invalidTransition(cr, "clarifying");
+      cr.amendments.push({ text, at: now() });
+      cr.paused = null;
+      if (cr.status !== "draft") {
+        setCrStatus(d, "clarifying");
+        runClarify(d);
+      }
+      return ok({ ...withCurrent(d), message: { kind: "amended" as const } });
+    }),
+  ),
+
   // Phase 7: tài liệu bổ sung — JSON { name, text } hoặc multipart `file`; chỉ draft / awaiting_answers
   http.post(
     api("/projects/:projectId/change-requests/:crId/materials"),
@@ -1139,7 +1163,8 @@ export const mode1Handlers = [
         section_id: e.section_id,
         section_title: e.section_title,
         current_text: valueText(e.value),
-        found_by: vector ? (i === 0 ? ["spine_link", "vector"] : ["vector"]) : ["keyword"],
+        // FLF-375: CR tạo từ bản xem trước đã duyệt ⇒ BE gắn nguồn `preview` cho các chỗ thuộc lô đã duyệt
+        found_by: cr.seed?.ops.length ? ["preview"] : vector ? (i === 0 ? ["spine_link", "vector"] : ["vector"]) : ["keyword"],
         vector_score: vector ? Number((0.91 - i * 0.04).toFixed(2)) : null,
         entity_paths: [],
         owner_step: null,

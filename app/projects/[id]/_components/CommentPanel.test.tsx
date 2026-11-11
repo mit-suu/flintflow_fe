@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import { renderWithIntl as render } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import CommentPanel, { type CommentTab } from "./CommentPanel";
-import { readCrPrefill } from "./mode1/prefill";
+import { readChatCrDraft } from "./mode1/prefill";
 import type { SrsComment } from "@/types/comment";
 import type { OrgRole } from "@/types/organization";
 
@@ -65,16 +65,16 @@ describe("CommentPanel (UC-49)", () => {
 
     const href = within(card).getByRole("link", { name: "Tạo CR từ comment" }).getAttribute("href")!;
     expect(href.startsWith("/projects/p1?")).toBe(true);
-    const prefill = readCrPrefill(new URL(href, "http://x").searchParams);
+    const prefill = readChatCrDraft(new URL(href, "http://x").searchParams);
     expect(prefill).toMatchObject({
       source: "viewer_comment",
       ref: "CM-001",
       requester: "Viewer Lan",
       comment_id: "CM-001",
-      title: "CM-001: 3.2.4 Cancel booking › Block 1",
     });
-    expect(prefill?.description).toContain("Cần nói rõ ai được huỷ.");
-    expect(prefill?.description).toContain("3.2.4 Cancel booking › Block 1 (bản 1.0)");
+    expect(prefill?.text.split("\n")[0]).toBe("CM-001: 3.2.4 Cancel booking › Block 1");
+    expect(prefill?.text).toContain("Cần nói rõ ai được huỷ.");
+    expect(prefill?.text).toContain("3.2.4 Cancel booking › Block 1 (bản 1.0)");
   });
 
   it("chưa có baseline / dự án không có luồng CR ⇒ Lead chỉ có Resolve", () => {

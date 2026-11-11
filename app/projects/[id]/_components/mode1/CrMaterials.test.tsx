@@ -1,19 +1,16 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
-import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { API_BASE_URL } from "@/lib/api/client";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
 import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
-import { importToGapReview, newCr } from "@/mocks/mode1/flows";
-import ChangeRequestForm from "./ChangeRequestForm";
+import { crSteps, importToGapReview, newCr } from "@/mocks/mode1/flows";
 import CrWorkspace from "./CrWorkspace";
 
 /**
- * Mode 1 v3 phase 7 — CR thiếu thông tin: đính kèm tài liệu ở 3.1 và khi trả lời 3.3, câu trả lời để trống, dữ kiện
- * còn thiếu, giả định trên đề xuất và khi duyệt.
+ * Mode 1 v3 phase 7 — CR thiếu thông tin: tài liệu bổ sung, dữ kiện còn thiếu, giả định trên đề xuất.
+ * FLF-375: CR tạo và làm trong khung chat ⇒ popup CR chỉ hiện lại các thứ này (không thêm / xoá tài liệu, không trả lời ở đây).
  */
 const P = MODE1_PROJECT_ID;
 const S = () => mode1State.mode1State;
@@ -32,127 +29,38 @@ beforeEach(async () => {
 afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
-const click = async (name: string | RegExp) => fireEvent.click(await screen.findByRole("button", { name }));
-const txt = (name: string, body = "Ngưỡng phản hồi 2 giây") => new File([body], name, { type: "text/plain" });
-
-/** Dán một đoạn văn bản qua khối "Tài liệu bổ sung". */
-const paste = async (scope: HTMLElement, name: string, text: string) => {
-  fireEvent.click(within(scope).getByRole("button", { name: "+ Dán văn bản" }));
-  fireEvent.change(within(scope).getByLabelText("Tên tài liệu"), { target: { value: name } });
-  fireEvent.change(within(scope).getByLabelText("Nội dung tài liệu"), { target: { value: text } });
-  fireEvent.click(within(scope).getByRole("button", { name: "Thêm văn bản" }));
-};
-
-const fillRequired = () => {
-  fireEvent.change(screen.getByLabelText("Tiêu đề"), { target: { value: "Bổ sung yêu cầu hiệu năng" } });
-  fireEvent.change(screen.getByLabelText("Mô tả thay đổi"), { target: { value: "Gap report: thiếu mục hiệu năng" } });
-  fireEvent.change(screen.getByLabelText("Nguồn *"), { target: { value: "gap_report" } });
-  fireEvent.change(screen.getByLabelText("Người yêu cầu *"), { target: { value: "PM Lan" } });
-};
-
-describe("3.1 — đính kèm tài liệu khi tạo CR", () => {
-  it("đoạn dán đi cùng lệnh tạo, file upload ngay sau ⇒ CR có đủ tài liệu", async () => {
-    const onCreated = vi.fn();
-    renderWithIntl(<ChangeRequestForm projectId={P} onCreated={onCreated} onCancel={vi.fn()} />);
-    fillRequired();
-    const box = screen.getByRole("region", { name: "Tài liệu bổ sung" });
-    await paste(box, "Email PM", "Khách muốn nhanh hơn");
-    fireEvent.change(within(box).getByLabelText("Chọn file tài liệu bổ sung"), { target: { files: [txt("biên-bản.txt")] } });
-    expect(within(box).getByText("Email PM")).toBeInTheDocument();
-    expect(within(box).getByText("biên-bản.txt")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Tạo change request" }));
-    await waitFor(() => expect(onCreated).toHaveBeenCalled());
-    const created = onCreated.mock.calls[0][0];
-    // (mock: File của jsdom mất tên khi qua fetch ⇒ chỉ kiểm loại + thứ tự)
-    expect(created.change_request.materials.map((m: { kind: string; round: number }) => [m.kind, m.round])).toEqual([
-      ["text", 0],
-      ["file", 0],
-    ]);
-    expect(created.change_request.materials[0].name).toBe("Email PM");
-  });
-
-  it("file upload lỗi ⇒ CR vẫn tạo, báo file nào lỗi, nút mở CR", async () => {
-    mockServer.use(
-      http.post(`${API_BASE_URL}/projects/:projectId/change-requests/:crId/materials`, () =>
-        HttpResponse.json({ data: null, error: { code: "CR_MATERIAL_EMPTY", message: "không có nội dung chữ nào" } }, { status: 422 })
-      )
-    );
-    const onCreated = vi.fn();
-    renderWithIntl(<ChangeRequestForm projectId={P} onCreated={onCreated} onCancel={vi.fn()} />);
-    fillRequired();
-    fireEvent.change(screen.getByLabelText("Chọn file tài liệu bổ sung"), { target: { files: [txt("trống.txt", " ")] } });
-    fireEvent.click(screen.getByRole("button", { name: "Tạo change request" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Đã tạo CR-001 nhưng chưa đính kèm được: trống\.txt/);
-    expect(onCreated).not.toHaveBeenCalled();
-    await click("Mở CR-001");
-    expect(onCreated.mock.calls[0][0].change_request.cr_id).toBe("CR-001");
-  });
-});
-
-describe("CrWorkspace — tài liệu, câu trả lời trống, giả định", () => {
-  it("draft: dán thêm rồi xoá tài liệu", async () => {
+describe("CrWorkspace — tài liệu, dữ kiện thiếu, giả định (chỉ xem)", () => {
+  it("tài liệu bổ sung của CR hiện ở popup, không có nút dán / chọn file / xoá", async () => {
     const { change_request } = await newCr();
+    S().crs.get(change_request.cr_id)!.change_request.materials = [
+      { material_id: "m1", kind: "text", name: "Email PM", text: "Khách muốn nhanh hơn", truncated: false, round: 0, added_at: "2026-11-10T00:00:00Z" },
+      { material_id: "m2", kind: "file", name: "biên-bản.txt", text: "Chốt 500 người dùng", truncated: false, round: 1, added_at: "2026-11-10T00:00:00Z" },
+    ];
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
-    const section = await screen.findByRole("region", { name: "Tài liệu bổ sung của CR" });
-    await paste(section, "Biên bản họp 3", "Chốt 500 người dùng đồng thời");
-    expect(await within(section).findByText("Biên bản họp 3")).toBeInTheDocument();
-    expect(S().crs.get("CR-001")!.change_request.materials).toHaveLength(1);
 
-    fireEvent.click(within(section).getByRole("button", { name: "Xoá tài liệu Biên bản họp 3" }));
-    await waitFor(() => expect(S().crs.get("CR-001")!.change_request.materials).toHaveLength(0));
+    const section = await screen.findByRole("region", { name: "Tài liệu bổ sung của CR" });
+    expect(within(section).getByText("Tài liệu bổ sung (2)")).toBeInTheDocument();
+    expect(within(section).getByText("Email PM")).toBeInTheDocument();
+    expect(within(section).getByText("biên-bản.txt")).toBeInTheDocument();
+    expect(within(section).getByText("lúc tạo CR")).toBeInTheDocument();
+    expect(within(section).getByText("khi trả lời vòng 1")).toBeInTheDocument();
+    expect(within(section).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Chọn file tài liệu bổ sung")).not.toBeInTheDocument();
   });
 
-  it("3.3 để trống + đính kèm file ⇒ đi tiếp kèm dữ kiện thiếu ⇒ đề xuất và vị trí đã ghi hiện giả định", async () => {
-    const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
+  it("dữ kiện còn thiếu + giả định trên đề xuất hiện để người xem đối chiếu", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact", "propose"]);
+    const stored = S().crs.get(change_request.cr_id)!;
+    stored.change_request.missing_info = ["Thay đổi áp cho cả ứng dụng mobile không?"];
+    const edited = stored.locations.find((l) => l.conclusion === "edit" && l.proposal)!;
+    edited.proposal!.assumptions = ["Thay đổi áp cho cả ứng dụng mobile không?"];
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
-    await click("Bắt đầu làm rõ (AI)");
-    const form = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
-    fireEvent.change(within(form).getByLabelText("Chọn file tài liệu bổ sung"), { target: { files: [txt("email-pm.txt", "Áp cho cả mobile")] } });
-    await waitFor(() => expect(S().crs.get("CR-001")!.change_request.materials).toHaveLength(1));
-    expect(await screen.findByText("khi trả lời vòng 1")).toBeInTheDocument();
-
-    // không trả lời câu nào: bỏ qua cả 2 câu, màn Xem lại vẫn gửi được ⇒ AI sẽ giả định
-    const answering = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
-    fireEvent.click(within(answering).getByRole("button", { name: "Bỏ qua" }));
-    fireEvent.click(within(answering).getByRole("button", { name: "Bỏ qua" }));
-    fireEvent.click(within(answering).getByRole("button", { name: "Gửi câu trả lời" }));
-    const missing = await screen.findByLabelText("Dữ kiện còn thiếu");
-    expect(missing).toHaveTextContent("Thay đổi áp cho cả ứng dụng mobile không?");
-    expect(screen.getAllByText("↳ Chưa biết — AI sẽ giả định")).toHaveLength(2);
-
-    await click("Tìm vị trí ảnh hưởng & khoá");
-    await click("AI đề xuất sửa");
-    expect((await screen.findAllByLabelText("Giả định cần xác nhận"))[0]).toHaveTextContent("Giả định: Thay đổi áp cho cả ứng dụng mobile không?");
-
-    await click("Kiểm đề xuất");
-    // FLF-330: BA xác nhận là ghi ngay vào bản nháp; không còn bước duyệt nhóm; vị trí đã ghi vẫn hiện giả định
-    await click("Xác nhận & ghi vào bản nháp");
-    await waitFor(() => expect(S().crs.get("CR-001")!.change_request.status).toBe("written"));
-    expect((await screen.findAllByLabelText("Giả định cần xác nhận"))[0]).toHaveTextContent("Giả định: Thay đổi áp cho cả ứng dụng mobile không?");
-  }, 30_000);
-
-  it("câu hỏi như mode tạo SRS: từng câu, gợi ý AI hoặc tự nhập, câu chưa biết bỏ qua ⇒ gửi theo đúng từng câu", async () => {
-    const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
-    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
-    await click("Bắt đầu làm rõ (AI)");
-
-    const box = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
-    expect(within(box).getByRole("group", { name: "Câu hỏi 1 trên 2" })).toHaveTextContent("Thay đổi áp cho cả ứng dụng mobile không?");
-    // chọn gợi ý ⇒ tự sang câu 2; quay lại tab câu 1 vẫn thấy đã chọn
-    fireEvent.click(within(box).getByRole("radio", { name: "Chỉ áp cho web" }));
-    expect(within(box).getByRole("group", { name: "Câu hỏi 2 trên 2" })).toBeInTheDocument();
-    fireEvent.click(within(box).getByRole("tab", { name: "Câu 1" }));
-    expect(within(box).getByRole("radio", { name: "Chỉ áp cho web" })).toHaveAttribute("aria-checked", "true");
-    // câu chọn một: tự nhập ở dòng "Khác…" thay cho gợi ý đã chọn
-    fireEvent.change(within(box).getByLabelText("Câu trả lời khác"), { target: { value: "Chỉ áp cho web, trừ app cũ" } });
-    expect(within(box).getByRole("radio", { name: "Chỉ áp cho web" })).toHaveAttribute("aria-checked", "false");
-    fireEvent.click(within(box).getByRole("button", { name: "Tiếp" }));
-    // câu 2 chưa biết ⇒ bỏ qua, gửi ở màn Xem lại (câu đó để trống)
-    fireEvent.click(within(box).getByRole("button", { name: "Bỏ qua" }));
-    fireEvent.click(within(box).getByRole("button", { name: "Gửi câu trả lời" }));
-    await waitFor(() => expect(S().crs.get("CR-001")!.change_request.clarifications[0].answers).toEqual(["Chỉ áp cho web, trừ app cũ", ""]));
+    expect(await screen.findByLabelText("Dữ kiện còn thiếu")).toHaveTextContent("Thay đổi áp cho cả ứng dụng mobile không?");
+    expect(screen.getAllByLabelText("Giả định cần xác nhận")[0]).toHaveTextContent("Giả định cần xác nhận");
+    expect(screen.getAllByLabelText("Giả định cần xác nhận")[0]).toHaveTextContent("Thay đổi áp cho cả ứng dụng mobile không?");
+    // trả lời câu hỏi làm rõ làm trong khung chat
+    expect(screen.queryByRole("button", { name: "Gửi câu trả lời" })).not.toBeInTheDocument();
   });
 });
