@@ -83,6 +83,8 @@ export interface Cr {
   base_doc_version: string;
   result_doc_version: string | null;
   created_by: string;
+  /** Tên người tạo CR (BA giữ đề xuất) — BF §3.2 "treo ở người đó". */
+  created_by_name?: string | null;
   submitted_at: IsoDateTime | null;
   decided_by: string | null;
   closed_reason: string | null;
@@ -169,6 +171,10 @@ export interface CrLocationConflict {
   proposal: string | null;
   changed_by: string;
   changed_at: IsoDateTime | null;
+  /** Thời điểm AI soạn đề xuất ① (BF §3.2: "Lúc AI soạn (9:00)"). */
+  proposed_at?: IsoDateTime | null;
+  /** BF §3.2: AI hỏi lại khi yêu cầu gốc đụng thẳng phần vừa sửa — trả lời bằng gợi ý hoặc gõ tự do. */
+  question?: { text: string; suggestions: string[] } | null;
 }
 
 /** FLF-375: `POST …/messages` — lệnh sửa gộp vào CR, câu hỏi được trả lời. */
@@ -300,3 +306,10 @@ export type Mode1ErrorCode =
   | "IMPORT_FILE_REJECTED"
   | "IMPORT_STAMP_FOREIGN_PROJECT"
   | "RELEASE_RED_FLAGS_OPEN";
+
+/** BF §3.2: mục của tài liệu đang có bản sửa chưa xác nhận (CR chưa đóng), ai giữ — `GET …/change-requests/pending-sections`. */
+export interface PendingSection {
+  section_id: string;
+  title: string;
+  items: { cr_id: string; who: string }[];
+}

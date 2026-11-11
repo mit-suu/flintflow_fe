@@ -1539,6 +1539,8 @@
       "custom": "Custom section",
       "issuesTitle": "See this section's issues",
       "issuesAria": "See {count, plural, one {# issue} other {# issues}} in this section",
+      "pendingProposal": "{who} ({crId}) has an unconfirmed edit in this section",
+      "pendingProposalsAria": "Unconfirmed edits by others",
       "commentsTitle": "See this section's comments",
       "comment": "Comment",
       "editSection": "Edit this section",
@@ -3324,6 +3326,7 @@
       "readyText": "✓ All proposals passed the check. Confirm to write them to the shared draft now — the Lead approves the whole package at release.",
       "submit": "Confirm & write to draft",
       "readyMore": "Want more edits? Keep typing in the chat box — new edits are merged into {crId}.",
+      "notRequester": "This proposal is pending with {who} — only they can confirm it (the confirmer signs the change). You can read everything; to change something else, open your own change request.",
       "pausedWhat": "AI step",
       "continue": "Continue",
       "kinds": {
@@ -3348,7 +3351,11 @@
         "redraft": "Let the AI redraft on the current content",
         "drop": "Drop the request",
         "redraftInstruction": "Apply the original request to the current content and keep what {who} just changed. Original request: {request}. If the request touches exactly the part that was just changed, ask me instead of choosing.",
-        "dropReason": "Dropped because {who} already changed this part"
+        "dropReason": "Dropped because {who} already changed this part",
+        "titleTimed": "{title} was changed by {who} at {when}, after the AI drafted your proposal ({since}). Your proposal has not been written.",
+        "legend": "Coloured like Track Changes: strikethrough = removed, highlighted = added (compared with ①).",
+        "question": "The AI asks",
+        "answerOther": "Answer differently…"
       },
       "conflictStep": "Someone just edited the same place",
       "conflictLabel": "Places edited by someone else while waiting",

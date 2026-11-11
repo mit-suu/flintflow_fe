@@ -79,6 +79,7 @@ import RunPill from "./_components/RunPill";
 import { recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1CrThread from "./_components/mode1/Mode1CrThread";
+import { usePendingSections } from "./hooks/mode1/usePendingSections";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
@@ -622,6 +623,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    * Chưa `ws.ready` thì chưa tải (projectId rỗng ⇒ hook đứng yên).
    */
   const doc = useDocument(ws.ready ? projectId : "", "draft", undefined, documentRefreshToken, documentLanguage);
+  // BF §3.2: mục đang có bản sửa chưa xác nhận của người khác (mode 1)
+  const pendingSections = usePendingSections(projectId, mode1 && ws.ready, documentRefreshToken);
   const { markPending: markDocumentPending, clearPending: clearDocumentPending } = doc;
 
   /**
@@ -2042,7 +2045,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         >
           {showOpening && <ChatOpening disabled={aiWorking} onPick={(chip) => void sendFromChat(chip.message, chip.intent)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
-          {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} />}
+          {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
@@ -2288,6 +2291,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           // nhưng chỉ trên bản đã phát hành, nên ở bản nháp chỉ mở cho Lead/Analyst.
           onCommentSection={canEdit ? startComment : undefined}
           commentCountOf={(sectionId) => comments.openCountBySection.get(sectionId) ?? 0}
+          pendingProposalsOf={mode1 ? (sectionId) => pendingSections.get(sectionId)?.items ?? [] : undefined}
           onOpenSectionComments={() => openComments()}
           rewriteError={!editCardOpen ? hookError(changes.error) : null}
           onSectionsLoaded={handleSectionsLoaded}

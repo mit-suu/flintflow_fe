@@ -10,6 +10,7 @@ import type {
   GroupDecisionRequest,
   OwnerStepDraftRequest,
   PatchLocationRequest,
+  PendingSection,
 } from "@/types/change-request";
 import { apiCall } from "./client";
 
@@ -25,6 +26,9 @@ export const listCrs = (projectId: string, status?: CrStatus) =>
   apiCall<Cr[]>(status ? `${crs(projectId)}?status=${status}` : crs(projectId));
 
 export const getCr = (projectId: string, crId: string) => apiCall<CrDetail>(cr(projectId, crId));
+
+/** BF §3.2: mục đang có bản sửa chưa xác nhận của CR chưa đóng, ai giữ. */
+export const getPendingSections = (projectId: string) => apiCall<PendingSection[]>(`${crs(projectId)}/pending-sections`);
 
 /** Các bước không có body: làm rõ (C-2), tìm vị trí + khoá (C-3), đề xuất (C-4), kiểm (C-5), nộp, sửa lại, resume. */
 export type CrAction = "clarify" | "impact" | "propose" | "verify" | "submit" | "revise" | "resume";
