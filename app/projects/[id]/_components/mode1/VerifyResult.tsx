@@ -23,12 +23,10 @@ export default function VerifyResult({ location }: { location: CrLocation }) {
           <span className="text-caption text-[#8A867E]">{t("redo", { count: location.redo_count, max: MAX_REDO_PER_LOCATION })}</span>
         )}
       </div>
-      {v.violations.map((x, i) => (
-        <p key={`v${i}`} className="text-[#B03030]">
-          ● <span title={x.rule}>{humanizeText(x.message)}</span>
-          {ruleLabel(x.rule) && <span className="text-caption opacity-70"> ({ruleLabel(x.rule)})</span>}
-        </p>
-      ))}
+      {/* FLF-375 (U6): không in thông báo luật nội bộ (op_not_allowed, "add/remove"…) — chỉ nói bằng lời */}
+      {v.violations.length > 0 && (
+        <p className="text-[#B03030]">{v.violations.some((x) => x.rule === "value_changed") ? t("changedElsewhere") : t("notFixedYet")}</p>
+      )}
       {v.ai_flags.map((x, i) => (
         <p key={`a${i}`} className="text-[#8A6D1F]">
           ● <span title={x.rule}>{humanizeText(x.message)}</span>

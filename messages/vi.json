@@ -3221,7 +3221,9 @@
         "ownAria": "Cần bạn xem riêng",
         "ownTitle": "⚠ Cần bạn xem riêng ({count})",
         "acceptAll": "Đồng ý tất cả ({count})",
-        "perRowHint": "Sửa / bỏ từng phần: bấm ▸"
+        "perRowHint": "Sửa / bỏ từng phần: bấm ▸",
+        "removed": "(xoá)",
+        "noPreview": "(chưa xem trước được)"
       },
       "requester": {
         "step": "Mở change request",
@@ -3257,8 +3259,7 @@
       },
       "edit": {
         "tablistAria": "Cách sửa {id}",
-        "tabAi": "✨ Nhờ AI soạn lại",
-        "tabManual": "✎ Tự sửa"
+        "tabAi": "✨ Nhờ AI soạn lại"
       },
       "loc": {
         "aria": "Đề xuất {id}",
@@ -3277,7 +3278,10 @@
         "accept": "Đồng ý",
         "redo": "Sửa lại",
         "keepDiagram": "Giữ hình gốc",
-        "reject": "Bỏ"
+        "reject": "Bỏ",
+        "othersPending": "{who} ({crId}) có bản sửa chưa xác nhận ở mục này",
+        "askFailed": "Mình chưa sửa tự động được chỗ này sau 2 lần thử. Bạn gõ hướng sửa bên dưới, hoặc bỏ chỗ này khỏi change request.",
+        "askChanged": "Chỗ này vừa được sửa ở nơi khác — AI sẽ soạn lại trên nội dung hiện tại."
       },
       "dropped": {
         "summary": "Không sửa {count} phần (không liên quan hoặc bạn đã bỏ)",
@@ -3321,7 +3325,35 @@
       "submit": "Xác nhận & ghi vào bản nháp",
       "readyMore": "Còn muốn sửa thêm? Gõ tiếp ở ô chat — lệnh mới được gộp vào {crId}.",
       "pausedWhat": "Bước AI",
-      "continue": "Tiếp tục"
+      "continue": "Tiếp tục",
+      "kinds": {
+        "paragraph": "Đoạn văn",
+        "table": "Bảng",
+        "image": "Hình"
+      },
+      "diff": {
+        "remove": "Xoá:",
+        "add": "Thêm:",
+        "before": "Trước",
+        "after": "Sau",
+        "noPreview": "Đề xuất này chưa xem trước được (có tham chiếu chưa đúng) — bước kiểm tra sẽ bắt và AI soạn lại."
+      },
+      "conflict": {
+        "aria": "So sánh 3 cột — {title}",
+        "title": "{title} đã được {who} sửa sau khi AI soạn đề xuất cho bạn. Đề xuất của bạn chưa được ghi.",
+        "atProposal": "① Lúc AI soạn",
+        "current": "② Hiện tại ({who})",
+        "yours": "③ Đề xuất của bạn",
+        "request": "Yêu cầu gốc: “{request}”",
+        "redraft": "AI soạn lại trên nội dung hiện tại",
+        "drop": "Bỏ yêu cầu",
+        "redraftInstruction": "Áp yêu cầu gốc lên nội dung hiện tại, giữ nguyên phần {who} vừa sửa. Yêu cầu gốc: {request}. Nếu yêu cầu gốc đụng thẳng phần vừa sửa thì hỏi lại tôi, không tự chọn.",
+        "dropReason": "Bỏ vì mục đã được {who} sửa"
+      },
+      "conflictStep": "Có người vừa sửa cùng chỗ",
+      "conflictLabel": "Chỗ bị người khác sửa trong lúc chờ",
+      "conflictIntro": "{count, plural, other {# chỗ}} đã được người khác sửa trong lúc bạn chờ xác nhận. Chưa ghi gì — xem so sánh và chọn cách xử lý (không có nút ghi đè để không xoá phần người khác vừa sửa).",
+      "replyLabel": "AI trả lời"
     },
     "crChat": {
       "hintNew": "Gõ yêu cầu sửa tài liệu, vd: Thêm yêu cầu hiệu năng cho màn tra cứu",
@@ -3391,7 +3423,9 @@
       "closeTitle": "Đóng change request",
       "cancelTitle": "Huỷ change request",
       "closeDescription": "Mọi nhóm đã bị từ chối. Đóng CR sẽ mở khoá toàn bộ block, CR chuyển sang trạng thái từ chối.",
-      "cancelDescription": "Huỷ sẽ mở khoá mọi block CR đang giữ. Không ghi gì vào tài liệu."
+      "cancelDescription": "Huỷ sẽ mở khoá mọi block CR đang giữ. Không ghi gì vào tài liệu.",
+      "inChatText": "Change request này đang ở bước “{status}”. Mọi việc (trả lời câu hỏi, đồng ý, gõ hướng sửa, xác nhận ghi) làm trong khung chat bên trái — ở đây chỉ để xem lại.",
+      "openInChat": "Mở trong khung chat"
     },
     "crForm": {
       "emptyFields": "Cần tiêu đề và mô tả thay đổi.",
@@ -3591,7 +3625,10 @@
         "context": "Sơ đồ ngữ cảnh",
         "usecase": "Sơ đồ use case",
         "screen_flow": "Sơ đồ luồng màn hình",
-        "erd": "Sơ đồ quan hệ thực thể"
+        "erd": "Sơ đồ quan hệ thực thể",
+        "sequence": "Sơ đồ tuần tự",
+        "activity": "Sơ đồ hoạt động",
+        "deployment": "Sơ đồ triển khai"
       },
       "title": "Hình gốc — {kinds}",
       "titleFallback": "Hình gốc của tài liệu",
@@ -3604,7 +3641,9 @@
       "aria": "Kết quả kiểm {id}",
       "ok": "Kiểm tra tự động: đạt",
       "fail": "Kiểm tra tự động: chưa đạt",
-      "redo": "AI đã làm lại {count}/{max} lần"
+      "redo": "AI đã làm lại {count}/{max} lần",
+      "notFixedYet": "AI chưa sửa tự động được chỗ này — gõ hướng sửa trong khung chat, hoặc bỏ chỗ này.",
+      "changedElsewhere": "Chỗ này vừa được sửa ở nơi khác — AI soạn lại trên nội dung hiện tại."
     },
     "crPages": {
       "opening": "Đang mở change request"
@@ -3658,7 +3697,7 @@
         "impact_review": "Tìm vị trí ảnh hưởng",
         "proposing": "Đề xuất sửa",
         "verifying": "Đang kiểm",
-        "manual_fix": "Cần sửa tay",
+        "manual_fix": "Cần bạn quyết",
         "ready_to_submit": "Sẵn sàng nộp",
         "in_review": "Chờ duyệt (luồng cũ)",
         "written": "Đã ghi vào bản nháp",
@@ -3671,7 +3710,7 @@
         "gap_report": "Gap report",
         "reupload": "File tải lại (khác biệt)",
         "viewer_comment": "Góp ý của người xem",
-        "verbal": "Yêu cầu miệng (ghi rõ người yêu cầu)",
+        "verbal": "Yêu cầu miệng",
         "chat": "Lệnh sửa trong chat (CR cũ)",
         "reference_document": "Tài liệu tham khảo (rút yêu cầu)"
       },
@@ -3727,7 +3766,10 @@
         "addendum": "Ghi chú bổ sung",
         "custom_sections": "Mục riêng",
         "diagrams": "Sơ đồ",
-        "assumptions": "Giả định"
+        "assumptions": "Giả định",
+        "verifications": "Kiểm chứng",
+        "references": "Tài liệu tham chiếu",
+        "deployment_nodes": "Nút triển khai"
       },
       "fields": {
         "id": "Mã",

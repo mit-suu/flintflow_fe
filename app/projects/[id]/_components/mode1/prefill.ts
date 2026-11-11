@@ -1,6 +1,6 @@
 /**
- * Điền sẵn form tạo change request qua query `/projects/:id?panel=cr&new=1&…` (popup CR) — dùng từ gap report,
- * re-upload diff và chat bị chặn (`409 CHANGE_REQUIRES_CR`, BR-03).
+ * Điền sẵn change request — FLF-375: CR chỉ tạo bằng chat, nên lối vào (gap report, re-upload diff, comment, cờ, chat bị
+ * chặn `409 CHANGE_REQUIRES_CR`) mở khung chat với câu yêu cầu + nguồn điền sẵn (`crPrefillHref`).
  */
 import { CR_SOURCE_KINDS } from "./labels";
 import type { NEW_CR_SOURCE_KINDS } from "@/types/change-request";
@@ -38,23 +38,29 @@ export const compareHref = (projectId: string): string => `/projects/${projectId
 export const reuploadHref = (projectId: string): string => `/projects/${projectId}?panel=reupload`;
 export const crHref = (projectId: string, crId: string): string => `/projects/${projectId}?panel=cr&cr=${encodeURIComponent(crId)}`;
 
+/**
+ * FLF-375 — CR chỉ tạo bằng chat (BF C-1): lối vào khác mở **khung chat** của màn tài liệu với câu yêu cầu đặt sẵn trong ô
+ * chat (`text`) và nguồn điền sẵn cho thẻ chọn nguồn — người dùng đọc / sửa câu rồi gửi. Không còn form tạo CR.
+ */
 export const crPrefillHref = (projectId: string, prefill: CrPrefill): string => {
-  const params = new URLSearchParams({ panel: "cr", new: "1" });
-  for (const [key, value] of Object.entries(prefill)) if (value) params.set(key, value);
+  const params = new URLSearchParams({ crdraft: "1" });
+  const text = [prefill.title, prefill.description].filter((x) => x && x.trim()).filter((x, i, all) => all.indexOf(x) === i).join("\n");
+  if (text) params.set("text", text);
+  for (const key of ["source", "ref", "requester", "preview_id", "comment_id"] as const) if (prefill[key]) params.set(key, prefill[key]!);
   return `/projects/${projectId}?${params.toString()}`;
 };
 
-/** Đọc lại prefill từ query; nguồn lạ bị bỏ (người dùng tự chọn). */
-export const readCrPrefill = (params: URLSearchParams): CrPrefill | null => {
-  if (params.get("new") !== "1") return null;
+/** FLF-375: đọc câu + nguồn điền sẵn cho khung chat (`crPrefillHref`); không phải link điền sẵn ⇒ `null`. */
+export const readChatCrDraft = (params: URLSearchParams): { text: string; source?: SourceKind; ref?: string; requester?: string; preview_id?: string; comment_id?: string } | null => {
+  if (params.get("crdraft") !== "1" && params.get("new") !== "1") return null;
   const source = params.get("source");
+  const text = params.get("text") ?? [params.get("title"), params.get("description")].filter(Boolean).join("\n");
   return {
-    title: params.get("title") ?? undefined,
-    description: params.get("description") ?? undefined,
+    text,
     source: (CR_SOURCE_KINDS as readonly string[]).includes(source ?? "") ? (source as SourceKind) : undefined,
     ref: params.get("ref") ?? undefined,
-    preview_id: params.get("preview_id") ?? undefined,
     requester: params.get("requester") ?? undefined,
+    preview_id: params.get("preview_id") ?? undefined,
     comment_id: params.get("comment_id") ?? undefined,
   };
 };

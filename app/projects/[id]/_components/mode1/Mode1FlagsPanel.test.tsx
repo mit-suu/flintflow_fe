@@ -7,7 +7,7 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it } from "vitest";
 import type { Flag } from "@/types/spine";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
-import { readCrPrefill } from "./prefill";
+import { readChatCrDraft } from "./prefill";
 
 const P = "p1";
 
@@ -34,12 +34,12 @@ describe("Mode1FlagsPanel", () => {
     expect(within(list).getByText("Cờ đỏ đang chặn release (1)")).toBeInTheDocument();
     const link = within(list).getByRole("link", { name: "Tạo CR" });
     const href = link.getAttribute("href")!;
-    expect(href.startsWith(`/projects/${P}?panel=cr&`)).toBe(true);
-    const prefill = readCrPrefill(new URLSearchParams(href.split("?")[1]));
+    expect(href.startsWith(`/projects/${P}?crdraft=1&`)).toBe(true);
+    const prefill = readChatCrDraft(new URLSearchParams(href.split("?")[1]));
     expect(prefill).toMatchObject({ source: "gap_report", ref: "5.1 Business Rules" });
-    expect(prefill?.title).toContain("Business Rules trống");
-    expect(prefill?.description).toContain("Mục còn trống, mục 5.1 Business Rules");
-    expect(prefill?.description).not.toContain("section_empty");
+    expect(prefill?.text.split("\n")[0]).toContain("Business Rules trống");
+    expect(prefill?.text).toContain("Mục còn trống, mục 5.1 Business Rules");
+    expect(prefill?.text).not.toContain("section_empty");
     expect(within(list).getByText("Mục còn trống")).toHaveAttribute("title", "section_empty");
   });
 

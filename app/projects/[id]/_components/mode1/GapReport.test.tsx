@@ -10,7 +10,7 @@ import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import type { GapReport } from "@/types/import";
 import type { Flag } from "@/types/spine";
 import GapReportView, { gapReportPrefill } from "./GapReportView";
-import { readCrPrefill } from "./prefill";
+import { readChatCrDraft } from "./prefill";
 import { labelsFor } from "./test-labels";
 
 const P = MODE1_PROJECT_ID;
@@ -130,10 +130,9 @@ describe("GapReportView — gap report (UC-23, 1.13)", () => {
     expect(screen.getByText("Cờ đỏ", { selector: "span" }).parentElement!.className).toContain("bg-white");
 
     const href = screen.getByRole("link", { name: "Cần sửa → Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${P}?panel=cr&`)).toBe(true);
-    expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({
-      title: "Sửa theo gap report",
-      description: "Xử lý các vấn đề trong gap report của bản 0.3:",
+    expect(href.startsWith(`/projects/${P}?crdraft=1&`)).toBe(true);
+    expect(readChatCrDraft(new URL(href, "http://x").searchParams)).toEqual({
+      text: "Sửa theo gap report\nXử lý các vấn đề trong gap report của bản 0.3:",
       source: "gap_report",
       ref: "Gap report bản 0.3",
     });

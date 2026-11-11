@@ -219,8 +219,8 @@ export interface Addendum {
   captured_at: IsoDateTime;
 }
 
-/** Loại sơ đồ gốc đọc được từ ảnh của file upload (§4.13). */
-export type OriginalDiagramKind = "context" | "usecase" | "screen_flow" | "erd";
+/** Loại sơ đồ gốc đọc được từ ảnh của file upload (§4.13; FLF-390 thêm sequence, activity — của một function — và deployment). */
+export type OriginalDiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "sequence" | "activity" | "deployment";
 
 /** Khối nguyên văn của mục riêng (FLF-182). */
 export interface CustomBlock {
@@ -229,7 +229,7 @@ export interface CustomBlock {
   rows: string[][] | null;
   image_ref: string | null;
   /** Ảnh là sơ đồ gốc của người dùng (§4.13): giữ y hình, PlantUML cùng loại không in. */
-  diagram?: { kind: OriginalDiagramKind; source_hash: string } | null;
+  diagram?: { kind: OriginalDiagramKind; owner_id?: string | null; source_hash: string } | null;
 }
 
 /** Mục ngoài mẫu FPT của template người dùng (mode 1 v2) — render ở section `custom:<id>`. */
@@ -241,7 +241,7 @@ export interface CustomSection {
   source: "import" | "manual";
 }
 
-export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "screen_layout";
+export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "class" | "state_machine" | "sequence" | "activity" | "deployment" | "screen_layout";
 
 /** Engine vẽ (BE FLF-339): `puml` = text PlantUML, `svg` = SVG tự dựng. */
 export type DiagramFormat = "puml" | "svg";

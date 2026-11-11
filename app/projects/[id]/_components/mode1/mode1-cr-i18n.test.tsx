@@ -5,7 +5,6 @@ import type { CrGroup, CrLocation } from "@/types/change-request";
 import type { CrChat } from "../../hooks/mode1/useCrChat";
 import BlockDiffList, { DiffSummary } from "./BlockDiffList";
 import ChangeGroupPanel from "./ChangeGroupPanel";
-import ChangeRequestForm from "./ChangeRequestForm";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import CrPrefillCard from "./CrPrefillCard";
 import CrTimeline from "./CrTimeline";
@@ -60,7 +59,7 @@ const renderAll = (locale: "vi" | "en") =>
   renderWithIntl(
     <div>
       <CrTimeline status="proposing" />
-      <ImpactList locations={[location("L1"), location("L2", { conclusion: null, verify: null })]} editable onPatch={vi.fn()} onOwnerDraft={vi.fn()} />
+      <ImpactList locations={[location("L1"), location("L2", { conclusion: null, verify: null })]} />
       <ChangeGroupPanel groups={[group]} locations={[location("L1")]} canDecide onDecide={vi.fn()} />
       <VerifyResult location={location("L3")} />
       <OriginalDiagramChange loc={diagramLoc} />
@@ -73,7 +72,6 @@ const renderAll = (locale: "vi" | "en") =>
       <MaterialAdder onAddText={vi.fn()} onAddFile={vi.fn()} />
       <AssumptionsNote assumptions={["Deadline is Friday"]} />
       <CrPrefillCard projectId="p1" prefill={{ title: "Rename", description: "Rename actor" }} onDismiss={vi.fn()} />
-      <ChangeRequestForm projectId="p1" prefill={{ title: "Rename", description: "Rename actor", preview_id: "pv1", comment_id: "c1" }} onCreated={vi.fn()} onCancel={vi.fn()} />
       <Mode1CrThread projectId="p1" chat={idleChat()} me="Lan" />
       <Mode1CrThread projectId="p1" chat={idleChat({ pending: "Rename actor" })} me="Lan" />
       <Mode1CrThread projectId="p1" chat={idleChat({ sent: "CR-001" })} me="Lan" />
@@ -89,7 +87,6 @@ describe("Change request mode 1 — song ngữ", () => {
     expect(screen.getAllByText("Ghi Track Changes").length).toBeGreaterThan(0);
     expect(screen.getByText("1 thêm · 0 xoá · 2 sửa · 0 di chuyển")).toBeInTheDocument();
     expect(screen.getByText("Sơ đồ use case (“Figure 1”)")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tạo change request" })).toBeInTheDocument();
   });
 
   it("en không còn chữ tiếng Việt của giao diện", () => {

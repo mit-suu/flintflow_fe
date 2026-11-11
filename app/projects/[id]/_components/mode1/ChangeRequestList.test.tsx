@@ -1,6 +1,6 @@
 /**
  * Danh sách change request (UC-48) — V6: file này trước đây 0% coverage. Kiểm ba thứ dễ hỏng âm thầm:
- * bộ lọc mở/đóng theo `CR_TERMINAL_STATUSES`, form mở sẵn khi có prefill, và lỗi tải không làm trắng trang.
+ * bộ lọc mở/đóng theo `CR_TERMINAL_STATUSES`, không có form tạo CR (FLF-375: CR chỉ tạo bằng chat), và lỗi tải không làm trắng trang.
  */
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
@@ -10,6 +10,7 @@ import { API_BASE_URL } from "@/lib/api/client";
 import { mockServer } from "@/mocks/server";
 import type { Cr, CrStatus } from "@/types/change-request";
 import ChangeRequestList, { statusTone } from "./ChangeRequestList";
+import { readChatCrDraft } from "./prefill";
 
 const P = "650000000000000000000001";
 
@@ -64,7 +65,7 @@ const rows = () => within(screen.getByRole("list")).getAllByRole("listitem");
 describe("ChangeRequestList", () => {
   it("mặc định chỉ hiện CR đang mở; chuyển bộ lọc ra CR đã đóng rồi tất cả", async () => {
     serveList(LIST);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    renderWithIntl(<ChangeRequestList projectId={P} />);
 
     await waitFor(() => expect(rows()).toHaveLength(2));
     expect(screen.getByText("CR-001")).toBeInTheDocument();
@@ -82,7 +83,7 @@ describe("ChangeRequestList", () => {
 
   it("CR tạm dừng có nhãn riêng; CR đã ghi nói rõ vào bản nào", async () => {
     serveList(LIST);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    renderWithIntl(<ChangeRequestList projectId={P} />);
     await waitFor(() => expect(screen.getByText("CR-004")).toBeInTheDocument());
     expect(screen.getByText("Tạm dừng")).toBeInTheDocument();
 
@@ -92,7 +93,7 @@ describe("ChangeRequestList", () => {
 
   it("danh sách rỗng ⇒ câu giải thích, không phải bảng trống", async () => {
     serveList([]);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    renderWithIntl(<ChangeRequestList projectId={P} />);
     expect(await screen.findByText("Chưa có change request nào ở mục này.")).toBeInTheDocument();
   });
 
@@ -102,23 +103,17 @@ describe("ChangeRequestList", () => {
         HttpResponse.json({ data: null, error: { code: "PROJECT_NOT_FOUND", message: "Không tìm thấy dự án" } }, { status: 404 })
       )
     );
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    renderWithIntl(<ChangeRequestList projectId={P} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Không tìm thấy dự án");
     expect(screen.getByRole("heading", { name: "Change request" })).toBeInTheDocument();
   });
 
-  it("không có nút tạo CR — CR tạo qua chat; không prefill thì không có form", async () => {
+  it("không có nút / form tạo CR — CR tạo qua chat (FLF-375)", async () => {
     serveList(LIST);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    renderWithIntl(<ChangeRequestList projectId={P} />);
     await waitFor(() => expect(rows()).toHaveLength(2));
     expect(screen.queryByRole("button", { name: /Tạo change request/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Tiêu đề")).not.toBeInTheDocument();
-  });
-
-  it("có prefill (từ gap report / comment / cờ) ⇒ form mở sẵn", async () => {
-    serveList([]);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={{ title: "Đổi tên actor", description: "Learner ⇒ Student", source: "gap_report" }} />);
-    await waitFor(() => expect(screen.getByLabelText("Tiêu đề")).toHaveValue("Đổi tên actor"));
   });
 
   it("statusTone: bốn nhóm màu theo trạng thái, không trạng thái nào rơi ra ngoài", () => {
@@ -130,9 +125,9 @@ describe("ChangeRequestList", () => {
 });
 
 describe("ChangeRequestList — Viewer (readOnly)", () => {
-  it("xem được danh sách; prefill không mở form", async () => {
+  it("xem được danh sách, không có nút tạo CR", async () => {
     serveList(LIST);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={{ title: "Từ gap report", description: "x" }} readOnly />);
+    renderWithIntl(<ChangeRequestList projectId={P} readOnly />);
     await waitFor(() => expect(rows()).toHaveLength(2));
     expect(screen.queryByRole("button", { name: "Tạo change request" })).not.toBeInTheDocument();
   });
@@ -157,7 +152,7 @@ describe("ChangeRequestList — Cần xem (FLF-343)", () => {
   const serveFlags = (flags: unknown[]) =>
     mockServer.use(http.get(`${API_BASE_URL}/projects/:projectId/flags`, () => HttpResponse.json({ data: flags, error: null })));
 
-  it("đếm + liệt kê mỗi cờ import_needs_review đang mở đúng một lần, link Tạo CR điền sẵn (không gán nguồn); cờ khác / đã đóng / đã waive không hiện", async () => {
+  it("đếm + liệt kê mỗi cờ import_needs_review đang mở đúng một lần, link Tạo CR mở khung chat với câu điền sẵn (không gán nguồn); cờ khác / đã đóng / đã waive không hiện", async () => {
     serveList([]);
     serveFlags([
       flag("FL1", "import_needs_review"),
@@ -166,23 +161,24 @@ describe("ChangeRequestList — Cần xem (FLF-343)", () => {
       flag("FL4", "import_needs_review", { resolved_at: "2026-10-30T00:00:00.000Z" }),
       flag("FL5", "import_needs_review", { waived_by_user: true, waive_reason: "ok" }),
     ]);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    renderWithIntl(<ChangeRequestList projectId={P} />);
     const section = await screen.findByRole("region", { name: "Cần xem (2)" });
     expect(within(section).getAllByRole("listitem")).toHaveLength(2);
     expect(within(section).getByText("Dữ liệu đọc chưa chắc: Tác nhân A02 — Loại")).toBeInTheDocument();
     expect(within(section).getByText("Khớp mục chưa chắc: 5.1 Business Rules")).toBeInTheDocument();
     const links = within(section).getAllByRole("link", { name: "Tạo CR" });
-    const href = decodeURIComponent(links[0].getAttribute("href")!.replace(/\+/g, " "));
-    expect(href).toContain("panel=cr");
-    expect(href).toContain("new=1");
-    expect(href).toContain("actors[id=A02].kind");
-    expect(href).not.toContain("source=");
+    const href = links[0].getAttribute("href")!;
+    expect(href.startsWith(`/projects/${P}?crdraft=1&`)).toBe(true);
+    expect(href).not.toContain("panel=cr");
+    const draft = readChatCrDraft(new URL(href, "http://x").searchParams);
+    expect(draft?.text).toContain("Tác nhân A02");
+    expect(draft?.source).toBeUndefined();
   });
 
   it("tiếng Anh: câu Cần xem dựng theo ngôn ngữ giao diện, không lòi câu tiếng Việt của BE", async () => {
     serveList([]);
     serveFlags([flag("FL1", "import_needs_review")]);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />, "en");
+    renderWithIntl(<ChangeRequestList projectId={P} />, "en");
     const section = await screen.findByRole("region", { name: "Needs review (1)" });
     expect(within(section).getByText(/^Uncertain reading: /)).toBeInTheDocument();
     expect(within(section).queryByText(/Cần xem|độ tin/)).toBeNull();
@@ -191,12 +187,12 @@ describe("ChangeRequestList — Cần xem (FLF-343)", () => {
   it("không có cờ Cần xem ⇒ không có khối; viewer không có nút Tạo CR", async () => {
     serveList([]);
     serveFlags([]);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} />);
+    renderWithIntl(<ChangeRequestList projectId={P} />);
     await screen.findByText("Chưa có change request nào ở mục này.");
     expect(screen.queryByRole("region", { name: /Cần xem/ })).toBeNull();
 
     serveFlags([flag("FL1", "import_needs_review")]);
-    renderWithIntl(<ChangeRequestList projectId={P} prefill={null} readOnly />);
+    renderWithIntl(<ChangeRequestList projectId={P} readOnly />);
     expect(await screen.findByRole("region", { name: "Cần xem (1)" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Tạo CR" })).toBeNull();
   });

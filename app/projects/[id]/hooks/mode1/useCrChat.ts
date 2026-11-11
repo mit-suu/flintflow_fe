@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import {
   addCrMaterialFile,
   addCrMaterialText,
-  amendCr,
   answerClarifications,
   createCr,
   deleteCrMaterial,
@@ -14,6 +13,7 @@ import {
   listCrs,
   patchLocation,
   runCrAction,
+  sendCrMessage,
   type CrAction,
 } from "@/lib/api/change-requests";
 import { CR_AMENDABLE_STATUSES, CR_OPEN_STATUSES, CR_REDRAFT_STATUSES, type CrDetail, type CrLocation, type NEW_CR_SOURCE_KINDS } from "@/types/change-request";
@@ -26,8 +26,20 @@ export interface CrChatSource {
   ref?: string | null;
 }
 
+/**
+ * FLF-375 — CR chỉ tạo bằng chat: lối vào khác (gap report, comment, cờ, bản xem trước, re-upload) mở khung chat với câu
+ * yêu cầu trong ô chat + nguồn điền sẵn ở đây; thẻ chọn nguồn (C-1) mở sẵn đúng nguồn / tham chiếu / người yêu cầu.
+ */
+export interface CrChatPrefill {
+  kind?: (typeof NEW_CR_SOURCE_KINDS)[number];
+  ref?: string;
+  requester?: string;
+  previewId?: string;
+  commentId?: string;
+}
+
 /** Việc đang chạy — để luồng chat nói "AI đang …". */
-export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft" | "manual";
+export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft";
 
 /** Đề xuất đã đổi (AI làm lại / soạn lại) ⇒ khoá khác ⇒ người dùng phải đồng ý lại. */
 export const proposalKey = (l: CrLocation): string =>
@@ -44,6 +56,12 @@ export const isFailing = (l: CrLocation): boolean => l.verify !== null && !l.ver
  * đó, không hỏi / không gọi AI ⇒ không bắt duyệt lại từng phần như trước baseline: đề xuất của lô tính là đã đồng ý.
  */
 export const fromApprovedPreview = (d: CrDetail): boolean => (d.change_request.seed?.ops.length ?? 0) > 0 && d.change_request.amendments.length === 0;
+
+/**
+ * FLF-375: chỗ thuộc đúng lô người dùng đã duyệt ở bản xem trước — chỉ những chỗ này tính là đã đồng ý. Chỗ khác của CR
+ * (văn xuôi còn nhắc phần tử vừa xoá, sơ đồ gốc vẽ lại…) là đề xuất mới của AI ⇒ người dùng phải quyết (BF C-4, C-6).
+ */
+export const inApprovedBatch = (d: CrDetail, l: CrLocation): boolean => fromApprovedPreview(d) && l.found_by.includes("preview") && !isFailing(l);
 
 const storageKey = (projectId: string, crId: string, what: "accepted" | "impact") => `ff-cr-chat:${projectId}:${crId}:${what}`;
 const readStore = (key: string): string | null => {
@@ -89,12 +107,15 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
    * (`preview_id`, BE dùng đúng lô người dùng đã duyệt) và cả đoạn hỏi đáp làm mô tả.
    */
   const [pendingSeed, setPendingSeed] = useState<{ previewId: string; description: string } | null>(null);
+  const [prefill, setPrefill] = useState<CrChatPrefill | null>(null);
   /** CR vừa ghi vào bản nháp — hiện thẻ xác nhận cho tới lệnh sửa kế tiếp (mọi lệnh: thêm / sửa / xoá, kể cả use case). */
   const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState<CrChatBusy | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Vị trí đang chờ người dùng gõ hướng "Sửa lại". */
   const [redraftFor, setRedraftFor] = useState<string | null>(null);
+  /** FLF-375: câu hỏi giữa chừng + câu AI trả lời (chỉ trong phiên xem, không ghi vào CR). */
+  const [replies, setReplies] = useState<{ question: string; reply: string }[]>([]);
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
   const alive = useRef(true);
@@ -152,7 +173,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   }, [projectId, enabled]);
 
   const isAccepted = useCallback(
-    (l: CrLocation) => accepted.has(proposalKey(l)) || (detail !== null && fromApprovedPreview(detail) && !isFailing(l)),
+    (l: CrLocation) => accepted.has(proposalKey(l)) || (detail !== null && inApprovedBatch(detail, l)),
     [accepted, detail]
   );
 
@@ -160,7 +181,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   const allDecided = useCallback(
     (d: CrDetail, set: ReadonlySet<string> = accepted) =>
       d.locations.length > 0 &&
-      d.locations.every((l) => l.conclusion !== null && (l.conclusion === "not_related" || set.has(proposalKey(l)) || (fromApprovedPreview(d) && !isFailing(l)))),
+      d.locations.every((l) => l.conclusion !== null && (l.conclusion === "not_related" || set.has(proposalKey(l)) || inApprovedBatch(d, l))),
     [accepted]
   );
 
@@ -191,7 +212,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
 
   /** Chạy một lời gọi; lỗi ⇒ báo tiếng Việt và đọc lại CR (trạng thái có thể đã khác). */
   const call = useCallback(
-    async (kind: CrChatBusy, fn: () => Promise<{ data: CrDetail | null }>): Promise<CrDetail | null> => {
+    async <D extends CrDetail>(kind: CrChatBusy, fn: () => Promise<{ data: D | null }>): Promise<D | null> => {
       setBusy(kind);
       setError(null);
       try {
@@ -243,16 +264,18 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
           description: (seed?.description ?? instruction).slice(0, 5000),
           source: { kind: source.kind, ref: source.ref?.trim() || null, note: seed ? "Tạo từ bản xem trước trong khung chat" : "Tạo từ khung chat" },
           requester: source.requester.trim(),
-          ...(seed ? { preview_id: seed.previewId } : {}),
+          ...(seed ? { preview_id: seed.previewId } : prefill?.previewId ? { preview_id: prefill.previewId } : {}),
+          ...(prefill?.commentId && source.kind === "viewer_comment" ? { comment_id: prefill.commentId } : {}),
         })
       );
       if (!created) return;
       setPending(null);
       setPendingSeed(null);
+      setPrefill(null);
       setSent(null);
       await advance(created, new Set());
     },
-    [advance, call, pending, pendingSeed, projectId]
+    [advance, call, pending, pendingSeed, prefill, projectId]
   );
 
   /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
@@ -284,10 +307,19 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         }
         return;
       }
+      // FLF-375 (BF nguyên tắc 9): câu hỏi giữa chừng ("không vẽ lại hình à?") được AI trả lời, KHÔNG thành yêu cầu bổ sung;
+      // lệnh sửa thì BE gộp vào CR như trước. BE phân loại bằng cùng luật với chat thường.
       if (c.paused) return setError(t("paused"));
+      const r = await call("amend", () => sendCrMessage(projectId, c.cr_id, value));
+      if (!r) return;
+      if (r.message.kind === "answer") {
+        const reply = r.message.reply;
+        setReplies((prev) => [...prev, { question: value, reply }]);
+        setDetail(r);
+        return;
+      }
       if (!CR_AMENDABLE_STATUSES.includes(c.status)) return setError(t("running"));
-      const d = await call("amend", () => amendCr(projectId, c.cr_id, value));
-      await advance(d);
+      await advance(r);
     },
     [advance, call, detail, projectId, redraftFor, t]
   );
@@ -302,6 +334,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     busy,
     error,
     redraftFor,
+    replies,
     /** Placeholder ô chat theo bước đang ở. */
     inputHint: !detail
       ? t("hintNew")
@@ -319,7 +352,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     cancelPending: () => {
       setPending(null);
       setPendingSeed(null);
+      setPrefill(null);
     },
+    /** FLF-375: nguồn điền sẵn cho CR sắp tạo (lối vào từ gap report, comment, cờ…). */
+    prefill,
+    setPrefill,
     /**
      * FLF-318: bản xem trước thêm / xoá use case (vòng hỏi đáp như trước baseline) ⇒ "Tạo change request" mở thẻ chọn nguồn
      * + người yêu cầu ngay trong chat, CR tạo ra kèm bản xem trước đó.
@@ -366,24 +403,6 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         const d = await call("verify", () => runCrAction(projectId, id, "verify"));
         await advance(d, accepted, "verify");
       }),
-    /**
-     * Tự sửa một vị trí (3.9): giá trị mới của cả phần tử ⇒ PATCH `new_value`. Người dùng tự viết nên tính luôn là đã đồng ý;
-     * hết phần trượt thì tự kiểm lại.
-     */
-    manualEdit: (locId: string, value: unknown) =>
-      withCr(async (id) => {
-        const d = await call("manual", () =>
-          patchLocation(projectId, id, locId, { conclusion: "edit", new_value: value, reason: "Người yêu cầu tự sửa trong khung chat" })
-        );
-        if (!d) return false;
-        const loc = d.locations.find((l) => l.location_id === locId);
-        const next = new Set(accepted);
-        if (loc) next.add(proposalKey(loc));
-        saveAccepted(id, next);
-        setRedraftFor(null);
-        await advance(d, next);
-        return true;
-      }),
     /** Soạn lại một vị trí theo hướng người dùng gõ ngay ở thẻ đề xuất (3.9). */
     redraft: (locId: string, instruction: string) =>
       withCr(async (id) => {
@@ -412,13 +431,14 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         saveAccepted(id, next);
         await advance(d, next);
       }),
-    reject: (loc: CrLocation) =>
+    /** Giữ nguyên / bỏ một chỗ (kèm lý do). `reason` riêng: vd "Bỏ yêu cầu" sau màn so sánh 3 cột (FLF-375). */
+    reject: (loc: CrLocation, reason?: string) =>
       void withCr(async (id) => {
         const d = await call("reject", () =>
           patchLocation(projectId, id, loc.location_id, {
             conclusion: "not_related",
             // Vị trí sơ đồ gốc (§4.13): "bỏ" nghĩa là giữ hình người dùng vẽ sẵn
-            reason: loc.found_by.includes("diagram") ? "Người yêu cầu giữ hình gốc của tài liệu" : "Người yêu cầu bỏ đề xuất này trong khung chat",
+            reason: reason ?? (loc.found_by.includes("diagram") ? "Người yêu cầu giữ hình gốc của tài liệu" : "Người yêu cầu bỏ đề xuất này trong khung chat"),
           })
         );
         await advance(d);

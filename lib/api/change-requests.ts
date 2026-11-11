@@ -5,6 +5,7 @@ import type {
   CreateCrRequest,
   Cr,
   CrDetail,
+  CrMessageOutcome,
   CrStatus,
   GroupDecisionRequest,
   OwnerStepDraftRequest,
@@ -38,6 +39,13 @@ export const answerClarifications = (projectId: string, crId: string, answers: s
 /** Phase 8 (chat): gộp thêm một lệnh sửa vào CR chưa nộp — sau `draft` BE chạy lại làm rõ ngay. */
 export const amendCr = (projectId: string, crId: string, instruction: string) =>
   apiCall<CrDetail>(`${cr(projectId, crId)}/amend`, post({ instruction }));
+
+/**
+ * FLF-375 (BF nguyên tắc 9): tin nhắn trong lúc CR mở — lệnh sửa ⇒ BE gộp vào CR (như `amendCr`), câu hỏi ⇒ AI trả lời
+ * từ SRS + trạng thái CR, không thành yêu cầu bổ sung.
+ */
+export const sendCrMessage = (projectId: string, crId: string, text: string, language?: "vi" | "en") =>
+  apiCall<CrDetail & { message: CrMessageOutcome }>(`${cr(projectId, crId)}/messages`, post({ text, ...(language ? { language } : {}) }));
 
 /** Phase 7: đính kèm đoạn văn bản nguồn (chỉ khi CR ở `draft` / `awaiting_answers`). */
 export const addCrMaterialText = (projectId: string, crId: string, body: { name: string; text: string }) =>

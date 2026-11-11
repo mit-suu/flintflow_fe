@@ -3221,7 +3221,9 @@
         "ownAria": "Needs your separate review",
         "ownTitle": "⚠ Needs your separate review ({count})",
         "acceptAll": "Accept all ({count})",
-        "perRowHint": "Redo / drop a part: click ▸"
+        "perRowHint": "Redo / drop a part: click ▸",
+        "removed": "(removed)",
+        "noPreview": "(no preview yet)"
       },
       "requester": {
         "step": "Open a change request",
@@ -3257,8 +3259,7 @@
       },
       "edit": {
         "tablistAria": "How to edit {id}",
-        "tabAi": "✨ Ask AI to redraft",
-        "tabManual": "✎ Edit it myself"
+        "tabAi": "✨ Ask AI to redraft"
       },
       "loc": {
         "aria": "Proposal {id}",
@@ -3277,7 +3278,10 @@
         "accept": "Accept",
         "redo": "Redo",
         "keepDiagram": "Keep the original figure",
-        "reject": "Drop"
+        "reject": "Drop",
+        "othersPending": "{who} ({crId}) has an unconfirmed change in this part",
+        "askFailed": "I could not fix this automatically after 2 tries. Type how it should change below, or drop it from the change request.",
+        "askChanged": "This part was just changed elsewhere — the AI will redraft on the current content."
       },
       "dropped": {
         "summary": "{count, plural, one {# part not edited (unrelated or dropped by you)} other {# parts not edited (unrelated or dropped by you)}}",
@@ -3321,7 +3325,35 @@
       "submit": "Confirm & write to draft",
       "readyMore": "Want more edits? Keep typing in the chat box — new edits are merged into {crId}.",
       "pausedWhat": "AI step",
-      "continue": "Continue"
+      "continue": "Continue",
+      "kinds": {
+        "paragraph": "Paragraph",
+        "table": "Table",
+        "image": "Figure"
+      },
+      "diff": {
+        "remove": "Remove:",
+        "add": "Add:",
+        "before": "Before",
+        "after": "After",
+        "noPreview": "This proposal cannot be previewed yet (a reference is wrong) — the check step will catch it and the AI will redraft."
+      },
+      "conflict": {
+        "aria": "Three-way comparison — {title}",
+        "title": "{title} was changed by {who} after the AI drafted your proposal. Your proposal has not been written.",
+        "atProposal": "① When the AI drafted",
+        "current": "② Now ({who})",
+        "yours": "③ Your proposal",
+        "request": "Original request: “{request}”",
+        "redraft": "Let the AI redraft on the current content",
+        "drop": "Drop the request",
+        "redraftInstruction": "Apply the original request to the current content and keep what {who} just changed. Original request: {request}. If the request touches exactly the part that was just changed, ask me instead of choosing.",
+        "dropReason": "Dropped because {who} already changed this part"
+      },
+      "conflictStep": "Someone just edited the same place",
+      "conflictLabel": "Places edited by someone else while waiting",
+      "conflictIntro": "{count, plural, one {# place was} other {# places were}} changed by someone else while you were waiting to confirm. Nothing was written — compare and choose (there is no overwrite, so their change is never lost).",
+      "replyLabel": "AI answer"
     },
     "crChat": {
       "hintNew": "Type a document edit, e.g. Add a performance requirement for the search screen",
@@ -3391,7 +3423,9 @@
       "closeTitle": "Close change request",
       "cancelTitle": "Cancel change request",
       "closeDescription": "Every group was rejected. Closing the CR unlocks all blocks and moves the CR to rejected.",
-      "cancelDescription": "Cancelling unlocks every block the CR holds. Nothing is written to the document."
+      "cancelDescription": "Cancelling unlocks every block the CR holds. Nothing is written to the document.",
+      "inChatText": "This change request is at “{status}”. Everything (answering questions, accepting, typing how to change, confirming) happens in the chat on the left — this view is read-only.",
+      "openInChat": "Open in chat"
     },
     "crForm": {
       "emptyFields": "A title and a change description are required.",
@@ -3591,7 +3625,10 @@
         "context": "Context diagram",
         "usecase": "Use case diagram",
         "screen_flow": "Screen flow diagram",
-        "erd": "Entity relationship diagram"
+        "erd": "Entity relationship diagram",
+        "sequence": "Sequence diagram",
+        "activity": "Activity diagram",
+        "deployment": "Deployment diagram"
       },
       "title": "Original figure — {kinds}",
       "titleFallback": "Original figure of the document",
@@ -3604,7 +3641,9 @@
       "aria": "Check result {id}",
       "ok": "Automatic check: passed",
       "fail": "Automatic check: failed",
-      "redo": "AI redid it {count}/{max} times"
+      "redo": "AI redid it {count}/{max} times",
+      "notFixedYet": "The AI could not fix this automatically — type how it should change in the chat, or drop it.",
+      "changedElsewhere": "This part was just changed elsewhere — the AI redrafts on the current content."
     },
     "crPages": {
       "opening": "Opening change request"
@@ -3658,7 +3697,7 @@
         "impact_review": "Finding affected locations",
         "proposing": "Proposing edits",
         "verifying": "Checking",
-        "manual_fix": "Needs manual fix",
+        "manual_fix": "Needs your decision",
         "ready_to_submit": "Ready to submit",
         "in_review": "Awaiting approval (legacy)",
         "written": "Written to draft",
@@ -3671,7 +3710,7 @@
         "gap_report": "Gap report",
         "reupload": "Re-uploaded file (differences)",
         "viewer_comment": "Viewer feedback",
-        "verbal": "Verbal request (name the requester)",
+        "verbal": "Verbal request",
         "chat": "Chat edit command (legacy CR)",
         "reference_document": "Reference document (extracted requirements)"
       },
@@ -3727,7 +3766,10 @@
         "addendum": "Addendum",
         "custom_sections": "Custom section",
         "diagrams": "Diagram",
-        "assumptions": "Assumption"
+        "assumptions": "Assumption",
+        "verifications": "Verification",
+        "references": "Reference",
+        "deployment_nodes": "Deployment node"
       },
       "fields": {
         "id": "ID",

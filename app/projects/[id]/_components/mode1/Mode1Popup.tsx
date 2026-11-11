@@ -10,7 +10,7 @@ import CrWorkspace from "./CrWorkspace";
 import GapReportView from "./GapReportView";
 import ReuploadDiffView from "./ReuploadDiffView";
 import VersionCompare from "./VersionCompare";
-import { crListHref, readCrPrefill } from "./prefill";
+import { crListHref } from "./prefill";
 
 interface Mode1PopupProps {
   projectId: string;
@@ -88,12 +88,7 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
         </div>
       )}
       {panel === "cr" && !crId && (
-        <ChangeRequestList
-          key={params?.toString() ?? ""}
-          projectId={projectId}
-          prefill={readOnly ? null : readCrPrefill(new URLSearchParams(params?.toString() ?? ""))}
-          readOnly={readOnly}
-        />
+        <ChangeRequestList key={params?.toString() ?? ""} projectId={projectId} readOnly={readOnly} />
       )}
     </Modal>
   );
