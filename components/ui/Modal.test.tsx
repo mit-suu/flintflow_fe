@@ -91,3 +91,25 @@ describe("Modal — focus", () => {
     expect(opener).toHaveFocus();
   });
 });
+
+describe("Modal — hộp chồng lên hộp", () => {
+  it("Escape chỉ đóng hộp mở sau cùng; hộp dưới vẫn mở", () => {
+    const closeBottom = vi.fn();
+    const closeTop = vi.fn();
+    renderWithIntl(
+      <>
+        <Modal open onClose={closeBottom} title="Tạo dự án mới">
+          <p>Dưới</p>
+        </Modal>
+        <Modal open onClose={closeTop} title="Bỏ các file đã chọn?">
+          <p>Trên</p>
+        </Modal>
+      </>
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(closeTop).toHaveBeenCalledTimes(1);
+    expect(closeBottom).not.toHaveBeenCalled();
+  });
+});

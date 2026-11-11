@@ -1,10 +1,11 @@
 /**
- * Mẫu và thư viện nội dung cấp tổ chức (FLF-278 trên FLF-335/336, `import-change-contract.md` §FLF-278). Route tổ chức kiểm membership
+ * Mẫu cấp tổ chức (FLF-278 trên FLF-335/336, `import-change-contract.md` §FLF-278). Route tổ chức kiểm membership
  * theo `:orgId`; route dự án đi qua chuỗi guard của `/projects`. Lỗi giữ nguyên `code` qua `ApiClientError`.
  */
-import type { ContentEntry, ContentEntryInput, LibraryMatch, OrgTemplateSummary } from "@/types/org-library";
+import type { OrgTemplateSummary } from "@/types/org-library";
 import type { ImportedDocument } from "@/types/import";
 import { apiCall } from "./client";
+import type { ListPage } from "@/lib/hooks/use-infinite-list";
 
 const unwrap = <T>(res: { data: T | null }): T => {
   if (res.data === null) throw new Error("Empty org library response");
@@ -14,18 +15,23 @@ const json = (method: string, body?: unknown): RequestInit => ({ method, ...(bod
 
 export const listOrgTemplates = async (orgId: string): Promise<OrgTemplateSummary[]> =>
   unwrap(await apiCall<OrgTemplateSummary[]>(`/orgs/${orgId}/templates`));
+export type OrgTemplateSort = "uses" | "recent" | "name";
+export interface OrgTemplatePageQuery {
+  page: number;
+  limit?: number;
+  /** Tìm theo tên mẫu / tên file, không phân biệt dấu (BE). */
+  q?: string;
+  sort?: OrgTemplateSort;
+}
+/** Một trang của thư viện mẫu (trang Thư viện tải dần khi cuộn). Cần cả danh sách (ô chọn mẫu) thì dùng `listOrgTemplates`. */
+export const listOrgTemplatesPage = async (orgId: string, query: OrgTemplatePageQuery): Promise<ListPage<OrgTemplateSummary>> => {
+  const params = new URLSearchParams({ page: String(query.page), limit: String(query.limit ?? 20), sort: query.sort ?? "uses" });
+  if (query.q) params.set("q", query.q);
+  const res = await apiCall<OrgTemplateSummary[]>(`/orgs/${orgId}/templates?${params}`);
+  return { items: unwrap(res), meta: res.meta as unknown as ListPage<OrgTemplateSummary>["meta"] };
+};
 export const deleteOrgTemplate = async (orgId: string, templateId: string): Promise<void> => {
   await apiCall(`/orgs/${orgId}/templates/${templateId}`, json("DELETE"));
-};
-
-export const listContentLibrary = async (orgId: string): Promise<ContentEntry[]> =>
-  unwrap(await apiCall<ContentEntry[]>(`/orgs/${orgId}/content-library`));
-export const upsertContentEntry = async (orgId: string, input: ContentEntryInput): Promise<ContentEntry> =>
-  unwrap(await apiCall<ContentEntry>(`/orgs/${orgId}/content-library`, json("POST", input)));
-export const updateContentEntry = async (orgId: string, entryId: string, input: Partial<ContentEntryInput>): Promise<ContentEntry> =>
-  unwrap(await apiCall<ContentEntry>(`/orgs/${orgId}/content-library/${entryId}`, json("PATCH", input)));
-export const deleteContentEntry = async (orgId: string, entryId: string): Promise<void> => {
-  await apiCall(`/orgs/${orgId}/content-library/${entryId}`, json("DELETE"));
 };
 
 const project = (projectId: string) => `/projects/${projectId}`;
@@ -37,6 +43,3 @@ export const importFromOrgTemplate = async (projectId: string, orgTemplateId: st
 /** Lưu file mẫu + mapping đã xác nhận của lần import gần nhất làm mẫu của tổ chức. */
 export const saveImportToOrg = async (projectId: string, name: string): Promise<OrgTemplateSummary> =>
   unwrap(await apiCall<OrgTemplateSummary>(`${project(projectId)}/import/save-to-org`, json("POST", { name })));
-export const libraryMatches = async (projectId: string): Promise<LibraryMatch[]> => unwrap(await apiCall<LibraryMatch[]>(`${project(projectId)}/library-matches`));
-export const saveSectionToLibrary = async (projectId: string, customSectionId: string): Promise<ContentEntry> =>
-  unwrap(await apiCall<ContentEntry>(`${project(projectId)}/library`, json("POST", { custom_section_id: customSectionId })));

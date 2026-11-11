@@ -4,6 +4,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { GOOGLE_CLIENT_ID, isGoogleAuthEnabled } from "@/lib/google-auth";
+import UploadLeaveGuard from "@/components/layout/UploadLeaveGuard";
 import "./globals.css";
 
 // Chữ thường dùng font hệ thống (`--font-sans` ở globals.css) nên không tải webfont nào. Chỉ mono tự
@@ -31,7 +32,12 @@ export default async function RootLayout({
 }>) {
   // Locale do `i18n/request.ts` chọn (cookie → Accept-Language → vi). Provider v4 tự nhận messages từ server.
   const locale = await getLocale();
-  const app = <NextIntlClientProvider>{children}</NextIntlClientProvider>;
+  const app = (
+    <NextIntlClientProvider>
+      {children}
+      <UploadLeaveGuard />
+    </NextIntlClientProvider>
+  );
 
   return (
     <html lang={locale} className={`${jetbrainsMono.variable} light`}>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
-import Button from "@/components/ui/Button";
+import { useEffect, useId, useRef, useState } from "react";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import type { DocxPrecheck } from "@/types/document";
 
@@ -56,23 +55,28 @@ function DropZone({ label, hint, accept, multiple = false, disabled = false, ico
   return (
     <label
       htmlFor={inputId}
+      // `stopPropagation`: ô Tài liệu tham khảo nhận thả file ở cả thẻ — không để thẻ nhận lại lượt thả này lần nữa
       onDragOver={(e) => {
         if (disabled) return;
         e.preventDefault();
+        e.stopPropagation();
         setOver(true);
       }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         setOver(false);
         if (!disabled) take(e.dataTransfer.files);
       }}
-      // Ô trắng nằm trong thẻ của slot: trống ⇒ khối giữa (icon + lời mời + định dạng); đã có file ⇒ một dòng "Thêm file"
-      className={`group rounded-inner transition-[background-color,box-shadow] duration-200 ${
+      // Ô trắng nằm trong thẻ của slot: trống ⇒ khối giữa (icon + lời mời + định dạng); đã có file ⇒ một dòng "Thêm file".
+      // `relative`: input `sr-only` (absolute) phải bám ô này; thiếu thì nó bám khung nhìn, thoát overflow của AppShell và kéo dài cả trang
+      className={`group relative rounded-inner transition-[background-color,box-shadow] duration-200 ${
         compact ? "flex items-center gap-2.5 px-3 py-2" : "flex-1 min-h-[132px] flex flex-col items-center justify-center gap-2 px-4 py-5 text-center"
       } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
         over ? "bg-primary-fixed ring-2 ring-primary" : "bg-surface-container-lowest/80 hover:bg-surface-container-lowest"
-      } focus-within:ring-2 focus-within:ring-primary/40`}
+      } has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/40`}
+      // Vòng focus chỉ khi đi bằng bàn phím: bấm chuột chọn file xong input vẫn giữ focus, `focus-within` để lại viền tím kẹt
     >
       <span
         className={`shrink-0 rounded-full flex items-center justify-center text-primary transition-transform duration-200 ${
@@ -129,19 +133,28 @@ interface FileChipProps {
   removeLabel: string;
   /** Hành động phụ cạnh nút bỏ (vd "Đổi" file SRS). */
   extra?: React.ReactNode;
+  /** Đang kiểm file: icon xoay thay cho cỡ file (không thêm dòng, danh sách dài không giãn ra). Chuỗi là tên cho trình đọc màn hình. */
+  busyLabel?: string;
   children?: React.ReactNode;
 }
 
 /** Một file đã chọn: tên + cỡ, nút bỏ; phần gợi ý (nếu có) nằm ngay dưới. */
-function FileChip({ file, icon, disabled, onRemove, removeLabel, extra, children }: FileChipProps) {
+function FileChip({ file, icon, disabled, onRemove, removeLabel, extra, busyLabel, children }: FileChipProps) {
   return (
-    <li className="flex flex-col gap-2 rounded-inner bg-surface-container-lowest px-3 py-2.5">
+    // `relative`: giữ input "Đổi" (`sr-only`, absolute) trong dòng này, không để nó kéo dài trang
+    <li className="relative flex flex-col gap-2 rounded-inner bg-surface-container-lowest px-3 py-2.5">
       <div className="flex items-center gap-2.5 min-w-0">
         <Icon name={icon} size={16} className="shrink-0 text-on-surface-muted" />
         <span className="flex-1 min-w-0 truncate text-body font-semibold text-on-surface" title={file.name}>
           {file.name}
         </span>
-        <span className="shrink-0 text-caption text-on-surface-muted tabular-nums">{formatSize(file.size)}</span>
+        {busyLabel ? (
+          <span role="status" aria-label={busyLabel} title={busyLabel} className="shrink-0 text-on-surface-muted">
+            <Icon name="spinner" size={14} className="animate-spin" />
+          </span>
+        ) : (
+          <span className="shrink-0 text-caption text-on-surface-muted tabular-nums">{formatSize(file.size)}</span>
+        )}
         {extra}
         <button
           type="button"
@@ -242,7 +255,8 @@ export function SrsSlot({ file, orgTemplateName, completeToStandard, disabled, o
         </p>
       )}
 
-      {!hasSource && orgTemplatePicker}
+      {/* Ẩn chứ không gỡ: gỡ ra thì bỏ mẫu (X) sẽ mount lại, nút phải chờ BE đếm số mẫu mới hiện — trễ hơn ô thả file */}
+      {orgTemplatePicker && <div hidden={hasSource} className="empty:hidden">{orgTemplatePicker}</div>}
 
       {hasSource && (
         <div className="flex items-center gap-2 pt-1">
@@ -286,52 +300,82 @@ interface ReferenceSlotProps {
   onRemove: (key: string) => void;
   onKeep: (key: string) => void;
   onMoveToSrs: (key: string) => void;
+  onClear: () => void;
   error?: string | null;
 }
 
-/** Ô Tài liệu tham khảo: nhiều file; file trông như SRS ⇒ gợi ý ngay dưới chip, không chặn (business-flow §3.6). */
-export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep, onMoveToSrs, error }: ReferenceSlotProps) {
+const SUGGEST_ACTION =
+  "whitespace-nowrap px-2 h-7 rounded-control text-caption font-bold hover:bg-surface-container-lowest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+
+/** Có còn nội dung bên dưới mép vùng cuộn không — để làm mờ mép dưới, báo người dùng danh sách còn tiếp. */
+function useMoreBelow(el: HTMLElement | null) {
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    if (!el) return;
+    const update = () => setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 1);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    el.addEventListener("scroll", update, { passive: true });
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", update);
+    };
+  }, [el]);
+  return more;
+}
+
+/**
+ * Ô Tài liệu tham khảo: nhiều file, không giới hạn số file (business-flow §3.6 giới hạn theo token ở BE, không theo số file).
+ * Danh sách dài nằm trong vùng cuộn riêng (~5 dòng) để hộp Tạo dự án không phình ra; tóm tắt + "Thêm file" luôn ở trên;
+ * thả file vào bất kỳ đâu trong thẻ. File trông như SRS ⇒ gợi ý ngay dưới chip, không chặn, và được đưa lên đầu danh sách.
+ */
+export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep, onMoveToSrs, onClear, error }: ReferenceSlotProps) {
   const t = useTranslations("app.createProject.references");
   const titleId = useId();
+  const [over, setOver] = useState(false);
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const moreBelow = useMoreBelow(scrollEl);
+  const hasFiles = files.length > 0;
+  const needsDecision = (ref: ReferenceFile) => !ref.keep && ref.precheck?.looks_like_srs === true;
+  // Gợi ý "trông như SRS" là việc cần quyết trước khi bấm Bắt đầu ⇒ lên đầu, không bị cuộn khuất
+  const ordered = [...files.filter(needsDecision), ...files.filter((ref) => !needsDecision(ref))];
+  const totalBytes = files.reduce((sum, ref) => sum + ref.file.size, 0);
+
   return (
-    <section aria-labelledby={titleId} className="flex flex-col gap-3 rounded-card bg-surface-container p-4">
+    <section
+      aria-labelledby={titleId}
+      // Đã có file thì cả thẻ nhận thả file (ô "Thêm file" chỉ còn một dòng, khó nhắm)
+      onDragOver={(e) => {
+        if (!hasFiles || disabled) return;
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false);
+      }}
+      onDrop={(e) => {
+        if (!hasFiles) return;
+        e.preventDefault();
+        setOver(false);
+        if (!disabled && e.dataTransfer.files.length) onAdd(Array.from(e.dataTransfer.files));
+      }}
+      className={`flex flex-col gap-3 rounded-card bg-surface-container p-4 transition-shadow duration-200 ${over ? "ring-2 ring-primary" : ""}`}
+    >
       <SlotHeader id={titleId} icon="attach" title={t("label")} hint={t("hint")} tone="neutral" />
-      {files.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
-          {files.map((ref) => {
-            const suggest = !ref.keep && ref.precheck?.looks_like_srs === true;
-            return (
-              <FileChip key={ref.key} file={ref.file} icon="attach" disabled={disabled} onRemove={() => onRemove(ref.key)} removeLabel={t("remove", { name: ref.file.name })}>
-                {ref.precheck === undefined && isDocx(ref.file) && (
-                  <p className="flex items-center gap-1.5 text-caption text-on-surface-muted" aria-live="polite">
-                    <Icon name="spinner" size={12} className="animate-spin" />
-                    {t("checking")}
-                  </p>
-                )}
-                {suggest && (
-                  <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-control bg-primary-soft px-3 py-2">
-                    <Icon name="info" size={14} className="shrink-0 text-primary" />
-                    <span className="flex-1 min-w-[180px] text-caption text-on-surface">{hasSrs ? t("suggest.otherVersion") : t("suggest.looksLikeSrs")}</span>
-                    <span className="flex items-center gap-1">
-                      {hasSrs ? (
-                        <Button size="sm" variant="ghost" onClick={() => onRemove(ref.key)} disabled={disabled}>
-                          {t("suggest.drop")}
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="ghost" onClick={() => onMoveToSrs(ref.key)} disabled={disabled}>
-                          {t("suggest.moveToSrs")}
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => onKeep(ref.key)} disabled={disabled}>
-                        {t("suggest.keep")}
-                      </Button>
-                    </span>
-                  </div>
-                )}
-              </FileChip>
-            );
-          })}
-        </ul>
+      {hasFiles && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-caption font-semibold text-on-surface-variant tabular-nums">{t("summary", { count: files.length, size: formatSize(totalBytes) })}</span>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={disabled}
+            className="shrink-0 px-2 h-7 rounded-control text-caption font-bold text-on-surface-muted hover:text-on-surface hover:bg-surface-container-high cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t("clearAll")}
+          </button>
+        </div>
       )}
       <DropZone
         label={t("label")}
@@ -339,7 +383,7 @@ export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep
         accept={REFERENCE_EXTENSIONS.join(",")}
         multiple
         icon="attach"
-        compact={files.length > 0}
+        compact={hasFiles}
         disabled={disabled}
         onFiles={onAdd}
       />
@@ -347,6 +391,58 @@ export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep
         <p role="alert" className="text-caption text-on-error-container">
           {error}
         </p>
+      )}
+      {hasFiles && (
+        // Vùng cuộn riêng ~5 dòng; mép dưới mờ dần khi còn file phía dưới
+        <div
+          ref={setScrollEl}
+          // `ff-scroll` giữ sẵn rãnh 12px (`scrollbar-gutter: stable`): lấn sang lề phải của thẻ đúng 12px để rãnh nằm trong
+          // lề, dòng file vẫn rộng bằng dòng "Thêm file"
+          className={`max-h-[248px] overflow-y-auto ff-scroll -mr-3 ${
+            moreBelow ? "[mask-image:linear-gradient(to_bottom,black_calc(100%-28px),transparent)]" : ""
+          }`}
+        >
+        <ul aria-label={t("listLabel")} className="flex flex-col gap-1.5">
+          {ordered.map((ref) => {
+            const suggest = needsDecision(ref);
+            return (
+              <FileChip
+                key={ref.key}
+                file={ref.file}
+                icon="attach"
+                disabled={disabled}
+                onRemove={() => onRemove(ref.key)}
+                removeLabel={t("remove", { name: ref.file.name })}
+                busyLabel={ref.precheck === undefined && isDocx(ref.file) ? t("checking") : undefined}
+              >
+                {suggest && (
+                  // Lời gợi ý một hàng, nút một hàng riêng thẳng lề chữ — ô hẹp thì nút không bị bẻ đôi chữ
+                  <div role="status" className="flex flex-col gap-1.5 rounded-control bg-primary-soft px-3 py-2.5">
+                    <span className="flex items-start gap-2">
+                      <Icon name="info" size={14} className="shrink-0 mt-0.5 text-primary" />
+                      <span className="text-caption leading-relaxed text-on-surface">{hasSrs ? t("suggest.otherVersion") : t("suggest.looksLikeSrs")}</span>
+                    </span>
+                    {/* Nút chữ cỡ caption như "Xoá hết" / "Đổi": hành động chính màu tím, phụ màu xám; lề trái thẳng chữ gợi ý */}
+                    <span className="flex flex-wrap items-center gap-1 pl-[14px]">
+                      <button
+                        type="button"
+                        onClick={() => (hasSrs ? onRemove(ref.key) : onMoveToSrs(ref.key))}
+                        disabled={disabled}
+                        className={`${SUGGEST_ACTION} text-primary`}
+                      >
+                        {hasSrs ? t("suggest.drop") : t("suggest.moveToSrs")}
+                      </button>
+                      <button type="button" onClick={() => onKeep(ref.key)} disabled={disabled} className={`${SUGGEST_ACTION} text-on-surface-muted hover:text-on-surface`}>
+                        {t("suggest.keep")}
+                      </button>
+                    </span>
+                  </div>
+                )}
+              </FileChip>
+            );
+          })}
+        </ul>
+        </div>
       )}
     </section>
   );

@@ -67,12 +67,12 @@
   --color-info-border: #d5dcf3;
 
   /* ── Surface & Warm Backgrounds ── */
-  --color-surface: #f5f3f0;
+  --color-surface: #f8f7f4;
   --color-surface-dim: #e4e1dc;
   --color-surface-bright: #ffffff;
   --color-surface-container-lowest: #ffffff;
   --color-surface-container-low: #faf9f7;
-  --color-surface-container: #f5f3f0;
+  --color-surface-container: #f8f7f4;
   --color-surface-container-high: #f0eeea;
   --color-surface-container-highest: #e4e1dc;
   /* ── Card dự án: nền + bộ màu chữ/rãnh đi kèm ──
@@ -101,7 +101,7 @@
   --color-surface-sidebar: #f4f4f6;
   --color-surface-variant: #eceae5;
   --color-surface-tint: #6a62c4;
-  /* `background` khai ở khối "Cầu nối tên màu của shadcn" bên dưới (vẫn là #f5f3f0 cho cả app). */
+  /* `background` khai ở khối "Cầu nối tên màu của shadcn" bên dưới (vẫn là #f8f7f4 cho cả app). */
   --color-on-surface: #191817;
   --color-on-surface-variant: #6b6862;
   --color-on-surface-muted: #8a867e;
@@ -194,7 +194,7 @@
    Trang ngoài admin dùng `bg-background` sẽ không đổi gì so với trước. */
 :root {
   --primary: #6a62c4;
-  --background: #f5f3f0;
+  --background: #f8f7f4;
   --foreground: #191817;
   --card: #ffffff;
   --card-foreground: #191817;
