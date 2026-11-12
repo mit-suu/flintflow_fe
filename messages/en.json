@@ -29,7 +29,12 @@
       "previousPage": "Previous page",
       "nextPage": "Next page",
       "lastPage": "Go to last page",
-      "goToPage": "Go to page {page}"
+      "goToPage": "Go to page {page}",
+      "pagination": "Pagination",
+      "range": "{from}–{to} of {total}",
+      "loadMoreFailed": "Could not load more.",
+      "retry": "Retry",
+      "shown": "Showing {shown} of {total}"
     },
     "documentVersion": {
       "aria": "Possibly a new version of an existing document",
@@ -61,9 +66,6 @@
         "goals": "Product goals",
         "scope": "Release scope (in / out)",
         "high_rules": "High-level business rules",
-        "business_rules": "Business rules",
-        "messages": "Messages",
-        "functional_requirements": "Functional requirements",
         "context": "System context and external systems",
         "features": "Product functions overview",
         "platforms": "Platforms and operating environment",
@@ -75,7 +77,10 @@
         "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)",
         "references": "References",
         "apportioning": "Apportioning of requirements",
-        "verification": "Verification"
+        "verification": "Verification",
+        "business_rules": "Business rules",
+        "messages": "Messages",
+        "functional_requirements": "Functional requirements"
       }
     },
     "billingData": {
@@ -766,7 +771,8 @@
         "documentLanguage": "Document language",
         "erdNotation": "ERD notation",
         "archive": "Archive",
-        "hardDelete": "Delete permanently"
+        "hardDelete": "Delete permanently",
+        "screenTheme": "Screen appearance"
       },
       "gridLoading": "Loading projects",
       "select": "Select project {name}"
@@ -815,6 +821,9 @@
         "dropHint": ".docx, .pdf, .doc, .md, .txt · up to 10 MB each",
         "remove": "Remove {name}",
         "checking": "Checking file…",
+        "summary": "{count, plural, one {# file} other {# files}} · {size}",
+        "clearAll": "Clear all",
+        "listLabel": "Selected reference files",
         "rejected": "Not added: {files} - only .docx, .pdf, .doc, .md, .txt up to 10 MB.",
         "duplicate": "Already in the list: {files} - not added again.",
         "suggest": {
@@ -822,7 +831,8 @@
           "otherVersion": "This file looks like another SRS version. If it is an older copy of the file in the SRS slot, remove it to avoid mixing content.",
           "moveToSrs": "Move to the SRS slot",
           "keep": "Keep as reference",
-          "drop": "Remove this file"
+          "drop": "Remove this file",
+          "maybeSrs": "If this is the SRS you want FlintFlow to complete, move it to the SRS slot."
         }
       },
       "slots": {
@@ -832,9 +842,17 @@
       "orgTemplates": {
         "uploadNew": "Upload a template to the library",
         "toggle": "Or pick an organization template ({count})",
-        "title": "Saved organization templates",
+        "toggleNoCount": "Or pick an organization template",
+        "title": "Pick an organization template",
         "meta": "{file} · {headings} headings · used {uses} times",
         "use": "Use this template",
+        "searchLabel": "Search templates",
+        "searchPlaceholder": "Search by template or file name…",
+        "sortedByUses": "{count} templates · most used first",
+        "resultCount": "{count} matching templates",
+        "noMatch": "No templates match “{query}”",
+        "noMatchHint": "Try another keyword, or the template's .docx file name.",
+        "loadError": "Couldn't load templates",
         "versionLabel": "Version of {name}",
         "versionLatest": "Version {version} (latest)",
         "versionOption": "Version {version}",
@@ -890,7 +908,36 @@
       "renameFailed": "Could not rename the project",
       "renameLabel": "New project name",
       "saveChanges": "Save changes",
-      "confirm": "{action} “{name}”?"
+      "confirm": "{action} “{name}”?",
+      "screenTheme": {
+        "title": "Screen appearance",
+        "colorLabel": "Primary color",
+        "hexLabel": "Color code (#RRGGBB)",
+        "hexInvalid": "The color code must look like #RRGGBB, for example #3F5591.",
+        "colorDefault": "Not chosen: using the default color.",
+        "previewBrand": "System name",
+        "previewPrimary": "Primary button",
+        "previewSecondary": "Secondary button",
+        "domainLabel": "Domain",
+        "domainPlaceholder": "e.g. shop.example.com",
+        "domainClear": "Clear domain",
+        "domainNote": "Leave empty: the address bar shows only the path.",
+        "platformLabel": "Platforms",
+        "platformAuto": "Automatic, from the project description",
+        "platform": {
+          "web": "Web",
+          "mobile": "Mobile"
+        },
+        "detail": "Applies to every Screen Layout figure of the project. Figures already drawn are redrawn right away with the new appearance, at no credit cost.",
+        "originalSummary": "Screens with an original picture: {total} · using a mockup: {mockup}",
+        "redrawAll": "Redraw all…",
+        "useOriginalAll": "Use original pictures for all",
+        "originalRestored": "All screens now use their original pictures.",
+        "cta": "Save",
+        "busy": "Saving and redrawing…",
+        "failed": "Could not update the screen appearance",
+        "runStarted": "Redrawing started in the background. Open the project to follow the progress."
+      }
     },
     "translateDialog": {
       "title": "Translate document",
@@ -979,6 +1026,12 @@
       "newProject": "New project",
       "newProjectShort": "New",
       "createTitle": "Create a project",
+      "discardCreate": {
+        "title": "Discard the selected files?",
+        "body": "You selected {count, plural, one {# file} other {# files}} but haven't started the project. Closing this dialog discards them and you'll need to pick them again.",
+        "stay": "Stay",
+        "discard": "Discard and close"
+      },
       "createInFolderTitle": "New project in “{folder}”",
       "allProjects": "All projects",
       "tabsLabel": "View by",
@@ -1196,16 +1249,33 @@
       },
       "library": {
         "title": "Template library",
-        "intro": "Your organization's SRS templates and standard content, reused across customer-template projects.",
-        "readOnly": "You have view-only access - only Leads and Analysts can add, edit or delete.",
+        "intro": "Your organization's saved SRS templates, reused when creating customer-template projects.",
+        "readOnly": "Only Leads can upload, publish and delete templates. You can still view versions and use templates when creating a project.",
         "loading": "Loading the library…",
         "delete": "Delete",
         "confirmDelete": "Confirm delete",
         "templates": {
-          "title": "Saved SRS templates",
-          "help": "Your organization's SRS templates, each with several versions. A Lead uploads the file and publishes a new version after reviewing the heading mapping; new projects pick the template and version at the upload step instead of uploading and mapping again.",
+          "help": "Each template has several versions. A Lead uploads a .docx file (or chooses “Save as organization template” on the document import screen of a customer-template project), reviews the heading mapping, then publishes it. Later projects pick the template and version in the SRS slot when created, without uploading and mapping again.",
           "empty": "Your organization has not saved any templates yet.",
-          "meta": "{file} · {headings} headings · {customs} kept verbatim · {projects, plural, one {# project} other {# projects}} · used {uses} times · created {date}",
+          "headingsCount": "{count, plural, one {# heading} other {# headings}}",
+          "customsCount": "{count} kept verbatim",
+          "usesCount": "{count, plural, =0 {Not used yet} one {Used once} other {Used # times}}",
+          "cols": {
+            "name": "Template",
+            "structure": "Structure",
+            "uses": "Uses",
+            "saved": "Saved"
+          },
+          "searchLabel": "Search templates",
+          "searchPlaceholder": "Search by template or file name",
+          "sortLabel": "Sort",
+          "sort": {
+            "uses": "Most used",
+            "recent": "Recently saved",
+            "name": "Name A–Z"
+          },
+          "noMatch": "No template matches “{query}”.",
+          "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
           "latest": "Latest: version {version}",
           "draftOnly": "Nothing published yet",
           "skeleton": "Auto-saved skeleton",
@@ -1235,20 +1305,13 @@
           "reviewPending": "Review pending sections",
           "hidePending": "Hide pending sections",
           "publishedBy": "published by {name}",
-          "publishedByFormer": "published by a former member"
+          "publishedByFormer": "published by a former member",
+          "versions": "Versions"
         },
-        "content": {
-          "title": "Standard content by section",
-          "help": "Content shared by every project, e.g. Document Conventions, References. A project's own section with the same title gets a button to use it - the analyst previews before anything is written.",
-          "empty": "The library has no content yet.",
-          "add": "Add content",
-          "edit": "Edit",
-          "titleLabel": "Section title (matches the heading in the template)",
-          "textLabel": "Content",
-          "textHelp": "Separate paragraphs with a blank line; lines starting with “- ” are bullets. Document content should be written in English.",
-          "save": "Save",
-          "cancel": "Cancel"
-        }
+        "rowActions": "Actions for “{name}”",
+        "deleteTemplateTitle": "Delete SRS template?",
+        "deleteBody": "“{name}” will be removed from your organization's library. This cannot be undone.",
+        "cancel": "Cancel"
       },
       "templateMapping": {
         "help": "FlintFlow matched each heading of the template file to a section of the standard template. “Needs review” marks low-confidence matches - check them and change the section if it is wrong.",
@@ -1286,6 +1349,40 @@
         "review": "Review",
         "hide": "Collapse"
       }
+    },
+    "screenMockup": {
+      "title": "Redraw as a mockup",
+      "modeLabel": "Style",
+      "scopeLabel": "Scope",
+      "estimating": "Estimating credits…",
+      "estimateFailed": "Could not estimate the credits yet.",
+      "insufficient": "Needs {required} credits, the wallet has {available}.",
+      "failed": "Could not redraw as a mockup",
+      "inUse": "In use",
+      "subtitleScreen": "{name} screen",
+      "subtitleAll": "All {count, plural, one {# screen} other {# screens}} with an original picture",
+      "scopeThis": "This screen",
+      "scopeAllShort": "All {count, plural, one {# screen} other {# screens}}",
+      "modeSystemShort": "Standard mockup",
+      "modeSystemCard": "Clean and consistent, in the project's colors.",
+      "modeOriginalShort": "Like the original",
+      "modeOriginalCard": "Keeps the original layout. The AI also looks at the picture, so it takes longer.",
+      "groupTotal": "{count, plural, one {# screen} other {# screens}}:",
+      "groupDraw": "{count} newly drawn",
+      "groupReenable": "{count} switched back on (drawn earlier)",
+      "groupSkip": "{count} skipped (already a mockup in this style)",
+      "groupName": {
+        "draw": "Newly drawn",
+        "reenable": "Switched back on",
+        "skip": "Skipped"
+      },
+      "showScreens": "Show screens",
+      "hideScreens": "Hide",
+      "cost": "Costs {credits, plural, one {# credit} other {# credits}} · runs in the background, this dialog closes right away",
+      "costFree": "No credits needed",
+      "ctaDrawN": "Redraw {count, plural, one {# screen} other {# screens}}",
+      "ctaReenableN": "Switch back on {count, plural, one {# screen} other {# screens}}",
+      "ctaNothing": "Nothing to draw"
     }
   },
   "workspace": {
@@ -1392,7 +1489,17 @@
       "downloading": "Downloading…",
       "download": "Download version {version} (.docx)",
       "backToProjects": "Back to projects",
-      "backToWorkspace": "Back to workspace"
+      "backToWorkspace": "Back to workspace",
+      "retry": "Try again",
+      "empty": "This document has no content yet",
+      "openComments": "Comments ({count})",
+      "commentsSheet": "Document comments",
+      "resizeComments": "Resize the comment panel",
+      "about": {
+        "title": "Read and review",
+        "member": "Read the document version by version (draft or released baseline) and pin comments to the exact paragraph. This page does not edit content: to change it, go back to the workspace and ask the AI in chat.",
+        "viewer": "Read the released document and pin comments to the exact paragraph you want to discuss. The authoring team handles comments in their workspace, and the status updates right here."
+      }
     },
     "chatPane": {
       "title": "Chat & review",
@@ -1667,11 +1774,12 @@
       "translate": "Translate document",
       "emptyDocument": "The document will appear here as soon as the first steps finish.",
       "draftSection": "Ask AI to draft",
-      "useLibrary": "Use organization content",
-      "saveToLibrary": "Save to library",
-      "saveToLibraryTitle": "Save this section's content so other projects of your organization can reuse it",
-      "libraryBanner": "Your organization's library has content for {count} empty sections.",
-      "libraryApplyAll": "Preview and use"
+      "screenMockup": {
+        "redraw": "Redraw as a mockup",
+        "useOriginal": "Use original picture",
+        "useOriginalFailed": "Could not switch back to the original picture",
+        "drawing": "Drawing mockup…"
+      }
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -1842,6 +1950,10 @@
       "translateAskEditor": "Ask a Lead or Analyst on this project to translate the rest, then download again.",
       "languageUnavailable": "This version can't be downloaded in another language yet - download it in the document language.",
       "close": "Close",
+      "mockupPending": "{count} screens are still being drawn. Exporting now uses their original pictures.",
+      "mockupWaiting": "Waiting for {count} screens to finish drawing; the draft downloads automatically when done.",
+      "mockupExportNow": "Export now",
+      "mockupWait": "Wait until drawn, then export",
       "migrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. The draft can still be downloaded, but a new version cannot be released yet."
     },
     "change": {
@@ -2174,7 +2286,7 @@
       "aria": "Step progress",
       "working": {
         "intake": "Reading project data…",
-        "ask": "Checking what is missing…",
+        "ask": "Reading and preparing a reply…",
         "draft": "Drafting content…",
         "check": "Checking…",
         "render": "Drawing diagrams…",
@@ -2288,8 +2400,7 @@
       "fixFlag": "Please fix this issue as suggested: {message}",
       "editSection": "In {label}: ",
       "fixComment": "In {label}, fix per this comment: {text}",
-      "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. ",
-      "useLibrary": "Write section {label} with exactly this organization content (keep the wording): {text}"
+      "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. "
     },
     "aiSettings": {
       "aria": "How the AI works with you - {mode}",
@@ -2340,7 +2451,8 @@
       "phase": "Phase run"
     },
     "languageChip": {
-      "title": "Document language: {name}"
+      "title": "Document language: {name}",
+      "prefix": "Document:"
     },
     "page": {
       "loading": "Loading the SRS workspace",
@@ -2373,6 +2485,7 @@
       "chatTitleMode1": "Q&A & edit commands",
       "placeholderSide": "Ask the AI about the project, or turn on Edit document to edit…",
       "placeholderWorking": "The AI is working…",
+      "placeholderAnswerAbove": "Answer the questions above…",
       "placeholderGate": "Tell me what you would like to change…",
       "placeholderStart": "Describe your idea or what you want the AI to do…",
       "placeholderStartTemplate": "The template is ready - describe the project idea (who uses it, what for, goals) so FlintFlow can draft every template section…",
@@ -2445,10 +2558,6 @@
         "analyst": "Analyst",
         "viewer": "Viewer"
       },
-      "status": {
-        "resolved": "Resolved",
-        "converted": "Became a CR"
-      },
       "composeTo": "Comment on <b>{label}</b>",
       "paragraph": " › paragraph {n}",
       "cancelCompose": "Discard the comment draft",
@@ -2497,14 +2606,16 @@
         "sending": "Posting…",
         "crDescription": "{text}\n\nPinned at: {label} (version {version}).",
         "cardAria": "Comment {id}",
-        "pinnedHeader": "{id} · Pinned to: {label} · version {version}",
         "convertedTo": "Became {cr}",
         "anchorMissing": "The pinned content is no longer in this version.",
         "repliesAria": "Replies",
-        "replyPlaceholder": "Reply to comment",
-        "reply": "Reply",
+        "replyPlaceholder": "Reply…",
+        "send": "Send",
+        "resolveMenu": "Resolve comment",
+        "resolveNote": "Close out this comment - it moves to the closed list.",
+        "keepEllipsis": "Keep as is…",
+        "more": "More actions",
         "resolveFailed": "Could not mark it. Please try again.",
-        "markResolved": "Mark as resolved",
         "createCr": "Create CR from comment",
         "title": "Comment",
         "filterAria": "Filter comments",
@@ -2512,14 +2623,21 @@
         "pinTarget": "Pinned to: {label} · version {version}",
         "writePlaceholder": "Write a comment",
         "post": "Post comment",
-        "hint": "Hover over a section or paragraph in the document, then click 💬 to pin a comment.",
-        "clearFocus": "Filtering by pin location - show all comments",
+        "hint": "Click the comment icon in the right margin of a section or paragraph to pin a comment right there. Click a comment card to jump to the pinned spot.",
+        "clearFocus": "Show all",
         "emptyOpen": "No open comments.",
-        "emptyClosed": "No comments have been resolved or turned into a CR yet."
+        "emptyClosed": "No comments have been resolved or turned into a CR yet.",
+        "pinnedPrefix": "Pinned to:",
+        "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "cardMeta": "{id} · version {version}",
+        "locate": "Show this spot in the document",
+        "closePanel": "Close comments",
+        "focusing": "Filtering by pin location"
       },
       "fixByChat": "Ask AI to fix",
       "fixByChatTitle": "Opens the edit chat with the comment prefilled; once applied the comment is marked Fixed",
-      "ownerStep": "Belongs to step {steps} - marking it fixed reopens that step"
+      "ownerStep": "Belongs to step {steps} - marking it fixed reopens that step",
+      "showInDocument": "Show this spot in the document"
     },
     "decisions": {
       "topic": {
@@ -2700,12 +2818,6 @@
       "note": "The AI approved these steps itself. Review if you like - you don't have to see them all before sending.",
       "markSeen": "Seen",
       "markAllSeen": "Mark all as seen"
-    },
-    "library": {
-      "one": "Use organization content for section “{heading}”",
-      "many": "Use organization content for {count} empty sections",
-      "saved": "Saved to your organization's library",
-      "saveFailed": "Could not save to the library. Please try again."
     },
     "import": {
       "loading": "Loading the project file…",
@@ -2918,6 +3030,31 @@
       "nowFilled": "After reading in detail, {count, plural, one {section {names} already has content} other {sections {names} already have content}} - nothing to draft there.",
       "other": "After reading in detail, {count, plural, one {section {names} differs} other {sections {names} differ}} from the structure preview.",
       "dismiss": "Dismiss"
+    },
+    "screenMockupRun": {
+      "running": "Drawing mockups {done}/{total} screens",
+      "stopping": "Stopping after the current screen ({done}/{total})",
+      "runningNote": "Keep working; each finished screen shows up in the document right away.",
+      "stop": "Stop",
+      "cancelFailed": "Could not stop the drawing",
+      "finished": "Mockups drawn for {count} screens",
+      "stopped": "Stopped: {count} screens drawn, the rest keep their original pictures",
+      "interrupted": "Drawing was interrupted. Screens not drawn keep their original pictures; you can redraw them.",
+      "fellBack": "The original picture could not be read, so the standard mockup was used: {names}.",
+      "failed": "Not drawn yet (original picture kept): {names}.",
+      "retry": "Retry failed screens",
+      "retryFailed": "Could not retry",
+      "suggestedColor": "The original pictures use {color}. Apply it to the whole project?",
+      "applyColor": "Apply",
+      "applyColorFailed": "Could not apply the color to the project",
+      "dismiss": "Close",
+      "reenabled": "Mockups switched back on for {count} screens (0 credits)",
+      "nothingToDo": "These screens are already mockups in this style; nothing to redraw",
+      "chipRunning": "Mockups {done}/{total}",
+      "chipFailed": "{count, plural, one {# screen} other {# screens}} failed",
+      "chipNothing": "Already mockups",
+      "chipDone": "{count, plural, one {# screen} other {# screens}} drawn",
+      "allFailed": "{count, plural, one {# screen} other {# screens}} could not be drawn"
     }
   },
   "errors": {

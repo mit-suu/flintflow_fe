@@ -24,6 +24,68 @@ export type DocumentLanguage = "vi" | "en";
 /** Ký pháp vẽ ERD của cả dự án (FLF-324). Đổi ⇒ BE vẽ lại hình ERD đã có. */
 export type ErdNotation = "chen" | "crowsfoot" | "idef1x";
 
+/** FLF-410: nền tảng vẽ mockup màn. */
+export type ScreenPlatform = "web" | "mobile";
+
+/**
+ * Theme mockup §3.x.y Screen Layout (FLF-410). Field `null` = chưa chọn: màu ⇒ màu mặc định, domain ⇒ thanh địa chỉ chỉ hiện
+ * đường dẫn, nền tảng ⇒ BE suy từ mô tả dự án. Đổi ⇒ BE vẽ lại mockup đã có từ spec đã lưu, không trừ credit.
+ */
+export interface ScreenTheme {
+  primaryColor: string | null;
+  domain: string | null;
+  platforms: ScreenPlatform[] | null;
+}
+
+/** FLF-410: `system` = mockup chuẩn FlintFlow; `original` = theo bố cục ảnh gốc (gửi kèm ảnh, tốn token hơn). */
+export type ScreenMockupMode = "system" | "original";
+export type ScreenMockupScope = "screen" | "all";
+
+export interface ScreenMockupState {
+  screen_id: string;
+  mode: ScreenMockupMode;
+  enabled: boolean;
+  image_indexes: number[];
+}
+
+/** `GET /projects/:id/screen-mockups` không `mode`. */
+export interface ScreenMockupSummary {
+  with_original: number;
+  using_mockup: number;
+  screens: ScreenMockupState[];
+  originals: { screen_id: string; section_id: string; name: string }[];
+}
+
+/** `GET /projects/:id/screen-mockups?mode&scope` — ước tính, không gọi model. */
+export interface ScreenMockupEstimate {
+  screens: number;
+  ai_calls: number;
+  credits: number;
+  /** Màn đã vẽ đúng kiểu nhưng đang dùng ảnh gốc ⇒ bật lại, 0 credit. */
+  reenable: number;
+  /** Mỗi màn đúng một nhóm (cộng lại = `screens`): AI vẽ mới / bật lại hình đã vẽ / đã là mockup kiểu này ⇒ bỏ qua. */
+  groups: { draw: string[]; reenable: string[]; skip: string[] };
+}
+
+/**
+ * Lượt "Vẽ lại bằng mockup" chạy nền — `POST /screen-mockups` (202) và `GET /screen-mockups/run`. `interrupted` = tiến trình BE
+ * chết giữa chừng. Màn lỗi / chưa vẽ giữ ảnh gốc.
+ */
+export interface ScreenMockupRunView {
+  run_id: string;
+  status: "running" | "done" | "cancelled" | "interrupted";
+  /** Đã bấm Dừng, đang vẽ nốt màn hiện tại. */
+  stopping: boolean;
+  total: number;
+  completed: number;
+  done: string[];
+  failed: { screen_id: string; reason: string }[];
+  fell_back_to_system: string[];
+  /** Màn còn chờ vẽ. */
+  pending: string[];
+  suggested_color: string | null;
+}
+
 /**
  * Project theo `project.model.ts` BE — chỉ metadata danh sách. Nội dung, tiến độ và baseline nằm ở Spine
  * (`types/spine.ts`, `GET /projects/:id/spine`); tiến độ đọc từ `GET /projects/:id/progress`
@@ -59,6 +121,8 @@ export interface Project {
   template_update?: TemplateUpdate | null;
   /** FLF-395: mẫu dự án đang theo (thẻ "Mẫu tài liệu"); `null` / thiếu = file mẫu của chính dự án. */
   template_current?: TemplateCurrent | null;
+  /** FLF-410: BE luôn trả; dự án cũ / BE cũ thiếu ⇒ coi như mọi field `null`. */
+  screenTheme?: ScreenTheme;
   /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */
   folderId?: string | null;
   /** Lần mở gần nhất (BE ghi khi `GET /projects/:id`); null = chưa mở. */

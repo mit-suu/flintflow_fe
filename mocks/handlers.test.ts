@@ -1,7 +1,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
-import { getProject, setDocumentLanguage, setErdNotation } from "@/lib/api/projects";
+import {
+  cancelScreenMockupRun,
+  disableScreenMockups,
+  estimateScreenMockups,
+  getProject,
+  getScreenMockupRun,
+  getScreenMockupSummary,
+  runScreenMockups,
+  setDocumentLanguage,
+  setErdNotation,
+  setScreenTheme,
+} from "@/lib/api/projects";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import { getDocument } from "@/lib/api/export";
 import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
@@ -282,5 +293,32 @@ describe("mock dịch tài liệu theo lô (FLF-265 #16, #26, #27)", () => {
     }
     mockTranslation.failure = "stalled";
     expect((await runTranslation(P)).data).toEqual({ translated: 0, remaining: 60, credits_used: 2 });
+  });
+});
+
+describe("mock screen theme + screen-mockups (FLF-410)", () => {
+  it("PATCH theme: chỉ đổi field gửi; domain URL ⇒ hostname; màu chữ hoa; null về mặc định; sai ⇒ 400", async () => {
+    expect((await setScreenTheme(P, { primaryColor: "#00897b", domain: "https://Shop.Example.com/signup" })).data?.screenTheme).toEqual({
+      primaryColor: "#00897B",
+      domain: "shop.example.com",
+      platforms: null,
+    });
+    expect((await setScreenTheme(P, { platforms: ["web", "mobile"] })).data?.screenTheme?.primaryColor).toBe("#00897B");
+    expect((await getProject(P)).data?.screenTheme).toEqual({ primaryColor: "#00897B", domain: "shop.example.com", platforms: ["web", "mobile"] });
+    expect((await setScreenTheme(P, { primaryColor: null })).data?.screenTheme?.primaryColor).toBeNull();
+    await expect(setScreenTheme(P, {})).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(setScreenTheme(P, { platforms: [] })).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(setScreenTheme(P, { primaryColor: "red" })).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  });
+
+  it("dự án mock không có ảnh gốc: tóm tắt rỗng, ước tính 0, POST all ⇒ lượt xong 0 màn; màn không có trong Spine ⇒ 404", async () => {
+    expect((await getScreenMockupSummary(P)).data).toMatchObject({ with_original: 0, using_mockup: 0 });
+    expect((await estimateScreenMockups(P, "system", "all")).data).toMatchObject({ screens: 0, credits: 0 });
+    expect((await runScreenMockups(P, "original", "all")).data).toMatchObject({ status: "done", total: 0 });
+    await expect(runScreenMockups(P, "system", "screen", ["SCR-KHONG-CO"])).rejects.toMatchObject({ code: "SCREEN_NOT_FOUND", status: 404 });
+    expect((await disableScreenMockups(P, "all")).data).toEqual({ disabled: [] });
+    await expect(disableScreenMockups(P, "screen")).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    expect((await getScreenMockupRun(P)).data).toBeNull();
+    expect((await cancelScreenMockupRun(P)).data).toBeNull();
   });
 });

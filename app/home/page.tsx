@@ -12,7 +12,7 @@ import FolderDialogs, { type FolderDialogTarget } from "@/components/project/Fol
 import ProjectActionDialogs, { type ProjectActionTarget } from "@/components/project/ProjectActionDialogs";
 import ProjectGrid, { CARD_GRID, ProjectGridSkeleton } from "@/components/project/ProjectGrid";
 import ProjectTimeline, { type ProjectSort } from "@/components/project/ProjectTimeline";
-import { BackLink, Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, Tabs } from "@/components/ui";
+import { BackLink, Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, STICKY_BLEED, STICKY_FADE, Tabs } from "@/components/ui";
 import { listCrs } from "@/lib/api/change-requests";
 import { moveProjectsToFolder } from "@/lib/api/folders";
 import { getProgress } from "@/lib/api/pipeline";
@@ -32,20 +32,6 @@ type DashboardTab = "all" | "folders" | "projects";
 
 const STATUS_VALUES: readonly ProjectStatus[] = ["active", "archived"];
 const SORT_VALUES: readonly ProjectSort[] = ["updated", "opened"];
-
-/**
- * Mép dưới mềm cho phần tử dính (sticky): một dải nền trắng đặc 40% rồi dốc đều về trong suốt, để nội dung cuộn
- * qua mờ dần thay vì bị cắt thẳng. Không có điểm `via` — ép độ mờ ở giữa làm gãy dốc, nhìn ra thành một đường.
- * Dải cao 16px ≈ khoảng cách tiêu đề→card, nên lúc chưa dính không phủ lên nội dung.
- */
-const STICKY_FADE =
-  "after:content-[''] after:absolute after:inset-x-0 after:top-full after:h-4 after:pointer-events-none after:bg-linear-to-b after:from-surface-container-lowest after:from-40% after:to-transparent";
-
-/**
- * Nền của phần tử dính tràn ra cả lề ngang của vùng cuộn (âm margin = padding của vùng cuộn), để bóng đổ của card
- * cuộn qua bên dưới không lộ ở hai lề thành một viền mờ quanh thanh. Đổi padding vùng cuộn thì đổi cả chỗ này.
- */
-const STICKY_BLEED = "-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8";
 
 /**
  * Tiêu đề mục dính ngay dưới thanh tab khi cuộn, và nhả ra khi cuộn hết mục (sticky trong `<section>` cha).
@@ -94,6 +80,15 @@ export default function HomePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  // Số file đang chọn trong hộp Tạo dự án (chưa gửi) — đóng hộp khi còn file thì hỏi trước, đóng là mất file
+  const [createPendingFiles, setCreatePendingFiles] = useState(0);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const closeCreate = () => {
+    setConfirmDiscard(false);
+    setCreatePendingFiles(0);
+    setCreateOpen(false);
+  };
+  const requestCloseCreate = () => (createPendingFiles > 0 ? setConfirmDiscard(true) : closeCreate());
   const [addTarget, setAddTarget] = useState<Folder | null>(null);
   const [actionTarget, setActionTarget] = useState<ProjectActionTarget | null>(null);
   const [folderTarget, setFolderTarget] = useState<FolderDialogTarget | null>(null);
@@ -244,6 +239,7 @@ export default function HomePage() {
     onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", projects: [project] }),
     onChangeDocumentLanguage: openAction("documentLanguage"),
     onChangeErdNotation: openAction("erdNotation"),
+    onChangeScreenTheme: openAction("screenTheme"),
     selectable: selectMode,
     selectedIds,
     onToggleSelect: (project: Project) =>
@@ -471,11 +467,29 @@ export default function HomePage() {
 
       <Modal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={requestCloseCreate}
         title={openFolder ? t("createInFolderTitle", { folder: openFolder.name }) : t("createTitle")}
         size="lg"
       >
-        <CreateProjectForm variant="dialog" onCreated={handleCreated} onCancel={() => setCreateOpen(false)} folderId={openFolder?._id} />
+        <CreateProjectForm
+          variant="dialog"
+          onCreated={handleCreated}
+          onCancel={requestCloseCreate}
+          folderId={openFolder?._id}
+          onPendingFilesChange={setCreatePendingFiles}
+        />
+      </Modal>
+      {/* Mở sau hộp Tạo dự án ⇒ nằm trên cùng: Esc / bấm ra ngoài chỉ đóng hộp này (= ở lại), không đóng hộp Tạo dự án */}
+      <Modal open={confirmDiscard} onClose={() => setConfirmDiscard(false)} title={t("discardCreate.title")}>
+        <p className="text-body text-on-surface-variant leading-relaxed">{t("discardCreate.body", { count: createPendingFiles })}</p>
+        <div className="flex flex-wrap justify-end gap-2 mt-6">
+          <Button variant="ghost" onClick={() => setConfirmDiscard(false)} data-autofocus>
+            {t("discardCreate.stay")}
+          </Button>
+          <Button variant="danger" onClick={closeCreate}>
+            {t("discardCreate.discard")}
+          </Button>
+        </div>
       </Modal>
 
       <AddToFolderDialog folder={addTarget} projects={projects} folderIds={new Set(folderById.keys())} onClose={() => setAddTarget(null)} onAdded={reload} />

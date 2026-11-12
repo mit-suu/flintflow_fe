@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
+import Skeleton from "@/components/ui/Skeleton";
 import { ApiClientError } from "@/lib/api/client";
 import { fetchDocumentImage, IMAGE_CHANGED, MEDIA_NOT_EMBEDDABLE, parseImageRef } from "@/lib/api/document-images";
 import { fetchDiagramPng } from "@/lib/api/spine";
@@ -54,16 +55,6 @@ interface DocumentPaneProps {
    */
   requiredTemplate?: boolean;
   /**
-   * FLF-278 — thư viện nội dung của tổ chức. `libraryMatchOf`: mục riêng có nội dung cùng tiêu đề trong thư viện;
-   * `onUseLibrary` mở bản xem trước / lệnh sửa (không ghi ngay); `onSaveToLibrary` lưu mục đã viết vào thư viện;
-   * `onUseLibraryAll` dùng cho mọi mục trống có gợi ý.
-   */
-  libraryMatchOf?: (sectionId: string) => { empty: boolean } | undefined;
-  onUseLibrary?: (sectionId: string) => void;
-  onSaveToLibrary?: (sectionId: string) => void;
-  libraryEmptyCount?: number;
-  onUseLibraryAll?: () => void;
-  /**
    * "Góp ý" trên từng mục (UC-49): ghim lời nhắn vào mục, **không** đổi nội dung (BR-05) nên vẫn giữ
    * nguyên tắc document pane read-only. Không truyền ⇒ không có nút (trang xem, mode 1).
    */
@@ -88,6 +79,11 @@ interface DocumentPaneProps {
   /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
   headerEnd?: ReactNode;
   /**
+   * Pill trạng thái việc chạy nền (FLF-410: lượt vẽ mockup) — nhỏ, dính góc dưới trái khung tài liệu (giữa đáy là chỗ pill
+   * "có bản mới"); không thêm gì lên header.
+   */
+  footerStatus?: ReactNode;
+  /**
    * Nút "Vẽ lại sơ đồ" dưới các hình của một mục. Ảnh tới FE đã là PNG thật (BE thay `diagram-ref:<id>` lúc trả tài liệu),
    * không còn id sơ đồ ⇒ nút theo MỤC, trang workspace biết mục nào có sơ đồ nào qua `diagrams[].section`.
    * Không truyền ⇒ không có nút (mode 1, trang xem read-only).
@@ -100,6 +96,13 @@ interface DocumentPaneProps {
    * không có nút (mode 1, Viewer).
    */
   onRedrawDiagram?: (diagramId: string) => Promise<void>;
+  /**
+   * FLF-410 (dự án import): mục §3.x.y chứa ảnh gốc của một màn ⇒ `enabled` cho biết đang hiện mockup thay ảnh gốc. Không
+   * truyền / `undefined` ⇒ không có nút.
+   */
+  screenMockupOf?: (sectionId: string) => { enabled: boolean; pending: boolean } | undefined;
+  /** "Vẽ lại bằng mockup" (mở hộp chọn kiểu + phạm vi) / "Dùng ảnh gốc" (0 credit) cho màn của mục. */
+  onScreenMockup?: (sectionId: string, action: "redraw" | "original") => Promise<void> | void;
   /**
    * Ngôn ngữ tài liệu client đã biết (FLF-265, `knownDocumentLanguage`): chip trên header và khoá tải lại — đổi ngôn ngữ
    * là gỡ tài liệu cũ xuống. `null` (mode 1 chưa biết ngôn ngữ file) ⇒ chỉ hiện chip khi BE trả `meta.translation`.
@@ -118,6 +121,40 @@ interface DocumentPaneProps {
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
+/** FLF-410: mục có ảnh gốc của màn (dự án import) ⇒ vẽ lại bằng mockup hoặc dùng lại ảnh gốc. */
+function ScreenMockupButtons({ enabled, onAction }: { enabled: boolean; onAction: (action: "redraw" | "original") => Promise<void> | void }) {
+  const t = useTranslations("workspace.document.screenMockup");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const restoreOriginal = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onAction("original");
+    } catch (err) {
+      setError(userErrorMessage(err, t("useOriginalFailed")));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const style = "inline-flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  return (
+    <div className="flex items-center justify-center gap-2 mb-2">
+      <button type="button" onClick={() => void onAction("redraw")} disabled={busy} className={style}>
+        <Icon name="refresh" size={11} />
+        {t("redraw")}
+      </button>
+      {enabled && (
+        <button type="button" onClick={() => void restoreOriginal()} disabled={busy} className={style}>
+          <Icon name="file" size={11} />
+          {t("useOriginal")}
+        </button>
+      )}
+      {error && <span className="text-caption text-error">{error}</span>}
+    </div>
+  );
+}
+
 function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
   const t = useTranslations("workspace.document");
   const [busy, setBusy] = useState(false);
@@ -149,6 +186,15 @@ function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
     </div>
   );
 }
+
+/** Vị trí [đầu, cuối] của cụm ảnh liền nhau đầu tiên trong mục; không có ảnh ⇒ null. */
+export const firstImageRun = (blocks: readonly Block[]): [number, number] | null => {
+  const start = blocks.findIndex((b) => b.type === "image");
+  if (start < 0) return null;
+  let end = start;
+  while (blocks[end + 1]?.type === "image") end++;
+  return [start, end];
+};
 
 /** Nhãn đọc được của một mục: `§2.2.2 Actors`. */
 export const sectionLabel = (section: Pick<RenderedSection, "number" | "heading">): string =>
@@ -539,12 +585,12 @@ export function BlockView({
 const INDENT_PER_LEVEL = 20;
 
 /** Cấp của section, 0 = mục gốc: theo `level` của BE (1-based), thiếu thì đếm dấu chấm trong số mục. */
-const depthOf = (section: RenderedSection): number =>
+export const depthOf = (section: RenderedSection): number =>
   Math.max(0, (section.level || (section.number ? section.number.split(".").length : 1)) - 1);
 
 /** Cỡ chữ tiêu đề theo cấp: mục gốc to nhất, mục con nhỏ dần. */
 const HEADING_SIZE = ["text-subtitle", "text-heading", "text-body"] as const;
-const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
+export const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
 
 /** Heading nhóm (`group:*`) — chỉ tiêu đề chương/mục cha, không phải section có nội dung (contract-change 2026-09-15). */
 function GroupHeading({ section }: { section: RenderedSection }) {
@@ -594,21 +640,18 @@ function SectionView({
   requiredTemplate = false,
   onEdit,
   onDraft,
-  libraryMatch,
-  onUseLibrary,
-  onSaveToLibrary,
   onComment,
   commentCount = 0,
   pendingProposals = [],
   onOpenComments,
   onRedraw,
   onRedrawDiagram,
+  screenMockup,
 }: {
+  /** FLF-410: nút vẽ lại ảnh gốc bằng mockup của mục; `pending` ⇒ màn đang chờ lượt vẽ nền (phủ vệt quét lên ảnh). */
+  screenMockup?: { enabled: boolean; pending: boolean; onAction: (action: "redraw" | "original") => Promise<void> | void };
   onEdit?: (sectionLabel: string) => void;
   onDraft?: (sectionLabel: string) => void;
-  libraryMatch?: { empty: boolean };
-  onUseLibrary?: () => void;
-  onSaveToLibrary?: () => void;
   onComment?: (sectionLabel: string) => void;
   /** Số góp ý đang mở của mục này. */
   commentCount?: number;
@@ -646,6 +689,10 @@ function SectionView({
   const templateEmpty = requiredTemplate ? showEmpty || !section.blocks.some(blockHasRealText) : customEmpty
   const depth = depthOf(section);
   const updateState: UpdateState = pending ? "pending" : regionState(sectionRegionKey(section.id));
+  // FLF-410: ảnh màn hình của mục = cụm ảnh liền nhau đầu tiên (mockup web + mobile, hoặc ảnh gốc) — nút vẽ lại đặt ngay dưới
+  // cụm này, vệt quét chỉ phủ cụm này (sơ đồ khác trong mục không bị phủ)
+  const screenImages = screenMockup ? firstImageRun(section.blocks) : null;
+  const inScreenImages = (i: number) => screenImages !== null && i >= screenImages[0] && i <= screenImages[1];
   return (
     <article
       data-section-id={section.id}
@@ -723,26 +770,6 @@ function SectionView({
               {t("comment")}
             </button>
           )}
-          {onUseLibrary && custom && libraryMatch?.empty && (
-            // Thư viện tổ chức có nội dung cùng tiêu đề: mở bản xem trước, chỉ ghi khi BA xác nhận
-            <button
-              type="button"
-              onClick={onUseLibrary}
-              className="text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer"
-            >
-              {t("useLibrary")}
-            </button>
-          )}
-          {onSaveToLibrary && custom && !customEmpty && (
-            <button
-              type="button"
-              onClick={onSaveToLibrary}
-              title={t("saveToLibraryTitle")}
-              className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
-            >
-              {t("saveToLibrary")}
-            </button>
-          )}
           {onDraft && templateEmpty && !hasChildren && !section.id.startsWith("feature:") && (
             // Mục riêng của mẫu còn trống: luôn hiện (không chờ rê chuột) — chỉ điền sẵn lệnh, BA tự gửi
             <button
@@ -768,19 +795,33 @@ function SectionView({
       {section.blocks.length > 0 && (
         <>
           {section.blocks.map((block, i) => (
+            <Fragment key={i}>
             <BlockSlot
-              key={i}
               regionKey={blockRegionKey(section.id, i)}
               state={regionState(blockRegionKey(section.id, i))}
               spaced={block.type === "paragraph" && i < section.blocks.length - 1}
             >
-              <BlockView
-                block={block}
-                projectId={projectId}
-                afterHeading={followsHeading(section.blocks, i)}
-                onRedrawDiagram={onRedrawDiagram}
-              />
+              {screenMockup?.pending && inScreenImages(i) ? (
+                // Màn đang chờ vẽ mockup: ảnh cũ mờ dưới vệt quét, tới lượt xong thì tài liệu tải lại thay ảnh mới
+                <div className="relative" aria-busy>
+                  <BlockView block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} onRedrawDiagram={onRedrawDiagram} />
+                  <Skeleton className="absolute inset-0 opacity-85 rounded-inner" />
+                  <span className="absolute inset-0 flex items-center justify-center text-body font-bold text-on-surface-variant">{t("screenMockup.drawing")}</span>
+                </div>
+              ) : (
+                <BlockView
+                  block={block}
+                  projectId={projectId}
+                  afterHeading={followsHeading(section.blocks, i)}
+                  onRedrawDiagram={onRedrawDiagram}
+                />
+              )}
             </BlockSlot>
+            {/* Ngay dưới ảnh màn hình (mục không có ảnh: dưới khối cuối) */}
+            {screenMockup && !screenMockup.pending && i === (screenImages ? screenImages[1] : section.blocks.length - 1) && (
+              <ScreenMockupButtons enabled={screenMockup.enabled} onAction={screenMockup.onAction} />
+            )}
+            </Fragment>
           ))}
           {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
         </>
@@ -811,11 +852,6 @@ function DocumentPaneView({
   onEditSection,
   onDraftSection,
   requiredTemplate = false,
-  libraryMatchOf,
-  onUseLibrary,
-  onSaveToLibrary,
-  libraryEmptyCount = 0,
-  onUseLibraryAll,
   onCommentSection,
   commentCountOf,
   pendingProposalsOf,
@@ -826,9 +862,12 @@ function DocumentPaneView({
   rewriteError = null,
   onSectionsLoaded,
   headerEnd,
+  footerStatus,
   onRedrawSection,
   onRedrawDiagram,
   hasDiagrams,
+  screenMockupOf,
+  onScreenMockup,
   documentLanguage = null,
   onTranslate,
   newerVersion = null,
@@ -880,6 +919,11 @@ function DocumentPaneView({
     return changed.length <= 3 ? t("updatedSections", { sections: changed.map(sectionLabel).join(", ") }) : t("updatedMany", { count: changed.length });
   })();
 
+  const screenMockupState = (sectionId: string) => {
+    const state = onScreenMockup ? screenMockupOf?.(sectionId) : undefined;
+    return state && onScreenMockup ? { enabled: state.enabled, pending: state.pending, onAction: (action: "redraw" | "original") => onScreenMockup(sectionId, action) } : undefined;
+  };
+
   const openFlags = flags.filter((f) => !f.resolved_at && (f.level === "red" || !f.waived_by_user)); // FLF-329: cờ đỏ giữ nguyên vẫn mở
   const issuesOf = (sectionId: string) => {
     const own = openFlags.filter((f) => f.section_id === sectionId);
@@ -895,11 +939,11 @@ function DocumentPaneView({
       <div aria-live="polite" className="sr-only">
         {announcement}
       </div>
-      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between gap-3 shrink-0 h-12 bg-surface-container-lowest">
-        {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng. Pane hẹp ⇒ cắt cả nhãn phiên bản, không tràn đè lên nhóm nút
-            bên phải (FLF-265: chip ngôn ngữ làm nhóm phải rộng thêm) */}
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-          <h3 className="font-bold text-body text-on-surface truncate" title={t("heading", { name })}>
+      <div className="@container ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 py-2 flex items-center justify-between gap-3 shrink-0 min-h-12 bg-surface-container-lowest">
+        {/* Tên dài thì cắt "…"; badge không bao giờ bị cắt hay ẩn — kéo pane hẹp lại thì nút báo vấn đề rút còn icon + số,
+            vẫn chật thì badge xuống dòng dưới tên */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+          <h3 className="font-bold text-body text-on-surface truncate min-w-0 max-w-full" title={t("heading", { name })}>
             {t("heading", { name })}
           </h3>
           {document && (
@@ -924,11 +968,19 @@ function DocumentPaneView({
               }`}
             >
               <Icon name={issues.blocking > 0 || issues.suggestions > 0 ? "warning" : "check-circle"} size={14} />
-              {issues.blocking > 0
-                ? t("blockingCount", { count: issues.blocking })
-                : issues.suggestions > 0
-                  ? t("suggestionCount", { count: issues.suggestions })
-                  : t("noIssues")}
+              {/* Header hẹp ⇒ chỉ icon + số; nhãn đầy đủ vẫn có cho trình đọc màn hình */}
+              <span className="sr-only @[44rem]:not-sr-only">
+                {issues.blocking > 0
+                  ? t("blockingCount", { count: issues.blocking })
+                  : issues.suggestions > 0
+                    ? t("suggestionCount", { count: issues.suggestions })
+                    : t("noIssues")}
+              </span>
+              {(issues.blocking > 0 || issues.suggestions > 0) && (
+                <span aria-hidden className="@[44rem]:hidden tabular-nums">
+                  {issues.blocking > 0 ? issues.blocking : issues.suggestions}
+                </span>
+              )}
             </button>
           )}
           {language && <DocumentLanguageChip language={language} compact />}
@@ -1005,14 +1057,6 @@ function DocumentPaneView({
           </div>
         )}
 
-        {document && onUseLibraryAll && libraryEmptyCount > 0 && (
-          <div role="status" className="rounded-card bg-primary-soft px-3.5 py-2.5 flex flex-wrap items-center gap-3 text-body text-on-surface">
-            <span className="flex-1 min-w-[200px]">{t("libraryBanner", { count: libraryEmptyCount })}</span>
-            <button type="button" onClick={onUseLibraryAll} className="text-caption font-bold px-2.5 py-1 rounded-full bg-primary text-on-primary cursor-pointer">
-              {t("libraryApplyAll")}
-            </button>
-          </div>
-        )}
         {document &&
           document.sections.map((section, i) => (
             <SectionView
@@ -1030,18 +1074,18 @@ function DocumentPaneView({
               onEdit={onEditSection}
               onDraft={onDraftSection}
               requiredTemplate={requiredTemplate}
-              libraryMatch={libraryMatchOf?.(section.id)}
-              onUseLibrary={onUseLibrary ? () => onUseLibrary(section.id) : undefined}
-              onSaveToLibrary={onSaveToLibrary ? () => onSaveToLibrary(section.id) : undefined}
               onComment={onCommentSection ? (label) => onCommentSection({ sectionId: section.id, label }) : undefined}
               commentCount={commentCountOf?.(section.id) ?? 0}
               pendingProposals={pendingProposalsOf?.(section.id) ?? []}
               onOpenComments={onOpenSectionComments ? () => onOpenSectionComments(section.id) : undefined}
               onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
               onRedrawDiagram={onRedrawDiagram}
+              screenMockup={screenMockupState(section.id)}
             />
           ))}
       </div>
+
+      {footerStatus && <div className="absolute bottom-4 left-4 z-20">{footerStatus}</div>}
 
       <DocumentUpdatePill
         pendingCount={pendingSectionIds.size}
