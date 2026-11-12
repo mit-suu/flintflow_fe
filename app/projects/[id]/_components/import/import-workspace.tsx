@@ -192,7 +192,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       );
     }
     if (doc && status && (RUN_STATUSES.includes(status) || doc.paused)) {
-      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
+      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview?.summary.kind ?? null} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
       // Bản ghi cũ (trước khi đọc chạy một mạch) dừng ở bước xác nhận ⇒ Tiếp tục = đọc nốt một mạch

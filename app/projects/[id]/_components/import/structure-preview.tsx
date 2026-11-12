@@ -91,7 +91,12 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
             </button>
           </p>
           <h2 className="text-title font-bold text-on-surface">{summary ? t(summary.missing === 0 ? `summary.${summary.kind}Full` : `summary.${summary.kind}`, { present: summary.present, total: counted }) : t("summary.legacy")}</h2>
-          {preview && summary && <p className="text-body text-on-surface-variant leading-relaxed">{t(`next.mode${preview.resolved_mode}`, { missing: summary.missing })}</p>}
+          {/* FLF-411 U1-1: khung mẫu không có phần nào để "đọc" — câu riêng, không hứa đọc phần đã có / bản gốc 0.1 */}
+          {preview && summary && (
+            <p className="text-body text-on-surface-variant leading-relaxed">
+              {t(summary.kind === "template" && preview.resolved_mode !== 1 ? `next.mode${preview.resolved_mode}Template` : `next.mode${preview.resolved_mode}`, { missing: summary.missing })}
+            </p>
+          )}
         </div>
         {preview && summary && (
           <div className="flex flex-col gap-3 rounded-card bg-surface-container p-4">

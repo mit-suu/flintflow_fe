@@ -2671,7 +2671,9 @@
         "next": {
           "mode1": "The file has the full outline. Press Start and FlintFlow reads the content and creates the original version 0.1 - then you edit the document in chat.",
           "mode3": "{missing} sections are empty. FlintFlow reads what is there, then drafts the missing sections with you; the credits for drafting are shown after you approve the Brief.",
-          "mode4": "{missing} sections are missing compared with the FlintFlow standard template. After reading, only the DRAFT and the gap report can be downloaded for now."
+          "mode4": "{missing} sections are missing compared with the FlintFlow standard template. After reading, only the DRAFT and the gap report can be downloaded for now.",
+          "mode3Template": "This file is a blank template with no content to read yet. Press Start and FlintFlow will use it as the target and write the {missing} sections with you, starting from your idea; the credits for writing are shown after you approve the Brief.",
+          "mode4Template": "This file is a blank template with no content to read yet. Press Start and FlintFlow will use it as the target and write the {missing} sections missing against the FlintFlow standard template with you."
         },
         "gapReport": "Download gap report",
         "stats": {
@@ -2733,7 +2735,9 @@
         "phaseHint": {
           "read": "Extract the content of each section",
           "build": "Assemble baseline 0.1",
-          "check": "Check for gaps and conflicts"
+          "check": "Check for gaps and conflicts",
+          "buildDraft": "Put the existing content into the document to continue writing",
+          "readTemplate": "Mark the sections of the template"
         },
         "phasesLabel": "Reading steps",
         "phase": {

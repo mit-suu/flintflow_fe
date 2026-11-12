@@ -392,7 +392,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
   // CR vừa ghi bản nháp (1.1, 1.2…) ⇒ khung phải tải lại tài liệu, version và gói thay đổi
   const crChat = useCrChat(projectId, mode1, () => onSpineChangedRef.current());
-  const spineState = useSpine(projectId, ws.ready, ws.canEdit);
+  // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
+  const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
   // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
   // `DocumentPane` không nhận `flags` nên nút "xem tại step" chết; nâng lên đây, truyền xuống cả hai.

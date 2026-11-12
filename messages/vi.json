@@ -2671,7 +2671,9 @@
         "next": {
           "mode1": "File đủ khung. Bấm Bắt đầu để FlintFlow đọc nội dung và tạo bản gốc 0.1 - sau đó bạn sửa tài liệu qua chat.",
           "mode3": "Còn {missing} mục trống. FlintFlow đọc phần đã có rồi chuyển sang soạn các mục còn thiếu cùng bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
-          "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót."
+          "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót.",
+          "mode3Template": "File là khung mẫu, chưa có nội dung để đọc. Bấm Bắt đầu để FlintFlow lấy khung này làm đích rồi cùng bạn soạn {missing} mục, bắt đầu từ ý tưởng của bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
+          "mode4Template": "File là khung mẫu, chưa có nội dung để đọc. Bấm Bắt đầu để FlintFlow lấy khung này làm đích rồi cùng bạn soạn {missing} mục còn thiếu so với mẫu chuẩn FlintFlow."
         },
         "gapReport": "Tải báo cáo thiếu sót",
         "stats": {
@@ -2733,7 +2735,9 @@
         "phaseHint": {
           "read": "Trích nội dung từng mục của file",
           "build": "Ghép thành bản gốc 0.1",
-          "check": "Soát chỗ thiếu và mâu thuẫn"
+          "check": "Soát chỗ thiếu và mâu thuẫn",
+          "buildDraft": "Ghép phần đã có vào tài liệu để soạn tiếp",
+          "readTemplate": "Đánh dấu các mục của khung mẫu"
         },
         "phasesLabel": "Các bước đọc file",
         "phase": {
