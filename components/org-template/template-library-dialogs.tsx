@@ -1,12 +1,12 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, Button, Modal } from "@/components/ui";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { deleteTemplateVersion, getTemplateVersion, publishTemplateVersion, uploadOrgTemplate } from "@/lib/api/org-library";
+import { deleteTemplateVersion, getTemplateVersion, publishTemplateVersion } from "@/lib/api/org-library";
 import type { HeadingEdit, OrgTemplateSummary, TemplateVersionDetail } from "@/types/org-library";
-import MappingReview, { useSectionOptions } from "./mapping-review";
+import TemplateVersionReview from "./template-version-review";
 
 /** Chạy một thao tác gọi BE: khoá nút trong lúc gửi, lỗi BE hiện tại chỗ (giữ hộp thoại mở). */
 const useRunner = () => {
@@ -116,17 +116,16 @@ interface MappingReviewDialogProps {
   onPublished: () => void;
 }
 
-/** Lead rà mapping heading tự nhận của bản nháp rồi đăng — chỉ gửi heading đã đổi section. */
+/**
+ * Lead rà mapping heading tự nhận của bản nháp rồi đăng - chỉ gửi heading đã đổi section. File mẫu còn chữ cũ ⇒ cảnh báo trước khi
+ * đăng (FLF-412, trong `TemplateVersionReview`).
+ */
 export function MappingReviewDialog({ orgId, detail, onClose, onPublished }: MappingReviewDialogProps) {
   const t = useTranslations("app.org.library.templates");
-  const sectionOptions = useSectionOptions();
   const { busy, error, run } = useRunner();
-  /** section đã đổi theo vị trí heading. */
-  const [edits, setEdits] = useState<Record<number, string>>({});
 
-  const publish = () =>
+  const publish = (headings: HeadingEdit[]) =>
     void run(async () => {
-      const headings: HeadingEdit[] = Object.entries(edits).map(([index, section_id]) => ({ index: Number(index), section_id }));
       await publishTemplateVersion(orgId, detail.template_id, detail.version, headings);
       onPublished();
     });
@@ -135,86 +134,7 @@ export function MappingReviewDialog({ orgId, detail, onClose, onPublished }: Map
     <Modal open onClose={() => !busy && onClose()} title={t("reviewTitle", { name: detail.name, version: detail.version })} size="xl">
       <div className="flex flex-col gap-4">
         <ErrorLine message={error} />
-        <MappingReview
-          headings={detail.headings.map((h) => ({ index: h.index, heading_text: h.heading_text, section_id: edits[h.index] ?? h.section_id, needs_review: h.auto_confirmed, reviewed: edits[h.index] !== undefined }))}
-          sectionOptions={sectionOptions}
-          disabled={busy}
-          onChange={(index, sectionId) =>
-            setEdits((prev) => {
-              const original = detail.headings.find((h) => h.index === index)?.section_id;
-              const next = { ...prev };
-              if (sectionId === original) delete next[index];
-              else next[index] = sectionId;
-              return next;
-            })
-          }
-        />
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" disabled={busy} onClick={onClose}>
-            {t("cancel")}
-          </Button>
-          <Button loading={busy} onClick={publish}>
-            {t("publish")}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-interface NewTemplateDialogProps {
-  orgId: string;
-  onClose: () => void;
-  /** Tải xong bản 1 (nháp) ⇒ trang mở hộp rà mapping để đăng. */
-  onUploaded: (detail: TemplateVersionDetail) => void;
-}
-
-/** Lead tạo mẫu mới: đặt tên rồi chọn file .docx — BE tạo họ mẫu + bản 1 nháp với mapping tự nhận. */
-export function NewTemplateDialog({ orgId, onClose, onUploaded }: NewTemplateDialogProps) {
-  const t = useTranslations("app.org.library.templates");
-  const nameId = useId();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
-  const { busy, error, run } = useRunner();
-
-  const upload = (file: File | undefined) => {
-    if (!file) return;
-    void run(async () => onUploaded(await uploadOrgTemplate(orgId, name.trim(), file)));
-  };
-
-  return (
-    <Modal open onClose={() => !busy && onClose()} title={t("newTemplate")}>
-      <div className="flex flex-col gap-4">
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".docx"
-          hidden
-          aria-label={t("pickNewFile")}
-          onChange={(e) => {
-            upload(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-        <label htmlFor={nameId} className="flex flex-col gap-1.5 text-caption font-bold text-on-surface-variant">
-          {t("newNameLabel")}
-          <input
-            id={nameId}
-            value={name}
-            maxLength={120}
-            onChange={(e) => setName(e.target.value)}
-            className="h-10 rounded-control bg-surface-container-low px-3 text-body font-normal text-on-surface outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
-        <ErrorLine message={error} />
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" disabled={busy} onClick={onClose}>
-            {t("cancel")}
-          </Button>
-          <Button disabled={!name.trim()} loading={busy} onClick={() => fileRef.current?.click()}>
-            {t("pickFile")}
-          </Button>
-        </div>
+        <TemplateVersionReview detail={detail} busy={busy} framed={false} onPublish={publish} onCancel={onClose} />
       </div>
     </Modal>
   );

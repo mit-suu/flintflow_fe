@@ -44,6 +44,8 @@ export interface TemplateHeading {
   /** Mapping tự nhận vì độ tin thấp — mục "Cần xem". */
   auto_confirmed?: boolean;
   guidance?: string;
+  /** FLF-412: file mẫu còn chữ thật dưới heading này (chưa xoá nội dung cũ). */
+  has_text?: boolean;
 }
 
 export interface TemplateVersionDetail extends TemplateVersionSummary {

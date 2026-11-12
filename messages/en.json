@@ -840,6 +840,7 @@
         "addMore": "Add files"
       },
       "orgTemplates": {
+        "uploadNew": "Upload a template to the library",
         "toggle": "Or pick an organization template ({count})",
         "toggleNoCount": "Or pick an organization template",
         "title": "Pick an organization template",
@@ -1299,6 +1300,7 @@
           "latestBadge": "Latest",
           "reviewAndPublish": "Review mapping and publish",
           "reviewTitle": "Review mapping: {name} · version {version}",
+          "contentWarning": "The template still has text in {count}/{total} sections (old content not deleted). Delete it before publishing; projects using this template drop that text by default.",
           "publish": "Publish this version",
           "reviewPending": "Review pending sections",
           "hidePending": "Hide pending sections",
@@ -2836,6 +2838,22 @@
       },
       "preview": {
         "pickAnother": "Choose another file",
+        "drop": {
+          "title": "Content in the file",
+          "hint": "Took this file from another project without deleting the old text? Choose Drop text for that section: FlintFlow keeps only the section name and layout, then drafts it again for your project.",
+          "keep": "Keep content",
+          "drop": "Drop text",
+          "keepInfoLabel": "About Keep content",
+          "keepInfo": "The text in this section belongs to your project. FlintFlow reads it as project data.",
+          "dropInfoLabel": "About Drop text",
+          "dropInfo": "The text in this section belongs to the template (for example, old project content that was never deleted). FlintFlow keeps only the section name, table column headers and guidance text; sub-sections for functions, use cases and screens are dropped too. The section is drafted again for your project.",
+          "dropAll": "Drop all",
+          "keepAll": "Keep all",
+          "dropAllInfoLabel": "About Drop all",
+          "dropAllInfo": "Use this when the file is a template taken from another project and the old content was never deleted. Only the layout is kept and every section is drafted again.",
+          "keepAllInfo": "Set every section back to Keep content: FlintFlow reads all text in the file as project data.",
+          "choiceLabel": "Keep or drop the text of {title}"
+        },
         "summary": {
           "written": "Written SRS · {present}/{total} sections have content",
           "template": "Template outline · {present}/{total} sections have content",

@@ -29,6 +29,8 @@ const HIS = { ...BANK, id: "t2", name: "Bệnh viện - HIS", source_file_name: 
 const DRAFT_ONLY = { ...BANK, id: "t3", name: "Mẫu chỉ có bản nháp", latest_version: 0, versions: [{ version: 1, status: "draft" }] };
 
 vi.mock("@/lib/api/token-store", async (importOriginal) => ({ ...(await importOriginal<object>()), getActiveOrgId: () => "o1" }));
+const role = vi.hoisted(() => ({ value: "analyst" }));
+vi.mock("@/lib/api/orgs", () => ({ fetchOrganization: vi.fn(async () => ({ role: role.value })) }));
 vi.mock("@/lib/api/org-library", () => ({
   listOrgTemplatesPage: vi.fn(async (_org: string, query: { page: number; limit?: number; q?: string }) => {
     const all = [BANK, HIS, DRAFT_ONLY];
@@ -102,5 +104,20 @@ describe("OrgTemplatePicker - lối phụ của ô SRS (FLF-278)", () => {
     expect(screen.queryByRole("dialog", { name: "Chọn mẫu của tổ chức" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Tạo dự án mới" })).toBeInTheDocument();
     expect(closeOuter).not.toHaveBeenCalled();
+  });
+});
+
+describe("OrgTemplatePicker - tải mẫu mới ngay trong hộp Tạo dự án (FLF-412)", () => {
+  it("chỉ Lead thấy nút Tải mẫu lên thư viện; bấm thì mở ô đặt tên + chọn file", async () => {
+    role.value = "lead";
+    const lead = renderWithIntl(<OrgTemplatePicker onPick={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tải mẫu lên thư viện" }));
+    expect(screen.getByLabelText("Tên mẫu")).toBeInTheDocument();
+    lead.unmount();
+
+    role.value = "analyst";
+    renderWithIntl(<OrgTemplatePicker onPick={vi.fn()} />);
+    await screen.findByRole("button", { name: /Hoặc chọn từ mẫu của tổ chức/ });
+    expect(screen.queryByRole("button", { name: "Tải mẫu lên thư viện" })).not.toBeInTheDocument();
   });
 });

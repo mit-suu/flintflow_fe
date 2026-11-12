@@ -20,7 +20,8 @@ import {
   STICKY_FADE,
 } from "@/components/ui";
 import PendingHeadingsReview from "@/components/org-template/pending-headings-review";
-import { MappingReviewDialog, NewTemplateDialog, TemplateVersionsDialog } from "@/components/org-template/template-library-dialogs";
+import NewTemplateUpload from "@/components/org-template/new-template-upload";
+import { MappingReviewDialog, TemplateVersionsDialog } from "@/components/org-template/template-library-dialogs";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { deleteOrgTemplate, listOrgTemplatesPage, uploadTemplateVersion, type OrgTemplateSort } from "@/lib/api/org-library";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -333,17 +334,19 @@ export default function OrgLibraryPage() {
           e.target.value = "";
         }}
       />
-      {newOpen && orgId && (
-        <NewTemplateDialog
-          orgId={orgId}
-          onClose={() => setNewOpen(false)}
-          onUploaded={(detail) => {
-            setNewOpen(false);
-            list.reload();
-            setReview(detail);
-          }}
-        />
-      )}
+      {/* Tải mẫu mới: đặt tên + chọn file ⇒ rà mapping (cảnh báo mẫu còn chữ) ⇒ đăng, cùng luồng với hộp Tạo dự án (FLF-412) */}
+      <Modal open={newOpen} onClose={() => setNewOpen(false)} title={t("templates.newTemplate")} size="xl">
+        {newOpen && orgId && (
+          <NewTemplateUpload
+            orgId={orgId}
+            onCancel={() => setNewOpen(false)}
+            onPublished={() => {
+              setNewOpen(false);
+              list.reload();
+            }}
+          />
+        )}
+      </Modal>
       {versionsTemplate && orgId && (
         <TemplateVersionsDialog
           orgId={orgId}

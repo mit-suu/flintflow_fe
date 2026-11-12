@@ -90,7 +90,7 @@ describe("Thư viện mẫu của tổ chức", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("Lead: tải mẫu mới (tên + file) rồi mở ngay hộp rà mapping của bản nháp", async () => {
+  it("Lead: tải mẫu mới (tên + file) rồi rà mapping bản nháp ngay trong hộp", async () => {
     role.value = "lead";
     vi.mocked(api.uploadOrgTemplate).mockResolvedValue({ ...template.versions[0], template_id: "t9", name: "Mẫu mới", version: 1, status: "draft", headings: [] });
     const { container } = renderWithIntl(<OrgLibraryPage />);
@@ -99,7 +99,7 @@ describe("Thư viện mẫu của tổ chức", () => {
     const file = new File(["x"], "new.docx");
     fireEvent.change(container.ownerDocument.querySelector('input[aria-label="File .docx của mẫu mới"]')!, { target: { files: [file] } });
     await waitFor(() => expect(api.uploadOrgTemplate).toHaveBeenCalledWith("o1", "Mẫu mới", file));
-    expect(await screen.findByRole("dialog", { name: "Rà mapping: Mẫu mới · bản 1" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Rà mapping: Mẫu mới · bản 1" })).toBeInTheDocument();
   });
 
   it("Analyst / Viewer: chỉ xem các bản, không tải / đăng / xoá", async () => {

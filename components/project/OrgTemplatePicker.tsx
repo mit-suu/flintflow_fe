@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { EmptyState, Icon, Modal, SearchInput, Skeleton } from "@/components/ui";
-import { listOrgTemplatesPage } from "@/lib/api/org-library";
+import NewTemplateUpload from "@/components/org-template/new-template-upload";
+import { listOrgTemplates, listOrgTemplatesPage } from "@/lib/api/org-library";
+import { fetchOrganization } from "@/lib/api/orgs";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { versionFacts } from "@/lib/org-template-version";
@@ -42,10 +44,13 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
     return orgId ? (knownTotals.get(orgId) ?? null) : 0;
   });
   const [open, setOpen] = useState(false);
+  const [orgId] = useState(() => getActiveOrgId());
+  /** FLF-412: chỉ Lead tải mẫu mới lên thư viện ngay tại đây. */
+  const [isLead, setIsLead] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Chỉ cần biết tổ chức có mẫu nào không (và bao nhiêu) — một trang 1 mục là đủ, danh sách thật tải trong hộp chọn
   useEffect(() => {
-    const orgId = getActiveOrgId();
     if (!orgId) return;
     let cancelled = false;
     listOrgTemplatesPage(orgId, { page: 1, limit: 1 })
@@ -54,14 +59,50 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
         if (!cancelled) setTotal(res.meta.total);
       })
       .catch(() => !cancelled && setTotal(0));
+    fetchOrganization(orgId)
+      .then((org) => !cancelled && setIsLead(org.role === "lead"))
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [orgId]);
 
-  if (total === 0) return null;
+  /** Mẫu vừa đăng ⇒ dùng luôn cho dự án đang tạo (bản vừa đăng). */
+  const pickPublished = async (templateId: string, version: number) => {
+    if (!orgId) return;
+    const list = await listOrgTemplates(orgId).catch(() => []);
+    knownTotals.set(orgId, list.length);
+    setTotal(list.length);
+    const tpl = list.find((x) => x.id === templateId);
+    if (tpl) onPick(tpl, version);
+  };
+
+  if (total === 0 && !isLead) return null;
   return (
     <>
+      {isLead &&
+        orgId &&
+        (uploading ? (
+          <NewTemplateUpload
+            orgId={orgId}
+            onCancel={() => setUploading(false)}
+            onPublished={(detail) => {
+              setUploading(false);
+              void pickPublished(detail.template_id, detail.version);
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setUploading(true)}
+            disabled={disabled}
+            className="self-start inline-flex items-center gap-1.5 text-caption font-bold text-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Icon name="upload" size={14} />
+            {t("uploadNew")}
+          </button>
+        ))}
+      {total !== 0 && (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -72,6 +113,7 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
         <Icon name="file-template" size={14} />
         {total === null ? t("toggleNoCount") : t("toggle", { count: total })}
       </button>
+      )}
       {open && (
         <TemplatePickerDialog
           onClose={() => setOpen(false)}
