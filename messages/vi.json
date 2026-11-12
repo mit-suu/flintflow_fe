@@ -2123,7 +2123,7 @@
       "aria": "Tiến trình bước",
       "working": {
         "intake": "Đang đọc dữ liệu dự án…",
-        "ask": "Đang xem còn thiếu gì…",
+        "ask": "Đang đọc và chuẩn bị trả lời…",
         "draft": "Đang soạn nội dung…",
         "check": "Đang kiểm tra…",
         "render": "Đang vẽ sơ đồ…",
@@ -2322,6 +2322,7 @@
       "chatTitleMode1": "Hỏi đáp & lệnh sửa",
       "placeholderSide": "Hỏi AI về dự án, hoặc bật Sửa tài liệu để sửa…",
       "placeholderWorking": "AI đang làm…",
+      "placeholderAnswerAbove": "Trả lời các câu hỏi ở trên…",
       "placeholderGate": "Muốn sửa gì thì bạn nhắn tôi nhé…",
       "placeholderStart": "Kể ý tưởng hoặc điều bạn muốn AI làm…",
       "placeholderStartTemplate": "Mẫu đã sẵn sàng - kể ý tưởng dự án (ai dùng, làm gì, mục tiêu) để FlintFlow soạn đủ các mục của mẫu…",

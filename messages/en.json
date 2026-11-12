@@ -2123,7 +2123,7 @@
       "aria": "Step progress",
       "working": {
         "intake": "Reading project data…",
-        "ask": "Checking what is missing…",
+        "ask": "Reading and preparing a reply…",
         "draft": "Drafting content…",
         "check": "Checking…",
         "render": "Drawing diagrams…",
@@ -2322,6 +2322,7 @@
       "chatTitleMode1": "Q&A & edit commands",
       "placeholderSide": "Ask the AI about the project, or turn on Edit document to edit…",
       "placeholderWorking": "The AI is working…",
+      "placeholderAnswerAbove": "Answer the questions above…",
       "placeholderGate": "Tell me what you would like to change…",
       "placeholderStart": "Describe your idea or what you want the AI to do…",
       "placeholderStartTemplate": "The template is ready - describe the project idea (who uses it, what for, goals) so FlintFlow can draft every template section…",
