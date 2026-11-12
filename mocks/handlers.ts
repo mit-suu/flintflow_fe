@@ -733,6 +733,74 @@ export const handlers = [
     mockState.project = { ...mockState.project, erdNotation, updatedAt: new Date().toISOString() };
     return ok(mockState.project);
   }),
+  // FLF-410: theme mockup màn — body strict, ít nhất một field; domain nhận URL ⇒ hostname; null = về mặc định
+  http.patch(api("/projects/:projectId/screen-theme"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const keys = Object.keys(body);
+    const allowed = ["primaryColor", "domain", "platforms"];
+    const color = body.primaryColor;
+    const platforms = body.platforms;
+    const domain = typeof body.domain === "string" ? body.domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") : body.domain;
+    const valid =
+      keys.length > 0 &&
+      keys.every((k) => allowed.includes(k)) &&
+      (color === undefined || color === null || (typeof color === "string" && /^#[0-9A-Fa-f]{6}$/.test(color))) &&
+      (domain === undefined || domain === null || domain === "" || (typeof domain === "string" && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain))) &&
+      (platforms === undefined || platforms === null || (Array.isArray(platforms) && platforms.length > 0 && platforms.every((p) => p === "web" || p === "mobile") && new Set(platforms).size === platforms.length));
+    if (!valid) return fail(400, "VALIDATION_ERROR", "screenTheme: invalid");
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    const before = mockState.project.screenTheme ?? { primaryColor: null, domain: null, platforms: null };
+    const screenTheme = {
+      primaryColor: color === undefined ? before.primaryColor : typeof color === "string" ? color.toUpperCase() : null,
+      domain: domain === undefined ? before.domain : domain ? (domain as string) : null,
+      platforms: platforms === undefined ? before.platforms : (platforms as ("web" | "mobile")[] | null),
+    };
+    mockState.project = { ...mockState.project, screenTheme, updatedAt: new Date().toISOString() };
+    return ok(mockState.project);
+  }),
+  // FLF-410: dự án mock không có ảnh gốc ⇒ tóm tắt rỗng; ước tính 0; POST màn không có ảnh gốc ⇒ 400
+  http.get(api("/projects/:projectId/screen-mockups"), ({ params, request }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    if (new URL(request.url).searchParams.get("mode")) return ok({ screens: 0, ai_calls: 0, credits: 0, reenable: 0, groups: { draw: [], reenable: [], skip: [] } });
+    return ok({ with_original: 0, using_mockup: 0, screens: [], originals: [] });
+  }),
+  http.post(api("/projects/:projectId/screen-mockups"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const ids = typeof body.screen_id === "string" ? [body.screen_id] : Array.isArray(body.screen_ids) ? (body.screen_ids as unknown[]) : [];
+    const strict = Object.keys(body).every((k) => ["mode", "scope", "screen_id", "screen_ids"].includes(k));
+    if (!strict || !(body.mode === "system" || body.mode === "original") || !(body.scope === "screen" || body.scope === "all") || (body.scope === "screen" && ids.length === 0))
+      return fail(400, "VALIDATION_ERROR", "screen-mockups: invalid");
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    // Như BE: màn không có trong Spine ⇒ 404; có màn nhưng dự án mock không có ảnh gốc ⇒ 400
+    if (body.scope === "screen") {
+      const known = new Set(mockState.spine.screens.map((s) => s.id));
+      if (ids.some((id) => !known.has(id as string))) return fail(404, "SCREEN_NOT_FOUND", "Không tìm thấy màn hình.");
+      return fail(400, "SCREEN_HAS_NO_ORIGINAL", "Màn này không có ảnh gốc trong tài liệu.");
+    }
+    // Như BE: 202 + tiến độ ban đầu; dự án mock không có ảnh gốc ⇒ lượt xong ngay, 0 màn
+    return ok(
+      { run_id: "mock-run", status: "done", stopping: false, total: 0, completed: 0, done: [], failed: [], fell_back_to_system: [], pending: [], suggested_color: null },
+      { status: 202 }
+    );
+  }),
+  // Chưa từng chạy lượt nào ⇒ null; dừng khi không có lượt ⇒ null; ảnh gốc ⇒ 404
+  http.get(api("/projects/:projectId/screen-mockups/run"), ({ params }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    return ok(null);
+  }),
+  http.post(api("/projects/:projectId/screen-mockups/run/cancel"), ({ params }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    return ok(null);
+  }),
+  http.get(api("/projects/:projectId/screen-mockups/:screenId/original"), () => fail(404, "SCREEN_HAS_NO_ORIGINAL", "No original picture")),
+  http.delete(api("/projects/:projectId/screen-mockups"), async ({ params, request }) => {
+    const body = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+    const strict = Object.keys(body).every((k) => k === "scope" || k === "screen_id");
+    if (!strict || !(body.scope === "screen" || body.scope === "all") || (body.scope === "screen" && typeof body.screen_id !== "string"))
+      return fail(400, "VALIDATION_ERROR", "screen-mockups: invalid");
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    return ok({ disabled: [] });
+  }),
   // FLF-265 #26: đếm + ước tính, không gọi model; ngôn ngữ = gốc ⇒ total 0
   http.get(api("/projects/:projectId/translations/status"), ({ params }) => {
     if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");

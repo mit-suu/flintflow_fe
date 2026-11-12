@@ -29,7 +29,12 @@
       "previousPage": "Trang trước",
       "nextPage": "Trang sau",
       "lastPage": "Tới trang cuối",
-      "goToPage": "Tới trang {page}"
+      "goToPage": "Tới trang {page}",
+      "pagination": "Phân trang",
+      "range": "{from}–{to} / {total}",
+      "loadMoreFailed": "Không tải thêm được.",
+      "retry": "Thử lại",
+      "shown": "Đang hiện {shown}/{total}"
     },
     "documentVersion": {
       "aria": "Có thể là bản mới của tài liệu đã có",
@@ -61,9 +66,6 @@
         "goals": "Mục tiêu sản phẩm",
         "scope": "Phạm vi phát hành (trong / ngoài)",
         "high_rules": "Quy tắc nghiệp vụ cấp cao",
-        "business_rules": "Quy tắc nghiệp vụ",
-        "messages": "Thông báo",
-        "functional_requirements": "Yêu cầu chức năng",
         "context": "Bối cảnh hệ thống và hệ thống ngoài",
         "features": "Tổng quan chức năng sản phẩm",
         "platforms": "Nền tảng và môi trường hoạt động",
@@ -75,7 +77,10 @@
         "analysis_models": "Sơ đồ phân tích (use case, luồng màn hình, ERD)",
         "references": "Tài liệu tham khảo",
         "apportioning": "Phân bổ yêu cầu",
-        "verification": "Kiểm chứng"
+        "verification": "Kiểm chứng",
+        "business_rules": "Quy tắc nghiệp vụ",
+        "messages": "Thông báo",
+        "functional_requirements": "Yêu cầu chức năng"
       }
     },
     "billingData": {
@@ -766,7 +771,8 @@
         "documentLanguage": "Ngôn ngữ tài liệu",
         "erdNotation": "Ký pháp ERD",
         "archive": "Lưu trữ",
-        "hardDelete": "Xoá vĩnh viễn"
+        "hardDelete": "Xoá vĩnh viễn",
+        "screenTheme": "Giao diện màn hình"
       },
       "gridLoading": "Đang tải danh sách dự án",
       "select": "Chọn dự án {name}"
@@ -815,6 +821,9 @@
         "dropHint": ".docx, .pdf, .doc, .md, .txt · tối đa 10 MB mỗi file",
         "remove": "Bỏ {name}",
         "checking": "Đang xem file…",
+        "summary": "{count} file · {size}",
+        "clearAll": "Xoá hết",
+        "listLabel": "File tham khảo đã chọn",
         "rejected": "Chưa thêm được: {files} - chỉ nhận .docx, .pdf, .doc, .md, .txt tối đa 10 MB.",
         "duplicate": "Đã có trong danh sách: {files} - không thêm lần nữa.",
         "suggest": {
@@ -822,7 +831,8 @@
           "otherVersion": "File này trông như một bản SRS khác. Nếu là bản cũ của file ở ô SRS, nên bỏ để tránh lẫn nội dung.",
           "moveToSrs": "Chuyển sang ô SRS",
           "keep": "Giữ làm tham khảo",
-          "drop": "Bỏ file này"
+          "drop": "Bỏ file này",
+          "maybeSrs": "Nếu đây là SRS bạn muốn FlintFlow hoàn thiện, hãy chuyển sang ô SRS."
         }
       },
       "slots": {
@@ -831,9 +841,17 @@
       },
       "orgTemplates": {
         "toggle": "Hoặc chọn từ mẫu của tổ chức ({count})",
-        "title": "Mẫu đã lưu của tổ chức",
+        "toggleNoCount": "Hoặc chọn từ mẫu của tổ chức",
+        "title": "Chọn mẫu của tổ chức",
         "meta": "{file} · {headings} heading · đã dùng {uses} lần",
         "use": "Dùng mẫu này",
+        "searchLabel": "Tìm mẫu",
+        "searchPlaceholder": "Tìm theo tên mẫu hoặc tên file…",
+        "sortedByUses": "{count} mẫu · dùng nhiều nhất trước",
+        "resultCount": "{count} mẫu khớp",
+        "noMatch": "Không có mẫu nào khớp “{query}”",
+        "noMatchHint": "Thử từ khoá khác, hoặc tên file .docx của mẫu.",
+        "loadError": "Không tải được danh sách mẫu",
         "versionLabel": "Bản của mẫu {name}",
         "versionLatest": "Bản {version} (mới nhất)",
         "versionOption": "Bản {version}",
@@ -889,7 +907,36 @@
       "renameFailed": "Không thể đổi tên dự án",
       "renameLabel": "Tên dự án mới",
       "saveChanges": "Lưu thay đổi",
-      "confirm": "{action} “{name}”?"
+      "confirm": "{action} “{name}”?",
+      "screenTheme": {
+        "title": "Giao diện màn hình",
+        "colorLabel": "Màu chính",
+        "hexLabel": "Mã màu (#RRGGBB)",
+        "hexInvalid": "Mã màu phải dạng #RRGGBB, ví dụ #3F5591.",
+        "colorDefault": "Chưa chọn: đang dùng màu mặc định.",
+        "previewBrand": "Tên hệ thống",
+        "previewPrimary": "Nút chính",
+        "previewSecondary": "Nút phụ",
+        "domainLabel": "Domain",
+        "domainPlaceholder": "vd: shop.example.com",
+        "domainClear": "Xoá domain",
+        "domainNote": "Để trống: thanh địa chỉ chỉ hiện đường dẫn.",
+        "platformLabel": "Nền tảng",
+        "platformAuto": "Tự động theo mô tả dự án",
+        "platform": {
+          "web": "Web",
+          "mobile": "Mobile"
+        },
+        "detail": "Áp dụng cho mọi hình Screen Layout của dự án. Hình đã vẽ được vẽ lại ngay theo giao diện mới, không tốn credit.",
+        "originalSummary": "Màn có ảnh gốc: {total} · đang dùng mockup: {mockup}",
+        "redrawAll": "Vẽ lại tất cả…",
+        "useOriginalAll": "Dùng ảnh gốc cho tất cả",
+        "originalRestored": "Đã chuyển mọi màn về ảnh gốc.",
+        "cta": "Lưu",
+        "busy": "Đang lưu và vẽ lại…",
+        "failed": "Không thể cập nhật giao diện màn hình",
+        "runStarted": "Đã bắt đầu vẽ lại chạy nền. Mở dự án để xem tiến độ."
+      }
     },
     "translateDialog": {
       "title": "Dịch tài liệu",
@@ -978,6 +1025,12 @@
       "newProject": "Dự án mới",
       "newProjectShort": "Mới",
       "createTitle": "Tạo dự án mới",
+      "discardCreate": {
+        "title": "Bỏ các file đã chọn?",
+        "body": "Bạn đã chọn {count} file nhưng chưa bắt đầu dự án. Đóng hộp này thì các file đó bị bỏ, lần sau phải chọn lại.",
+        "stay": "Ở lại",
+        "discard": "Bỏ file và đóng"
+      },
       "createInFolderTitle": "Dự án mới trong “{folder}”",
       "allProjects": "Tất cả dự án",
       "tabsLabel": "Xem theo",
@@ -1195,16 +1248,33 @@
       },
       "library": {
         "title": "Thư viện mẫu",
-        "intro": "Mẫu SRS và nội dung chuẩn của tổ chức, dùng lại cho các dự án theo mẫu khách hàng.",
-        "readOnly": "Bạn đang ở vai trò chỉ xem - chỉ Lead và Analyst được thêm, sửa, xoá.",
+        "intro": "Mẫu SRS đã lưu của tổ chức, dùng lại khi tạo dự án theo mẫu khách hàng.",
+        "readOnly": "Chỉ Lead được tải, đăng và xoá mẫu. Bạn vẫn xem được các bản và dùng mẫu khi tạo dự án.",
         "loading": "Đang tải thư viện…",
         "delete": "Xoá",
         "confirmDelete": "Xác nhận xoá",
         "templates": {
-          "title": "Mẫu SRS đã lưu",
-          "help": "Mẫu SRS của tổ chức, mỗi mẫu có nhiều bản. Lead tải file và đăng bản mới sau khi rà mapping heading; dự án mới chọn mẫu và bản ở bước tải file, không phải tải và map lại.",
+          "help": "Mỗi mẫu có nhiều bản. Lead tải file .docx (hoặc bấm “Lưu làm mẫu của tổ chức” ở màn nhập tài liệu của dự án theo mẫu khách), rà mapping heading rồi đăng. Dự án sau chọn mẫu và bản ở ô SRS khi tạo dự án, không phải tải và map lại.",
           "empty": "Tổ chức chưa lưu mẫu nào.",
-          "meta": "{file} · {headings} heading · {customs} mục giữ nguyên văn · {projects} dự án · đã dùng {uses} lần · tạo {date}",
+          "headingsCount": "{count} heading",
+          "customsCount": "{count} giữ nguyên văn",
+          "usesCount": "{count, plural, =0 {Chưa dùng} other {Dùng # lần}}",
+          "cols": {
+            "name": "Mẫu",
+            "structure": "Cấu trúc",
+            "uses": "Lượt dùng",
+            "saved": "Ngày lưu"
+          },
+          "searchLabel": "Tìm mẫu",
+          "searchPlaceholder": "Tìm theo tên mẫu hoặc tên file",
+          "sortLabel": "Sắp xếp",
+          "sort": {
+            "uses": "Dùng nhiều nhất",
+            "recent": "Mới lưu",
+            "name": "Tên A–Z"
+          },
+          "noMatch": "Không có mẫu nào khớp “{query}”.",
+          "results": "{count, plural, =0 {Không có kết quả} other {# kết quả}}",
           "latest": "Bản mới nhất: {version}",
           "draftOnly": "Chưa đăng bản nào",
           "skeleton": "Khung tự lưu",
@@ -1233,20 +1303,13 @@
           "reviewPending": "Duyệt mục chờ",
           "hidePending": "Ẩn mục chờ",
           "publishedBy": "đăng bởi {name}",
-          "publishedByFormer": "đăng bởi thành viên cũ"
+          "publishedByFormer": "đăng bởi thành viên cũ",
+          "versions": "Các bản"
         },
-        "content": {
-          "title": "Nội dung chuẩn theo mục",
-          "help": "Nội dung dùng chung cho mọi dự án, ví dụ Document Conventions, References. Mục riêng của dự án trùng tiêu đề sẽ có nút “Dùng nội dung của tổ chức” - BA xem trước rồi mới ghi.",
-          "empty": "Thư viện chưa có nội dung nào.",
-          "add": "Thêm nội dung",
-          "edit": "Sửa",
-          "titleLabel": "Tiêu đề mục (trùng với tiêu đề heading trong mẫu)",
-          "textLabel": "Nội dung",
-          "textHelp": "Mỗi đoạn cách nhau một dòng trống; dòng bắt đầu bằng “- ” là gạch đầu dòng. Nội dung tài liệu nên viết bằng tiếng Anh.",
-          "save": "Lưu",
-          "cancel": "Huỷ"
-        }
+        "rowActions": "Thao tác cho “{name}”",
+        "deleteTemplateTitle": "Xoá mẫu SRS?",
+        "deleteBody": "“{name}” sẽ bị xoá khỏi thư viện của tổ chức. Thao tác này không hoàn tác được.",
+        "cancel": "Huỷ"
       },
       "templateMapping": {
         "help": "FlintFlow tự khớp từng heading của file mẫu với mục của mẫu chuẩn. Mục “Cần xem” là chỗ độ tin cậy thấp - kiểm tra rồi đổi mục nếu chưa đúng.",
@@ -1284,6 +1347,40 @@
         "review": "Duyệt",
         "hide": "Thu gọn"
       }
+    },
+    "screenMockup": {
+      "title": "Vẽ lại bằng mockup",
+      "modeLabel": "Kiểu vẽ",
+      "scopeLabel": "Phạm vi",
+      "estimating": "Đang tính credit dự tính…",
+      "estimateFailed": "Chưa tính được credit dự tính.",
+      "insufficient": "Cần {required} credit, ví còn {available}.",
+      "failed": "Không thể vẽ lại bằng mockup",
+      "inUse": "Đang dùng",
+      "subtitleScreen": "Màn {name}",
+      "subtitleAll": "Tất cả {count} màn có ảnh gốc",
+      "scopeThis": "Màn này",
+      "scopeAllShort": "Tất cả {count} màn",
+      "modeSystemShort": "Mockup chuẩn",
+      "modeSystemCard": "Gọn, đồng bộ theo màu của dự án.",
+      "modeOriginalShort": "Theo ảnh gốc",
+      "modeOriginalCard": "Giữ bố cục của ảnh cũ. AI xem cả ảnh nên vẽ lâu hơn.",
+      "groupTotal": "{count} màn:",
+      "groupDraw": "{count} vẽ mới",
+      "groupReenable": "{count} bật lại (đã vẽ trước đó)",
+      "groupSkip": "{count} bỏ qua (đã là mockup kiểu này)",
+      "groupName": {
+        "draw": "Vẽ mới",
+        "reenable": "Bật lại",
+        "skip": "Bỏ qua"
+      },
+      "showScreens": "Xem màn",
+      "hideScreens": "Ẩn",
+      "cost": "Tốn {credits} credit · chạy nền, hộp đóng ngay",
+      "costFree": "Không tốn credit",
+      "ctaDrawN": "Vẽ lại {count} màn",
+      "ctaReenableN": "Bật lại {count} màn",
+      "ctaNothing": "Không có gì để vẽ"
     }
   },
   "workspace": {
@@ -1390,7 +1487,17 @@
       "downloading": "Đang tải…",
       "download": "Tải bản {version} (.docx)",
       "backToProjects": "Về danh sách dự án",
-      "backToWorkspace": "Về không gian làm việc"
+      "backToWorkspace": "Về không gian làm việc",
+      "retry": "Thử lại",
+      "empty": "Tài liệu chưa có nội dung nào",
+      "openComments": "Comment ({count})",
+      "commentsSheet": "Comment của tài liệu",
+      "resizeComments": "Đổi bề rộng panel comment",
+      "about": {
+        "title": "Trang đọc và góp ý",
+        "member": "Đọc tài liệu theo từng phiên bản (bản nháp hoặc baseline đã phát hành) và ghim comment vào đúng đoạn. Trang này không sửa nội dung: muốn sửa, quay về không gian làm việc và nhờ AI qua chat.",
+        "viewer": "Đọc tài liệu đã phát hành và ghim comment vào đúng đoạn cần góp ý. Nhóm soạn xử lý comment trong không gian làm việc của họ, trạng thái comment cập nhật ngay tại đây."
+      }
     },
     "chatPane": {
       "title": "Trò chuyện và duyệt",
@@ -1665,11 +1772,12 @@
       "translate": "Dịch tài liệu",
       "emptyDocument": "Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.",
       "draftSection": "Nhờ AI soạn",
-      "useLibrary": "Dùng nội dung của tổ chức",
-      "saveToLibrary": "Lưu vào thư viện",
-      "saveToLibraryTitle": "Lưu nội dung mục này để các dự án khác của tổ chức dùng lại",
-      "libraryBanner": "Thư viện của tổ chức có sẵn nội dung cho {count} mục còn trống.",
-      "libraryApplyAll": "Xem trước và dùng"
+      "screenMockup": {
+        "redraw": "Vẽ lại bằng mockup",
+        "useOriginal": "Dùng ảnh gốc",
+        "useOriginalFailed": "Không thể dùng lại ảnh gốc",
+        "drawing": "Đang vẽ mockup…"
+      }
     },
     "verification": {
       "closeHint": "Đóng bảng đánh giá",
@@ -1840,6 +1948,10 @@
       "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.",
       "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác - hãy tải theo ngôn ngữ tài liệu.",
       "close": "Đóng",
+      "mockupPending": "Còn {count} màn đang vẽ mockup. Xuất ngay thì các màn đó dùng ảnh gốc.",
+      "mockupWaiting": "Đang đợi vẽ xong {count} màn, xong sẽ tự tải bản nháp.",
+      "mockupExportNow": "Xuất ngay",
+      "mockupWait": "Đợi vẽ xong rồi xuất",
       "migrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Bản nháp vẫn tải được nhưng chưa phát hành bản mới được."
     },
     "change": {
@@ -2172,7 +2284,7 @@
       "aria": "Tiến trình bước",
       "working": {
         "intake": "Đang đọc dữ liệu dự án…",
-        "ask": "Đang xem còn thiếu gì…",
+        "ask": "Đang đọc và chuẩn bị trả lời…",
         "draft": "Đang soạn nội dung…",
         "check": "Đang kiểm tra…",
         "render": "Đang vẽ sơ đồ…",
@@ -2286,8 +2398,7 @@
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
       "editSection": "Trong {label}: ",
       "fixComment": "Trong {label}, sửa theo góp ý: {text}",
-      "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. ",
-      "useLibrary": "Viết mục {label} bằng đúng nội dung sau của tổ chức (giữ nguyên chữ): {text}"
+      "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. "
     },
     "aiSettings": {
       "aria": "Cách AI làm việc với bạn - {mode}",
@@ -2338,7 +2449,8 @@
       "phase": "Lượt chạy giai đoạn"
     },
     "languageChip": {
-      "title": "Ngôn ngữ tài liệu: {name}"
+      "title": "Ngôn ngữ tài liệu: {name}",
+      "prefix": "Tài liệu:"
     },
     "page": {
       "loading": "Đang tải không gian làm việc SRS",
@@ -2371,6 +2483,7 @@
       "chatTitleMode1": "Hỏi đáp & lệnh sửa",
       "placeholderSide": "Hỏi AI về dự án, hoặc bật Sửa tài liệu để sửa…",
       "placeholderWorking": "AI đang làm…",
+      "placeholderAnswerAbove": "Trả lời các câu hỏi ở trên…",
       "placeholderGate": "Muốn sửa gì thì bạn nhắn tôi nhé…",
       "placeholderStart": "Kể ý tưởng hoặc điều bạn muốn AI làm…",
       "placeholderStartTemplate": "Mẫu đã sẵn sàng - kể ý tưởng dự án (ai dùng, làm gì, mục tiêu) để FlintFlow soạn đủ các mục của mẫu…",
@@ -2443,10 +2556,6 @@
         "analyst": "Analyst",
         "viewer": "Viewer"
       },
-      "status": {
-        "resolved": "Đã xử lý",
-        "converted": "Đã thành CR"
-      },
       "composeTo": "Góp ý vào <b>{label}</b>",
       "paragraph": " › đoạn {n}",
       "cancelCompose": "Bỏ góp ý đang soạn",
@@ -2495,14 +2604,16 @@
         "sending": "Đang gửi…",
         "crDescription": "{text}\n\nVị trí ghim: {label} (bản {version}).",
         "cardAria": "Comment {id}",
-        "pinnedHeader": "{id} · Ghim vào: {label} · bản {version}",
         "convertedTo": "Đã thành {cr}",
         "anchorMissing": "Nội dung được ghim không còn trong phiên bản này.",
         "repliesAria": "Trả lời",
-        "replyPlaceholder": "Trả lời comment",
-        "reply": "Trả lời",
+        "replyPlaceholder": "Trả lời…",
+        "send": "Gửi",
+        "resolveMenu": "Xử lý comment",
+        "resolveNote": "Kết luận comment này - comment chuyển sang mục đã đóng.",
+        "keepEllipsis": "Giữ nguyên…",
+        "more": "Thêm thao tác",
         "resolveFailed": "Không đánh dấu được. Vui lòng thử lại.",
-        "markResolved": "Đánh dấu đã xử lý",
         "createCr": "Tạo CR từ comment",
         "title": "Comment",
         "filterAria": "Lọc comment",
@@ -2510,14 +2621,21 @@
         "pinTarget": "Ghim vào: {label} · bản {version}",
         "writePlaceholder": "Viết comment",
         "post": "Đăng comment",
-        "hint": "Rê chuột lên một mục hoặc đoạn trong tài liệu rồi bấm 💬 để ghim comment.",
-        "clearFocus": "Đang lọc theo chỗ ghim - xem tất cả comment",
+        "hint": "Bấm biểu tượng comment ở lề phải một mục hoặc đoạn để ghim comment vào đúng chỗ đó. Bấm vào thẻ comment để cuộn tới chỗ được ghim.",
+        "clearFocus": "Xem tất cả",
         "emptyOpen": "Không có comment nào đang mở.",
-        "emptyClosed": "Chưa có comment nào được xử lý hay chuyển thành CR."
+        "emptyClosed": "Chưa có comment nào được xử lý hay chuyển thành CR.",
+        "pinnedPrefix": "Ghim vào:",
+        "replyCount": "{count} trả lời",
+        "cardMeta": "{id} · bản {version}",
+        "locate": "Xem chỗ này trong tài liệu",
+        "closePanel": "Đóng comment",
+        "focusing": "Đang lọc theo chỗ ghim"
       },
       "fixByChat": "Nhờ AI sửa",
       "fixByChatTitle": "Mở ô chat sửa với nội dung góp ý điền sẵn; áp xong góp ý tự thành Đã sửa",
-      "ownerStep": "Thuộc bước {steps} - xử lý “đã sửa” sẽ mở lại bước này"
+      "ownerStep": "Thuộc bước {steps} - xử lý “đã sửa” sẽ mở lại bước này",
+      "showInDocument": "Xem chỗ này trong tài liệu"
     },
     "decisions": {
       "topic": {
@@ -2698,12 +2816,6 @@
       "note": "AI đã tự duyệt những bước này. Xem nếu muốn - không bắt buộc xem hết trước khi gửi.",
       "markSeen": "Đã xem",
       "markAllSeen": "Đánh dấu đã xem tất cả"
-    },
-    "library": {
-      "one": "Dùng nội dung của tổ chức cho mục “{heading}”",
-      "many": "Dùng nội dung của tổ chức cho {count} mục còn trống",
-      "saved": "Đã lưu vào thư viện của tổ chức",
-      "saveFailed": "Chưa lưu được vào thư viện. Vui lòng thử lại."
     },
     "import": {
       "loading": "Đang tải file của dự án…",
@@ -2900,6 +3012,31 @@
       "nowFilled": "Sau khi đọc chi tiết, {count, plural, one {mục {names} đã có nội dung} other {các mục {names} đã có nội dung}} - không cần soạn thêm.",
       "other": "Sau khi đọc chi tiết, {count, plural, one {mục {names} khác} other {các mục {names} khác}} với màn đọc khung.",
       "dismiss": "Đóng thông báo"
+    },
+    "screenMockupRun": {
+      "running": "Đang vẽ mockup {done}/{total} màn",
+      "stopping": "Đang dừng sau màn hiện tại ({done}/{total})",
+      "runningNote": "Bạn cứ làm việc khác, màn nào xong sẽ hiện ngay trong tài liệu.",
+      "stop": "Dừng",
+      "cancelFailed": "Không dừng được lượt vẽ",
+      "finished": "Đã vẽ mockup cho {count} màn",
+      "stopped": "Đã dừng: vẽ xong {count} màn, các màn còn lại giữ ảnh gốc",
+      "interrupted": "Lượt vẽ bị gián đoạn. Các màn chưa vẽ giữ ảnh gốc, bạn có thể vẽ lại.",
+      "fellBack": "Ảnh gốc không đọc được, đã vẽ theo mockup chuẩn: {names}.",
+      "failed": "Chưa vẽ được (giữ ảnh gốc): {names}.",
+      "retry": "Thử lại các màn lỗi",
+      "retryFailed": "Không thử lại được",
+      "suggestedColor": "Ảnh gốc dùng màu {color}. Áp cho cả dự án?",
+      "applyColor": "Áp dụng",
+      "applyColorFailed": "Không thể áp màu cho dự án",
+      "dismiss": "Đóng",
+      "reenabled": "Đã bật lại mockup cho {count} màn (0 credit)",
+      "nothingToDo": "Các màn đã là mockup theo kiểu này, không có gì để vẽ lại",
+      "chipRunning": "Mockup {done}/{total}",
+      "chipFailed": "{count} màn lỗi",
+      "chipNothing": "Đã là mockup",
+      "chipDone": "Đã vẽ {count} màn",
+      "allFailed": "Chưa vẽ được {count} màn"
     }
   },
   "errors": {

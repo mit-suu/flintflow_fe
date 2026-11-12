@@ -15,20 +15,32 @@ interface ModalProps {
   size?: "md" | "lg" | "xl";
 }
 
+/** Các hộp đang mở, mở sau nằm cuối: hộp chồng lên hộp khác (xác nhận, chọn mẫu) thì Esc chỉ đóng hộp trên cùng. */
+const openStack: string[] = [];
+
 export default function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
   const t = useTranslations("app.common");
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogFocus(dialogRef, open);
 
+  // Vào chồng theo lúc mở, không theo `onClose`: cha render lại đổi `onClose` không được đẩy hộp dưới lên trên cùng
+  useEffect(() => {
+    if (!open) return;
+    openStack.push(titleId);
+    return () => {
+      openStack.splice(openStack.lastIndexOf(titleId), 1);
+    };
+  }, [open, titleId]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && openStack[openStack.length - 1] === titleId) onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open, onClose, titleId]);
 
   if (!open) return null;
 

@@ -44,6 +44,11 @@ interface ChatPaneProps {
   children?: ReactNode;
   /** Thẻ câu hỏi đặt ngay trên ô nhập (ô nhập vẫn giữ), ví dụ ElicitPanel khi step chờ câu trả lời. */
   questionCard?: ReactNode;
+  /**
+   * `questionCard` có thật sự vẽ thẻ không — `ElicitPanel` không vẽ gì khi mọi câu chờ đều là câu mở (không có lựa chọn).
+   * Khi đó ô nhập không thu gọn và không nói "Hoặc trả lời trực tiếp…" như thể có thẻ để chọn (FLF-393). Mặc định: có thẻ.
+   */
+  questionCardVisible?: boolean;
   /** Thông báo / gợi ý ngay trên ô nhập (vd file đính kèm trông như SRS, kết quả đọc file lệch bản sơ bộ). */
   inputNotice?: ReactNode;
   /**
@@ -156,6 +161,7 @@ export default function ChatPane({
   isStreaming = false,
   children,
   questionCard,
+  questionCardVisible,
   inputNotice,
   onEditInstruction,
   onGoToPipeline,
@@ -221,6 +227,7 @@ export default function ChatPane({
   );
   const showQuestions =
     !questionCard && latestQuestions.length > 0 && dismissedKey !== questionKey;
+  const cardShown = Boolean(questionCard) && (questionCardVisible ?? true);
   const answersChangeQuestion = last?.role === "ai" && isChangeClarification(last.content);
 
   // Không có session hoặc session vắng field ⇒ coi như pipeline. Phiên phụ chỉ khác ở dải thông báo — gửi là hỏi đáp,
@@ -397,7 +404,7 @@ export default function ChatPane({
                   pendingAttachments={pendingAttachments}
                   onSelectAttachment={onSelectAttachment}
                   onRemoveAttachment={onRemoveAttachment}
-                  compact={Boolean(questionCard) || showQuestions}
+                  compact={cardShown || showQuestions}
                   onToggleEditMode={onToggleEditMode}
                   editMode={sendAsEdit}
                   editDisabledReason={editDisabledReason}
@@ -410,7 +417,7 @@ export default function ChatPane({
                     // còn icon, nên placeholder là tín hiệu rõ nhất cho biết câu gõ ra sẽ đi đâu.
                     knowledgeMode
                       ? t("knowledgePlaceholder")
-                      : questionCard || showQuestions
+                      : cardShown || showQuestions
                         ? t("answerDirectly")
                         : sendAsEdit
                           ? (editPlaceholder ?? t("editPlaceholder"))
