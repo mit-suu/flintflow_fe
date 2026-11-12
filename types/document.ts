@@ -130,7 +130,13 @@ export interface TranslationRunResult {
  * cập nhật phiên bản mới, không chặn. `heading_overlap` (0–1) chỉ có khi dự án đã có SRS.
  */
 export interface DocxPrecheck {
+  /** = `srs_suggestion === "strong"`. */
   looks_like_srs: boolean;
+  /**
+   * FLF-409: `strong` ⇒ hỏi chuyển sang ô SRS; `possible` (chỉ có nội dung yêu cầu, thiếu hình thức SRS - vd bảng Use Case)
+   * ⇒ nhắc nhẹ; `none` ⇒ không gợi ý. Thiếu (BE cũ) ⇒ suy từ `looks_like_srs`.
+   */
+  srs_suggestion?: "strong" | "possible" | "none";
   stamp: { project_id: string } | null;
   heading_overlap?: number;
 }

@@ -751,6 +751,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     onRevisionMessage: (message, stepId) => {
       if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
     },
+    // FLF-393: lượt chạy ở nền (không còn SSE) — lời AI chỉ có trong transcript ⇒ tải lại phiên đang mở để nó hiện ngay
+    onTranscriptChanged: () => {
+      if (ws.activeSession?._id) void ws.reloadActiveSession(ws.activeSession._id);
+    },
     // FLF-332: sau Approve Brief (B-2 → S-1) là lượt soạn hàng loạt cả SRS ⇒ chốt con số trước khi soạn (cổng cứng §1.2)
     beforePhaseRun: async (next, from) => {
       if (!(from?.startsWith("B-") && next.startsWith("S-"))) return true;
@@ -1946,6 +1950,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               ? t("page.placeholderWorking")
               : !mode1 && gate
                 ? t("page.placeholderGate")
+                : !mode1 && runner.state.status === "needs_input" && !runner.state.questions.some((q) => (q.options ?? []).length > 0)
+                  ? // FLF-393: chỉ có câu hỏi mở (không thẻ lựa chọn) — trả lời bằng ô chat
+                    t("page.placeholderAnswerAbove")
                 : !mode1 && stepNotStarted
                   ? // FLF-378: dự án mới theo mẫu bắt buộc vào thẳng Brief (B-0 bỏ qua) — file là mẫu, chưa có ý tưởng dự án
                     t(requiredTemplate && viewedStep === "B-1.1" ? "page.placeholderStartTemplate" : "page.placeholderStart")
@@ -2026,6 +2033,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               />
             ) : undefined
           }
+          questionCardVisible={runner.state.questions.some((q) => (q.options ?? []).length > 0)}
           questionCard={
             !mode1 && canEdit && onPipelineSession && runner.state.status === "needs_input" ? (
               <ElicitPanel
@@ -2432,6 +2440,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onCancelPending={() => setPendingComment(null)}
             onSubmit={submitComment}
             onResolve={resolveComment}
+            onReply={comments.reply}
             onShowSection={showSection}
             onFixByChat={canEdit && !mode1 ? fixCommentByChat : undefined}
             focusCommentIds={focusCommentIds}

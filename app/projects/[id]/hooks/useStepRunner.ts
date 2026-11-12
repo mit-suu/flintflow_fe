@@ -325,6 +325,12 @@ export interface UseStepRunnerOptions {
   /** Sau `revision`: lời AI (`message_vi`) nói đã sửa gì — gọi trước khi bước chạy lại. */
   onRevisionMessage?: (message: string, stepId: string) => void;
   /**
+   * Không còn SSE (`source: "restored"`): lời AI của lượt chạy ở nền chỉ nằm trong transcript, không tới qua sự kiện `elicit`.
+   * Lượt nền đổi trạng thái (hỏi tiếp / tới cổng / gián đoạn) ⇒ gọi để tải lại phiên chat, lời đáp hiện ngay thay vì phải
+   * tải lại trang (FLF-393, demo 2026-11-12).
+   */
+  onTranscriptChanged?: () => void;
+  /**
    * FLF-332: cổng cứng credit trước khi Accept ở cổng chốt tự kéo sang đơn vị giai đoạn KHÁC (`next` ≠ `from`). Trả `false` ⇒
    * không chạy tiếp, tiến độ giữ nguyên (người dùng chạy lại từ chat khi muốn). Không hỏi khi chạy tiếp trong cùng đơn vị.
    */
@@ -392,7 +398,7 @@ const trackAwaiting = () => {
   };
 };
 
-export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, beforePhaseRun }: UseStepRunnerOptions) {
+export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, beforePhaseRun, onTranscriptChanged }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const stepRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -400,6 +406,11 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   const phaseRef = useRef<string | null>(null);
   /** Lượt chạy lẻ mở lại một bước cũ (màn để trống, mục đã cũ) — duyệt xong KHÔNG tự chạy tiếp quy trình. */
   const standaloneRef = useRef(false);
+  // Callback của trang đổi theo mỗi lần render ⇒ giữ qua ref, không để nó dựng lại bộ canh chừng / `answer`
+  const transcriptChangedRef = useRef(onTranscriptChanged);
+  useEffect(() => {
+    transcriptChangedRef.current = onTranscriptChanged;
+  }, [onTranscriptChanged]);
 
   // Rời trang / đổi project: đóng luồng SSE đang mở
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -602,6 +613,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         const waiting = await getRunState(projectId, stepId).then((r) => r.data).catch(() => null);
         if (waiting?.status === "waiting_answer") {
           dispatch({ type: "restored", state: waiting, at: Date.now() });
+          transcriptChangedRef.current?.();
           return;
         }
       }
@@ -772,9 +784,12 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
             if (run.status === "interrupted" || run.status === "running") dispatch({ type: "restored", state: run, at: Date.now() });
             else dispatch({ type: "interrupted" });
             if (polling) onSpineChanged();
+            if (polling) transcriptChangedRef.current?.();
             return;
           }
           dispatch({ type: "restored", state: run, at: Date.now() });
+          // Lượt nền đã trả lời / hỏi tiếp / tới cổng: lời AI nằm trong transcript ⇒ tải lại phiên chat
+          if (polling && run.status !== "running") transcriptChangedRef.current?.();
           // Lượt nền đã ghi Spine: tải lại tài liệu/tiến độ, và giữ `spine_version` cuối cho lượt ghi kế tiếp
           if (polling && run.status === "gate") onSpineChanged(run.gate_payload?.spine_version);
           else if (polling && run.status === "interrupted") onSpineChanged();
