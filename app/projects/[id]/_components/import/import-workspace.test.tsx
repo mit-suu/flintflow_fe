@@ -67,13 +67,16 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     expect(screen.getByText("Tải file đã sửa")).toBeInTheDocument();
   });
 
-  it("bổ sung theo mẫu chuẩn còn thiếu (chế độ 4) ⇒ thông báo + tải DRAFT và báo cáo thiếu sót", () => {
+  it("FLF-416 bản ghi cũ bổ sung theo mẫu chuẩn (chế độ 4) còn dừng ở incomplete ⇒ nút Soạn phần còn thiếu, không còn ngõ cụt chỉ tải DRAFT", async () => {
+    const onProjectChanged = vi.fn();
     const d = doc({ status: "incomplete" });
     setImport({ doc: d, data: data({ import: d, target_structure: { target: "fpt", intent: "free", resolved_mode: 4, sections: [], missing: ["fixed:2.1", "fixed:5.1"], compared_at: "x" } }) });
-    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={onProjectChanged} />);
     expect(screen.getByRole("heading", { name: "File còn thiếu 2 mục so với mẫu chuẩn FlintFlow" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Tải bản DRAFT/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Tải báo cáo thiếu sót/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Tải bản DRAFT/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Soạn phần còn thiếu/ }));
+    expect(imp.current.continueFlow2).toHaveBeenCalled();
+    await vi.waitFor(() => expect(onProjectChanged).toHaveBeenCalled());
   });
 
   it("bản ghi cũ giữ khung còn dừng ở incomplete ⇒ nút Soạn phần còn thiếu", async () => {

@@ -44,9 +44,9 @@ const RUN_STATUSES: readonly ImportStatus[] = ["extracting", "baselining", "chec
 
 /**
  * Upload SRS có sẵn trong **layout workspace** (thay wizard `/import` + `Mode1Shell`): màn đọc khung (trước credit) ⇒ Bắt đầu ⇒
- * tiến trình đọc ⇒ kết cục. File đủ khung ⇒ bản gốc 0.1, giữ khung còn thiếu ⇒ soạn phần thiếu (BE đổi dự án sang luồng soạn) —
- * cả hai trang tự chuyển sang workspace khi project đổi. Bổ sung theo mẫu chuẩn còn thiếu ⇒ thông báo + tải DRAFT / báo cáo
- * thiếu sót. File bị từ chối ⇒ lý do + chọn file khác ngay tại đây.
+ * tiến trình đọc ⇒ kết cục. File đủ khung ⇒ bản gốc 0.1; giữ khung còn thiếu (chế độ 3) lẫn bổ sung theo mẫu chuẩn còn thiếu
+ * (chế độ 4, FLF-416) ⇒ soạn phần thiếu (BE đổi dự án sang luồng soạn) — trang tự chuyển sang workspace khi project đổi. File bị
+ * từ chối ⇒ lý do + chọn file khác ngay tại đây.
  */
 export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }: ImportWorkspaceProps) {
   const t = useTranslations("workspace.import");
@@ -207,32 +207,18 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
     }
     if (status === "incomplete") {
       const missing = structure?.missing.length ?? 0;
-      // Bản ghi cũ giữ khung còn thiếu (lượt mới BE tự chuyển sang soạn) ⇒ một nút soạn phần còn thiếu
-      if (structure?.resolved_mode === 3) {
-        return (
-          <div className="flex flex-col gap-3">
-            <h2 className="text-heading font-bold text-on-surface">{t("outcome.mode3.title", { missing })}</h2>
-            <p className="text-body text-on-surface-variant">{t("outcome.mode3.body")}</p>
-            <Button className="self-start" iconRight="arrow-right" loading={imp.busy === "finalize"} onClick={() => void imp.continueFlow2().then((res) => res && onChanged())}>
-              {t("outcome.mode3.draft")}
-            </Button>
-          </div>
-        );
-      }
+      // Bản ghi cũ còn thiếu mục (lượt mới BE tự chuyển sang soạn) ⇒ một nút soạn phần còn thiếu. Chế độ 4 (FLF-416): soạn mục
+      // còn thiếu so với mẫu chuẩn FlintFlow, bố cục sắp lại theo mẫu chuẩn
+      const outcome = structure?.resolved_mode === 4 ? "mode4" : "mode3";
       return (
         <div className="flex flex-col gap-3">
-          <h2 className="text-heading font-bold text-on-surface">{t("outcome.mode4.title", { missing })}</h2>
-          {/* Kết quả cuối khác màn đọc khung ⇒ báo luôn ở đây (không vào workspace soạn) */}
+          <h2 className="text-heading font-bold text-on-surface">{t(`outcome.${outcome}.title`, { missing })}</h2>
+          {/* Kết quả cuối khác màn đọc khung ⇒ báo luôn ở đây */}
           <StructureChangeNotice projectId={projectId} inline />
-          <p className="text-body text-on-surface-variant">{t("outcome.mode4.body")}</p>
-          <div className="flex flex-wrap gap-2">
-            <Button icon="export" loading={downloading === "draft"} onClick={() => void download("draft")}>
-              {t("outcome.mode4.draft")}
-            </Button>
-            <Button variant="secondary" icon="export" loading={downloading === "gap"} onClick={() => void download("gap")}>
-              {t("outcome.mode4.gapReport")}
-            </Button>
-          </div>
+          <p className="text-body text-on-surface-variant">{t(`outcome.${outcome}.body`)}</p>
+          <Button className="self-start" iconRight="arrow-right" loading={imp.busy === "finalize"} onClick={() => void imp.continueFlow2().then((res) => res && onChanged())}>
+            {t(`outcome.${outcome}.draft`)}
+          </Button>
         </div>
       );
     }
