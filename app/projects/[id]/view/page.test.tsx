@@ -20,6 +20,8 @@ const orgId = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: P }),
   useSearchParams: () => new URLSearchParams(nav.search),
+  // Nút đổi ngôn ngữ ở header + "Tạo CR" trong menu thẻ comment dùng router
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock("@/lib/api/token-store", async (importOriginal) => ({
@@ -127,13 +129,14 @@ describe("view/page.tsx - comment ghim vào nội dung (UC-49)", () => {
     const card = await screen.findByRole("listitem", { name: "Comment CM-001" });
     expect(card.textContent).toContain("› Block 1");
 
-    fireEvent.click(within(card).getByRole("button", { name: "Trả lời" }));
-    fireEvent.change(within(card).getByLabelText("Trả lời comment"), { target: { value: "Đã ghi nhận" } });
-    fireEvent.click(within(card).getByRole("button", { name: "Trả lời" }));
-    // Chờ danh sách trả lời — đừng tìm theo chữ: ô nhập trả lời (textarea) cũng mang đúng chữ đó cho tới khi đóng
+    const box = within(card).getByRole("textbox", { name: "Trả lời…" });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: "Đã ghi nhận" } });
+    fireEvent.click(within(card).getByRole("button", { name: "Gửi" }));
+    // Chờ danh sách trả lời — đừng tìm theo chữ: ô trả lời (textarea) cũng mang đúng chữ đó cho tới khi gửi xong
     const replies = await within(screen.getByRole("listitem", { name: "Comment CM-001" })).findByRole("list", { name: "Trả lời" });
     expect(within(replies).getByText("Đã ghi nhận")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByLabelText("Trả lời comment")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Trả lời…" })).toHaveValue(""));
   });
 
   it("Viewer, dự án chưa có baseline ⇒ không có nút 💬, panel nói chỉ comment trên bản đã phát hành", async () => {
@@ -181,7 +184,8 @@ describe("view/page.tsx - comment ghim vào nội dung (UC-49)", () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     const card = await screen.findByRole("listitem", { name: "Comment CM-001" });
-    fireEvent.click(within(card).getByRole("button", { name: "Đánh dấu đã xử lý" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Xử lý comment" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Đã sửa" }));
     expect(await screen.findByRole("tab", { name: "Đang mở (0)" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByRole("listitem", { name: "Comment CM-001" })).not.toBeInTheDocument();
     expect(screen.getByText("Không có comment nào đang mở.")).toBeInTheDocument();

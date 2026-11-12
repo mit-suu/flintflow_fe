@@ -575,12 +575,12 @@ export function BlockView({
 const INDENT_PER_LEVEL = 20;
 
 /** Cấp của section, 0 = mục gốc: theo `level` của BE (1-based), thiếu thì đếm dấu chấm trong số mục. */
-const depthOf = (section: RenderedSection): number =>
+export const depthOf = (section: RenderedSection): number =>
   Math.max(0, (section.level || (section.number ? section.number.split(".").length : 1)) - 1);
 
 /** Cỡ chữ tiêu đề theo cấp: mục gốc to nhất, mục con nhỏ dần. */
 const HEADING_SIZE = ["text-subtitle", "text-heading", "text-body"] as const;
-const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
+export const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
 
 /** Heading nhóm (`group:*`) — chỉ tiêu đề chương/mục cha, không phải section có nội dung (contract-change 2026-09-15). */
 function GroupHeading({ section }: { section: RenderedSection }) {
