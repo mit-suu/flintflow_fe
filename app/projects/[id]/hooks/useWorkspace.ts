@@ -97,6 +97,8 @@ export function useWorkspace(
    */
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const uploadingRef = useRef(false);
+  /** FLF-400: `sending` là state — hai lần bấm trong cùng một khung render đều thấy `false`; ref chặn ngay lần đầu. */
+  const sendingRef = useRef(false);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
   /** Đang chờ câu trả lời tri thức — luồng đó không stream chữ nên `streamingMessage` không nói được gì. */
   const [knowledgePending, setKnowledgePending] = useState(false);
@@ -345,9 +347,10 @@ export function useWorkspace(
   const sendMessage = useCallback(
     async (currentStep: string | null, customContent?: string, opts?: { knowledge?: boolean }): Promise<unknown> => {
       const text = customContent ?? inputMessage;
-      if ((!text.trim() && pendingAttachments.length === 0) || !activeSession || sending) return undefined;
+      if ((!text.trim() && pendingAttachments.length === 0) || !activeSession || sending || sendingRef.current) return undefined;
       let finishData: unknown;
 
+      sendingRef.current = true;
       setSending(true);
       setInputMessage("");
       setCrPrefill(null);
@@ -433,6 +436,7 @@ export function useWorkspace(
         else setNotice(errorNotice(err, "sendFailed"));
       } finally {
         streamAbortRef.current = null;
+        sendingRef.current = false;
         setSending(false);
         setKnowledgePending(false);
       }

@@ -1046,6 +1046,13 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   /** Việc vừa gửi lên `/changes` — để biết kết quả trả về là của lệnh sửa, lượt cập nhật mục cũ hay hoàn tác. */
   const editActionRef = useRef<"instruction" | "outdated" | "undo" | null>(null);
   const pendingInstructionRef = useRef("");
+  /**
+   * FLF-400: khoá đồng bộ của ô chat. `aiWorking` / `sending` là state — hai lần bấm Gửi (Enter) trong cùng một khung
+   * render đều thấy "rảnh" và cùng gửi. Khoá chat nhả ngay khi lượt chạy bước đã mở (runner tự khoá tiếp), để câu hỏi
+   * giữa lượt vẫn trả lời được ở ô chat.
+   */
+  const chatSendLockRef = useRef<object | null>(null);
+  const editSendLockRef = useRef(false);
   /** FLF-318 (mode 1): lệnh thêm / xoá use case + các câu trả lời làm rõ của nó, theo thứ tự — `null` khi không ở vòng đó. */
   const useCaseTurnsRef = useRef<string[] | null>(null);
   /**
@@ -1445,6 +1452,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    * thao tác vừa bấm, đúng thứ tự BE ghi transcript — thiếu nó thì đọc lại chỉ thấy "Đúng rồi, đi tiếp" một mình.
    */
   const submitGateAction = (action: GateAction, note?: string): void => {
+    // FLF-400: lần duyệt trước còn đang gửi ⇒ bấm lại không hiện thêm tin, không gửi lần hai
+    if (runner.locked("gate")) return;
     const spoken = runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate?.payload?.message_vi;
     const said = gateActionText(action, note);
     if (spoken) ws.appendLocalMessage(spoken, runnerStep, "ai");
@@ -1554,7 +1563,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
   /** Chip "Sửa theo đề xuất" của một cờ mới: gửi yêu cầu sửa nêu đúng vấn đề đó, như user tự gõ ở ô chat. */
   const fixFlagByChat = (flag: GateNewFlag) => {
-    if (!runnerStep) return;
+    if (!runnerStep || runner.locked("gate")) return;
     const said = t("userText.fixFlag", { message: flag.message });
     ws.appendLocalMessage(said, runnerStep);
     void runner.gate("revision", said).then((outcome) => {
@@ -1596,6 +1605,16 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
   /** Lệnh sửa (chip "Sửa tài liệu") cũng đi qua bước chặn — lệnh dịch không được thành một lệnh sửa gửi cho AI. */
   const sendEditInstruction = async (text: string) => {
+    if (editSendLockRef.current) return;
+    editSendLockRef.current = true;
+    try {
+      await routeEditInstruction(text);
+    } finally {
+      editSendLockRef.current = false;
+    }
+  };
+
+  const routeEditInstruction = async (text: string) => {
     if (interceptLanguageCommand(text, "edit")) return;
     if (!mode1) return submitEditInstruction(text);
     // Lệnh sửa mới (thêm / sửa / xoá bất cứ gì) ⇒ thẻ "CR-xxx đã ghi vào bản nháp" của CR trước không còn là việc đang làm
@@ -1679,6 +1698,21 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   };
 
   const sendFromChat = async (custom?: string, intent?: RunIntent, asMessage = false) => {
+    if (chatSendLockRef.current) return;
+    const token = {};
+    chatSendLockRef.current = token;
+    const release = () => {
+      if (chatSendLockRef.current === token) chatSendLockRef.current = null;
+    };
+    try {
+      await routeFromChat(release, custom, intent, asMessage);
+    } finally {
+      release();
+    }
+  };
+
+  /** `release`: nhả khoá chat ngay khi đã giao lượt cho runner (runner giữ khoá riêng của nó). */
+  const routeFromChat = async (release: () => void, custom?: string, intent?: RunIntent, asMessage = false) => {
     // FLF-265 §3.7: chặn lệnh đổi ngôn ngữ tài liệu trước MỌI nhánh gửi (mode 1, phiên phụ, trả lời, cổng, chạy bước)
     if (!asMessage && interceptLanguageCommand(custom ?? ws.inputMessage, "chat", intent)) return;
     // FLF-279 §1.2: BE xử lý lượt tri thức TRƯỚC lượt chờ trả lời của step và trước lệnh sửa, và chốt
@@ -1728,12 +1762,16 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     const text = raw || t("session.attachmentOnly");
 
     if (status === "needs_input") {
+      // Câu trả lời trước còn đang gửi (lần bấm thứ hai đọc state cũ) ⇒ không hiện thêm tin, không gửi lần hai
+      if (runner.locked("answer")) return;
       const onCard = cardAnswers.key === questionSetKey ? cardAnswers.answers : [];
       setCardAnswers({ key: "", answers: [] });
       ws.setInputMessage("");
       keepAskInHistory();
       showCardAnswers(onCard, text);
-      await runner.answer(onCard, text);
+      const turn = runner.answer(onCard, text);
+      release();
+      await turn;
       return;
     }
     if (status === "gate_ready") {
@@ -1752,9 +1790,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         submitGateAction("accept");
         return;
       }
+      if (runner.locked("gate")) return;
       ws.appendLocalMessage(text, runner.state.stepId);
       // Thẻ cổng đã cũ (bước đã về chờ chạy) thì runner tự chạy lại bước với đúng lời nhắn này
-      await runner.gate("revision", text);
+      const turn = runner.gate("revision", text);
+      release();
+      await turn;
       return;
     }
     const stepId = viewedStep as string;
@@ -1767,8 +1808,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       },
     };
     // Bước mở lại (màn để trống / mục đã cũ) chạy lẻ; bước tới lượt chạy cả giai đoạn cho cả hai chế độ duyệt
-    if (reopenable && !stepNotStarted) await runner.run(stepId, { ...start, standalone: true });
-    else await runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
+    const turn = reopenable && !stepNotStarted ? runner.run(stepId, { ...start, standalone: true }) : runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
+    release();
+    await turn;
   };
 
   /**

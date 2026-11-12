@@ -349,7 +349,8 @@ const toFailure = (err: unknown): { code: string; message: string; meta?: Record
  * Lần chạy trước của chính step này còn dở ở BE (reload trang giữa chừng): BE huỷ lượt gọi model đang bay rồi
  * nhả khoá, nhưng mất một nhịp. Chờ rồi thử lại thay vì ném "đang được xử lý ở một request khác" vào mặt người dùng.
  */
-export type GateOutcome = "ok" | "failed";
+/** `skipped` (FLF-400): lần duyệt trước còn đang gửi ⇒ lần này không gửi gì, nơi gọi không gỡ / thêm tin nào. */
+export type GateOutcome = "ok" | "failed" | "skipped";
 
 const isStepBusy = (err: unknown): boolean => err instanceof ApiClientError && err.code === "STEP_NOT_RUNNABLE" && /request khác/.test(err.rawMessage || err.message);
 const BUSY_RETRIES = 3;
@@ -400,11 +401,20 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   const phaseRef = useRef<string | null>(null);
   /** Lượt chạy lẻ mở lại một bước cũ (màn để trống, mục đã cũ) — duyệt xong KHÔNG tự chạy tiếp quy trình. */
   const standaloneRef = useRef(false);
+  /**
+   * FLF-400: khoá đồng bộ ở cửa vào. Chặn bằng state (`busy`) không đủ: hai lần bấm trong cùng một khung render đều
+   * đọc thấy "rảnh" và cùng gửi ⇒ bước chạy hai lượt, lượt sau ăn "Bước này đang chạy ở lượt trước". Khoá chạy là token
+   * (huỷ / reset nhả khoá ngay để "Huỷ lượt cũ và chạy lại" không phải chờ luồng cũ đóng hẳn); trả lời và duyệt khoá
+   * riêng vì lúc bước chờ trả lời thì luồng chạy vẫn mở.
+   */
+  const runLockRef = useRef<object | null>(null);
+  const answerLockRef = useRef(false);
+  const gateLockRef = useRef(false);
 
   // Rời trang / đổi project: đóng luồng SSE đang mở
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const run = useCallback(
+  const runStepTurn = useCallback(
     async (stepId: string, options: { reopen?: boolean; standalone?: boolean } & ChatStart = {}) => {
       let baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
@@ -513,7 +523,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
    * Chạy liền cả giai đoạn (R2): một luồng, bước yên lặng tự Accept, dừng khi cần bạn. Giữ nguyên mọi
    * sự kiện của từng bước nên màn hình tiến trình không phải đổi gì.
    */
-  const runWholePhase = useCallback(
+  const runPhaseTurn = useCallback(
     async (phase: string, options: ChatStart = {}) => {
       const baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
@@ -577,6 +587,25 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     [projectId, sessionId, getBaseVersion, onSpineChanged]
   );
 
+  /** Lối vào từ ngoài: lượt chạy trước (của tab này) chưa xong ⇒ bỏ qua, không mở luồng thứ hai (FLF-400). */
+  const withRunLock = useCallback(async (turn: () => Promise<void>) => {
+    if (runLockRef.current) return;
+    const token = {};
+    runLockRef.current = token;
+    try {
+      await turn();
+    } finally {
+      if (runLockRef.current === token) runLockRef.current = null;
+    }
+  }, []);
+
+  const run = useCallback(
+    (stepId: string, options: { reopen?: boolean; standalone?: boolean } & ChatStart = {}) => withRunLock(() => runStepTurn(stepId, options)),
+    [withRunLock, runStepTurn]
+  );
+
+  const runWholePhase = useCallback((phase: string, options: ChatStart = {}) => withRunLock(() => runPhaseTurn(phase, options)), [withRunLock, runPhaseTurn]);
+
   /**
    * Không còn luồng SSE (state dựng lại từ run-state): BE chạy tiếp lượt ở nền. Bước ⇒ canh chừng hỏi run-state
    * mỗi nhịp tới gate/lỗi. Phỏng vấn đầu giai đoạn ⇒ BE chỉ ghi câu trả lời, FE chạy lại cả giai đoạn (FLF-222).
@@ -588,26 +617,32 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   const answer = useCallback(
     async (answers: StepAnswer[], message?: string) => {
       const stepId = stepRef.current;
-      if (!stepId || !sessionId) return;
+      if (!stepId || !sessionId || answerLockRef.current) return;
+      answerLockRef.current = true;
       const restored = state.source === "restored";
       dispatch({ type: "answered", count: answers.length });
       try {
-        await answerStep(projectId, stepId, { session_id: sessionId, answers, ...(message ? { message } : {}) });
-      } catch (err) {
-        dispatch({ type: "failed", ...toFailure(err) });
-        return;
-      }
-      if (!restored || !isPhaseUnit(stepId)) return;
-      if (message) {
-        const waiting = await getRunState(projectId, stepId).then((r) => r.data).catch(() => null);
-        if (waiting?.status === "waiting_answer") {
-          dispatch({ type: "restored", state: waiting, at: Date.now() });
+        try {
+          await answerStep(projectId, stepId, { session_id: sessionId, answers, ...(message ? { message } : {}) });
+        } catch (err) {
+          dispatch({ type: "failed", ...toFailure(err) });
           return;
         }
+        if (!restored || !isPhaseUnit(stepId)) return;
+        if (message) {
+          const waiting = await getRunState(projectId, stepId).then((r) => r.data).catch(() => null);
+          if (waiting?.status === "waiting_answer") {
+            dispatch({ type: "restored", state: waiting, at: Date.now() });
+            return;
+          }
+        }
+      } finally {
+        // Nhả trước khi chạy lại giai đoạn: lượt chạy đó có thể hỏi tiếp, câu trả lời kế phải gửi được
+        answerLockRef.current = false;
       }
-      await runWholePhase(stepId);
+      await runPhaseTurn(stepId);
     },
-    [projectId, sessionId, state.source, runWholePhase]
+    [projectId, sessionId, state.source, runPhaseTurn]
   );
 
   /**
@@ -657,6 +692,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       const stepId = stepRef.current;
       const baseVersion = getBaseVersion();
       if (!stepId || !sessionId || baseVersion === null) return "failed";
+      if (gateLockRef.current) return "skipped";
+      gateLockRef.current = true;
       dispatch({ type: "busy", busy: true });
       try {
         const res = await submitGate(projectId, stepId, {
@@ -668,25 +705,28 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         onSpineChanged(res.data?.spine_version);
         if (res.data) onGateDone?.(res.data);
         if (action === "revision" && res.data?.message_vi?.trim()) onRevisionMessage?.(res.data.message_vi.trim(), stepId);
+        // Từ đây là lượt chạy tiếp theo: nhả khoá duyệt để cổng kế tiếp (và câu hỏi giữa chừng) bấm được
+        gateLockRef.current = false;
         if (action === "regenerate" || action === "revision") {
-          await run(stepId);
+          await runStepTurn(stepId);
         } else if (phaseRef.current) {
           // Đang chạy liền cả giai đoạn: duyệt xong là đi tiếp ngay. Duyệt cổng chốt CUỐI giai đoạn ⇒ tự chạy luôn
           // giai đoạn kế (FLF-221) — trước đây chuỗi chỉ trả "Đã xong giai đoạn" và user phải tự khởi động lại.
           const from = phaseRef.current;
           const nextUnit = (res.data?.next_step ? unitOfStep(res.data.next_step) : null) ?? from;
           dispatch({ type: "reset" });
-          if (await allowPhaseRun(nextUnit, from)) await runWholePhase(nextUnit);
+          if (await allowPhaseRun(nextUnit, from)) await runPhaseTurn(nextUnit);
         } else if (!standaloneRef.current && res.data?.next_step && (action === "accept" || action === "accept_as_is")) {
           // Cổng dựng lại sau reload (không còn chuỗi đang chạy): duyệt xong vẫn tự sang bước/giai đoạn kế (FLF-221)
           const nextUnit = unitOfStep(res.data.next_step);
           dispatch({ type: "reset" });
-          if (nextUnit && (await allowPhaseRun(nextUnit, unitOfStep(stepId)))) await runWholePhase(nextUnit);
+          if (nextUnit && (await allowPhaseRun(nextUnit, unitOfStep(stepId)))) await runPhaseTurn(nextUnit);
         } else {
           dispatch({ type: "reset" });
         }
         return "ok";
       } catch (err) {
+        gateLockRef.current = false;
         if (err instanceof ApiClientError && err.code === "STEP_NOT_RUNNABLE" && !isStepBusy(err)) {
           phaseRef.current = null;
           // Bước đã được server chốt (tự Accept) và chuỗi vẫn đang chạy ở lượt trước: đừng mở chuỗi mới (sẽ 409 tiếp) — nạp lại
@@ -700,7 +740,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
             .catch(() => undefined);
           onSpineChanged(fresh);
           dispatch({ type: "reset" });
-          await runWholePhase(unitOfStep(stepId) ?? stepId, note ? { message: note } : {});
+          await runPhaseTurn(unitOfStep(stepId) ?? stepId, note ? { message: note } : {});
           return "ok";
         }
         // Tài liệu vừa đổi ở bước khác: tải lại Spine rồi để user bấm lại — không tự ghi đè (BUG-06)
@@ -717,7 +757,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         return "failed";
       }
     },
-    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, run, runWholePhase, restore, allowPhaseRun]
+    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, runStepTurn, runPhaseTurn, restore, allowPhaseRun]
   );
 
   /** Huỷ lượt đang chạy: BE nhả khoá và abort request tới model; FE đóng stream (BUG-05). */
@@ -731,12 +771,14 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       // Huỷ thất bại thì khoá vẫn tự hết hạn — không chặn user
     }
     abortRef.current?.abort();
+    runLockRef.current = null;
     phaseRef.current = null;
     dispatch({ type: "reset" });
   }, [projectId, state.stepId]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
+    runLockRef.current = null;
     phaseRef.current = null;
     dispatch({ type: "reset" });
   }, []);
@@ -775,5 +817,11 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
     return () => clearInterval(timer);
   }, [waiting, polling, state.stepId, state.lastEventAt, projectId, onSpineChanged]);
 
-  return { state, run, runWholePhase, answer, gate, cancel, restore, reset };
+  /** FLF-400: lối gửi đang giữ khoá — đọc đồng bộ (không chờ render), nơi gọi kiểm trước khi hiện tin tạm. */
+  const locked = useCallback(
+    (kind: "run" | "answer" | "gate"): boolean => (kind === "run" ? runLockRef.current !== null : kind === "answer" ? answerLockRef.current : gateLockRef.current),
+    []
+  );
+
+  return { state, run, runWholePhase, answer, gate, cancel, restore, reset, locked };
 }

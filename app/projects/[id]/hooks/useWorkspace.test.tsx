@@ -231,3 +231,24 @@ describe("useWorkspace - dừng lượt chat (stopMessage)", () => {
     expect(messages.at(-1)).toMatchObject({ role: "user", content: "Giải thích luồng đặt lịch" });
   });
 });
+
+describe("useWorkspace - gửi lặp (FLF-400)", () => {
+  it("sendMessage gọi 2 lần trong cùng một tick ⇒ chỉ 1 request, transcript chỉ thêm 1 tin", async () => {
+    let requests = 0;
+    mockServer.events.on("request:start", ({ request }) => {
+      if (request.method === "POST" && request.url.endsWith(`/chats/${MOCK_SESSION_ID}/messages/stream`)) requests++;
+    });
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    await act(async () => {
+      await Promise.all([result.current.sendMessage("chat", "Giải thích luồng đặt lịch"), result.current.sendMessage("chat", "Giải thích luồng đặt lịch")]);
+    });
+    mockServer.events.removeAllListeners();
+
+    expect(requests).toBe(1);
+    expect(result.current.activeSession!.messages.filter((m) => m.role === "user" && m.content === "Giải thích luồng đặt lịch")).toHaveLength(1);
+    expect(result.current.activeSession!.messages.length).toBeLessThanOrEqual(before + 2);
+    expect(result.current.sending).toBe(false);
+  });
+});
