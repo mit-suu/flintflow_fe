@@ -107,6 +107,23 @@ describe("useStepRunner - trả lời khi không còn SSE", () => {
     expect(onSpineChanged).toHaveBeenCalledWith(21);
   }, 20_000);
 
+  it("FLF-393: trả lời bằng chat khi không còn SSE → lượt nền hỏi tiếp ⇒ tải lại phiên chat để lời AI hiện ngay (không cần F5)", async () => {
+    getActiveRunState.mockResolvedValue({ data: run({}) });
+    getRunState
+      .mockResolvedValueOnce({ data: run({ status: "running", stage: "ask", alive: true, questions: null }) })
+      .mockResolvedValue({ data: run({ status: "waiting_answer", alive: true, questions: [{ id: "Q2", text: "Người dùng nạp credit bằng cách nào?" }] }) });
+    const onTranscriptChanged = vi.fn();
+    const { result } = renderHook(() => useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 12, onSpineChanged: vi.fn(), onTranscriptChanged }));
+
+    await act(async () => void (await result.current.restore()));
+    await act(async () => result.current.answer([], "Dự án có bao nhiêu use case?"));
+    expect(onTranscriptChanged).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(result.current.state.status).toBe("needs_input"), { timeout: 15_000 });
+    expect(result.current.state.questions).toEqual([{ id: "Q2", text: "Người dùng nạp credit bằng cách nào?" }]);
+    expect(onTranscriptChanged).toHaveBeenCalledTimes(1);
+  }, 20_000);
+
   it("lượt nền lỗi sau khi trả lời ⇒ hiện lỗi, dừng theo dõi", async () => {
     getActiveRunState.mockResolvedValue({ data: run({}) });
     getRunState.mockResolvedValue({ data: run({ status: "interrupted", stage: "draft", alive: true, questions: null, error: { code: "AI_PROVIDER_ERROR", message: "x" } }) });
