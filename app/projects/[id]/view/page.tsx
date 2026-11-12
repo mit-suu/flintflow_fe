@@ -16,12 +16,30 @@ import { knownDocumentLanguage, shownDocumentLanguage, translationMetaOf } from 
 import { BlockView, followsHeading, sectionLabel } from "../_components/DocumentPane";
 import CommentPanel, { commentTab, type CommentTab, type CommentTarget } from "../_components/CommentPanel";
 import DocumentLanguageChip from "../_components/DocumentLanguageChip";
-import type { DocumentTranslationMeta, RenderedDocument, RenderedSection } from "@/types/document";
+import type { Block, DocumentTranslationMeta, RenderedDocument, RenderedSection, RocRow } from "@/types/document";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Baseline } from "@/types/spine";
 import type { SrsComment } from "@/types/comment";
 import type { OrgRole } from "@/types/organization";
 import type { DocumentLanguage, ProjectMode } from "@/types/project";
+
+/**
+ * Chữ của bảng Record of Changes theo **ngôn ngữ tài liệu** (không theo ngôn ngữ giao diện) — khớp `WRITER_TEXT` của BE
+ * (`render/labels.ts`): tiêu đề, cột, chú thích như bản Word.
+ */
+const ROC_TEXT: Readonly<Record<DocumentLanguage, { title: string; header: string[]; legend: string }>> = {
+  en: { title: "I. Record of Changes", header: ["Date", "Version", "A*, M, D", "In charge", "Change Description"], legend: "*A - Added, M - Modified, D - Deleted" },
+  vi: { title: "I. Lịch sử thay đổi", header: ["Ngày", "Phiên bản", "A*, M, D", "Người thực hiện", "Mô tả thay đổi"], legend: "*A - Thêm, M - Sửa, D - Xoá" },
+};
+
+/** Khoá section §I Record of Changes (BE `section-registry`). */
+const ROC_SECTION_ID = "fixed:I";
+
+const recordOfChangesBlock = (rows: readonly RocRow[], language: DocumentLanguage): Block => ({
+  type: "table",
+  header: ROC_TEXT[language].header.map((text) => [{ text }]),
+  rows: rows.map((r) => [r.date, r.version, r.change_type, r.in_charge, r.description].map((text) => [{ text }])),
+});
 
 /** Chu kỳ tải lại comment khi tab đang hiện — đủ nhanh để thấy trả lời / xử lý của người khác, không cần F5. */
 const COMMENT_POLL_MS = 15_000;
@@ -352,6 +370,15 @@ export default function ReadOnlyDocumentPage() {
                 {t("loadFailedWith", { error: error === DOC_LOAD_FAILED ? t("loadFailed") : error })}
               </div>
             )}
+            {/* FLF-411 (#13): bảng "I. Record of Changes" là một phần của tài liệu (bản Word in ở đầu) — màn Xem in như bản xuất */}
+            {/* Mẫu của file có heading Record of Changes thành mục riêng (`fixed:I`) ⇒ bảng in trong mục đó, không in hai lần */}
+            {!loading && doc && doc.recordOfChanges.length > 0 && !doc.sections.some((x) => x.id === ROC_SECTION_ID) && (
+              <article aria-label={ROC_TEXT[language ?? "en"].title} className="p-4 rounded-card border border-outline-variant bg-white flex flex-col gap-2">
+                <h5 className="font-bold text-body text-on-surface">{ROC_TEXT[language ?? "en"].title}</h5>
+                <BlockView block={recordOfChangesBlock(doc.recordOfChanges, language ?? "en")} projectId={projectId} afterHeading />
+                <p className="text-caption text-on-surface-subtle italic">{ROC_TEXT[language ?? "en"].legend}</p>
+              </article>
+            )}
             {!loading &&
               doc?.sections.map((section) => (
                 <article key={section.id} className="p-4 rounded-card border border-outline-variant bg-white flex flex-col gap-2">
@@ -361,7 +388,9 @@ export default function ReadOnlyDocumentPage() {
                     </h5>
                     {pinControls(section, null)}
                   </div>
-                  {isIncomplete(section) ? (
+                  {section.id === ROC_SECTION_ID && doc.recordOfChanges.length > 0 ? (
+                    <BlockView block={recordOfChangesBlock(doc.recordOfChanges, language ?? "en")} projectId={projectId} afterHeading />
+                  ) : isIncomplete(section) ? (
                     <div className="text-body text-on-surface-subtle italic">{t("incomplete")}</div>
                   ) : section.blocks.length > 0 ? (
                     section.blocks.map((block, i) => {
