@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import WorkspaceHeader from "../WorkspaceHeader";
 import type { Project } from "@/types/project";
 
+// Header có nút đổi ngôn ngữ (LocaleSwitcher) - dùng router để làm mới trang sau khi đổi
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
+
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...rest}>
