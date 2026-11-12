@@ -1,6 +1,4 @@
-/** FLF-278 trên FLF-335/336 — mẫu và thư viện nội dung cấp tổ chức (`import-change-contract.md` §FLF-278). */
-import type { CustomBlock } from "./spine";
-
+/** FLF-278 trên FLF-335/336 — mẫu cấp tổ chức (`import-change-contract.md` §FLF-278). */
 export interface OrgTemplateSummary {
   id: string;
   name: string;
@@ -11,24 +9,4 @@ export interface OrgTemplateSummary {
   template_family: string | null;
   uses: number;
   created_at: string;
-}
-
-export interface ContentEntry {
-  id: string;
-  title: string;
-  blocks: CustomBlock[];
-  updated_at: string;
-}
-
-/** Mục riêng của dự án trùng tiêu đề với một mục trong thư viện. */
-export interface LibraryMatch {
-  custom_section_id: string;
-  heading: string;
-  empty: boolean;
-  entry: ContentEntry;
-}
-
-export interface ContentEntryInput {
-  title: string;
-  blocks: { kind: "paragraph" | "list_item"; text: string }[];
 }

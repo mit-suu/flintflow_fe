@@ -54,16 +54,6 @@ interface DocumentPaneProps {
    */
   requiredTemplate?: boolean;
   /**
-   * FLF-278 — thư viện nội dung của tổ chức. `libraryMatchOf`: mục riêng có nội dung cùng tiêu đề trong thư viện;
-   * `onUseLibrary` mở bản xem trước / lệnh sửa (không ghi ngay); `onSaveToLibrary` lưu mục đã viết vào thư viện;
-   * `onUseLibraryAll` dùng cho mọi mục trống có gợi ý.
-   */
-  libraryMatchOf?: (sectionId: string) => { empty: boolean } | undefined;
-  onUseLibrary?: (sectionId: string) => void;
-  onSaveToLibrary?: (sectionId: string) => void;
-  libraryEmptyCount?: number;
-  onUseLibraryAll?: () => void;
-  /**
    * "Góp ý" trên từng mục (UC-49): ghim lời nhắn vào mục, **không** đổi nội dung (BR-05) nên vẫn giữ
    * nguyên tắc document pane read-only. Không truyền ⇒ không có nút (trang xem, mode 1).
    */
@@ -584,9 +574,6 @@ function SectionView({
   requiredTemplate = false,
   onEdit,
   onDraft,
-  libraryMatch,
-  onUseLibrary,
-  onSaveToLibrary,
   onComment,
   commentCount = 0,
   pendingProposals = [],
@@ -596,9 +583,6 @@ function SectionView({
 }: {
   onEdit?: (sectionLabel: string) => void;
   onDraft?: (sectionLabel: string) => void;
-  libraryMatch?: { empty: boolean };
-  onUseLibrary?: () => void;
-  onSaveToLibrary?: () => void;
   onComment?: (sectionLabel: string) => void;
   /** Số góp ý đang mở của mục này. */
   commentCount?: number;
@@ -713,26 +697,6 @@ function SectionView({
               {t("comment")}
             </button>
           )}
-          {onUseLibrary && custom && libraryMatch?.empty && (
-            // Thư viện tổ chức có nội dung cùng tiêu đề: mở bản xem trước, chỉ ghi khi BA xác nhận
-            <button
-              type="button"
-              onClick={onUseLibrary}
-              className="text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer"
-            >
-              {t("useLibrary")}
-            </button>
-          )}
-          {onSaveToLibrary && custom && !customEmpty && (
-            <button
-              type="button"
-              onClick={onSaveToLibrary}
-              title={t("saveToLibraryTitle")}
-              className="opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer transition-opacity"
-            >
-              {t("saveToLibrary")}
-            </button>
-          )}
           {onDraft && templateEmpty && !hasChildren && !section.id.startsWith("feature:") && (
             // Mục riêng của mẫu còn trống: luôn hiện (không chờ rê chuột) — chỉ điền sẵn lệnh, BA tự gửi
             <button
@@ -801,11 +765,6 @@ function DocumentPaneView({
   onEditSection,
   onDraftSection,
   requiredTemplate = false,
-  libraryMatchOf,
-  onUseLibrary,
-  onSaveToLibrary,
-  libraryEmptyCount = 0,
-  onUseLibraryAll,
   onCommentSection,
   commentCountOf,
   pendingProposalsOf,
@@ -883,11 +842,11 @@ function DocumentPaneView({
       <div aria-live="polite" className="sr-only">
         {announcement}
       </div>
-      <div className="ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 flex items-center justify-between gap-3 shrink-0 h-12 bg-surface-container-lowest">
-        {/* Tên dài thì cắt "…", nhãn không bao giờ xuống dòng. Pane hẹp ⇒ cắt cả nhãn phiên bản, không tràn đè lên nhóm nút
-            bên phải (FLF-265: chip ngôn ngữ làm nhóm phải rộng thêm) */}
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-          <h3 className="font-bold text-body text-on-surface truncate" title={t("heading", { name })}>
+      <div className="@container ff-fade-below [--ff-fade:var(--color-surface-container-lowest)] px-6 py-2 flex items-center justify-between gap-3 shrink-0 min-h-12 bg-surface-container-lowest">
+        {/* Tên dài thì cắt "…"; badge không bao giờ bị cắt hay ẩn — kéo pane hẹp lại thì nút báo vấn đề rút còn icon + số,
+            vẫn chật thì badge xuống dòng dưới tên */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+          <h3 className="font-bold text-body text-on-surface truncate min-w-0 max-w-full" title={t("heading", { name })}>
             {t("heading", { name })}
           </h3>
           {document && (
@@ -912,11 +871,19 @@ function DocumentPaneView({
               }`}
             >
               <Icon name={issues.blocking > 0 || issues.suggestions > 0 ? "warning" : "check-circle"} size={14} />
-              {issues.blocking > 0
-                ? t("blockingCount", { count: issues.blocking })
-                : issues.suggestions > 0
-                  ? t("suggestionCount", { count: issues.suggestions })
-                  : t("noIssues")}
+              {/* Header hẹp ⇒ chỉ icon + số; nhãn đầy đủ vẫn có cho trình đọc màn hình */}
+              <span className="sr-only @[44rem]:not-sr-only">
+                {issues.blocking > 0
+                  ? t("blockingCount", { count: issues.blocking })
+                  : issues.suggestions > 0
+                    ? t("suggestionCount", { count: issues.suggestions })
+                    : t("noIssues")}
+              </span>
+              {(issues.blocking > 0 || issues.suggestions > 0) && (
+                <span aria-hidden className="@[44rem]:hidden tabular-nums">
+                  {issues.blocking > 0 ? issues.blocking : issues.suggestions}
+                </span>
+              )}
             </button>
           )}
           {language && <DocumentLanguageChip language={language} compact />}
@@ -993,14 +960,6 @@ function DocumentPaneView({
           </div>
         )}
 
-        {document && onUseLibraryAll && libraryEmptyCount > 0 && (
-          <div role="status" className="rounded-card bg-primary-soft px-3.5 py-2.5 flex flex-wrap items-center gap-3 text-body text-on-surface">
-            <span className="flex-1 min-w-[200px]">{t("libraryBanner", { count: libraryEmptyCount })}</span>
-            <button type="button" onClick={onUseLibraryAll} className="text-caption font-bold px-2.5 py-1 rounded-full bg-primary text-on-primary cursor-pointer">
-              {t("libraryApplyAll")}
-            </button>
-          </div>
-        )}
         {document &&
           document.sections.map((section, i) => (
             <SectionView
@@ -1018,9 +977,6 @@ function DocumentPaneView({
               onEdit={onEditSection}
               onDraft={onDraftSection}
               requiredTemplate={requiredTemplate}
-              libraryMatch={libraryMatchOf?.(section.id)}
-              onUseLibrary={onUseLibrary ? () => onUseLibrary(section.id) : undefined}
-              onSaveToLibrary={onSaveToLibrary ? () => onSaveToLibrary(section.id) : undefined}
               onComment={onCommentSection ? (label) => onCommentSection({ sectionId: section.id, label }) : undefined}
               commentCount={commentCountOf?.(section.id) ?? 0}
               pendingProposals={pendingProposalsOf?.(section.id) ?? []}

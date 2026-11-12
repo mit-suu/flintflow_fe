@@ -29,7 +29,12 @@
       "previousPage": "Trang trước",
       "nextPage": "Trang sau",
       "lastPage": "Tới trang cuối",
-      "goToPage": "Tới trang {page}"
+      "goToPage": "Tới trang {page}",
+      "pagination": "Phân trang",
+      "range": "{from}–{to} / {total}",
+      "loadMoreFailed": "Không tải thêm được.",
+      "retry": "Thử lại",
+      "shown": "Đang hiện {shown}/{total}"
     },
     "documentVersion": {
       "aria": "Có thể là bản mới của tài liệu đã có",
@@ -800,6 +805,9 @@
         "dropHint": ".docx, .pdf, .doc, .md, .txt · tối đa 10 MB mỗi file",
         "remove": "Bỏ {name}",
         "checking": "Đang xem file…",
+        "summary": "{count} file · {size}",
+        "clearAll": "Xoá hết",
+        "listLabel": "File tham khảo đã chọn",
         "rejected": "Chưa thêm được: {files} - chỉ nhận .docx, .pdf, .doc, .md, .txt tối đa 10 MB.",
         "duplicate": "Đã có trong danh sách: {files} - không thêm lần nữa.",
         "suggest": {
@@ -816,9 +824,17 @@
       },
       "orgTemplates": {
         "toggle": "Hoặc chọn từ mẫu của tổ chức ({count})",
-        "title": "Mẫu đã lưu của tổ chức",
+        "toggleNoCount": "Hoặc chọn từ mẫu của tổ chức",
+        "title": "Chọn mẫu của tổ chức",
         "meta": "{file} · {headings} heading · đã dùng {uses} lần",
-        "use": "Dùng mẫu này"
+        "use": "Dùng mẫu này",
+        "searchLabel": "Tìm mẫu",
+        "searchPlaceholder": "Tìm theo tên mẫu hoặc tên file…",
+        "sortedByUses": "{count} mẫu · dùng nhiều nhất trước",
+        "resultCount": "{count} mẫu khớp",
+        "noMatch": "Không có mẫu nào khớp “{query}”",
+        "noMatchHint": "Thử từ khoá khác, hoặc tên file .docx của mẫu.",
+        "loadError": "Không tải được danh sách mẫu"
       },
       "stage": {
         "creating": "Đang tạo dự án…"
@@ -959,6 +975,12 @@
       "newProject": "Dự án mới",
       "newProjectShort": "Mới",
       "createTitle": "Tạo dự án mới",
+      "discardCreate": {
+        "title": "Bỏ các file đã chọn?",
+        "body": "Bạn đã chọn {count} file nhưng chưa bắt đầu dự án. Đóng hộp này thì các file đó bị bỏ, lần sau phải chọn lại.",
+        "stay": "Ở lại",
+        "discard": "Bỏ file và đóng"
+      },
       "createInFolderTitle": "Dự án mới trong “{folder}”",
       "allProjects": "Tất cả dự án",
       "tabsLabel": "Xem theo",
@@ -1176,29 +1198,38 @@
       },
       "library": {
         "title": "Thư viện mẫu",
-        "intro": "Mẫu SRS và nội dung chuẩn của tổ chức, dùng lại cho các dự án theo mẫu khách hàng.",
-        "readOnly": "Bạn đang ở vai trò chỉ xem - chỉ Lead và Analyst được thêm, sửa, xoá.",
+        "intro": "Mẫu SRS đã lưu của tổ chức, dùng lại khi tạo dự án theo mẫu khách hàng.",
+        "readOnly": "Bạn đang ở vai trò chỉ xem - chỉ Lead và Analyst được xoá mẫu.",
         "loading": "Đang tải thư viện…",
         "delete": "Xoá",
         "confirmDelete": "Xác nhận xoá",
         "templates": {
-          "title": "Mẫu SRS đã lưu",
-          "help": "Lưu từ màn nhập tài liệu của một dự án đã xác nhận mapping heading. Dự án mới chọn lại ở bước tải file, không phải tải và map lại.",
+          "help": "Thêm mẫu: mở một dự án theo mẫu khách hàng, ở màn nhập tài liệu bấm “Lưu làm mẫu của tổ chức”. Dự án sau chọn lại mẫu ở ô SRS khi tạo dự án, không phải tải và map lại.",
           "empty": "Tổ chức chưa lưu mẫu nào.",
-          "meta": "{file} · {headings} heading · {customs} mục giữ nguyên văn · đã dùng {uses} lần · lưu {date}"
+          "headingsCount": "{count} heading",
+          "customsCount": "{count} giữ nguyên văn",
+          "usesCount": "{count, plural, =0 {Chưa dùng} other {Dùng # lần}}",
+          "cols": {
+            "name": "Mẫu",
+            "structure": "Cấu trúc",
+            "uses": "Lượt dùng",
+            "saved": "Ngày lưu"
+          },
+          "searchLabel": "Tìm mẫu",
+          "searchPlaceholder": "Tìm theo tên mẫu hoặc tên file",
+          "sortLabel": "Sắp xếp",
+          "sort": {
+            "uses": "Dùng nhiều nhất",
+            "recent": "Mới lưu",
+            "name": "Tên A–Z"
+          },
+          "noMatch": "Không có mẫu nào khớp “{query}”.",
+          "results": "{count, plural, =0 {Không có kết quả} other {# kết quả}}"
         },
-        "content": {
-          "title": "Nội dung chuẩn theo mục",
-          "help": "Nội dung dùng chung cho mọi dự án, ví dụ Document Conventions, References. Mục riêng của dự án trùng tiêu đề sẽ có nút “Dùng nội dung của tổ chức” - BA xem trước rồi mới ghi.",
-          "empty": "Thư viện chưa có nội dung nào.",
-          "add": "Thêm nội dung",
-          "edit": "Sửa",
-          "titleLabel": "Tiêu đề mục (trùng với tiêu đề heading trong mẫu)",
-          "textLabel": "Nội dung",
-          "textHelp": "Mỗi đoạn cách nhau một dòng trống; dòng bắt đầu bằng “- ” là gạch đầu dòng. Nội dung tài liệu nên viết bằng tiếng Anh.",
-          "save": "Lưu",
-          "cancel": "Huỷ"
-        }
+        "rowActions": "Thao tác cho “{name}”",
+        "deleteTemplateTitle": "Xoá mẫu SRS?",
+        "deleteBody": "“{name}” sẽ bị xoá khỏi thư viện của tổ chức. Thao tác này không hoàn tác được.",
+        "cancel": "Huỷ"
       }
     }
   },
@@ -1590,12 +1621,7 @@
       "untranslated": "{count} mục chưa dịch",
       "translate": "Dịch tài liệu",
       "emptyDocument": "Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.",
-      "draftSection": "Nhờ AI soạn",
-      "useLibrary": "Dùng nội dung của tổ chức",
-      "saveToLibrary": "Lưu vào thư viện",
-      "saveToLibraryTitle": "Lưu nội dung mục này để các dự án khác của tổ chức dùng lại",
-      "libraryBanner": "Thư viện của tổ chức có sẵn nội dung cho {count} mục còn trống.",
-      "libraryApplyAll": "Xem trước và dùng"
+      "draftSection": "Nhờ AI soạn"
     },
     "verification": {
       "closeHint": "Đóng bảng đánh giá",
@@ -2211,8 +2237,7 @@
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
       "editSection": "Trong {label}: ",
       "fixComment": "Trong {label}, sửa theo góp ý: {text}",
-      "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. ",
-      "useLibrary": "Viết mục {label} bằng đúng nội dung sau của tổ chức (giữ nguyên chữ): {text}"
+      "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. "
     },
     "aiSettings": {
       "aria": "Cách AI làm việc với bạn - {mode}",
@@ -2627,12 +2652,6 @@
       "note": "AI đã tự duyệt những bước này. Xem nếu muốn - không bắt buộc xem hết trước khi gửi.",
       "markSeen": "Đã xem",
       "markAllSeen": "Đánh dấu đã xem tất cả"
-    },
-    "library": {
-      "one": "Dùng nội dung của tổ chức cho mục “{heading}”",
-      "many": "Dùng nội dung của tổ chức cho {count} mục còn trống",
-      "saved": "Đã lưu vào thư viện của tổ chức",
-      "saveFailed": "Chưa lưu được vào thư viện. Vui lòng thử lại."
     },
     "import": {
       "loading": "Đang tải file của dự án…",

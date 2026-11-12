@@ -29,7 +29,12 @@
       "previousPage": "Previous page",
       "nextPage": "Next page",
       "lastPage": "Go to last page",
-      "goToPage": "Go to page {page}"
+      "goToPage": "Go to page {page}",
+      "pagination": "Pagination",
+      "range": "{from}–{to} of {total}",
+      "loadMoreFailed": "Could not load more.",
+      "retry": "Retry",
+      "shown": "Showing {shown} of {total}"
     },
     "documentVersion": {
       "aria": "Possibly a new version of an existing document",
@@ -800,6 +805,9 @@
         "dropHint": ".docx, .pdf, .doc, .md, .txt · up to 10 MB each",
         "remove": "Remove {name}",
         "checking": "Checking file…",
+        "summary": "{count, plural, one {# file} other {# files}} · {size}",
+        "clearAll": "Clear all",
+        "listLabel": "Selected reference files",
         "rejected": "Not added: {files} - only .docx, .pdf, .doc, .md, .txt up to 10 MB.",
         "duplicate": "Already in the list: {files} - not added again.",
         "suggest": {
@@ -816,9 +824,17 @@
       },
       "orgTemplates": {
         "toggle": "Or pick an organization template ({count})",
-        "title": "Saved organization templates",
+        "toggleNoCount": "Or pick an organization template",
+        "title": "Pick an organization template",
         "meta": "{file} · {headings} headings · used {uses} times",
-        "use": "Use this template"
+        "use": "Use this template",
+        "searchLabel": "Search templates",
+        "searchPlaceholder": "Search by template or file name…",
+        "sortedByUses": "{count} templates · most used first",
+        "resultCount": "{count} matching templates",
+        "noMatch": "No templates match “{query}”",
+        "noMatchHint": "Try another keyword, or the template's .docx file name.",
+        "loadError": "Couldn't load templates"
       },
       "stage": {
         "creating": "Creating the project…"
@@ -959,6 +975,12 @@
       "newProject": "New project",
       "newProjectShort": "New",
       "createTitle": "Create a project",
+      "discardCreate": {
+        "title": "Discard the selected files?",
+        "body": "You selected {count, plural, one {# file} other {# files}} but haven't started the project. Closing this dialog discards them and you'll need to pick them again.",
+        "stay": "Stay",
+        "discard": "Discard and close"
+      },
       "createInFolderTitle": "New project in “{folder}”",
       "allProjects": "All projects",
       "tabsLabel": "View by",
@@ -1176,29 +1198,38 @@
       },
       "library": {
         "title": "Template library",
-        "intro": "Your organization's SRS templates and standard content, reused across customer-template projects.",
-        "readOnly": "You have view-only access - only Leads and Analysts can add, edit or delete.",
+        "intro": "Your organization's saved SRS templates, reused when creating customer-template projects.",
+        "readOnly": "You have view-only access - only Leads and Analysts can delete templates.",
         "loading": "Loading the library…",
         "delete": "Delete",
         "confirmDelete": "Confirm delete",
         "templates": {
-          "title": "Saved SRS templates",
-          "help": "Saved from the document import screen of a project whose heading mapping is confirmed. New projects pick one at the upload step instead of uploading and mapping again.",
+          "help": "To add a template: open a customer-template project and, on the document import screen, choose “Save as organization template”. Later projects pick it in the SRS slot when created, without uploading and mapping again.",
           "empty": "Your organization has not saved any templates yet.",
-          "meta": "{file} · {headings} headings · {customs} kept verbatim · used {uses} times · saved {date}"
+          "headingsCount": "{count, plural, one {# heading} other {# headings}}",
+          "customsCount": "{count} kept verbatim",
+          "usesCount": "{count, plural, =0 {Not used yet} one {Used once} other {Used # times}}",
+          "cols": {
+            "name": "Template",
+            "structure": "Structure",
+            "uses": "Uses",
+            "saved": "Saved"
+          },
+          "searchLabel": "Search templates",
+          "searchPlaceholder": "Search by template or file name",
+          "sortLabel": "Sort",
+          "sort": {
+            "uses": "Most used",
+            "recent": "Recently saved",
+            "name": "Name A–Z"
+          },
+          "noMatch": "No template matches “{query}”.",
+          "results": "{count, plural, =0 {No results} one {# result} other {# results}}"
         },
-        "content": {
-          "title": "Standard content by section",
-          "help": "Content shared by every project, e.g. Document Conventions, References. A project's own section with the same title gets a button to use it - the analyst previews before anything is written.",
-          "empty": "The library has no content yet.",
-          "add": "Add content",
-          "edit": "Edit",
-          "titleLabel": "Section title (matches the heading in the template)",
-          "textLabel": "Content",
-          "textHelp": "Separate paragraphs with a blank line; lines starting with “- ” are bullets. Document content should be written in English.",
-          "save": "Save",
-          "cancel": "Cancel"
-        }
+        "rowActions": "Actions for “{name}”",
+        "deleteTemplateTitle": "Delete SRS template?",
+        "deleteBody": "“{name}” will be removed from your organization's library. This cannot be undone.",
+        "cancel": "Cancel"
       }
     }
   },
@@ -1590,12 +1621,7 @@
       "untranslated": "{count, plural, one {# section not translated} other {# sections not translated}}",
       "translate": "Translate document",
       "emptyDocument": "The document will appear here as soon as the first steps finish.",
-      "draftSection": "Ask AI to draft",
-      "useLibrary": "Use organization content",
-      "saveToLibrary": "Save to library",
-      "saveToLibraryTitle": "Save this section's content so other projects of your organization can reuse it",
-      "libraryBanner": "Your organization's library has content for {count} empty sections.",
-      "libraryApplyAll": "Preview and use"
+      "draftSection": "Ask AI to draft"
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -2211,8 +2237,7 @@
       "fixFlag": "Please fix this issue as suggested: {message}",
       "editSection": "In {label}: ",
       "fixComment": "In {label}, fix per this comment: {text}",
-      "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. ",
-      "useLibrary": "Write section {label} with exactly this organization content (keep the wording): {text}"
+      "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. "
     },
     "aiSettings": {
       "aria": "How the AI works with you - {mode}",
@@ -2627,12 +2652,6 @@
       "note": "The AI approved these steps itself. Review if you like - you don't have to see them all before sending.",
       "markSeen": "Seen",
       "markAllSeen": "Mark all as seen"
-    },
-    "library": {
-      "one": "Use organization content for section “{heading}”",
-      "many": "Use organization content for {count} empty sections",
-      "saved": "Saved to your organization's library",
-      "saveFailed": "Could not save to the library. Please try again."
     },
     "import": {
       "loading": "Loading the project file…",
