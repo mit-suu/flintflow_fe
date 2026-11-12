@@ -148,6 +148,21 @@ describe("ImportProgress - tiến trình đọc file", () => {
     expect(paper.textContent).not.toMatch(/custom:|feature:|@B\d/);
   });
 
+  it("FLF-411 U2-8: có danh sách mục của màn đọc khung ⇒ đếm đúng tập đó (heading tính năng không tính), mục lỗi vẫn hiện", () => {
+    const sec = (section_id: string, status: "done" | "pending" | "failed" = "pending") => ({ section_id, status, fields_total: 0, fields_needing_review: 0, error: null });
+    renderWithIntl(
+      <ImportProgress
+        doc={doc({})}
+        sections={[sec("feature:@B0383", "done"), sec("fixed:1", "done"), sec("function:@B0384"), sec("feature:@B0439", "failed")]}
+        previewSectionIds={["fixed:1", "function:@B0384"]}
+        onResume={() => {}}
+      />
+    );
+    expect(screen.getByText("mục đã đọc").parentElement).toHaveTextContent("1/2");
+    const paper = screen.getByRole("region", { name: "Tài liệu của bạn" });
+    expect(paper.querySelectorAll("li")).toHaveLength(3);
+  });
+
   it("FLF-411 U1-2: khung mẫu / chế độ 3-4 không nói \"bản gốc 0.1\"; chế độ 1 vẫn nói", () => {
     const { container, unmount } = renderWithIntl(<ImportProgress doc={doc({})} sections={[]} resolvedMode={3} fileKind="template" onResume={() => {}} />);
     expect(container.textContent).not.toContain("0.1");

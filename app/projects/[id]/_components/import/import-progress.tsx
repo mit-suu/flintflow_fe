@@ -27,6 +27,12 @@ interface ImportProgressProps {
    */
   resolvedMode?: 1 | 3 | 4 | null;
   fileKind?: "written" | "template" | null;
+  /**
+   * FLF-411 (U2-8): mã mục của màn đọc khung (`structure_preview.sections[].section_id`). Có ⇒ số mục và danh sách dòng chỉ
+   * tính các mục đó, khớp số "x/y mục" của màn đọc khung — heading tính năng (`feature:@B…`) BE vẫn đọc nhưng màn đọc khung
+   * coi là heading nhóm, không đếm. Mục đọc lỗi luôn hiện. Không có (import cũ) ⇒ đủ `extraction.sections` như trước.
+   */
+  previewSectionIds?: readonly string[] | null;
 }
 
 const PHASES = ["read", "build", "check"] as const;
@@ -50,7 +56,7 @@ const ROW_LOOK: Record<RowState, { icon: "check-circle" | "spinner" | "error-cir
  * ba bước Đọc nội dung → Dựng tài liệu → Kiểm tra. Chạy nền trên BE, rời trang được. Dừng ⇒ banner Tiếp tục; AI quá tải ⇒
  * dòng "đang đọc lại".
  */
-export default function ImportProgress({ doc, sections, headings, busy = false, onResume, onPause, pausing = false, resolvedMode = null, fileKind = null }: ImportProgressProps) {
+export default function ImportProgress({ doc, sections: allSections, headings, busy = false, onResume, onPause, pausing = false, resolvedMode = null, fileKind = null, previewSectionIds = null }: ImportProgressProps) {
   const t = useTranslations("workspace.import.progress");
   const locale = useLocale() as Locale;
   const template = fileKind === "template";
@@ -61,8 +67,12 @@ export default function ImportProgress({ doc, sections, headings, busy = false, 
   const activeRef = useRef<HTMLLIElement>(null);
   const current = phaseOf(doc.status);
   const currentIndex = PHASES.indexOf(current);
-  const done = sections.filter((s) => s.status === "done").length;
-  const total = sections.length;
+  // Cùng tập mục với màn đọc khung (U2-8): số "x/y mục" chỉ đếm tập đó; mục lỗi ngoài tập vẫn hiện dòng để người dùng thấy
+  const preview = useMemo(() => (previewSectionIds?.length ? new Set(previewSectionIds) : null), [previewSectionIds]);
+  const counted = useMemo(() => (preview ? allSections.filter((s) => preview.has(s.section_id)) : allSections), [allSections, preview]);
+  const sections = useMemo(() => (preview ? allSections.filter((s) => preview.has(s.section_id) || s.status === "failed") : allSections), [allSections, preview]);
+  const done = counted.filter((s) => s.status === "done").length;
+  const total = counted.length;
   // Tiêu đề theo mã khối heading và theo mã mục registry (heading đầu tiên khớp)
   const titles = useMemo(() => {
     const map = new Map<string, string>();
@@ -82,7 +92,7 @@ export default function ImportProgress({ doc, sections, headings, busy = false, 
   const pauseKind = !doc.paused ? null : stoppedByUser ? "user" : doc.paused.reason === "credits" ? "credits" : doc.status === "baselining" ? "interrupted" : "ai";
   // Dừng chỉ có ở bước đọc nội dung (bước tốn credit theo từng mục), khi đang chạy
   const canStop = !!onPause && current === "read" && !doc.paused;
-  const activeId = current === "read" && !doc.paused ? sections.find((s) => s.status === "pending")?.section_id : undefined;
+  const activeId = current === "read" && !doc.paused ? allSections.find((s) => s.status === "pending")?.section_id : undefined;
 
   // Trang tự cuộn để mục đang đọc luôn trong tầm mắt
   useEffect(() => {
@@ -147,7 +157,7 @@ export default function ImportProgress({ doc, sections, headings, busy = false, 
           <h3 className="min-h-6 flex items-center text-body font-bold text-on-surface-medium">{t("documentLabel")}</h3>
           <div className="flex-1 min-h-0 flex flex-col rounded-card bg-surface-container-lowest shadow-[0_1px_2px_rgba(30,25,60,0.06),0_10px_30px_-14px_rgba(30,25,60,0.22)] overflow-hidden">
             <div ref={paperRef} className="overflow-y-auto ff-scroll" style={{ maxHeight: "max(320px, calc(100dvh - 400px))" }}>
-              {total === 0 ? (
+              {sections.length === 0 ? (
                 <p className="px-8 py-10 text-body text-on-surface-muted">{t("noSections")}</p>
               ) : (
                 <ol className="relative flex flex-col px-5 sm:px-7 py-5 gap-0.5">
