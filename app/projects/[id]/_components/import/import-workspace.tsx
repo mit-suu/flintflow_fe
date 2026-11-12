@@ -22,6 +22,7 @@ import { useImport } from "../../hooks/mode1/useImport";
 import { useMode1Project } from "../../hooks/mode1/useMode1Project";
 import ImportProgress from "./import-progress";
 import StructurePreview, { StructureReading } from "./structure-preview";
+import TextSections from "./text-sections";
 import StructureChangeNotice from "../mode1/structure-change-notice";
 import CreationProgress from "./creation-progress";
 import ImportSkeleton from "./import-skeleton";
@@ -190,6 +191,8 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs, o
           onPickAnother={() => setPickAnother(true)}
           unsureKind={doc.preflight.document_kind?.kind === "unknown"}
           playKey={doc.id}
+          startBlocked={imp.busy === "drop"}
+          textSections={<TextSections sections={imp.data?.text_sections ?? []} busy={imp.busy === "drop" || imp.busy === "start"} onChange={(keys) => void imp.setDropText(keys)} />}
           footer={project?.template_intent === "fixed" && orgRole === "lead" ? <SaveOrgTemplateCard projectId={projectId} defaultName={doc.original_name.replace(/\.docx$/i, "")} /> : null}
         />
       );

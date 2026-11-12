@@ -15,7 +15,7 @@ import {
 } from "@/lib/api/org-library";
 import type { HeadingEdit, OrgTemplateSummary, TemplateVersionDetail } from "@/types/org-library";
 import type { OrgRole } from "@/types/organization";
-import MappingReview, { useSectionOptions } from "./mapping-review";
+import TemplateVersionReview from "./template-version-review";
 import PendingHeadingsReview from "./pending-headings-review";
 
 interface TemplateLibraryListProps {
@@ -38,7 +38,6 @@ export default function TemplateLibraryList({ orgId, role, templates, onChanged 
   const format = useFormatter();
   const nameId = useId();
   const isLead = role === "lead";
-  const sectionOptions = useSectionOptions();
   const newFileRef = useRef<HTMLInputElement>(null);
   const versionFileRef = useRef<HTMLInputElement>(null);
   /** Họ mẫu đang chờ chọn file cho bản mới (input file dùng chung). */
@@ -53,8 +52,6 @@ export default function TemplateLibraryList({ orgId, role, templates, onChanged 
   /** Họ khung tự lưu đang mở danh sách duyệt mục chờ (duyệt qua dự án nguồn). */
   const [pendingOpen, setPendingOpen] = useState<string | null>(null);
   const canReviewPending = role === "lead" || role === "analyst";
-  /** section đã đổi theo vị trí heading — chỉ gửi những dòng khác bản tự nhận. */
-  const [edits, setEdits] = useState<Record<number, string>>({});
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -68,10 +65,7 @@ export default function TemplateLibraryList({ orgId, role, templates, onChanged 
     }
   };
 
-  const openReview = (detail: TemplateVersionDetail) => {
-    setReview(detail);
-    setEdits({});
-  };
+  const openReview = (detail: TemplateVersionDetail) => setReview(detail);
 
   const upload = (file: File | undefined, templateId: string | null) => {
     if (!file) return;
@@ -84,13 +78,11 @@ export default function TemplateLibraryList({ orgId, role, templates, onChanged 
     });
   };
 
-  const publish = () => {
+  const publish = (headings: HeadingEdit[]) => {
     if (!review) return;
-    const headings: HeadingEdit[] = Object.entries(edits).map(([index, section_id]) => ({ index: Number(index), section_id }));
     void run(async () => {
       await publishTemplateVersion(orgId, review.template_id, review.version, headings);
       setReview(null);
-      setEdits({});
       await onChanged();
     });
   };
@@ -171,33 +163,7 @@ export default function TemplateLibraryList({ orgId, role, templates, onChanged 
         </p>
       )}
 
-      {review && (
-        <section aria-label={t("reviewTitle", { name: review.name, version: review.version })} className="flex flex-col gap-3 rounded-card bg-surface-container-low p-4">
-          <h3 className="text-body font-extrabold text-on-surface">{t("reviewTitle", { name: review.name, version: review.version })}</h3>
-          <MappingReview
-            headings={review.headings.map((h) => ({ index: h.index, heading_text: h.heading_text, section_id: edits[h.index] ?? h.section_id, needs_review: h.auto_confirmed, reviewed: edits[h.index] !== undefined }))}
-            sectionOptions={sectionOptions}
-            disabled={busy}
-            onChange={(index, sectionId) =>
-              setEdits((prev) => {
-                const original = review.headings.find((h) => h.index === index)?.section_id;
-                const next = { ...prev };
-                if (sectionId === original) delete next[index];
-                else next[index] = sectionId;
-                return next;
-              })
-            }
-          />
-          <div className="flex gap-3">
-            <Button size="sm" loading={busy} onClick={publish}>
-              {t("publish")}
-            </Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setReview(null)}>
-              {t("cancel")}
-            </Button>
-          </div>
-        </section>
-      )}
+      {review && <TemplateVersionReview key={`${review.template_id}:${review.version}`} detail={review} busy={busy} onPublish={publish} onCancel={() => setReview(null)} />}
 
       {templates.length === 0 ? (
         <p className="text-body text-on-surface-muted">{t("empty")}</p>

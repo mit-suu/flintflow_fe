@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
+import NewTemplateUpload from "@/components/org-template/new-template-upload";
 import { listOrgTemplates } from "@/lib/api/org-library";
+import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { versionFacts } from "@/lib/org-template-version";
 import type { OrgTemplateSummary } from "@/types/org-library";
@@ -28,24 +30,54 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
   const [open, setOpen] = useState(false);
   /** Bản đã chọn theo mẫu; chưa chọn ⇒ bản mới nhất. */
   const [chosen, setChosen] = useState<Record<string, number>>({});
+  const [orgId] = useState(() => getActiveOrgId());
+  /** FLF-412: chỉ Lead tải mẫu mới lên thư viện ngay tại đây. */
+  const [isLead, setIsLead] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const load = useCallback(
+    () => (orgId ? listOrgTemplates(orgId).catch(() => [] as OrgTemplateSummary[]) : Promise.resolve([] as OrgTemplateSummary[])),
+    [orgId]
+  );
 
   useEffect(() => {
-    const orgId = getActiveOrgId();
     if (!orgId) return;
     let cancelled = false;
-    listOrgTemplates(orgId)
-      .then((list) => !cancelled && setTemplates(list))
-      .catch(() => !cancelled && setTemplates([]));
+    void load().then((list) => !cancelled && setTemplates(list));
+    fetchOrganization(orgId)
+      .then((org) => !cancelled && setIsLead(org.role === "lead"))
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [orgId, load]);
 
   const usable = useMemo(() => templates.filter((tpl) => tpl.latest_version > 0), [templates]);
 
-  if (usable.length === 0) return null;
+  if (usable.length === 0 && !isLead) return null;
   return (
     <div className="flex flex-col gap-1.5">
+      {isLead && orgId && (uploading ? (
+        <NewTemplateUpload
+          orgId={orgId}
+          onCancel={() => setUploading(false)}
+          onPublished={(detail) => {
+            setUploading(false);
+            void load().then((list) => {
+              setTemplates(list);
+              const tpl = list.find((x) => x.id === detail.template_id);
+              if (tpl) onPick(tpl, detail.version);
+            });
+          }}
+        />
+      ) : (
+        <button type="button" onClick={() => setUploading(true)} disabled={disabled} className="self-start inline-flex items-center gap-1.5 text-caption font-bold text-primary hover:underline cursor-pointer disabled:opacity-50">
+          <Icon name="upload" size={14} />
+          {t("uploadNew")}
+        </button>
+      ))}
+      {usable.length > 0 && (
+        <>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -90,6 +122,8 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
             );
           })}
         </ul>
+      )}
+        </>
       )}
     </div>
   );

@@ -830,6 +830,7 @@
         "addMore": "Thêm file"
       },
       "orgTemplates": {
+        "uploadNew": "Tải mẫu lên thư viện",
         "toggle": "Hoặc chọn từ mẫu của tổ chức ({count})",
         "title": "Mẫu đã lưu của tổ chức",
         "meta": "{file} · {headings} heading · đã dùng {uses} lần",
@@ -1229,6 +1230,7 @@
           "latestBadge": "Mới nhất",
           "reviewAndPublish": "Rà mapping và đăng",
           "reviewTitle": "Rà mapping: {name} · bản {version}",
+          "contentWarning": "Mẫu còn chữ ở {count}/{total} mục (nội dung cũ chưa xoá). Nên xoá trước khi đăng; dự án dùng mẫu này sẽ mặc định bỏ chữ ở mọi mục.",
           "publish": "Đăng bản này",
           "reviewPending": "Duyệt mục chờ",
           "hidePending": "Ẩn mục chờ",
@@ -2724,6 +2726,22 @@
       },
       "preview": {
         "pickAnother": "Chọn file khác",
+        "drop": {
+          "title": "Nội dung trong file",
+          "hint": "File lấy từ dự án khác mà chưa xoá chữ cũ? Chọn Bỏ chữ cho mục đó: FlintFlow chỉ giữ tên mục và bố cục rồi soạn lại cho dự án của bạn.",
+          "keep": "Giữ nội dung",
+          "drop": "Bỏ chữ",
+          "keepInfoLabel": "Giải thích Giữ nội dung",
+          "keepInfo": "Chữ trong mục này là của dự án bạn. FlintFlow đọc thành dữ liệu của dự án.",
+          "dropInfoLabel": "Giải thích Bỏ chữ",
+          "dropInfo": "Chữ trong mục này là của mẫu (ví dụ, nội dung dự án cũ chưa xoá). FlintFlow chỉ giữ tên mục, tiêu đề cột bảng và chữ hướng dẫn; mục con theo chức năng, use case, màn hình cũng bị bỏ. Mục được soạn lại cho dự án của bạn.",
+          "dropAll": "Bỏ tất cả",
+          "keepAll": "Giữ tất cả",
+          "dropAllInfoLabel": "Giải thích Bỏ tất cả",
+          "dropAllInfo": "Dùng khi file là mẫu lấy từ dự án khác và chưa xoá nội dung cũ. Chỉ giữ bố cục, mọi mục được soạn lại.",
+          "keepAllInfo": "Đưa mọi mục về Giữ nội dung: FlintFlow đọc toàn bộ chữ trong file thành dữ liệu của dự án.",
+          "choiceLabel": "Giữ hay bỏ chữ của mục {title}"
+        },
         "summary": {
           "written": "SRS đã viết · {present}/{total} mục có nội dung",
           "template": "Khung mẫu · {present}/{total} mục có nội dung",
