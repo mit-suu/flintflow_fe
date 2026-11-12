@@ -815,7 +815,8 @@
           "otherVersion": "This file looks like another SRS version. If it is an older copy of the file in the SRS slot, remove it to avoid mixing content.",
           "moveToSrs": "Move to the SRS slot",
           "keep": "Keep as reference",
-          "drop": "Remove this file"
+          "drop": "Remove this file",
+          "maybeSrs": "If this is the SRS you want FlintFlow to complete, move it to the SRS slot."
         }
       },
       "slots": {

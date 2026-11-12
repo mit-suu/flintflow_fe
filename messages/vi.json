@@ -815,7 +815,8 @@
           "otherVersion": "File này trông như một bản SRS khác. Nếu là bản cũ của file ở ô SRS, nên bỏ để tránh lẫn nội dung.",
           "moveToSrs": "Chuyển sang ô SRS",
           "keep": "Giữ làm tham khảo",
-          "drop": "Bỏ file này"
+          "drop": "Bỏ file này",
+          "maybeSrs": "Nếu đây là SRS bạn muốn FlintFlow hoàn thiện, hãy chuyển sang ô SRS."
         }
       },
       "slots": {
