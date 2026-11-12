@@ -2404,6 +2404,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onCancelPending={() => setPendingComment(null)}
             onSubmit={submitComment}
             onResolve={resolveComment}
+            onReply={comments.reply}
             onShowSection={showSection}
             onFixByChat={canEdit && !mode1 ? fixCommentByChat : undefined}
             focusCommentIds={focusCommentIds}

@@ -1337,7 +1337,17 @@
       "downloading": "Downloading…",
       "download": "Download version {version} (.docx)",
       "backToProjects": "Back to projects",
-      "backToWorkspace": "Back to workspace"
+      "backToWorkspace": "Back to workspace",
+      "retry": "Try again",
+      "empty": "This document has no content yet",
+      "openComments": "Comments ({count})",
+      "commentsSheet": "Document comments",
+      "resizeComments": "Resize the comment panel",
+      "about": {
+        "title": "Read and review",
+        "member": "Read the document version by version (draft or released baseline) and pin comments to the exact paragraph. This page does not edit content: to change it, go back to the workspace and ask the AI in chat.",
+        "viewer": "Read the released document and pin comments to the exact paragraph you want to discuss. The authoring team handles comments in their workspace, and the status updates right here."
+      }
     },
     "chatPane": {
       "title": "Chat & review",
@@ -2278,7 +2288,8 @@
       "phase": "Phase run"
     },
     "languageChip": {
-      "title": "Document language: {name}"
+      "title": "Document language: {name}",
+      "prefix": "Document:"
     },
     "page": {
       "loading": "Loading the SRS workspace",
@@ -2381,10 +2392,6 @@
         "analyst": "Analyst",
         "viewer": "Viewer"
       },
-      "status": {
-        "resolved": "Resolved",
-        "converted": "Became a CR"
-      },
       "composeTo": "Comment on <b>{label}</b>",
       "paragraph": " › paragraph {n}",
       "cancelCompose": "Discard the comment draft",
@@ -2433,14 +2440,16 @@
         "sending": "Posting…",
         "crDescription": "{text}\n\nPinned at: {label} (version {version}).",
         "cardAria": "Comment {id}",
-        "pinnedHeader": "{id} · Pinned to: {label} · version {version}",
         "convertedTo": "Became {cr}",
         "anchorMissing": "The pinned content is no longer in this version.",
         "repliesAria": "Replies",
-        "replyPlaceholder": "Reply to comment",
-        "reply": "Reply",
+        "replyPlaceholder": "Reply…",
+        "send": "Send",
+        "resolveMenu": "Resolve comment",
+        "resolveNote": "Close out this comment - it moves to the closed list.",
+        "keepEllipsis": "Keep as is…",
+        "more": "More actions",
         "resolveFailed": "Could not mark it. Please try again.",
-        "markResolved": "Mark as resolved",
         "createCr": "Create CR from comment",
         "title": "Comment",
         "filterAria": "Filter comments",
@@ -2448,14 +2457,21 @@
         "pinTarget": "Pinned to: {label} · version {version}",
         "writePlaceholder": "Write a comment",
         "post": "Post comment",
-        "hint": "Hover over a section or paragraph in the document, then click 💬 to pin a comment.",
-        "clearFocus": "Filtering by pin location - show all comments",
+        "hint": "Click the comment icon in the right margin of a section or paragraph to pin a comment right there. Click a comment card to jump to the pinned spot.",
+        "clearFocus": "Show all",
         "emptyOpen": "No open comments.",
-        "emptyClosed": "No comments have been resolved or turned into a CR yet."
+        "emptyClosed": "No comments have been resolved or turned into a CR yet.",
+        "pinnedPrefix": "Pinned to:",
+        "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "cardMeta": "{id} · version {version}",
+        "locate": "Show this spot in the document",
+        "closePanel": "Close comments",
+        "focusing": "Filtering by pin location"
       },
       "fixByChat": "Ask AI to fix",
       "fixByChatTitle": "Opens the edit chat with the comment prefilled; once applied the comment is marked Fixed",
-      "ownerStep": "Belongs to step {steps} - marking it fixed reopens that step"
+      "ownerStep": "Belongs to step {steps} - marking it fixed reopens that step",
+      "showInDocument": "Show this spot in the document"
     },
     "decisions": {
       "topic": {

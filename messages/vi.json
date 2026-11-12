@@ -1337,7 +1337,17 @@
       "downloading": "Đang tải…",
       "download": "Tải bản {version} (.docx)",
       "backToProjects": "Về danh sách dự án",
-      "backToWorkspace": "Về không gian làm việc"
+      "backToWorkspace": "Về không gian làm việc",
+      "retry": "Thử lại",
+      "empty": "Tài liệu chưa có nội dung nào",
+      "openComments": "Comment ({count})",
+      "commentsSheet": "Comment của tài liệu",
+      "resizeComments": "Đổi bề rộng panel comment",
+      "about": {
+        "title": "Trang đọc và góp ý",
+        "member": "Đọc tài liệu theo từng phiên bản (bản nháp hoặc baseline đã phát hành) và ghim comment vào đúng đoạn. Trang này không sửa nội dung: muốn sửa, quay về không gian làm việc và nhờ AI qua chat.",
+        "viewer": "Đọc tài liệu đã phát hành và ghim comment vào đúng đoạn cần góp ý. Nhóm soạn xử lý comment trong không gian làm việc của họ, trạng thái comment cập nhật ngay tại đây."
+      }
     },
     "chatPane": {
       "title": "Trò chuyện và duyệt",
@@ -2278,7 +2288,8 @@
       "phase": "Lượt chạy giai đoạn"
     },
     "languageChip": {
-      "title": "Ngôn ngữ tài liệu: {name}"
+      "title": "Ngôn ngữ tài liệu: {name}",
+      "prefix": "Tài liệu:"
     },
     "page": {
       "loading": "Đang tải không gian làm việc SRS",
@@ -2381,10 +2392,6 @@
         "analyst": "Analyst",
         "viewer": "Viewer"
       },
-      "status": {
-        "resolved": "Đã xử lý",
-        "converted": "Đã thành CR"
-      },
       "composeTo": "Góp ý vào <b>{label}</b>",
       "paragraph": " › đoạn {n}",
       "cancelCompose": "Bỏ góp ý đang soạn",
@@ -2433,14 +2440,16 @@
         "sending": "Đang gửi…",
         "crDescription": "{text}\n\nVị trí ghim: {label} (bản {version}).",
         "cardAria": "Comment {id}",
-        "pinnedHeader": "{id} · Ghim vào: {label} · bản {version}",
         "convertedTo": "Đã thành {cr}",
         "anchorMissing": "Nội dung được ghim không còn trong phiên bản này.",
         "repliesAria": "Trả lời",
-        "replyPlaceholder": "Trả lời comment",
-        "reply": "Trả lời",
+        "replyPlaceholder": "Trả lời…",
+        "send": "Gửi",
+        "resolveMenu": "Xử lý comment",
+        "resolveNote": "Kết luận comment này - comment chuyển sang mục đã đóng.",
+        "keepEllipsis": "Giữ nguyên…",
+        "more": "Thêm thao tác",
         "resolveFailed": "Không đánh dấu được. Vui lòng thử lại.",
-        "markResolved": "Đánh dấu đã xử lý",
         "createCr": "Tạo CR từ comment",
         "title": "Comment",
         "filterAria": "Lọc comment",
@@ -2448,14 +2457,21 @@
         "pinTarget": "Ghim vào: {label} · bản {version}",
         "writePlaceholder": "Viết comment",
         "post": "Đăng comment",
-        "hint": "Rê chuột lên một mục hoặc đoạn trong tài liệu rồi bấm 💬 để ghim comment.",
-        "clearFocus": "Đang lọc theo chỗ ghim - xem tất cả comment",
+        "hint": "Bấm biểu tượng comment ở lề phải một mục hoặc đoạn để ghim comment vào đúng chỗ đó. Bấm vào thẻ comment để cuộn tới chỗ được ghim.",
+        "clearFocus": "Xem tất cả",
         "emptyOpen": "Không có comment nào đang mở.",
-        "emptyClosed": "Chưa có comment nào được xử lý hay chuyển thành CR."
+        "emptyClosed": "Chưa có comment nào được xử lý hay chuyển thành CR.",
+        "pinnedPrefix": "Ghim vào:",
+        "replyCount": "{count} trả lời",
+        "cardMeta": "{id} · bản {version}",
+        "locate": "Xem chỗ này trong tài liệu",
+        "closePanel": "Đóng comment",
+        "focusing": "Đang lọc theo chỗ ghim"
       },
       "fixByChat": "Nhờ AI sửa",
       "fixByChatTitle": "Mở ô chat sửa với nội dung góp ý điền sẵn; áp xong góp ý tự thành Đã sửa",
-      "ownerStep": "Thuộc bước {steps} - xử lý “đã sửa” sẽ mở lại bước này"
+      "ownerStep": "Thuộc bước {steps} - xử lý “đã sửa” sẽ mở lại bước này",
+      "showInDocument": "Xem chỗ này trong tài liệu"
     },
     "decisions": {
       "topic": {
