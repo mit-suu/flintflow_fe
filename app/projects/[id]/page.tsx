@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
-import { getProject, setDocumentLanguage } from "@/lib/api/projects";
+import { disableScreenMockups, getProject, getScreenMockupSummary, runScreenMockups, setDocumentLanguage, setScreenTheme } from "@/lib/api/projects";
+import ScreenMockupRunCard from "./_components/ScreenMockupRunCard";
+import { useScreenMockupRun } from "./hooks/useScreenMockupRun";
+import ScreenMockupDialog from "@/components/project/ScreenMockupDialog";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
 import { ApiClientError } from "@/lib/api/client";
@@ -21,7 +24,7 @@ import type { SrsComment } from "@/types/comment";
 import { isGateApproval } from "@/lib/gate-approval";
 import type { Diagram, ReviewMode } from "@/types/spine";
 import { chatChangePreview } from "@/lib/chat-change-preview";
-import type { Project } from "@/types/project";
+import type { Project, ScreenMockupSummary } from "@/types/project";
 import type { Flag } from "@/types/flags";
 import PageSkeleton, { type WorkspacePane } from "@/components/ui/PageSkeleton";
 import Skeleton from "@/components/ui/Skeleton";
@@ -682,6 +685,52 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     (sectionId: string) => spineState.spine?.diagrams.filter((d) => d.section === sectionId) ?? [],
     [spineState.spine]
   );
+
+  // ─── FLF-410: ảnh gốc màn (dự án import) ⇒ vẽ lại bằng mockup / dùng ảnh gốc ─────────
+  const [mockupSummary, setMockupSummary] = useState<ScreenMockupSummary | null>(null);
+  /** Màn đang mở hộp "Vẽ lại bằng mockup". */
+  const [mockupScreenId, setMockupScreenId] = useState<string | null>(null);
+  const loadMockupSummary = useCallback(
+    () => getScreenMockupSummary(projectId).then((res) => setMockupSummary(res.data), () => undefined),
+    [projectId]
+  );
+  useEffect(() => {
+    if (mode1 && ws.ready && ws.canEdit) void loadMockupSummary();
+  }, [mode1, ws.ready, ws.canEdit, loadMockupSummary]);
+  /** Sau khi đổi mockup: Spine (version) + tài liệu + tóm tắt mới. */
+  const afterMockupChange = useCallback(async () => {
+    bumpVersion(await reloadSpine());
+    setDocumentRefreshToken((v) => v + 1);
+    void loadMockupSummary();
+  }, [bumpVersion, reloadSpine, loadMockupSummary]);
+  // Lượt vẽ chạy nền: mỗi màn xong ⇒ tải lại để màn đó hiện mockup ngay
+  const mockupRun = useScreenMockupRun(projectId, mode1 && ws.ready && ws.canEdit, () => void afterMockupChange());
+  const mockupNameOf = (screenId: string) => mockupSummary?.originals.find((o) => o.screen_id === screenId)?.name ?? screenId;
+  const originalOfSection = (sectionId: string) => mockupSummary?.originals.find((o) => o.section_id === sectionId);
+  const screenMockupOf = (sectionId: string) => {
+    const original = originalOfSection(sectionId);
+    if (!original) return undefined;
+    return {
+      enabled: mockupSummary?.screens.some((s) => s.screen_id === original.screen_id && s.enabled) ?? false,
+      pending: mockupRun.run?.pending.includes(original.screen_id) ?? false,
+    };
+  };
+  /** Thử lại các màn lỗi: một lượt mới, mỗi màn giữ kiểu đã chọn lần trước (thiếu ⇒ chuẩn). */
+  const retryMockups = async (screenIds: string[]) => {
+    const mode = mockupSummary?.screens.find((s) => screenIds.includes(s.screen_id))?.mode ?? "system";
+    const res = await runScreenMockups(projectId, mode, "screen", screenIds);
+    if (res.data) mockupRun.started(res.data);
+  };
+  const handleScreenMockup = async (sectionId: string, action: "redraw" | "original") => {
+    const original = originalOfSection(sectionId);
+    if (!original) return;
+    if (action === "redraw") {
+      setMockupScreenId(original.screen_id);
+      return;
+    }
+    await disableScreenMockups(projectId, "screen", original.screen_id);
+    await afterMockupChange();
+  };
 
   /**
    * BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ. Cả nhóm vẽ MỘT lượt; báo cáo
@@ -2264,6 +2313,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           // Tạm ẩn nút "Vẽ lại sơ đồ" dưới hình: bật lại bằng REDRAW_SECTION_ENABLED.
           onRedrawSection={mode1 || !REDRAW_SECTION_ENABLED ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
+          // FLF-410: dự án import, Lead/Analyst — mục chứa ảnh gốc của màn
+          screenMockupOf={mode1 && canEdit ? screenMockupOf : undefined}
+          onScreenMockup={mode1 && canEdit ? handleScreenMockup : undefined}
           // Khung sơ đồ vẽ lỗi trong tài liệu: "Thử lại" vẽ lại đúng sơ đồ đó (cùng đường với nút "Vẽ lại" trên cờ)
           onRedrawDiagram={
             mode1 || !canEdit
@@ -2271,6 +2323,23 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               : (diagramId) => redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === diagramId) ?? [])
           }
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
+          // FLF-410: tiến độ vẽ mockup chạy nền — pill nhỏ góc dưới trái tài liệu, bấm mở chi tiết
+          footerStatus={
+            mockupRun.run ? (
+              <ScreenMockupRunCard
+                run={mockupRun.run}
+                nameOf={mockupNameOf}
+                onCancel={mockupRun.cancel}
+                onDismiss={mockupRun.dismiss}
+                onRetry={retryMockups}
+                onApplyColor={async (color) => {
+                  await setScreenTheme(projectId, { primaryColor: color });
+                  mockupRun.dismiss();
+                  await afterMockupChange();
+                }}
+              />
+            ) : undefined
+          }
           headerEnd={focusMode ? <IconButton icon="collapse" label={t("page.exitFocus")} onClick={() => setFocusMode(false)} /> : undefined}
           documentLanguage={documentLanguage}
           // Dịch tốn credit ⇒ chỉ Lead/Analyst; mode 1 giữ ngôn ngữ file, không dịch (D3)
@@ -2480,6 +2549,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onClose={() => setExportOpen(false)}
           documentLanguage={documentLanguage}
           otherLanguageAvailable={!mode1}
+          mockupPending={mockupRun.running ? (mockupRun.run?.pending.length ?? 0) : 0}
           sourceFile={mode1 && ws.project?.start_kind !== "new" && ws.project?.converted_from !== "fpt"}
           // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
           onTranslate={
@@ -2495,6 +2565,19 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 }
               : undefined
           }
+        />
+      )}
+
+      {/* FLF-410: vẽ lại ảnh gốc của màn bằng mockup (nút dưới mục trong tài liệu) */}
+      {mockupScreenId && mockupSummary && (
+        <ScreenMockupDialog
+          projectId={projectId}
+          screens={mockupSummary.originals}
+          screenId={mockupScreenId}
+          currentMode={mockupSummary.screens.find((s) => s.screen_id === mockupScreenId && s.enabled)?.mode}
+          primaryColor={ws.project?.screenTheme?.primaryColor}
+          onClose={() => setMockupScreenId(null)}
+          onStarted={mockupRun.started}
         />
       )}
 

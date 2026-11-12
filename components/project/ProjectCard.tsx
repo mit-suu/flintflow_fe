@@ -34,6 +34,8 @@ interface Props {
   onChangeDocumentLanguage?: (p: Project) => void;
   /** Có ⇒ menu thêm "Ký pháp ERD" (FLF-324) — mọi mode đều đổi được. */
   onChangeErdNotation?: (p: Project) => void;
+  /** Có ⇒ menu thêm "Giao diện màn hình" (FLF-410): theme mockup + vẽ lại ảnh gốc (dự án import). */
+  onChangeScreenTheme?: (p: Project) => void;
   /** Tên thư mục chứa dự án — hiện chip ở tab "Dự án" (nơi hiện cả dự án trong thư mục). */
   folderName?: string | null;
   /** Cho kéo card thả vào thẻ thư mục. */
@@ -215,6 +217,7 @@ export default function ProjectCard({
   onMoveToFolder,
   onChangeDocumentLanguage,
   onChangeErdNotation,
+  onChangeScreenTheme,
   folderName,
   draggable = false,
   selectable = false,
@@ -263,6 +266,15 @@ export default function ProjectCard({
             label: t("menu.erdNotation"),
             icon: "layers",
             onSelect: () => onChangeErdNotation(project)
+          } as const
+        ]
+      : []),
+    ...(onChangeScreenTheme
+      ? [
+          {
+            label: t("menu.screenTheme"),
+            icon: "eye",
+            onSelect: () => onChangeScreenTheme(project)
           } as const
         ]
       : []),
