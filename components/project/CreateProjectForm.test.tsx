@@ -179,3 +179,28 @@ describe("CreateProjectForm - ngôn ngữ tài liệu (FLF-265)", () => {
     await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: false, documentLanguage: "en" }));
   });
 });
+
+describe("CreateProjectForm - file chưa gửi", () => {
+  const leaving = () => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it("có file đang chọn ⇒ báo số file cho hộp chứa và trình duyệt hỏi trước khi tải lại trang; bỏ hết file ⇒ thôi hỏi", async () => {
+    const onPendingFilesChange = vi.fn();
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} onPendingFilesChange={onPendingFilesChange} />);
+    expect(leaving()).toBe(false);
+    expect(onPendingFilesChange).toHaveBeenLastCalledWith(0);
+
+    fireEvent.change(srsInput(), { target: { files: [docx("SRS.docx")] } });
+    fireEvent.change(refInput(), { target: { files: [new File(["a"], "notes.txt", { type: "text/plain" })] } });
+    await waitFor(() => expect(onPendingFilesChange).toHaveBeenLastCalledWith(2));
+    expect(leaving()).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Xoá hết" }));
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ SRS.docx" }));
+    await waitFor(() => expect(onPendingFilesChange).toHaveBeenLastCalledWith(0));
+    expect(leaving()).toBe(false);
+  });
+});

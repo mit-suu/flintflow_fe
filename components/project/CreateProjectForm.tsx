@@ -1,7 +1,8 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLeaveGuard } from "@/lib/hooks/use-leave-guard";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { createProjectFrom } from "@/lib/api/projects";
@@ -26,6 +27,8 @@ interface CreateProjectFormProps {
   onCancel?: () => void;
   /** Đang ở trong một thư mục ⇒ dự án tạo thẳng trong đó. */
   folderId?: string;
+  /** Số file (SRS / mẫu tổ chức + tham khảo) đang chọn mà chưa gửi — hộp chứa dùng để hỏi trước khi đóng. */
+  onPendingFilesChange?: (count: number) => void;
 }
 
 type Stage = "creating";
@@ -38,7 +41,7 @@ let refSeq = 0;
  * suy ra. Ngôn ngữ chỉ hỏi khi không có SRS (có SRS ⇒ theo file). Tạo xong mở dự án ngay; SRS và tài liệu tham khảo tải nền
  * (`lib/project-uploads`), trang dự án hiện từng bước và báo lỗi tải.
  */
-export default function CreateProjectForm({ variant, onCreated, onCancel, folderId }: CreateProjectFormProps) {
+export default function CreateProjectForm({ variant, onCreated, onCancel, folderId, onPendingFilesChange }: CreateProjectFormProps) {
   const t = useTranslations("app.createProject");
   const tc = useTranslations("app.common");
   const locale = useLocale();
@@ -61,6 +64,13 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const submitting = stage !== null;
   const hasSrs = !!srsFile || !!orgTemplate;
   const canSubmit = name.trim().length > 0 && !submitting && checkingRefs === 0;
+  // File chọn ở đây chỉ nằm trong bộ nhớ của tab tới khi bấm Bắt đầu: tải lại trang / đóng tab là mất ⇒ trình duyệt hỏi trước.
+  // Đã bấm Bắt đầu thì `UploadLeaveGuard` (layout gốc) che tiếp lúc file tải nền.
+  const pendingFiles = submitting ? 0 : (hasSrs ? 1 : 0) + references.length;
+  useLeaveGuard(pendingFiles > 0);
+  useEffect(() => {
+    onPendingFilesChange?.(pendingFiles);
+  }, [pendingFiles, onPendingFilesChange]);
 
   const pickSrs = (file: File | null) => {
     setSrsError(null);
@@ -167,7 +177,9 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
       </div>
 
       {/* Hai ô file cạnh nhau: SRS (file FlintFlow sửa) nền tím nhạt, tham khảo nền xám — khác vai trò nhìn là thấy */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+      {/* Chưa có file tham khảo: hai thẻ cao bằng nhau cho cân. Có file rồi: mỗi thẻ cao theo nội dung, ô SRS không bị kéo
+          giãn trống theo danh sách tham khảo */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${references.length > 0 ? "items-start" : "items-stretch"}`}>
       <SrsSlot
         file={srsFile}
         orgTemplateName={orgTemplate?.name ?? null}
@@ -195,6 +207,10 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
         onRemove={(key) => setReferences((prev) => prev.filter((r) => r.key !== key))}
         onKeep={(key) => setReferences((prev) => prev.map((r) => (r.key === key ? { ...r, keep: true } : r)))}
         onMoveToSrs={moveToSrs}
+        onClear={() => {
+          setReferences([]);
+          setRefError(null);
+        }}
         error={refError}
       />
       </div>

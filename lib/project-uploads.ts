@@ -158,6 +158,10 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
+/** Còn file đang tải lên hoặc đang chờ người dùng chọn bản ở bất kỳ dự án nào trong tab — rời trang lúc này là mất file đó. */
+const hasPendingUploads = () => [...state.values()].some((p) => p.items.some((i) => i.status === "uploading" || i.status === "choosing"));
+export const useHasPendingUploads = (): boolean => useSyncExternalStore(subscribe, hasPendingUploads, () => false);
+
 /** Trạng thái tải file của dự án; `null` khi không có lượt tải nào trong tab này. */
 export const useProjectUploads = (projectId: string): ProjectUploads | null =>
   useSyncExternalStore(subscribe, () => state.get(projectId) ?? null, () => null);
