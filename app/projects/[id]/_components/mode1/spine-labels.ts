@@ -75,6 +75,9 @@ export const RULE_KEYS = [
   // FLF-278: mẫu cố định (mẫu bắt buộc / mẫu công ty của dự án có sẵn)
   "template_section_absent",
   "template_section_empty",
+  // FLF-395: sau khi đổi mẫu
+  "template_section_migration_missing",
+  "section_reference_after_migration",
   "import_title_content_mismatch",
   "verification_orphan",
   "import_needs_review",

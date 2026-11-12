@@ -1,4 +1,5 @@
 import type { ImportStatus } from "./import";
+import type { TemplateCurrent, TemplateUpdate } from "./template-migration";
 
 export type ProjectStatus = "active" | "archived";
 
@@ -114,6 +115,12 @@ export interface Project {
   documentLanguage?: DocumentLanguage;
   /** FLF-324: BE luôn trả; dự án cũ `chen`. Thiếu field (BE cũ) ⇒ coi là `chen`. */
   erdNotation?: ErdNotation;
+  /** Org sở hữu dự án (BE `organizationId`); dự án cũ chưa backfill `null` / thiếu. */
+  organizationId?: string | null;
+  /** FLF-395: bản mẫu tổ chức mới hơn bản dự án đang theo — BE chỉ trả cho Lead / Analyst; còn lại `null` / thiếu. */
+  template_update?: TemplateUpdate | null;
+  /** FLF-395: mẫu dự án đang theo (thẻ "Mẫu tài liệu"); `null` / thiếu = file mẫu của chính dự án. */
+  template_current?: TemplateCurrent | null;
   /** FLF-410: BE luôn trả; dự án cũ / BE cũ thiếu ⇒ coi như mọi field `null`. */
   screenTheme?: ScreenTheme;
   /** Thư mục chứa dự án (`GET /folders`); null/thiếu = ngoài thư mục. */

@@ -6,14 +6,19 @@ import { EmptyState, Icon, Modal, SearchInput, Skeleton } from "@/components/ui"
 import { listOrgTemplatesPage } from "@/lib/api/org-library";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { getActiveOrgId } from "@/lib/api/token-store";
+import { versionFacts } from "@/lib/org-template-version";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { useInfiniteList } from "@/lib/hooks/use-infinite-list";
 import type { OrgTemplateSummary } from "@/types/org-library";
 
 interface OrgTemplatePickerProps {
   disabled?: boolean;
-  onPick: (template: OrgTemplateSummary) => void;
+  /** `version` = bản người dùng chọn (mặc định bản đã đăng mới nhất). */
+  onPick: (template: OrgTemplateSummary, version: number) => void;
 }
+
+/** Số bản đã đăng của một mẫu, mới nhất trước. Bản nháp (chỉ Lead thấy) không chọn được. */
+const publishedVersions = (tpl: OrgTemplateSummary): number[] => tpl.versions.filter((v) => v.status === "published").map((v) => v.version);
 
 /** Chờ người dùng ngừng gõ rồi mới gọi BE tìm. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -23,7 +28,8 @@ const knownTotals = new Map<string, number>();
 
 /**
  * FLF-278 — lối phụ của ô SRS: thay cho tải file, chọn mẫu đã lưu của tổ chức (BE nhập từ chính file mẫu đó, mapping heading đã
- * xác nhận ở dự án trước áp sẵn). Tổ chức chưa lưu mẫu nào hoặc tải lỗi ⇒ không hiện gì (tải file vẫn là đường chính).
+ * xác nhận ở dự án trước áp sẵn) và bản của mẫu (mặc định mới nhất; FLF-395). Họ mẫu chưa đăng bản nào không chọn được. Tổ chức
+ * chưa lưu mẫu nào hoặc tải lỗi ⇒ không hiện gì (tải file vẫn là đường chính).
  * Trong hộp Tạo dự án chỉ là một nút; tổ chức có thể có hàng trăm mẫu nên danh sách nằm ở hộp chọn riêng, có tìm kiếm và tải
  * dần khi cuộn, không đẩy dài hộp Tạo dự án.
  */
@@ -69,9 +75,9 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
       {open && (
         <TemplatePickerDialog
           onClose={() => setOpen(false)}
-          onPick={(tpl) => {
+          onPick={(tpl, version) => {
             setOpen(false);
-            onPick(tpl);
+            onPick(tpl, version);
           }}
         />
       )}
@@ -81,7 +87,7 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
 
 interface TemplatePickerDialogProps {
   onClose: () => void;
-  onPick: (template: OrgTemplateSummary) => void;
+  onPick: (template: OrgTemplateSummary, version: number) => void;
 }
 
 function TemplatePickerDialog({ onClose, onPick }: TemplatePickerDialogProps) {
@@ -92,6 +98,8 @@ function TemplatePickerDialog({ onClose, onPick }: TemplatePickerDialogProps) {
   const search = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
   // Vùng cuộn lấy bằng callback ref + state (hook cần phần tử thật để tính `rootMargin`, không nhận ref)
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  /** Bản đã chọn theo mẫu; chưa chọn ⇒ bản mới nhất. */
+  const [chosen, setChosen] = useState<Record<string, number>>({});
 
   const { items, total, loading, loadingMore, error, loadMoreError, retry, sentinelRef } = useInfiniteList<OrgTemplateSummary>({
     fetchPage: (page) => listOrgTemplatesPage(orgId ?? "", { page, q: search || undefined, sort: "uses" }),
@@ -99,6 +107,9 @@ function TemplatePickerDialog({ onClose, onPick }: TemplatePickerDialogProps) {
     enabled: orgId !== null,
     root: scrollEl,
   });
+
+  // Họ mẫu chỉ có bản nháp (chỉ Lead thấy ở thư viện) chưa dùng được để tạo dự án
+  const usable = items.filter((tpl) => tpl.latest_version > 0);
 
   return (
     <Modal open onClose={onClose} title={t("title")} size="lg">
@@ -120,33 +131,49 @@ function TemplatePickerDialog({ onClose, onPick }: TemplatePickerDialogProps) {
             </ul>
           ) : error ? (
             <EmptyState icon="warning" title={t("loadError")} description={userErrorMessage(error)} />
-          ) : items.length === 0 ? (
+          ) : usable.length === 0 ? (
             <EmptyState icon="search" title={t("noMatch", { query: search })} description={t("noMatchHint")} />
           ) : (
             <ul aria-label={t("title")} className="flex flex-col gap-1.5">
-              {items.map((tpl) => (
-                <li key={tpl.id}>
-                  <button
-                    type="button"
-                    onClick={() => onPick(tpl)}
-                    title={tpl.name}
-                    className="group w-full text-left flex items-center gap-3 rounded-control px-3.5 py-2.5 bg-surface-container hover:bg-primary-fixed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer transition-colors"
-                  >
-                    <span className="shrink-0 w-9 h-9 rounded-control bg-surface-container-lowest text-primary flex items-center justify-center">
-                      <Icon name="file-template" size={16} />
-                    </span>
-                    <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                      <span className="text-body font-semibold text-on-surface line-clamp-2 break-words">{tpl.name}</span>
-                      <span className="text-caption text-on-surface-muted truncate">
-                        {t("meta", { file: tpl.source_file_name, headings: tpl.heading_count, uses: tpl.uses })}
+              {usable.map((tpl) => {
+                const versions = publishedVersions(tpl);
+                const version = chosen[tpl.id] ?? tpl.latest_version;
+                return (
+                  <li key={tpl.id} className="flex items-center gap-2 rounded-control bg-surface-container pr-2 hover:bg-primary-fixed transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => onPick(tpl, version)}
+                      title={tpl.name}
+                      className="group flex-1 min-w-0 text-left flex items-center gap-3 rounded-control px-3.5 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+                    >
+                      <span className="shrink-0 w-9 h-9 rounded-control bg-surface-container-lowest text-primary flex items-center justify-center">
+                        <Icon name="file-template" size={16} />
                       </span>
-                    </span>
-                    <span className="shrink-0 text-caption font-bold text-primary opacity-70 group-hover:opacity-100 group-focus-visible:opacity-100">
-                      {t("use")}
-                    </span>
-                  </button>
-                </li>
-              ))}
+                      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                        <span className="text-body font-semibold text-on-surface line-clamp-2 break-words">{tpl.name}</span>
+                        <span className="text-caption text-on-surface-muted truncate">{t("meta", { ...versionFacts(tpl, version), uses: tpl.uses })}</span>
+                      </span>
+                      <span className="shrink-0 text-caption font-bold text-primary opacity-70 group-hover:opacity-100 group-focus-visible:opacity-100">
+                        {t("use")}
+                      </span>
+                    </button>
+                    {versions.length > 1 && (
+                      <select
+                        aria-label={t("versionLabel", { name: tpl.name })}
+                        value={version}
+                        onChange={(e) => setChosen((prev) => ({ ...prev, [tpl.id]: Number(e.target.value) }))}
+                        className="h-8 shrink-0 rounded-control bg-surface-container-lowest px-2 text-caption font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/30"
+                      >
+                        {versions.map((v) => (
+                          <option key={v} value={v}>
+                            {v === tpl.latest_version ? t("versionLatest", { version: v }) : t("versionOption", { version: v })}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </li>
+                );
+              })}
               <li ref={sentinelRef} aria-hidden className="h-px" />
               {loadingMore && (
                 <li className="flex justify-center py-3 text-on-surface-muted">

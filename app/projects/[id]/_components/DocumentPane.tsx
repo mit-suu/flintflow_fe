@@ -200,6 +200,16 @@ export const firstImageRun = (blocks: readonly Block[]): [number, number] | null
 export const sectionLabel = (section: Pick<RenderedSection, "number" | "heading">): string =>
   `§${section.number ? `${section.number} ` : ""}${section.heading}`;
 
+/** Key React của từng mục: `id`, lần lặp thứ n của cùng `id` ⇒ `id#n` (không trùng key, mục không lặp giữ key cũ). */
+export const sectionRenderKeys = (sections: readonly Pick<RenderedSection, "id">[]): string[] => {
+  const seen = new Map<string, number>();
+  return sections.map(({ id }) => {
+    const n = seen.get(id) ?? 0;
+    seen.set(id, n + 1);
+    return n === 0 ? id : `${id}#${n}`;
+  });
+};
+
 export interface EmptyHint {
   stepId: string;
 }
@@ -919,6 +929,8 @@ function DocumentPaneView({
     const own = openFlags.filter((f) => f.section_id === sectionId);
     return { count: own.length, blocking: own.some((f) => f.level === "red") };
   };
+  // Mẫu sau đổi mẫu có thể có nhiều heading cùng `section_id` (vd. ba mục giao diện cùng §4.1) ⇒ key thêm số thứ tự lần lặp
+  const sectionKeys = sectionRenderKeys(document?.sections ?? []);
 
   return (
     <ImageChangedContext.Provider value={onImageChanged}>
@@ -1048,7 +1060,7 @@ function DocumentPaneView({
         {document &&
           document.sections.map((section, i) => (
             <SectionView
-              key={section.id}
+              key={sectionKeys[i]}
               section={section}
               hasChildren={(document.sections[i + 1]?.level ?? 0) > section.level}
               projectId={projectId}

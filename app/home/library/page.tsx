@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import TopBar from "@/components/layout/TopBar";
 import {
+  Badge,
   Button,
   CountBadge,
   DropdownMenu,
@@ -18,16 +19,19 @@ import {
   STICKY_BLEED,
   STICKY_FADE,
 } from "@/components/ui";
+import PendingHeadingsReview from "@/components/org-template/pending-headings-review";
+import { MappingReviewDialog, NewTemplateDialog, TemplateVersionsDialog } from "@/components/org-template/template-library-dialogs";
 import { fetchOrganization } from "@/lib/api/orgs";
-import { deleteOrgTemplate, listOrgTemplatesPage, type OrgTemplateSort } from "@/lib/api/org-library";
+import { deleteOrgTemplate, listOrgTemplatesPage, uploadTemplateVersion, type OrgTemplateSort } from "@/lib/api/org-library";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { useInfiniteList } from "@/lib/hooks/use-infinite-list";
+import type { TemplateVersionDetail } from "@/types/org-library";
 import type { OrgRole } from "@/types/organization";
 
 /** Mẫu chờ xác nhận xoá — giữ tên để hộp thoại nói rõ đang xoá cái gì. */
-type PendingDelete = { id: string; name: string } | null;
+type PendingDelete = { id: string; name: string; projects: number } | null;
 
 const SORTS: readonly OrgTemplateSort[] = ["uses", "recent", "name"];
 const PAGE_SIZE = 20;
@@ -37,7 +41,8 @@ const ROW_GRID = "md:grid md:grid-cols-[minmax(0,1fr)_200px_120px_120px_32px] md
 
 /**
  * Thư viện mẫu của tổ chức (FLF-278): mẫu SRS đã lưu từ dự án theo mẫu khách — file mẫu + mapping heading đã xác nhận,
- * dự án sau chọn lại ở ô SRS khi tạo dự án. Mọi thành viên xem; Lead + Analyst xoá — BE kiểm lại bằng `requireRole`.
+ * dự án sau chọn lại ở ô SRS khi tạo dự án. Mọi thành viên xem các bản; chỉ Lead tải mẫu, đăng bản mới (qua hộp rà mapping) và
+ * xoá (FLF-395) — BE kiểm lại bằng `requireRole`. Lead + Analyst duyệt mục chờ của mẫu khung tự lưu.
  *
  * Bố cục theo trang Thành viên: tiêu đề + số đếm, danh sách dòng trên một mảng nền (không viền), thao tác trong menu ⋮,
  * xác nhận xoá trong hộp thoại. Thanh tìm / sắp xếp dính ở đầu vùng cuộn. Danh sách **tải dần khi cuộn**
@@ -57,6 +62,17 @@ export default function OrgLibraryPage() {
   const [busy, setBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
+  /** Mẫu đang mở hộp "Các bản" (id — dữ liệu lấy từ danh sách để luôn mới sau khi tải lại). */
+  const [versionsOf, setVersionsOf] = useState<string | null>(null);
+  /** Bản nháp đang rà mapping trước khi đăng. */
+  const [review, setReview] = useState<TemplateVersionDetail | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  /** Mẫu khung tự lưu đang mở hộp duyệt mục chờ (duyệt qua dự án nguồn). */
+  const [pendingOf, setPendingOf] = useState<{ projectId: string; name: string } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  /** Input file dùng chung cho "Đăng bản mới" — giữ mẫu đích tới khi người dùng chọn file. */
+  const versionFileRef = useRef<HTMLInputElement>(null);
+  const uploadTarget = useRef<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<OrgTemplateSort>("uses");
   // Gõ liên tục chỉ gọi BE một lần sau khi dừng gõ
@@ -80,10 +96,12 @@ export default function OrgLibraryPage() {
     };
   }, [orgId]);
 
-  const canEdit = role === "lead" || role === "analyst";
+  const isLead = role === "lead";
+  const canReviewPending = role === "lead" || role === "analyst";
+  const versionsTemplate = versionsOf ? (list.items.find((tpl) => tpl.id === versionsOf) ?? null) : null;
   /** Tổ chức thật sự chưa có mẫu nào (không phải "không khớp từ khoá"). */
   const orgEmpty = !list.loading && !list.error && q === "" && list.total === 0;
-  const listError = list.error ? userErrorMessage(list.error) : roleError;
+  const listError = list.error ? userErrorMessage(list.error) : (roleError ?? actionError);
 
   // Đang gửi thì không đóng được — đóng giữa chừng sẽ mất lỗi BE trả về (như hộp thoại đổi tên ở trang Thành viên)
   const closeDelete = () => {
@@ -108,6 +126,22 @@ export default function OrgLibraryPage() {
     }
   };
 
+  const uploadVersion = async (file: File | undefined) => {
+    const templateId = uploadTarget.current;
+    if (!orgId || !file || !templateId) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      const detail = await uploadTemplateVersion(orgId, templateId, file);
+      list.reload();
+      setReview(detail);
+    } catch (err) {
+      setActionError(userErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
 
   return (
@@ -122,9 +156,15 @@ export default function OrgLibraryPage() {
               <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
               {/* Số đếm là tổng của tổ chức — đang tìm thì số kết quả nằm ở thanh tìm */}
               {q === "" && list.total > 0 && <CountBadge count={list.total} />}
+              {isLead && (
+                <Button size="sm" className="ml-auto" disabled={busy} onClick={() => setNewOpen(true)}>
+                  <Icon name="upload" size={15} />
+                  {t("templates.newTemplate")}
+                </Button>
+              )}
             </div>
             <p className="text-body text-on-surface-muted leading-[1.6] max-w-[720px]">{t("intro")}</p>
-            {role !== null && !canEdit && (
+            {role !== null && !isLead && (
               <p className="self-start inline-flex items-center gap-2 rounded-control bg-surface-container-low px-3 py-2 text-body text-on-surface-variant">
                 <Icon name="info" size={15} className="shrink-0 text-on-surface-muted" />
                 {t("readOnly")}
@@ -202,6 +242,11 @@ export default function OrgLibraryPage() {
                         <p className="text-caption text-on-surface-muted truncate" title={tpl.source_file_name}>
                           {tpl.source_file_name}
                         </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {tpl.latest_version > 0 ? <Badge tone="primary">{t("templates.latest", { version: tpl.latest_version })}</Badge> : <Badge tone="neutral">{t("templates.draftOnly")}</Badge>}
+                          {tpl.skeleton && <Badge tone="info">{t("templates.skeleton")}</Badge>}
+                          {tpl.pending_count > 0 && <Badge tone="warning">{t("templates.pending", { count: tpl.pending_count })}</Badge>}
+                        </div>
                       </div>
                     </div>
                     {/* Dưới `md`: ba ô meta nằm một hàng dưới tên, thẳng mép chữ (bỏ qua icon) */}
@@ -217,20 +262,35 @@ export default function OrgLibraryPage() {
                     </div>
                     {/* Hành động phá huỷ nằm trong menu ⋮ — mobile ghim góc phải dòng */}
                     <div className="absolute right-2 top-3 md:static">
-                      {canEdit && (
-                        <DropdownMenu
-                          items={[
-                            {
-                              label: t("delete"),
-                              icon: "trash",
-                              tone: "danger",
-                              disabled: busy,
-                              onSelect: () => setPendingDelete({ id: tpl.id, name: tpl.name }),
-                            },
-                          ]}
-                          trigger={(props) => <IconButton {...props} icon="more" size="sm" label={t("rowActions", { name: tpl.name })} />}
-                        />
-                      )}
+                      <DropdownMenu
+                        items={[
+                          { label: t("templates.versions"), icon: "history" as const, onSelect: () => setVersionsOf(tpl.id) },
+                          ...(canReviewPending && tpl.pending_count > 0 && tpl.skeleton_source_project_id
+                            ? [{ label: t("templates.reviewPending"), icon: "check-circle" as const, onSelect: () => setPendingOf({ projectId: tpl.skeleton_source_project_id!, name: tpl.name }) }]
+                            : []),
+                          ...(isLead
+                            ? [
+                                {
+                                  label: t("templates.publishNew"),
+                                  icon: "upload" as const,
+                                  disabled: busy,
+                                  onSelect: () => {
+                                    uploadTarget.current = tpl.id;
+                                    versionFileRef.current?.click();
+                                  },
+                                },
+                                {
+                                  label: t("templates.delete"),
+                                  icon: "trash" as const,
+                                  tone: "danger" as const,
+                                  disabled: busy,
+                                  onSelect: () => setPendingDelete({ id: tpl.id, name: tpl.name, projects: tpl.project_count }),
+                                },
+                              ]
+                            : []),
+                        ]}
+                        trigger={(props) => <IconButton {...props} icon="more" size="sm" label={t("rowActions", { name: tpl.name })} />}
+                      />
                     </div>
                   </>
                 )}
@@ -245,6 +305,7 @@ export default function OrgLibraryPage() {
       <Modal open={pendingDelete !== null} onClose={closeDelete} title={t("deleteTemplateTitle")}>
         <div className="flex flex-col gap-4">
           <p className="text-body text-on-surface-muted leading-[1.6]">{t("deleteBody", { name: pendingDelete?.name ?? "" })}</p>
+          <p className="text-body text-on-surface-variant leading-[1.6]">{t("templates.confirmFamily", { count: pendingDelete?.projects ?? 0 })}</p>
           {deleteError && (
             <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
               {deleteError}
@@ -259,6 +320,56 @@ export default function OrgLibraryPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <input
+        ref={versionFileRef}
+        type="file"
+        accept=".docx"
+        hidden
+        aria-label={t("templates.pickVersionFile")}
+        onChange={(e) => {
+          void uploadVersion(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      {newOpen && orgId && (
+        <NewTemplateDialog
+          orgId={orgId}
+          onClose={() => setNewOpen(false)}
+          onUploaded={(detail) => {
+            setNewOpen(false);
+            list.reload();
+            setReview(detail);
+          }}
+        />
+      )}
+      {versionsTemplate && orgId && (
+        <TemplateVersionsDialog
+          orgId={orgId}
+          template={versionsTemplate}
+          isLead={isLead}
+          onClose={() => setVersionsOf(null)}
+          onReview={(detail) => {
+            setVersionsOf(null);
+            setReview(detail);
+          }}
+          onChanged={list.reload}
+        />
+      )}
+      {review && orgId && (
+        <MappingReviewDialog
+          orgId={orgId}
+          detail={review}
+          onClose={() => setReview(null)}
+          onPublished={() => {
+            setReview(null);
+            list.reload();
+          }}
+        />
+      )}
+      <Modal open={pendingOf !== null} onClose={() => setPendingOf(null)} title={t("templates.reviewPending")} size="lg">
+        {pendingOf && <PendingHeadingsReview projectId={pendingOf.projectId} canReview={canReviewPending} onChange={() => list.reload()} />}
       </Modal>
     </>
   );
