@@ -239,6 +239,7 @@ export default function HomePage() {
     onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", projects: [project] }),
     onChangeDocumentLanguage: openAction("documentLanguage"),
     onChangeErdNotation: openAction("erdNotation"),
+    onChangeScreenTheme: openAction("screenTheme"),
     selectable: selectMode,
     selectedIds,
     onToggleSelect: (project: Project) =>

@@ -756,7 +756,8 @@
         "documentLanguage": "Document language",
         "erdNotation": "ERD notation",
         "archive": "Archive",
-        "hardDelete": "Delete permanently"
+        "hardDelete": "Delete permanently",
+        "screenTheme": "Screen appearance"
       },
       "gridLoading": "Loading projects",
       "select": "Select project {name}"
@@ -887,7 +888,36 @@
       "renameFailed": "Could not rename the project",
       "renameLabel": "New project name",
       "saveChanges": "Save changes",
-      "confirm": "{action} “{name}”?"
+      "confirm": "{action} “{name}”?",
+      "screenTheme": {
+        "title": "Screen appearance",
+        "colorLabel": "Primary color",
+        "hexLabel": "Color code (#RRGGBB)",
+        "hexInvalid": "The color code must look like #RRGGBB, for example #3F5591.",
+        "colorDefault": "Not chosen: using the default color.",
+        "previewBrand": "System name",
+        "previewPrimary": "Primary button",
+        "previewSecondary": "Secondary button",
+        "domainLabel": "Domain",
+        "domainPlaceholder": "e.g. shop.example.com",
+        "domainClear": "Clear domain",
+        "domainNote": "Leave empty: the address bar shows only the path.",
+        "platformLabel": "Platforms",
+        "platformAuto": "Automatic, from the project description",
+        "platform": {
+          "web": "Web",
+          "mobile": "Mobile"
+        },
+        "detail": "Applies to every Screen Layout figure of the project. Figures already drawn are redrawn right away with the new appearance, at no credit cost.",
+        "originalSummary": "Screens with an original picture: {total} · using a mockup: {mockup}",
+        "redrawAll": "Redraw all…",
+        "useOriginalAll": "Use original pictures for all",
+        "originalRestored": "All screens now use their original pictures.",
+        "cta": "Save",
+        "busy": "Saving and redrawing…",
+        "failed": "Could not update the screen appearance",
+        "runStarted": "Redrawing started in the background. Open the project to follow the progress."
+      }
     },
     "translateDialog": {
       "title": "Translate document",
@@ -1232,6 +1262,40 @@
         "deleteBody": "“{name}” will be removed from your organization's library. This cannot be undone.",
         "cancel": "Cancel"
       }
+    },
+    "screenMockup": {
+      "title": "Redraw as a mockup",
+      "modeLabel": "Style",
+      "scopeLabel": "Scope",
+      "estimating": "Estimating credits…",
+      "estimateFailed": "Could not estimate the credits yet.",
+      "insufficient": "Needs {required} credits, the wallet has {available}.",
+      "failed": "Could not redraw as a mockup",
+      "inUse": "In use",
+      "subtitleScreen": "{name} screen",
+      "subtitleAll": "All {count, plural, one {# screen} other {# screens}} with an original picture",
+      "scopeThis": "This screen",
+      "scopeAllShort": "All {count, plural, one {# screen} other {# screens}}",
+      "modeSystemShort": "Standard mockup",
+      "modeSystemCard": "Clean and consistent, in the project's colors.",
+      "modeOriginalShort": "Like the original",
+      "modeOriginalCard": "Keeps the original layout. The AI also looks at the picture, so it takes longer.",
+      "groupTotal": "{count, plural, one {# screen} other {# screens}}:",
+      "groupDraw": "{count} newly drawn",
+      "groupReenable": "{count} switched back on (drawn earlier)",
+      "groupSkip": "{count} skipped (already a mockup in this style)",
+      "groupName": {
+        "draw": "Newly drawn",
+        "reenable": "Switched back on",
+        "skip": "Skipped"
+      },
+      "showScreens": "Show screens",
+      "hideScreens": "Hide",
+      "cost": "Costs {credits, plural, one {# credit} other {# credits}} · runs in the background, this dialog closes right away",
+      "costFree": "No credits needed",
+      "ctaDrawN": "Redraw {count, plural, one {# screen} other {# screens}}",
+      "ctaReenableN": "Switch back on {count, plural, one {# screen} other {# screens}}",
+      "ctaNothing": "Nothing to draw"
     }
   },
   "workspace": {
@@ -1622,7 +1686,13 @@
       "untranslated": "{count, plural, one {# section not translated} other {# sections not translated}}",
       "translate": "Translate document",
       "emptyDocument": "The document will appear here as soon as the first steps finish.",
-      "draftSection": "Ask AI to draft"
+      "draftSection": "Ask AI to draft",
+      "screenMockup": {
+        "redraw": "Redraw as a mockup",
+        "useOriginal": "Use original picture",
+        "useOriginalFailed": "Could not switch back to the original picture",
+        "drawing": "Drawing mockup…"
+      }
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -1792,7 +1862,11 @@
       "translateRest": "Translate the rest",
       "translateAskEditor": "Ask a Lead or Analyst on this project to translate the rest, then download again.",
       "languageUnavailable": "This version can't be downloaded in another language yet - download it in the document language.",
-      "close": "Close"
+      "close": "Close",
+      "mockupPending": "{count} screens are still being drawn. Exporting now uses their original pictures.",
+      "mockupWaiting": "Waiting for {count} screens to finish drawing; the draft downloads automatically when done.",
+      "mockupExportNow": "Export now",
+      "mockupWait": "Wait until drawn, then export"
     },
     "change": {
       "title": "Edit by command",
@@ -2850,6 +2924,31 @@
       "nowFilled": "After reading in detail, {count, plural, one {section {names} already has content} other {sections {names} already have content}} - nothing to draft there.",
       "other": "After reading in detail, {count, plural, one {section {names} differs} other {sections {names} differ}} from the structure preview.",
       "dismiss": "Dismiss"
+    },
+    "screenMockupRun": {
+      "running": "Drawing mockups {done}/{total} screens",
+      "stopping": "Stopping after the current screen ({done}/{total})",
+      "runningNote": "Keep working; each finished screen shows up in the document right away.",
+      "stop": "Stop",
+      "cancelFailed": "Could not stop the drawing",
+      "finished": "Mockups drawn for {count} screens",
+      "stopped": "Stopped: {count} screens drawn, the rest keep their original pictures",
+      "interrupted": "Drawing was interrupted. Screens not drawn keep their original pictures; you can redraw them.",
+      "fellBack": "The original picture could not be read, so the standard mockup was used: {names}.",
+      "failed": "Not drawn yet (original picture kept): {names}.",
+      "retry": "Retry failed screens",
+      "retryFailed": "Could not retry",
+      "suggestedColor": "The original pictures use {color}. Apply it to the whole project?",
+      "applyColor": "Apply",
+      "applyColorFailed": "Could not apply the color to the project",
+      "dismiss": "Close",
+      "reenabled": "Mockups switched back on for {count} screens (0 credits)",
+      "nothingToDo": "These screens are already mockups in this style; nothing to redraw",
+      "chipRunning": "Mockups {done}/{total}",
+      "chipFailed": "{count, plural, one {# screen} other {# screens}} failed",
+      "chipNothing": "Already mockups",
+      "chipDone": "{count, plural, one {# screen} other {# screens}} drawn",
+      "allFailed": "{count, plural, one {# screen} other {# screens}} could not be drawn"
     }
   },
   "errors": {

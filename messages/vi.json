@@ -756,7 +756,8 @@
         "documentLanguage": "Ngôn ngữ tài liệu",
         "erdNotation": "Ký pháp ERD",
         "archive": "Lưu trữ",
-        "hardDelete": "Xoá vĩnh viễn"
+        "hardDelete": "Xoá vĩnh viễn",
+        "screenTheme": "Giao diện màn hình"
       },
       "gridLoading": "Đang tải danh sách dự án",
       "select": "Chọn dự án {name}"
@@ -887,7 +888,36 @@
       "renameFailed": "Không thể đổi tên dự án",
       "renameLabel": "Tên dự án mới",
       "saveChanges": "Lưu thay đổi",
-      "confirm": "{action} “{name}”?"
+      "confirm": "{action} “{name}”?",
+      "screenTheme": {
+        "title": "Giao diện màn hình",
+        "colorLabel": "Màu chính",
+        "hexLabel": "Mã màu (#RRGGBB)",
+        "hexInvalid": "Mã màu phải dạng #RRGGBB, ví dụ #3F5591.",
+        "colorDefault": "Chưa chọn: đang dùng màu mặc định.",
+        "previewBrand": "Tên hệ thống",
+        "previewPrimary": "Nút chính",
+        "previewSecondary": "Nút phụ",
+        "domainLabel": "Domain",
+        "domainPlaceholder": "vd: shop.example.com",
+        "domainClear": "Xoá domain",
+        "domainNote": "Để trống: thanh địa chỉ chỉ hiện đường dẫn.",
+        "platformLabel": "Nền tảng",
+        "platformAuto": "Tự động theo mô tả dự án",
+        "platform": {
+          "web": "Web",
+          "mobile": "Mobile"
+        },
+        "detail": "Áp dụng cho mọi hình Screen Layout của dự án. Hình đã vẽ được vẽ lại ngay theo giao diện mới, không tốn credit.",
+        "originalSummary": "Màn có ảnh gốc: {total} · đang dùng mockup: {mockup}",
+        "redrawAll": "Vẽ lại tất cả…",
+        "useOriginalAll": "Dùng ảnh gốc cho tất cả",
+        "originalRestored": "Đã chuyển mọi màn về ảnh gốc.",
+        "cta": "Lưu",
+        "busy": "Đang lưu và vẽ lại…",
+        "failed": "Không thể cập nhật giao diện màn hình",
+        "runStarted": "Đã bắt đầu vẽ lại chạy nền. Mở dự án để xem tiến độ."
+      }
     },
     "translateDialog": {
       "title": "Dịch tài liệu",
@@ -1232,6 +1262,40 @@
         "deleteBody": "“{name}” sẽ bị xoá khỏi thư viện của tổ chức. Thao tác này không hoàn tác được.",
         "cancel": "Huỷ"
       }
+    },
+    "screenMockup": {
+      "title": "Vẽ lại bằng mockup",
+      "modeLabel": "Kiểu vẽ",
+      "scopeLabel": "Phạm vi",
+      "estimating": "Đang tính credit dự tính…",
+      "estimateFailed": "Chưa tính được credit dự tính.",
+      "insufficient": "Cần {required} credit, ví còn {available}.",
+      "failed": "Không thể vẽ lại bằng mockup",
+      "inUse": "Đang dùng",
+      "subtitleScreen": "Màn {name}",
+      "subtitleAll": "Tất cả {count} màn có ảnh gốc",
+      "scopeThis": "Màn này",
+      "scopeAllShort": "Tất cả {count} màn",
+      "modeSystemShort": "Mockup chuẩn",
+      "modeSystemCard": "Gọn, đồng bộ theo màu của dự án.",
+      "modeOriginalShort": "Theo ảnh gốc",
+      "modeOriginalCard": "Giữ bố cục của ảnh cũ. AI xem cả ảnh nên vẽ lâu hơn.",
+      "groupTotal": "{count} màn:",
+      "groupDraw": "{count} vẽ mới",
+      "groupReenable": "{count} bật lại (đã vẽ trước đó)",
+      "groupSkip": "{count} bỏ qua (đã là mockup kiểu này)",
+      "groupName": {
+        "draw": "Vẽ mới",
+        "reenable": "Bật lại",
+        "skip": "Bỏ qua"
+      },
+      "showScreens": "Xem màn",
+      "hideScreens": "Ẩn",
+      "cost": "Tốn {credits} credit · chạy nền, hộp đóng ngay",
+      "costFree": "Không tốn credit",
+      "ctaDrawN": "Vẽ lại {count} màn",
+      "ctaReenableN": "Bật lại {count} màn",
+      "ctaNothing": "Không có gì để vẽ"
     }
   },
   "workspace": {
@@ -1622,7 +1686,13 @@
       "untranslated": "{count} mục chưa dịch",
       "translate": "Dịch tài liệu",
       "emptyDocument": "Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.",
-      "draftSection": "Nhờ AI soạn"
+      "draftSection": "Nhờ AI soạn",
+      "screenMockup": {
+        "redraw": "Vẽ lại bằng mockup",
+        "useOriginal": "Dùng ảnh gốc",
+        "useOriginalFailed": "Không thể dùng lại ảnh gốc",
+        "drawing": "Đang vẽ mockup…"
+      }
     },
     "verification": {
       "closeHint": "Đóng bảng đánh giá",
@@ -1792,7 +1862,11 @@
       "translateRest": "Dịch nốt",
       "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.",
       "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác - hãy tải theo ngôn ngữ tài liệu.",
-      "close": "Đóng"
+      "close": "Đóng",
+      "mockupPending": "Còn {count} màn đang vẽ mockup. Xuất ngay thì các màn đó dùng ảnh gốc.",
+      "mockupWaiting": "Đang đợi vẽ xong {count} màn, xong sẽ tự tải bản nháp.",
+      "mockupExportNow": "Xuất ngay",
+      "mockupWait": "Đợi vẽ xong rồi xuất"
     },
     "change": {
       "title": "Sửa qua lệnh",
@@ -2850,6 +2924,31 @@
       "nowFilled": "Sau khi đọc chi tiết, {count, plural, one {mục {names} đã có nội dung} other {các mục {names} đã có nội dung}} - không cần soạn thêm.",
       "other": "Sau khi đọc chi tiết, {count, plural, one {mục {names} khác} other {các mục {names} khác}} với màn đọc khung.",
       "dismiss": "Đóng thông báo"
+    },
+    "screenMockupRun": {
+      "running": "Đang vẽ mockup {done}/{total} màn",
+      "stopping": "Đang dừng sau màn hiện tại ({done}/{total})",
+      "runningNote": "Bạn cứ làm việc khác, màn nào xong sẽ hiện ngay trong tài liệu.",
+      "stop": "Dừng",
+      "cancelFailed": "Không dừng được lượt vẽ",
+      "finished": "Đã vẽ mockup cho {count} màn",
+      "stopped": "Đã dừng: vẽ xong {count} màn, các màn còn lại giữ ảnh gốc",
+      "interrupted": "Lượt vẽ bị gián đoạn. Các màn chưa vẽ giữ ảnh gốc, bạn có thể vẽ lại.",
+      "fellBack": "Ảnh gốc không đọc được, đã vẽ theo mockup chuẩn: {names}.",
+      "failed": "Chưa vẽ được (giữ ảnh gốc): {names}.",
+      "retry": "Thử lại các màn lỗi",
+      "retryFailed": "Không thử lại được",
+      "suggestedColor": "Ảnh gốc dùng màu {color}. Áp cho cả dự án?",
+      "applyColor": "Áp dụng",
+      "applyColorFailed": "Không thể áp màu cho dự án",
+      "dismiss": "Đóng",
+      "reenabled": "Đã bật lại mockup cho {count} màn (0 credit)",
+      "nothingToDo": "Các màn đã là mockup theo kiểu này, không có gì để vẽ lại",
+      "chipRunning": "Mockup {done}/{total}",
+      "chipFailed": "{count} màn lỗi",
+      "chipNothing": "Đã là mockup",
+      "chipDone": "Đã vẽ {count} màn",
+      "allFailed": "Chưa vẽ được {count} màn"
     }
   },
   "errors": {
