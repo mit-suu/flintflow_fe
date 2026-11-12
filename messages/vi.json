@@ -3960,7 +3960,76 @@
         "no": "Không"
       },
       "fromChat": "từ khung chat",
-      "wholeValue": "giá trị"
+      "wholeValue": "giá trị",
+      "change": {
+        "add": "Thêm {entity} “{name}”",
+        "addUnnamed": "Thêm một {entity}",
+        "remove": "Xoá {entity} “{name}”",
+        "removeUnnamed": "Xoá một {entity}",
+        "replace": "Sửa {entity} “{name}”",
+        "replaceUnnamed": "Sửa một {entity}",
+        "setField": "Sửa {field} của {entity} “{name}”",
+        "setFieldUnnamed": "Sửa {field} của một {entity}",
+        "setProject": "Đổi {field}",
+        "summaryCount": "{verb} {count} {entity}",
+        "summaryNames": "{part}: {names}",
+        "summaryMore": "{names} và {count} mục khác",
+        "verbs": {
+          "add": "Thêm",
+          "remove": "Xoá",
+          "set": "Sửa"
+        },
+        "projectFields": {
+          "name": "tên dự án",
+          "system_name": "tên hệ thống",
+          "vision": "tầm nhìn",
+          "goals": "mục tiêu",
+          "domain": "lĩnh vực",
+          "release_scope": "phạm vi phát hành",
+          "form_factor": "nền tảng",
+          "stakes": "mức độ quan trọng",
+          "language": "ngôn ngữ tài liệu"
+        }
+      },
+      "values": {
+        "kind": {
+          "human": "Người dùng",
+          "system": "Hệ thống ngoài",
+          "time": "Thời gian",
+          "quantitative": "Định lượng",
+          "descriptive": "Mô tả",
+          "business": "Nghiệp vụ",
+          "format": "Định dạng",
+          "required": "Bắt buộc",
+          "risk": "Rủi ro",
+          "assumption": "Giả định",
+          "open_question": "Câu hỏi còn mở",
+          "technical_risk": "Rủi ro kỹ thuật"
+        },
+        "priority": {
+          "must": "Must have",
+          "should": "Should have",
+          "could": "Could have",
+          "wont": "Won't have"
+        },
+        "category": {
+          "interface": "Giao diện",
+          "usability": "Khả dụng",
+          "reliability": "Tin cậy",
+          "performance": "Hiệu năng",
+          "other": "Khác"
+        },
+        "tier": {
+          "high": "Tổng quát",
+          "detail": "Chi tiết"
+        },
+        "status": {
+          "unconfirmed": "Chưa xác nhận",
+          "confirmed": "Đã xác nhận",
+          "rejected": "Đã bác bỏ"
+        }
+      }
+    
     },
     "fields": {
       "other": "Dữ liệu khác",

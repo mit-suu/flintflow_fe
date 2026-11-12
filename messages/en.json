@@ -3960,7 +3960,76 @@
         "no": "No"
       },
       "fromChat": "from the chat",
-      "wholeValue": "value"
+      "wholeValue": "value",
+      "change": {
+        "add": "Add {entity} “{name}”",
+        "addUnnamed": "Add a new {entity}",
+        "remove": "Remove {entity} “{name}”",
+        "removeUnnamed": "Remove one {entity}",
+        "replace": "Edit {entity} “{name}”",
+        "replaceUnnamed": "Edit one {entity}",
+        "setField": "Edit the {field} of {entity} “{name}”",
+        "setFieldUnnamed": "Edit the {field} of one {entity}",
+        "setProject": "Change the {field}",
+        "summaryCount": "{verb} {count} {entity}",
+        "summaryNames": "{part}: {names}",
+        "summaryMore": "{names} and {count} more",
+        "verbs": {
+          "add": "Add",
+          "remove": "Remove",
+          "set": "Edit"
+        },
+        "projectFields": {
+          "name": "project name",
+          "system_name": "system name",
+          "vision": "vision",
+          "goals": "goals",
+          "domain": "domain",
+          "release_scope": "release scope",
+          "form_factor": "platform",
+          "stakes": "stakes",
+          "language": "document language"
+        }
+      },
+      "values": {
+        "kind": {
+          "human": "Human user",
+          "system": "External system",
+          "time": "Time",
+          "quantitative": "Quantitative",
+          "descriptive": "Descriptive",
+          "business": "Business",
+          "format": "Format",
+          "required": "Required",
+          "risk": "Risk",
+          "assumption": "Assumption",
+          "open_question": "Open question",
+          "technical_risk": "Technical risk"
+        },
+        "priority": {
+          "must": "Must have",
+          "should": "Should have",
+          "could": "Could have",
+          "wont": "Won't have"
+        },
+        "category": {
+          "interface": "Interface",
+          "usability": "Usability",
+          "reliability": "Reliability",
+          "performance": "Performance",
+          "other": "Other"
+        },
+        "tier": {
+          "high": "High level",
+          "detail": "Detail"
+        },
+        "status": {
+          "unconfirmed": "Unconfirmed",
+          "confirmed": "Confirmed",
+          "rejected": "Rejected"
+        }
+      }
+    
     },
     "fields": {
       "other": "Other data",

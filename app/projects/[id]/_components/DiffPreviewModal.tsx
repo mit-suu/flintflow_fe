@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ChangeDiff, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
-import { refNames, resolveRefs, type RefNames } from "./mode1/spine-labels";
+import { elementNames, refNames, type RefNames } from "./mode1/spine-labels";
 import { CR_SOURCE_KINDS } from "./mode1/labels";
-import { useMode1Labels } from "./mode1/i18n";
+import { SectionNamesContext, useMode1Labels } from "./mode1/i18n";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
@@ -28,18 +28,21 @@ interface DiffPreviewModalProps {
   spine?: Spine | null;
 }
 
-/** `deletedText`: chữ cho giá trị đã bị xoá (`workspace.diff.deleted`); `readableValue` theo ngôn ngữ (`useMode1Labels`). */
+/**
+ * `deletedText`: chữ cho giá trị đã bị xoá (`workspace.diff.deleted`). `humanValue` (FLF-411 #23): chỉ phần người đọc được —
+ * tên + mô tả của phần tử, enum qua nhãn, tham chiếu qua tên; không mã, không khoá thô (`flows_in`).
+ */
 const short = (
   value: unknown,
   field: string | undefined,
   names: RefNames,
   deletedText: string,
-  readableValue: (value: unknown, names?: RefNames) => string
+  humanValue: (value: unknown, field: string | undefined, names?: RefNames) => string
 ): string => {
   if (value === undefined) return "-";
   if (value === null) return "-";
   if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return deletedText;
-  const text = readableValue(resolveRefs(field, value, names), names);
+  const text = humanValue(value, field, names);
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
 };
 
@@ -81,12 +84,19 @@ export default function DiffPreviewModal({
   spine,
 }: DiffPreviewModalProps) {
   const t = useTranslations("workspace.diff");
-  const { pathLabel, readableValue, ruleLabel, sectionName, violationText, crSource } = useMode1Labels();
+  const { pathLabel, humanValue, changeLabel, changeSummary, referrerLabel, ruleLabel, sectionName, violationText, crSource } = useMode1Labels();
+  const documentSections = useContext(SectionNamesContext);
   const [reason, setReason] = useState("");
   const [requester, setRequester] = useState("");
   const [sourceKind, setSourceKind] = useState<ChangeRequestInfo["source"]["kind"] | "">("");
   const [sourceRef, setSourceRef] = useState("");
   const names = useMemo(() => refNames(spine), [spine]);
+  const allNames = useMemo(() => elementNames(spine), [spine]);
+  // FLF-411 #24: tóm tắt dựng từ chính các thay đổi, không chỉ lời của model
+  const summary = useMemo(() => changeSummary(preview.changes, allNames), [changeSummary, preview.changes, allNames]);
+  // FLF-411 #23: mục BE suy ra mà tài liệu đang xem không có (vd "5.5 Glossary" ở file không có mục đó) ⇒ không kể ra
+  const impactSections = (preview.impact?.sections ?? []).filter((s) => !documentSections || documentSections.size === 0 || documentSections.has(s.id));
+  const referrerNames = Array.from(new Set((preview.impact?.referrers ?? []).map((r) => referrerLabel(r.path, allNames))));
   const unlinkedUseCases = useCasesWithoutFunction(preview.changes, { newUseCase: t("newUseCase"), useCase: t("useCase") });
   // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
   // để user bấm Xác nhận rồi ăn lỗi khó hiểu. Luồng CR (`confirmWhenInvalid`) không áp thẳng — lý do
@@ -138,6 +148,12 @@ export default function DiffPreviewModal({
           </div>
         )}
 
+        {summary && (
+          <p className="text-body text-[#4B4842] leading-relaxed" data-testid="diff-summary">
+            {summary}
+          </p>
+        )}
+
         {preview.changes.length === 0 ? (
           <div className="text-body py-4 text-center flex flex-col gap-1">
             <span className="text-[#A8A49C] italic">{t("none")}</span>
@@ -160,11 +176,9 @@ export default function DiffPreviewModal({
               <tbody>
                 {preview.changes.map((change, i) => (
                   <tr key={i}>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top" title={change.path}>
-                      {pathLabel(change.path)}
-                    </td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names, t("deleted"), readableValue)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, lastField(change.path), names, t("deleted"), readableValue)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top">{changeLabel(change, allNames)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names, t("deleted"), humanValue)}</td>
+                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, lastField(change.path), names, t("deleted"), humanValue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,11 +195,11 @@ export default function DiffPreviewModal({
         {preview.impact && (
           <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 flex flex-col gap-2 text-caption text-[#4B4842]">
             <div className="font-extrabold text-caption text-[#8A867E] tracking-wider uppercase">{t("impact")}</div>
-            {preview.impact.sections.length > 0 && (
+            {impactSections.length > 0 && (
               <div>
                 {t("impactSections")}{" "}
-                {preview.impact.sections.map((s) => (
-                  <span key={s.id} className="mr-1.5" title={s.id}>
+                {impactSections.map((s) => (
+                  <span key={s.id} className="mr-1.5">
                     {sectionName(s.id)}
                     <span className="text-[#A8A49C]"> ({isKnownRelation(s.relation) ? t(`relation.${s.relation}`) : t("relation.other")})</span>
                   </span>
@@ -195,9 +209,9 @@ export default function DiffPreviewModal({
             {preview.impact.diagrams.length > 0 && (
               <div>{t("impactDiagrams", { count: preview.impact.diagrams.length })}</div>
             )}
-            {preview.impact.referrers.length > 0 && (
+            {referrerNames.length > 0 && (
               <div className="text-[#8A6D1F]">
-                {t("impactReferrers", { refs: preview.impact.referrers.map((r) => pathLabel(r.path)).join(", ") })}
+                {t("impactReferrers", { refs: referrerNames.join(", ") })}
               </div>
             )}
           </div>
