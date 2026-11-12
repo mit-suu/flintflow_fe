@@ -1572,6 +1572,7 @@
       "diagramLoadFailed": "Không tải được hình sơ đồ.",
       "mediaNotEmbedded": "Không nhúng được ảnh gốc (định dạng không hỗ trợ).",
       "mediaLoadFailed": "Không tải được ảnh.",
+      "mediaNotShown": "Ảnh của file gốc - không hiển thị được ở đây.",
       "diagramNotDrawn": "Sơ đồ chưa vẽ được",
       "diagramNotDrawnHint": "Bấm thử lại để vẽ lại sơ đồ này từ dữ liệu hiện tại.",
       "diagramNotDrawnReadOnly": "Sơ đồ sẽ hiện khi được vẽ lại thành công.",
