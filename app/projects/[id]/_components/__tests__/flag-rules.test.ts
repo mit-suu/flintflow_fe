@@ -76,3 +76,17 @@ describe("flag-rules", () => {
     expect(readableMessage("Thiếu fixed:4.1", "fixed:4.1", undefined)).toBe("Thiếu fixed:4.1");
   });
 });
+
+describe("FLF-411 U2-3: màn / use case chưa gắn chức năng", () => {
+  it("bước đã chốt ⇒ nhóm riêng 'link', không lẫn vào 'Mục bắt buộc còn trống'", () => {
+    const screen = flag({ id: "S1", rule_id: "screen_no_function", remediation_step: "S-4.2", level: "yellow" });
+    const empty = flag({ id: "E1", rule_id: "section_empty", remediation_step: "S-4.2" });
+    const done = new Set(["S-4.2"]);
+    expect(actionOfFlag(screen, done)).toBe("link");
+    expect(actionOfFlag(screen)).toBe("run_step");
+    expect(groupByAction([screen, empty], done).map((g) => g.action)).toEqual(["fill", "link"]);
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.flags.action" });
+    expect(t("link.title")).toBe("Chưa gắn chức năng");
+    expect(t("link.hint")).not.toMatch(/§|mục này đã chốt mà chưa điền/);
+  });
+});

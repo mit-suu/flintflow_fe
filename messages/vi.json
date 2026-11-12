@@ -1445,6 +1445,7 @@
       "acceptAsIs": "✓ Duyệt như hiện tại",
       "leadOnly": "Chỉ Lead ký được baseline. Bạn nộp baseline để Lead duyệt ở panel Kiểm tra.",
       "signBaseline": "Ký baseline",
+      "finishKeepFirst": "Gửi hoặc huỷ lý do \"Giữ nguyên\" trước khi đi tiếp",
       "accept": "Đúng rồi, đi tiếp",
       "wantEdit": "Tôi muốn sửa",
       "more": "Thêm lựa chọn",
@@ -1696,6 +1697,10 @@
           "title": "Mục bắt buộc còn trống",
           "hint": "Bước viết mục này đã chốt mà chưa điền gì - mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat."
         },
+        "link": {
+          "title": "Chưa gắn chức năng",
+          "hint": "Màn hình, use case hoặc tính năng này chưa có chức năng nào gắn vào - gõ lệnh sửa trong chat để thêm hoặc gắn chức năng."
+        },
         "reaccept": {
           "title": "Cần bạn duyệt lại",
           "hint": "Bước soạn mục này đã mở lại - chạy lại bước rồi duyệt để gỡ."
@@ -1761,7 +1766,7 @@
       "baselineCheckFailedWith": "Không kiểm tra được baseline: {error}",
       "loading": "Đang tải thông tin tài liệu…",
       "version": "Phiên bản",
-      "redCount": "Số cờ đỏ sẽ in vào §I",
+      "redCount": "Số cờ đỏ sẽ in vào mục Record of Changes",
       "redOpenCount": "Cờ đỏ đang mở",
       "downloadFailed": "Tải file thất bại",
       "downloading": "Đang tải…",
@@ -1840,7 +1845,7 @@
       "sourceRefPlaceholder": "Ví dụ: Biên bản họp 15/10, email ngày 12/10",
       "reason": "Lý do thay đổi",
       "reasonPlaceholder": "Ví dụ: Stakeholder đổi yêu cầu ở họp 20/09",
-      "reasonNote": "Câu này đi vào §I Record of Changes của tài liệu.",
+      "reasonNote": "Câu này đi vào mục Record of Changes của tài liệu.",
       "confirmNoChange": "Xác nhận không đổi",
       "close": "Đóng"
     },

@@ -69,16 +69,16 @@ describe("WorkspaceHeader", () => {
 
   // FLF-221: gõ chat là chạy — header không còn nút chạy bước nào
   it("không có nút chạy bước", () => {
-    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onLogout={() => {}} />);
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="Danh sách màn hình" onLogout={() => {}} />);
     expect(screen.queryByRole("button", { name: /Chạy/ })).not.toBeInTheDocument();
   });
 
   it("đang xem bước khác bước hiện tại ⇒ có nút quay về (L9)", () => {
     const onBack = vi.fn();
-    const { rerender } = renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onLogout={() => {}} />);
+    const { rerender } = renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="Danh sách màn hình" onLogout={() => {}} />);
     expect(screen.queryByRole("button", { name: /Về bước/ })).not.toBeInTheDocument();
-    rerender(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onBackToCurrent={onBack} onLogout={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Về bước S-4.2" }));
+    rerender(<WorkspaceHeader project={PROJECT} user={null} currentStep="Danh sách màn hình" onBackToCurrent={onBack} onLogout={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Về bước Danh sách màn hình" }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 

@@ -1445,6 +1445,7 @@
       "acceptAsIs": "✓ Approve as is",
       "leadOnly": "Only a Lead can sign the baseline. Submit the baseline for the Lead to approve in the Review panel.",
       "signBaseline": "Sign baseline",
+      "finishKeepFirst": "Send or cancel the \"Keep as is\" reason before continuing",
       "accept": "Looks good, continue",
       "wantEdit": "I want to edit",
       "more": "More options",
@@ -1696,6 +1697,10 @@
           "title": "Required section still empty",
           "hint": "The step that writes this section was approved without filling it - reopen the step so AI fills it, or type an edit command in chat."
         },
+        "link": {
+          "title": "No function linked yet",
+          "hint": "This screen, use case or feature has no function linked to it - type an edit command in chat to add or link one."
+        },
         "reaccept": {
           "title": "Needs your re-approval",
           "hint": "The step that drafts this section was reopened - rerun it and approve to clear this."
@@ -1761,7 +1766,7 @@
       "baselineCheckFailedWith": "Could not check baselines: {error}",
       "loading": "Loading document info…",
       "version": "Version",
-      "redCount": "Red flags to be printed in §I",
+      "redCount": "Red flags to be printed in the Record of Changes",
       "redOpenCount": "Open red flags",
       "downloadFailed": "Download failed",
       "downloading": "Downloading…",
@@ -1840,7 +1845,7 @@
       "sourceRefPlaceholder": "E.g. Meeting minutes 15/10, email of 12/10",
       "reason": "Reason for change",
       "reasonPlaceholder": "E.g. Stakeholder changed the requirement at the 20/09 meeting",
-      "reasonNote": "This sentence goes into §I Record of Changes of the document.",
+      "reasonNote": "This sentence goes into the Record of Changes section of the document.",
       "confirmNoChange": "Confirm no change",
       "close": "Close"
     },
