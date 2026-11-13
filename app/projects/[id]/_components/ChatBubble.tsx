@@ -207,11 +207,10 @@ export default function ChatBubble({
       if (starCount % 2 !== 0) {
         formatted += "**";
       }
-      // Bold text **text**
-      formatted = formatted.replace(
-        /\*\*(.*?)\*\*/g,
-        "<strong>$1</strong>"
-      );
+      // **text** → <strong>, dựng bằng React node chứ không ghép chuỗi HTML: nội dung AI có thể chứa
+      // thẻ HTML (vd. bị dẫn dắt qua tài liệu người dùng tải lên), React tự escape phần chữ còn lại.
+      const renderInline = (text: string) =>
+        text.split(/\*\*(.*?)\*\*/g).map((part, j) => (j % 2 === 1 ? <strong key={j}>{part}</strong> : part));
 
       const cursorElement = showCursor && isLastLine ? (
         <span
@@ -226,7 +225,7 @@ export default function ChatBubble({
             key={i}
             className="ml-5 list-disc text-heading text-on-surface leading-7"
           >
-            <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-*]\s+/, "") }} />
+            <span>{renderInline(formatted.trim().replace(/^[-*]\s+/, ""))}</span>
             {cursorElement}
           </li>
         );
@@ -246,7 +245,7 @@ export default function ChatBubble({
           key={i}
           className="text-heading text-on-surface leading-7"
         >
-          <span dangerouslySetInnerHTML={{ __html: formatted }} />
+          <span>{renderInline(formatted)}</span>
           {cursorElement}
         </p>
       );
