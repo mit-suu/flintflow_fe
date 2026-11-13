@@ -948,7 +948,9 @@
       "noMatch": "No project matches “{query}”.",
       "selected": "{count} selected",
       "selectedMax": "{count} selected ({max} max per batch)",
-      "add": "Add to folder"
+      "add": "Add to folder",
+      "loading": "Loading projects…",
+      "loadFailed": "Could not load the project list"
     },
     "feedback": {
       "title": "Send feedback",

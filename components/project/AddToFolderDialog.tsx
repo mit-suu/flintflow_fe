@@ -1,12 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import SearchInput from "@/components/ui/SearchInput";
 import { addProjectsToFolder } from "@/lib/api/folders";
+import { listProjects } from "@/lib/api/projects";
 import { getSourceModeOption, projectSourceMode } from "@/lib/project-source-mode";
 import type { Folder } from "@/types/folder";
 import type { Project } from "@/types/project";
@@ -17,8 +19,6 @@ const MAX_PER_REQUEST = 100;
 
 interface AddToFolderDialogProps {
   folder: Folder | null;
-  /** Mọi dự án của user; dialog tự lọc ra dự án chưa thuộc thư mục này. */
-  projects: readonly Project[];
   /** Thư mục còn tồn tại — để không ghi "đang ở thư mục khác" cho dự án trỏ tới thư mục đã xoá. */
   folderIds: ReadonlySet<string>;
   onClose: () => void;
@@ -33,7 +33,7 @@ export default function AddToFolderDialog({ folder, ...rest }: AddToFolderDialog
   return <Dialog key={folder._id} folder={folder} {...rest} />;
 }
 
-function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDialogProps & { folder: Folder }) {
+function Dialog({ folder, folderIds, onClose, onAdded }: AddToFolderDialogProps & { folder: Folder }) {
   const t = useTranslations("app.addToFolder");
   const tc = useTranslations("app.common");
   const tMode = useTranslations("app.sourceMode");
@@ -41,8 +41,24 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDi
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Dự án đang làm của org — dialog tự tải khi mở (FLF-404: dashboard chỉ giữ các trang đã cuộn tới). `null` = đang tải. */
+  const [projects, setProjects] = useState<Project[] | null>(null);
 
-  const candidates = projects.filter((p) => p.status === "active" && p.folderId !== folder._id);
+  useEffect(() => {
+    let cancelled = false;
+    listProjects("active")
+      .then((res) => !cancelled && setProjects(res.data ?? []))
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setProjects([]);
+        setError(userErrorMessage(err, t("loadFailed")));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  const candidates = (projects ?? []).filter((p) => p.status === "active" && p.folderId !== folder._id);
   const q = query.trim().toLocaleLowerCase("vi");
   const visible = q ? candidates.filter((p) => p.name.toLocaleLowerCase("vi").includes(q)) : candidates;
 
@@ -76,10 +92,16 @@ function Dialog({ folder, projects, folderIds, onClose, onAdded }: AddToFolderDi
   return (
     <Modal open onClose={close} title={t("title", { folder: folder.name })} size="lg">
       <div className="flex flex-col gap-3">
-      {candidates.length === 0 ? (
-          <p className="py-8 text-center text-body text-on-surface-muted">
-            {t("allInFolder")}
-          </p>
+      {projects === null ? (
+          <PageSkeleton variant="list" rows={4} bare label={t("loading")} />
+        ) : candidates.length === 0 ? (
+          error ? (
+            <p role="alert" className="text-body text-on-error-container bg-error-container border border-error-border rounded-control px-3 py-2">
+              {error}
+            </p>
+          ) : (
+            <p className="py-8 text-center text-body text-on-surface-muted">{t("allInFolder")}</p>
+          )
         ) : (
           <>
             <SearchInput value={query} onChange={setQuery} label={t("searchLabel")} placeholder={t("searchPlaceholder")} />

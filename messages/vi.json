@@ -948,7 +948,9 @@
       "noMatch": "Không có dự án khớp “{query}”.",
       "selected": "Đã chọn {count}",
       "selectedMax": "Đã chọn {count} (tối đa {max} mỗi lần)",
-      "add": "Thêm vào thư mục"
+      "add": "Thêm vào thư mục",
+      "loading": "Đang tải dự án…",
+      "loadFailed": "Không thể tải danh sách dự án"
     },
     "feedback": {
       "title": "Gửi góp ý",

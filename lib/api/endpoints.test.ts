@@ -38,6 +38,11 @@ type EndpointCase = [name: string, call: () => unknown, path: string, init?: Req
 
 const cases: EndpointCase[] = [
   ["listProjects", () => projects.listProjects("active"), "/projects?status=active"],
+  [
+    "listProjectsPage",
+    () => projects.listProjectsPage({ page: 2, limit: 24, status: "active", q: "ngan hang", sort: "updated", folder: "none" }),
+    "/projects?page=2&limit=24&status=active&q=ngan+hang&sort=updated&folder=none",
+  ],
   ["getProject", () => projects.getProject("p1"), "/projects/p1"],
   ["createProject", () => projects.createProject("App"), "/projects", post({ name: "App" })],
   ["createProject (mode 1)", () => projects.createProject("App", "import"), "/projects", post({ name: "App", mode: "import" })],

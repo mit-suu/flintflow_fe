@@ -1,8 +1,33 @@
 import type { CreateProjectRequest, DocumentLanguage, ErdNotation, Project, ProjectMode, ProjectStatus } from "@/types/project";
 import { apiCall } from "./client";
+import type { ListPage } from "@/lib/hooks/use-infinite-list";
 
 export const listProjects = (status?: ProjectStatus) =>
   apiCall<Project[]>(status ? `/projects?status=${status}` : "/projects");
+
+/** Thứ tự danh sách: tạo mới nhất (lưới) · sửa gần nhất · mở gần nhất (chưa mở xếp cuối). */
+export type ProjectListSort = "created" | "updated" | "opened";
+
+export interface ListProjectsPageParams {
+  page: number;
+  limit: number;
+  status?: ProjectStatus;
+  mode?: ProjectMode;
+  /** BE tìm tên không phân biệt dấu. */
+  q?: string;
+  sort?: ProjectListSort;
+  /** Id thư mục, hoặc `none` = dự án ngoài thư mục; bỏ trống = mọi dự án. */
+  folder?: string;
+}
+
+/** Một trang dự án (FLF-404): lọc / tìm / sắp xếp ở BE. Không truyền `page` thì dùng `listProjects` (mảng đầy đủ). */
+export async function listProjectsPage(params: ListProjectsPageParams): Promise<ListPage<Project>> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== "") query.set(key, String(value));
+  const res = await apiCall<Project[]>(`/projects?${query}`);
+  const items = res.data ?? [];
+  return { items, meta: (res.meta as unknown as ListPage<Project>["meta"]) ?? { page: params.page, limit: params.limit, total: items.length, totalPages: 1 } };
+}
 
 export const getProject = (projectId: string) => apiCall<Project>(`/projects/${projectId}`);
 
