@@ -464,7 +464,6 @@
       "filterUnread": "Chưa đọc",
       "loadingList": "Đang tải thông báo…",
       "loadFailed": "Không thể tải thông báo",
-      "loadMoreFailed": "Không thể tải thêm thông báo",
       "markFailed": "Không thể đánh dấu đã đọc"
     },
     "billing": {
@@ -522,8 +521,7 @@
         "load": "Không thể tải thông tin thanh toán",
         "createTx": "Không thể tạo giao dịch",
         "changePlan": "Không thể đổi gói",
-        "loadMore": "Không thể tải thêm giao dịch",
-        "filter": "Không thể lọc lịch sử giao dịch"
+        "loadHistory": "Không thể tải lịch sử giao dịch"
       },
       "loadingHistory": "Đang tải lịch sử giao dịch…",
       "actionType": {
@@ -662,7 +660,6 @@
       "retry": "Thử lại",
       "clearSearch": "Xoá tìm kiếm",
       "soon": "Sắp có",
-      "loadMore": "Tải thêm",
       "account": "Tài khoản",
       "dismiss": "Đóng thông báo lỗi"
     },

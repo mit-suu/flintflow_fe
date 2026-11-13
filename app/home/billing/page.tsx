@@ -1,10 +1,10 @@
 "use client";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import { Badge, Button, EmptyState, FilterSelect, IconButton, PageSkeleton, type BadgeTone } from "@/components/ui";
+import { Badge, Button, EmptyState, FilterSelect, IconButton, PAGE_GUTTER, PageSkeleton, PagedDataList, STICKY_BLEED, STICKY_FADE, type BadgeTone } from "@/components/ui";
 import {
   createCheckout,
   fetchBalance,
@@ -27,6 +27,7 @@ import { tPhase, tStep } from "@/lib/i18n";
 import { emitNotificationsChanged } from "@/lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 
 const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "purchase" || tx.type === "monthly_reset") return `+${tx.amount}`;
@@ -59,6 +60,17 @@ const toApiFilters = (f: LedgerFilters): TransactionFilters => ({
 });
 
 type FilterChoice = { value: string; label: string };
+
+const LEDGER_PAGE_SIZE = 20;
+
+/**
+ * Cột của lịch sử từ `xl`: thời gian | loại | thao tác | dự án | thành viên | token | credit | khả dụng sau.
+ * Dưới `xl` một dòng gọn ba hàng: loại + credit, thao tác, rồi các ô còn lại cỡ chữ nhỏ (`order-*`).
+ */
+const LEDGER_GRID =
+  "xl:grid xl:grid-cols-[150px_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_140px_120px_72px_84px] xl:items-center xl:gap-3";
+/** Ô phụ dưới `xl`: hàng cuối, chữ nhỏ. */
+const LEDGER_META = "max-xl:order-4 max-xl:text-caption max-xl:text-on-surface-muted";
 
 /** Chỉ đổi màu con số, không đổi hình thẻ: khả dụng là con số người dùng theo dõi, số khác chỉ là tham chiếu. */
 type StatTone = "primary" | "error" | "muted" | "plain";
@@ -97,14 +109,9 @@ export default function BillingPage() {
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [plans, setPlans] = useState<PlanDefinition[]>([]);
-  const [ledger, setLedger] = useState<CreditTransaction[]>([]);
-  const [ledgerPage, setLedgerPage] = useState(1);
-  const [ledgerTotalPages, setLedgerTotalPages] = useState(1);
   const [filters, setFilters] = useState<LedgerFilters>(NO_FILTERS);
   const [memberChoices, setMemberChoices] = useState<FilterChoice[]>([]);
   const [projectChoices, setProjectChoices] = useState<FilterChoice[]>([]);
-  // Đổi bộ lọc nhanh ⇒ chỉ nhận câu trả lời của lần đổi cuối
-  const ledgerRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   // Ví là của tổ chức và chỉ Lead được nạp / đổi gói (UC-59, UC-62). Biết chắc không phải Lead thì ẩn nút mua —
@@ -127,14 +134,11 @@ export default function BillingPage() {
     }
   };
 
-  const loadLedger = useCallback(async (next: LedgerFilters) => {
-    const request = ++ledgerRequest.current;
-    const firstPage = await fetchTransactions(1, 20, toApiFilters(next));
-    if (request !== ledgerRequest.current) return;
-    setLedger(firstPage.items);
-    setLedgerPage(1);
-    setLedgerTotalPages(firstPage.meta?.totalPages ?? 1);
-  }, []);
+  // Lịch sử theo số trang (FLF-404): đổi bộ lọc ⇒ về trang 1; phản hồi của bộ lọc / trang cũ về muộn bị bỏ
+  const ledger = usePagedList<CreditTransaction>({
+    key: JSON.stringify(filters),
+    fetchPage: (page) => fetchTransactions(page, LEDGER_PAGE_SIZE, toApiFilters(filters)),
+  });
 
   const loadBalance = useCallback(async () => {
     setBalance(await fetchBalance());
@@ -163,7 +167,7 @@ export default function BillingPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const [catalog] = await Promise.all([fetchPackages(), loadBalance(), loadLedger(NO_FILTERS)]);
+        const [catalog] = await Promise.all([fetchPackages(), loadBalance()]);
         if (cancelled) return;
         setPackages(catalog.packages);
         setPlans(catalog.plans);
@@ -178,7 +182,7 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadBalance, loadLedger]);
+  }, [loadBalance]);
 
   const handleBuy = async (pkg: CreditPackage) => {
     setBusy(pkg.id);
@@ -206,32 +210,9 @@ export default function BillingPage() {
     }
   };
 
-  const handleLoadMore = async () => {
-    setBusy("ledger");
-    try {
-      const next = await fetchTransactions(ledgerPage + 1, 20, toApiFilters(filters));
-      setLedger((prev) => [...prev, ...next.items]);
-      setLedgerPage(next.meta.page);
-      setLedgerTotalPages(next.meta.totalPages);
-    } catch (err) {
-      setError(userErrorMessage(err, t("errors.loadMore")));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const changeFilter = async (patch: Partial<LedgerFilters>) => {
-    const next = { ...filters, ...patch };
-    setFilters(next);
-    setBusy("ledger");
-    try {
-      await loadLedger(next);
-    } catch (err) {
-      setError(userErrorMessage(err, t("errors.filter")));
-    } finally {
-      setBusy(null);
-    }
-  };
+  const changeFilter = (patch: Partial<LedgerFilters>) => setFilters((prev) => ({ ...prev, ...patch }));
+  // Chuỗi rỗng từ `userErrorMessage` = không có câu của BE ⇒ câu chung
+  const ledgerError = ledger.error ? userErrorMessage(ledger.error) || t("errors.loadHistory") : null;
 
   const filtered = filters.kind !== "all" || filters.memberId !== "all" || filters.projectId !== "all";
   const kindOptions: { value: LedgerFilters["kind"]; label: string }[] = [
@@ -282,8 +263,9 @@ export default function BillingPage() {
     <>
       <TopBar trail={[tc("account"), t("title")]} />
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
-        <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
+      {/* Vùng cuộn không có padding trên: thanh lọc lịch sử `sticky top-0` tính từ mép trong của padding */}
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 pb-scroll-end bg-surface-container-lowest ${PAGE_GUTTER}`}>
+        <h1 className="mt-6 sm:mt-8 text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
         {error !== null && (
           <div className="flex items-center gap-3 bg-error-container text-on-error-container px-4 py-3 rounded-control text-body font-medium">
@@ -293,10 +275,7 @@ export default function BillingPage() {
         )}
 
         {loading ? (
-          <div className="flex flex-col gap-6">
-            <PageSkeleton variant="cards" label={t("loading")} />
-            <PageSkeleton variant="table" rows={5} label={t("loadingHistory")} />
-          </div>
+          <PageSkeleton variant="cards" label={t("loading")} />
         ) : (
           <>
             {/* Balance */}
@@ -415,112 +394,110 @@ export default function BillingPage() {
                 })}
               </div>
             </section>
-
-            {/* Ledger — UC-59 thanh toán (cả đang chờ / lỗi) + UC-60 chi tiết từng lượt gọi AI */}
-            <section className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
-                <div className="flex flex-wrap items-center gap-2">
-                  <FilterSelect label={t("filter.kind")} value={filters.kind} options={kindOptions} onChange={(kind) => void changeFilter({ kind })} />
-                  {projectChoices.length > 0 && (
-                    <FilterSelect label={t("filter.project")} value={filters.projectId} options={projectOptions} onChange={(projectId) => void changeFilter({ projectId })} />
-                  )}
-                  {memberChoices.length > 0 && (
-                    <FilterSelect label={t("filter.member")} value={filters.memberId} options={memberOptions} onChange={(memberId) => void changeFilter({ memberId })} />
-                  )}
-                </div>
-              </div>
-              <div className="rounded-card bg-surface-container-low p-1.5 max-h-[52dvh] overflow-auto">
-                {ledger.length === 0 ? (
-                  <EmptyState icon="wallet" title={filtered ? t("noTxFiltered") : t("noTx")} />
-                ) : (
-                  <table className="w-full text-body">
-                    <thead>
-                      <tr className="text-left text-caption uppercase tracking-[0.04em] text-on-surface-muted">
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.time")}</th>
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.type")}</th>
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.action")}</th>
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.project")}</th>
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold">{t("col.member")}</th>
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.tokens")}</th>
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.credit")}</th>
-                        <th className="sticky top-0 bg-surface-container-low px-4 py-2.5 font-bold text-right">{t("col.availableAfter")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ledger.map((tx) => {
-                        const isPayment = tx.type === "payment" || tx.type === "purchase";
-                        return (
-                          <tr key={tx._id} className="transition-colors hover:bg-surface-container-lowest">
-                            <td className="px-4 py-2.5 text-on-surface-variant whitespace-nowrap">
-                              {format.dateTime(new Date(tx.createdAt), {
-                                day: "numeric",
-                                month: "numeric",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              })}
-                            </td>
-                            <td className="px-4 py-2.5 text-on-surface font-semibold whitespace-nowrap">
-                              {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
-                              {tx.state && (
-                                <span className="ml-1.5 text-caption font-medium text-on-surface-muted">({t(`txState.${tx.state}`)})</span>
-                              )}
-                              {tx.paymentStatus && (
-                                <Badge tone={PAYMENT_TONE[tx.paymentStatus]} className="ml-1.5">
-                                  {t(`paymentStatus.${tx.paymentStatus}`)}
-                                </Badge>
-                              )}
-                            </td>
-                            <td className="px-4 py-2.5 text-on-surface-variant">
-                              <div>{isPayment ? packageLabel(tx.packageId) : actionLabel(tx.actionType)}</div>
-                              {tx.stepId && <div className="text-caption text-on-surface-muted">{stepLabel(tx.stepId)}</div>}
-                              {tx.price != null && <div className="text-caption text-on-surface-muted">{formatVnd(tx.price, locale)}</div>}
-                              {tx.type === "payment" && tx.paymentStatus === "pending" && tx.intentId && (
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  className="mt-1"
-                                  onClick={() => router.push(`/home/billing/checkout?intentId=${encodeURIComponent(tx.intentId!)}`)}
-                                >
-                                  {t("openQr")}
-                                </Button>
-                              )}
-                            </td>
-                            <td className="px-4 py-2.5 text-on-surface-variant">{tx.project?.name || EMPTY_CELL}</td>
-                            <td className="px-4 py-2.5 text-on-surface-variant whitespace-nowrap">{tx.member?.name || EMPTY_CELL}</td>
-                            <td className="px-4 py-2.5 text-right text-on-surface-variant whitespace-nowrap">{tokensOf(tx)}</td>
-                            <td
-                              className={`px-4 py-2.5 text-right font-bold ${
-                                tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
-                              }`}
-                            >
-                              {signedAmount(tx)}
-                            </td>
-                            <td className="px-4 py-2.5 text-right text-on-surface">{tx.balanceAfter ?? EMPTY_CELL}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-              {ledgerPage < ledgerTotalPages && (
-                <Button
-                  variant="secondary"
-                  size="md"
-                  className="self-center"
-                  loading={busy === "ledger"}
-                  disabled={busy !== null}
-                  onClick={handleLoadMore}
-                >
-                  {tc("loadMore")}
-                </Button>
-              )}
-            </section>
-          </>
+            </>
         )}
+
+        {/* Ledger — UC-59 thanh toán (cả đang chờ / lỗi) + UC-60 chi tiết từng lượt gọi AI. Tải song song với ví, theo số trang. */}
+        <section aria-label={t("history")} className="flex flex-col gap-3">
+          {/* Tiêu đề + bộ lọc dính ở đầu vùng cuộn khi lướt lịch sử dài */}
+          <div className={`sticky top-0 z-30 -mt-3 py-3 bg-surface-container-lowest flex flex-wrap items-center justify-between gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
+            <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterSelect label={t("filter.kind")} value={filters.kind} options={kindOptions} onChange={(kind) => changeFilter({ kind })} />
+              {projectChoices.length > 0 && (
+                <FilterSelect label={t("filter.project")} value={filters.projectId} options={projectOptions} onChange={(projectId) => changeFilter({ projectId })} />
+              )}
+              {memberChoices.length > 0 && (
+                <FilterSelect label={t("filter.member")} value={filters.memberId} options={memberOptions} onChange={(memberId) => changeFilter({ memberId })} />
+              )}
+            </div>
+          </div>
+
+          {ledgerError && (
+            <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+              {ledgerError}
+            </p>
+          )}
+
+          <PagedDataList
+            list={ledger}
+            getKey={(tx) => tx._id}
+            loadingLabel={t("loadingHistory")}
+            skeletonRows={5}
+            rowClassName={`flex flex-wrap items-baseline gap-x-3 gap-y-1 text-body ${LEDGER_GRID}`}
+            empty={
+              !ledger.error && (
+                <EmptyState icon="wallet" title={filtered ? t("noTxFiltered") : t("noTx")} className="rounded-card bg-surface-container-low" />
+              )
+            }
+            // Tiêu đề cột chỉ có khi các ô thẳng cột (từ `xl`)
+            header={
+              <div aria-hidden className={`hidden ${LEDGER_GRID} px-3 pt-1.5 pb-2 text-caption uppercase tracking-[0.04em] font-bold text-on-surface-muted`}>
+                <span>{t("col.time")}</span>
+                <span>{t("col.type")}</span>
+                <span>{t("col.action")}</span>
+                <span>{t("col.project")}</span>
+                <span>{t("col.member")}</span>
+                <span className="text-right">{t("col.tokens")}</span>
+                <span className="text-right">{t("col.credit")}</span>
+                <span className="text-right">{t("col.availableAfter")}</span>
+              </div>
+            }
+            renderItem={(tx) => {
+              const isPayment = tx.type === "payment" || tx.type === "purchase";
+              return (
+                <>
+                  <span className={`${LEDGER_META} xl:text-on-surface-variant whitespace-nowrap`}>
+                    {format.dateTime(new Date(tx.createdAt), {
+                      day: "numeric",
+                      month: "numeric",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </span>
+                  <span className="max-xl:order-1 max-xl:flex-1 text-on-surface font-semibold">
+                    {t.has(`txType.${tx.type}`) ? t(`txType.${tx.type}`) : t("txType.other")}
+                    {tx.state && <span className="ml-1.5 text-caption font-medium text-on-surface-muted">({t(`txState.${tx.state}`)})</span>}
+                    {tx.paymentStatus && (
+                      <Badge tone={PAYMENT_TONE[tx.paymentStatus]} className="ml-1.5">
+                        {t(`paymentStatus.${tx.paymentStatus}`)}
+                      </Badge>
+                    )}
+                  </span>
+                  <div className="max-xl:order-3 max-xl:basis-full min-w-0 text-on-surface-variant">
+                    <div>{isPayment ? packageLabel(tx.packageId) : actionLabel(tx.actionType)}</div>
+                    {tx.stepId && <div className="text-caption text-on-surface-muted">{stepLabel(tx.stepId)}</div>}
+                    {tx.price != null && <div className="text-caption text-on-surface-muted">{formatVnd(tx.price, locale)}</div>}
+                    {tx.type === "payment" && tx.paymentStatus === "pending" && tx.intentId && (
+                      <Button variant="secondary" size="sm" className="mt-1" onClick={() => router.push(`/home/billing/checkout?intentId=${encodeURIComponent(tx.intentId!)}`)}>
+                        {t("openQr")}
+                      </Button>
+                    )}
+                  </div>
+                  <span className={`${LEDGER_META} xl:text-on-surface-variant min-w-0 truncate`}>{tx.project?.name || EMPTY_CELL}</span>
+                  <span className={`${LEDGER_META} xl:text-on-surface-variant min-w-0 truncate`}>{tx.member?.name || EMPTY_CELL}</span>
+                  <span className={`${LEDGER_META} xl:text-right xl:text-on-surface-variant whitespace-nowrap`}>
+                    <span className="xl:hidden">{t("col.tokens")}: </span>
+                    {tokensOf(tx)}
+                  </span>
+                  <span
+                    className={`max-xl:order-2 text-right font-bold whitespace-nowrap ${
+                      tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
+                    }`}
+                  >
+                    {signedAmount(tx)}
+                  </span>
+                  <span className={`${LEDGER_META} xl:text-right xl:text-on-surface whitespace-nowrap`}>
+                    <span className="xl:hidden">{t("col.availableAfter")}: </span>
+                    {tx.balanceAfter ?? EMPTY_CELL}
+                  </span>
+                </>
+              );
+            }}
+          />
+        </section>
       </div>
     </>
   );

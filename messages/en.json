@@ -464,7 +464,6 @@
       "filterUnread": "Unread",
       "loadingList": "Loading notifications…",
       "loadFailed": "Could not load notifications",
-      "loadMoreFailed": "Could not load more notifications",
       "markFailed": "Could not mark as read"
     },
     "billing": {
@@ -522,8 +521,7 @@
         "load": "Could not load billing information",
         "createTx": "Could not create the transaction",
         "changePlan": "Could not change the plan",
-        "loadMore": "Could not load more transactions",
-        "filter": "Could not filter the transaction history"
+        "loadHistory": "Could not load the transaction history"
       },
       "loadingHistory": "Loading transaction history…",
       "actionType": {
@@ -662,7 +660,6 @@
       "retry": "Retry",
       "clearSearch": "Clear search",
       "soon": "Coming soon",
-      "loadMore": "Load more",
       "account": "Account",
       "dismiss": "Dismiss error"
     },
