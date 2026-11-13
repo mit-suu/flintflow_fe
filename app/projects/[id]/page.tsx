@@ -116,6 +116,7 @@ import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
 import { isPhaseUnit, unitOfStep, useStepRunner } from "./hooks/useStepRunner";
+import { RunOnce } from "./_components/RunOnce";
 import { useFlags } from "./hooks/useFlags";
 import { useDocument } from "./hooks/useDocument";
 import { useDocumentFollow } from "./hooks/useDocumentFollow";
@@ -1615,6 +1616,26 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     (spine?.addendum.length ?? 0) === 0;
 
   /**
+   * FLF-416 (BF §3.1.2): dự án vừa sang Luồng 2 từ file upload (chế độ 3 SRS viết dở / chế độ 4 bổ sung theo mẫu chuẩn) —
+   * phần đã có trong file là đầu vào Brief ⇒ AI tự mở lời, chỉ hỏi phần thiếu, không chờ người dùng gõ trước. Khung mẫu
+   * trống (chưa có tên hệ thống từ file) vẫn chờ người dùng kể ý tưởng.
+   */
+  const flow2AutoStart =
+    !mode1 &&
+    canEdit &&
+    onPipelineSession &&
+    stepNotStarted &&
+    !aiWorking &&
+    !!ws.project?.import_state &&
+    // Đợi phiên pipeline + Spine tải xong — chạy sớm hơn thì runner báo "phiên chỉ để hỏi đáp" (NOT_PIPELINE_SESSION)
+    !!(ws.pipelineSession?._id ?? (ws.isPipelineActive ? ws.activeSession?._id : null)) &&
+    getBaseVersion() !== null &&
+    currentStep !== null &&
+    currentStep.startsWith("B-1.") &&
+    (ws.activeSession?.messages.length ?? 0) === 0 &&
+    !!spine?.project.system_name?.trim();
+
+  /**
    * Ô chat là nút chạy (FLF-221). Bật "Sửa tài liệu" thì ChatPane đã đưa sang lệnh sửa trước khi tới đây. Còn lại xét
    * theo thứ tự: AI đang làm ⇒ khoá; đang chờ trả lời ⇒ `/answer` kèm tin (và câu đã chọn trên thẻ); ở cổng ⇒ yêu cầu
    * sửa (không bao giờ tự duyệt); bước tới lượt chưa chạy ⇒ chạy cả giai đoạn với tin làm lời mở; còn lại ⇒ hỏi đáp.
@@ -2141,6 +2162,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           }
         >
           {showOpening && <ChatOpening disabled={aiWorking} onPick={(chip) => void sendFromChat(chip.message, chip.intent)} />}
+          {flow2AutoStart && currentStep && <RunOnce onRun={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn

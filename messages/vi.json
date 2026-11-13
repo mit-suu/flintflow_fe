@@ -2870,7 +2870,7 @@
         "next": {
           "mode1": "File đủ khung. Bấm Bắt đầu để FlintFlow đọc nội dung và tạo bản gốc 0.1 - sau đó bạn sửa tài liệu qua chat.",
           "mode3": "Còn {missing} mục trống. FlintFlow đọc phần đã có rồi chuyển sang soạn các mục còn thiếu cùng bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
-          "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót.",
+          "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. FlintFlow đọc phần đã có rồi cùng bạn soạn các mục còn thiếu, giữ style file của bạn và sắp lại bố cục theo mẫu chuẩn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
           "mode3Template": "File là khung mẫu, chưa có nội dung để đọc. Bấm Bắt đầu để FlintFlow lấy khung này làm đích rồi cùng bạn soạn {missing} mục, bắt đầu từ ý tưởng của bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
           "mode4Template": "File là khung mẫu, chưa có nội dung để đọc. Bấm Bắt đầu để FlintFlow lấy khung này làm đích rồi cùng bạn soạn {missing} mục còn thiếu so với mẫu chuẩn FlintFlow."
         },
@@ -2967,9 +2967,8 @@
         },
         "mode4": {
           "title": "File còn thiếu {missing} mục so với mẫu chuẩn FlintFlow",
-          "body": "Hiện chỉ tải được bản DRAFT và báo cáo thiếu sót.",
-          "draft": "Tải bản DRAFT",
-          "gapReport": "Tải báo cáo thiếu sót"
+          "body": "FlintFlow giữ nguyên các mục bạn đã viết, soạn các mục còn thiếu cùng bạn trong workspace và sắp lại bố cục theo mẫu chuẩn FlintFlow.",
+          "draft": "Soạn phần còn thiếu"
         }
       },
       "saveToOrg": {

@@ -2870,7 +2870,7 @@
         "next": {
           "mode1": "The file has the full outline. Press Start and FlintFlow reads the content and creates the original version 0.1 - then you edit the document in chat.",
           "mode3": "{missing} sections are empty. FlintFlow reads what is there, then drafts the missing sections with you; the credits for drafting are shown after you approve the Brief.",
-          "mode4": "{missing} sections are missing compared with the FlintFlow standard template. After reading, only the DRAFT and the gap report can be downloaded for now.",
+          "mode4": "{missing} sections are missing compared with the FlintFlow standard template. FlintFlow reads what you have written, then drafts the missing sections with you, keeping your file's styles and rearranging the layout to the standard template; the drafting credits are shown after you approve the Brief.",
           "mode3Template": "This file is a blank template with no content to read yet. Press Start and FlintFlow will use it as the target and write the {missing} sections with you, starting from your idea; the credits for writing are shown after you approve the Brief.",
           "mode4Template": "This file is a blank template with no content to read yet. Press Start and FlintFlow will use it as the target and write the {missing} sections missing against the FlintFlow standard template with you."
         },
@@ -2967,9 +2967,8 @@
         },
         "mode4": {
           "title": "The file is missing {missing} sections compared with the FlintFlow standard template",
-          "body": "For now only the DRAFT and the gap report can be downloaded.",
-          "draft": "Download the DRAFT",
-          "gapReport": "Download gap report"
+          "body": "FlintFlow keeps the sections you wrote, drafts the missing ones with you in the workspace and rearranges the layout to the FlintFlow standard template.",
+          "draft": "Draft the missing sections"
         }
       },
       "saveToOrg": {
