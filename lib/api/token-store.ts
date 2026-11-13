@@ -1,5 +1,8 @@
 /**
- * Token store — nơi duy nhất giữ access token (bộ nhớ + localStorage/cookie).
+ * Token store — nơi duy nhất giữ access token. Token **chỉ nằm trong bộ nhớ**: không localStorage, sessionStorage
+ * hay cookie đọc được bằng JS, để một lỗi XSS không lấy được token cất sẵn. Tải lại trang / mở tab mới thì lấy
+ * token mới qua `/auth/refresh` (cookie refresh `httpOnly` do BE đặt) — AuthGuard làm việc đó.
+ * Các tab đồng bộ token với nhau qua `BroadcastChannel` (truyền thẳng giữa các tab, không ghi xuống đĩa).
  * Module lá: không import gì trong `lib/` để `client.ts` và `auth.ts` cùng dùng mà không tạo vòng import.
  */
 
@@ -15,9 +18,34 @@ export interface JwtPayload {
 
 let accessToken: string | null = null;
 
+type AuthMessage = { type: "token"; token: string } | { type: "clear" };
+
+const AUTH_CHANNEL_NAME = "flintflow-auth";
+
+/** Kênh giữa các tab. Tab nhận tin chỉ cập nhật bộ nhớ của nó, không phát lại (không vòng lặp). */
+const authChannel: BroadcastChannel | null = (() => {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return null;
+  const channel = new BroadcastChannel(AUTH_CHANNEL_NAME);
+  channel.onmessage = (event: MessageEvent<AuthMessage>) => {
+    accessToken = event.data?.type === "token" ? event.data.token : null;
+  };
+  // Node (vitest) giữ tiến trình sống khi còn kênh mở; trình duyệt không có `unref`
+  (channel as { unref?: () => void }).unref?.();
+  return channel;
+})();
+
+const broadcast = (message: AuthMessage) => authChannel?.postMessage(message);
+
+/** Token mà bản cũ cất ở storage / cookie FE: xoá để không còn nằm lại trên máy. JS không đụng được tới cookie `httpOnly` của BE. */
+const purgeLegacyToken = () => {
+  localStorage.removeItem("accessToken");
+  sessionStorage.removeItem("accessToken");
+  document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+};
+
 /**
  * Chế độ "Ghi nhớ tài khoản" (chọn ở trang đăng nhập), lưu ở localStorage để các lần refresh sau biết
- * nơi cất token:
+ * nơi cất `userRole` (không bí mật; `proxy.ts` đọc cookie này để biết có phiên):
  * - bền (mặc định): localStorage + cookie 30 ngày — đóng trình duyệt vẫn còn đăng nhập;
  * - `"session"`: sessionStorage + cookie phiên — đóng trình duyệt là mất (khớp cookie phiên của BE).
  */
@@ -62,14 +90,10 @@ export function decodeJwt(token: string): JwtPayload | null {
   }
 }
 
-export const getStoredAuthToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-
-  const storedToken = localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken");
-  if (storedToken) return storedToken;
-
-  const match = document.cookie.match(/(?:^|; )accessToken=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
+/** Xoá token trong bộ nhớ của mọi tab (đăng xuất). */
+export const clearAccessToken = () => {
+  accessToken = null;
+  broadcast({ type: "clear" });
 };
 
 /**
@@ -77,12 +101,18 @@ export const getStoredAuthToken = (): string | null => {
  * `409 NO_ACTIVE_ORG`, nên đọc cùng một nguồn thì không bao giờ lệch.
  */
 export const getActiveOrgId = (): string | null => {
-  const token = getStoredAuthToken();
+  const token = getAccessToken();
   return (token ? decodeJwt(token)?.orgId : null) ?? null;
 };
 
+/**
+ * Có phiên đăng nhập không, kể cả khi tab vừa mở chưa kịp refresh lấy token vào bộ nhớ: dựa vào `userRole`
+ * (không bí mật) lưu cùng lúc đăng nhập và xoá lúc đăng xuất.
+ */
+export const hasSession = (): boolean => getUserRole() !== null;
+
 export const getUserRole = (): string | null => {
-  const token = getStoredAuthToken();
+  const token = getAccessToken();
   if (token) {
     const decoded = decodeJwt(token);
     if (decoded?.role) return decoded.role;
@@ -100,11 +130,12 @@ export const getUserRole = (): string | null => {
 };
 
 /**
- * Lưu access token. `options.persistent` chỉ truyền lúc vừa đăng nhập (đổi chế độ ghi nhớ); các lần
- * refresh sau không truyền ⇒ giữ chế độ đã chọn.
+ * Lưu access token vào bộ nhớ (và gửi cho các tab khác). `options.persistent` chỉ truyền lúc vừa đăng nhập
+ * (đổi chế độ ghi nhớ); các lần refresh sau không truyền ⇒ giữ chế độ đã chọn.
  */
 export const saveAuthToken = (token: string, role?: string, options?: { persistent?: boolean }) => {
   setAccessToken(token);
+  broadcast({ type: "token", token });
   if (typeof window !== "undefined") {
     if (options?.persistent !== undefined) setSessionPersistence(options.persistent);
     const persistent = isPersistentSession();
@@ -118,11 +149,9 @@ export const saveAuthToken = (token: string, role?: string, options?: { persiste
     const existingRole = getUserRole();
     const resolvedRole = role || decoded?.role || existingRole || "user";
 
-    staleStore.removeItem("accessToken");
+    purgeLegacyToken();
     staleStore.removeItem("userRole");
-    store.setItem("accessToken", token);
     store.setItem("userRole", resolvedRole);
-    document.cookie = `accessToken=${token}; path=/${cookieLifetime}; SameSite=Lax`;
     document.cookie = `userRole=${resolvedRole}; path=/${cookieLifetime}; SameSite=Lax`;
   }
 };
