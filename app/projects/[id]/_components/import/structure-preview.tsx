@@ -48,6 +48,10 @@ interface StructurePreviewProps {
   onStart: () => void;
   onDownloadGapReport: () => void;
   onPickAnother: () => void;
+  /** FLF-412: khối Giữ nội dung / Bỏ chữ theo mục (đặt trên bản đồ mục). */
+  textSections?: React.ReactNode;
+  /** FLF-412: đang lưu lựa chọn Bỏ chữ ⇒ chưa cho Bắt đầu (BE phải nhận lựa chọn trước khi viết lại file). */
+  startBlocked?: boolean;
   /** Thẻ "Lưu làm mẫu tổ chức" (file giữ khung). */
   footer?: React.ReactNode;
   /** Preflight chưa chắc file là SRS (`document_kind = unknown`) — vẫn cho đi tiếp, nhắc xem kỹ. */
@@ -61,7 +65,7 @@ interface StructurePreviewProps {
  * tự trong file (Có / Còn trống / Ngoài phạm vi), báo cáo thiếu sót sơ bộ, một dòng credit + nút Bắt đầu. Không hỏi thêm gì:
  * cấu trúc đích đã chốt ở hộp Tạo dự án.
  */
-export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, unsureKind = false, playKey = "preview" }: StructurePreviewProps) {
+export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, textSections, startBlocked = false, unsureKind = false, playKey = "preview" }: StructurePreviewProps) {
   const t = useTranslations("workspace.import.preview");
   const summary = preview?.summary ?? null;
   const counted = summary ? summary.present + summary.missing : 0;
@@ -91,7 +95,12 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
             </button>
           </p>
           <h2 className="text-title font-bold text-on-surface">{summary ? t(summary.missing === 0 ? `summary.${summary.kind}Full` : `summary.${summary.kind}`, { present: summary.present, total: counted }) : t("summary.legacy")}</h2>
-          {preview && summary && <p className="text-body text-on-surface-variant leading-relaxed">{t(`next.mode${preview.resolved_mode}`, { missing: summary.missing })}</p>}
+          {/* FLF-411 U1-1: khung mẫu không có phần nào để "đọc" — câu riêng, không hứa đọc phần đã có / bản gốc 0.1 */}
+          {preview && summary && (
+            <p className="text-body text-on-surface-variant leading-relaxed">
+              {t(summary.kind === "template" && preview.resolved_mode !== 1 ? `next.mode${preview.resolved_mode}Template` : `next.mode${preview.resolved_mode}`, { missing: summary.missing })}
+            </p>
+          )}
         </div>
         {preview && summary && (
           <div className="flex flex-col gap-3 rounded-card bg-surface-container p-4">
@@ -132,6 +141,8 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
         </p>
       )}
 
+      {textSections}
+
       {preview && <StructureAbsorb sections={preview.sections} playKey={playKey} />}
 
       {/* Thanh hành động dính đáy vùng cuộn: credit + Bắt đầu luôn trong tầm mắt, không phải cuộn xuống tìm */}
@@ -156,7 +167,7 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
             </>
           )}
         </p>
-        <Button onClick={onStart} disabled={short} loading={busy} iconRight="arrow-right">
+        <Button onClick={onStart} disabled={short || startBlocked} loading={busy} iconRight="arrow-right">
           {busy ? t("starting") : t("start")}
         </Button>
       </div>

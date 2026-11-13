@@ -4,13 +4,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useStepRunner } from "./useStepRunner";
+import { ApiClientError } from "@/lib/api/client";
 
 const runStep = vi.fn();
 const submitGate = vi.fn();
 const answerStep = vi.fn();
+const runPhase = vi.fn();
 
 vi.mock("@/lib/api/pipeline", () => ({
-  runPhase: vi.fn(),
+  runPhase: (...args: unknown[]) => runPhase(...args),
   submitGate: (...args: unknown[]) => submitGate(...args),
   runStep: (...args: unknown[]) => runStep(...args),
   answerStep: (...args: unknown[]) => answerStep(...args),
@@ -19,12 +21,15 @@ vi.mock("@/lib/api/pipeline", () => ({
   cancelRun: vi.fn().mockResolvedValue({ data: { cancelled: true, run_id: null } }),
 }));
 
+vi.mock("@/lib/api/spine", () => ({ getSpine: vi.fn().mockResolvedValue({ data: { spine_version: 9 } }) }));
+
 const gateReady = { type: "gate_ready" as const, step_id: "B-0.1", actions: ["accept" as const, "revision" as const], regenerate_used: 0, calls_used: 1 };
 
 beforeEach(() => {
   runStep.mockReset();
   submitGate.mockReset();
   answerStep.mockReset().mockResolvedValue({ data: {} });
+  runPhase.mockReset();
 });
 
 describe("gate revision", () => {
@@ -78,5 +83,29 @@ describe("answer với đáp án thẻ + chữ gõ", () => {
 
     expect(answerStep).toHaveBeenCalledTimes(1);
     expect(answerStep).toHaveBeenCalledWith("p1", "B-0.1", { session_id: "s1", answers: [{ question_id: "Q1", answer: "Web" }], message: "Lễ tân và bác sĩ" });
+  });
+});
+
+describe("FLF-411 #20: nhắn sửa ở thẻ cổng đã cũ", () => {
+  it("chạy lại đúng bước đó kèm lời nhắn (dừng ở cổng thật), không chạy cả giai đoạn để bước tự qua", async () => {
+    runStep.mockImplementation(async (_p: string, s: string, _r: unknown, h: { onEvent: (e: unknown) => void }) => h.onEvent({ ...gateReady, step_id: s }));
+    const { result } = renderHook(() => useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 4, onSpineChanged: vi.fn() }));
+    await act(async () => result.current.run("B-1.1"));
+    submitGate.mockRejectedValueOnce(new ApiClientError(409, "STEP_NOT_RUNNABLE", "Bước B-1.1 không ở cổng chốt"));
+    runStep.mockClear();
+
+    await act(async () => result.current.gate("revision", "đổi tên hệ thống thành ShuttleBook"));
+
+    expect(runPhase).not.toHaveBeenCalled();
+    expect(runStep).toHaveBeenCalledTimes(1);
+    expect(runStep.mock.calls[0][1]).toBe("B-1.1");
+    expect(runStep.mock.calls[0][2]).toMatchObject({ message: "đổi tên hệ thống thành ShuttleBook" });
+    await waitFor(() => expect(result.current.state.status).toBe("gate_ready"));
+
+    // Duyệt bản sửa ⇒ chuỗi chạy tiếp giai đoạn B-1
+    submitGate.mockResolvedValueOnce({ data: { spine_version: 10, next_step: "B-1.2" } });
+    await act(async () => result.current.gate("accept"));
+    expect(runPhase).toHaveBeenCalledTimes(1);
+    expect(runPhase.mock.calls[0][1]).toBe("B-1");
   });
 });

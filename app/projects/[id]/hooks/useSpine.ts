@@ -24,8 +24,8 @@ const newer = (current: Spine | null, next: Spine): Spine =>
 
 /** `GET /projects/:id/spine`; `version` là `spine_version` dùng làm `base_version` khi ghi. */
 /**
- * `canEdit` = false (Viewer): không gọi `POST /resume` khi mở — đó là thao tác ghi (revert step bỏ dở), Viewer luôn
- * nhận 403. Viewer chỉ đọc Spine.
+ * `canEdit` = false (Viewer, hoặc dự án mode 1 không có step): không gọi `POST /resume` khi mở — đó là thao tác ghi (revert
+ * step bỏ dở), Viewer luôn nhận 403, dự án mode 1 nhận 409. Khi đó chỉ đọc Spine.
  */
 export function useSpine(projectId: string, enabled = true, canEdit = true): UseSpineResult {
   const [spine, setSpine] = useState<Spine | null>(null);

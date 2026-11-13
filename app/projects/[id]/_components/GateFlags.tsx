@@ -24,15 +24,24 @@ interface GateFlagsProps {
   /** Bỏ qua cờ kèm lý do (waive). Ném lỗi khi BE từ chối. */
   onKeepFlag?: (flag: GateNewFlag, reason: string) => Promise<void>;
   locked: boolean;
+  /**
+   * FLF-411 U1-4: ô lý do "Giữ nguyên" mở / đóng. Thẻ cổng khoá "Đúng rồi, đi tiếp" khi ô đang mở — bấm đi tiếp lúc đó làm ô
+   * biến mất và cờ qua luôn không lý do (BF nguyên tắc 6: Giữ nguyên **+ lý do**).
+   */
+  onKeepingChange?: (open: boolean) => void;
 }
 
 /**
  * Phần cờ của tin gate: cờ đỏ đang chặn ký baseline (chip tới chỗ bị chặn) và cờ mới của lượt này (chip "Sửa theo đề xuất"
  * / "Giữ nguyên"). Màu chỉ phụ trợ — mỗi khối luôn có câu nói rõ mức độ.
  */
-export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [], onFixFlag, onKeepFlag, locked }: GateFlagsProps) {
+export default function GateFlags({ blockingFlags = [], onGoToStep, newFlags = [], onFixFlag, onKeepFlag, locked, onKeepingChange }: GateFlagsProps) {
   const t = useTranslations("workspace.gateFlags");
-  const [keeping, setKeeping] = useState<string | null>(null);
+  const [keeping, setKeepingState] = useState<string | null>(null);
+  const setKeeping = (id: string | null) => {
+    setKeepingState(id);
+    onKeepingChange?.(id !== null);
+  };
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

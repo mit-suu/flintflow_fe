@@ -87,6 +87,14 @@ const withMeta = (code: string | null | undefined, locale: Locale, meta?: Record
     const one = new Intl.PluralRules(locale).select(meta.missing) === "one";
     return ERRORS[locale][one ? "TRANSLATION_INCOMPLETE_COUNT_ONE" : "TRANSLATION_INCOMPLETE_COUNT"].replace("{missing}", String(meta.missing));
   }
+  // File bị từ chối: nêu luôn lý do BE đã phát hiện (tối đa 3) để người dùng biết sửa gì
+  if (code === "IMPORT_FILE_REJECTED" && Array.isArray(meta?.issues)) {
+    const reasons = meta.issues
+      .map((issue) => (issue as { message?: unknown } | null)?.message)
+      .filter((m): m is string => typeof m === "string" && m.trim() !== "")
+      .slice(0, 3);
+    if (reasons.length > 0) return `${ERRORS[locale].IMPORT_FILE_REJECTED} ${reasons.join("; ")}`;
+  }
   return undefined;
 };
 

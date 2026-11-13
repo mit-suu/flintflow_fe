@@ -69,7 +69,7 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
   const showLog = state.status !== "reconnecting" && state.status !== "interrupted" && activityLines(state.events, working, locale).length > 0;
   // Đang chờ user trả lời: thẻ hỏi đã nói rõ tới lượt ai — chỉ còn nhật ký những việc đã làm, không có dòng nào khác.
   if (state.status === "needs_input" && !showLog) return null;
-  // Lỗi / gián đoạn: page đã có khối báo lỗi hoặc dải "Chạy lại" — dòng giai đoạn cũ ("Đang xem còn thiếu gì…") trông như AI
+  // Lỗi / gián đoạn: page đã có khối báo lỗi hoặc dải "Chạy lại" — dòng giai đoạn cũ ("Đang đọc và chuẩn bị trả lời…") trông như AI
   // vẫn chạy, còn câu "bị gián đoạn" thì lặp đúng câu của dải (E2E FAP #6, #8).
   if ((state.status === "error" || state.status === "interrupted") && !showLog) return null;
   const headline =

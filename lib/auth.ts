@@ -1,8 +1,8 @@
-import { decodeJwt, getStoredAuthToken, setAccessToken } from "./api/token-store";
+import { clearAccessToken, decodeJwt, getAccessToken } from "./api/token-store";
 import { clearDocumentImageCache } from "./api/document-image-cache";
 
 // Hàm token nằm ở `lib/api/token-store.ts`; re-export để giữ đường import cũ `lib/auth`.
-export { decodeJwt, getStoredAuthToken, getUserRole, saveAuthToken, setSessionPersistence } from "./api/token-store";
+export { decodeJwt, getAccessToken, getUserRole, saveAuthToken, setSessionPersistence } from "./api/token-store";
 export type { JwtPayload } from "./api/token-store";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
@@ -25,9 +25,10 @@ const logoutOnServer = (): Promise<void> => {
 };
 
 export const clearAuthToken = (): Promise<void> => {
-  setAccessToken(null);
+  clearAccessToken();
   clearDocumentImageCache();
   if (typeof window !== "undefined") {
+    // `accessToken` ở storage chỉ còn ở máy chạy bản cũ — xoá luôn cho sạch
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userRole");
     sessionStorage.removeItem("accessToken");
@@ -52,7 +53,7 @@ export const logoutAndRedirect = async (to = "/login"): Promise<void> => {
 };
 
 export const isAuthenticated = (): boolean => {
-  const token = getStoredAuthToken();
+  const token = getAccessToken();
   if (!token) return false;
 
   // Check if token is expired

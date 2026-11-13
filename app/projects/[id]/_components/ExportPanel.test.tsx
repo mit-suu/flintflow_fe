@@ -172,7 +172,7 @@ describe("ExportPanel", () => {
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
 
-    expect(await screen.findByText("Số cờ đỏ sẽ in vào §I")).toBeInTheDocument();
+    expect(await screen.findByText("Số cờ đỏ sẽ in vào mục Record of Changes")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 });
@@ -311,7 +311,7 @@ describe("ExportPanel - ngôn ngữ tài liệu (FLF-265)", () => {
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage={null} />);
 
-    await screen.findByText("Số cờ đỏ sẽ in vào §I");
+    await screen.findByText("Số cờ đỏ sẽ in vào mục Record of Changes");
     expect(screen.queryByText("Ngôn ngữ")).toBeNull();
   });
 });
@@ -332,7 +332,7 @@ describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
 
   it("không bật (mode 1) hoặc chưa biết ngôn ngữ ⇒ không có lựa chọn ngôn ngữ file", async () => {
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" />);
-    await screen.findByText("Số cờ đỏ sẽ in vào §I");
+    await screen.findByText("Số cờ đỏ sẽ in vào mục Record of Changes");
     expect(screen.queryByRole("radiogroup", { name: "Ngôn ngữ file" })).toBeNull();
   });
 
@@ -416,5 +416,12 @@ describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
     fireEvent.click(within(await screen.findByRole("radiogroup", { name: "Ngôn ngữ file" })).getByRole("radio", { name: "Tiếng Việt" }));
     fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
     expect(await screen.findByText(/chưa tải được bằng ngôn ngữ khác/)).toBeInTheDocument();
+  });
+
+  it("còn cờ đỏ mục thiếu sau đổi mẫu ⇒ cảnh báo chưa phát hành được (vẫn tải bản nháp)", async () => {
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
+    const flag = { id: "F1", level: "red" as const, rule_id: "template_section_migration_missing", section_id: "custom:new", message: "m", remediation_step: "", opened_at_version: 1, resolved_at: null, waived_by_user: false, waive_reason: null, waived_at_version: null };
+    renderWithIntl(<ExportPanel projectId="p1" onClose={() => {}} flags={[flag]} />);
+    expect(await screen.findByText(/Còn 1 mục của mẫu mới chưa viết/)).toBeInTheDocument();
   });
 });

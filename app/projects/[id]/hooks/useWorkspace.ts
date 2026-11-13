@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { ApiClientError, apiCall, refreshSession } from "@/lib/api";
 import { ChatStreamError, streamChatMessage } from "@/lib/ai-stream";
 import { isAiErrorCode } from "@/lib/ai-error-codes";
-import { getStoredAuthToken, isAuthenticated, logoutAndRedirect } from "@/lib/auth";
+import { getAccessToken, isAuthenticated, logoutAndRedirect } from "@/lib/auth";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { OrgRole } from "@/types/organization";
@@ -213,7 +213,7 @@ export function useWorkspace(
       } catch (err) {
         console.error("Workspace init failed:", err);
         if ((err as { status?: number }).status === 401) {
-          if (!getStoredAuthToken()) {
+          if (!getAccessToken()) {
             await logoutAndRedirect();
           } else if (isAuthenticated()) {
             // Token còn hạn mà BE vẫn 401 ⇒ phiên thật sự không hợp lệ

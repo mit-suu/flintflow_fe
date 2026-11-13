@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "@/components/Logo";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -24,7 +25,10 @@ interface WorkspaceHeaderProps {
   /** Rail tiến độ đang ẩn ⇒ đầu header có nút hiện lại + logo (logo nằm trên rail khi rail mở). */
   progressHidden?: boolean;
   onShowProgress?: () => void;
-  /** Bước hiện tại của tiến độ — để nút "Về" nói rõ quay về đâu. */
+  /**
+   * TÊN bước hiện tại của tiến độ (vd "Người dùng & việc cần làm") — để nút "Về" nói rõ quay về đâu. Không truyền mã bước
+   * (`B-1.2`): mã nội bộ không được hiện cho người dùng (FLF-411 #22).
+   */
   currentStep?: string | null;
   /** Đang xem bước khác bước hiện tại ⇒ cho đường quay lại (L9). */
   onBackToCurrent?: () => void;
@@ -129,7 +133,7 @@ export default function WorkspaceHeader({
             aria-label={t("backAria", { step: currentStep })}
             className="shrink-0"
           >
-            <span className="hidden sm:inline">{t("back", { step: currentStep })}</span>
+            <span className="hidden sm:inline max-w-[16rem] truncate">{t("back", { step: currentStep })}</span>
           </Button>
         )}
         {actions}
@@ -178,6 +182,8 @@ export default function WorkspaceHeader({
           <span className="hidden md:inline">{t("export")}</span>
         </Button>
         {onEnterFocus && <IconButton icon="expand" label={t("enterFocus")} onClick={onEnterFocus} />}
+        {/* Màn hẹp header đã chật: đổi ngôn ngữ vẫn có ở trang chủ / hồ sơ */}
+        <LocaleSwitcher className="hidden sm:inline-flex shrink-0" />
         <DropdownMenu
           trigger={(props) => (
             <button
