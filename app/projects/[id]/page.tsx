@@ -73,6 +73,7 @@ import type { TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
+import { isFlagInGateScope } from "./_components/gate-helpers";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
@@ -405,7 +406,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
   // CR vừa ghi bản nháp (1.1, 1.2…) ⇒ khung phải tải lại tài liệu, version và gói thay đổi
   const crChat = useCrChat(projectId, mode1, () => onSpineChangedRef.current());
-  const spineState = useSpine(projectId, ws.ready, ws.canEdit);
+  // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
+  const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
   // Nguồn duy nhất cho cờ mở — trước đây `VerificationPane` tự gọi `useFlags` nội bộ và
   // `DocumentPane` không nhận `flags` nên nút "xem tại step" chết; nâng lên đây, truyền xuống cả hai.
@@ -871,6 +873,18 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // Giai đoạn hiển thị theo bước đang làm: `current_phase` còn là phase vừa xong khi `current_step` đã sang phase kế
   const shownPhase = steps?.steps.find((s) => s.id === currentStep)?.phase ?? currentPhase;
   const runnerStep = runner.state.stepId;
+  /**
+   * FLF-411 #22: bước đang xem bám theo bước hiện tại. Chọn bước (thẻ chốt vừa qua chọn `next_step`, hoặc user bấm đúng bước
+   * đang làm) rồi bước hiện tại tự sang bước kế (chat "đi tiếp" ở cổng) thì lựa chọn cũ không được giữ lại — nếu không chip
+   * bước đầu chat vẫn ghi bước cũ và nút "Về …" hiện dù người dùng chưa đi đâu. Đổi state ngay khi render (không qua effect).
+   */
+  const [followedStep, setFollowedStep] = useState<string | null>(currentStep);
+  if (currentStep !== followedStep) {
+    setFollowedStep(currentStep);
+    if (selectedStepId !== null && (selectedStepId === followedStep || selectedStepId === currentStep)) {
+      setSelection((s) => ({ id: null, nonce: s.nonce }));
+    }
+  }
   const viewedStep = selectedStepId ?? currentStep;
   const viewedSummary = steps?.steps.find((s) => s.id === viewedStep);
 
@@ -1545,9 +1559,22 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // Cờ MỚI của lượt này: BE chỉ báo số cờ đỏ/vàng tăng thêm (`red_delta`/`yellow_delta`), nên lấy chừng ấy cờ mở mới nhất.
   // Giả định chưa xác nhận đã có chip "Đúng rồi, đi tiếp" lo, không nêu lần hai ở đây.
   const gateFlagDelta = runner.state.phaseGate?.flags ?? gate?.payload?.flags;
+  // FLF-411 #19: chỉ cờ của mục mà bước (hoặc giai đoạn) của cổng sở hữu — không lấy cờ mới nhất của cả tài liệu
+  const gateScope = {
+    stepId: runner.state.phaseGate?.step_id ?? runnerStep,
+    phase: runner.state.phaseGate?.phase ?? null,
+    stepIds: runner.state.phaseGate?.steps.map((s) => s.step_id),
+  };
   const newestOpenFlags = (level: "red" | "yellow", count: number) =>
     flags
-      .filter((f) => f.level === level && !f.resolved_at && (level === "red" || !f.waived_by_user) && f.rule_id !== "unconfirmed_assumption")
+      .filter(
+        (f) =>
+          f.level === level &&
+          !f.resolved_at &&
+          (level === "red" || !f.waived_by_user) &&
+          f.rule_id !== "unconfirmed_assumption" &&
+          isFlagInGateScope(f, gateScope)
+      )
       .sort((a, b) => b.opened_at_version - a.opened_at_version)
       .slice(0, Math.max(0, count));
   const newGateFlags: GateNewFlag[] =
@@ -1558,7 +1585,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           .map((f) => ({
             id: f.id,
             level: f.level === "red" ? "red" : "yellow",
-            message: readableMessage(f.message, f.section_id, sectionLabels.get(f.section_id)),
+            message: readableMessage(f.message, f.section_id, panelSectionNames.get(f.section_id)),
             waivable: isFlagWaivable(f.rule_id),
           }));
   const viewingAccepted = viewedSummary?.status === "accepted" && viewedStep !== runnerStep && !reopenable;
@@ -1927,7 +1954,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           progressHidden={!mode1 && !railShown}
           onShowProgress={toggleProgress}
           // FLF-221: không còn nút chạy — gõ chat là chạy
-          currentStep={mode1 ? null : currentStep}
+          // #22 FLF-411: nút "Về …" nói tên bước, không mã bước
+          currentStep={mode1 || !currentStep ? null : stepLabel(currentStep, locale)}
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
           // Mode 1: gap report, change request, so sánh version mở dạng popup ngay trên màn tài liệu
@@ -2125,7 +2153,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <p className="leading-relaxed">
                 {t.rich("page.staleNotice", {
                   step: stepLabel(viewedStep, locale),
-                  sections: staleSectionsOfViewed.map((id) => sectionLabels.get(id) ?? id).join(", "),
+                  sections: staleSectionsOfViewed.map((id) => panelSectionNames.get(id) ?? id).join(", "),
                   strong: (chunks) => <strong>{chunks}</strong>,
                 })}
               </p>
@@ -2469,7 +2497,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             // Bản đồ truy vết chọn thực thể từ Spine đang mở — không gọi thêm request
             spine={spine ?? undefined}
             issues={{
-              sectionLabelOf: (id) => sectionLabels.get(id),
+              sectionLabelOf: (id) => panelSectionNames.get(id),
               onShowSection: showSection,
               focusSectionId: issueSectionId,
               // "Hoà giải" cũ: gom các mục đã cũ, AI viết lại cho khớp, xem trước rồi áp (mode 1 sửa qua CR nên không có)

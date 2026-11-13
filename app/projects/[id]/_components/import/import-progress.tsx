@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useReducedMotion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import type { ExtractionSection, HeadingMapEntry, ImportedDocument, ImportStatus } from "@/types/import";
 import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
+import { importSectionTitle, sortByFileOrder } from "./section-titles";
 
 interface ImportProgressProps {
   doc: ImportedDocument;
@@ -19,6 +21,18 @@ interface ImportProgressProps {
   /** Nút Dừng lúc đang đọc nội dung (`POST /import/pause`). */
   onPause?: () => void;
   pausing?: boolean;
+  /**
+   * FLF-411 U1-2: chế độ thật (BE `target_structure.resolved_mode`) và loại file (`structure_preview.summary.kind`). Chỉ chế độ 1
+   * ghép thành bản gốc 0.1; chế độ 3 / 4 bắt đầu baseline 1.0 sau khi soạn (BF §2). Khung mẫu không có nội dung để trích.
+   */
+  resolvedMode?: 1 | 3 | 4 | null;
+  fileKind?: "written" | "template" | null;
+  /**
+   * FLF-411 (U2-8): mã mục của màn đọc khung (`structure_preview.sections[].section_id`). Có ⇒ số mục và danh sách dòng chỉ
+   * tính các mục đó, khớp số "x/y mục" của màn đọc khung — heading tính năng (`feature:@B…`) BE vẫn đọc nhưng màn đọc khung
+   * coi là heading nhóm, không đếm. Mục đọc lỗi luôn hiện. Không có (import cũ) ⇒ đủ `extraction.sections` như trước.
+   */
+  previewSectionIds?: readonly string[] | null;
 }
 
 const PHASES = ["read", "build", "check"] as const;
@@ -28,8 +42,6 @@ type RowState = "done" | "active" | "todo" | "failed";
 /** Pha hiện tại theo trạng thái import do BE trả — FE không tự suy tiến độ. */
 const phaseOf = (status: ImportStatus): Phase => (status === "checking" ? "check" : status === "baselining" ? "build" : "read");
 
-/** Tên mục khi màn đọc khung không có (bản ghi cũ): bỏ tiền tố mã (`fixed:2.1` ⇒ `2.1`). */
-const fallbackTitle = (sectionId: string) => sectionId.replace(/^[a-z_]+:/, "").replace(/^@/, "");
 
 const ROW_LOOK: Record<RowState, { icon: "check-circle" | "spinner" | "error-circle" | null; className: string; pill: string }> = {
   done: { icon: "check-circle", className: "text-success", pill: "bg-success-soft text-success" },
@@ -44,15 +56,23 @@ const ROW_LOOK: Record<RowState, { icon: "check-circle" | "spinner" | "error-cir
  * ba bước Đọc nội dung → Dựng tài liệu → Kiểm tra. Chạy nền trên BE, rời trang được. Dừng ⇒ banner Tiếp tục; AI quá tải ⇒
  * dòng "đang đọc lại".
  */
-export default function ImportProgress({ doc, sections, headings, busy = false, onResume, onPause, pausing = false }: ImportProgressProps) {
+export default function ImportProgress({ doc, sections: allSections, headings, busy = false, onResume, onPause, pausing = false, resolvedMode = null, fileKind = null, previewSectionIds = null }: ImportProgressProps) {
   const t = useTranslations("workspace.import.progress");
+  const locale = useLocale() as Locale;
+  const template = fileKind === "template";
+  const hintKey = (phase: Phase): `phaseHint.${Phase | "buildDraft" | "readTemplate"}` =>
+    phase === "read" && template ? "phaseHint.readTemplate" : phase === "build" && (template || (resolvedMode !== null && resolvedMode !== 1)) ? "phaseHint.buildDraft" : `phaseHint.${phase}`;
   const reduceMotion = useReducedMotion();
   const paperRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLLIElement>(null);
   const current = phaseOf(doc.status);
   const currentIndex = PHASES.indexOf(current);
-  const done = sections.filter((s) => s.status === "done").length;
-  const total = sections.length;
+  // Cùng tập mục với màn đọc khung (U2-8): số "x/y mục" chỉ đếm tập đó; mục lỗi ngoài tập vẫn hiện dòng để người dùng thấy
+  const preview = useMemo(() => (previewSectionIds?.length ? new Set(previewSectionIds) : null), [previewSectionIds]);
+  const counted = useMemo(() => (preview ? allSections.filter((s) => preview.has(s.section_id)) : allSections), [allSections, preview]);
+  const sections = useMemo(() => (preview ? allSections.filter((s) => preview.has(s.section_id) || s.status === "failed") : allSections), [allSections, preview]);
+  const done = counted.filter((s) => s.status === "done").length;
+  const total = counted.length;
   // Tiêu đề theo mã khối heading và theo mã mục registry (heading đầu tiên khớp)
   const titles = useMemo(() => {
     const map = new Map<string, string>();
@@ -63,14 +83,16 @@ export default function ImportProgress({ doc, sections, headings, busy = false, 
     return map;
   }, [headings]);
   // `feature:@B1023` / `function:@B1023` ⇒ khối B1023; `fixed:2.1` ⇒ mục registry
-  const titleOf = (id: string) => (id.includes("@") ? titles.get(id.slice(id.lastIndexOf("@") + 1)) : titles.get(id)) ?? fallbackTitle(id);
+  const titleOf = (id: string) => importSectionTitle(id, id.includes("@") ? titles.get(id.slice(id.lastIndexOf("@") + 1)) : titles.get(id), locale);
+  // Thứ tự theo file (như màn đọc khung), không theo thứ tự BE đọc
+  const ordered = useMemo(() => sortByFileOrder(sections, headings), [sections, headings]);
   // Mục đang đọc = mục chờ đầu tiên khi còn ở pha đọc và không dừng (BE đọc lần lượt)
   const stoppedByUser = doc.paused?.reason === "user";
   /** Loại thẻ dừng: người dùng dừng · hết credit · bước chạy nền bị gián đoạn (máy chủ khởi động lại / job lỗi) · AI lỗi. */
   const pauseKind = !doc.paused ? null : stoppedByUser ? "user" : doc.paused.reason === "credits" ? "credits" : doc.status === "baselining" ? "interrupted" : "ai";
   // Dừng chỉ có ở bước đọc nội dung (bước tốn credit theo từng mục), khi đang chạy
   const canStop = !!onPause && current === "read" && !doc.paused;
-  const activeId = current === "read" && !doc.paused ? sections.find((s) => s.status === "pending")?.section_id : undefined;
+  const activeId = current === "read" && !doc.paused ? allSections.find((s) => s.status === "pending")?.section_id : undefined;
 
   // Trang tự cuộn để mục đang đọc luôn trong tầm mắt
   useEffect(() => {
@@ -135,11 +157,11 @@ export default function ImportProgress({ doc, sections, headings, busy = false, 
           <h3 className="min-h-6 flex items-center text-body font-bold text-on-surface-medium">{t("documentLabel")}</h3>
           <div className="flex-1 min-h-0 flex flex-col rounded-card bg-surface-container-lowest shadow-[0_1px_2px_rgba(30,25,60,0.06),0_10px_30px_-14px_rgba(30,25,60,0.22)] overflow-hidden">
             <div ref={paperRef} className="overflow-y-auto ff-scroll" style={{ maxHeight: "max(320px, calc(100dvh - 400px))" }}>
-              {total === 0 ? (
+              {sections.length === 0 ? (
                 <p className="px-8 py-10 text-body text-on-surface-muted">{t("noSections")}</p>
               ) : (
                 <ol className="relative flex flex-col px-5 sm:px-7 py-5 gap-0.5">
-                  {sections.map((s) => {
+                  {ordered.map((s) => {
                     const state: RowState = s.status === "done" ? "done" : s.status === "failed" ? "failed" : s.section_id === activeId ? "active" : "todo";
                     const look = ROW_LOOK[state];
                     return (
@@ -212,7 +234,7 @@ export default function ImportProgress({ doc, sections, headings, busy = false, 
                     </span>
                     <span className="flex-1 min-w-0 flex flex-col">
                       <span className={`text-body font-semibold ${state === "todo" ? "text-on-surface-muted" : "text-on-surface"}`}>{t(`phase.${phase}`)}</span>
-                      <span className="text-caption text-on-surface-muted">{t(`phaseHint.${phase}`)}</span>
+                      <span className="text-caption text-on-surface-muted">{t(hintKey(phase))}</span>
                     </span>
                     <span className="sr-only">{t(`state.${state}`)}</span>
                   </li>

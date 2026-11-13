@@ -712,6 +712,15 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
             .catch(() => undefined);
           onSpineChanged(fresh);
           dispatch({ type: "reset" });
+          // FLF-411 #20: user nhắn sửa ở thẻ cổng đã cũ ⇒ chạy lại ĐÚNG bước đó với lời nhắn (lượt lẻ luôn dừng ở cổng thật),
+          // giữ giai đoạn để duyệt xong chuỗi chạy tiếp. Chạy cả giai đoạn ở đây thì bước vừa sửa thường "im" ⇒ tự Accept, thẻ
+          // cổng + thẻ cờ biến mất và quy trình nhảy sang bước kế mà user chưa thấy bản sửa.
+          if (note && (action === "revision" || action === "regenerate") && !isPhaseUnit(stepId)) {
+            const unit = unitOfStep(stepId);
+            await run(stepId, { message: note, standalone: false });
+            phaseRef.current = unit;
+            return "ok";
+          }
           await runWholePhase(unitOfStep(stepId) ?? stepId, note ? { message: note } : {});
           return "ok";
         }

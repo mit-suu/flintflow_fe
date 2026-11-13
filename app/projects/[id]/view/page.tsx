@@ -436,6 +436,7 @@ export default function ReadOnlyDocumentPage() {
                 <ViewDocument
                   doc={doc}
                   projectId={projectId}
+                  language={language ?? "en"}
                   isIncomplete={isIncomplete}
                   pinCounts={pinCounts}
                   canComment={canComment}

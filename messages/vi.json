@@ -1607,6 +1607,7 @@
       "acceptAsIs": "✓ Duyệt như hiện tại",
       "leadOnly": "Chỉ Lead ký được baseline. Bạn nộp baseline để Lead duyệt ở panel Kiểm tra.",
       "signBaseline": "Ký baseline",
+      "finishKeepFirst": "Gửi hoặc huỷ lý do \"Giữ nguyên\" trước khi đi tiếp",
       "accept": "Đúng rồi, đi tiếp",
       "wantEdit": "Tôi muốn sửa",
       "more": "Thêm lựa chọn",
@@ -1733,6 +1734,7 @@
       "diagramLoadFailed": "Không tải được hình sơ đồ.",
       "mediaNotEmbedded": "Không nhúng được ảnh gốc (định dạng không hỗ trợ).",
       "mediaLoadFailed": "Không tải được ảnh.",
+      "mediaNotShown": "Ảnh của file gốc - không hiển thị được ở đây.",
       "diagramNotDrawn": "Sơ đồ chưa vẽ được",
       "diagramNotDrawnHint": "Bấm thử lại để vẽ lại sơ đồ này từ dữ liệu hiện tại.",
       "diagramNotDrawnReadOnly": "Sơ đồ sẽ hiện khi được vẽ lại thành công.",
@@ -1864,6 +1866,10 @@
           "title": "Mục bắt buộc còn trống",
           "hint": "Bước viết mục này đã chốt mà chưa điền gì - mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat."
         },
+        "link": {
+          "title": "Chưa gắn chức năng",
+          "hint": "Màn hình, use case hoặc tính năng này chưa có chức năng nào gắn vào - gõ lệnh sửa trong chat để thêm hoặc gắn chức năng."
+        },
         "reaccept": {
           "title": "Cần bạn duyệt lại",
           "hint": "Bước soạn mục này đã mở lại - chạy lại bước rồi duyệt để gỡ."
@@ -1929,7 +1935,7 @@
       "baselineCheckFailedWith": "Không kiểm tra được baseline: {error}",
       "loading": "Đang tải thông tin tài liệu…",
       "version": "Phiên bản",
-      "redCount": "Số cờ đỏ sẽ in vào §I",
+      "redCount": "Số cờ đỏ sẽ in vào mục Record of Changes",
       "redOpenCount": "Cờ đỏ đang mở",
       "downloadFailed": "Tải file thất bại",
       "downloading": "Đang tải…",
@@ -2013,7 +2019,7 @@
       "sourceRefPlaceholder": "Ví dụ: Biên bản họp 15/10, email ngày 12/10",
       "reason": "Lý do thay đổi",
       "reasonPlaceholder": "Ví dụ: Stakeholder đổi yêu cầu ở họp 20/09",
-      "reasonNote": "Câu này đi vào §I Record of Changes của tài liệu.",
+      "reasonNote": "Câu này đi vào mục Record of Changes của tài liệu.",
       "confirmNoChange": "Xác nhận không đổi",
       "close": "Đóng"
     },
@@ -2864,7 +2870,9 @@
         "next": {
           "mode1": "File đủ khung. Bấm Bắt đầu để FlintFlow đọc nội dung và tạo bản gốc 0.1 - sau đó bạn sửa tài liệu qua chat.",
           "mode3": "Còn {missing} mục trống. FlintFlow đọc phần đã có rồi chuyển sang soạn các mục còn thiếu cùng bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
-          "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót."
+          "mode4": "Thiếu {missing} mục so với mẫu chuẩn FlintFlow. Sau khi đọc, hiện chỉ tải được bản DRAFT và báo cáo thiếu sót.",
+          "mode3Template": "File là khung mẫu, chưa có nội dung để đọc. Bấm Bắt đầu để FlintFlow lấy khung này làm đích rồi cùng bạn soạn {missing} mục, bắt đầu từ ý tưởng của bạn; số credit để soạn được báo riêng sau khi bạn duyệt Brief.",
+          "mode4Template": "File là khung mẫu, chưa có nội dung để đọc. Bấm Bắt đầu để FlintFlow lấy khung này làm đích rồi cùng bạn soạn {missing} mục còn thiếu so với mẫu chuẩn FlintFlow."
         },
         "gapReport": "Tải báo cáo thiếu sót",
         "stats": {
@@ -2926,7 +2934,9 @@
         "phaseHint": {
           "read": "Trích nội dung từng mục của file",
           "build": "Ghép thành bản gốc 0.1",
-          "check": "Soát chỗ thiếu và mâu thuẫn"
+          "check": "Soát chỗ thiếu và mâu thuẫn",
+          "buildDraft": "Ghép phần đã có vào tài liệu để soạn tiếp",
+          "readTemplate": "Đánh dấu các mục của khung mẫu"
         },
         "phasesLabel": "Các bước đọc file",
         "phase": {
@@ -4207,7 +4217,76 @@
         "no": "Không"
       },
       "fromChat": "từ khung chat",
-      "wholeValue": "giá trị"
+      "wholeValue": "giá trị",
+      "change": {
+        "add": "Thêm {entity} “{name}”",
+        "addUnnamed": "Thêm một {entity}",
+        "remove": "Xoá {entity} “{name}”",
+        "removeUnnamed": "Xoá một {entity}",
+        "replace": "Sửa {entity} “{name}”",
+        "replaceUnnamed": "Sửa một {entity}",
+        "setField": "Sửa {field} của {entity} “{name}”",
+        "setFieldUnnamed": "Sửa {field} của một {entity}",
+        "setProject": "Đổi {field}",
+        "summaryCount": "{verb} {count} {entity}",
+        "summaryNames": "{part}: {names}",
+        "summaryMore": "{names} và {count} mục khác",
+        "verbs": {
+          "add": "Thêm",
+          "remove": "Xoá",
+          "set": "Sửa"
+        },
+        "projectFields": {
+          "name": "tên dự án",
+          "system_name": "tên hệ thống",
+          "vision": "tầm nhìn",
+          "goals": "mục tiêu",
+          "domain": "lĩnh vực",
+          "release_scope": "phạm vi phát hành",
+          "form_factor": "nền tảng",
+          "stakes": "mức độ quan trọng",
+          "language": "ngôn ngữ tài liệu"
+        }
+      },
+      "values": {
+        "kind": {
+          "human": "Người dùng",
+          "system": "Hệ thống ngoài",
+          "time": "Thời gian",
+          "quantitative": "Định lượng",
+          "descriptive": "Mô tả",
+          "business": "Nghiệp vụ",
+          "format": "Định dạng",
+          "required": "Bắt buộc",
+          "risk": "Rủi ro",
+          "assumption": "Giả định",
+          "open_question": "Câu hỏi còn mở",
+          "technical_risk": "Rủi ro kỹ thuật"
+        },
+        "priority": {
+          "must": "Must have",
+          "should": "Should have",
+          "could": "Could have",
+          "wont": "Won't have"
+        },
+        "category": {
+          "interface": "Giao diện",
+          "usability": "Khả dụng",
+          "reliability": "Tin cậy",
+          "performance": "Hiệu năng",
+          "other": "Khác"
+        },
+        "tier": {
+          "high": "Tổng quát",
+          "detail": "Chi tiết"
+        },
+        "status": {
+          "unconfirmed": "Chưa xác nhận",
+          "confirmed": "Đã xác nhận",
+          "rejected": "Đã bác bỏ"
+        }
+      }
+    
     },
     "fields": {
       "other": "Dữ liệu khác",

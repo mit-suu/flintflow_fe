@@ -25,7 +25,10 @@ interface WorkspaceHeaderProps {
   /** Rail tiến độ đang ẩn ⇒ đầu header có nút hiện lại + logo (logo nằm trên rail khi rail mở). */
   progressHidden?: boolean;
   onShowProgress?: () => void;
-  /** Bước hiện tại của tiến độ — để nút "Về" nói rõ quay về đâu. */
+  /**
+   * TÊN bước hiện tại của tiến độ (vd "Người dùng & việc cần làm") — để nút "Về" nói rõ quay về đâu. Không truyền mã bước
+   * (`B-1.2`): mã nội bộ không được hiện cho người dùng (FLF-411 #22).
+   */
   currentStep?: string | null;
   /** Đang xem bước khác bước hiện tại ⇒ cho đường quay lại (L9). */
   onBackToCurrent?: () => void;
@@ -130,7 +133,7 @@ export default function WorkspaceHeader({
             aria-label={t("backAria", { step: currentStep })}
             className="shrink-0"
           >
-            <span className="hidden sm:inline">{t("back", { step: currentStep })}</span>
+            <span className="hidden sm:inline max-w-[16rem] truncate">{t("back", { step: currentStep })}</span>
           </Button>
         )}
         {actions}

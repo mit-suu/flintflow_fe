@@ -277,8 +277,8 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   // Gắn kết quả với token đã tải: đổi `png` thì kết quả cũ (URL đã thu hồi) không bị dùng nhầm cho ảnh mới
   const [resolved, setResolved] = useState<{ png: string; url: string } | null>(null);
   const [failure, setFailure] = useState<{ png: string; message: string } | null>(null);
-  // Ảnh gốc mode 1 mà BE xác nhận không phải PNG/JPEG (`415`) ⇒ khung giữ chỗ + chú thích, không phải lỗi
-  const [notEmbedded, setNotEmbedded] = useState<string | null>(null);
+  // Ảnh gốc mode 1 mà BE xác nhận không phải PNG/JPEG (`415`) hoặc không có (`404`) ⇒ khung giữ chỗ + chú thích, không phải lỗi
+  const [notEmbedded, setNotEmbedded] = useState<{ png: string; message: string } | null>(null);
   // Bấm "Thử lại" ở ảnh gốc lỗi (404 / 503 / mạng) ⇒ tăng để effect tải lại; lượt lỗi không bị cache ở `lib/api`
   const [attempt, setAttempt] = useState(0);
 
@@ -308,10 +308,15 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
         }
         // Chỉ khi BE xác nhận sai định dạng mới nói "định dạng không hỗ trợ" — lỗi khác không đoán lý do
         if (isMediaRef && err instanceof ApiClientError && (err.status === 415 || err.code === MEDIA_NOT_EMBEDDABLE)) {
-          setNotEmbedded(png);
+          setNotEmbedded({ png, message: t("mediaNotEmbedded") });
           return;
         }
-        // Ảnh gốc lỗi vì lý do khác (không còn trong tài liệu, storage tạm hỏng, mạng): câu trung tính + nút thử lại
+        // FLF-411: BE xác nhận không có ảnh này (404) — lỗi vĩnh viễn, thử lại vô ích ⇒ khung giữ chỗ trung tính, không nút
+        if (isMediaRef && err instanceof ApiClientError && err.status === 404) {
+          setNotEmbedded({ png, message: t("mediaNotShown") });
+          return;
+        }
+        // Ảnh gốc lỗi tạm thời (storage tạm hỏng, mạng): câu trung tính + nút thử lại
         setFailure({ png, message: isMediaRef ? mediaLoadFailed : userErrorMessage(err, loadFailed) });
       });
     return () => {
@@ -324,7 +329,7 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
 
   const src = directSrc ?? (resolved?.png === png ? resolved.url : null);
   const error = failure?.png === png ? failure.message : null;
-  if (notEmbedded === png) return <div className={IMAGE_PLACEHOLDER_CLASS}>{t("mediaNotEmbedded")}</div>;
+  if (notEmbedded?.png === png) return <div className={IMAGE_PLACEHOLDER_CLASS}>{notEmbedded.message}</div>;
   if (error && isMediaRef) {
     return (
       <div className={IMAGE_PLACEHOLDER_CLASS}>

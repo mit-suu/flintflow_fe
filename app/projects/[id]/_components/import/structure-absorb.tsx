@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import { SECTION_BINS, binOfSection, type SectionBinKey } from "@/lib/section-bins";
 import type { StructurePreview, TargetSectionStatus } from "@/types/import";
+import type { Locale } from "@/lib/i18n";
+import { importSectionTitle } from "./section-titles";
 
 interface StructureAbsorbProps {
   sections: StructurePreview["sections"];
@@ -507,7 +509,9 @@ interface SectionBlockProps {
 
 /** Một mục như trên trang giấy: tiêu đề + hai dòng chữ giả (mục còn trống thì không có chữ) + nhãn trạng thái. */
 function SectionBlock({ section, look, statusLabel, hollow = false, raw = false }: SectionBlockProps) {
+  const locale = useLocale() as Locale;
   const lines = linesOf(section.section_id);
+  const title = importSectionTitle(section.section_id, section.title, locale);
   const hasBody = section.status !== "missing";
   return (
     <div className={`flex items-start gap-2.5 ${hollow ? "invisible" : ""}`}>
@@ -519,8 +523,8 @@ function SectionBlock({ section, look, statusLabel, hollow = false, raw = false 
         <Icon name={look.icon} size={14} className={`mt-[3px] shrink-0 ${look.icon_cls}`} />
       )}
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <span className={`text-body font-semibold truncate ${raw || section.status === "present" ? "text-on-surface" : "text-on-surface-muted"}`} title={section.title}>
-          {section.title}
+        <span className={`text-body font-semibold truncate ${raw || section.status === "present" ? "text-on-surface" : "text-on-surface-muted"}`} title={title}>
+          {title}
         </span>
         {hasBody && (
           <span aria-hidden className="flex flex-col gap-1">

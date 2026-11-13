@@ -69,7 +69,7 @@ export const readableMessage = (message: string, sectionId: string, sectionLabel
 
 // ─── gom theo việc người dùng phải làm (không theo luật) ─────────────
 
-export type IssueAction = "confirm" | "run_step" | "fill" | "reaccept" | "redraw" | "fix";
+export type IssueAction = "confirm" | "run_step" | "fill" | "link" | "reaccept" | "redraw" | "fix";
 
 const ACTION_OF_RULE: Record<string, IssueAction> = {
   unconfirmed_assumption: "confirm",
@@ -89,17 +89,23 @@ const ACTION_OF_RULE: Record<string, IssueAction> = {
 /** Luật chưa xếp ⇒ "fix" (nội dung có chỗ chưa đúng, sửa ở bước gốc hoặc bằng lệnh sửa trong chat). */
 export const actionOf = (ruleId: string): IssueAction => ACTION_OF_RULE[ruleId] ?? "fix";
 
+/** Luật "phần tử chưa gắn chức năng" (màn, use case, tính năng) — việc phải làm là gắn / thêm chức năng, không phải điền mục. */
+const LINK_RULES: ReadonlySet<string> = new Set(["screen_no_function", "usecase_no_function", "empty_feature", "orphan_screen_at_baseline"]);
+
 /**
  * FLF-248: "sẽ điền ở bước sau" chỉ đúng khi bước sở hữu CHƯA chốt. Bước đã chốt mà mục vẫn rỗng thì không
  * còn bước nào điền nữa — BE vẫn coi cờ đỏ đó chặn ký baseline, nên panel phải đếm và cho đường xử lý.
  */
 export const actionOfFlag = (flag: Pick<Flag, "rule_id" | "remediation_step">, acceptedSteps?: ReadonlySet<string>): IssueAction => {
   const action = actionOf(flag.rule_id);
-  return action === "run_step" && acceptedSteps?.has(flag.remediation_step) ? "fill" : action;
+  if (action !== "run_step" || !acceptedSteps?.has(flag.remediation_step)) return action;
+  // FLF-411 U2-3: màn / use case / tính năng chưa gắn chức năng không phải "mục bắt buộc còn trống" — nhóm riêng
+  return LINK_RULES.has(flag.rule_id) ? "link" : "fill";
 };
 
+
 /** Thứ tự hiện các nhóm. Tiêu đề + câu giải thích của mỗi nhóm: `workspace.flags.action.<action>`. */
-export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "reaccept", "redraw", "run_step"];
+export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "link", "reaccept", "redraw", "run_step"];
 
 export interface ActionGroup {
   action: IssueAction;

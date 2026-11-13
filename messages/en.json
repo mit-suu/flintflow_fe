@@ -1607,6 +1607,7 @@
       "acceptAsIs": "✓ Approve as is",
       "leadOnly": "Only a Lead can sign the baseline. Submit the baseline for the Lead to approve in the Review panel.",
       "signBaseline": "Sign baseline",
+      "finishKeepFirst": "Send or cancel the \"Keep as is\" reason before continuing",
       "accept": "Looks good, continue",
       "wantEdit": "I want to edit",
       "more": "More options",
@@ -1733,6 +1734,7 @@
       "diagramLoadFailed": "Could not load the diagram image.",
       "mediaNotEmbedded": "The original image could not be embedded (unsupported format).",
       "mediaLoadFailed": "Could not load the image.",
+      "mediaNotShown": "Image from the original file - cannot be shown here.",
       "diagramNotDrawn": "Diagram could not be drawn",
       "diagramNotDrawnHint": "Retry to redraw this diagram from the current data.",
       "diagramNotDrawnReadOnly": "The diagram will appear once it is redrawn successfully.",
@@ -1864,6 +1866,10 @@
           "title": "Required section still empty",
           "hint": "The step that writes this section was approved without filling it - reopen the step so AI fills it, or type an edit command in chat."
         },
+        "link": {
+          "title": "No function linked yet",
+          "hint": "This screen, use case or feature has no function linked to it - type an edit command in chat to add or link one."
+        },
         "reaccept": {
           "title": "Needs your re-approval",
           "hint": "The step that drafts this section was reopened - rerun it and approve to clear this."
@@ -1929,7 +1935,7 @@
       "baselineCheckFailedWith": "Could not check baselines: {error}",
       "loading": "Loading document info…",
       "version": "Version",
-      "redCount": "Red flags to be printed in §I",
+      "redCount": "Red flags to be printed in the Record of Changes",
       "redOpenCount": "Open red flags",
       "downloadFailed": "Download failed",
       "downloading": "Downloading…",
@@ -2013,7 +2019,7 @@
       "sourceRefPlaceholder": "E.g. Meeting minutes 15/10, email of 12/10",
       "reason": "Reason for change",
       "reasonPlaceholder": "E.g. Stakeholder changed the requirement at the 20/09 meeting",
-      "reasonNote": "This sentence goes into §I Record of Changes of the document.",
+      "reasonNote": "This sentence goes into the Record of Changes section of the document.",
       "confirmNoChange": "Confirm no change",
       "close": "Close"
     },
@@ -2864,7 +2870,9 @@
         "next": {
           "mode1": "The file has the full outline. Press Start and FlintFlow reads the content and creates the original version 0.1 - then you edit the document in chat.",
           "mode3": "{missing} sections are empty. FlintFlow reads what is there, then drafts the missing sections with you; the credits for drafting are shown after you approve the Brief.",
-          "mode4": "{missing} sections are missing compared with the FlintFlow standard template. After reading, only the DRAFT and the gap report can be downloaded for now."
+          "mode4": "{missing} sections are missing compared with the FlintFlow standard template. After reading, only the DRAFT and the gap report can be downloaded for now.",
+          "mode3Template": "This file is a blank template with no content to read yet. Press Start and FlintFlow will use it as the target and write the {missing} sections with you, starting from your idea; the credits for writing are shown after you approve the Brief.",
+          "mode4Template": "This file is a blank template with no content to read yet. Press Start and FlintFlow will use it as the target and write the {missing} sections missing against the FlintFlow standard template with you."
         },
         "gapReport": "Download gap report",
         "stats": {
@@ -2926,7 +2934,9 @@
         "phaseHint": {
           "read": "Extract the content of each section",
           "build": "Assemble baseline 0.1",
-          "check": "Check for gaps and conflicts"
+          "check": "Check for gaps and conflicts",
+          "buildDraft": "Put the existing content into the document to continue writing",
+          "readTemplate": "Mark the sections of the template"
         },
         "phasesLabel": "Reading steps",
         "phase": {
@@ -4207,7 +4217,76 @@
         "no": "No"
       },
       "fromChat": "from the chat",
-      "wholeValue": "value"
+      "wholeValue": "value",
+      "change": {
+        "add": "Add {entity} “{name}”",
+        "addUnnamed": "Add a new {entity}",
+        "remove": "Remove {entity} “{name}”",
+        "removeUnnamed": "Remove one {entity}",
+        "replace": "Edit {entity} “{name}”",
+        "replaceUnnamed": "Edit one {entity}",
+        "setField": "Edit the {field} of {entity} “{name}”",
+        "setFieldUnnamed": "Edit the {field} of one {entity}",
+        "setProject": "Change the {field}",
+        "summaryCount": "{verb} {count} {entity}",
+        "summaryNames": "{part}: {names}",
+        "summaryMore": "{names} and {count} more",
+        "verbs": {
+          "add": "Add",
+          "remove": "Remove",
+          "set": "Edit"
+        },
+        "projectFields": {
+          "name": "project name",
+          "system_name": "system name",
+          "vision": "vision",
+          "goals": "goals",
+          "domain": "domain",
+          "release_scope": "release scope",
+          "form_factor": "platform",
+          "stakes": "stakes",
+          "language": "document language"
+        }
+      },
+      "values": {
+        "kind": {
+          "human": "Human user",
+          "system": "External system",
+          "time": "Time",
+          "quantitative": "Quantitative",
+          "descriptive": "Descriptive",
+          "business": "Business",
+          "format": "Format",
+          "required": "Required",
+          "risk": "Risk",
+          "assumption": "Assumption",
+          "open_question": "Open question",
+          "technical_risk": "Technical risk"
+        },
+        "priority": {
+          "must": "Must have",
+          "should": "Should have",
+          "could": "Could have",
+          "wont": "Won't have"
+        },
+        "category": {
+          "interface": "Interface",
+          "usability": "Usability",
+          "reliability": "Reliability",
+          "performance": "Performance",
+          "other": "Other"
+        },
+        "tier": {
+          "high": "High level",
+          "detail": "Detail"
+        },
+        "status": {
+          "unconfirmed": "Unconfirmed",
+          "confirmed": "Confirmed",
+          "rejected": "Rejected"
+        }
+      }
+    
     },
     "fields": {
       "other": "Other data",

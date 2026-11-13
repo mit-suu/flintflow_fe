@@ -66,6 +66,29 @@ describe("view/page.tsx - read-only projection (UC 1.14)", () => {
     expect(screen.queryByLabelText("Tóm tắt độ sẵn sàng")).not.toBeInTheDocument();
   });
 
+  it("FLF-411 (#13): có bảng I. Record of Changes của tài liệu trước các mục, cột theo ngôn ngữ tài liệu", async () => {
+    const doc = {
+      projectId: P,
+      projectName: "Demo",
+      version: "v0.2",
+      source: "draft",
+      generatedAt: "2026-11-12T00:00:00.000Z",
+      sections: [{ id: "fixed:1", number: "1", heading: "Product Overview", level: 1, blocks: [{ type: "paragraph", runs: [{ text: "Vision" }] }] }],
+      recordOfChanges: [{ date: "2026-11-12", version: "v0.2", change_type: "M", in_charge: "Tuan Anh", description: "CR-001: Update system name" }],
+    };
+    mockServer.use(http.get("*/projects/:projectId/document", () => HttpResponse.json({ data: doc, error: null, meta: { assembled_at_version: 1, spine_version: 1, stale: false } })));
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    const roc = (await screen.findByText("I. Record of Changes", { selector: "h3" })).closest("article")!;
+    expect(within(roc).getByText("In charge")).toBeInTheDocument();
+    expect(within(roc).getByText("Tuan Anh")).toBeInTheDocument();
+    expect(within(roc).getByText("CR-001: Update system name")).toBeInTheDocument();
+    // Bảng đứng trước mục đầu tiên như bản Word
+    const headings = Array.from(document.querySelectorAll("h3")).map((h) => h.textContent);
+    expect(headings.indexOf("I. Record of Changes")).toBeLessThan(headings.indexOf("1. Product Overview"));
+  });
+
   it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa hoàn thiện'", async () => {
     await assembleDocument(P, await version());
 

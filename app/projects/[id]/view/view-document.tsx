@@ -7,7 +7,26 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import Skeleton from "@/components/ui/Skeleton";
 import { BlockView, depthOf, followsHeading, headingSize, sectionLabel } from "../_components/DocumentPane";
-import type { RenderedDocument, RenderedSection } from "@/types/document";
+import type { Block, RenderedDocument, RenderedSection, RocRow } from "@/types/document";
+import type { DocumentLanguage } from "@/types/project";
+
+/**
+ * Chữ của bảng Record of Changes theo **ngôn ngữ tài liệu** (không theo ngôn ngữ giao diện) — khớp `WRITER_TEXT` của BE
+ * (`render/labels.ts`): tiêu đề, cột, chú thích như bản Word.
+ */
+const ROC_TEXT: Readonly<Record<DocumentLanguage, { title: string; header: string[]; legend: string }>> = {
+  en: { title: "I. Record of Changes", header: ["Date", "Version", "A*, M, D", "In charge", "Change Description"], legend: "*A - Added, M - Modified, D - Deleted" },
+  vi: { title: "I. Lịch sử thay đổi", header: ["Ngày", "Phiên bản", "A*, M, D", "Người thực hiện", "Mô tả thay đổi"], legend: "*A - Thêm, M - Sửa, D - Xoá" },
+};
+
+/** Khoá section §I Record of Changes (BE `section-registry`). */
+const ROC_SECTION_ID = "fixed:I";
+
+const recordOfChangesBlock = (rows: readonly RocRow[], language: DocumentLanguage): Block => ({
+  type: "table",
+  header: ROC_TEXT[language].header.map((text) => [{ text }]),
+  rows: rows.map((r) => [r.date, r.version, r.change_type, r.in_charge, r.description].map((text) => [{ text }])),
+});
 
 /** Khoá của một chỗ ghim: `section_id` hoặc `section_id#block`. Dùng chung cho đếm, đánh dấu và cuộn tới. */
 export const pinKey = (sectionId: string, blockIndex: number | null): string => (blockIndex === null ? sectionId : `${sectionId}#${blockIndex}`);
@@ -18,6 +37,8 @@ export const pinDomId = (key: string): string => `pin-${key}`;
 interface ViewDocumentProps {
   doc: RenderedDocument;
   projectId: string;
+  /** Ngôn ngữ tài liệu — chữ bảng Record of Changes theo nó. */
+  language: DocumentLanguage;
   isIncomplete: (section: RenderedSection) => boolean;
   /** Số comment của tab đang mở theo `pinKey`. */
   pinCounts: ReadonlyMap<string, number>;
@@ -35,6 +56,7 @@ interface ViewDocumentProps {
 export default function ViewDocument({
   doc,
   projectId,
+  language,
   isIncomplete,
   pinCounts,
   canComment,
@@ -86,9 +108,25 @@ export default function ViewDocument({
   const tone = (key: string): string =>
     activeKeys.has(key) ? "bg-primary-fixed" : (pinCounts.get(key) ?? 0) > 0 ? "bg-primary-soft" : "";
 
+  // FLF-411 (#13): bảng "I. Record of Changes" là một phần của tài liệu (bản Word in ở đầu) — màn Xem in như bản xuất.
+  // Mẫu của file có heading Record of Changes thành mục riêng (`fixed:I`) ⇒ bảng in trong mục đó, không in hai lần.
+  const roc = doc.recordOfChanges ?? [];
+  const rocBlock = roc.length > 0 ? recordOfChangesBlock(roc, language) : null;
+  const rocOwnSection = doc.sections.some((x) => x.id === ROC_SECTION_ID);
+
   return (
     <div className="flex flex-col gap-1">
-      {doc.sections.map((section) => {
+      {rocBlock && !rocOwnSection && (
+        <article aria-label={ROC_TEXT[language].title} className="flex flex-col gap-1 pb-2">
+          <h3 className={`min-h-8 flex items-center font-bold text-on-surface ${headingSize(1)}`}>{ROC_TEXT[language].title}</h3>
+          <div className="overflow-x-auto ff-scroll">
+            <BlockView block={rocBlock} projectId={projectId} afterHeading />
+          </div>
+          <p className="text-caption text-on-surface-subtle italic">{ROC_TEXT[language].legend}</p>
+        </article>
+      )}
+      {doc.sections.map((rawSection) => {
+        const section = rocBlock && rawSection.id === ROC_SECTION_ID ? { ...rawSection, blocks: [rocBlock] } : rawSection;
         const depth = depthOf(section);
         const heading = (
           <>
@@ -108,7 +146,7 @@ export default function ViewDocument({
             </div>
           );
         }
-        const incomplete = isIncomplete(section) || section.blocks.length === 0;
+        const incomplete = section === rawSection && (isIncomplete(section) || section.blocks.length === 0);
         return (
           <article key={section.id} aria-label={sectionLabel(section)} className="pt-4 first:pt-0 flex flex-col gap-1">
             <Pinnable id={pinDomId(sectionKey)} tone={tone(sectionKey)} gutter={gutter(section, null)}>

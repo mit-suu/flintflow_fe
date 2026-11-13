@@ -172,7 +172,7 @@ describe("ExportPanel", () => {
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} />);
 
-    expect(await screen.findByText("Số cờ đỏ sẽ in vào §I")).toBeInTheDocument();
+    expect(await screen.findByText("Số cờ đỏ sẽ in vào mục Record of Changes")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 });
@@ -311,7 +311,7 @@ describe("ExportPanel - ngôn ngữ tài liệu (FLF-265)", () => {
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage={null} />);
 
-    await screen.findByText("Số cờ đỏ sẽ in vào §I");
+    await screen.findByText("Số cờ đỏ sẽ in vào mục Record of Changes");
     expect(screen.queryByText("Ngôn ngữ")).toBeNull();
   });
 });
@@ -332,7 +332,7 @@ describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
 
   it("không bật (mode 1) hoặc chưa biết ngôn ngữ ⇒ không có lựa chọn ngôn ngữ file", async () => {
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" />);
-    await screen.findByText("Số cờ đỏ sẽ in vào §I");
+    await screen.findByText("Số cờ đỏ sẽ in vào mục Record of Changes");
     expect(screen.queryByRole("radiogroup", { name: "Ngôn ngữ file" })).toBeNull();
   });
 
