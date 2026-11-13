@@ -3106,6 +3106,10 @@
       "loading": "Loading feedback…",
       "empty": "No feedback yet.",
       "deletedAccount": "Deleted account",
+      "searchLabel": "Search feedback",
+      "searchPlaceholder": "Search by message, email or name…",
+      "results": "{count, plural, one {# result} other {# results}}",
+      "noMatch": "No feedback matches “{query}”.",
       "categories": {
         "bug": "Bug report",
         "suggestion": "Suggestion",

@@ -9,6 +9,7 @@ import {
   fetchAdminUser,
   fetchAdminUsers,
   fetchAiCost,
+  fetchAiCostPage,
   type AdminOrg,
   type AdminUserDetail,
   type AiCostReport,
@@ -42,6 +43,7 @@ vi.mock("@/lib/api/admin", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/admin")>()),
   fetchAdminMetrics: vi.fn(),
   fetchAiCost: vi.fn(),
+  fetchAiCostPage: vi.fn(),
   fetchAdminUsers: vi.fn(),
   fetchAdminUser: vi.fn(),
   fetchAdminOrgs: vi.fn(),
@@ -128,12 +130,14 @@ beforeEach(() => {
     aiFailRate7d: 0.05,
   });
   vi.mocked(fetchAiCost).mockResolvedValue(COST);
+  vi.mocked(fetchAiCostPage).mockResolvedValue({ items: COST.rows, meta: { page: 1, limit: 20, total: COST.rows.length, totalPages: 1 }, report: COST });
   vi.mocked(fetchAdminUsers).mockResolvedValue({ items: [USER], meta: META });
   vi.mocked(fetchAdminUser).mockResolvedValue(USER);
   vi.mocked(fetchAdminOrgs).mockResolvedValue({ items: [ORG], meta: META });
-  vi.mocked(fetchAdminFeedback).mockResolvedValue([
-    { _id: "f1", category: "bug", message: "Save button broken", createdAt: "2026-09-19T03:00:00Z", user: null },
-  ]);
+  vi.mocked(fetchAdminFeedback).mockResolvedValue({
+    items: [{ _id: "f1", category: "bug", message: "Save button broken", createdAt: "2026-09-19T03:00:00Z", user: null }],
+    meta: META,
+  });
 });
 
 const inShell = (page: React.ReactNode) => (

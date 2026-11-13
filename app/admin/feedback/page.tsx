@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/shadcn/badge";
-import { Card } from "@/components/shadcn/card";
+import { PagedDataList, SearchInput } from "@/components/ui";
 import { fetchAdminFeedback, formatDateTime, type AdminFeedbackItem } from "@/lib/api/admin";
 import type { FeedbackCategory } from "@/lib/api/feedback";
+import { useDebounce } from "@/lib/hooks/use-debounce";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import AdminHeader from "../_components/AdminHeader";
-import { AdminMain, AdminPageHeader, AdminScroll, ErrorBanner, LoadingBlock } from "../_components/AdminPage";
+import { AdminMain, AdminPageHeader, AdminScroll, ErrorBanner } from "../_components/AdminPage";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 /** Badge nền trắng, phân loại bằng màu viền + chữ (cùng kiểu với badge trong bảng). Nhãn ở `admin.feedback.categories`. */
@@ -17,49 +19,61 @@ const CATEGORY_CLASS: Record<FeedbackCategory, string> = {
   other: "text-muted-foreground",
 };
 
+const PAGE_SIZE = 20;
+
+/**
+ * Góp ý người dùng (UC-12) — thanh số trang (FLF-404): phân trang và tìm (không dấu, theo nội dung / email / tên người gửi)
+ * chạy ở BE. Ô tìm nằm ngoài vùng cuộn nên luôn thấy được.
+ */
 export default function AdminFeedbackPage() {
   const t = useTranslations("admin");
   const locale = useLocale();
-  const [items, setItems] = useState<AdminFeedbackItem[] | null>(null);
-  /** Lỗi tải gần nhất: giữ nguyên lỗi, dịch lúc render — đổi ngôn ngữ không phải tải lại. */
-  const [error, setError] = useState<{ cause: unknown } | null>(null);
+  const [query, setQuery] = useState("");
+  // Gõ liên tục chỉ gọi BE một lần sau khi dừng gõ
+  const q = useDebounce(query.trim(), 300);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchAdminFeedback()
-      .then((next) => {
-        if (!cancelled) setItems(next);
-      })
-      .catch((err) => {
-        if (!cancelled) setError({ cause: err });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const list = usePagedList<AdminFeedbackItem>({
+    key: q,
+    fetchPage: (page) => fetchAdminFeedback({ page, limit: PAGE_SIZE, q: q || undefined }),
+  });
 
   return (
     <>
       <AdminHeader />
       <AdminMain>
-        <AdminPageHeader
-          title={t("feedback.title")}
-          description={t("feedback.description")}
-        />
-        {error && <ErrorBanner message={userErrorMessage(error.cause, t("feedback.loadFailed"))} />}
+        <AdminPageHeader title={t("feedback.title")} description={t("feedback.description")} />
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            label={t("feedback.searchLabel")}
+            placeholder={t("feedback.searchPlaceholder")}
+            className="sm:w-[360px]"
+          />
+          {q !== "" && !list.loading && (
+            <span className="text-muted-foreground text-body tabular-nums" aria-live="polite">
+              {t("feedback.results", { count: list.total })}
+            </span>
+          )}
+        </div>
+        {list.error ? <ErrorBanner message={userErrorMessage(list.error, t("feedback.loadFailed"))} /> : null}
 
         <AdminScroll>
-          {items === null && !error ? (
-            <LoadingBlock label={t("feedback.loading")} variant="list" />
-          ) : !items || items.length === 0 ? (
-            <Card className="py-16">
-              <p className="text-muted-foreground text-center text-body">{t("feedback.empty")}</p>
-            </Card>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {items.map((item) => (
-                <Card key={item._id} className="gap-2 py-4">
-                  <div className="text-muted-foreground flex flex-wrap items-center gap-2 px-5 text-caption">
+          <PagedDataList
+            list={list}
+            getKey={(item) => item._id}
+            loadingLabel={t("feedback.loading")}
+            rowClassName="flex flex-col gap-2"
+            empty={
+              !list.error && (
+                <p className="bg-surface-container-low text-muted-foreground rounded-card px-4 py-16 text-center text-body">
+                  {q === "" ? t("feedback.empty") : t("feedback.noMatch", { query: q })}
+                </p>
+              )
+            }
+            renderItem={(item) => (
+              <>
+                <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-caption">
                   <Badge variant="outline" className={CATEGORY_CLASS[item.category]}>
                     {t(`feedback.categories.${item.category}`)}
                   </Badge>
@@ -69,11 +83,10 @@ export default function AdminFeedbackPage() {
                   {item.user?.name && <span>{item.user.email}</span>}
                   <span className="ms-auto">{formatDateTime(item.createdAt, locale)}</span>
                 </div>
-                  <p className="px-5 text-body leading-[1.6] break-words whitespace-pre-wrap">{item.message}</p>
-                </Card>
-              ))}
-            </div>
-          )}
+                <p className="text-body leading-[1.6] break-words whitespace-pre-wrap">{item.message}</p>
+              </>
+            )}
+          />
         </AdminScroll>
       </AdminMain>
     </>

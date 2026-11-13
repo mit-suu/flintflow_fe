@@ -3106,6 +3106,10 @@
       "loading": "Đang tải phản hồi…",
       "empty": "Chưa có phản hồi nào.",
       "deletedAccount": "Tài khoản đã xoá",
+      "searchLabel": "Tìm phản hồi",
+      "searchPlaceholder": "Tìm theo nội dung, email hoặc tên…",
+      "results": "{count} kết quả",
+      "noMatch": "Không có phản hồi nào khớp “{query}”.",
       "categories": {
         "bug": "Báo lỗi",
         "suggestion": "Đề xuất",

@@ -3,6 +3,7 @@ import type { CreditTransaction } from "./billing";
 import type { FeedbackCategory } from "./feedback";
 import type { OrgRole } from "@/types/organization";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import type { ListPage } from "@/lib/hooks/use-infinite-list";
 
 export type AdminUserRole = "user" | "admin";
 export type AiCostGroupBy = "day" | "actionType" | "provider" | "user";
@@ -161,6 +162,20 @@ export async function fetchAiCost(params: FetchAiCostParams = {}): Promise<AiCos
   return unwrap(res.data, "GET /admin/ai-cost");
 }
 
+/**
+ * Một trang dòng chi phí AI (FLF-404): `items` = `rows` của trang, `report` giữ phần còn lại (khoảng ngày, `totals` trên
+ * toàn bộ nhóm). Trang Metrics cần đủ mọi ngày thì gọi `fetchAiCost` (không `limit` ⇒ BE trả hết).
+ */
+export async function fetchAiCostPage(
+  params: FetchAiCostParams,
+  page: number,
+  limit: number
+): Promise<ListPage<AiCostRow> & { report: AiCostReport }> {
+  const res = await apiCall<AiCostReport>(`/admin/ai-cost${toQuery({ ...params, page, limit })}`);
+  const report = unwrap(res.data, "GET /admin/ai-cost");
+  return { items: report.rows, meta: res.meta as unknown as PageMeta, report };
+}
+
 /** Một góp ý (BE `feedback.service.listFeedback`): mới nhất trước, `user` null nếu tài khoản đã xoá. */
 export interface AdminFeedbackItem {
   _id: string;
@@ -170,9 +185,18 @@ export interface AdminFeedbackItem {
   user: { _id: string; email: string; name: string | null } | null;
 }
 
-export async function fetchAdminFeedback(): Promise<AdminFeedbackItem[]> {
-  const res = await apiCall<AdminFeedbackItem[]>("/admin/feedback");
-  return res.data ?? [];
+export interface FetchAdminFeedbackParams {
+  page?: number;
+  limit?: number;
+  /** BE tìm không dấu trong nội dung, email hoặc tên người gửi. */
+  q?: string;
+}
+
+/** Góp ý theo trang (FLF-404) — BE phân trang + tìm, mới nhất trước. */
+export async function fetchAdminFeedback(params: FetchAdminFeedbackParams = {}): Promise<ListPage<AdminFeedbackItem>> {
+  const res = await apiCall<AdminFeedbackItem[]>(`/admin/feedback${toQuery({ ...params })}`);
+  const items = res.data ?? [];
+  return { items, meta: (res.meta as unknown as PageMeta) ?? { page: 1, limit: items.length, total: items.length, totalPages: 1 } };
 }
 
 /** FLF-278: heading của mẫu bắt buộc thành mục riêng (BE `import/template-gaps.ts`). */
@@ -184,9 +208,15 @@ export interface TemplateGapRow {
   suggested_destination: string | null;
 }
 
-export async function fetchTemplateGaps(limit = 100): Promise<{ projects: number; rows: TemplateGapRow[] }> {
-  const res = await apiCall<{ projects: number; rows: TemplateGapRow[] }>(`/admin/template-gaps?limit=${limit}`);
-  return res.data ?? { projects: 0, rows: [] };
+/** Một trang thống kê (FLF-404): BE gom hết rồi cắt trang; `projects` là số dự án làm cơ sở, không theo trang. */
+export async function fetchTemplateGaps(page = 1, limit = 20): Promise<ListPage<TemplateGapRow> & { projects: number }> {
+  const res = await apiCall<{ projects: number; rows: TemplateGapRow[] }>(`/admin/template-gaps${toQuery({ page, limit })}`);
+  const data = res.data ?? { projects: 0, rows: [] };
+  return {
+    items: data.rows,
+    projects: data.projects,
+    meta: (res.meta as unknown as PageMeta) ?? { page, limit, total: data.rows.length, totalPages: 1 },
+  };
 }
 
 export type AdminOrgPlan = "free" | "pro";
