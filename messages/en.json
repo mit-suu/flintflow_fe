@@ -77,7 +77,10 @@
         "analysis_models": "Analysis models (use case, screen flow, ERD diagrams)",
         "references": "References",
         "apportioning": "Apportioning of requirements",
-        "verification": "Verification"
+        "verification": "Verification",
+        "business_rules": "Business rules",
+        "messages": "Messages",
+        "functional_requirements": "Functional requirements"
       }
     },
     "billingData": {
@@ -652,6 +655,18 @@
       "org_invitation_rejected": {
         "title": "Invitation request rejected",
         "body": "A Lead rejected the invitation for {email} to {org}."
+      },
+      "template_version_published": {
+        "title": "The organization template has version {version}",
+        "body": "{count, plural, one {# project is} other {# projects are}} on an older version. Open the project to update to the new template or leave it for later."
+      },
+      "skeleton_headings_pending": {
+        "title": "{count, plural, one {# section} other {# sections}} awaiting review for the skeleton template",
+        "body": "Sections the BA added or named differently from the standard only enter the organization template once reviewed."
+      },
+      "template_migration_failed": {
+        "title": "Template change got stuck",
+        "body": "The template change could not finish after several attempts. Open the project and choose Restore to go back to before the template change."
       }
     },
     "common": {
@@ -756,7 +771,8 @@
         "documentLanguage": "Document language",
         "erdNotation": "ERD notation",
         "archive": "Archive",
-        "hardDelete": "Delete permanently"
+        "hardDelete": "Delete permanently",
+        "screenTheme": "Screen appearance"
       },
       "gridLoading": "Loading projects",
       "select": "Select project {name}"
@@ -824,6 +840,7 @@
         "addMore": "Add files"
       },
       "orgTemplates": {
+        "uploadNew": "Upload a template to the library",
         "toggle": "Or pick an organization template ({count})",
         "toggleNoCount": "Or pick an organization template",
         "title": "Pick an organization template",
@@ -835,7 +852,11 @@
         "resultCount": "{count} matching templates",
         "noMatch": "No templates match “{query}”",
         "noMatchHint": "Try another keyword, or the template's .docx file name.",
-        "loadError": "Couldn't load templates"
+        "loadError": "Couldn't load templates",
+        "versionLabel": "Version of {name}",
+        "versionLatest": "Version {version} (latest)",
+        "versionOption": "Version {version}",
+        "nameWithVersion": "{name} · v{version}"
       },
       "stage": {
         "creating": "Creating the project…"
@@ -887,7 +908,36 @@
       "renameFailed": "Could not rename the project",
       "renameLabel": "New project name",
       "saveChanges": "Save changes",
-      "confirm": "{action} “{name}”?"
+      "confirm": "{action} “{name}”?",
+      "screenTheme": {
+        "title": "Screen appearance",
+        "colorLabel": "Primary color",
+        "hexLabel": "Color code (#RRGGBB)",
+        "hexInvalid": "The color code must look like #RRGGBB, for example #3F5591.",
+        "colorDefault": "Not chosen: using the default color.",
+        "previewBrand": "System name",
+        "previewPrimary": "Primary button",
+        "previewSecondary": "Secondary button",
+        "domainLabel": "Domain",
+        "domainPlaceholder": "e.g. shop.example.com",
+        "domainClear": "Clear domain",
+        "domainNote": "Leave empty: the address bar shows only the path.",
+        "platformLabel": "Platforms",
+        "platformAuto": "Automatic, from the project description",
+        "platform": {
+          "web": "Web",
+          "mobile": "Mobile"
+        },
+        "detail": "Applies to every Screen Layout figure of the project. Figures already drawn are redrawn right away with the new appearance, at no credit cost.",
+        "originalSummary": "Screens with an original picture: {total} · using a mockup: {mockup}",
+        "redrawAll": "Redraw all…",
+        "useOriginalAll": "Use original pictures for all",
+        "originalRestored": "All screens now use their original pictures.",
+        "cta": "Save",
+        "busy": "Saving and redrawing…",
+        "failed": "Could not update the screen appearance",
+        "runStarted": "Redrawing started in the background. Open the project to follow the progress."
+      }
     },
     "translateDialog": {
       "title": "Translate document",
@@ -1200,12 +1250,12 @@
       "library": {
         "title": "Template library",
         "intro": "Your organization's saved SRS templates, reused when creating customer-template projects.",
-        "readOnly": "You have view-only access - only Leads and Analysts can delete templates.",
+        "readOnly": "Only Leads can upload, publish and delete templates. You can still view versions and use templates when creating a project.",
         "loading": "Loading the library…",
         "delete": "Delete",
         "confirmDelete": "Confirm delete",
         "templates": {
-          "help": "To add a template: open a customer-template project and, on the document import screen, choose “Save as organization template”. Later projects pick it in the SRS slot when created, without uploading and mapping again.",
+          "help": "Each template has several versions. A Lead uploads a .docx file (or chooses “Save as organization template” on the document import screen of a customer-template project), reviews the heading mapping, then publishes it. Later projects pick the template and version in the SRS slot when created, without uploading and mapping again.",
           "empty": "Your organization has not saved any templates yet.",
           "headingsCount": "{count, plural, one {# heading} other {# headings}}",
           "customsCount": "{count} kept verbatim",
@@ -1225,13 +1275,114 @@
             "name": "Name A–Z"
           },
           "noMatch": "No template matches “{query}”.",
-          "results": "{count, plural, =0 {No results} one {# result} other {# results}}"
+          "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
+          "latest": "Latest: version {version}",
+          "draftOnly": "Nothing published yet",
+          "skeleton": "Auto-saved skeleton",
+          "pending": "{count, plural, one {# section} other {# sections}} to review",
+          "pendingHint": "Review them in the “sections to review” card of the project that produced this skeleton.",
+          "newTemplate": "Upload a new template",
+          "newNameLabel": "Template name",
+          "pickFile": "Choose .docx file",
+          "pickNewFile": ".docx file of the new template",
+          "pickVersionFile": ".docx file of the new version",
+          "publishNew": "Publish new version",
+          "delete": "Delete template",
+          "deleteVersion": "Delete version",
+          "cancel": "Cancel",
+          "confirmDelete": "Confirm delete",
+          "confirmFamily": "{count, plural, =0 {No project uses this template.} one {# project uses this template.} other {# projects use this template.}} Projects keep their own template file. Delete the template and all its versions?",
+          "confirmVersion": "{count, plural, =0 {No project is on this version.} one {# project is on this version.} other {# projects are on this version.}} Projects keep their own template file. Delete this version?",
+          "versionsLabel": "Versions of {name}",
+          "versionName": "Version {version}",
+          "versionMeta": "{date} · {projects, plural, one {# project} other {# projects}} · {file}",
+          "draft": "Draft",
+          "latestBadge": "Latest",
+          "reviewAndPublish": "Review mapping and publish",
+          "reviewTitle": "Review mapping: {name} · version {version}",
+          "contentWarning": "The template still has text in {count}/{total} sections (old content not deleted). Delete it before publishing; projects using this template drop that text by default.",
+          "publish": "Publish this version",
+          "reviewPending": "Review pending sections",
+          "hidePending": "Hide pending sections",
+          "publishedBy": "published by {name}",
+          "publishedByFormer": "published by a former member",
+          "versions": "Versions"
         },
         "rowActions": "Actions for “{name}”",
         "deleteTemplateTitle": "Delete SRS template?",
         "deleteBody": "“{name}” will be removed from your organization's library. This cannot be undone.",
         "cancel": "Cancel"
+      },
+      "templateMapping": {
+        "help": "FlintFlow matched each heading of the template file to a section of the standard template. “Needs review” marks low-confidence matches - check them and change the section if it is wrong.",
+        "onlyReview": "Only show items needing review ({count})",
+        "needsReview": "Needs review",
+        "empty": "The template file has no headings.",
+        "listLabel": "Headings of the template file"
+      },
+      "pendingHeadings": {
+        "loading": "Loading the sections to review…",
+        "help": "The sections below only enter the organization template “{name}” once reviewed.",
+        "empty": "Nothing to review.",
+        "listLabel": "Sections to review",
+        "kindCustom": "Added by the BA",
+        "kindWording": "Differs from standard name",
+        "pending": "To review",
+        "decided": {
+          "keep": "Kept as is",
+          "generic": "Kept in generic form",
+          "drop": "Dropped"
+        },
+        "standardTitle": "Closest standard name: {title}",
+        "choiceLabel": "Choose what to do with “{heading}”",
+        "choice": {
+          "keep": "Keep as is",
+          "generic": "Keep in generic form",
+          "drop": "Drop"
+        },
+        "genericLabel": "Generic name (use '{'Customer name'}' in place of a specific name)",
+        "genericRequired": "Enter a generic name for every section set to “Keep in generic form”.",
+        "save": "Save decisions",
+        "suggest": "Suggest generic names ({credits, plural, one {# credit} other {# credits}})",
+        "cardTitle": "Skeleton template sections to review",
+        "cardSummary": "{count, plural, one {# section} other {# sections}} awaiting review for this project's skeleton template",
+        "review": "Review",
+        "hide": "Collapse"
       }
+    },
+    "screenMockup": {
+      "title": "Redraw as a mockup",
+      "modeLabel": "Style",
+      "scopeLabel": "Scope",
+      "estimating": "Estimating credits…",
+      "estimateFailed": "Could not estimate the credits yet.",
+      "insufficient": "Needs {required} credits, the wallet has {available}.",
+      "failed": "Could not redraw as a mockup",
+      "inUse": "In use",
+      "subtitleScreen": "{name} screen",
+      "subtitleAll": "All {count, plural, one {# screen} other {# screens}} with an original picture",
+      "scopeThis": "This screen",
+      "scopeAllShort": "All {count, plural, one {# screen} other {# screens}}",
+      "modeSystemShort": "Standard mockup",
+      "modeSystemCard": "Clean and consistent, in the project's colors.",
+      "modeOriginalShort": "Like the original",
+      "modeOriginalCard": "Keeps the original layout. The AI also looks at the picture, so it takes longer.",
+      "groupTotal": "{count, plural, one {# screen} other {# screens}}:",
+      "groupDraw": "{count} newly drawn",
+      "groupReenable": "{count} switched back on (drawn earlier)",
+      "groupSkip": "{count} skipped (already a mockup in this style)",
+      "groupName": {
+        "draw": "Newly drawn",
+        "reenable": "Switched back on",
+        "skip": "Skipped"
+      },
+      "showScreens": "Show screens",
+      "hideScreens": "Hide",
+      "cost": "Costs {credits, plural, one {# credit} other {# credits}} · runs in the background, this dialog closes right away",
+      "costFree": "No credits needed",
+      "ctaDrawN": "Redraw {count, plural, one {# screen} other {# screens}}",
+      "ctaReenableN": "Switch back on {count, plural, one {# screen} other {# screens}}",
+      "ctaNothing": "Nothing to draw"
     }
   },
   "workspace": {
@@ -1624,7 +1775,13 @@
       "untranslated": "{count, plural, one {# section not translated} other {# sections not translated}}",
       "translate": "Translate document",
       "emptyDocument": "The document will appear here as soon as the first steps finish.",
-      "draftSection": "Ask AI to draft"
+      "draftSection": "Ask AI to draft",
+      "screenMockup": {
+        "redraw": "Redraw as a mockup",
+        "useOriginal": "Use original picture",
+        "useOriginalFailed": "Could not switch back to the original picture",
+        "drawing": "Drawing mockup…"
+      }
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -1798,7 +1955,12 @@
       "translateRest": "Translate the rest",
       "translateAskEditor": "Ask a Lead or Analyst on this project to translate the rest, then download again.",
       "languageUnavailable": "This version can't be downloaded in another language yet - download it in the document language.",
-      "close": "Close"
+      "close": "Close",
+      "mockupPending": "{count} screens are still being drawn. Exporting now uses their original pictures.",
+      "mockupWaiting": "Waiting for {count} screens to finish drawing; the draft downloads automatically when done.",
+      "mockupExportNow": "Export now",
+      "mockupWait": "Wait until drawn, then export",
+      "migrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. The draft can still be downloaded, but a new version cannot be released yet."
     },
     "change": {
       "title": "Edit by command",
@@ -2392,7 +2554,9 @@
       "goal_not_covered": "Goal not covered",
       "accepted_as_is": "Accepted as is",
       "template_section_absent": "The required template has no such section",
-      "template_section_empty": "Template section has no content yet"
+      "template_section_empty": "Template section has no content yet",
+      "template_section_migration_missing": "New template section has no content yet",
+      "section_reference_after_migration": "References a section number from the old numbering"
     },
     "comments": {
       "role": {
@@ -2680,6 +2844,22 @@
       },
       "preview": {
         "pickAnother": "Choose another file",
+        "drop": {
+          "title": "Content in the file",
+          "hint": "Took this file from another project without deleting the old text? Choose Drop text for that section: FlintFlow keeps only the section name and layout, then drafts it again for your project.",
+          "keep": "Keep content",
+          "drop": "Drop text",
+          "keepInfoLabel": "About Keep content",
+          "keepInfo": "The text in this section belongs to your project. FlintFlow reads it as project data.",
+          "dropInfoLabel": "About Drop text",
+          "dropInfo": "The text in this section belongs to the template (for example, old project content that was never deleted). FlintFlow keeps only the section name, table column headers and guidance text; sub-sections for functions, use cases and screens are dropped too. The section is drafted again for your project.",
+          "dropAll": "Drop all",
+          "keepAll": "Keep all",
+          "dropAllInfoLabel": "About Drop all",
+          "dropAllInfo": "Use this when the file is a template taken from another project and the old content was never deleted. Only the layout is kept and every section is drafted again.",
+          "keepAllInfo": "Set every section back to Keep content: FlintFlow reads all text in the file as project data.",
+          "choiceLabel": "Keep or drop the text of {title}"
+        },
         "summary": {
           "written": "Written SRS · {present}/{total} sections have content",
           "template": "Template outline · {present}/{total} sections have content",
@@ -2860,6 +3040,31 @@
       "nowFilled": "After reading in detail, {count, plural, one {section {names} already has content} other {sections {names} already have content}} - nothing to draft there.",
       "other": "After reading in detail, {count, plural, one {section {names} differs} other {sections {names} differ}} from the structure preview.",
       "dismiss": "Dismiss"
+    },
+    "screenMockupRun": {
+      "running": "Drawing mockups {done}/{total} screens",
+      "stopping": "Stopping after the current screen ({done}/{total})",
+      "runningNote": "Keep working; each finished screen shows up in the document right away.",
+      "stop": "Stop",
+      "cancelFailed": "Could not stop the drawing",
+      "finished": "Mockups drawn for {count} screens",
+      "stopped": "Stopped: {count} screens drawn, the rest keep their original pictures",
+      "interrupted": "Drawing was interrupted. Screens not drawn keep their original pictures; you can redraw them.",
+      "fellBack": "The original picture could not be read, so the standard mockup was used: {names}.",
+      "failed": "Not drawn yet (original picture kept): {names}.",
+      "retry": "Retry failed screens",
+      "retryFailed": "Could not retry",
+      "suggestedColor": "The original pictures use {color}. Apply it to the whole project?",
+      "applyColor": "Apply",
+      "applyColorFailed": "Could not apply the color to the project",
+      "dismiss": "Close",
+      "reenabled": "Mockups switched back on for {count} screens (0 credits)",
+      "nothingToDo": "These screens are already mockups in this style; nothing to redraw",
+      "chipRunning": "Mockups {done}/{total}",
+      "chipFailed": "{count, plural, one {# screen} other {# screens}} failed",
+      "chipNothing": "Already mockups",
+      "chipDone": "{count, plural, one {# screen} other {# screens}} drawn",
+      "allFailed": "{count, plural, one {# screen} other {# screens}} could not be drawn"
     }
   },
   "errors": {
@@ -3023,7 +3228,33 @@
       "retry": "Try again",
       "home": "Go to home page",
       "digest": "Error code: {digest}"
-    }
+    },
+    "TEMPLATE_MIGRATION_NO_BASELINE": "The template can only be changed once the document has a baseline.",
+    "TEMPLATE_MIGRATION_OPEN": "This project already has an unfinished template change. Continue or cancel it first.",
+    "TEMPLATE_MIGRATION_SAME_TEMPLATE": "The project already follows this template. Pick another one.",
+    "TEMPLATE_MIGRATION_STALE": "The document changed while the template change was being prepared. Review your choices and continue.",
+    "TEMPLATE_MIGRATION_CONFLICT": "Someone just edited this template change. Reload and try again.",
+    "TEMPLATE_MIGRATION_INVALID_STATE": "The template change is no longer on this step. Reload to see the latest state.",
+    "TEMPLATE_MIGRATION_UNDECIDED": "Some sections still need a choice before you can continue.",
+    "TEMPLATE_MIGRATION_APPLYING": "The project is changing its template, so no change can be written to the document right now (confirming a change request, releasing, editing in chat). Wait for the template change to finish and try again.",
+    "TEMPLATE_MIGRATION_REVERT_BLOCKED": "Changes were written after the template change, so it cannot be undone. Use Change template to go back to the previous template.",
+    "TEMPLATE_MIGRATION_LINKS_BROKEN": "Cannot apply because links between sections would break.",
+    "TEMPLATE_MIGRATION_SPINE_REJECTED": "Cannot apply because the content after the template change is not valid.",
+    "TEMPLATE_MIGRATION_TARGET_UNAVAILABLE": "The target template's file is no longer in storage. Pick another template.",
+    "TEMPLATE_MIGRATION_BUILD_FAILED": "Could not build the document file for the new template. Try another template or file.",
+    "TEMPLATE_MIGRATION_TRANSLATION_FAILED": "Translating the content to the new template's language failed. Nothing was written; try again later.",
+    "TEMPLATE_MIGRATION_FILE_TOO_LARGE": "The template file is too large or too complex.",
+    "TEMPLATE_MIGRATION_NO_SNAPSHOT": "The template change has no snapshot left to undo.",
+    "ORG_TEMPLATE_IN_USE_BY_MIGRATION": "This template is the target of an unfinished template change.",
+    "TEMPLATE_MIGRATION_MAPPING_LOCKED": "An organization template has locked mapping. Only a template file uploaded for this project can be remapped.",
+    "ORG_TEMPLATE_VERSION_PUBLISHED": "This version is already published or does not belong to the organization library.",
+    "ORG_TEMPLATE_VERSION_CONFLICT": "Someone just published a new version of this template. Reload and try again.",
+    "ORG_TEMPLATE_NOT_FOUND": "Organization template not found.",
+    "ORG_TEMPLATE_VERSION_NOT_FOUND": "This version of the template was not found.",
+    "SKELETON_CONFLICT": "Someone else just reviewed the skeleton template. Reload to see it.",
+    "SKELETON_NOT_FOUND": "The project has no auto-saved skeleton template.",
+    "SKELETON_SUGGEST_FAILED": "Could not suggest generic names. Try again later.",
+    "IMPORT_FILE_REJECTED": "This file could not be read."
   },
   "maintenance": {
     "metaTitle": "Under maintenance · FlintFlow",
@@ -3789,7 +4020,8 @@
         "viewer_comment": "Viewer feedback",
         "verbal": "Verbal request",
         "chat": "Chat edit command (legacy CR)",
-        "reference_document": "Reference document (extracted requirements)"
+        "reference_document": "Reference document (extracted requirements)",
+        "template_migration": "Template change"
       },
       "foundBy": {
         "spine_link": "Field link",
@@ -3966,7 +4198,9 @@
         "conflict": "Conflicts with another change",
         "import_needs_review": "Needs review",
         "template_section_absent": "The template has no such section",
-        "template_section_empty": "Template section is empty"
+        "template_section_empty": "Template section is empty",
+        "template_section_migration_missing": "New template section has no content yet",
+        "section_reference_after_migration": "References a section number from the old numbering"
       },
       "violations": {
         "schema_invalid": "The AI proposed editing a place that does not exist in the document.",
@@ -4205,7 +4439,8 @@
       "reuploadTitle": "Re-upload edited file",
       "crTitleWithId": "Change request {id}",
       "crTitle": "Change request",
-      "backToList": "← Change request list"
+      "backToList": "← Change request list",
+      "templateTitle": "Change document template"
     },
     "workspaceTools": {
       "flagsTitle": "Flags & change requests",
@@ -4243,7 +4478,8 @@
       "confirmChanges": "Send change request",
       "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable - if something is wrong, release a new version.",
       "releasing": "Releasing…",
-      "confirmRelease": "Confirm release"
+      "confirmRelease": "Confirm release",
+      "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing."
     },
     "paused": {
       "title": "{what} is paused - {reason, select, credits {out of credit} interrupted {it was interrupted} other {AI failed after 2 retries}}",
@@ -4430,6 +4666,196 @@
       "creating": "Creating…",
       "problems": "{count, plural, =1 {1 item} other {# items}} still missing a drop reason or an answer.",
       "approveFailed": "Could not approve the list"
+    },
+    "templateMigration": {
+      "loading": "Loading…",
+      "actionFailed": "The template change did not go through",
+      "stepsLabel": "Template change steps",
+      "steps": {
+        "target": "Pick template",
+        "pairs": "Match sections",
+        "groups": "Decisions",
+        "summary": "Apply"
+      },
+      "stale": "The document changed while this was being prepared, so nothing was applied. Review your choices on this step and continue.",
+      "applyingElsewhere": "This template change is being applied in another session. Wait for it to finish, then reload.",
+      "refresh": "Reload",
+      "appliedNote": "The document now follows template {name} (version {version}).",
+      "changeAgain": "Switch to another template",
+      "cancelMigration": "Cancel template change",
+      "banner": {
+        "aria": "Template has a new version",
+        "message": "«{name}» has version {version} (this project follows version {current}).",
+        "update": "Update",
+        "later": "Later"
+      },
+      "entry": {
+        "aria": "Change document template",
+        "title": "Document template",
+        "help": "Move the content to another template: a newer version, an older version or an uploaded file. Matching sections are copied as they are; you decide on missing and extra ones.",
+        "currentOrg": "Current template: {name} · version {version}",
+        "currentSkeleton": "Current template (auto-saved skeleton): {name} · version {version}",
+        "currentProject": "Current template: file uploaded for this project · version {version}",
+        "currentOwnFile": "Uses the project's own template file (no organization template yet).",
+        "openHelp": "A template change is still in progress.",
+        "change": "Change template",
+        "resume": "Continue template change",
+        "noBaseline": "No baseline yet. The template can only be changed once the document has a baseline.",
+        "draftLocked": "The draft is waiting for the Lead's review. Change the template after the review.",
+        "applying": "A template change is being applied. Wait for it to finish.",
+        "loadFailed": "Could not load the template change status",
+        "applyFailed": "Applying the template change got stuck after several recovery attempts. The draft is unchanged from before the template change; press Restore to close this attempt, then try again.",
+        "restore": "Restore"
+      },
+      "picker": {
+        "intro": "Pick the template the document will move to. Any version of an organization template works, including versions older than the current one.",
+        "previous": "Go back to the template used before the latest change (version {version}). Untouched sections return to the original; for edited ones you choose to keep or drop the edit.",
+        "previousNamed": "Go back to template {name} (version {version}), used before the latest change. Untouched sections return to the original; for edited ones you choose to keep or drop the edit.",
+        "usePrevious": "Back to previous template",
+        "orgTitle": "Organization templates",
+        "loading": "Loading templates…",
+        "loadFailed": "Could not load templates. You can still upload a template file.",
+        "orgEmpty": "The organization has no published template.",
+        "meta": "{file} · {headings} sections",
+        "versionLabel": "Version of template {name}",
+        "versionLatest": "Version {version} (latest)",
+        "versionOption": "Version {version}",
+        "use": "Switch to this template",
+        "searchLabel": "Search templates",
+        "searchPlaceholder": "Search by template or file name…",
+        "noMatch": "No template matches \"{query}\".",
+        "pickHint": "Pick a template from the list.",
+        "selectedLabel": "Selected: {name}",
+        "versionPick": "Version",
+        "badgeCurrent": "Current",
+        "badgeNew": "New version",
+        "isCurrent": "The project already uses this version",
+        "useAria": "Switch to template {name} version {version}",
+        "fileTitle": "Upload a template file",
+        "fileHelpLead": "A new .docx becomes this project's template. As Lead you can also publish it to the organization library.",
+        "fileHelpAnalyst": "The .docx is used for this project only and is not added to the organization library.",
+        "fileLabel": "Template file (.docx)",
+        "chooseFile": "Choose file",
+        "noFile": "No file chosen",
+        "publish": "Publish to the organization library",
+        "nameLabel": "Template name in the library",
+        "nameRequired": "Enter a template name to publish it to the library.",
+        "useFile": "Use this file",
+        "familyLabel": "Publish to",
+        "familyNew": "A new template",
+        "familyNext": "New version of {name}",
+        "previousPrivate": "Go back to {name} (version {version}): the project's own copy of the template file it used before the latest change. Untouched sections return to the original; for edited ones you choose to keep or drop the edit."
+      },
+      "pairs": {
+        "help": "Each section of the current document is matched to a section of the new template. Fix a pair if the match is wrong. Headings of individual use cases, functions and screens follow their parent section, so they are not listed separately.",
+        "mappingSummary": "How the new template's headings were read",
+        "reviewCount": "{count, plural, one {# pair needs review} other {# pairs need review}}",
+        "listLabel": "Match old sections to new sections",
+        "needsReview": "Review",
+        "manual": "Edited by you",
+        "noPair": "No match",
+        "confirm": "Confirm matches",
+        "mappingEditable": "This template file belongs to the project only: change which FlintFlow section each heading of the new template maps to. Pairs and groups are recalculated right away.",
+        "mappingLocked": "The organization template was already reviewed by a Lead in the library, so it is read-only here. Adjust pairs in the list below."
+      },
+      "groups": {
+        "restored": "{count, plural, one {# untouched section} other {# untouched sections}} will return to the original",
+        "conflictTitle": "Choose how to place ({count})",
+        "conflictHelp": "A table with different columns, a split section, or a Record of Changes table that differs from the old one. Pick one, or let AI arrange it (uses credits).",
+        "conflictKind": {
+          "table_columns": "Table columns changed",
+          "split_section": "Section split",
+          "record_of_changes": "Record of Changes"
+        },
+        "columnsOld": "Old columns: {columns}",
+        "columnsNew": "New columns: {columns}",
+        "extraTitle": "Sections with no place in the new template ({count})",
+        "extraHelp": "Nothing is deleted automatically: keep as a custom section, move into a missing section of the new template, or delete.",
+        "followers": "with {count} child sections - their data is not deleted with it",
+        "missingTitle": "In the new template, not in the document ({count})",
+        "missingHelp": "Added empty with the template's guidance text. Sections that need content get a red flag and block release until you write them.",
+        "needsContent": "Needs writing",
+        "matchedTitle": "Matching sections, copied as they are ({count})",
+        "droppedNote": "{count, plural, one {# group heading has} other {# group headings have}} no content and will be dropped.",
+        "needsReview": "Review",
+        "editedTitle": "Edited since the previous template change ({count})",
+        "editedHelp": "Keep: keep the current content under the old template. Discard: restore the original content from before the edit (change request history stays).",
+        "editedMeta": "{count, plural, one {# edit} other {# edits}}",
+        "keep": "Keep",
+        "discard": "Discard",
+        "keepAll": "Keep all",
+        "discardAll": "Discard all",
+        "choose": "Choose",
+        "pick": "Choose how to handle it…",
+        "aiSuffix": "(uses AI)",
+        "undecided": "{count, plural, one {# section still needs a choice} other {# sections still need a choice}}",
+        "continue": "Continue",
+        "dropFromPrintHelp": "Remove from print: the data stays in the document and comes back when you undo. Only free-text sections can be deleted."
+      },
+      "choices": {
+        "keep_custom": "Keep as a custom section",
+        "delete": "Delete",
+        "map_by_header": "Match by column name",
+        "keep_old_table": "Keep the old table",
+        "ai_resolve": "Let AI arrange it",
+        "move_to": "Move into “{target}”",
+        "to": "Place in “{target}”",
+        "drop_from_print": "Remove from print"
+      },
+      "summary": {
+        "intro": "The document will move to template {name} (version {version}). Review, then apply.",
+        "countsLabel": "Sections per group",
+        "rows": {
+          "matched": "Matching",
+          "missing": "Missing",
+          "extra": "Extra",
+          "conflict": "Need a placement",
+          "restored": "Back to original",
+          "edited": "Edited since the change"
+        },
+        "creditTitle": "Estimated credits",
+        "creditTranslation": "Translation ({batches} batches)",
+        "creditMoves": "Structured section moves ({count})",
+        "creditAi": "AI arrangement ({count})",
+        "creditTotal": "Total",
+        "creditNote": "An estimate only; charged when you apply.",
+        "languageChange": "The new template uses another language: content will be translated from {from} to {to} and written over the document. The document language follows the template. Released versions still download in their original language.",
+        "language": {
+          "vi": "Vietnamese",
+          "en": "English"
+        },
+        "linksNote": "Discarding edits can break links between sections. The system checks before writing and reports it.",
+        "linksBroken": "Cannot apply yet because links between sections would break:",
+        "cancel": "Cancel template change",
+        "apply": "Apply",
+        "applying": "Applying…",
+        "languageChangeNoTranslation": "The new template uses another language: the document language changes from {from} to {to}. The content is not translated again and no translation credits are used.",
+        "linksBrokenHelp": "Discarding these edits breaks links. Choose Keep for the sections involved (or Keep all) to be able to apply."
+      },
+      "missing": {
+        "aria": "Sections missing after the template change",
+        "title": "{count, plural, one {# section of the new template has} other {# sections of the new template have}} no content yet",
+        "blocksRelease": "Blocks release",
+        "write": "Write",
+        "prefillTitle": "Write content for {label}",
+        "prefillDescription": "{label} exists in the new template but not in the previous document. Write the content for it."
+      },
+      "revert": {
+        "action": "Undo template change",
+        "confirmQuestion": "Undoing returns the template, base file, language and content to the state before this template change. Continue?",
+        "keep": "Do not undo",
+        "confirm": "Undo",
+        "blocked": "Changes were written after the template change, so it cannot be undone. Use Change template to go back to the previous template; every written change request is kept.",
+        "reason": {
+          "not_latest": "Only the latest template change can be undone.",
+          "migration_open": "Another template change is still in progress, so this one cannot be undone yet.",
+          "running": "The template change is running and cannot be undone yet.",
+          "has_later_changes": "Changes were written after the template change, so it cannot be undone. Use Change template to go back to the previous template; every written change request is kept."
+        }
+      },
+      "revertingElsewhere": "This template change is being undone. Wait for it to finish, then reload.",
+      "applyFailed": "Applying the template change got stuck after several recovery attempts. The draft is unchanged from before the template change; press Restore to close this attempt, then try again.",
+      "restore": "Restore"
     }
   }
 }

@@ -12,9 +12,10 @@ import type { DocumentLanguage, ErdNotation, Project } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import DocumentLanguagePicker from "./DocumentLanguagePicker";
 import ErdNotationPicker from "./ErdNotationPicker";
+import ScreenThemeDialog from "./ScreenThemeDialog";
 import TranslateDialog from "./TranslateDialog";
 
-export type ProjectAction = "rename" | "archive" | "delete" | "documentLanguage" | "erdNotation";
+export type ProjectAction = "rename" | "archive" | "delete" | "documentLanguage" | "erdNotation" | "screenTheme";
 
 export interface ProjectActionTarget {
   action: ProjectAction;
@@ -31,9 +32,9 @@ interface ProjectActionDialogsProps {
 }
 
 /** Icon của mỗi thao tác xác nhận; chữ lấy từ `app.projectDialogs.<action>.*`. */
-const CONFIRM_ICON: Record<Exclude<ProjectAction, "rename" | "documentLanguage" | "erdNotation">, IconName> = { archive: "archive", delete: "trash" };
+const CONFIRM_ICON: Record<Exclude<ProjectAction, "rename" | "documentLanguage" | "erdNotation" | "screenTheme">, IconName> = { archive: "archive", delete: "trash" };
 
-/** Dialog thao tác trên card: đổi tên, đổi ngôn ngữ tài liệu (FLF-265), đổi ký pháp ERD (FLF-324), lưu trữ, xoá vĩnh viễn. */
+/** Dialog thao tác trên card: đổi tên, ngôn ngữ tài liệu (FLF-265), ký pháp ERD (FLF-324), giao diện màn hình (FLF-410), lưu trữ, xoá. */
 export default function ProjectActionDialogs({ target, onClose, onDone, onCreditsSpent }: ProjectActionDialogsProps) {
   // `key` theo dự án + thao tác ⇒ mỗi lần mở là form mới (tên điền sẵn, không còn lỗi cũ)
   if (!target) return null;
@@ -152,6 +153,8 @@ function ActionDialog({ target, onClose, onDone, onCreditsSpent }: ProjectAction
       </Modal>
     );
   }
+
+  if (action === "screenTheme") return <ScreenThemeDialog project={project} onClose={onClose} onDone={onDone} />;
 
   if (action === "erdNotation") {
     return (

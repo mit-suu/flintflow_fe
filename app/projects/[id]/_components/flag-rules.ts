@@ -23,6 +23,9 @@ const EXTRA_RULES = [
   // FLF-278 trên FLF-335/336 — chế độ 3 (mẫu bắt buộc): mục FlintFlow mẫu không có / mục của mẫu còn trống
   "template_section_absent",
   "template_section_empty",
+  // FLF-395: sau khi đổi mẫu — mục của mẫu mới chưa viết (đỏ) / tham chiếu số mục theo đánh số cũ (vàng)
+  "template_section_migration_missing",
+  "section_reference_after_migration",
 ] as const;
 
 export type FlagRuleTitleKey = FlagRuleId | (typeof EXTRA_RULES)[number];
