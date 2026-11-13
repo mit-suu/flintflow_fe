@@ -54,4 +54,10 @@ describe("fpt-sections - nhãn section tạm (FLF-312)", () => {
     // thứ tự theo file, mục không có trong file xếp sau theo mẫu FPT
     expect(["fixed:4.1", "feature:@B0004", "fixed:1", "fixed:2.1"].sort(compareFileOrder(fileHeadings))).toEqual(["fixed:2.1", "feature:@B0004", "fixed:1", "fixed:4.1"]);
   });
+
+  it("mọi phần nhỏ của BE có nhãn đọc được, không trả mã slot thô (rà mapping thư viện)", () => {
+    expect(sectionLabel("slot:business_rules", "vi")).toBe("Quy tắc nghiệp vụ");
+    expect(sectionLabel("slot:messages", "en")).toBe("Messages");
+    expect(sectionLabel("slot:functional_requirements", "vi")).toBe("Yêu cầu chức năng");
+  });
 });

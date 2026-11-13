@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createComment, listComments, resolveComment } from "@/lib/api/comments";
+import { createComment, listComments, replyComment, resolveComment } from "@/lib/api/comments";
 import type { SrsComment, CommentResolutionInput, CreateCommentRequest } from "@/types/comment";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { HOOK_ERROR } from "@/lib/hook-errors";
@@ -15,6 +15,7 @@ export interface UseCommentsResult {
   reload: () => Promise<void>;
   create: (input: CreateCommentRequest) => Promise<SrsComment | null>;
   resolve: (commentId: string, resolution: CommentResolutionInput) => Promise<void>;
+  reply: (commentId: string, text: string) => Promise<void>;
   /** Số comment đang mở theo `anchor.section_id` — `DocumentPane` vẽ chấm số trên từng mục. */
   openCountBySection: ReadonlyMap<string, number>;
 }
@@ -102,6 +103,22 @@ export function useComments(projectId: string, spineVersion: number | null): Use
     [projectId, reload]
   );
 
+  /** Trả lời trong chuỗi trao đổi của comment. Lỗi ném ra cho ô trả lời hiện ngay dưới ô (câu của BE nếu có). */
+  const reply = useCallback(
+    async (commentId: string, text: string) => {
+      try {
+        const res = await replyComment(projectId, commentId, text);
+        if (res.data) {
+          const updated = res.data;
+          setComments((prev) => prev.map((c) => (c.comment_id === updated.comment_id ? updated : c)));
+        }
+      } catch (err) {
+        throw new Error(userErrorMessage(err, ""));
+      }
+    },
+    [projectId]
+  );
+
   const openCountBySection = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of comments) {
@@ -111,5 +128,5 @@ export function useComments(projectId: string, spineVersion: number | null): Use
     return counts;
   }, [comments]);
 
-  return { comments, loading, error, busy, reload, create, resolve, openCountBySection };
+  return { comments, loading, error, busy, reload, create, resolve, reply, openCountBySection };
 }

@@ -1,5 +1,18 @@
-import type { CreateProjectRequest, DocumentLanguage, ErdNotation, Project, ProjectMode, ProjectStatus } from "@/types/project";
-import { apiCall } from "./client";
+import type {
+  CreateProjectRequest,
+  DocumentLanguage,
+  ErdNotation,
+  Project,
+  ProjectMode,
+  ProjectStatus,
+  ScreenMockupEstimate,
+  ScreenMockupMode,
+  ScreenMockupRunView,
+  ScreenMockupScope,
+  ScreenMockupSummary,
+  ScreenTheme,
+} from "@/types/project";
+import { apiCall, authFetch, ApiClientError } from "./client";
 
 export const listProjects = (status?: ProjectStatus) =>
   apiCall<Project[]>(status ? `/projects?status=${status}` : "/projects");
@@ -64,3 +77,50 @@ export const setErdNotation = (projectId: string, erdNotation: ErdNotation) =>
     method: "PATCH",
     body: JSON.stringify({ erdNotation }),
   });
+
+/**
+ * Đổi theme mockup màn (FLF-410) — gửi field nào đổi field đó; `null` = về mặc định. Chỉ Lead/Analyst. Mockup đã vẽ được BE
+ * vẽ lại từ spec đã lưu (không gọi AI, không trừ credit).
+ */
+export const setScreenTheme = (projectId: string, patch: Partial<ScreenTheme>) =>
+  apiCall<Project>(`/projects/${projectId}/screen-theme`, { method: "PATCH", body: JSON.stringify(patch) });
+
+/** FLF-410: màn có ảnh gốc (dự án import) + mục chứa ảnh + trạng thái mockup. */
+export const getScreenMockupSummary = (projectId: string) => apiCall<ScreenMockupSummary>(`/projects/${projectId}/screen-mockups`);
+
+/** FLF-410: số lượt AI + credit dự tính để vẽ lại (màn đã đúng kiểu không tính). Không gọi model. */
+export const estimateScreenMockups = (projectId: string, mode: ScreenMockupMode, scope: ScreenMockupScope, screenId?: string) => {
+  const query = new URLSearchParams({ mode, scope, ...(screenId ? { screen_id: screenId } : {}) });
+  return apiCall<ScreenMockupEstimate>(`/projects/${projectId}/screen-mockups?${query.toString()}`);
+};
+
+/**
+ * FLF-410: bắt đầu lượt vẽ lại ảnh gốc bằng mockup chạy nền (202, trả tiến độ ban đầu). Ví thiếu ⇒ 402 `INSUFFICIENT_CREDITS`
+ * (`meta.required` / `meta.available`), không vẽ màn nào; đang có lượt chạy ⇒ 409 `SCREEN_MOCKUP_RUNNING`.
+ */
+export const runScreenMockups = (projectId: string, mode: ScreenMockupMode, scope: ScreenMockupScope, screenIds?: readonly string[]) =>
+  apiCall<ScreenMockupRunView>(`/projects/${projectId}/screen-mockups`, {
+    method: "POST",
+    body: JSON.stringify({ mode, scope, ...(screenIds?.length ? { screen_ids: screenIds } : {}) }),
+  });
+
+/** FLF-410: dùng lại ảnh gốc (giữ hình đã vẽ để bật lại không tốn credit). */
+export const disableScreenMockups = (projectId: string, scope: ScreenMockupScope, screenId?: string) =>
+  apiCall<{ disabled: string[] }>(`/projects/${projectId}/screen-mockups`, {
+    method: "DELETE",
+    body: JSON.stringify({ scope, ...(screenId ? { screen_id: screenId } : {}) }),
+  });
+
+/** FLF-410: tiến độ lượt vẽ mockup gần nhất; chưa từng chạy ⇒ `data = null`. */
+export const getScreenMockupRun = (projectId: string) => apiCall<ScreenMockupRunView | null>(`/projects/${projectId}/screen-mockups/run`);
+
+/** FLF-410: dừng lượt đang chạy — màn đang vẽ vẽ nốt, màn còn lại không vẽ, không trừ credit. */
+export const cancelScreenMockupRun = (projectId: string) =>
+  apiCall<ScreenMockupRunView | null>(`/projects/${projectId}/screen-mockups/run/cancel`, { method: "POST" });
+
+/** FLF-410: ảnh gốc của màn (hình minh hoạ cho kiểu "Theo bố cục ảnh gốc"). Không có / EMF ⇒ ném `ApiClientError` 404. */
+export const fetchScreenOriginalImage = async (projectId: string, screenId: string): Promise<Blob> => {
+  const res = await authFetch(`/projects/${projectId}/screen-mockups/${encodeURIComponent(screenId)}/original`);
+  if (!res.ok) throw new ApiClientError(res.status, "SCREEN_HAS_NO_ORIGINAL", "No original picture");
+  return res.blob();
+};

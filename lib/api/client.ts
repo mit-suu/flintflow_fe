@@ -2,13 +2,7 @@ import { clearAuthToken } from "../auth";
 import { ACCOUNT_SUSPENDED, endSuspendedSession } from "../account-suspended";
 import { localizeApiError } from "./error-messages";
 import { MODE_SWITCH_ERROR_CODES, signalProjectModeMaybeChanged } from "../project-mode-signal";
-import {
-  decodeJwt,
-  getAccessToken,
-  getStoredAuthToken,
-  saveAuthToken,
-  setAccessToken,
-} from "./token-store";
+import { decodeJwt, getAccessToken, saveAuthToken } from "./token-store";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -60,16 +54,13 @@ const isTokenFresh = (token: string | null): token is string => {
 };
 
 /**
- * Tab khác đã refresh xong trong lúc tab này chờ/gọi BE ⇒ token trong localStorage (dùng chung giữa các tab)
- * đã khác token lúc bắt đầu và còn hạn. Dùng luôn token đó thay vì gọi BE bằng refresh token cũ đã bị xoay vòng.
+ * Tab khác đã refresh xong trong lúc tab này chờ/gọi BE ⇒ token trong bộ nhớ (tab kia gửi sang qua
+ * `BroadcastChannel`) đã khác token lúc bắt đầu và còn hạn. Dùng luôn token đó thay vì gọi BE bằng refresh
+ * token cũ đã bị xoay vòng.
  */
 const adoptTokenRefreshedElsewhere = (tokenAtStart: string | null): boolean => {
-  const current = getStoredAuthToken();
-  if (current && current !== tokenAtStart && isTokenFresh(current)) {
-    setAccessToken(current);
-    return true;
-  }
-  return false;
+  const current = getAccessToken();
+  return !!current && current !== tokenAtStart && isTokenFresh(current);
 };
 
 /** Gọi `fn` trong khoá dùng chung giữa các tab (Web Locks); trình duyệt không hỗ trợ thì chạy thẳng. */
@@ -144,13 +135,9 @@ const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutco
 };
 
 export const refreshSession = async (): Promise<RefreshOutcome> => {
-  // If recently refreshed (within 2s) and stored token is still valid, reuse without re-calling BE
-  if (Date.now() - lastRefreshTime < 2000) {
-    const current = getStoredAuthToken();
-    if (isTokenFresh(current)) {
-      setAccessToken(current);
-      return "ok";
-    }
+  // If recently refreshed (within 2s) and the in-memory token is still valid, reuse without re-calling BE
+  if (Date.now() - lastRefreshTime < 2000 && isTokenFresh(getAccessToken())) {
+    return "ok";
   }
 
   // If a refresh is already in progress, deduplicate by waiting on the same promise
@@ -158,7 +145,7 @@ export const refreshSession = async (): Promise<RefreshOutcome> => {
     return refreshPromise;
   }
 
-  const tokenAtStart = getStoredAuthToken();
+  const tokenAtStart = getAccessToken();
   refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart)).finally(() => {
     refreshPromise = null;
   });
@@ -181,12 +168,11 @@ export const STREAM_MIN_TOKEN_TTL_MS = 120_000;
 export const ensureFreshToken = async (minTtlMs: number = DEFAULT_MIN_TOKEN_TTL_MS): Promise<void> => {
   if (typeof window === "undefined") return;
   if (refreshPromise) await refreshPromise;
-  const stored = getStoredAuthToken();
-  if (!stored) return;
-  setAccessToken(stored);
-  const decoded = decodeJwt(stored);
+  const current = getAccessToken();
+  if (!current) return;
+  const decoded = decodeJwt(current);
   if (decoded?.exp && Date.now() >= decoded.exp * 1000 - minTtlMs) {
-    if (await refreshAccessToken()) setAccessToken(getStoredAuthToken());
+    await refreshAccessToken();
   }
 };
 
@@ -205,19 +191,11 @@ export const authFetch = async (
   }
 
   // 2. Proactively refresh token if expired or about to expire in <= 15s
-  if (typeof window !== "undefined") {
-    const stored = getStoredAuthToken();
-    if (stored) {
-      setAccessToken(stored);
-      if (retry) {
-        const decoded = decodeJwt(stored);
-        if (decoded?.exp && Date.now() >= (decoded.exp - 15) * 1000) {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
-            setAccessToken(getStoredAuthToken());
-          }
-        }
-      }
+  if (typeof window !== "undefined" && retry) {
+    const current = getAccessToken();
+    const decoded = current ? decodeJwt(current) : null;
+    if (decoded?.exp && Date.now() >= (decoded.exp - 15) * 1000) {
+      await refreshAccessToken();
     }
   }
 
@@ -254,9 +232,8 @@ export const authFetch = async (
   if (res.status === 401 && retry) {
     // If another concurrent request has already refreshed the token in the meantime,
     // retry immediately with the fresh token rather than initiating a redundant refresh
-    const latestToken = getStoredAuthToken();
+    const latestToken = getAccessToken();
     if (latestToken && latestToken !== tokenBeforeRequest) {
-      setAccessToken(latestToken);
       return authFetch(endpoint, options, false);
     }
 

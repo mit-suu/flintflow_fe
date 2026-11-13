@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "@/components/Logo";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -181,6 +182,8 @@ export default function WorkspaceHeader({
           <span className="hidden md:inline">{t("export")}</span>
         </Button>
         {onEnterFocus && <IconButton icon="expand" label={t("enterFocus")} onClick={onEnterFocus} />}
+        {/* Màn hẹp header đã chật: đổi ngôn ngữ vẫn có ở trang chủ / hồ sơ */}
+        <LocaleSwitcher className="hidden sm:inline-flex shrink-0" />
         <DropdownMenu
           trigger={(props) => (
             <button

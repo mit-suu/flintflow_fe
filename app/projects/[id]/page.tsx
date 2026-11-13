@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
-import { getProject, setDocumentLanguage } from "@/lib/api/projects";
+import { disableScreenMockups, getProject, getScreenMockupSummary, runScreenMockups, setDocumentLanguage, setScreenTheme } from "@/lib/api/projects";
+import ScreenMockupRunCard from "./_components/ScreenMockupRunCard";
+import { useScreenMockupRun } from "./hooks/useScreenMockupRun";
+import ScreenMockupDialog from "@/components/project/ScreenMockupDialog";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
 import { ApiClientError } from "@/lib/api/client";
@@ -21,7 +24,7 @@ import type { SrsComment } from "@/types/comment";
 import { isGateApproval } from "@/lib/gate-approval";
 import type { Diagram, ReviewMode } from "@/types/spine";
 import { chatChangePreview } from "@/lib/chat-change-preview";
-import type { Project } from "@/types/project";
+import type { Project, ScreenMockupSummary } from "@/types/project";
 import type { Flag } from "@/types/flags";
 import PageSkeleton, { type WorkspacePane } from "@/components/ui/PageSkeleton";
 import Skeleton from "@/components/ui/Skeleton";
@@ -36,6 +39,7 @@ import ChatPane from "./_components/ChatPane";
 import ResizeHandle from "./_components/ResizeHandle";
 import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
 import { SectionNamesContext } from "./_components/mode1/i18n";
+import { sectionLabel as fptSectionLabel } from "@/lib/constants/fpt-sections";
 import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
 import BriefPanel, { briefHasData } from "./_components/BriefPanel";
@@ -50,6 +54,7 @@ import AutoPassedChip from "./_components/AutoPassedChip";
 import { patchSkipConfirmSections, setReviewMode } from "@/lib/api/review-level";
 import { sectionTitleOf } from "@/lib/section-title";
 import ExportPanel from "./_components/ExportPanel";
+import ProjectPendingHeadingsCard from "@/components/org-template/project-pending-headings-card";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
@@ -63,7 +68,7 @@ import CreditGateCard from "./_components/CreditGateCard";
 import { useDocumentVersionGate } from "./hooks/useDocumentVersionGate";
 import DocumentVersionCard from "@/components/project/DocumentVersionCard";
 import AiErrorBanner from "./_components/AiErrorBanner";
-import { tStep } from "@/lib/i18n";
+import { DEFAULT_LOCALE, isLocale, tStep } from "@/lib/i18n";
 import type { TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
@@ -83,6 +88,10 @@ import { usePendingSections } from "./hooks/mode1/usePendingSections";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
+import TemplateMigrationPopup from "./_components/template-migration/TemplateMigrationPopup";
+import TemplateUpdateBanner from "./_components/template-migration/TemplateUpdateBanner";
+import TemplateChangeEntry from "./_components/template-migration/TemplateChangeEntry";
+import { templateMigrationHref } from "./_components/template-migration/href";
 import { compareHref, crListHref, gapReportHref, readChatCrDraft, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
@@ -96,6 +105,7 @@ import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
 import { clearImportPending, isImportPending } from "@/lib/import-pending";
 import { useImportPendingHint } from "./import-pending-hint";
 import { fetchOrganization } from "@/lib/api/orgs";
+import type { OrgRole } from "@/types/organization";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
@@ -317,10 +327,14 @@ export default function WorkspacePage() {
   // UC-47: Viewer không vào workspace (Spine, cờ, CR là dữ liệu làm việc — BE trả 403) ⇒ sang trang đọc tài liệu.
   // Lỗi đọc vai trò ⇒ coi như không phải Viewer (BE vẫn chặn).
   const [isViewer, setIsViewer] = useState<boolean | null>(null);
+  const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
   useEffect(() => {
     let cancelled = false;
     const orgId = getActiveOrgId();
-    (orgId ? fetchOrganization(orgId).then((org) => org.role === "viewer") : Promise.resolve(false))
+    (orgId ? fetchOrganization(orgId).then((org) => {
+          if (!cancelled) setOrgRole(org.role);
+          return org.role === "viewer";
+        }) : Promise.resolve(false))
       .catch(() => false)
       .then((viewer) => !cancelled && setIsViewer(viewer));
     return () => {
@@ -336,7 +350,7 @@ export default function WorkspacePage() {
 
   if (project === null || isViewer !== false) return <WorkspaceLoading projectId={projectId} />;
   // Chưa đọc xong file SRS ⇒ màn đọc khung / tiến trình ngay trong layout workspace (không còn trang `/import` riêng)
-  if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} />;
+  if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} orgRole={orgRole} />;
   // Đổi mode ⇒ dựng lại workspace từ đầu (hook của mode 2 — step, gate — không mang sang mode 1)
   return <FptWorkspace key={mode1 ? "mode1" : "fpt"} mode1={mode1} initialNotice={mode1 ? convertedNotice : null} />;
 }
@@ -420,6 +434,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     () => new Map([...sectionLabels].map(([id, label]) => [id, label.replace(/^§/, "")])),
     [sectionLabels]
   );
+  /** Chưa có trong tài liệu đang hiển thị (vừa đổi mẫu, chưa đọc lại) ⇒ tên theo danh mục mục, không bao giờ mã thô. */
+  const panelSectionName = (id: string): string => panelSectionNames.get(id) ?? fptSectionLabel(id, isLocale(locale) ? locale : DEFAULT_LOCALE);
   const handleSectionsLoaded = useCallback(
     (sections: readonly RenderedSection[]) => setSectionLabels(new Map(sections.map((section) => [section.id, sectionLabel(section)]))),
     []
@@ -686,6 +702,52 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     [spineState.spine]
   );
 
+  // ─── FLF-410: ảnh gốc màn (dự án import) ⇒ vẽ lại bằng mockup / dùng ảnh gốc ─────────
+  const [mockupSummary, setMockupSummary] = useState<ScreenMockupSummary | null>(null);
+  /** Màn đang mở hộp "Vẽ lại bằng mockup". */
+  const [mockupScreenId, setMockupScreenId] = useState<string | null>(null);
+  const loadMockupSummary = useCallback(
+    () => getScreenMockupSummary(projectId).then((res) => setMockupSummary(res.data), () => undefined),
+    [projectId]
+  );
+  useEffect(() => {
+    if (mode1 && ws.ready && ws.canEdit) void loadMockupSummary();
+  }, [mode1, ws.ready, ws.canEdit, loadMockupSummary]);
+  /** Sau khi đổi mockup: Spine (version) + tài liệu + tóm tắt mới. */
+  const afterMockupChange = useCallback(async () => {
+    bumpVersion(await reloadSpine());
+    setDocumentRefreshToken((v) => v + 1);
+    void loadMockupSummary();
+  }, [bumpVersion, reloadSpine, loadMockupSummary]);
+  // Lượt vẽ chạy nền: mỗi màn xong ⇒ tải lại để màn đó hiện mockup ngay
+  const mockupRun = useScreenMockupRun(projectId, mode1 && ws.ready && ws.canEdit, () => void afterMockupChange());
+  const mockupNameOf = (screenId: string) => mockupSummary?.originals.find((o) => o.screen_id === screenId)?.name ?? screenId;
+  const originalOfSection = (sectionId: string) => mockupSummary?.originals.find((o) => o.section_id === sectionId);
+  const screenMockupOf = (sectionId: string) => {
+    const original = originalOfSection(sectionId);
+    if (!original) return undefined;
+    return {
+      enabled: mockupSummary?.screens.some((s) => s.screen_id === original.screen_id && s.enabled) ?? false,
+      pending: mockupRun.run?.pending.includes(original.screen_id) ?? false,
+    };
+  };
+  /** Thử lại các màn lỗi: một lượt mới, mỗi màn giữ kiểu đã chọn lần trước (thiếu ⇒ chuẩn). */
+  const retryMockups = async (screenIds: string[]) => {
+    const mode = mockupSummary?.screens.find((s) => screenIds.includes(s.screen_id))?.mode ?? "system";
+    const res = await runScreenMockups(projectId, mode, "screen", screenIds);
+    if (res.data) mockupRun.started(res.data);
+  };
+  const handleScreenMockup = async (sectionId: string, action: "redraw" | "original") => {
+    const original = originalOfSection(sectionId);
+    if (!original) return;
+    if (action === "redraw") {
+      setMockupScreenId(original.screen_id);
+      return;
+    }
+    await disableScreenMockups(projectId, "screen", original.screen_id);
+    await afterMockupChange();
+  };
+
   /**
    * BUG-17: cờ `diagram_stale` / `render_error` có nút "Vẽ lại" — `target_id` của cờ là id sơ đồ. Cả nhóm vẽ MỘT lượt; báo cáo
    * nói sơ đồ nào không vẽ được và sơ đồ nào vẽ xong mà cờ vẫn còn (lấy từ lượt tính lại cờ, không từ `flags` cũ trong closure).
@@ -727,6 +789,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     onSpineChangedRef.current = onSpineChanged;
   }, [onSpineChanged]);
 
+  /** Đổi mẫu / hoàn tác xong: mẫu, ngôn ngữ và `template_update` của project đổi theo — đọc lại ngoài Spine. */
+  const { replaceProject } = ws;
+  const handleTemplateChanged = useCallback(() => {
+    onSpineChanged();
+    void getProject(projectId)
+      .then((res) => res.data && replaceProject(res.data))
+      .catch(() => undefined);
+  }, [projectId, replaceProject, onSpineChanged]);
+
   /**
    * Vòng dịch xong / dừng giữa chừng (FLF-265): chữ dịch nằm ở lớp bản dịch, Spine và `spine_version` không đổi ⇒ chỉ
    * tải lại tài liệu và số dư credit.
@@ -751,6 +822,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     // Lời AI xác nhận việc vừa sửa hiện ngay như một tin của AI, trước khi bước chạy lại
     onRevisionMessage: (message, stepId) => {
       if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
+    },
+    // FLF-393: lượt chạy ở nền (không còn SSE) — lời AI chỉ có trong transcript ⇒ tải lại phiên đang mở để nó hiện ngay
+    onTranscriptChanged: () => {
+      if (ws.activeSession?._id) void ws.reloadActiveSession(ws.activeSession._id);
     },
     // FLF-332: sau Approve Brief (B-2 → S-1) là lượt soạn hàng loạt cả SRS ⇒ chốt con số trước khi soạn (cổng cứng §1.2)
     beforePhaseRun: async (next, from) => {
@@ -1389,6 +1464,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const onPipelineSession = ws.isPipelineActive;
   /** FLF-244: Viewer chỉ đọc — ẩn ô nhập, thẻ hỏi, thẻ cổng và mọi nút chạy bước (BE cũng chặn 403). */
   const canEdit = ws.canEdit;
+  /** Đổi mẫu cần baseline: mode 1, hoặc dự án mode 2 đã có baseline (chưa kịp chuyển mode / đang chờ Lead duyệt). */
+  const canChangeTemplate = mode1 || (spine?.baselines.length ?? 0) > 0;
   /** FLF-278: dự án theo mẫu bắt buộc (FLF-335) — mục riêng của mẫu còn trống có nút "Nhờ AI soạn". */
   const requiredTemplate = ws.project?.template_intent === "fixed";
   const gate = onPipelineSession && runner.state.status === "gate_ready" ? runner.state.gate : null;
@@ -1967,6 +2044,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               ? t("page.placeholderWorking")
               : !mode1 && gate
                 ? t("page.placeholderGate")
+                : !mode1 && runner.state.status === "needs_input" && !runner.state.questions.some((q) => (q.options ?? []).length > 0)
+                  ? // FLF-393: chỉ có câu hỏi mở (không thẻ lựa chọn) — trả lời bằng ô chat
+                    t("page.placeholderAnswerAbove")
                 : !mode1 && stepNotStarted
                   ? // FLF-378: dự án mới theo mẫu bắt buộc vào thẳng Brief (B-0 bỏ qua) — file là mẫu, chưa có ý tưởng dự án
                     t(requiredTemplate && viewedStep === "B-1.1" ? "page.placeholderStartTemplate" : "page.placeholderStart")
@@ -1979,6 +2059,18 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <ReferenceUploadsNote projectId={projectId} className="mx-3 mb-2" />
               {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
               {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
+              {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
+              {canChangeTemplate && (
+                <TemplateUpdateBanner
+                  projectId={projectId}
+                  update={ws.project?.template_update}
+                  canEdit={canEdit}
+                  onUpdate={(target) => router.push(templateMigrationHref(projectId, target), { scroll: false })}
+                  className="mx-3 mb-2"
+                />
+              )}
+              {/* Mục BA tự đặt của mẫu khung tự lưu chờ duyệt (chỉ hiện khi dự án có khung riêng còn mục chờ) */}
+              {ws.ready && ws.project?.template_intent !== "fixed" && <ProjectPendingHeadingsCard projectId={projectId} canReview={canEdit} refreshToken={documentRefreshToken} className="mx-3 mb-2" />}
               {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới — chỉ khi đã có bản gốc */}
               {mode1 && canEdit && ws.srsSuggestions[0] && (
                 <SrsAttachmentChip
@@ -2047,6 +2139,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               />
             ) : undefined
           }
+          questionCardVisible={runner.state.questions.some((q) => (q.options ?? []).length > 0)}
           questionCard={
             !mode1 && canEdit && onPipelineSession && runner.state.status === "needs_input" ? (
               <ElicitPanel
@@ -2314,6 +2407,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           // Tạm ẩn nút "Vẽ lại sơ đồ" dưới hình: bật lại bằng REDRAW_SECTION_ENABLED.
           onRedrawSection={mode1 || !REDRAW_SECTION_ENABLED ? undefined : (sectionId) => redrawDiagrams(diagramsOfSection(sectionId))}
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
+          // FLF-410: dự án import, Lead/Analyst — mục chứa ảnh gốc của màn
+          screenMockupOf={mode1 && canEdit ? screenMockupOf : undefined}
+          onScreenMockup={mode1 && canEdit ? handleScreenMockup : undefined}
           // Khung sơ đồ vẽ lỗi trong tài liệu: "Thử lại" vẽ lại đúng sơ đồ đó (cùng đường với nút "Vẽ lại" trên cờ)
           onRedrawDiagram={
             mode1 || !canEdit
@@ -2321,6 +2417,23 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               : (diagramId) => redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === diagramId) ?? [])
           }
           // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
+          // FLF-410: tiến độ vẽ mockup chạy nền — pill nhỏ góc dưới trái tài liệu, bấm mở chi tiết
+          footerStatus={
+            mockupRun.run ? (
+              <ScreenMockupRunCard
+                run={mockupRun.run}
+                nameOf={mockupNameOf}
+                onCancel={mockupRun.cancel}
+                onDismiss={mockupRun.dismiss}
+                onRetry={retryMockups}
+                onApplyColor={async (color) => {
+                  await setScreenTheme(projectId, { primaryColor: color });
+                  mockupRun.dismiss();
+                  await afterMockupChange();
+                }}
+              />
+            ) : undefined
+          }
           headerEnd={focusMode ? <IconButton icon="collapse" label={t("page.exitFocus")} onClick={() => setFocusMode(false)} /> : undefined}
           documentLanguage={documentLanguage}
           // Dịch tốn credit ⇒ chỉ Lead/Analyst; mode 1 giữ ngôn ngữ file, không dịch (D3)
@@ -2350,6 +2463,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 readOnly={!canEdit}
                 canRelease={ws.orgRole === "lead"}
                 orgRole={ws.orgRole}
+                sectionName={panelSectionName}
+                onTemplateChanged={handleTemplateChanged}
+                templateCurrent={ws.project ? (ws.project.template_current ?? null) : undefined}
                 refreshToken={documentRefreshToken}
                 documentLanguage={documentLanguage}
                 // CR đang soạn ở khung chat (chưa ghi bản nháp) ⇒ khoá gửi Lead duyệt / phát hành thẳng
@@ -2364,6 +2480,18 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                       }
                     : undefined
                 }
+              />
+            )}
+            {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được (cùng lý do chặn như mode 1) */}
+            {!mode1 && canChangeTemplate && canEdit && (
+              <TemplateChangeEntry
+                projectId={projectId}
+                orgRole={ws.orgRole}
+                flags={flags}
+                sectionName={panelSectionName}
+                refreshToken={documentRefreshToken}
+                onChanged={handleTemplateChanged}
+                current={ws.project ? (ws.project.template_current ?? null) : undefined}
               />
             )}
             {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
@@ -2454,6 +2582,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             onCancelPending={() => setPendingComment(null)}
             onSubmit={submitComment}
             onResolve={resolveComment}
+            onReply={comments.reply}
             onShowSection={showSection}
             onFixByChat={canEdit && !mode1 ? fixCommentByChat : undefined}
             focusCommentIds={focusCommentIds}
@@ -2530,6 +2659,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onClose={() => setExportOpen(false)}
           documentLanguage={documentLanguage}
           otherLanguageAvailable={!mode1}
+          mockupPending={mockupRun.running ? (mockupRun.run?.pending.length ?? 0) : 0}
           sourceFile={mode1 && ws.project?.start_kind !== "new" && ws.project?.converted_from !== "fpt"}
           // Hai lớp phủ không chồng nhau: đóng hộp xuất rồi mới mở hộp dịch
           onTranslate={
@@ -2545,6 +2675,19 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 }
               : undefined
           }
+        />
+      )}
+
+      {/* FLF-410: vẽ lại ảnh gốc của màn bằng mockup (nút dưới mục trong tài liệu) */}
+      {mockupScreenId && mockupSummary && (
+        <ScreenMockupDialog
+          projectId={projectId}
+          screens={mockupSummary.originals}
+          screenId={mockupScreenId}
+          currentMode={mockupSummary.screens.find((s) => s.screen_id === mockupScreenId && s.enabled)?.mode}
+          primaryColor={ws.project?.screenTheme?.primaryColor}
+          onClose={() => setMockupScreenId(null)}
+          onStarted={mockupRun.started}
         />
       )}
 
@@ -2570,6 +2713,22 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       {mode1 && (
         <Suspense fallback={null}>
           <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} />
+        </Suspense>
+      )}
+      {/* Đổi mẫu: popup riêng (mode 2 đã có baseline cũng dùng, không mở gap report / CR) */}
+      {canChangeTemplate && (
+        <Suspense fallback={null}>
+          <TemplateMigrationPopup
+            projectId={projectId}
+            // Dự án chưa tải ⇒ `undefined` (bước chọn mẫu hiện đang tải): lấy tạm org đang mở sẽ hiện nhầm danh sách / "chưa có mẫu"
+            orgId={ws.project ? (ws.project.organizationId ?? getActiveOrgId()) : undefined}
+            orgRole={ws.orgRole}
+            flags={flags}
+            sectionName={panelSectionName}
+            readOnly={!canEdit}
+            onChanged={handleTemplateChanged}
+            current={ws.project?.template_current ?? null}
+          />
         </Suspense>
       )}
     </div>
