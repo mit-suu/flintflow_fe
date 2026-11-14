@@ -84,6 +84,12 @@ const cases: EndpointCase[] = [
     { method: "PATCH", body: JSON.stringify({ erdNotation: "crowsfoot" }) },
   ],
   [
+    "setSequenceLevel",
+    () => projects.setSequenceLevel("p1", "component"),
+    "/projects/p1/sequence-level",
+    { method: "PATCH", body: JSON.stringify({ sequenceLevel: "component" }) },
+  ],
+  [
     "setDocumentLanguage",
     () => projects.setDocumentLanguage("p1", "en"),
     "/projects/p1/document-language",
