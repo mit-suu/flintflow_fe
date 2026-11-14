@@ -24,6 +24,7 @@ vi.mock("@/lib/hooks/use-account-locale", () => ({ useAccountLocaleSync: vi.fn()
 vi.mock("@/lib/hooks/use-projects", () => ({ ProjectsProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="projects-provider">{children}</div> }));
 vi.mock("@/components/OrgGuard", () => ({
   ONBOARDING_PATH: "/home/onboarding",
+  ORGANIZATIONS_PATH: "/home/organizations",
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="org-guard">{children}</div>,
 }));
 
@@ -55,6 +56,17 @@ describe("HomeFrame", () => {
 
     expect(screen.getByTestId("org-guard")).toBeInTheDocument();
     expect(screen.queryByTestId("app-sidebar")).toBeNull();
+  });
+
+  it("chưa có tổ chức mà mở /home/organizations: khung tối giản hiện thẳng nội dung, không bọc OrgGuard", () => {
+    pathname = "/home/organizations";
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    renderWithIntl(<HomeFrame user={user}><p>chọn tổ chức</p></HomeFrame>);
+
+    expect(screen.getByText("chọn tổ chức")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-guard")).toBeNull();
+    expect(screen.queryByTestId("app-sidebar")).toBeNull();
+    expect(screen.queryByTestId("projects-provider")).toBeNull();
   });
 
   it("có tổ chức: khung đầy đủ với thanh bên và ProjectsProvider", () => {
