@@ -13,7 +13,7 @@ import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../..
 import { logoutAndRedirect } from "../../../lib/auth";
 import type { User } from "../../../types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 
 // Mỗi khối là một mảng nền mờ, không viền — cùng ngôn ngữ với danh sách ở trang Thành viên.
 const cardClass = "bg-surface-container-low rounded-card p-5 sm:p-6 flex flex-col gap-4";
@@ -37,8 +37,8 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
   const format = useFormatter();
-  const activeOrg = useActiveOrganization();
-  const isViewer = activeOrg?.role === "viewer";
+  const { org: activeOrg, loading: orgLoading } = useActiveOrganizationState();
+  const hideCredits = orgLoading || activeOrg?.role === "viewer";
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name ?? "");
   const [saving, setSaving] = useState(false);
@@ -160,7 +160,7 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
             : "-"}
         </InfoRow>
 
-        {!isViewer && (
+        {!hideCredits && (
           <InfoRow label={t("credits")}>
             <div className="flex items-center gap-3">
               {user.creditOrganization ? (

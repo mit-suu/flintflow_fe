@@ -26,7 +26,7 @@ import { listProjects } from "@/lib/api/projects";
 import { tPhase, tStep } from "@/lib/i18n";
 import { emitNotificationsChanged } from "@/lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 
 const signedAmount = (tx: CreditTransaction) => {
@@ -116,11 +116,15 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   // Ví là của tổ chức và chỉ Lead được nạp / đổi gói (UC-59, UC-62). Biết chắc không phải Lead thì ẩn nút mua —
-  // trước đây Analyst bấm "Mua ngay" chỉ nhận câu chung chung "Vai trò của bạn không được phép...". Chưa biết vai
-  // trò (đang tải / lỗi) thì vẫn hiện: BE vẫn chặn, và Lead không bao giờ bị mất nút.
-  const activeOrg = useActiveOrganization();
-  const isViewer = activeOrg?.role === "viewer";
-  const canPurchase = activeOrg === null || activeOrg.role === "lead";
+  // trước đây Analyst bấm "Mua ngay" chỉ nhận câu chung chung "Vai trò của bạn không được phép...". Đang tải tổ chức
+  // (`orgLoading`) thì giữ skeleton và chặn mọi lời gọi API theo vai trò; xong mà không thuộc org nào (`activeOrg === null`)
+  // vẫn hiện nút (BE vẫn chặn, Lead không bị mất nút).
+  const { org: activeOrg, loading: orgLoading } = useActiveOrganizationState();
+  const isViewer = !orgLoading && activeOrg?.role === "viewer";
+  const billingBlocked = orgLoading || isViewer;
+  const canPurchase = !orgLoading && (activeOrg === null || activeOrg.role === "lead");
+  const activeOrgId = activeOrg?.id ?? null;
+  const showLoading = orgLoading || loading;
   const effectiveFilters: LedgerFilters = !canPurchase && filters.kind === "payment" ? { ...filters, kind: "all" } : filters;
   const [error, setError] = useState<string | null>(null);
   /** FLF-332: Analyst báo Lead nạp — `sent` giữ số Lead đã được báo để nói rõ ai nhận. */
@@ -139,8 +143,8 @@ export default function BillingPage() {
 
   // Lịch sử theo số trang (FLF-404): đổi bộ lọc ⇒ về trang 1; phản hồi của bộ lọc / trang cũ về muộn bị bỏ
   const ledger = usePagedList<CreditTransaction>({
-    key: JSON.stringify(effectiveFilters),
-    enabled: !isViewer,
+    key: JSON.stringify({ orgId: activeOrgId, filters: effectiveFilters }),
+    enabled: !billingBlocked,
     fetchPage: (page) => fetchTransactions(page, LEDGER_PAGE_SIZE, toApiFilters(effectiveFilters)),
   });
 
@@ -149,9 +153,8 @@ export default function BillingPage() {
   }, []);
 
   // Lựa chọn của bộ lọc thành viên / dự án. Lỗi ở đây chỉ làm mất bộ lọc, không chặn trang.
-  const activeOrgId = activeOrg?.id ?? null;
   useEffect(() => {
-    if (isViewer) return;
+    if (billingBlocked) return;
     let cancelled = false;
     const loadChoices = async () => {
       const [members, projects] = await Promise.all([
@@ -166,14 +169,14 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeOrgId, isViewer]);
+  }, [activeOrgId, billingBlocked]);
 
   useEffect(() => {
     if (isViewer) router.replace("/home");
   }, [isViewer, router]);
 
   useEffect(() => {
-    if (isViewer) return;
+    if (billingBlocked) return;
     let cancelled = false;
     const load = async () => {
       try {
@@ -192,7 +195,7 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [isViewer, loadBalance]);
+  }, [activeOrgId, billingBlocked, loadBalance]);
 
   const handleBuy = async (pkg: CreditPackage) => {
     setBusy(pkg.id);
@@ -309,7 +312,7 @@ export default function BillingPage() {
           </div>
         )}
 
-        {loading ? (
+        {showLoading ? (
           <PageSkeleton variant="cards" label={t("loading")} />
         ) : (
           <>
@@ -441,7 +444,8 @@ export default function BillingPage() {
         )}
 
         {/* Ledger — UC-59 thanh toán (cả đang chờ / lỗi) + UC-60 chi tiết từng lượt gọi AI. Tải song song với ví, theo số trang. */}
-        <section aria-label={t("history")} className="flex flex-col gap-3">
+        {!billingBlocked && (
+          <section aria-label={t("history")} className="flex flex-col gap-3">
           {/* Tiêu đề + bộ lọc dính ở đầu vùng cuộn khi lướt lịch sử dài */}
           <div className={`sticky top-0 z-30 -mt-3 py-3 bg-surface-container-lowest flex flex-wrap items-center justify-between gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
             <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
@@ -543,7 +547,8 @@ export default function BillingPage() {
               );
             }}
           />
-        </section>
+          </section>
+        )}
       </div>
     </>
   );

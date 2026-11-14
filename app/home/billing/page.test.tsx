@@ -39,11 +39,18 @@ vi.mock("@/lib/api/billing", async (importOriginal) => {
     upgradePlan: vi.fn(),
   };
 });
-const activeOrg = vi.hoisted(() => ({ value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" } }));
-vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
+const activeOrg = vi.hoisted(() => ({
+  value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
+  loading: false,
+}));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => activeOrg.value,
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading }),
+}));
 
 beforeEach(() => {
   activeOrg.value = null;
+  activeOrg.loading = false;
   router.push.mockReset();
   router.replace.mockReset();
   vi.mocked(fetchBalance).mockClear();
@@ -235,6 +242,18 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
   it("chưa biết vai trò thì vẫn hiện nút - BE vẫn chặn, Lead không bị mất nút", async () => {
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
     expect(await screen.findByRole("button", { name: "Mua ngay" })).toBeInTheDocument();
+  });
+
+  it("đang tải tổ chức (cold load) ⇒ không gọi API billing và không hiện nút mua", () => {
+    activeOrg.loading = true;
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    expect(fetchPackages).not.toHaveBeenCalled();
+    expect(fetchBalance).not.toHaveBeenCalled();
+    expect(fetchTransactions).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Mua ngay" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Mua gói/ })).toBeNull();
+    expect(screen.queryByText("Chưa có giao dịch nào")).toBeNull();
   });
 });
 

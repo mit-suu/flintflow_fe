@@ -16,8 +16,14 @@ vi.mock("@/lib/api/users", () => ({
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn() }));
 // TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang hồ sơ
 vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
-const activeOrg = vi.hoisted(() => ({ value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" } }));
-vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
+const activeOrg = vi.hoisted(() => ({
+  value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
+  loading: false,
+}));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => activeOrg.value,
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading }),
+}));
 
 const LOCAL_USER: User = {
   id: "u1",
@@ -46,6 +52,7 @@ const fillPasswordForm = (current: string, next: string, confirm: string) => {
 describe("ProfilePage", () => {
   beforeEach(() => {
     activeOrg.value = null;
+    activeOrg.loading = false;
     vi.mocked(fetchMe).mockReset();
     vi.mocked(updateMyName).mockReset();
     vi.mocked(changeMyPassword).mockReset();
@@ -76,6 +83,14 @@ describe("ProfilePage", () => {
     expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
     expect(screen.queryByText("0 credit")).not.toBeInTheDocument();
     expect(screen.queryByText("Chưa chọn tổ chức - credit nằm ở ví của tổ chức")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Thanh toán & credit/ })).not.toBeInTheDocument();
+  });
+
+  it("đang tải tổ chức (cold load) ⇒ ẩn dòng credit và liên kết tới trang thanh toán dù user có số dư", async () => {
+    activeOrg.loading = true;
+    await renderLoaded(LOCAL_USER);
+    expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
+    expect(screen.queryByText("1.200 credit")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Thanh toán & credit/ })).not.toBeInTheDocument();
   });
 

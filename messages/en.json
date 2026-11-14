@@ -635,6 +635,29 @@
         "bodyUntil": "The {plan} plan is valid until {date}.",
         "bodyActive": "The {plan} plan has been activated."
       },
+      "plan_expired": {
+        "title": "Your {previousPlan} plan has expired",
+        "bodyGranted": "Your organization moved to the {plan} plan and received +{credits} credits for the new cycle until {date}. Repurchase {previousPlan} to keep higher limits.",
+        "bodyGrantedNoDate": "Your organization moved to the {plan} plan and received +{credits} credits for the new cycle. Repurchase {previousPlan} to keep higher limits.",
+        "body": "Your organization moved to the {plan} plan. Repurchase {previousPlan} to keep higher limits."
+      },
+      "credits_renewed": {
+        "title": "New cycle credits granted",
+        "body": "Your organization wallet received +{credits} credits for the new cycle until {date}.",
+        "bodyNoDate": "Your organization wallet received +{credits} credits for the new cycle."
+      },
+      "credit_topup_needed": {
+        "title": "Out of credits - AI step paused",
+        "body": "Project \"{project}\" paused at {step} due to insufficient credits. Top up to continue - after credits are added, the member running the step should reopen the project and press Continue.",
+        "stepExtractHeading": "extracting section \"{heading}\"",
+        "stepExtractSection": "extracting section {section}",
+        "stepExtractGeneric": "document data extraction",
+        "stepSemanticCheck": "the AI content check for the imported document",
+        "stepCrClarify": "AI requirement clarification for {cr}",
+        "stepCrPropose": "AI change proposal for {cr}",
+        "stepCrVerify": "AI proposal verification for {cr}",
+        "stepGeneric": "an AI step"
+      },
       "phase_accepted": {
         "title": "Stage {phase} completed",
         "body": "Every step of {phase} has been approved. You can move on to the next stage."

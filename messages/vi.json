@@ -635,6 +635,29 @@
         "bodyUntil": "Gói {plan} có hiệu lực đến {date}.",
         "bodyActive": "Gói {plan} đã được kích hoạt."
       },
+      "plan_expired": {
+        "title": "Gói {previousPlan} đã hết hạn",
+        "bodyGranted": "Tổ chức đã chuyển về gói {plan} và được cộng +{credits} credit cho kỳ mới đến {date}. Mua lại gói {previousPlan} để tiếp tục dùng giới hạn cao hơn.",
+        "bodyGrantedNoDate": "Tổ chức đã chuyển về gói {plan} và được cộng +{credits} credit cho kỳ mới. Mua lại gói {previousPlan} để tiếp tục dùng giới hạn cao hơn.",
+        "body": "Tổ chức đã chuyển về gói {plan}. Mua lại gói {previousPlan} để tiếp tục dùng giới hạn cao hơn."
+      },
+      "credits_renewed": {
+        "title": "Đã cấp credit kỳ mới",
+        "body": "Ví tổ chức đã được cộng +{credits} credit cho kỳ mới đến {date}.",
+        "bodyNoDate": "Ví tổ chức đã được cộng +{credits} credit cho kỳ mới."
+      },
+      "credit_topup_needed": {
+        "title": "Hết credit - bước AI đang dừng",
+        "body": "Dự án \"{project}\" dừng ở {step} vì không đủ credit. Nạp thêm để chạy tiếp - sau khi nạp thêm credit, thành viên thực hiện mở lại dự án và bấm tiếp tục.",
+        "stepExtractHeading": "bước trích dữ liệu mục \"{heading}\"",
+        "stepExtractSection": "bước trích dữ liệu mục {section}",
+        "stepExtractGeneric": "bước trích dữ liệu tài liệu",
+        "stepSemanticCheck": "bước AI kiểm tra nội dung tài liệu vừa nhập",
+        "stepCrClarify": "bước AI làm rõ yêu cầu của {cr}",
+        "stepCrPropose": "bước AI đề xuất sửa của {cr}",
+        "stepCrVerify": "bước AI kiểm tra đề xuất của {cr}",
+        "stepGeneric": "một bước AI"
+      },
       "phase_accepted": {
         "title": "Đã hoàn tất giai đoạn {phase}",
         "body": "Mọi bước của giai đoạn {phase} đã được duyệt. Bạn có thể chuyển sang giai đoạn tiếp theo."
