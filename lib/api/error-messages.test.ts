@@ -121,4 +121,13 @@ describe("localizeApiError (T25 · P6)", () => {
       expect(localizeApiError(code, "x", "en")).not.toBe("x");
     }
   });
+
+  it("FLF-422: INVITE_EMAIL_MISMATCH dịch song ngữ vi/en", () => {
+    expect(localizeApiError("INVITE_EMAIL_MISMATCH", "x", "vi")).toBe(
+      "Mã mời này được cấp riêng cho một địa chỉ email khác."
+    );
+    expect(localizeApiError("INVITE_EMAIL_MISMATCH", "x", "en")).toBe(
+      "This invitation code was issued for a different email address."
+    );
+  });
 });
