@@ -198,6 +198,29 @@ export const useNotificationText = () => {
       // Đổi mẫu kẹt sau nhiều lần phục hồi: người tạo mở dự án và bấm Khôi phục
       case "template_migration_failed":
         return { title: t("template_migration_failed.title"), body: t("template_migration_failed.body") };
+      // UC-68: Admin điều chỉnh credit ví org — hỗ trợ cả dòng cũ thiếu `meta.organizationName`
+      case "credits_adjusted": {
+        const amount = num(meta.amount);
+        const reason = str(meta.reason);
+        if (amount === undefined || !reason) return stored;
+        const org =
+          str(meta.organizationName) ??
+          notification.body.match(/^[+-]?[\d.,]+\s+credit\s+cho\s+(.+?)\.\s+Lý do:/u)?.[1]?.trim();
+        const added = amount >= 0;
+        const absAmount = Math.abs(amount);
+        const title = t(added ? "credits_adjusted.titleAdded" : "credits_adjusted.titleDeducted");
+        const body = org
+          ? t(added ? "credits_adjusted.bodyAdded" : "credits_adjusted.bodyDeducted", {
+              credits: absAmount,
+              org,
+              reason,
+            })
+          : t(added ? "credits_adjusted.bodyAddedGeneric" : "credits_adjusted.bodyDeductedGeneric", {
+              credits: absAmount,
+              reason,
+            });
+        return { title, body };
+      }
       default:
         return stored;
     }

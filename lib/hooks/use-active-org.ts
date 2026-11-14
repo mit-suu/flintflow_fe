@@ -15,16 +15,22 @@ export interface ActiveOrganization {
 export interface ActiveOrganizationState {
   org: ActiveOrganization | null;
   loading: boolean;
+  error: boolean;
 }
 
 /**
- * Tổ chức đang mở (claim `orgId` trong token) kèm tên, vai trò của người dùng và trạng thái đang tải.
- * Dùng để tránh nháy UI / gọi API theo vai trò khi chưa biết org đang mở là Viewer hay Lead/Analyst.
+ * Tổ chức đang mở (claim `orgId` trong token) kèm tên, vai trò của người dùng, trạng thái đang tải và lỗi.
+ * Dùng để fail-closed (ẩn UI / không gọi API theo vai trò) khi chưa biết hoặc không tải được org đang mở.
  */
 export const useActiveOrganizationState = (): ActiveOrganizationState => {
-  const [state, setState] = useState<{ org: ActiveOrganization | null; settledForOrgId: string | null }>({
+  const [state, setState] = useState<{
+    org: ActiveOrganization | null;
+    settledForOrgId: string | null;
+    error: boolean;
+  }>({
     org: null,
     settledForOrgId: null,
+    error: false,
   });
   const activeOrgId = typeof window === "undefined" ? null : getActiveOrgId();
 
@@ -38,16 +44,21 @@ export const useActiveOrganizationState = (): ActiveOrganizationState => {
             setState({
               org: { id: detail.id, name: detail.name, role: detail.role },
               settledForOrgId: activeOrgId,
+              error: false,
             });
           }
         })
-        // Không lấy được thì thôi hiện tên — không chặn giao diện vì chuyện phụ này
+        // Không lấy được thì thôi hiện tên — không chặn giao diện chính, nhưng đặt error: true để phần billing fail closed
         .catch(() => {
           if (mounted) {
-            setState((prev) => ({
-              org: prev.settledForOrgId === activeOrgId ? prev.org : null,
-              settledForOrgId: activeOrgId,
-            }));
+            setState((prev) => {
+              const keepOrg = prev.settledForOrgId === activeOrgId ? prev.org : null;
+              return {
+                org: keepOrg,
+                settledForOrgId: activeOrgId,
+                error: keepOrg === null,
+              };
+            });
           }
         });
     void load();
@@ -59,9 +70,9 @@ export const useActiveOrganizationState = (): ActiveOrganizationState => {
     };
   }, [activeOrgId]);
 
-  if (!activeOrgId) return { org: null, loading: false };
-  if (state.settledForOrgId !== activeOrgId) return { org: null, loading: true };
-  return { org: state.org, loading: false };
+  if (!activeOrgId) return { org: null, loading: false, error: false };
+  if (state.settledForOrgId !== activeOrgId) return { org: null, loading: true, error: false };
+  return { org: state.org, loading: false, error: state.error };
 };
 
 /**

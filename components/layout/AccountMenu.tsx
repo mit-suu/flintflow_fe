@@ -7,7 +7,7 @@ import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import DropdownMenu, { type DropdownMenuItem, type DropdownTriggerProps } from "@/components/ui/DropdownMenu";
 import { logoutAndRedirect } from "@/lib/auth";
-import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { useAppShell, type AppUser } from "./AppShell";
 
 interface AccountMenuProps {
@@ -27,8 +27,8 @@ export default function AccountMenu({ user, trigger, placement = "bottom-end", o
   const t = useTranslations("app.shell");
   const router = useRouter();
   const { balance } = useAppShell();
-  const activeOrg = useActiveOrganization();
-  const isViewer = activeOrg?.role === "viewer";
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const hideBilling = orgLoading || orgError || activeOrg?.role === "viewer";
 
   const planLabel = user.isAdmin ? t("planAdmin") : balance ? t("plan", { plan: balance.planLabel }) : t("planFree");
 
@@ -39,7 +39,7 @@ export default function AccountMenu({ user, trigger, placement = "bottom-end", o
 
   const items: DropdownMenuItem[] = [
     { label: t("profile"), icon: "user", onSelect: () => go("/home/profile") },
-    ...(isViewer
+    ...(hideBilling
       ? []
       : [
           {

@@ -690,6 +690,14 @@
       "template_migration_failed": {
         "title": "Template change got stuck",
         "body": "The template change could not finish after several attempts. Open the project and choose Restore to go back to before the template change."
+      },
+      "credits_adjusted": {
+        "titleAdded": "Organization credits added",
+        "titleDeducted": "Organization credits deducted",
+        "bodyAdded": "+{credits, plural, one {# credit} other {# credits}} for {org}. Reason: {reason}",
+        "bodyDeducted": "-{credits, plural, one {# credit} other {# credits}} for {org}. Reason: {reason}",
+        "bodyAddedGeneric": "+{credits, plural, one {# credit} other {# credits}}. Reason: {reason}",
+        "bodyDeductedGeneric": "-{credits, plural, one {# credit} other {# credits}}. Reason: {reason}"
       }
     },
     "common": {

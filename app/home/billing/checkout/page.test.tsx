@@ -27,10 +27,11 @@ vi.mock("@/lib/api/billing", async (importOriginal) => {
 const activeOrg = vi.hoisted(() => ({
   value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
   loading: false,
+  error: false,
 }));
 vi.mock("@/lib/hooks/use-active-org", () => ({
   useActiveOrganization: () => activeOrg.value,
-  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading }),
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading, error: activeOrg.error }),
 }));
 
 const makeIntent = (status: PaymentIntentDTO["status"]): PaymentIntentDTO => ({
@@ -51,6 +52,7 @@ describe("CheckoutPage", () => {
   beforeEach(() => {
     activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
     activeOrg.loading = false;
+    activeOrg.error = false;
     searchParams.intentId = "intent_1";
     router.push.mockReset();
     router.replace.mockReset();
@@ -84,6 +86,16 @@ describe("CheckoutPage", () => {
     expect(router.replace).not.toHaveBeenCalled();
     expect(fetchCheckout).not.toHaveBeenCalled();
     expect(screen.getByText("Đang tải…")).toBeInTheDocument();
+  });
+
+  it("tải tổ chức lỗi ⇒ không gọi fetchCheckout và hiện lỗi (fail closed)", () => {
+    activeOrg.value = null;
+    activeOrg.error = true;
+    renderWithIntl(<CheckoutPage />);
+
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(fetchCheckout).not.toHaveBeenCalled();
+    expect(screen.getByText("Không thể tải giao dịch")).toBeInTheDocument();
   });
 
   it.each([

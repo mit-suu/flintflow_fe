@@ -9,7 +9,7 @@ import FeedbackDialog from "@/components/project/FeedbackDialog";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import { useProjects } from "@/lib/hooks/use-projects";
-import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { useAppShell } from "./AppShell";
 import OrgSwitcher from "./OrgSwitcher";
 import RecentProjects from "./RecentProjects";
@@ -33,7 +33,8 @@ export default function AppSidebar() {
   // 3 dự án đang làm sửa gần nhất — BE sắp sẵn (FLF-404: không còn tải mọi dự án)
   const { recentProjects: recent } = useProjects();
   const unreadCount = useUnreadNotificationCount();
-  const activeOrg = useActiveOrganization();
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const hideBilling = orgLoading || orgError || activeOrg?.role === "viewer";
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Drawer mobile luôn mở rộng; thu gọn chỉ áp dụng trên desktop
@@ -123,7 +124,7 @@ export default function AppSidebar() {
                 <OrgSwitcher activeOrg={activeOrg} collapsed={collapsed} />
               ) : null}
               {section.items
-                .filter((item) => !(item.id === "billing" && activeOrg?.role === "viewer"))
+                .filter((item) => !(item.id === "billing" && hideBilling))
                 .map((item) => (
                   <SidebarNavItem
                     key={item.id}

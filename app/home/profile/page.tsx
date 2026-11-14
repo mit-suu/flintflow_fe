@@ -37,8 +37,8 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
   const format = useFormatter();
-  const { org: activeOrg, loading: orgLoading } = useActiveOrganizationState();
-  const hideCredits = orgLoading || activeOrg?.role === "viewer";
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const hideCredits = orgLoading || orgError || activeOrg?.role === "viewer";
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name ?? "");
   const [saving, setSaving] = useState(false);

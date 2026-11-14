@@ -690,6 +690,14 @@
       "template_migration_failed": {
         "title": "Đổi mẫu bị kẹt",
         "body": "Lần đổi mẫu không hoàn tất được sau nhiều lần thử. Mở dự án và chọn Khôi phục để quay về trước lần đổi mẫu."
+      },
+      "credits_adjusted": {
+        "titleAdded": "Tổ chức được cộng credit",
+        "titleDeducted": "Tổ chức bị trừ credit",
+        "bodyAdded": "+{credits, plural, other {#}} credit cho {org}. Lý do: {reason}",
+        "bodyDeducted": "-{credits, plural, other {#}} credit cho {org}. Lý do: {reason}",
+        "bodyAddedGeneric": "+{credits, plural, other {#}} credit. Lý do: {reason}",
+        "bodyDeductedGeneric": "-{credits, plural, other {#}} credit. Lý do: {reason}"
       }
     },
     "common": {

@@ -20,7 +20,11 @@ export interface CreditTransaction {
   _id: string;
   actionType: string;
   amount: number;
+  /** Chiều cộng/trừ tường minh cho `admin_adjust` (`amount` là trị tuyệt đối). */
+  direction?: "credit" | "debit" | null;
   type: CreditTransactionType;
+  /** Lý do điều chỉnh (UC-68). Chỉ dòng `admin_adjust` mới có. */
+  reason?: string | null;
   /** `null` ở dòng thanh toán chưa thành công (chưa đụng ví). */
   balanceAfter: number | null;
   state?: "reserved" | "deducted" | "refunded" | "expired";

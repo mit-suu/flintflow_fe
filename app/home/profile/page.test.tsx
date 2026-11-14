@@ -19,10 +19,11 @@ vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
 const activeOrg = vi.hoisted(() => ({
   value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
   loading: false,
+  error: false,
 }));
 vi.mock("@/lib/hooks/use-active-org", () => ({
   useActiveOrganization: () => activeOrg.value,
-  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading }),
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading, error: activeOrg.error }),
 }));
 
 const LOCAL_USER: User = {
@@ -53,6 +54,7 @@ describe("ProfilePage", () => {
   beforeEach(() => {
     activeOrg.value = null;
     activeOrg.loading = false;
+    activeOrg.error = false;
     vi.mocked(fetchMe).mockReset();
     vi.mocked(updateMyName).mockReset();
     vi.mocked(changeMyPassword).mockReset();
@@ -88,6 +90,14 @@ describe("ProfilePage", () => {
 
   it("đang tải tổ chức (cold load) ⇒ ẩn dòng credit và liên kết tới trang thanh toán dù user có số dư", async () => {
     activeOrg.loading = true;
+    await renderLoaded(LOCAL_USER);
+    expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
+    expect(screen.queryByText("1.200 credit")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Thanh toán & credit/ })).not.toBeInTheDocument();
+  });
+
+  it("tải tổ chức lỗi ⇒ ẩn dòng credit và liên kết tới trang thanh toán (fail closed)", async () => {
+    activeOrg.error = true;
     await renderLoaded(LOCAL_USER);
     expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
     expect(screen.queryByText("1.200 credit")).not.toBeInTheDocument();

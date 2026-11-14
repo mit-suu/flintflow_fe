@@ -209,9 +209,9 @@ function CheckoutFromQuery() {
   const t = useTranslations("app.checkout");
   const router = useRouter();
   const intentId = useSearchParams().get("intentId");
-  const { org: activeOrg, loading: orgLoading } = useActiveOrganizationState();
-  const isViewer = !orgLoading && activeOrg?.role === "viewer";
-  const isAnalyst = !orgLoading && activeOrg?.role === "analyst";
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const isViewer = !orgLoading && !orgError && activeOrg?.role === "viewer";
+  const isAnalyst = !orgLoading && !orgError && activeOrg?.role === "analyst";
 
   useEffect(() => {
     if (isViewer) router.replace("/home");
@@ -220,6 +220,14 @@ function CheckoutFromQuery() {
 
   if (orgLoading) return <CheckoutFallback />;
   if (isViewer || isAnalyst) return null;
+  if (orgError) {
+    return (
+      <CenteredCard>
+        <div className="text-body text-on-error-container">{t("loadFailed")}</div>
+        <BackLink />
+      </CenteredCard>
+    );
+  }
 
   if (!intentId) {
     return (

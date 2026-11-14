@@ -64,7 +64,7 @@ describe("useActiveOrganizationState", () => {
       })
     );
     const { result } = renderHook(() => useActiveOrganizationState());
-    expect(result.current).toEqual({ org: null, loading: true });
+    expect(result.current).toEqual({ org: null, loading: true, error: false });
 
     await act(async () => {
       resolveOrg({
@@ -80,22 +80,23 @@ describe("useActiveOrganizationState", () => {
       expect(result.current).toEqual({
         org: { id: "org-1", name: "Nhóm A", role: "analyst" },
         loading: false,
+        error: false,
       })
     );
   });
 
-  it("fetchOrganization lỗi ⇒ settled về org: null, loading: false", async () => {
+  it("fetchOrganization lỗi ⇒ settled về org: null, loading: false, error: true (fail closed)", async () => {
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");
     vi.mocked(fetchOrganization).mockRejectedValue(new Error("mất mạng"));
     const { result } = renderHook(() => useActiveOrganizationState());
-    expect(result.current).toEqual({ org: null, loading: true });
-    await waitFor(() => expect(result.current).toEqual({ org: null, loading: false }));
+    expect(result.current).toEqual({ org: null, loading: true, error: false });
+    await waitFor(() => expect(result.current).toEqual({ org: null, loading: false, error: true }));
   });
 
-  it("chưa có orgId trong token ⇒ trả ngay org: null, loading: false và không gọi BE", () => {
+  it("chưa có orgId trong token ⇒ trả ngay org: null, loading: false, error: false và không gọi BE", () => {
     vi.mocked(getActiveOrgId).mockReturnValue(null);
     const { result } = renderHook(() => useActiveOrganizationState());
-    expect(result.current).toEqual({ org: null, loading: false });
+    expect(result.current).toEqual({ org: null, loading: false, error: false });
     expect(fetchOrganization).not.toHaveBeenCalled();
   });
 });

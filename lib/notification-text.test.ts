@@ -205,4 +205,59 @@ describe("useNotificationText (T25)", () => {
     expect(textIn("vi")(note("template_migration_failed", { migration_id: "m1" })).title).toBe("Đổi mẫu bị kẹt");
     expect(textIn("en")(note("template_migration_failed", { migration_id: "m1" })).title).toBe("Template change got stuck");
   });
+
+  it("credits_adjusted: dựng câu cộng/trừ credit theo VI/EN kể cả dòng cũ thiếu organizationName", () => {
+    const plusMeta = { organizationId: "o1", organizationName: "Org A", amount: 50, reason: "Support bonus" };
+    const minusMeta = { organizationId: "o1", organizationName: "Org A", amount: -20, reason: "Chargeback" };
+    const legacyPlus = note(
+      "credits_adjusted",
+      { organizationId: "o1", amount: 50, reason: "Compensation" },
+      "Tổ chức được cộng credit",
+      "+50 credit cho Org Legacy. Lý do: Compensation"
+    );
+    const genericPlus = note(
+      "credits_adjusted",
+      { organizationId: "o1", amount: 1, reason: "Compensation" },
+      "Tổ chức được cộng credit",
+      "legacy text"
+    );
+
+    const viText = textIn("vi");
+    expect(viText(note("credits_adjusted", plusMeta))).toEqual({
+      title: "Tổ chức được cộng credit",
+      body: "+50 credit cho Org A. Lý do: Support bonus",
+    });
+    expect(viText(note("credits_adjusted", minusMeta))).toEqual({
+      title: "Tổ chức bị trừ credit",
+      body: "-20 credit cho Org A. Lý do: Chargeback",
+    });
+
+    const enText = textIn("en");
+    const enOutputs = [
+      enText(note("credits_adjusted", plusMeta)),
+      enText(note("credits_adjusted", minusMeta)),
+      enText(legacyPlus),
+      enText(genericPlus),
+    ];
+    expect(enOutputs[0]).toEqual({
+      title: "Organization credits added",
+      body: "+50 credits for Org A. Reason: Support bonus",
+    });
+    expect(enOutputs[1]).toEqual({
+      title: "Organization credits deducted",
+      body: "-20 credits for Org A. Reason: Chargeback",
+    });
+    expect(enOutputs[2]).toEqual({
+      title: "Organization credits added",
+      body: "+50 credits for Org Legacy. Reason: Compensation",
+    });
+    expect(enOutputs[3]).toEqual({
+      title: "Organization credits added",
+      body: "+1 credit. Reason: Compensation",
+    });
+
+    const container = document.createElement("div");
+    container.textContent = enOutputs.map((item) => `${item.title}\n${item.body}`).join("\n");
+    expect(vietnameseLeftovers(container)).toEqual([]);
+  });
 });

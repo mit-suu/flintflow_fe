@@ -32,7 +32,17 @@ import { usePagedList } from "@/lib/hooks/use-paged-list";
 const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "purchase" || tx.type === "monthly_reset") return `+${tx.amount}`;
   if (tx.type === "deduct") return `−${tx.amount}`;
+  if (tx.type === "admin_adjust") {
+    if (tx.direction === "credit") return `+${tx.amount}`;
+    if (tx.direction === "debit") return `−${tx.amount}`;
+  }
   return String(tx.amount);
+};
+
+const amountToneClass = (tx: CreditTransaction) => {
+  if (tx.type === "purchase" || (tx.type === "admin_adjust" && tx.direction === "credit")) return "text-success";
+  if (tx.type === "deduct" || (tx.type === "admin_adjust" && tx.direction === "debit")) return "text-error";
+  return "text-on-surface-variant";
 };
 
 /** Ô không có dữ liệu (dòng cũ chưa ghi step / token, giao dịch không gắn dự án). */
@@ -119,10 +129,10 @@ export default function BillingPage() {
   // trước đây Analyst bấm "Mua ngay" chỉ nhận câu chung chung "Vai trò của bạn không được phép...". Đang tải tổ chức
   // (`orgLoading`) thì giữ skeleton và chặn mọi lời gọi API theo vai trò; xong mà không thuộc org nào (`activeOrg === null`)
   // vẫn hiện nút (BE vẫn chặn, Lead không bị mất nút).
-  const { org: activeOrg, loading: orgLoading } = useActiveOrganizationState();
-  const isViewer = !orgLoading && activeOrg?.role === "viewer";
-  const billingBlocked = orgLoading || isViewer;
-  const canPurchase = !orgLoading && (activeOrg === null || activeOrg.role === "lead");
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const isViewer = !orgLoading && !orgError && activeOrg?.role === "viewer";
+  const billingBlocked = orgLoading || orgError || isViewer;
+  const canPurchase = !billingBlocked && (activeOrg === null || activeOrg.role === "lead");
   const activeOrgId = activeOrg?.id ?? null;
   const showLoading = orgLoading || loading;
   const effectiveFilters: LedgerFilters = !canPurchase && filters.kind === "payment" ? { ...filters, kind: "all" } : filters;
@@ -305,14 +315,14 @@ export default function BillingPage() {
       <div className={`flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 pb-scroll-end bg-surface-container-lowest ${PAGE_GUTTER}`}>
         <h1 className="mt-6 sm:mt-8 text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
-        {error !== null && (
+        {(error !== null || orgError) && (
           <div className="flex items-center gap-3 bg-error-container text-on-error-container px-4 py-3 rounded-control text-body font-medium">
             <span className="flex-1">{error || t("errors.load")}</span>
-            <IconButton icon="close" label={tc("dismiss")} size="sm" onClick={() => setError(null)} className="shrink-0" />
+            {error !== null && <IconButton icon="close" label={tc("dismiss")} size="sm" onClick={() => setError(null)} className="shrink-0" />}
           </div>
         )}
 
-        {showLoading ? (
+        {orgError ? null : showLoading ? (
           <PageSkeleton variant="cards" label={t("loading")} />
         ) : (
           <>
@@ -533,9 +543,7 @@ export default function BillingPage() {
                     {tokensOf(tx)}
                   </span>
                   <span
-                    className={`max-xl:order-2 text-right font-bold whitespace-nowrap ${
-                      tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
-                    }`}
+                    className={`max-xl:order-2 text-right font-bold whitespace-nowrap ${amountToneClass(tx)}`}
                   >
                     {signedAmount(tx)}
                   </span>

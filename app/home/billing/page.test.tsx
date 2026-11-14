@@ -42,15 +42,17 @@ vi.mock("@/lib/api/billing", async (importOriginal) => {
 const activeOrg = vi.hoisted(() => ({
   value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
   loading: false,
+  error: false,
 }));
 vi.mock("@/lib/hooks/use-active-org", () => ({
   useActiveOrganization: () => activeOrg.value,
-  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading }),
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading, error: activeOrg.error }),
 }));
 
 beforeEach(() => {
   activeOrg.value = null;
   activeOrg.loading = false;
+  activeOrg.error = false;
   router.push.mockReset();
   router.replace.mockReset();
   vi.mocked(fetchBalance).mockClear();
@@ -255,6 +257,19 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
     expect(screen.queryByRole("button", { name: /Mua gói/ })).toBeNull();
     expect(screen.queryByText("Chưa có giao dịch nào")).toBeNull();
   });
+
+  it("tải tổ chức lỗi ⇒ không gọi API billing, hiện lỗi và ẩn nội dung billing (fail closed)", () => {
+    activeOrg.error = true;
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    expect(fetchPackages).not.toHaveBeenCalled();
+    expect(fetchBalance).not.toHaveBeenCalled();
+    expect(fetchTransactions).not.toHaveBeenCalled();
+    expect(screen.getByText("Không thể tải thông tin thanh toán")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mua ngay" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Báo Lead nạp credit/ })).toBeNull();
+    expect(screen.queryByText("Chưa có giao dịch nào")).toBeNull();
+  });
 });
 
 describe("không hạ gói (FLF-347)", () => {
@@ -336,5 +351,59 @@ describe("trang thanh toán - tiếng Anh", () => {
     expect(screen.getAllByText("Up to 3 members · 3 projects")).toHaveLength(2);
     expect(screen.getByText("Up to 5 members · 50 projects")).toBeInTheDocument();
     expect(vietnameseLeftovers(container)).toEqual([]);
+  });
+
+  it("dòng admin_adjust hiển thị dấu + / − và màu theo direction, giữ nguyên dòng cũ thiếu direction", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    vi.mocked(fetchTransactions).mockResolvedValueOnce(
+      page([
+        {
+          _id: "t-adj-plus",
+          type: "admin_adjust",
+          actionType: "admin_adjust",
+          amount: 50,
+          direction: "credit",
+          balanceAfter: 350,
+          createdAt: at,
+          member: { id: "u1", name: "Hiệp" },
+          project: null,
+        },
+        {
+          _id: "t-adj-minus",
+          type: "admin_adjust",
+          actionType: "admin_adjust",
+          amount: 20,
+          direction: "debit",
+          balanceAfter: 330,
+          createdAt: at,
+          member: { id: "u1", name: "Hiệp" },
+          project: null,
+        },
+        {
+          _id: "t-adj-legacy",
+          type: "admin_adjust",
+          actionType: "admin_adjust",
+          amount: 15,
+          direction: null,
+          balanceAfter: 345,
+          createdAt: at,
+          member: { id: "u1", name: "Hiệp" },
+          project: null,
+        },
+      ]) as never
+    );
+
+    renderWithIntl(
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>
+    );
+
+    const plusCell = await screen.findByText("+50");
+    expect(plusCell.className).toContain("text-success");
+
+    const minusCell = screen.getByText("−20");
+    expect(minusCell.className).toContain("text-error");
+
+    const legacyCell = screen.getByText("15");
+    expect(legacyCell.className).toContain("text-on-surface-variant");
   });
 });
