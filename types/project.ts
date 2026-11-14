@@ -24,6 +24,9 @@ export type DocumentLanguage = "vi" | "en";
 /** Ký pháp vẽ ERD của cả dự án (FLF-324). Đổi ⇒ BE vẽ lại hình ERD đã có. */
 export type ErdNotation = "chen" | "crowsfoot" | "idef1x";
 
+/** FLF-418: mức vẽ Sequence Diagram của cả dự án — `system` (hộp đen) hoặc `component` (boundary / control / entity). */
+export type SequenceLevel = "system" | "component";
+
 /** FLF-410: nền tảng vẽ mockup màn. */
 export type ScreenPlatform = "web" | "mobile";
 
@@ -113,8 +116,10 @@ export interface Project {
   converted_at?: string | null;
   /** Dự án cũ không có field: mode 2 đọc `en`, mode 1 theo ngôn ngữ file (BE suy ra). */
   documentLanguage?: DocumentLanguage;
-  /** FLF-324: BE luôn trả; dự án cũ `chen`. Thiếu field (BE cũ) ⇒ coi là `chen`. */
+  /** FLF-324 / FLF-418: thiếu = chưa chọn (S-4.5 hỏi trong khung chat) ⇒ hiển thị và vẽ là `chen`. */
   erdNotation?: ErdNotation;
+  /** FLF-418: thiếu = chưa chọn (S-5.4 hỏi trong khung chat) ⇒ vẽ là `system`. */
+  sequenceLevel?: SequenceLevel;
   /** Org sở hữu dự án (BE `organizationId`); dự án cũ chưa backfill `null` / thiếu. */
   organizationId?: string | null;
   /** FLF-395: bản mẫu tổ chức mới hơn bản dự án đang theo — BE chỉ trả cho Lead / Analyst; còn lại `null` / thiếu. */

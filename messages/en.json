@@ -767,6 +767,7 @@
         "moveToFolder": "Move to folder",
         "documentLanguage": "Document language",
         "erdNotation": "ERD notation",
+        "sequenceLevel": "Sequence diagram level",
         "archive": "Archive",
         "hardDelete": "Delete permanently",
         "screenTheme": "Screen appearance"
@@ -900,6 +901,18 @@
         "cta": "Change notation",
         "busy": "Changing…",
         "failed": "Could not change the ERD notation"
+      },
+      "sequenceLevel": {
+        "title": "Sequence diagram level",
+        "label": "Sequence diagram level",
+        "system": "System",
+        "systemDetail": "Actors talk to the system as a black box (System Sequence Diagram). Suits an SRS for the customer.",
+        "component": "Component",
+        "componentDetail": "Actor → screen (boundary) → controller (control) → entity, in Visual Paradigm notation. More detail; functions without component flows stay at system level until they are drafted again.",
+        "detail": "Applies to the whole project. Existing sequence diagrams are redrawn right away at the new level; the Spine content does not change.",
+        "cta": "Change level",
+        "busy": "Changing…",
+        "failed": "Could not change the sequence diagram level"
       },
       "renameTitle": "Rename project",
       "renameFailed": "Could not rename the project",
@@ -4288,7 +4301,6 @@
           "rejected": "Rejected"
         }
       }
-    
     },
     "fields": {
       "other": "Other data",

@@ -767,6 +767,7 @@
         "moveToFolder": "Chuyển vào thư mục",
         "documentLanguage": "Ngôn ngữ tài liệu",
         "erdNotation": "Ký pháp ERD",
+        "sequenceLevel": "Mức Sequence Diagram",
         "archive": "Lưu trữ",
         "hardDelete": "Xoá vĩnh viễn",
         "screenTheme": "Giao diện màn hình"
@@ -900,6 +901,18 @@
         "cta": "Đổi ký pháp",
         "busy": "Đang đổi…",
         "failed": "Không thể đổi ký pháp ERD"
+      },
+      "sequenceLevel": {
+        "title": "Mức Sequence Diagram",
+        "label": "Mức Sequence Diagram",
+        "system": "Hệ thống",
+        "systemDetail": "Actor trao đổi với hệ thống như một hộp đen (System Sequence Diagram). Hợp với SRS gửi khách hàng.",
+        "component": "Thành phần",
+        "componentDetail": "Actor → màn hình (boundary) → bộ điều khiển (control) → thực thể (entity) theo ký pháp Visual Paradigm. Chi tiết hơn; chức năng chưa có luồng thành phần vẫn vẽ mức hệ thống tới khi soạn lại.",
+        "detail": "Áp dụng cho cả dự án. Sơ đồ tuần tự đã có sẽ được vẽ lại ngay theo mức mới; nội dung Spine không đổi.",
+        "cta": "Đổi mức",
+        "busy": "Đang đổi…",
+        "failed": "Không thể đổi mức Sequence Diagram"
       },
       "renameTitle": "Đổi tên dự án",
       "renameFailed": "Không thể đổi tên dự án",
@@ -4288,7 +4301,6 @@
           "rejected": "Đã bác bỏ"
         }
       }
-    
     },
     "fields": {
       "other": "Dữ liệu khác",

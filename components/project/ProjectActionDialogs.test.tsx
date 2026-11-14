@@ -2,13 +2,13 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { MESSAGES, renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
-import { deleteProject, renameProject, setDocumentLanguage, setErdNotation } from "@/lib/api/projects";
+import { deleteProject, renameProject, setDocumentLanguage, setErdNotation, setSequenceLevel } from "@/lib/api/projects";
 import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
 import type { TranslationStatus } from "@/types/document";
 import type { Project } from "@/types/project";
 import ProjectActionDialogs from "./ProjectActionDialogs";
 
-vi.mock("@/lib/api/projects", () => ({ renameProject: vi.fn(), deleteProject: vi.fn(), setDocumentLanguage: vi.fn(), setErdNotation: vi.fn() }));
+vi.mock("@/lib/api/projects", () => ({ renameProject: vi.fn(), deleteProject: vi.fn(), setDocumentLanguage: vi.fn(), setErdNotation: vi.fn(), setSequenceLevel: vi.fn() }));
 // FLF-265: đổi ngôn ngữ xong đọc ước tính dịch — mặc định không còn mục nào (đổi xong là đóng như trước)
 const { NOTHING_MISSING } = vi.hoisted(() => ({
   NOTHING_MISSING: { locale: "vi", source_locale: "en", total: 120, missing: 0, batches: 0, estimated_credits: 0 } satisfies TranslationStatus,
@@ -158,6 +158,41 @@ describe("ProjectActionDialogs - đổi ký pháp ERD (FLF-324)", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
     expect(onDone).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProjectActionDialogs - đổi mức Sequence Diagram (FLF-418)", () => {
+  beforeEach(() => {
+    vi.mocked(setSequenceLevel).mockReset().mockResolvedValue({ data: { ...project, sequenceLevel: "component" }, error: null } as never);
+  });
+
+  it("chưa chọn ⇒ chọn sẵn Hệ thống và nút đổi bị khoá tới khi chọn mức khác", () => {
+    renderWithIntl(<ProjectActionDialogs target={{ action: "sequenceLevel", project }} onClose={() => {}} onDone={() => {}} />);
+    expect(screen.getByRole("radio", { name: /^Hệ thống/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Đổi mức" })).toBeDisabled();
+  });
+
+  it("đổi ⇒ gọi setSequenceLevel, tải lại danh sách rồi đóng", async () => {
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    renderWithIntl(<ProjectActionDialogs target={{ action: "sequenceLevel", project }} onClose={onClose} onDone={onDone} />);
+    fireEvent.click(screen.getByRole("radio", { name: /^Thành phần/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Đổi mức" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(setSequenceLevel).toHaveBeenCalledWith("p1", "component");
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it("403 ORG_ROLE_FORBIDDEN ⇒ hiện lỗi, không đóng", async () => {
+    vi.mocked(setSequenceLevel).mockRejectedValue(new ApiClientError(403, "ORG_ROLE_FORBIDDEN", "Forbidden"));
+    const onClose = vi.fn();
+    renderWithIntl(<ProjectActionDialogs target={{ action: "sequenceLevel", project: { ...project, sequenceLevel: "component" } }} onClose={onClose} onDone={() => {}} />);
+    fireEvent.click(screen.getByRole("radio", { name: /^Hệ thống/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Đổi mức" }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 

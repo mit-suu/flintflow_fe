@@ -2,6 +2,7 @@ import type {
   CreateProjectRequest,
   DocumentLanguage,
   ErdNotation,
+  SequenceLevel,
   Project,
   ProjectMode,
   ProjectStatus,
@@ -101,6 +102,15 @@ export const setErdNotation = (projectId: string, erdNotation: ErdNotation) =>
   apiCall<Project>(`/projects/${projectId}/erd-notation`, {
     method: "PATCH",
     body: JSON.stringify({ erdNotation }),
+  });
+
+/**
+ * Đổi mức vẽ Sequence Diagram của dự án (FLF-418) — chỉ Lead/Analyst. Khác mức cũ và đã có sơ đồ tuần tự ⇒ BE vẽ lại ngay.
+ */
+export const setSequenceLevel = (projectId: string, sequenceLevel: SequenceLevel) =>
+  apiCall<Project>(`/projects/${projectId}/sequence-level`, {
+    method: "PATCH",
+    body: JSON.stringify({ sequenceLevel }),
   });
 
 /**

@@ -36,7 +36,7 @@ import type {
 } from "@/types/pipeline";
 import type { Change, ReviewMode, Spine } from "@/types/spine";
 import type { AutoPassedItem } from "@/types/review-level";
-import type { DocumentLanguage, ErdNotation, Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { DocumentLanguage, ErdNotation, Project, ProjectMode, ProjectStatus, SequenceLevel } from "@/types/project";
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
@@ -404,6 +404,7 @@ export const resetMockChangeFlowState = (): void => {
 // theo file ⇒ coi như trùng. Khác nhau ⇒ `GET /document` kèm `meta.translation`, `status` đếm phần thiếu, `run` dịch dần.
 
 const isErdNotation = (v: unknown): v is ErdNotation => v === "chen" || v === "crowsfoot" || v === "idef1x";
+const isSequenceLevel = (v: unknown): v is SequenceLevel => v === "system" || v === "component";
 
 /** Số đơn vị chữ của tài liệu mock (BE: mỗi field theo id một đơn vị). */
 export const MOCK_TRANSLATION_UNITS = 100;
@@ -731,6 +732,17 @@ export const handlers = [
     }
     if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
     mockState.project = { ...mockState.project, erdNotation, updatedAt: new Date().toISOString() };
+    return ok(mockState.project);
+  }),
+  // FLF-418: body strict { sequenceLevel }; mọi mode đổi được
+  http.patch(api("/projects/:projectId/sequence-level"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const { sequenceLevel } = body;
+    if (!isSequenceLevel(sequenceLevel) || Object.keys(body).length !== 1) {
+      return fail(400, "VALIDATION_ERROR", "sequenceLevel: Invalid option: expected one of \"system\"|\"component\"");
+    }
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    mockState.project = { ...mockState.project, sequenceLevel, updatedAt: new Date().toISOString() };
     return ok(mockState.project);
   }),
   // FLF-410: theme mockup màn — body strict, ít nhất một field; domain nhận URL ⇒ hostname; null = về mặc định

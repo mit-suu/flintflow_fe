@@ -12,6 +12,7 @@ import {
   setDocumentLanguage,
   setErdNotation,
   setScreenTheme,
+  setSequenceLevel,
 } from "@/lib/api/projects";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import { getDocument } from "@/lib/api/export";
@@ -243,6 +244,15 @@ describe("mock PATCH /projects/:id/document-language (FLF-265 #1a)", () => {
     mockState.project = { ...mockState.project, mode: "import" };
     await expect(setDocumentLanguage(P, "vi")).rejects.toMatchObject({ code: "DOCUMENT_LANGUAGE_LOCKED", status: 409 });
     expect(mockState.project.documentLanguage).toBeUndefined();
+  });
+});
+
+describe("mock PATCH /projects/:id/sequence-level (FLF-418)", () => {
+  it("đổi mức ⇒ GET trả field mới; giá trị lạ ⇒ 400; projectId lạ ⇒ 404", async () => {
+    expect((await setSequenceLevel(P, "component")).data?.sequenceLevel).toBe("component");
+    expect((await getProject(P)).data?.sequenceLevel).toBe("component");
+    await expect(setSequenceLevel(P, "design" as never)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(setSequenceLevel("khac", "system")).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND", status: 404 });
   });
 });
 
