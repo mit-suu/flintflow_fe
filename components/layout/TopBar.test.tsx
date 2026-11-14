@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchBalance, type BalanceResponse } from "@/lib/api/billing";
 import { logoutAndRedirect } from "@/lib/auth";
 import AppShell, { useAppShell } from "./AppShell";
@@ -10,8 +10,9 @@ const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: () => "/home", useRouter: () => ({ push, refresh: vi.fn() }) }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 1250, planLabel: "Pro" })) }));
+const activeOrg = vi.hoisted(() => ({ value: { id: "o1", name: "Org", role: "lead" } as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" } }));
 // Số dư chỉ tải cho Lead/Analyst (Viewer bị BE chặn) — xem AppSidebar.test
-vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => ({ id: "o1", name: "Org", role: "lead" }) }));
+vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
 
 const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) =>
   renderWithIntl(
@@ -21,6 +22,9 @@ const renderTopBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) 
   );
 
 describe("TopBar", () => {
+  beforeEach(() => {
+    activeOrg.value = { id: "o1", name: "Org", role: "lead" };
+  });
   it("breadcrumb: phần cuối là trang hiện tại", () => {
     renderTopBar();
     expect(screen.getByText("Thông báo")).toHaveAttribute("aria-current", "page");
@@ -106,5 +110,14 @@ describe("TopBar", () => {
     expect(document.querySelector(".bg-inverse-surface\\/40")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(menu).toHaveFocus();
+  });
+
+  it("Viewer ⇒ ẩn chip credits ở TopBar và ẩn mục Thanh toán trong menu tài khoản", () => {
+    activeOrg.value = { id: "o1", name: "Org", role: "viewer" };
+    renderTopBar();
+    expect(screen.queryByRole("link", { name: /credits/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Tài khoản Test" }));
+    expect(screen.getByRole("menuitem", { name: /Hồ sơ cá nhân/ })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Thanh toán/ })).toBeNull();
   });
 });

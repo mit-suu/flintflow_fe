@@ -5,8 +5,9 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
-import DropdownMenu, { type DropdownTriggerProps } from "@/components/ui/DropdownMenu";
+import DropdownMenu, { type DropdownMenuItem, type DropdownTriggerProps } from "@/components/ui/DropdownMenu";
 import { logoutAndRedirect } from "@/lib/auth";
+import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 import { useAppShell, type AppUser } from "./AppShell";
 
 interface AccountMenuProps {
@@ -26,6 +27,8 @@ export default function AccountMenu({ user, trigger, placement = "bottom-end", o
   const t = useTranslations("app.shell");
   const router = useRouter();
   const { balance } = useAppShell();
+  const activeOrg = useActiveOrganization();
+  const isViewer = activeOrg?.role === "viewer";
 
   const planLabel = user.isAdmin ? t("planAdmin") : balance ? t("plan", { plan: balance.planLabel }) : t("planFree");
 
@@ -33,6 +36,21 @@ export default function AccountMenu({ user, trigger, placement = "bottom-end", o
     onNavigate?.();
     router.push(href);
   };
+
+  const items: DropdownMenuItem[] = [
+    { label: t("profile"), icon: "user", onSelect: () => go("/home/profile") },
+    ...(isViewer
+      ? []
+      : [
+          {
+            label: t("billing"),
+            icon: "credit-card" as const,
+            onSelect: () => go("/home/billing"),
+            trailing: <Badge>{planLabel}</Badge>,
+          },
+        ]),
+    { label: t("logout"), icon: "logout", tone: "danger", onSelect: () => void logoutAndRedirect() },
+  ];
 
   return (
     <DropdownMenu
@@ -46,16 +64,7 @@ export default function AccountMenu({ user, trigger, placement = "bottom-end", o
           </span>
         </div>
       }
-      items={[
-        { label: t("profile"), icon: "user", onSelect: () => go("/home/profile") },
-        {
-          label: t("billing"),
-          icon: "credit-card",
-          onSelect: () => go("/home/billing"),
-          trailing: <Badge>{planLabel}</Badge>,
-        },
-        { label: t("logout"), icon: "logout", tone: "danger", onSelect: () => void logoutAndRedirect() },
-      ]}
+      items={items}
       trigger={trigger}
     />
   );

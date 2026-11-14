@@ -34,10 +34,12 @@ export interface CreditTransaction {
   project?: NamedRef | null;
   /** UC-59: dòng `purchase` (= succeeded) và dòng `payment` (pending / failed). */
   paymentStatus?: PaymentIntentStatus;
-  intentId?: string;
-  packageId?: string;
-  /** Số tiền (VND) của dòng `payment`. */
-  price?: number;
+  intentId?: string | null;
+  packageId?: string | null;
+  /** Số tiền (VND) của dòng `purchase` / `payment`. */
+  price?: number | null;
+  currency?: string | null;
+  referenceCode?: string | null;
 }
 
 export type TransactionKind = "usage" | "payment";
@@ -48,12 +50,19 @@ export interface TransactionFilters {
   memberId?: string;
 }
 
+export interface PlanLimits {
+  maxMembers: number;
+  maxProjects: number;
+  monthlyCredits: number;
+}
+
 export interface BalanceResponse {
   balance: number;
   reserved: number;
   available: number;
   plan: PlanId;
   planLabel: string;
+  planLimits?: PlanLimits;
   lowCreditThreshold: number;
   subscription: {
     plan: PlanId;
@@ -79,6 +88,9 @@ export interface PlanDefinition {
   initialCredits: number;
   monthlyCredits: number;
   priceVnd: number;
+  maxMembers?: number;
+  maxProjects?: number;
+  maxReferenceTokens?: number;
 }
 
 export interface PaymentIntentDTO {

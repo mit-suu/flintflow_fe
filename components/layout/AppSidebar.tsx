@@ -122,23 +122,25 @@ export default function AppSidebar() {
               {section.id === "org" && activeOrg ? (
                 <OrgSwitcher activeOrg={activeOrg} collapsed={collapsed} />
               ) : null}
-              {section.items.map((item) => (
-                <SidebarNavItem
-                  key={item.id}
-                  item={item}
-                  collapsed={collapsed}
-                  active={
-                    item.status === "ready" &&
-                    isSidebarItemActive(item, pathname)
-                  }
-                  count={
-                    item.status === "ready" && item.badge === "unread"
-                      ? unreadCount
-                      : 0
-                  }
-                  onNavigate={closeNav}
-                />
-              ))}
+              {section.items
+                .filter((item) => !(item.id === "billing" && activeOrg?.role === "viewer"))
+                .map((item) => (
+                  <SidebarNavItem
+                    key={item.id}
+                    item={item}
+                    collapsed={collapsed}
+                    active={
+                      item.status === "ready" &&
+                      isSidebarItemActive(item, pathname)
+                    }
+                    count={
+                      item.status === "ready" && item.badge === "unread"
+                        ? unreadCount
+                        : 0
+                    }
+                    onNavigate={closeNav}
+                  />
+                ))}
             </nav>
           ))}
           {!collapsed && (

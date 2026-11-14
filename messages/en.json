@@ -580,7 +580,9 @@
         "project": "Project",
         "projectAll": "All projects"
       },
-      "noTxFiltered": "No transactions match the filters"
+      "noTxFiltered": "No transactions match the filters",
+      "planLimitsSummary": "Up to {members} members · {projects} projects",
+      "referenceCodeLabel": "Ref: {code}"
     },
     "checkout": {
       "title": "Transaction",

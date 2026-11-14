@@ -1,12 +1,13 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
+import TopBar from "@/components/layout/TopBar";
 import AppShell from "@/components/layout/AppShell";
 import BillingPage from "./page";
-import { fetchBalance, fetchTransactions } from "@/lib/api/billing";
+import { fetchBalance, fetchPackages, fetchTransactions } from "@/lib/api/billing";
 
-const push = vi.hoisted(() => vi.fn());
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/home/billing" }));
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/home/billing" }));
 vi.mock("@/lib/api/orgs", () => ({
   fetchMembers: vi.fn(async () => [{ userId: "u1", email: "lan@example.com", name: "Lan", role: "lead", joinedAt: "" }]),
 }));
@@ -16,12 +17,21 @@ vi.mock("@/lib/api/billing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/billing")>();
   return {
     ...actual,
-    fetchBalance: vi.fn(async () => ({ balance: 300, available: 300, reserved: 0, plan: "free", planLabel: "Free", lowCreditThreshold: 10, subscription: null })),
+    fetchBalance: vi.fn(async () => ({
+      balance: 300,
+      available: 300,
+      reserved: 0,
+      plan: "free",
+      planLabel: "Free",
+      planLimits: { maxMembers: 3, maxProjects: 3, monthlyCredits: 300 },
+      lowCreditThreshold: 10,
+      subscription: null,
+    })),
     fetchPackages: vi.fn(async () => ({
       packages: [{ id: "pack_100", label: "Gói 100 credit", credits: 100, amount: 40000 }],
       plans: [
-        { id: "free", label: "Free", monthlyCredits: 300, priceVnd: 0 },
-        { id: "pro", label: "Pro", monthlyCredits: 1000, priceVnd: 199000 },
+        { id: "free", label: "Free", monthlyCredits: 300, priceVnd: 0, maxMembers: 3, maxProjects: 3 },
+        { id: "pro", label: "Pro", monthlyCredits: 1000, priceVnd: 199000, maxMembers: 5, maxProjects: 50 },
       ],
     })),
     fetchTransactions: vi.fn(async () => ({ items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } })),
@@ -34,7 +44,11 @@ vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => acti
 
 beforeEach(() => {
   activeOrg.value = null;
-  push.mockReset();
+  router.push.mockReset();
+  router.replace.mockReset();
+  vi.mocked(fetchBalance).mockClear();
+  vi.mocked(fetchPackages).mockClear();
+  vi.mocked(fetchTransactions).mockReset().mockResolvedValue({ items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } });
 });
 
 const page = (items: unknown[]) => ({ items, meta: { page: 1, limit: 20, total: items.length, totalPages: 1 } });
@@ -63,7 +77,64 @@ describe("lịch sử credit (UC-59, UC-60)", () => {
     const qr = screen.getAllByRole("button", { name: "Mở mã QR" });
     expect(qr).toHaveLength(1);
     fireEvent.click(qr[0]);
-    expect(push).toHaveBeenCalledWith("/home/billing/checkout?intentId=i1");
+    expect(router.push).toHaveBeenCalledWith("/home/billing/checkout?intentId=i1");
+  });
+
+  it("Lead thấy giới hạn gói (UC-56) và chi tiết giao dịch nạp / nâng gói thành công (UC-59)", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    vi.mocked(fetchTransactions).mockResolvedValueOnce(
+      page([
+        {
+          _id: "t-ok",
+          type: "purchase",
+          actionType: "purchase",
+          amount: 100,
+          balanceAfter: 400,
+          createdAt: at,
+          paymentStatus: "succeeded",
+          intentId: "i-ok",
+          packageId: "pack_100",
+          price: 40000,
+          currency: "VND",
+          referenceCode: "REF-999",
+          member: { id: "u1", name: "Lan" },
+          project: null,
+        },
+        {
+          _id: "t-pro",
+          type: "purchase",
+          actionType: "purchase",
+          amount: 1000,
+          balanceAfter: 1400,
+          createdAt: at,
+          paymentStatus: "succeeded",
+          intentId: "i-pro",
+          packageId: "plan:pro",
+          price: 199000,
+          currency: "VND",
+          referenceCode: "REF-PRO",
+          member: { id: "u1", name: "Lan" },
+          project: null,
+        },
+      ]) as never
+    );
+
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    const currentPlanCard = (await screen.findByText("Gói hiện tại")).parentElement!;
+    expect(within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án")).toBeInTheDocument();
+    expect(screen.getAllByText("Tối đa 3 thành viên · 3 dự án")).toHaveLength(2);
+    expect(screen.getByText("Tối đa 5 thành viên · 50 dự án")).toBeInTheDocument();
+
+    const okRow = (await screen.findByText("Mã GD: REF-999")).closest("li")!;
+    expect(within(okRow).getByText("Gói 100 credit")).toBeInTheDocument();
+    expect(within(okRow).getByText("40.000 ₫")).toBeInTheDocument();
+    expect(within(okRow).getByText("Thành công")).toBeInTheDocument();
+
+    const proRow = screen.getByText("Mã GD: REF-PRO").closest("li")!;
+    expect(within(proRow).getByText("Mua gói Pro")).toBeInTheDocument();
+    expect(within(proRow).getByText("199.000 ₫")).toBeInTheDocument();
+    expect(within(proRow).getByText("Thành công")).toBeInTheDocument();
   });
 
   it("đổi bộ lọc ⇒ tải lại trang đầu với điều kiện lọc", async () => {
@@ -99,14 +170,57 @@ describe("lịch sử credit (UC-59, UC-60)", () => {
 });
 
 describe("trang thanh toán theo vai trò trong tổ chức", () => {
-  it("Analyst không thấy nút mua, thấy lời giải thích ai được nạp", async () => {
+  it("Analyst không thấy nút mua, thấy lời giải thích ai được nạp, thấy giới hạn gói và không thấy tuỳ chọn Thanh toán trong bộ lọc Loại", async () => {
     activeOrg.value = { id: "org-1", name: "Nhóm A", role: "analyst" };
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
 
     expect(await screen.findByText("Gói 100 credit")).toBeInTheDocument();
+    expect(screen.getAllByText("Tối đa 3 thành viên · 3 dự án").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Tối đa 5 thành viên · 50 dự án")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mua ngay" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Mua gói Pro/ })).toBeNull();
     expect(screen.getByRole("note")).toHaveTextContent("Chỉ Lead của tổ chức mới nạp credit");
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Loại" }));
+    expect(screen.getByRole("option", { name: "Sử dụng AI" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Thanh toán" })).toBeNull();
+  });
+
+  it("Viewer mở /home/billing ⇒ chuyển hướng về /home và không gọi API billing", () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "viewer" };
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    expect(router.replace).toHaveBeenCalledWith("/home");
+    expect(fetchPackages).not.toHaveBeenCalled();
+    expect(fetchBalance).not.toHaveBeenCalled();
+    expect(fetchTransactions).not.toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: "Thanh toán & credit" })).toBeNull();
+  });
+
+  it("chuyển org từ Lead sang Viewer trong AppShell ⇒ xoá chip credit ở TopBar và chuyển hướng /home (Review Focus #5)", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    const { rerender } = renderWithIntl(
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}>
+        <TopBar trail={["Trang chủ"]} />
+        <BillingPage />
+      </AppShell>
+    );
+
+    const chips = await screen.findAllByRole("link", { name: /credits/ });
+    expect(chips[0]).toHaveTextContent("300");
+
+    activeOrg.value = { id: "org-2", name: "Nhóm B", role: "viewer" };
+    rerender(
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}>
+        <TopBar trail={["Trang chủ"]} />
+        <BillingPage />
+      </AppShell>
+    );
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/home"));
+    expect(screen.getByText("Trang chủ")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /credits/ })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Thanh toán & credit" })).toBeNull();
   });
 
   it("Lead thấy đủ nút mua và không có lời nhắc", async () => {
@@ -145,15 +259,63 @@ describe("không hạ gói (FLF-347)", () => {
 });
 
 describe("trang thanh toán - tiếng Anh", () => {
-  it("thẻ gói credit không còn chữ tiếng Việt: tên gói, đơn vị, giá", async () => {
+  it("thẻ gói credit, giới hạn gói và lịch sử nạp tiền không còn chữ tiếng Việt", async () => {
     activeOrg.value = { id: "org-1", name: "Team A", role: "lead" };
+    vi.mocked(fetchTransactions).mockResolvedValueOnce(
+      page([
+        {
+          _id: "t-en-pack",
+          type: "purchase",
+          actionType: "purchase",
+          amount: 100,
+          balanceAfter: 400,
+          createdAt: at,
+          paymentStatus: "succeeded",
+          intentId: "i-en-1",
+          packageId: "pack_100",
+          price: 40000,
+          currency: "VND",
+          referenceCode: "REF-EN1",
+          member: { id: "u1", name: "Lan" },
+          project: null,
+        },
+        {
+          _id: "t-en-pro",
+          type: "purchase",
+          actionType: "purchase",
+          amount: 1000,
+          balanceAfter: 1400,
+          createdAt: at,
+          paymentStatus: "succeeded",
+          intentId: "i-en-2",
+          packageId: "plan:pro",
+          price: 199000,
+          currency: "VND",
+          referenceCode: "REF-EN2",
+          member: { id: "u1", name: "Lan" },
+          project: null,
+        },
+      ]) as never
+    );
     const { container } = renderWithIntl(
       <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>,
       "en"
     );
 
-    expect(await screen.findByText("100-credit pack")).toBeInTheDocument();
-    expect(screen.getByText("40,000 ₫")).toBeInTheDocument();
+    const enPackRow = (await screen.findByText("Ref: REF-EN1")).closest("li")!;
+    expect(within(enPackRow).getByText("100-credit pack")).toBeInTheDocument();
+    expect(within(enPackRow).getByText("40,000 ₫")).toBeInTheDocument();
+    expect(within(enPackRow).getByText("Succeeded")).toBeInTheDocument();
+
+    const enProRow = screen.getByText("Ref: REF-EN2").closest("li")!;
+    expect(within(enProRow).getByText("Buy Pro plan")).toBeInTheDocument();
+    expect(within(enProRow).getByText("199,000 ₫")).toBeInTheDocument();
+    expect(within(enProRow).getByText("Succeeded")).toBeInTheDocument();
+
+    expect(screen.getAllByText("100-credit pack").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("40,000 ₫").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Up to 3 members · 3 projects")).toHaveLength(2);
+    expect(screen.getByText("Up to 5 members · 50 projects")).toBeInTheDocument();
     expect(vietnameseLeftovers(container)).toEqual([]);
   });
 });

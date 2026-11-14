@@ -16,6 +16,8 @@ vi.mock("@/lib/api/users", () => ({
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn() }));
 // TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang hồ sơ
 vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
+const activeOrg = vi.hoisted(() => ({ value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" } }));
+vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
 
 const LOCAL_USER: User = {
   id: "u1",
@@ -43,6 +45,7 @@ const fillPasswordForm = (current: string, next: string, confirm: string) => {
 
 describe("ProfilePage", () => {
   beforeEach(() => {
+    activeOrg.value = null;
     vi.mocked(fetchMe).mockReset();
     vi.mocked(updateMyName).mockReset();
     vi.mocked(changeMyPassword).mockReset();
@@ -65,6 +68,15 @@ describe("ProfilePage", () => {
     await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
     expect(screen.queryByText("0 credit")).not.toBeInTheDocument();
     expect(screen.getByText("Chưa chọn tổ chức - credit nằm ở ví của tổ chức")).toBeInTheDocument();
+  });
+
+  it("Viewer ⇒ ẩn hoàn toàn dòng thông tin credit và liên kết tới trang thanh toán", async () => {
+    activeOrg.value = { id: "o1", name: "Nhóm 1", role: "viewer" };
+    await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
+    expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 credit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chưa chọn tổ chức - credit nằm ở ví của tổ chức")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Thanh toán & credit/ })).not.toBeInTheDocument();
   });
 
   it("sửa tên hiển thị ⇒ gọi updateMyName và hiện tên mới", async () => {
