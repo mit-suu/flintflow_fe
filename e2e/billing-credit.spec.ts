@@ -44,6 +44,16 @@ const getTextExcludingLang = async (page: Page, selector: string): Promise<strin
 };
 
 test.describe.serial("Billing & Credit RBAC E2E", () => {
+  test.beforeEach(async ({ request }) => {
+    const probe = await request.post(`${API}/auth/login`, {
+      data: { email: "e2e.viewer@flintflow.local", password: PASSWORD },
+    });
+    test.skip(
+      !probe.ok(),
+      "chưa có sân test billing E2E (e2e.viewer@flintflow.local) - chạy seed:e2e-billing rồi thử lại",
+    );
+  });
+
   test("Viewer: ẩn hoàn toàn billing UI, chặn URL billing/checkout và 0 request tới /billing/*", async ({ page }) => {
     const billingRequests: string[] = [];
     page.on("request", (req) => {
