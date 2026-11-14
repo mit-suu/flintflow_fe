@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/layout/AppShell";
 import AppSidebar from "@/components/layout/AppSidebar";
-import { listProjects } from "@/lib/api/projects";
+import { listProjectsPage } from "@/lib/api/projects";
 import { listFolders } from "@/lib/api/folders";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
@@ -12,7 +12,7 @@ import HomePage from "./page";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/home" }));
 vi.mock("@/lib/api/projects", () => ({
-  listProjects: vi.fn(),
+  listProjectsPage: vi.fn(),
   createProject: vi.fn(),
   createProjectFrom: vi.fn(),
   renameProject: vi.fn(),
@@ -51,7 +51,7 @@ const renderDashboard = (locale: Locale) =>
 
 describe("Dashboard - song ngữ", () => {
   beforeEach(() => {
-    vi.mocked(listProjects).mockResolvedValue({ data: [PROJECT], error: null } as never);
+    vi.mocked(listProjectsPage).mockResolvedValue({ items: [PROJECT], meta: { page: 1, limit: 24, total: 1, totalPages: 1 } });
     vi.mocked(listFolders).mockResolvedValue({ data: [], error: null } as never);
   });
 

@@ -24,8 +24,8 @@ interface DataListProps<T> {
   getKey: (item: T) => string;
   /** Nội dung của một dòng (bên trong `<li>`). */
   renderItem: (item: T) => ReactNode;
-  /** Class thêm vào `<li>` — vd lưới cột `md:grid md:grid-cols-[…]` để thẳng với `header`. */
-  rowClassName?: string;
+  /** Class thêm vào `<li>` — vd lưới cột `md:grid md:grid-cols-[…]` để thẳng với `header`. Hàm ⇒ class theo từng mục (vd dòng chưa đọc). */
+  rowClassName?: string | ((item: T) => string);
   /** Dòng tiêu đề cột, nằm trong mảng nền phía trên các dòng (nên `aria-hidden` nếu chỉ để nhìn). */
   header?: ReactNode;
   /** Hiện khi đã tải xong mà không có mục nào (vd "Không có mẫu nào khớp…"). */
@@ -58,7 +58,7 @@ function Rows<T>({ items, getKey, renderItem, rowClassName, header }: Pick<DataL
       {header}
       <ul className="flex flex-col gap-0.5">
         {items.map((item) => (
-          <li key={getKey(item)} className={`${ROW} ${rowClassName ?? ""}`}>
+          <li key={getKey(item)} className={`${ROW} ${(typeof rowClassName === "function" ? rowClassName(item) : rowClassName) ?? ""}`}>
             {renderItem(item)}
           </li>
         ))}
@@ -118,7 +118,9 @@ export function PagedDataList<T>({
 
   const goTo = (next: number) => {
     setPage(next);
-    top.current?.scrollIntoView({ block: "nearest" });
+    // `start`, không phải `nearest`: danh sách thường cao hơn vùng cuộn nên `nearest` coi như "đã thấy" và đứng yên ở
+    // cuối trang. `scroll-mt-20` của khối chừa chỗ cho thanh lọc dính phía trên.
+    top.current?.scrollIntoView({ block: "start" });
   };
 
   return (

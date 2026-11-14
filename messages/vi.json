@@ -467,7 +467,6 @@
       "filterUnread": "Chưa đọc",
       "loadingList": "Đang tải thông báo…",
       "loadFailed": "Không thể tải thông báo",
-      "loadMoreFailed": "Không thể tải thêm thông báo",
       "markFailed": "Không thể đánh dấu đã đọc"
     },
     "billing": {
@@ -525,8 +524,7 @@
         "load": "Không thể tải thông tin thanh toán",
         "createTx": "Không thể tạo giao dịch",
         "changePlan": "Không thể đổi gói",
-        "loadMore": "Không thể tải thêm giao dịch",
-        "filter": "Không thể lọc lịch sử giao dịch"
+        "loadHistory": "Không thể tải lịch sử giao dịch"
       },
       "loadingHistory": "Đang tải lịch sử giao dịch…",
       "actionType": {
@@ -677,7 +675,6 @@
       "retry": "Thử lại",
       "clearSearch": "Xoá tìm kiếm",
       "soon": "Sắp có",
-      "loadMore": "Tải thêm",
       "account": "Tài khoản",
       "dismiss": "Đóng thông báo lỗi"
     },
@@ -1002,7 +999,9 @@
       "noMatch": "Không có dự án khớp “{query}”.",
       "selected": "Đã chọn {count}",
       "selectedMax": "Đã chọn {count} (tối đa {max} mỗi lần)",
-      "add": "Thêm vào thư mục"
+      "add": "Thêm vào thư mục",
+      "loading": "Đang tải dự án…",
+      "loadFailed": "Không thể tải danh sách dự án"
     },
     "feedback": {
       "title": "Gửi góp ý",
@@ -3367,6 +3366,10 @@
       "loading": "Đang tải phản hồi…",
       "empty": "Chưa có phản hồi nào.",
       "deletedAccount": "Tài khoản đã xoá",
+      "searchLabel": "Tìm phản hồi",
+      "searchPlaceholder": "Tìm theo nội dung, email hoặc tên…",
+      "results": "{count} kết quả",
+      "noMatch": "Không có phản hồi nào khớp “{query}”.",
       "categories": {
         "bug": "Báo lỗi",
         "suggestion": "Đề xuất",

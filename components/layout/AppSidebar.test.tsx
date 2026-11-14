@@ -3,7 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { usePathname } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchBalance } from "@/lib/api/billing";
-import { listProjects } from "@/lib/api/projects";
+import { listProjectsPage } from "@/lib/api/projects";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
 import AppShell from "./AppShell";
@@ -11,7 +11,7 @@ import AppSidebar from "./AppSidebar";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: vi.fn(), useRouter: () => ({ push }) }));
-vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
+vi.mock("@/lib/api/projects", () => ({ listProjectsPage: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 120, planLabel: "Pro" })) }));
@@ -35,7 +35,8 @@ const project = (id: string, updatedAt: string, over: Partial<Project> = {}): Pr
 
 const renderSidebar = (projects: Project[], pathname = "/home") => {
   vi.mocked(usePathname).mockReturnValue(pathname);
-  vi.mocked(listProjects).mockResolvedValue({ data: projects, error: null } as never);
+  // BE đã lọc + sắp sẵn (FLF-404) ⇒ mock trả đúng các dự án truyền vào
+  vi.mocked(listProjectsPage).mockResolvedValue({ items: projects, meta: { page: 1, limit: 3, total: projects.length, totalPages: 1 } });
   return renderWithIntl(
     <ProjectsProvider>
       <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<AppSidebar />}>
@@ -79,21 +80,16 @@ describe("AppSidebar", () => {
     expect(screen.queryAllByRole("link").map((a) => a.getAttribute("href"))).not.toContain("/home/organizations");
   });
 
-  it('"Gần đây": 3 dự án đang làm mới sửa nhất; ẩn khi chưa có dự án', async () => {
+  it('"Gần đây": xin BE 3 dự án đang làm sửa gần nhất, hiện đúng thứ tự BE trả; ẩn khi chưa có dự án', async () => {
     const { unmount } = renderSidebar([]);
-    await waitFor(() => expect(listProjects).toHaveBeenCalled());
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
     expect(screen.queryByText("Gần đây")).toBeNull();
     unmount();
 
-    renderSidebar([
-      project("a", "2026-09-01T00:00:00Z"),
-      project("b", "2026-09-05T00:00:00Z"),
-      project("c", "2026-09-03T00:00:00Z"),
-      project("d", "2026-09-04T00:00:00Z"),
-      project("e", "2026-09-09T00:00:00Z", { status: "archived" }),
-    ]);
+    renderSidebar([project("b", "2026-09-05T00:00:00Z"), project("d", "2026-09-04T00:00:00Z"), project("c", "2026-09-03T00:00:00Z")]);
     const recent = await screen.findByRole("navigation", { name: "Dự án gần đây" });
     expect(within(recent).getAllByRole("link").map((a) => a.textContent)).toEqual(["Dự án b", "Dự án d", "Dự án c"]);
+    expect(listProjectsPage).toHaveBeenCalledWith({ page: 1, limit: 3, status: "active", sort: "updated" });
   });
 
   it("thu gọn: chỉ còn icon, nhớ qua localStorage", () => {
@@ -163,7 +159,7 @@ describe("AppShell - số dư theo vai trò", () => {
   it("Viewer ⇒ không gọi /billing/balance (BE chỉ cho Lead/Analyst, gọi là 403)", async () => {
     activeOrg.value = { id: "o1", name: "Org", role: "viewer" as never };
     renderSidebar([]);
-    await waitFor(() => expect(listProjects).toHaveBeenCalled());
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
     expect(fetchBalance).not.toHaveBeenCalled();
     activeOrg.value = null;
   });

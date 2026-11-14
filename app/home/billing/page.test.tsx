@@ -52,7 +52,7 @@ describe("lịch sử credit (UC-59, UC-60)", () => {
     );
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
 
-    const usageRow = (await screen.findByText("Trích xuất Brief")).closest("tr")!;
+    const usageRow = (await screen.findByText("Trích xuất Brief")).closest("li")!;
     expect(within(usageRow).getByText("Shop online")).toBeInTheDocument();
     expect(within(usageRow).getByText("Lan")).toBeInTheDocument();
     expect(within(usageRow).getByText("1.200 / 300")).toBeInTheDocument();
@@ -78,6 +78,23 @@ describe("lịch sử credit (UC-59, UC-60)", () => {
     fireEvent.mouseDown(screen.getByRole("option", { name: "Lan" }));
     await waitFor(() => expect(fetchTransactions).toHaveBeenLastCalledWith(1, 20, { kind: "usage", memberId: "u1" }));
     expect(await screen.findByText("Không có giao dịch nào khớp bộ lọc")).toBeInTheDocument();
+  });
+
+  it("lịch sử nhiều trang ⇒ thanh số trang, bấm trang 2 tải đúng trang đó với bộ lọc hiện tại (FLF-404)", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    const row = (id: string) => ({ _id: id, type: "deduct", actionType: "draft", amount: 1, balanceAfter: 1, createdAt: at });
+    vi.mocked(fetchTransactions).mockImplementation(async (p = 1) => ({
+      items: [row(`p${p}`)],
+      meta: { page: p, limit: 20, total: 45, totalPages: 3 },
+    }) as never);
+    renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
+
+    expect(await screen.findByRole("navigation", { name: "Phân trang" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tải thêm" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tới trang 2" }));
+    await waitFor(() => expect(fetchTransactions).toHaveBeenLastCalledWith(2, 20, {}));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Tới trang 2" })).toHaveAttribute("aria-current", "page"));
+    vi.mocked(fetchTransactions).mockReset();
   });
 });
 

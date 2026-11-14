@@ -120,6 +120,13 @@ export function useInfiniteList<T>({ fetchPage, key, enabled = true, root = null
   /** Tải lại từ đầu với cùng `key` — sau khi thêm / xoá một mục. */
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
+  /**
+   * Sửa tại chỗ các mục đã tải (vd đánh dấu đã đọc, đổi tên) — không tải lại, giữ vị trí cuộn.
+   * Chỉ dùng cho thay đổi không làm mục rời khỏi danh sách: thêm / xoá / chuyển mục thì `reload()`,
+   * vì bớt một mục ở FE làm lệch trang của BE và trang sau sẽ sót mục.
+   */
+  const updateItems = useCallback((update: (item: T) => T) => setState((prev) => ({ ...prev, items: prev.items.map(update) })), []);
+
   return {
     items: current ? state.items : [],
     /** Tổng số mục khớp `key` hiện tại (theo BE), không phải số đã tải. */
@@ -133,6 +140,7 @@ export function useInfiniteList<T>({ fetchPage, key, enabled = true, root = null
     /** Thử lại trang sau vừa lỗi. */
     retry: loadMore,
     reload,
+    updateItems,
     /** Callback ref cho phần tử mốc cuối danh sách. */
     sentinelRef: setSentinel,
   };

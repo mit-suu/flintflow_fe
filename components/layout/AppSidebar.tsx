@@ -8,7 +8,7 @@ import { useUnreadNotificationCount } from "@/components/NotificationBell";
 import FeedbackDialog from "@/components/project/FeedbackDialog";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import { selectRecentProjects, useProjects } from "@/lib/hooks/use-projects";
+import { useProjects } from "@/lib/hooks/use-projects";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 import { useAppShell } from "./AppShell";
 import OrgSwitcher from "./OrgSwitcher";
@@ -30,14 +30,14 @@ export default function AppSidebar() {
     collapsed: collapsedPref,
     toggleCollapsed
   } = useAppShell();
-  const { projects } = useProjects();
+  // 3 dự án đang làm sửa gần nhất — BE sắp sẵn (FLF-404: không còn tải mọi dự án)
+  const { recentProjects: recent } = useProjects();
   const unreadCount = useUnreadNotificationCount();
   const activeOrg = useActiveOrganization();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Drawer mobile luôn mở rộng; thu gọn chỉ áp dụng trên desktop
   const collapsed = collapsedPref && !navOpen;
-  const recent = selectRecentProjects(projects);
 
   return (
     // Cột nền xám nhạt, bên trong là một card trắng bo góc nổi lên (sidebar kiểu "floating panel")
