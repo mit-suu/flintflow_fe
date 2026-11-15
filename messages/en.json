@@ -705,6 +705,7 @@
       "profile": "Your profile",
       "billing": "Billing",
       "logout": "Sign out",
+      "back": "Back",
       "planAdmin": "Admin",
       "plan": "{plan} plan",
       "planFree": "Free plan",
@@ -1178,7 +1179,10 @@
         "goToProjects": "Go to projects",
         "loading": "Loading your organizations…",
         "emptyTitle": "You are not in any organization yet",
-        "emptyBody": "Create an organization to start a project, or enter an invitation code to join someone else's."
+        "emptyBody": "Create an organization to start a project, or enter an invitation code to join someone else's.",
+        "rememberChoice": "Remember this organization as default",
+        "defaultBadge": "Default",
+        "clearDefault": "Remove default"
       },
       "members": {
         "title": "Members",
@@ -3322,6 +3326,7 @@
     "profile": {
       "fallbackName": "Administrator",
       "account": "Account",
+      "accountSettings": "Profile & security",
       "backToDashboard": "Back to Dashboard",
       "signOut": "Sign out",
       "signOutConfirm": "Sign out of the admin area? You'll need to sign in again next time."

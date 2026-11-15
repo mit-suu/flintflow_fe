@@ -705,6 +705,7 @@
       "profile": "Hồ sơ cá nhân",
       "billing": "Thanh toán",
       "logout": "Đăng xuất",
+      "back": "Quay lại",
       "planAdmin": "Admin",
       "plan": "Gói {plan}",
       "planFree": "Gói Free",
@@ -1178,7 +1179,10 @@
         "goToProjects": "Vào dự án",
         "loading": "Đang tải danh sách tổ chức…",
         "emptyTitle": "Bạn chưa thuộc tổ chức nào",
-        "emptyBody": "Tạo một tổ chức để bắt đầu dự án, hoặc nhập mã mời để tham gia tổ chức của người khác."
+        "emptyBody": "Tạo một tổ chức để bắt đầu dự án, hoặc nhập mã mời để tham gia tổ chức của người khác.",
+        "rememberChoice": "Ghi nhớ tổ chức này làm mặc định",
+        "defaultBadge": "Mặc định",
+        "clearDefault": "Bỏ mặc định"
       },
       "members": {
         "title": "Thành viên",
@@ -3322,6 +3326,7 @@
     "profile": {
       "fallbackName": "Quản trị viên",
       "account": "Tài khoản",
+      "accountSettings": "Hồ sơ & bảo mật",
       "backToDashboard": "Về Dashboard",
       "signOut": "Đăng xuất",
       "signOutConfirm": "Đăng xuất khỏi trang quản trị? Lần sau vào lại phải đăng nhập."

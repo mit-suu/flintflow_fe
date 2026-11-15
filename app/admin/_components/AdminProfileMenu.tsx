@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { House, LogOut } from "lucide-react";
+import { House, LogOut, UserCog } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { fetchMe } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
@@ -80,6 +80,12 @@ export default function AdminProfileMenu() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/home/profile">
+              <UserCog />
+              {t("profile.accountSettings")}
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/home">
               <House />

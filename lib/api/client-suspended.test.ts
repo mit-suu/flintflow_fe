@@ -79,4 +79,32 @@ describe("authFetch / refreshSession - ACCOUNT_SUSPENDED (FLF-345)", () => {
     expect(logoutAndRedirect).not.toHaveBeenCalled();
     expect(sessionStorage.getItem("flintflow:account-suspended")).toBeNull();
   });
+
+  it("request dính 401 và refreshSession trả rejected ngoài trang public auth ⇒ gọi logoutAndRedirect('/login')", async () => {
+    const { apiCall } = await loadClient();
+    Object.defineProperty(window, "location", {
+      value: { pathname: "/home/projects", replace: vi.fn() },
+      writable: true,
+    });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: "UNAUTHORIZED", message: "token expired" } }))
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: "SESSION_REVOKED", message: "revoked" } }));
+
+    await expect(apiCall("/projects")).rejects.toMatchObject({ status: 401 });
+    expect(logoutAndRedirect).toHaveBeenCalledWith("/login");
+  });
+
+  it("request dính 401 trên trang public auth (/login) ⇒ không gọi logoutAndRedirect", async () => {
+    const { apiCall } = await loadClient();
+    Object.defineProperty(window, "location", {
+      value: { pathname: "/login", replace: vi.fn() },
+      writable: true,
+    });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: "UNAUTHORIZED", message: "token expired" } }))
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: "SESSION_REVOKED", message: "revoked" } }));
+
+    await expect(apiCall("/projects")).rejects.toMatchObject({ status: 401 });
+    expect(logoutAndRedirect).not.toHaveBeenCalled();
+  });
 });

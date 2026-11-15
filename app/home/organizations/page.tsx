@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import TopBar from "@/components/layout/TopBar";
 import { Badge, Button, EmptyState, Icon, LINK_PRIMARY, LINK_SECONDARY, PageSkeleton } from "@/components/ui";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
+import { updateMyPreferredOrganization } from "@/lib/api/users";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { Organization } from "@/types/organization";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
@@ -22,7 +23,10 @@ export default function OrganizationsPage() {
   const [orgs, setOrgs] = useState<Organization[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
+  const [rememberChoice, setRememberChoice] = useState(false);
+  const [clearingDefault, setClearingDefault] = useState(false);
   const activeOrgId = getActiveOrgId();
+  const hasOrg = Boolean(activeOrgId);
 
   useEffect(() => {
     let mounted = true;
@@ -38,12 +42,29 @@ export default function OrganizationsPage() {
     setSwitching(orgId);
     setError(null);
     try {
-      await switchOrganization(orgId);
+      if (rememberChoice) {
+        await switchOrganization(orgId, { rememberAsDefault: true });
+      } else {
+        await switchOrganization(orgId);
+      }
       // Tải lại hẳn: danh sách dự án, số dư ví ở sidebar đang giữ dữ liệu của org cũ trong bộ nhớ.
       window.location.assign("/home");
     } catch (err) {
       setError(userErrorMessage(err));
       setSwitching(null);
+    }
+  };
+
+  const handleClearDefault = async () => {
+    setClearingDefault(true);
+    setError(null);
+    try {
+      await updateMyPreferredOrganization(null);
+      setOrgs((prev) => (prev ? prev.map((o) => ({ ...o, isDefault: false })) : null));
+    } catch (err) {
+      setError(userErrorMessage(err));
+    } finally {
+      setClearingDefault(false);
     }
   };
 
@@ -54,7 +75,7 @@ export default function OrganizationsPage() {
 
   return (
     <>
-      <TopBar trail={[tc("account"), t("title")]} />
+      {hasOrg ? <TopBar trail={[tc("account"), t("title")]} /> : null}
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
         <div className="w-full max-w-[720px] mx-auto flex flex-col gap-6">
@@ -77,6 +98,18 @@ export default function OrganizationsPage() {
               {error}
             </p>
           ) : null}
+
+          {(orgs?.length ?? 0) >= 2 && (
+            <label className="min-h-[44px] inline-flex items-center gap-2.5 cursor-pointer select-none text-body text-on-surface">
+              <input
+                type="checkbox"
+                checked={rememberChoice}
+                onChange={(e) => setRememberChoice(e.target.checked)}
+                className="size-[1.125em] accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <span>{t("rememberChoice")}</span>
+            </label>
+          )}
 
           {loadingOrgs ? (
             <PageSkeleton variant="list" label={t("loading")} />
@@ -114,32 +147,52 @@ export default function OrganizationsPage() {
                         <Icon name="building" size={18} />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-heading font-semibold text-on-surface truncate">{org.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-heading font-semibold text-on-surface truncate">{org.name}</p>
+                          {org.isDefault ? (
+                            <Badge tone="neutral" size="sm">
+                              {t("defaultBadge")}
+                            </Badge>
+                          ) : null}
+                        </div>
                         <p className="text-body text-on-surface-muted">{t("roleLine", { role: tRoles(org.role) })}</p>
                       </div>
                     </div>
-                    {isCurrent ? (
-                      // Trước đây chỉ là chữ màu tím, trông như nút mà bấm không được. Giờ là huy hiệu trạng thái (không
-                      // tương tác) + một link thật để vào làm việc ở org này.
-                      <div className="flex items-center gap-2">
-                        <Badge tone="primary" size="md">
-                          {t("current")}
-                        </Badge>
-                        <Link href="/home" className={LINK_SECONDARY}>
-                          {t("goToProjects")}
-                        </Link>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        loading={switching === org.id}
-                        disabled={switching !== null}
-                        onClick={() => void handleSwitch(org.id)}
-                      >
-                        {t("switch")}
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {org.isDefault ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          loading={clearingDefault}
+                          disabled={clearingDefault}
+                          onClick={() => void handleClearDefault()}
+                        >
+                          {t("clearDefault")}
+                        </Button>
+                      ) : null}
+                      {isCurrent ? (
+                        // Trước đây chỉ là chữ màu tím, trông như nút mà bấm không được. Giờ là huy hiệu trạng thái (không
+                        // tương tác) + một link thật để vào làm việc ở org này.
+                        <div className="flex items-center gap-2">
+                          <Badge tone="primary" size="md">
+                            {t("current")}
+                          </Badge>
+                          <Link href="/home" className={LINK_SECONDARY}>
+                            {t("goToProjects")}
+                          </Link>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          loading={switching === org.id}
+                          disabled={switching !== null}
+                          onClick={() => void handleSwitch(org.id)}
+                        >
+                          {t("switch")}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

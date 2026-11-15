@@ -1,10 +1,23 @@
-import { clearAuthToken } from "../auth";
+import { clearAuthToken, logoutAndRedirect } from "../auth";
 import { ACCOUNT_SUSPENDED, endSuspendedSession } from "../account-suspended";
 import { localizeApiError } from "./error-messages";
 import { MODE_SWITCH_ERROR_CODES, signalProjectModeMaybeChanged } from "../project-mode-signal";
 import { decodeJwt, getAccessToken, saveAuthToken } from "./token-store";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+
+const PUBLIC_AUTH_PATHS = [
+  "/login",
+  "/register",
+  "/verify-email",
+  "/forgot-password",
+  "/reset-password",
+];
+
+const isPublicAuthPath = (pathname: string): boolean =>
+  PUBLIC_AUTH_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+let loggingOut = false;
 
 export interface ApiResponse<T = unknown> {
   data: T | null;
@@ -88,8 +101,8 @@ const isSuspendedResponse = async (res: Response): Promise<boolean> => {
   return true;
 };
 
-const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutcome> => {
-  if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+const requestRefresh = async (tokenAtStart: string | null, force?: boolean): Promise<RefreshOutcome> => {
+  if (!force && adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
 
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -104,7 +117,7 @@ const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutco
       if (res.status === 401 || res.status === 403) {
         // Tab khác (không có Web Locks) có thể đã xoay vòng refresh token ngay trước request này —
         // khi đó đăng xuất sẽ gọi /auth/logout với cookie MỚI và thu hồi luôn phiên vừa tạo.
-        if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+        if (!force && adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
         if (await isSuspendedResponse(res)) return "rejected";
         clearAuthToken();
         return "rejected";
@@ -134,9 +147,9 @@ const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutco
   }
 };
 
-export const refreshSession = async (): Promise<RefreshOutcome> => {
+export const refreshSession = async (options?: { force?: boolean }): Promise<RefreshOutcome> => {
   // If recently refreshed (within 2s) and the in-memory token is still valid, reuse without re-calling BE
-  if (Date.now() - lastRefreshTime < 2000 && isTokenFresh(getAccessToken())) {
+  if (!options?.force && Date.now() - lastRefreshTime < 2000 && isTokenFresh(getAccessToken())) {
     return "ok";
   }
 
@@ -146,14 +159,15 @@ export const refreshSession = async (): Promise<RefreshOutcome> => {
   }
 
   const tokenAtStart = getAccessToken();
-  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart)).finally(() => {
+  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart, options?.force)).finally(() => {
     refreshPromise = null;
   });
 
   return refreshPromise;
 };
 
-export const refreshAccessToken = async (): Promise<boolean> => (await refreshSession()) === "ok";
+export const refreshAccessToken = async (options?: { force?: boolean }): Promise<boolean> =>
+  (await refreshSession(options)) === "ok";
 
 /** Ngưỡng refresh chủ động mặc định cho một request ngắn. */
 export const DEFAULT_MIN_TOKEN_TTL_MS = 15_000;
@@ -237,9 +251,17 @@ export const authFetch = async (
       return authFetch(endpoint, options, false);
     }
 
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
+    const outcome = await refreshSession({ force: true });
+    if (outcome === "ok") {
       return authFetch(endpoint, options, false);
+    }
+
+    if (outcome === "rejected" && typeof window !== "undefined") {
+      const pathname = window.location.pathname;
+      if (!isPublicAuthPath(pathname) && !loggingOut) {
+        loggingOut = true;
+        void logoutAndRedirect("/login");
+      }
     }
   }
 

@@ -8,27 +8,32 @@ import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 
 export const ONBOARDING_PATH = "/home/onboarding";
+export const ORGANIZATIONS_PATH = "/home/organizations";
+export const PROFILE_PATH = "/home/profile";
 
 /**
  * Mọi tài nguyên của tổ chức đòi access token mang `orgId`; thiếu thì BE trả `409 NO_ACTIVE_ORG`
  * (BPMN Flow 10.6). Guard này chặn trước để người dùng không gặp màn lỗi trống.
  *
- * Ba trường hợp:
- * - token đã có `orgId` ⇒ vào thẳng, không tốn request nào;
- * - token chưa có nhưng tài khoản đã thuộc org (token cấp trước khi có tính năng tổ chức) ⇒ tự mở org đầu
- *   tiên rồi tải lại trang; đổi org sau bằng bộ chuyển tổ chức;
- * - chưa thuộc org nào ⇒ sang onboarding để tạo org hoặc nhập mã mời (Flow 8).
+ * Miễn trừ: onboarding, organizations, profile.
+ * Khi chưa có org:
+ * - 0 org ⇒ /home/onboarding
+ * - 1 org ⇒ tự chọn org duy nhất rồi reload
+ * - >= 2 orgs ⇒ nếu có org mặc định (isDefault) thì tự chọn rồi reload, ngược lại sang /home/organizations
  */
 export default function OrgGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("app.org.guard");
-  const onOnboarding = pathname === ONBOARDING_PATH;
+  const exempt =
+    pathname === ONBOARDING_PATH ||
+    pathname === ORGANIZATIONS_PATH ||
+    pathname === PROFILE_PATH;
   // Chỉ quyết định lúc mount: thiếu org thì luôn kết thúc bằng điều hướng/tải lại trang, không render lại tại chỗ.
   const [ready] = useState(() => Boolean(getActiveOrgId()));
 
   useEffect(() => {
-    if (ready || onOnboarding) return;
+    if (ready || exempt) return;
     let mounted = true;
 
     const resolveOrg = async () => {
@@ -39,10 +44,18 @@ export default function OrgGuard({ children }: { children: React.ReactNode }) {
           router.replace(ONBOARDING_PATH);
           return;
         }
-        await switchOrganization(orgs[0].id);
-        // Tải lại hẳn, không setReady: ProjectsProvider ở layout đã tải dự án bằng token cũ (⇒ 409) và giữ lỗi đó
-        // nếu chỉ render lại. Lần tải sau token đã có orgId ⇒ vào thẳng, không vòng lặp.
-        if (mounted) window.location.reload();
+        if (orgs.length === 1) {
+          await switchOrganization(orgs[0].id);
+          if (mounted) window.location.reload();
+          return;
+        }
+        const defaultOrg = orgs.find((o) => o.isDefault);
+        if (defaultOrg) {
+          await switchOrganization(defaultOrg.id);
+          if (mounted) window.location.reload();
+          return;
+        }
+        router.replace(ORGANIZATIONS_PATH);
       } catch {
         // Không đọc được danh sách org (hết phiên, BE lỗi) — để onboarding xử lý, đừng kẹt ở spinner.
         if (mounted) router.replace(ONBOARDING_PATH);
@@ -53,9 +66,9 @@ export default function OrgGuard({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [ready, onOnboarding, router]);
+  }, [ready, exempt, router]);
 
-  if (onOnboarding) return <>{children}</>;
+  if (exempt) return <>{children}</>;
 
   if (!ready) {
     // Theo flf-196: khối giữ chỗ thay cho spinner giữa trang (cùng cách AuthGuard làm)

@@ -235,4 +235,25 @@ describe("refreshSession (FLF-137)", () => {
     expect(refreshCalls()).toHaveLength(0);
     expect(getAccessToken()).toBe(otherTabToken);
   });
+
+  it("refreshSession({ force: true }) bỏ qua cache 2 giây và gọi lại BE", async () => {
+    const { refreshSession, saveAuthToken } = await load();
+    const token1 = makeJwt({ role: "user", exp: futureExp() });
+    const token2 = makeJwt({ role: "user", exp: futureExp() + 100 });
+    saveAuthToken(token1);
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: token1 } }))
+      .mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: token2 } }));
+
+    await expect(refreshSession()).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+
+    // Không có force: trong vòng 2 giây ⇒ tái sử dụng kết quả, không gọi lại BE
+    await expect(refreshSession()).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+
+    // Có force: true ⇒ bỏ qua cache và gọi lại BE
+    await expect(refreshSession({ force: true })).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(2);
+  });
 });

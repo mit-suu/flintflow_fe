@@ -3,10 +3,12 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/layout/AppShell";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
+import { updateMyPreferredOrganization } from "@/lib/api/users";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import OrganizationsPage from "./page";
 
 vi.mock("@/lib/api/orgs", () => ({ fetchMyOrganizations: vi.fn(), switchOrganization: vi.fn() }));
+vi.mock("@/lib/api/users", () => ({ updateMyPreferredOrganization: vi.fn() }));
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
 // Trang có `TopBar`, và `TopBar` đọc context của `AppShell` (chip credits, nút mở menu) — nên test phải dựng
 // đúng khung đó. Khung gọi `GET /billing/balance` và `usePathname`, hai thứ phải mock theo.
@@ -66,6 +68,51 @@ describe("đổi tổ chức (UC-10)", () => {
     await waitFor(() => expect(switchOrganization).toHaveBeenCalledWith("org-b"));
     // Tải lại hẳn chứ không router.push: danh sách dự án trong bộ nhớ đang là của org cũ
     expect(assign).toHaveBeenCalledWith("/home");
+  });
+
+  it("từ 2 tổ chức trở lên có checkbox ghi nhớ mặc định; tick vào thì gửi kèm rememberAsDefault: true", async () => {
+    vi.mocked(switchOrganization).mockResolvedValue({
+      accessToken: "t",
+      organization: { id: "org-b", name: "Nhóm B", role: "viewer", joinedAt: "2026-09-02T00:00:00Z" },
+    });
+    renderPage();
+
+    const checkbox = await screen.findByRole("checkbox", { name: "Ghi nhớ tổ chức này làm mặc định" });
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mở tổ chức này" }));
+    await waitFor(() =>
+      expect(switchOrganization).toHaveBeenCalledWith("org-b", { rememberAsDefault: true })
+    );
+  });
+
+  it("tổ chức đang là mặc định hiện huy hiệu Mặc định và nút Bỏ mặc định", async () => {
+    vi.mocked(fetchMyOrganizations).mockResolvedValue([
+      { id: "org-a", name: "Nhóm A", role: "lead", joinedAt: "2026-09-01T00:00:00Z", isDefault: true },
+      { id: "org-b", name: "Nhóm B", role: "viewer", joinedAt: "2026-09-02T00:00:00Z" },
+    ]);
+    vi.mocked(updateMyPreferredOrganization).mockResolvedValue({ id: "u1", email: "test@flintflow.vn" } as never);
+
+    renderPage();
+
+    expect(await screen.findByText("Mặc định")).toBeInTheDocument();
+    const clearBtn = screen.getByRole("button", { name: "Bỏ mặc định" });
+
+    fireEvent.click(clearBtn);
+
+    await waitFor(() => expect(updateMyPreferredOrganization).toHaveBeenCalledWith(null));
+    await waitFor(() => expect(screen.queryByText("Mặc định")).toBeNull());
+  });
+
+  it("chưa có activeOrgId thì không hiển thị TopBar (tránh crash context)", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    renderWithIntl(<OrganizationsPage />);
+
+    // TopBar chứa đường dẫn breadcrumb [tc("account"), t("title")] - khi render không có AppShell, nếu có TopBar sẽ crash
+    expect(await screen.findByText("Nhóm A")).toBeInTheDocument();
   });
 
   it("có lối tạo hoặc tham gia thêm tổ chức", async () => {

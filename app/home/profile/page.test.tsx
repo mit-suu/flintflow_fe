@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
 import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
+import { getActiveOrgId } from "@/lib/api/token-store";
 import type { User } from "@/types/user";
 import ProfilePage from "./page";
 
@@ -14,8 +15,9 @@ vi.mock("@/lib/api/users", () => ({
   logoutAllDevices: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn() }));
+vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
 // TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang hồ sơ
-vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
+vi.mock("@/components/layout/TopBar", () => ({ default: () => <div data-testid="top-bar" /> }));
 
 const LOCAL_USER: User = {
   id: "u1",
@@ -43,6 +45,7 @@ const fillPasswordForm = (current: string, next: string, confirm: string) => {
 
 describe("ProfilePage", () => {
   beforeEach(() => {
+    vi.mocked(getActiveOrgId).mockReturnValue("o1");
     vi.mocked(fetchMe).mockReset();
     vi.mocked(updateMyName).mockReset();
     vi.mocked(changeMyPassword).mockReset();
@@ -59,6 +62,16 @@ describe("ProfilePage", () => {
     expect(screen.getByText("1.200 credit")).toBeInTheDocument();
     // FLF-310: credit là của tổ chức đang chọn, ghi rõ tên
     expect(screen.getByTestId("credit-org")).toHaveTextContent("của tổ chức Nhóm 1");
+    expect(screen.getByRole("link", { name: /Thanh toán/ })).toHaveAttribute("href", "/home/billing");
+    expect(screen.getByTestId("top-bar")).toBeInTheDocument();
+  });
+
+  it("chưa có tổ chức (getActiveOrgId null) ⇒ không render TopBar và ẩn link tới /home/billing", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
+
+    expect(screen.queryByTestId("top-bar")).toBeNull();
+    expect(screen.queryByRole("link", { name: /Thanh toán/ })).toBeNull();
   });
 
   it("FLF-310: chưa chọn tổ chức ⇒ không hiện số credit, báo credit nằm ở ví tổ chức", async () => {

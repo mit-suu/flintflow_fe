@@ -11,6 +11,7 @@ export interface Organization {
   /** Vai trò của chính người đang đăng nhập trong org này. */
   role: OrgRole;
   joinedAt: string;
+  isDefault?: boolean;
 }
 
 export interface OrganizationDetail extends Organization {

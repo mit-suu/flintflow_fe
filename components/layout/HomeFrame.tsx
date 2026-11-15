@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "@/components/Logo";
-import OrgGuard, { ONBOARDING_PATH } from "@/components/OrgGuard";
+import OrgGuard, { ONBOARDING_PATH, ORGANIZATIONS_PATH, PROFILE_PATH } from "@/components/OrgGuard";
 import Button from "@/components/ui/Button";
 import { logoutAndRedirect } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -27,6 +28,7 @@ import AppSidebar from "./AppSidebar";
 export default function HomeFrame({ user, children }: { user: AppUser; children: React.ReactNode }) {
   const pathname = usePathname();
   const t = useTranslations("app.shell");
+  const tp = useTranslations("app.profile");
   // JWT không có tên ⇒ layout chỉ đoán từ email ("lead.tien"). Lấy tên thật từ hồ sơ; lỗi thì giữ tên đoán.
   const [me, setMe] = useState<User | null>(null);
   // Mọi lần đăng nhập đều vào /home ⇒ có hồ sơ là đồng bộ ngôn ngữ tài khoản với ngôn ngữ đang hiển thị (FLF-259).
@@ -45,6 +47,7 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
   }, []);
 
   const profileName = me?.name?.trim() || null;
+  const isExempt = [ONBOARDING_PATH, ORGANIZATIONS_PATH, PROFILE_PATH].includes(pathname);
 
   if (!getActiveOrgId()) {
     return (
@@ -52,6 +55,21 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
         <header className="flex items-center justify-between gap-3 px-4 sm:px-8 py-4">
           <Logo variant="wordmark" sizeClassName="h-5 w-auto" theme="light" />
           <div className="flex items-center gap-2">
+            {pathname === PROFILE_PATH ? (
+              <Link
+                href={user.isAdmin ? "/admin/metrics" : "/home"}
+                className="inline-flex h-8 items-center rounded-control px-3 text-body font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"
+              >
+                {t("back")}
+              </Link>
+            ) : (
+              <Link
+                href={PROFILE_PATH}
+                className="inline-flex h-8 items-center rounded-control px-3 text-body font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"
+              >
+                {tp("breadcrumb")}
+              </Link>
+            )}
             <LocaleSwitcher />
             <Button size="sm" variant="ghost" onClick={() => void logoutAndRedirect()}>
               {t("logout")}
@@ -59,7 +77,7 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
           </div>
         </header>
         <main className="px-4 sm:px-6">
-          {pathname === ONBOARDING_PATH ? children : <OrgGuard>{children}</OrgGuard>}
+          {isExempt ? children : <OrgGuard>{children}</OrgGuard>}
         </main>
       </div>
     );
