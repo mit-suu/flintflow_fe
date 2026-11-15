@@ -89,13 +89,13 @@ describe("apiCall", () => {
     await expect(apiCall("/projects")).rejects.toMatchObject({ code: "VALIDATION_ERROR", message: "Tên dự án quá ngắn" });
   });
 
-  it("message BE là text kỹ thuật (Zod, tiếng Anh) ⇒ câu chung, câu gốc giữ ở rawMessage (FLF-247)", async () => {
+  it("message BE là text kỹ thuật (Zod, tiếng Anh) ⇒ câu dịch của mã (hoặc câu chung), câu gốc giữ ở rawMessage (FLF-247, FLF-427)", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(400, { data: null, error: { code: "VALIDATION_ERROR", message: "✖ Invalid input → at base_version" } })
     );
     await expect(apiCall("/projects")).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
-      message: "Có lỗi xảy ra. Vui lòng thử lại sau.",
+      message: "Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại rồi thử lại.",
       rawMessage: "✖ Invalid input → at base_version",
     });
   });

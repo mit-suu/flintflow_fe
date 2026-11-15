@@ -665,6 +665,87 @@
       "template_migration_failed": {
         "title": "Đổi mẫu bị kẹt",
         "body": "Lần đổi mẫu không hoàn tất được sau nhiều lần thử. Mở dự án và chọn Khôi phục để quay về trước lần đổi mẫu."
+      },
+      "org_member_joined": {
+        "title": "Thành viên mới tham gia tổ chức",
+        "body": "{name} đã tham gia {org} với vai trò {role}."
+      },
+      "org_role_changed": {
+        "title": "Vai trò của bạn đã thay đổi",
+        "body": "Bạn giờ là {role} trong {org}.",
+        "bodyGeneric": "Bạn giờ là {role}."
+      },
+      "org_member_removed": {
+        "title": "Bạn đã bị xoá khỏi tổ chức",
+        "body": "Bạn không còn là thành viên của {org}.",
+        "bodyGeneric": "Bạn không còn là thành viên của tổ chức."
+      },
+      "org_member_left": {
+        "title": "Một thành viên đã rời tổ chức",
+        "body": "{name} đã rời {org}."
+      },
+      "baseline_submitted": {
+        "title": "{project} chờ bạn duyệt baseline",
+        "body": "Tài liệu đã qua kiểm tra, không còn cờ đỏ. Xem và duyệt để khoá baseline."
+      },
+      "baseline_rejected": {
+        "title": "{project}: Lead chưa duyệt baseline",
+        "body": "{project}: {reason}",
+        "bodyGeneric": "{reason}"
+      },
+      "baseline_approved": {
+        "title": "Baseline {version} đã được duyệt",
+        "body": "Bản bạn gửi duyệt đã được Lead chấp nhận và khoá ở mức {version}."
+      },
+      "project_converted": {
+        "title": "Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi",
+        "body": "Tài liệu được khoá ở phiên bản {version}. Từ giờ mọi chỉnh sửa đi qua Change Request; cờ không còn bỏ qua (waive) được."
+      },
+      "change_request_written": {
+        "title": "{cr} đã ghi vào bản nháp",
+        "body": "Thay đổi \"{title}\" đã ghi vào bản nháp chung (bản {version}). Gửi Lead duyệt cả gói khi muốn phát hành.",
+        "bodyShort": "{cr} đã ghi vào bản nháp chung (bản {version}). Gửi Lead duyệt cả gói khi muốn phát hành."
+      },
+      "change_request_decided": {
+        "titleWritten": "{cr} đã được ghi vào bản {version}",
+        "bodyWritten": "Thay đổi \"{title}\" đã ghi vào tài liệu, bản {version}.",
+        "titleApproved": "{cr}: nhóm thay đổi “{group}” được duyệt",
+        "bodyApproved": "Nhóm thay đổi “{group}” của \"{title}\" được duyệt.",
+        "titleRejected": "{cr}: nhóm thay đổi “{group}” bị từ chối",
+        "bodyRejected": "Nhóm thay đổi “{group}” của \"{title}\" bị từ chối.",
+        "bodyRejectedReason": "Nhóm thay đổi “{group}” của \"{title}\" bị từ chối: {reason}."
+      },
+      "review_package_submitted": {
+        "title": "{project}: {count} thay đổi chờ bạn duyệt",
+        "body": "Gói {crs} đã qua kiểm tra, không còn cờ đỏ. Duyệt cả gói để phát hành bản mới, hoặc yêu cầu sửa."
+      },
+      "review_package_changes_requested": {
+        "title": "{project}: Lead yêu cầu sửa gói thay đổi",
+        "body": "{reason}"
+      },
+      "review_package_released": {
+        "title": "{project}: Lead đã duyệt gói, phát hành bản {version}",
+        "body": "Gói {crs} đã vào bản {version}. Tải bản sạch và bản có đánh dấu ở mục Version."
+      },
+      "comment_posted": {
+        "title": "Comment mới ở {project}",
+        "body": "{comment} trên \"{anchor}\" ({version}): {preview}",
+        "bodyShort": "Có bình luận mới ({comment})."
+      },
+      "comment_replied": {
+        "title": "Trả lời mới ở {comment}",
+        "body": "Trên \"{anchor}\" ({project}): {preview}",
+        "bodyShort": "Có câu trả lời mới cho {comment}."
+      },
+      "comment_resolved": {
+        "title": "Comment {comment} đã được xử lý",
+        "body": "Góp ý của bạn trên \"{anchor}\" ({project}) đã được đánh dấu đã xử lý.",
+        "bodyShort": "Góp ý {comment} của bạn đã được đánh dấu đã xử lý."
+      },
+      "comment_converted": {
+        "title": "Comment {comment} đã thành {cr}",
+        "body": "Góp ý của bạn trên \"{anchor}\" đã được ghi nhận thành change request {cr}.",
+        "bodyShort": "Góp ý {comment} đã được ghi nhận thành {cr}."
       }
     },
     "common": {
@@ -3093,6 +3174,9 @@
     "TOKEN_EXPIRED": "Liên kết đã hết hạn. Vui lòng yêu cầu gửi lại.",
     "TOKEN_REUSE_DETECTED": "Phát hiện phiên đăng nhập bị dùng lại - mọi phiên đã bị đăng xuất để bảo vệ tài khoản.",
     "UNAUTHORIZED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "SESSION_REVOKED": "Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.",
+    "VALIDATION_ERROR": "Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại rồi thử lại.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
     "INVALID_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "MISSING_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "INVALID_REFRESH_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",

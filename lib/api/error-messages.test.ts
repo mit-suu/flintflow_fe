@@ -41,10 +41,23 @@ describe("localizeApiError (T25 · P6)", () => {
     );
   });
 
-  it("mã mơ hồ / mang chi tiết động hoặc không có mã ⇒ giữ nguyên message BE", () => {
-    setPage("en");
+  it("mã mang chi tiết động: giữ nguyên nếu hợp lệ theo ngôn ngữ; nếu rò tiếng Việt trên en ⇒ câu dịch chuẩn (FLF-427)", () => {
+    setPage("vi");
     expect(localizeApiError("FORBIDDEN", "Chỉ Admin mới có quyền thực hiện thao tác này")).toBe("Chỉ Admin mới có quyền thực hiện thao tác này");
     expect(localizeApiError("VALIDATION_ERROR", "from phải trước to")).toBe("from phải trước to");
+
+    setPage("en");
+    expect(localizeApiError("FORBIDDEN", "Only Admin can perform this action")).toBe("Only Admin can perform this action");
+    expect(localizeApiError("VALIDATION_ERROR", "from must be before to")).toBe("from must be before to");
+    expect(localizeApiError("FORBIDDEN", "Chỉ Admin mới có quyền thực hiện thao tác này")).toBe("You do not have permission to perform this action.");
+    expect(localizeApiError("VALIDATION_ERROR", "from phải trước to")).toBe("The submitted data is invalid. Please check your input and try again.");
+  });
+
+  it("SESSION_REVOKED: câu dịch theo ngôn ngữ (FLF-427)", () => {
+    setPage("vi");
+    expect(localizeApiError("SESSION_REVOKED", "x")).toBe("Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.");
+    setPage("en");
+    expect(localizeApiError("SESSION_REVOKED", "x")).toBe("Your session has ended. Please sign in again.");
   });
 
   it("câu BE là text kỹ thuật ⇒ câu chung theo ngôn ngữ (FLF-247)", () => {
@@ -120,5 +133,17 @@ describe("localizeApiError (T25 · P6)", () => {
     for (const code of ["ORG_TEMPLATE_VERSION_PUBLISHED", "ORG_TEMPLATE_VERSION_CONFLICT", "ORG_TEMPLATE_NOT_FOUND", "ORG_TEMPLATE_VERSION_NOT_FOUND", "SKELETON_CONFLICT", "SKELETON_NOT_FOUND", "SKELETON_SUGGEST_FAILED"]) {
       expect(localizeApiError(code, "x", "en")).not.toBe("x");
     }
+
+    setPage("en");
+    const withViIssues = localizeApiError("IMPORT_FILE_REJECTED", "x", "en", {
+      issues: [{ code: "A", message: "Tài liệu trống" }, { code: "B", message: "Sai định dạng" }],
+    });
+    expect(withViIssues).toBe("This file could not be read.");
+    expect(withViIssues).not.toContain("Tài liệu trống");
+
+    const withEnIssues = localizeApiError("IMPORT_FILE_REJECTED", "x", "en", {
+      issues: [{ code: "A", message: "Empty document" }],
+    });
+    expect(withEnIssues).toBe("This file could not be read. Empty document");
   });
 });
