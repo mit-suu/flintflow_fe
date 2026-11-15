@@ -269,13 +269,41 @@ export default function BillingPage() {
   const lowCredit = balance ? balance.available < balance.lowCreditThreshold : false;
   const currentPlanDef = plans.find((p) => p.id === balance?.plan);
   const currentPlanPrice = currentPlanDef?.priceVnd ?? 0;
-  const currentPlanLimits =
+  const rawPlanLimits =
     balance?.planLimits ??
     (currentPlanDef?.maxMembers != null && currentPlanDef?.maxProjects != null
-      ? { maxMembers: currentPlanDef.maxMembers, maxProjects: currentPlanDef.maxProjects }
+      ? {
+          maxMembers: currentPlanDef.maxMembers,
+          maxProjects: currentPlanDef.maxProjects,
+          maxReferenceTokens: currentPlanDef.maxReferenceTokens,
+        }
       : null);
+  const currentPlanLimits = rawPlanLimits
+    ? {
+        ...rawPlanLimits,
+        maxReferenceTokens: rawPlanLimits.maxReferenceTokens ?? currentPlanDef?.maxReferenceTokens,
+      }
+    : null;
 
   if (isViewer) return null;
+
+  const formatPlanLimits = ({
+    maxMembers,
+    maxProjects,
+    maxReferenceTokens,
+  }: {
+    maxMembers: number;
+    maxProjects: number;
+    maxReferenceTokens?: number | null;
+  }) => {
+    const base = {
+      members: format.number(maxMembers),
+      projects: format.number(maxProjects),
+    };
+    return maxReferenceTokens != null
+      ? t("planLimitsSummary", { ...base, tokens: format.number(maxReferenceTokens) })
+      : t("planLimitsSummaryLegacy", base);
+  };
 
   // Bốn thẻ cùng một khuôn: ba con số của ví và gói hiện tại. Đơn vị "credit" giữ nguyên chữ, bản en có số nhiều.
   const statCards: { key: string; label: string; value: ReactNode; hint: string; extra?: ReactNode; tone: StatTone }[] = balance
@@ -296,12 +324,7 @@ export default function BillingPage() {
                 }),
               })
             : t("defaultPlan"),
-          extra: currentPlanLimits
-            ? t("planLimitsSummary", {
-                members: format.number(currentPlanLimits.maxMembers),
-                projects: format.number(currentPlanLimits.maxProjects),
-              })
-            : undefined,
+          extra: currentPlanLimits ? formatPlanLimits(currentPlanLimits) : undefined,
           tone: "plain",
         },
       ]
@@ -410,9 +433,10 @@ export default function BillingPage() {
                         </div>
                         {plan.maxMembers != null && plan.maxProjects != null && (
                           <div className="text-caption text-on-surface-muted mt-0.5">
-                            {t("planLimitsSummary", {
-                              members: format.number(plan.maxMembers),
-                              projects: format.number(plan.maxProjects),
+                            {formatPlanLimits({
+                              maxMembers: plan.maxMembers,
+                              maxProjects: plan.maxProjects,
+                              maxReferenceTokens: plan.maxReferenceTokens,
                             })}
                           </div>
                         )}

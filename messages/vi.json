@@ -581,7 +581,8 @@
         "projectAll": "Mọi dự án"
       },
       "noTxFiltered": "Không có giao dịch nào khớp bộ lọc",
-      "planLimitsSummary": "Tối đa {members} thành viên · {projects} dự án",
+      "planLimitsSummary": "Tối đa {members} thành viên · {projects} dự án · {tokens} token tài liệu tham khảo/dự án",
+      "planLimitsSummaryLegacy": "Tối đa {members} thành viên · {projects} dự án",
       "referenceCodeLabel": "Mã GD: {code}"
     },
     "checkout": {

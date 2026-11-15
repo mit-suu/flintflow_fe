@@ -23,15 +23,15 @@ vi.mock("@/lib/api/billing", async (importOriginal) => {
       reserved: 0,
       plan: "free",
       planLabel: "Free",
-      planLimits: { maxMembers: 3, maxProjects: 3, monthlyCredits: 300 },
+      planLimits: { maxMembers: 3, maxProjects: 3, maxReferenceTokens: 200_000, monthlyCredits: 300 },
       lowCreditThreshold: 10,
       subscription: null,
     })),
     fetchPackages: vi.fn(async () => ({
       packages: [{ id: "pack_100", label: "Gói 100 credit", credits: 100, amount: 40000 }],
       plans: [
-        { id: "free", label: "Free", monthlyCredits: 300, priceVnd: 0, maxMembers: 3, maxProjects: 3 },
-        { id: "pro", label: "Pro", monthlyCredits: 1000, priceVnd: 199000, maxMembers: 5, maxProjects: 50 },
+        { id: "free", label: "Free", monthlyCredits: 300, priceVnd: 0, maxMembers: 3, maxProjects: 3, maxReferenceTokens: 200_000 },
+        { id: "pro", label: "Pro", monthlyCredits: 1000, priceVnd: 199000, maxMembers: 5, maxProjects: 50, maxReferenceTokens: 1_000_000 },
       ],
     })),
     fetchTransactions: vi.fn(async () => ({ items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } })),
@@ -131,9 +131,11 @@ describe("lịch sử credit (UC-59, UC-60)", () => {
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
 
     const currentPlanCard = (await screen.findByText("Gói hiện tại")).parentElement!;
-    expect(within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án")).toBeInTheDocument();
-    expect(screen.getAllByText("Tối đa 3 thành viên · 3 dự án")).toHaveLength(2);
-    expect(screen.getByText("Tối đa 5 thành viên · 50 dự án")).toBeInTheDocument();
+    expect(
+      within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án · 200.000 token tài liệu tham khảo/dự án")
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Tối đa 3 thành viên · 3 dự án · 200.000 token tài liệu tham khảo/dự án")).toHaveLength(2);
+    expect(screen.getByText("Tối đa 5 thành viên · 50 dự án · 1.000.000 token tài liệu tham khảo/dự án")).toBeInTheDocument();
 
     const okRow = (await screen.findByText("Mã GD: REF-999")).closest("li")!;
     expect(within(okRow).getByText("Gói 100 credit")).toBeInTheDocument();
@@ -184,8 +186,8 @@ describe("trang thanh toán theo vai trò trong tổ chức", () => {
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
 
     expect(await screen.findByText("Gói 100 credit")).toBeInTheDocument();
-    expect(screen.getAllByText("Tối đa 3 thành viên · 3 dự án").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Tối đa 5 thành viên · 50 dự án")).toBeInTheDocument();
+    expect(screen.getAllByText("Tối đa 3 thành viên · 3 dự án · 200.000 token tài liệu tham khảo/dự án").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Tối đa 5 thành viên · 50 dự án · 1.000.000 token tài liệu tham khảo/dự án")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mua ngay" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Mua gói Pro/ })).toBeNull();
     expect(screen.getByRole("note")).toHaveTextContent("Chỉ Lead của tổ chức mới nạp credit");
@@ -348,8 +350,8 @@ describe("trang thanh toán - tiếng Anh", () => {
 
     expect(screen.getAllByText("100-credit pack").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("40,000 ₫").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Up to 3 members · 3 projects")).toHaveLength(2);
-    expect(screen.getByText("Up to 5 members · 50 projects")).toBeInTheDocument();
+    expect(screen.getAllByText("Up to 3 members · 3 projects · 200,000 reference tokens/project")).toHaveLength(2);
+    expect(screen.getByText("Up to 5 members · 50 projects · 1,000,000 reference tokens/project")).toBeInTheDocument();
     expect(vietnameseLeftovers(container)).toEqual([]);
   });
 
@@ -405,5 +407,67 @@ describe("trang thanh toán - tiếng Anh", () => {
 
     const legacyCell = screen.getByText("15");
     expect(legacyCell.className).toContain("text-on-surface-variant");
+  });
+});
+
+describe("gộp và fallback giới hạn gói (UC-56)", () => {
+  it("gộp maxReferenceTokens từ plan definition khi balance.planLimits thiếu, và fallback copy cũ khi cả hai thiếu", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    vi.mocked(fetchBalance).mockResolvedValueOnce({
+      balance: 300,
+      available: 300,
+      reserved: 0,
+      plan: "free",
+      planLabel: "Free",
+      planLimits: { maxMembers: 3, maxProjects: 3, monthlyCredits: 300 },
+      lowCreditThreshold: 10,
+      subscription: null,
+      ledger: [],
+    });
+    vi.mocked(fetchPackages).mockResolvedValueOnce({
+      packages: [{ id: "pack_100", label: "Gói 100 credit", credits: 100, amount: 40000, currency: "VND" }],
+      plans: [
+        { id: "free", label: "Free", initialCredits: 300, monthlyCredits: 300, priceVnd: 0, maxMembers: 3, maxProjects: 3, maxReferenceTokens: 200_000 },
+        { id: "pro", label: "Pro", initialCredits: 1000, monthlyCredits: 1000, priceVnd: 199000, maxMembers: 5, maxProjects: 50 },
+      ],
+    });
+
+    renderWithIntl(
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>
+    );
+
+    const currentPlanCard = (await screen.findByText("Gói hiện tại")).parentElement!;
+    expect(
+      within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án · 200.000 token tài liệu tham khảo/dự án")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Tối đa 5 thành viên · 50 dự án")).toBeInTheDocument();
+  });
+
+  it("thẻ gói hiện tại fallback sang copy cũ khi cả balance.planLimits và plan definition thiếu maxReferenceTokens", async () => {
+    activeOrg.value = { id: "org-1", name: "Nhóm A", role: "lead" };
+    vi.mocked(fetchBalance).mockResolvedValueOnce({
+      balance: 300,
+      available: 300,
+      reserved: 0,
+      plan: "free",
+      planLabel: "Free",
+      planLimits: { maxMembers: 3, maxProjects: 3, monthlyCredits: 300 },
+      lowCreditThreshold: 10,
+      subscription: null,
+      ledger: [],
+    });
+    vi.mocked(fetchPackages).mockResolvedValueOnce({
+      packages: [{ id: "pack_100", label: "Gói 100 credit", credits: 100, amount: 40000, currency: "VND" }],
+      plans: [
+        { id: "free", label: "Free", initialCredits: 300, monthlyCredits: 300, priceVnd: 0, maxMembers: 3, maxProjects: 3 },
+      ],
+    });
+
+    renderWithIntl(
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>
+    );
+
+    const currentPlanCard = (await screen.findByText("Gói hiện tại")).parentElement!;
+    expect(within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án")).toBeInTheDocument();
   });
 });

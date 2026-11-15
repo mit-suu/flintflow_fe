@@ -100,8 +100,8 @@ test.describe.serial("Billing & Credit RBAC E2E", () => {
     await expect(page.getByText("420", { exact: true })).toBeVisible();
     await expect(page.getByText("435", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("15", { exact: true })).toBeVisible();
-    await expect(page.getByText("Tối đa 3 thành viên · 3 dự án").first()).toBeVisible();
-    await expect(page.getByText("Tối đa 5 thành viên · 50 dự án")).toBeVisible();
+    await expect(page.getByText("Tối đa 3 thành viên · 3 dự án · 200.000 token tài liệu tham khảo/dự án").first()).toBeVisible();
+    await expect(page.getByText("Tối đa 5 thành viên · 50 dự án · 1.000.000 token tài liệu tham khảo/dự án")).toBeVisible();
 
     const usageRow = page.locator("li", { hasText: /1\.200 \/ 450/ });
     await expect(usageRow).toBeVisible();

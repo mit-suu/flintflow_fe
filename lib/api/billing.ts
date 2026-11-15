@@ -57,6 +57,7 @@ export interface TransactionFilters {
 export interface PlanLimits {
   maxMembers: number;
   maxProjects: number;
+  maxReferenceTokens?: number;
   monthlyCredits: number;
 }
 
