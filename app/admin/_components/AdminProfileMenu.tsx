@@ -6,6 +6,7 @@ import { House, LogOut, UserCog } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { fetchMe } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
+import { useAccountLocaleSync } from "@/lib/hooks/use-account-locale";
 import type { User } from "@/types/user";
 import {
   AlertDialog,
@@ -43,6 +44,8 @@ export default function AdminProfileMenu() {
   const t = useTranslations("admin");
   const [me, setMe] = useState<User | null>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+
+  useAccountLocaleSync(me);
 
   useEffect(() => {
     let cancelled = false;
