@@ -41,11 +41,22 @@ const cardProps = {
 
 describe("describe-change", () => {
   it("đổi path thô thành câu đọc được", () => {
-    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null })).toBe("Sửa Actor A03 · Tên");
-    expect(describeChange({ op: "set", path: "actors[id=A03].name", before: "Admin", value: "Administrator" })).toBe(
-      "Sửa Actor A03 · Tên: Admin → Administrator"
+    // FLF-411 #23: không in mã nội bộ (A03); có tên thì gọi bằng tên
+    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null })).toBe("Sửa tên của một tác nhân");
+    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null }, "vi", { actors: { A03: "Admin" } })).toBe(
+      "Sửa tên của tác nhân “Admin”"
     );
-    expect(describeChange({ op: "remove", path: "use_cases[id=UC04]", before: {}, value: null })).toBe("Xoá Use case UC04");
+    expect(describeChange({ op: "set", path: "actors[id=A03].name", before: "Admin", value: "Administrator" })).toBe(
+      "Sửa tên của một tác nhân: Admin → Administrator"
+    );
+    expect(describeChange({ op: "remove", path: "use_cases[id=UC04]", before: {}, value: null })).toBe("Xoá use case “UC04”");
+    expect(describeChange({ op: "remove", path: "actors[id=A04]", before: { id: "A04", name: "Patron", kind: "human" }, value: { _absent: true } })).toBe(
+      "Xoá tác nhân “Patron”"
+    );
+    expect(describeChange({ op: "set", path: "project.system_name", before: "Cafeteria", value: "ShuttleBook" })).toBe("Đổi tên hệ thống: Cafeteria → ShuttleBook");
+    expect(describeChange({ op: "set", path: "actors[id=A04].kind", before: "human", value: "system" }, "en")).toBe(
+      "Edit the kind of one actor: Human user → External system"
+    );
   });
 });
 
@@ -62,7 +73,7 @@ describe("ChatEditCard", () => {
     renderWithIntl(<ChatEditCard {...cardProps} preview={preview()} onApply={onApply} onShowDetail={onShowDetail} />);
 
     expect(screen.getByText(/Sẽ thay đổi 2 chỗ · ảnh hưởng 1 mục/)).toBeInTheDocument();
-    expect(screen.getByText(/Sửa Actor A03 · Tên: Admin → Administrator/)).toBeInTheDocument();
+    expect(screen.getByText(/Sửa tên của một tác nhân: Admin → Administrator/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Áp dụng" }));
     fireEvent.click(screen.getByRole("button", { name: "Xem chi tiết" }));
     expect(onApply).toHaveBeenCalledTimes(1);
@@ -129,7 +140,8 @@ describe("EditHistory", () => {
 
     expect(onLoad).toHaveBeenCalledTimes(1);
     const items = screen.getAllByRole("listitem");
-    expect(items[0]).toHaveTextContent("Sửa Actor A02");
+    expect(items[0]).toHaveTextContent("Sửa tên của một tác nhân: a → b");
+    expect(items[0]).not.toHaveTextContent("A02");
     expect(items[0]).toHaveTextContent("lệnh sửa");
     expect(items[1]).toHaveTextContent(/bước “[^”]+”/);
     expect(items[1]).not.toHaveTextContent("S-3.1");

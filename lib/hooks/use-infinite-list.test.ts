@@ -82,4 +82,19 @@ describe("useInfiniteList", () => {
     await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
     expect(fetchPage).toHaveBeenLastCalledWith(1);
   });
+
+  it("updateItems ⇒ sửa tại chỗ mục đã tải, không gọi lại BE, giữ trang đã nối", async () => {
+    const fetchPage = vi.fn(async (n: number) => page(n, 2));
+    const { result } = renderHook(() => useInfiniteList({ fetchPage, key: "k" }));
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+    act(() => result.current.sentinelRef(document.createElement("div")));
+    await waitFor(() => expect(fire).not.toBeNull());
+    act(() => fire!());
+    await waitFor(() => expect(result.current.items).toHaveLength(4));
+
+    act(() => result.current.updateItems((item) => (item === "x2a" ? "x2a!" : item)));
+    expect(result.current.items).toEqual(["x1a", "x1b", "x2a!", "x2b"]);
+    expect(result.current.total).toBe(4);
+    expect(fetchPage).toHaveBeenCalledTimes(2);
+  });
 });

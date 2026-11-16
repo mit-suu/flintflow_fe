@@ -39,7 +39,7 @@ vi.mock("@/lib/api/orgs", () => ({
 }));
 vi.mock("@/lib/api/token-store", () => ({
   getActiveOrgId: vi.fn(),
-  getStoredAuthToken: vi.fn(() => "token"),
+  getAccessToken: vi.fn(() => "token"),
   decodeJwt: vi.fn(),
 }));
 // TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang thành viên

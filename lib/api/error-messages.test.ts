@@ -111,4 +111,14 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(err.rawMessage).toBe("Tài liệu vừa được thay đổi ở phiên khác.");
     expect(err.code).toBe("SPINE_VERSION_CONFLICT");
   });
+
+  it("FLF-395: IMPORT_FILE_REJECTED nêu lý do BE (tối đa 3); mã thư viện mẫu có câu riêng", () => {
+    const withIssues = localizeApiError("IMPORT_FILE_REJECTED", "x", "vi", { issues: [{ code: "A", message: "Tài liệu trống" }, { code: "B", message: "Sai định dạng" }] });
+    expect(withIssues).toContain("Không đọc được file này.");
+    expect(withIssues).toContain("Tài liệu trống; Sai định dạng");
+    expect(localizeApiError("IMPORT_FILE_REJECTED", "x", "vi")).toBe("Không đọc được file này.");
+    for (const code of ["ORG_TEMPLATE_VERSION_PUBLISHED", "ORG_TEMPLATE_VERSION_CONFLICT", "ORG_TEMPLATE_NOT_FOUND", "ORG_TEMPLATE_VERSION_NOT_FOUND", "SKELETON_CONFLICT", "SKELETON_NOT_FOUND", "SKELETON_SUGGEST_FAILED"]) {
+      expect(localizeApiError(code, "x", "en")).not.toBe("x");
+    }
+  });
 });

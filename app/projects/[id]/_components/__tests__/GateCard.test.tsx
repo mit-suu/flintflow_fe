@@ -389,6 +389,21 @@ describe("GateCard - cờ và bảng", () => {
     await waitFor(() => expect(screen.queryByLabelText(/Vì sao bạn muốn giữ nguyên/)).toBeNull());
   });
 
+  it("FLF-411 U1-4: ô lý do Giữ nguyên đang mở ⇒ khoá Đúng rồi, đi tiếp; huỷ ô ⇒ mở lại", () => {
+    const onAction = vi.fn();
+    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[flag]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={onAction} />);
+    const accept = screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ });
+    expect(accept).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên" }));
+    expect(accept).toBeDisabled();
+    fireEvent.click(accept);
+    expect(onAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(accept).toBeEnabled();
+  });
+
   it("cờ không waive được ⇒ chỉ có Sửa theo đề xuất", () => {
     renderWithIntl(
       <GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[{ ...flag, waivable: false }]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={vi.fn()} />

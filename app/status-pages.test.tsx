@@ -6,6 +6,9 @@ import MaintenancePage from "./maintenance/page";
 
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn() }));
 
+// Header có nút đổi ngôn ngữ (LocaleSwitcher) - dùng router để làm mới trang sau khi đổi
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
+
 const boom = Object.assign(new Error("render hỏng"), { digest: "abc123" });
 
 describe("app/error.tsx - trang lỗi FlintFlow", () => {

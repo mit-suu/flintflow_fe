@@ -50,7 +50,10 @@ export function proxy(request: NextRequest) {
   const decodedAccess = accessToken ? decodeJwt(accessToken) : null;
   const validAccessToken = decodedAccess ? accessToken : null;
 
-  const hasToken = !!(accessToken || refreshToken);
+  // Production FE và BE khác site ⇒ proxy không thấy cookie `httpOnly` của BE. FE không còn ghi access token
+  // ra cookie (token chỉ nằm trong bộ nhớ), nên dấu hiệu "có phiên" là cookie `userRole` (không bí mật) FE ghi
+  // lúc đăng nhập và xoá lúc đăng xuất. Đây chỉ là điều hướng; quyền thật do BE kiểm.
+  const hasToken = !!(accessToken || refreshToken || cookieRole);
   const resolvedRole = decodedAccess?.role || cookieRole || "user";
 
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");

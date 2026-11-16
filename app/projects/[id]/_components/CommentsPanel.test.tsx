@@ -1,6 +1,6 @@
 "use client";
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import CommentsPanel from "./CommentsPanel";
@@ -36,6 +36,12 @@ const props = {
   onClose: vi.fn(),
 };
 
+/** Mở menu ✓ (xử lý) của góp ý đầu tiên. */
+const openResolveMenu = () => {
+  fireEvent.click(screen.getAllByRole("button", { name: "Xử lý comment" })[0]);
+  return screen.getByRole("menu");
+};
+
 describe("CommentsPanel", () => {
   it("chưa có góp ý ⇒ hiện trạng thái rỗng kèm cách ghim", () => {
     const { container } = renderWithIntl(<CommentsPanel {...props} />);
@@ -50,29 +56,31 @@ describe("CommentsPanel", () => {
     expect(container.textContent).toContain("Góp ý CM-001");
     expect(container.textContent).not.toContain("Góp ý CM-002");
 
-    fireEvent.click(screen.getByRole("button", { name: "Tất cả" }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Tất cả/ }));
     expect(container.textContent).toContain("Góp ý CM-002");
     expect(container.textContent).toContain("Đã xử lý");
   });
 
   it("FLF-271 (UC-40): nhờ AI sửa gọi onFixByChat với comment; nói trước bước sở hữu sẽ mở lại", () => {
     const onFixByChat = vi.fn();
-    const { container } = renderWithIntl(<CommentsPanel {...props} comments={[comment("CM-001", { step_ids: ["S-2.1"] })]} onFixByChat={onFixByChat} />);
-    expect(container.textContent).toContain("Thuộc bước");
-    fireEvent.click(screen.getByRole("button", { name: "Nhờ AI sửa" }));
+    renderWithIntl(<CommentsPanel {...props} comments={[comment("CM-001", { step_ids: ["S-2.1"] })]} onFixByChat={onFixByChat} />);
+    const menu = openResolveMenu();
+    // Câu đầu menu nói trước bước nào sẽ mở lại khi xử lý "đã sửa"
+    expect(menu.textContent).toContain("Thuộc bước");
+    expect(within(menu).getByRole("menuitem", { name: "Đã sửa" })).toBeInTheDocument();
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Nhờ AI sửa" }));
     expect(onFixByChat).toHaveBeenCalledWith(expect.objectContaining({ comment_id: "CM-001" }));
-    expect(screen.getByRole("button", { name: "Đã sửa" })).toBeInTheDocument();
   });
 
   it("không có quyền ⇒ không có nút xử lý góp ý", () => {
     renderWithIntl(<CommentsPanel {...props} canResolve={false} comments={[comment("CM-001")]} />);
-    expect(screen.queryByRole("button", { name: "Đã sửa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xử lý comment" })).not.toBeInTheDocument();
   });
 
   it("Đã xử lý gọi đúng mã góp ý", async () => {
     const onResolve = vi.fn(async () => {});
     renderWithIntl(<CommentsPanel {...props} onResolve={onResolve} comments={[comment("CM-001")]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Đã sửa" }));
+    fireEvent.click(within(openResolveMenu()).getByRole("menuitem", { name: "Đã sửa" }));
     await waitFor(() => expect(onResolve).toHaveBeenCalledWith("CM-001", { kind: "fixed" }));
   });
 
@@ -80,7 +88,7 @@ describe("CommentsPanel", () => {
     const onResolve = vi.fn(async () => {});
     renderWithIntl(<CommentsPanel {...props} onResolve={onResolve} comments={[comment("CM-001")]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên" }));
+    fireEvent.click(within(openResolveMenu()).getByRole("menuitem", { name: "Giữ nguyên…" }));
     // Lý do là thứ duy nhất Lead có để hiểu vì sao không sửa ⇒ quá ngắn thì không lưu được
     fireEvent.change(screen.getByLabelText("Vì sao giữ nguyên?"), { target: { value: "ok" } });
     expect(screen.getByRole("button", { name: "Lưu lý do" })).toBeDisabled();
@@ -101,7 +109,7 @@ describe("CommentsPanel", () => {
         comments={[comment("CM-001", { status: "resolved", resolution: { kind: "kept", reason: "Khách chốt giữ nguyên." } })]}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Tất cả" }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Tất cả/ }));
     expect(container.textContent).toContain("Giữ nguyên - Khách chốt giữ nguyên.");
   });
 
@@ -109,9 +117,9 @@ describe("CommentsPanel", () => {
     const { container } = renderWithIntl(
       <CommentsPanel {...props} comments={[comment("CM-001", { status: "converted", cr_id: "CR-012" })]} />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Tất cả" }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Tất cả/ }));
     expect(container.textContent).toContain("CR-012");
-    expect(screen.queryByRole("button", { name: "Đã sửa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Xử lý comment" })).not.toBeInTheDocument();
   });
 
   it("lọc theo góp ý của lượt từ chối ⇒ chỉ hiện đúng các mã đó, kể cả đã xử lý", () => {
@@ -126,6 +134,18 @@ describe("CommentsPanel", () => {
     expect(container.textContent).toContain("Góp ý CM-001");
     expect(container.textContent).toContain("Góp ý CM-002");
     expect(container.textContent).not.toContain("Góp ý CM-003");
+  });
+
+  it("chuỗi trả lời hiện dưới góp ý; ô trả lời gửi đúng mã", async () => {
+    const onReply = vi.fn(async () => {});
+    const replies = [{ author: { _id: "u2", name: "Lan", email: null }, author_role: "viewer" as const, text: "Đồng ý", at: "2026-10-13T11:00:00.000Z" }];
+    renderWithIntl(<CommentsPanel {...props} onReply={onReply} comments={[comment("CM-001", { replies })]} />);
+    expect(screen.getByRole("list", { name: "Trả lời" }).textContent).toContain("Đồng ý");
+    const box = screen.getByRole("textbox", { name: "Trả lời…" });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: "Đã sửa xong" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi" }));
+    await waitFor(() => expect(onReply).toHaveBeenCalledWith("CM-001", "Đã sửa xong"));
   });
 
   it("đang ghim một chỗ ⇒ mở ô soạn, gửi đúng nội dung đã gõ", async () => {

@@ -1,16 +1,15 @@
 /**
  * Đổi một thay đổi thô của Spine (`set actors[id=A03].name`) thành câu người đọc được
- * ("Sửa Actor A03 · name: Admin → Administrator"). Dùng cho thẻ sửa trong chat và "Lịch sử sửa".
+ * ("Sửa tên của tác nhân “Admin”: Admin → Administrator"). Dùng cho thẻ sửa trong chat và "Lịch sử sửa".
  */
 import { createTranslator } from "next-intl";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import en from "@/messages/en.json";
 import vi from "@/messages/vi.json";
 import type { Mode1T } from "./mode1/i18n";
-import { spineLabels } from "./mode1/spine-labels";
+import { spineLabels, type ElementNames } from "./mode1/spine-labels";
 
 const MESSAGES = { vi, en } as const;
-const translatorFor = (locale: Locale) => createTranslator({ locale, messages: MESSAGES[locale], namespace: "workspace.describeChange" });
 /** Tên trường / giá trị đời thường dùng chung với mode 1 (`mode1.spine.*`). */
 const spineFor = (locale: Locale) =>
   spineLabels(createTranslator({ locale, messages: MESSAGES[locale], namespace: "mode1" }) as unknown as Mode1T, locale);
@@ -22,14 +21,6 @@ interface ChangeLike {
   value: unknown;
 }
 
-const COLLECTIONS = new Set([
-  "project", "actors", "use_cases", "features", "screens", "functions", "entities", "nfrs",
-  "business_rules", "messages", "glossary", "permissions", "assumptions", "decisions",
-] as const);
-type KnownCollection = typeof COLLECTIONS extends Set<infer K> ? K : never;
-const OPS = new Set(["set", "add", "remove", "renumber"] as const);
-type KnownOp = typeof OPS extends Set<infer K> ? K : never;
-
 /** Rút gọn giá trị để hiện trên một dòng. */
 export const shortValue = (value: unknown, max = 60, locale: Locale = DEFAULT_LOCALE): string => {
   if (value === null || value === undefined) return "-";
@@ -38,26 +29,27 @@ export const shortValue = (value: unknown, max = 60, locale: Locale = DEFAULT_LO
   return text.length > max ? `${text.slice(0, max)}…` : text;
 };
 
-/** Đầu câu: "Sửa Actor A03 · name". */
-export const describeTarget = (change: ChangeLike, locale: Locale = DEFAULT_LOCALE): string => {
-  const t = translatorFor(locale);
-  const spine = spineFor(locale);
-  const [root, ...rest] = change.path.split(".");
-  const collection = root.replace(/\[.*$/, "");
-  const key = /\[(?:[a-z_]+=)?([^\],]+)/.exec(root)?.[1];
-  const label = COLLECTIONS.has(collection as KnownCollection) ? t(`collections.${collection as KnownCollection}`) : collection;
-  // Tên trường đời thường (`actor_ids` ⇒ "Tác nhân"); khoá trong ngoặc giữ lại (`flows[id=F1]` ⇒ "… F1")
-  const field = rest
-    .map((part) => part.replace(/^[a-z_]+/, (name) => spine.fieldLabel(name)).replace(/\[(?:[a-z_]+=)?([^\]]+)\]/g, " $1"))
-    .join(" › ");
-  const verb = t(`ops.${OPS.has(change.op as KnownOp) ? (change.op as KnownOp) : "set"}`);
-  return [`${verb} ${label}${key ? ` ${key}` : ""}`, field].filter(Boolean).join(" · ");
+/**
+ * Đầu câu theo tên phần tử (FLF-411 #23): "Xoá tác nhân “Patron”", "Đổi tên hệ thống", "Sửa tên của tác nhân “Admin”".
+ * Không có tên (chỉ có mã nội bộ) ⇒ "… một tác nhân", không in mã. `names`: bảng tên từ Spine (`elementNames`).
+ */
+export const describeTarget = (change: ChangeLike, locale: Locale = DEFAULT_LOCALE, names?: ElementNames): string =>
+  spineFor(locale).changeLabel(change, names);
+
+const valueText = (value: unknown, field: string | undefined, locale: Locale, max = 60): string => {
+  if (value === null || value === undefined) return "-";
+  const text = spineFor(locale).humanValue(value, field);
+  return text.length > max ? `${text.slice(0, max)}…` : text;
 };
 
-/** Câu đầy đủ kèm giá trị trước → sau. */
-export const describeChange = (change: ChangeLike, locale: Locale = DEFAULT_LOCALE): string => {
-  const target = describeTarget(change, locale);
-  if (change.op === "add") return `${target}: ${shortValue(change.value, 60, locale)}`;
+/** Câu đầy đủ kèm giá trị trước → sau (chỉ phần đọc được: tên, mô tả, nhãn enum). */
+export const describeChange = (change: ChangeLike, locale: Locale = DEFAULT_LOCALE, names?: ElementNames): string => {
+  const target = describeTarget(change, locale, names);
+  const field = /\.([a-z_]+)$/.exec(change.path)?.[1];
+  const whole = !field;
   if (change.op === "remove") return target;
-  return `${target}: ${shortValue(change.before, 60, locale)} → ${shortValue(change.value, 60, locale)}`;
+  // Thêm / thay nguyên phần tử: tên đã nằm trong câu
+  if (whole && change.op === "add") return target;
+  if (change.op === "add") return `${target}: ${valueText(change.value, field, locale)}`;
+  return `${target}: ${valueText(change.before, field, locale)} → ${valueText(change.value, field, locale)}`;
 };

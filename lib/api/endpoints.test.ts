@@ -38,6 +38,11 @@ type EndpointCase = [name: string, call: () => unknown, path: string, init?: Req
 
 const cases: EndpointCase[] = [
   ["listProjects", () => projects.listProjects("active"), "/projects?status=active"],
+  [
+    "listProjectsPage",
+    () => projects.listProjectsPage({ page: 2, limit: 24, status: "active", q: "ngan hang", sort: "updated", folder: "none" }),
+    "/projects?page=2&limit=24&status=active&q=ngan+hang&sort=updated&folder=none",
+  ],
   ["getProject", () => projects.getProject("p1"), "/projects/p1"],
   ["createProject", () => projects.createProject("App"), "/projects", post({ name: "App" })],
   ["createProject (mode 1)", () => projects.createProject("App", "import"), "/projects", post({ name: "App", mode: "import" })],
@@ -77,6 +82,12 @@ const cases: EndpointCase[] = [
     () => projects.setErdNotation("p1", "crowsfoot"),
     "/projects/p1/erd-notation",
     { method: "PATCH", body: JSON.stringify({ erdNotation: "crowsfoot" }) },
+  ],
+  [
+    "setSequenceLevel",
+    () => projects.setSequenceLevel("p1", "component"),
+    "/projects/p1/sequence-level",
+    { method: "PATCH", body: JSON.stringify({ sequenceLevel: "component" }) },
   ],
   [
     "setDocumentLanguage",
@@ -291,6 +302,13 @@ const cases: EndpointCase[] = [
     "/admin/ai-cost?groupBy=day",
   ],
   ["fetchAdminFeedback", () => admin.fetchAdminFeedback(), "/admin/feedback"],
+  ["fetchAdminFeedback (trang + tìm)", () => admin.fetchAdminFeedback({ page: 2, limit: 20, q: "dark" }), "/admin/feedback?page=2&limit=20&q=dark"],
+  ["fetchTemplateGaps", () => admin.fetchTemplateGaps(3, 20), "/admin/template-gaps?page=3&limit=20"],
+  [
+    "fetchAiCostPage",
+    () => admin.fetchAiCostPage({ groupBy: "user" }, 2, 20).catch(() => undefined),
+    "/admin/ai-cost?groupBy=user&page=2&limit=20",
+  ],
   // ─── mode 1: import (#3–#10) — route `/projects/:id/import…` ───
   ["confirmLatest", () => importApi.confirmLatest("p1", "i1"), "/projects/p1/import/confirm-latest", post({ import_id: "i1" })],
   ["getImport", () => importApi.getImport("p1"), "/projects/p1/import"],

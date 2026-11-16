@@ -339,6 +339,8 @@ export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep
   const moreBelow = useMoreBelow(scrollEl);
   const hasFiles = files.length > 0;
   const needsDecision = (ref: ReferenceFile) => !ref.keep && ref.precheck?.looks_like_srs === true;
+  // FLF-409: chỉ có nội dung yêu cầu (vd bảng Use Case) ⇒ nhắc một dòng khi ô SRS trống, không đưa lên đầu, không bắt quyết
+  const maybeSrs = (ref: ReferenceFile) => !hasSrs && !ref.keep && !needsDecision(ref) && ref.precheck?.srs_suggestion === "possible";
   // Gợi ý "trông như SRS" là việc cần quyết trước khi bấm Bắt đầu ⇒ lên đầu, không bị cuộn khuất
   const ordered = [...files.filter(needsDecision), ...files.filter((ref) => !needsDecision(ref))];
   const totalBytes = files.reduce((sum, ref) => sum + ref.file.size, 0);
@@ -415,6 +417,14 @@ export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep
                 removeLabel={t("remove", { name: ref.file.name })}
                 busyLabel={ref.precheck === undefined && isDocx(ref.file) ? t("checking") : undefined}
               >
+                {maybeSrs(ref) && (
+                  <p className="flex flex-wrap items-center gap-x-1 px-1 text-caption leading-relaxed text-on-surface-muted">
+                    <span>{t("suggest.maybeSrs")}</span>
+                    <button type="button" onClick={() => onMoveToSrs(ref.key)} disabled={disabled} className={`${SUGGEST_ACTION} text-primary`}>
+                      {t("suggest.moveToSrs")}
+                    </button>
+                  </p>
+                )}
                 {suggest && (
                   // Lời gợi ý một hàng, nút một hàng riêng thẳng lề chữ — ô hẹp thì nút không bị bẻ đôi chữ
                   <div role="status" className="flex flex-col gap-1.5 rounded-control bg-primary-soft px-3 py-2.5">

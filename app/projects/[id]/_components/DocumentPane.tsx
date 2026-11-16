@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
+import Skeleton from "@/components/ui/Skeleton";
 import { ApiClientError } from "@/lib/api/client";
 import { fetchDocumentImage, IMAGE_CHANGED, MEDIA_NOT_EMBEDDABLE, parseImageRef } from "@/lib/api/document-images";
 import { fetchDiagramPng } from "@/lib/api/spine";
@@ -78,6 +79,11 @@ interface DocumentPaneProps {
   /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
   headerEnd?: ReactNode;
   /**
+   * Pill trạng thái việc chạy nền (FLF-410: lượt vẽ mockup) — nhỏ, dính góc dưới trái khung tài liệu (giữa đáy là chỗ pill
+   * "có bản mới"); không thêm gì lên header.
+   */
+  footerStatus?: ReactNode;
+  /**
    * Nút "Vẽ lại sơ đồ" dưới các hình của một mục. Ảnh tới FE đã là PNG thật (BE thay `diagram-ref:<id>` lúc trả tài liệu),
    * không còn id sơ đồ ⇒ nút theo MỤC, trang workspace biết mục nào có sơ đồ nào qua `diagrams[].section`.
    * Không truyền ⇒ không có nút (mode 1, trang xem read-only).
@@ -90,6 +96,13 @@ interface DocumentPaneProps {
    * không có nút (mode 1, Viewer).
    */
   onRedrawDiagram?: (diagramId: string) => Promise<void>;
+  /**
+   * FLF-410 (dự án import): mục §3.x.y chứa ảnh gốc của một màn ⇒ `enabled` cho biết đang hiện mockup thay ảnh gốc. Không
+   * truyền / `undefined` ⇒ không có nút.
+   */
+  screenMockupOf?: (sectionId: string) => { enabled: boolean; pending: boolean } | undefined;
+  /** "Vẽ lại bằng mockup" (mở hộp chọn kiểu + phạm vi) / "Dùng ảnh gốc" (0 credit) cho màn của mục. */
+  onScreenMockup?: (sectionId: string, action: "redraw" | "original") => Promise<void> | void;
   /**
    * Ngôn ngữ tài liệu client đã biết (FLF-265, `knownDocumentLanguage`): chip trên header và khoá tải lại — đổi ngôn ngữ
    * là gỡ tài liệu cũ xuống. `null` (mode 1 chưa biết ngôn ngữ file) ⇒ chỉ hiện chip khi BE trả `meta.translation`.
@@ -108,6 +121,40 @@ interface DocumentPaneProps {
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
+/** FLF-410: mục có ảnh gốc của màn (dự án import) ⇒ vẽ lại bằng mockup hoặc dùng lại ảnh gốc. */
+function ScreenMockupButtons({ enabled, onAction }: { enabled: boolean; onAction: (action: "redraw" | "original") => Promise<void> | void }) {
+  const t = useTranslations("workspace.document.screenMockup");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const restoreOriginal = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onAction("original");
+    } catch (err) {
+      setError(userErrorMessage(err, t("useOriginalFailed")));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const style = "inline-flex items-center gap-1 text-caption font-bold px-2 py-0.5 rounded-full text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  return (
+    <div className="flex items-center justify-center gap-2 mb-2">
+      <button type="button" onClick={() => void onAction("redraw")} disabled={busy} className={style}>
+        <Icon name="refresh" size={11} />
+        {t("redraw")}
+      </button>
+      {enabled && (
+        <button type="button" onClick={() => void restoreOriginal()} disabled={busy} className={style}>
+          <Icon name="file" size={11} />
+          {t("useOriginal")}
+        </button>
+      )}
+      {error && <span className="text-caption text-error">{error}</span>}
+    </div>
+  );
+}
+
 function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
   const t = useTranslations("workspace.document");
   const [busy, setBusy] = useState(false);
@@ -140,9 +187,28 @@ function RedrawSectionButton({ onRedraw }: { onRedraw: () => Promise<void> }) {
   );
 }
 
+/** Vị trí [đầu, cuối] của cụm ảnh liền nhau đầu tiên trong mục; không có ảnh ⇒ null. */
+export const firstImageRun = (blocks: readonly Block[]): [number, number] | null => {
+  const start = blocks.findIndex((b) => b.type === "image");
+  if (start < 0) return null;
+  let end = start;
+  while (blocks[end + 1]?.type === "image") end++;
+  return [start, end];
+};
+
 /** Nhãn đọc được của một mục: `§2.2.2 Actors`. */
 export const sectionLabel = (section: Pick<RenderedSection, "number" | "heading">): string =>
   `§${section.number ? `${section.number} ` : ""}${section.heading}`;
+
+/** Key React của từng mục: `id`, lần lặp thứ n của cùng `id` ⇒ `id#n` (không trùng key, mục không lặp giữ key cũ). */
+export const sectionRenderKeys = (sections: readonly Pick<RenderedSection, "id">[]): string[] => {
+  const seen = new Map<string, number>();
+  return sections.map(({ id }) => {
+    const n = seen.get(id) ?? 0;
+    seen.set(id, n + 1);
+    return n === 0 ? id : `${id}#${n}`;
+  });
+};
 
 export interface EmptyHint {
   stepId: string;
@@ -211,8 +277,8 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
   // Gắn kết quả với token đã tải: đổi `png` thì kết quả cũ (URL đã thu hồi) không bị dùng nhầm cho ảnh mới
   const [resolved, setResolved] = useState<{ png: string; url: string } | null>(null);
   const [failure, setFailure] = useState<{ png: string; message: string } | null>(null);
-  // Ảnh gốc mode 1 mà BE xác nhận không phải PNG/JPEG (`415`) ⇒ khung giữ chỗ + chú thích, không phải lỗi
-  const [notEmbedded, setNotEmbedded] = useState<string | null>(null);
+  // Ảnh gốc mode 1 mà BE xác nhận không phải PNG/JPEG (`415`) hoặc không có (`404`) ⇒ khung giữ chỗ + chú thích, không phải lỗi
+  const [notEmbedded, setNotEmbedded] = useState<{ png: string; message: string } | null>(null);
   // Bấm "Thử lại" ở ảnh gốc lỗi (404 / 503 / mạng) ⇒ tăng để effect tải lại; lượt lỗi không bị cache ở `lib/api`
   const [attempt, setAttempt] = useState(0);
 
@@ -242,10 +308,15 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
         }
         // Chỉ khi BE xác nhận sai định dạng mới nói "định dạng không hỗ trợ" — lỗi khác không đoán lý do
         if (isMediaRef && err instanceof ApiClientError && (err.status === 415 || err.code === MEDIA_NOT_EMBEDDABLE)) {
-          setNotEmbedded(png);
+          setNotEmbedded({ png, message: t("mediaNotEmbedded") });
           return;
         }
-        // Ảnh gốc lỗi vì lý do khác (không còn trong tài liệu, storage tạm hỏng, mạng): câu trung tính + nút thử lại
+        // FLF-411: BE xác nhận không có ảnh này (404) — lỗi vĩnh viễn, thử lại vô ích ⇒ khung giữ chỗ trung tính, không nút
+        if (isMediaRef && err instanceof ApiClientError && err.status === 404) {
+          setNotEmbedded({ png, message: t("mediaNotShown") });
+          return;
+        }
+        // Ảnh gốc lỗi tạm thời (storage tạm hỏng, mạng): câu trung tính + nút thử lại
         setFailure({ png, message: isMediaRef ? mediaLoadFailed : userErrorMessage(err, loadFailed) });
       });
     return () => {
@@ -258,7 +329,7 @@ function DocumentImage({ projectId, png, caption }: { projectId: string; png: st
 
   const src = directSrc ?? (resolved?.png === png ? resolved.url : null);
   const error = failure?.png === png ? failure.message : null;
-  if (notEmbedded === png) return <div className={IMAGE_PLACEHOLDER_CLASS}>{t("mediaNotEmbedded")}</div>;
+  if (notEmbedded?.png === png) return <div className={IMAGE_PLACEHOLDER_CLASS}>{notEmbedded.message}</div>;
   if (error && isMediaRef) {
     return (
       <div className={IMAGE_PLACEHOLDER_CLASS}>
@@ -519,12 +590,12 @@ export function BlockView({
 const INDENT_PER_LEVEL = 20;
 
 /** Cấp của section, 0 = mục gốc: theo `level` của BE (1-based), thiếu thì đếm dấu chấm trong số mục. */
-const depthOf = (section: RenderedSection): number =>
+export const depthOf = (section: RenderedSection): number =>
   Math.max(0, (section.level || (section.number ? section.number.split(".").length : 1)) - 1);
 
 /** Cỡ chữ tiêu đề theo cấp: mục gốc to nhất, mục con nhỏ dần. */
 const HEADING_SIZE = ["text-subtitle", "text-heading", "text-body"] as const;
-const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
+export const headingSize = (depth: number) => HEADING_SIZE[Math.min(depth, HEADING_SIZE.length - 1)];
 
 /** Heading nhóm (`group:*`) — chỉ tiêu đề chương/mục cha, không phải section có nội dung (contract-change 2026-09-15). */
 function GroupHeading({ section }: { section: RenderedSection }) {
@@ -580,7 +651,10 @@ function SectionView({
   onOpenComments,
   onRedraw,
   onRedrawDiagram,
+  screenMockup,
 }: {
+  /** FLF-410: nút vẽ lại ảnh gốc bằng mockup của mục; `pending` ⇒ màn đang chờ lượt vẽ nền (phủ vệt quét lên ảnh). */
+  screenMockup?: { enabled: boolean; pending: boolean; onAction: (action: "redraw" | "original") => Promise<void> | void };
   onEdit?: (sectionLabel: string) => void;
   onDraft?: (sectionLabel: string) => void;
   onComment?: (sectionLabel: string) => void;
@@ -620,6 +694,10 @@ function SectionView({
   const templateEmpty = requiredTemplate ? showEmpty || !section.blocks.some(blockHasRealText) : customEmpty
   const depth = depthOf(section);
   const updateState: UpdateState = pending ? "pending" : regionState(sectionRegionKey(section.id));
+  // FLF-410: ảnh màn hình của mục = cụm ảnh liền nhau đầu tiên (mockup web + mobile, hoặc ảnh gốc) — nút vẽ lại đặt ngay dưới
+  // cụm này, vệt quét chỉ phủ cụm này (sơ đồ khác trong mục không bị phủ)
+  const screenImages = screenMockup ? firstImageRun(section.blocks) : null;
+  const inScreenImages = (i: number) => screenImages !== null && i >= screenImages[0] && i <= screenImages[1];
   return (
     <article
       data-section-id={section.id}
@@ -722,19 +800,33 @@ function SectionView({
       {section.blocks.length > 0 && (
         <>
           {section.blocks.map((block, i) => (
+            <Fragment key={i}>
             <BlockSlot
-              key={i}
               regionKey={blockRegionKey(section.id, i)}
               state={regionState(blockRegionKey(section.id, i))}
               spaced={block.type === "paragraph" && i < section.blocks.length - 1}
             >
-              <BlockView
-                block={block}
-                projectId={projectId}
-                afterHeading={followsHeading(section.blocks, i)}
-                onRedrawDiagram={onRedrawDiagram}
-              />
+              {screenMockup?.pending && inScreenImages(i) ? (
+                // Màn đang chờ vẽ mockup: ảnh cũ mờ dưới vệt quét, tới lượt xong thì tài liệu tải lại thay ảnh mới
+                <div className="relative" aria-busy>
+                  <BlockView block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} onRedrawDiagram={onRedrawDiagram} />
+                  <Skeleton className="absolute inset-0 opacity-85 rounded-inner" />
+                  <span className="absolute inset-0 flex items-center justify-center text-body font-bold text-on-surface-variant">{t("screenMockup.drawing")}</span>
+                </div>
+              ) : (
+                <BlockView
+                  block={block}
+                  projectId={projectId}
+                  afterHeading={followsHeading(section.blocks, i)}
+                  onRedrawDiagram={onRedrawDiagram}
+                />
+              )}
             </BlockSlot>
+            {/* Ngay dưới ảnh màn hình (mục không có ảnh: dưới khối cuối) */}
+            {screenMockup && !screenMockup.pending && i === (screenImages ? screenImages[1] : section.blocks.length - 1) && (
+              <ScreenMockupButtons enabled={screenMockup.enabled} onAction={screenMockup.onAction} />
+            )}
+            </Fragment>
           ))}
           {onRedraw && section.blocks.some((b) => b.type === "image") && <RedrawSectionButton onRedraw={onRedraw} />}
         </>
@@ -775,9 +867,12 @@ function DocumentPaneView({
   rewriteError = null,
   onSectionsLoaded,
   headerEnd,
+  footerStatus,
   onRedrawSection,
   onRedrawDiagram,
   hasDiagrams,
+  screenMockupOf,
+  onScreenMockup,
   documentLanguage = null,
   onTranslate,
   newerVersion = null,
@@ -829,11 +924,18 @@ function DocumentPaneView({
     return changed.length <= 3 ? t("updatedSections", { sections: changed.map(sectionLabel).join(", ") }) : t("updatedMany", { count: changed.length });
   })();
 
+  const screenMockupState = (sectionId: string) => {
+    const state = onScreenMockup ? screenMockupOf?.(sectionId) : undefined;
+    return state && onScreenMockup ? { enabled: state.enabled, pending: state.pending, onAction: (action: "redraw" | "original") => onScreenMockup(sectionId, action) } : undefined;
+  };
+
   const openFlags = flags.filter((f) => !f.resolved_at && (f.level === "red" || !f.waived_by_user)); // FLF-329: cờ đỏ giữ nguyên vẫn mở
   const issuesOf = (sectionId: string) => {
     const own = openFlags.filter((f) => f.section_id === sectionId);
     return { count: own.length, blocking: own.some((f) => f.level === "red") };
   };
+  // Mẫu sau đổi mẫu có thể có nhiều heading cùng `section_id` (vd. ba mục giao diện cùng §4.1) ⇒ key thêm số thứ tự lần lặp
+  const sectionKeys = sectionRenderKeys(document?.sections ?? []);
 
   return (
     <ImageChangedContext.Provider value={onImageChanged}>
@@ -963,7 +1065,7 @@ function DocumentPaneView({
         {document &&
           document.sections.map((section, i) => (
             <SectionView
-              key={section.id}
+              key={sectionKeys[i]}
               section={section}
               hasChildren={(document.sections[i + 1]?.level ?? 0) > section.level}
               projectId={projectId}
@@ -983,9 +1085,12 @@ function DocumentPaneView({
               onOpenComments={onOpenSectionComments ? () => onOpenSectionComments(section.id) : undefined}
               onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
               onRedrawDiagram={onRedrawDiagram}
+              screenMockup={screenMockupState(section.id)}
             />
           ))}
       </div>
+
+      {footerStatus && <div className="absolute bottom-4 left-4 z-20">{footerStatus}</div>}
 
       <DocumentUpdatePill
         pendingCount={pendingSectionIds.size}

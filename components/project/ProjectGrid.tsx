@@ -21,6 +21,8 @@ interface ProjectGridProps {
   onChangeDocumentLanguage?: (p: Project) => void;
   /** Có ⇒ menu thêm "Ký pháp ERD" (FLF-324) — mọi mode đều đổi được. */
   onChangeErdNotation?: (p: Project) => void;
+  onChangeSequenceLevel?: (p: Project) => void;
+  onChangeScreenTheme?: (p: Project) => void;
   /** Card kéo được vào thẻ thư mục. */
   draggable?: boolean;
   /** Tên thư mục của dự án (chip trên card) — chỉ truyền ở nơi hiện cả dự án trong thư mục. */
@@ -44,6 +46,8 @@ export default function ProjectGrid({
   onMoveToFolder,
   onChangeDocumentLanguage,
   onChangeErdNotation,
+  onChangeSequenceLevel,
+  onChangeScreenTheme,
   draggable,
   folderNameOf,
   selectable,
@@ -65,6 +69,8 @@ export default function ProjectGrid({
           onMoveToFolder={onMoveToFolder}
           onChangeDocumentLanguage={onChangeDocumentLanguage}
           onChangeErdNotation={onChangeErdNotation}
+          onChangeSequenceLevel={onChangeSequenceLevel}
+          onChangeScreenTheme={onChangeScreenTheme}
           draggable={draggable}
           folderName={folderNameOf?.(p)}
           selectable={selectable}

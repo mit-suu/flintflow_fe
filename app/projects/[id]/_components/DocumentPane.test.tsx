@@ -845,8 +845,16 @@ describe("DocumentPane - ảnh theo tham chiếu image-ref", () => {
     expect(getDocument).toHaveBeenCalledTimes(1);
   });
 
+  it("FLF-411: ảnh gốc media 404 (BE không có ảnh này) ⇒ khung giữ chỗ trung tính, không 'Không tải được ảnh', không Thử lại", async () => {
+    getDocument.mockResolvedValue({ data: withImage(MEDIA), error: null, meta });
+    fetchImage.mockRejectedValue(new ApiClientError(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh này trong tài liệu."));
+    renderWithIntl(<DocumentPane projectId="p1" />);
+    expect(await screen.findByText("Ảnh của file gốc - không hiển thị được ở đây.")).toBeInTheDocument();
+    expect(screen.queryByText("Không tải được ảnh.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Thử lại" })).toBeNull();
+  });
+
   it.each([
-    ["404 (không còn trong tài liệu)", new ApiClientError(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh này trong tài liệu.")],
     ["503 (storage tạm hỏng)", new ApiClientError(503, "IMAGE_UNAVAILABLE", "Tạm thời không tải được ảnh - thử lại sau.")],
     ["mạng", new TypeError("Failed to fetch")]
   ])("ảnh gốc media lỗi %s ⇒ câu trung tính + Thử lại, không nói 'định dạng không hỗ trợ'", async (_label, err) => {

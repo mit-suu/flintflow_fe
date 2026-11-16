@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { continueImportFlow2, getImport, pauseImport, resumeImport, startExtraction, uploadImport } from "@/lib/api/import";
+import { continueImportFlow2, getImport, pauseImport, resumeImport, setDropText, startExtraction, uploadImport } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
 import type { GetImportResponse, ImportStatus } from "@/types/import";
@@ -12,7 +12,7 @@ import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 /** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause";
+export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop";
 
 /** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
@@ -134,6 +134,8 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
         setStarted(false);
         return importFromOrgTemplate(projectId, orgTemplateId);
       }),
+    /** FLF-412: lưu lựa chọn Bỏ chữ (cả tập) ⇒ bản sơ bộ + credit mới. */
+    setDropText: (keys: string[]) => run("drop", () => setDropText(projectId, importId, keys)),
     /** Nút Bắt đầu: một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu trả lời "đây là bản mới nhất". */
     start: (confirmLatest: boolean) =>
       run("start", async () => {

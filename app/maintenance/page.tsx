@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import StatusScreen from "@/components/StatusScreen";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,5 +16,14 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default function MaintenancePage() {
   const t = useTranslations("maintenance");
-  return <StatusScreen icon="cloud-off" eyebrow={t("eyebrow")} title={t("title")} body={t("body")} homeLabel={t("home")} />;
+  return (
+    <StatusScreen
+      icon="cloud-off"
+      eyebrow={t("eyebrow")}
+      title={t("title")}
+      body={t("body")}
+      homeLabel={t("home")}
+      headerEnd={<LocaleSwitcher />}
+    />
+  );
 }

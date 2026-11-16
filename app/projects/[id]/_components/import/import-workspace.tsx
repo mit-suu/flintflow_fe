@@ -11,6 +11,7 @@ import { saveBlob } from "@/lib/api/files";
 import { downloadGapReport } from "@/lib/api/import";
 import { fetchMe } from "@/lib/api/users";
 import type { User } from "@/types/user";
+import type { OrgRole } from "@/types/organization";
 import type { ImportStatus } from "@/types/import";
 import WorkspaceHeader from "../WorkspaceHeader";
 import PreflightIssues from "../mode1/PreflightIssues";
@@ -21,6 +22,7 @@ import { useImport } from "../../hooks/mode1/useImport";
 import { useMode1Project } from "../../hooks/mode1/useMode1Project";
 import ImportProgress from "./import-progress";
 import StructurePreview, { StructureReading } from "./structure-preview";
+import TextSections from "./text-sections";
 import StructureChangeNotice from "../mode1/structure-change-notice";
 import CreationProgress from "./creation-progress";
 import ImportSkeleton from "./import-skeleton";
@@ -34,6 +36,8 @@ interface ImportWorkspaceProps {
   onProjectChanged: () => void;
   /** Nhịp poll — test đặt nhỏ. */
   pollMs?: number;
+  /** Vai trò trong tổ chức: chỉ Lead lưu được mẫu lên thư viện. */
+  orgRole?: OrgRole | null;
 }
 
 /** Đọc xong — trang sắp chuyển sang workspace sửa (bản gốc 0.1) / soạn (phần còn thiếu). */
@@ -44,11 +48,11 @@ const RUN_STATUSES: readonly ImportStatus[] = ["extracting", "baselining", "chec
 
 /**
  * Upload SRS có sẵn trong **layout workspace** (thay wizard `/import` + `Mode1Shell`): màn đọc khung (trước credit) ⇒ Bắt đầu ⇒
- * tiến trình đọc ⇒ kết cục. File đủ khung ⇒ bản gốc 0.1, giữ khung còn thiếu ⇒ soạn phần thiếu (BE đổi dự án sang luồng soạn) —
- * cả hai trang tự chuyển sang workspace khi project đổi. Bổ sung theo mẫu chuẩn còn thiếu ⇒ thông báo + tải DRAFT / báo cáo
- * thiếu sót. File bị từ chối ⇒ lý do + chọn file khác ngay tại đây.
+ * tiến trình đọc ⇒ kết cục. File đủ khung ⇒ bản gốc 0.1; giữ khung còn thiếu (chế độ 3) lẫn bổ sung theo mẫu chuẩn còn thiếu
+ * (chế độ 4, FLF-416) ⇒ soạn phần thiếu (BE đổi dự án sang luồng soạn) — trang tự chuyển sang workspace khi project đổi. File bị
+ * từ chối ⇒ lý do + chọn file khác ngay tại đây.
  */
-export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }: ImportWorkspaceProps) {
+export default function ImportWorkspace({ projectId, onProjectChanged, pollMs, orgRole }: ImportWorkspaceProps) {
   const t = useTranslations("workspace.import");
   const { project, credits, reload: reloadProject } = useMode1Project(projectId);
   const onChanged = useCallback(() => {
@@ -187,12 +191,14 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
           onPickAnother={() => setPickAnother(true)}
           unsureKind={doc.preflight.document_kind?.kind === "unknown"}
           playKey={doc.id}
-          footer={project?.template_intent === "fixed" ? <SaveOrgTemplateCard projectId={projectId} defaultName={doc.original_name.replace(/\.docx$/i, "")} /> : null}
+          startBlocked={imp.busy === "drop"}
+          textSections={<TextSections sections={imp.data?.text_sections ?? []} busy={imp.busy === "drop" || imp.busy === "start"} onChange={(keys) => void imp.setDropText(keys)} />}
+          footer={project?.template_intent === "fixed" && orgRole === "lead" ? <SaveOrgTemplateCard projectId={projectId} defaultName={doc.original_name.replace(/\.docx$/i, "")} /> : null}
         />
       );
     }
     if (doc && status && (RUN_STATUSES.includes(status) || doc.paused)) {
-      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
+      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview?.summary.kind ?? null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
       // Bản ghi cũ (trước khi đọc chạy một mạch) dừng ở bước xác nhận ⇒ Tiếp tục = đọc nốt một mạch
@@ -207,32 +213,18 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
     }
     if (status === "incomplete") {
       const missing = structure?.missing.length ?? 0;
-      // Bản ghi cũ giữ khung còn thiếu (lượt mới BE tự chuyển sang soạn) ⇒ một nút soạn phần còn thiếu
-      if (structure?.resolved_mode === 3) {
-        return (
-          <div className="flex flex-col gap-3">
-            <h2 className="text-heading font-bold text-on-surface">{t("outcome.mode3.title", { missing })}</h2>
-            <p className="text-body text-on-surface-variant">{t("outcome.mode3.body")}</p>
-            <Button className="self-start" iconRight="arrow-right" loading={imp.busy === "finalize"} onClick={() => void imp.continueFlow2().then((res) => res && onChanged())}>
-              {t("outcome.mode3.draft")}
-            </Button>
-          </div>
-        );
-      }
+      // Bản ghi cũ còn thiếu mục (lượt mới BE tự chuyển sang soạn) ⇒ một nút soạn phần còn thiếu. Chế độ 4 (FLF-416): soạn mục
+      // còn thiếu so với mẫu chuẩn FlintFlow, bố cục sắp lại theo mẫu chuẩn
+      const outcome = structure?.resolved_mode === 4 ? "mode4" : "mode3";
       return (
         <div className="flex flex-col gap-3">
-          <h2 className="text-heading font-bold text-on-surface">{t("outcome.mode4.title", { missing })}</h2>
-          {/* Kết quả cuối khác màn đọc khung ⇒ báo luôn ở đây (không vào workspace soạn) */}
+          <h2 className="text-heading font-bold text-on-surface">{t(`outcome.${outcome}.title`, { missing })}</h2>
+          {/* Kết quả cuối khác màn đọc khung ⇒ báo luôn ở đây */}
           <StructureChangeNotice projectId={projectId} inline />
-          <p className="text-body text-on-surface-variant">{t("outcome.mode4.body")}</p>
-          <div className="flex flex-wrap gap-2">
-            <Button icon="export" loading={downloading === "draft"} onClick={() => void download("draft")}>
-              {t("outcome.mode4.draft")}
-            </Button>
-            <Button variant="secondary" icon="export" loading={downloading === "gap"} onClick={() => void download("gap")}>
-              {t("outcome.mode4.gapReport")}
-            </Button>
-          </div>
+          <p className="text-body text-on-surface-variant">{t(`outcome.${outcome}.body`)}</p>
+          <Button className="self-start" iconRight="arrow-right" loading={imp.busy === "finalize"} onClick={() => void imp.continueFlow2().then((res) => res && onChanged())}>
+            {t(`outcome.${outcome}.draft`)}
+          </Button>
         </div>
       );
     }

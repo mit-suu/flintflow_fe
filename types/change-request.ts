@@ -29,8 +29,8 @@ export const CR_LOCKING_STATUSES: readonly CrStatus[] = ["impact_review", "propo
  * `chat` (FLF-182): chỉ còn ở CR cũ. Mode 1 v3 (BPMN 3.1): tạo CR mới chỉ nhận 6 nguồn `NEW_CR_SOURCE_KINDS` — lệnh
  * sửa trong chat là yêu cầu miệng (`verbal`, `ref: chat:<id>`).
  */
-/** `reference_document` (FLF-338): CR tạo từ danh sách rút yêu cầu của tài liệu thô — `ref` = tên tài liệu + mã đoạn. */
-export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat" | "reference_document";
+/** `template_migration` (FLF-395): CR do lần đổi mẫu tự ghi, không nhận khi tạo CR. `reference_document` (FLF-338): CR tạo từ danh sách rút yêu cầu của tài liệu thô — `ref` = tên tài liệu + mã đoạn. */
+export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat" | "reference_document" | "template_migration";
 
 /** Nguồn nhận khi tạo CR (BE `NEW_CR_SOURCE_KINDS`) — đúng 6 nguồn BPMN 3.1. */
 export const NEW_CR_SOURCE_KINDS = ["stakeholder_email", "meeting_minutes", "gap_report", "reupload", "viewer_comment", "verbal", "reference_document"] as const satisfies readonly CrSourceKind[];

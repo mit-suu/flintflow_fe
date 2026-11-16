@@ -15,6 +15,8 @@ interface StatusScreenProps {
   action?: ReactNode;
   /** Dòng phụ nhỏ dưới cùng (vd mã lỗi `digest` để đối chiếu log server). */
   footnote?: string;
+  /** Góc phải header (vd nút đổi ngôn ngữ). Trang lỗi gốc (`global-error`) nằm ngoài provider i18n nên không truyền. */
+  headerEnd?: ReactNode;
 }
 
 /**
@@ -22,11 +24,12 @@ interface StatusScreenProps {
  * như landing/auth, logo FlintFlow, một thẻ ở giữa. Không tự lấy chuỗi — mọi chuỗi đi vào qua props để khung
  * không phụ thuộc i18n (nơi gọi tự dịch: `ErrorScreen`, trang bảo trì).
  */
-export default function StatusScreen({ icon, eyebrow, title, body, homeLabel, action, footnote }: StatusScreenProps) {
+export default function StatusScreen({ icon, eyebrow, title, body, homeLabel, action, footnote, headerEnd }: StatusScreenProps) {
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-surface p-4 font-sans text-on-surface antialiased sm:p-6">
-      <header>
+      <header className="flex items-center justify-between gap-3">
         <Logo variant="wordmark" sizeClassName="h-[18px] w-auto" theme="light" />
+        {headerEnd}
       </header>
       <main className="flex flex-1 items-center justify-center py-8">
         <section className="flex w-full max-w-[480px] flex-col items-center gap-4 rounded-[24px] bg-surface-container-lowest px-6 py-10 text-center sm:px-10">

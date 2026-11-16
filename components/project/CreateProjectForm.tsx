@@ -49,6 +49,8 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const [name, setName] = useState(defaultName);
   const [srsFile, setSrsFile] = useState<File | null>(null);
   const [orgTemplate, setOrgTemplate] = useState<OrgTemplateSummary | null>(null);
+  /** Bản mẫu đã chọn (mặc định bản đã đăng mới nhất). */
+  const [orgTemplateVersion, setOrgTemplateVersion] = useState<number | null>(null);
   const [completeToStandard, setCompleteToStandard] = useState(false);
   const [references, setReferences] = useState<ReferenceFile[]>([]);
   // FLF-265 (D2): mặc định theo ngôn ngữ giao diện — user đang đọc tiếng gì thì tài liệu viết tiếng đó
@@ -137,7 +139,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
 
     // Không bắt chờ trong hộp thoại: file tải nền, trang dự án hiện các bước tích dần (lỗi tải ⇒ báo + thử lại ở đó)
     if (hasSrs) markImportPending(project._id);
-    startProjectUploads(project._id, { projectName: project.name, srs: srsFile, orgTemplate: orgTemplate ? { id: orgTemplate.id, name: orgTemplate.name } : null, references: references.map((r) => r.file) });
+    startProjectUploads(project._id, { projectName: project.name, srs: srsFile, orgTemplate: orgTemplate ? { id: orgTemplate.id, name: orgTemplate.name, version: orgTemplateVersion ?? undefined } : null, references: references.map((r) => r.file) });
     // Giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần
     await onCreated(project);
   };
@@ -182,17 +184,19 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
       <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${references.length > 0 ? "items-start" : "items-stretch"}`}>
       <SrsSlot
         file={srsFile}
-        orgTemplateName={orgTemplate?.name ?? null}
+        orgTemplateName={orgTemplate ? (orgTemplateVersion ? t("orgTemplates.nameWithVersion", { name: orgTemplate.name, version: orgTemplateVersion }) : orgTemplate.name) : null}
         completeToStandard={completeToStandard}
         disabled={submitting}
         onFile={pickSrs}
         onClearOrgTemplate={() => {
           setOrgTemplate(null);
+          setOrgTemplateVersion(null);
           setCompleteToStandard(false);
         }}
         onCompleteToStandardChange={setCompleteToStandard}
-        orgTemplatePicker={<OrgTemplatePicker disabled={submitting} onPick={(tpl) => {
+        orgTemplatePicker={<OrgTemplatePicker disabled={submitting} onPick={(tpl, version) => {
           setOrgTemplate(tpl);
+          setOrgTemplateVersion(version);
           setSrsFile(null);
           setSrsError(null);
         }} />}

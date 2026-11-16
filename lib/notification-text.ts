@@ -115,6 +115,23 @@ export const useNotificationText = () => {
           body: count > 0 ? t("baseline_created.bodyWaived", { version, count }) : t("baseline_created.bodyClean", { version }),
         };
       }
+      // Mẫu org ra bản mới mà còn dự án theo bản cũ ⇒ Lead + Analyst; bấm mở dự án (1 dự án) hoặc trang chủ
+      case "template_version_published": {
+        const version = num(meta.version);
+        if (version === undefined || !Array.isArray(meta.project_ids)) return stored;
+        const count = meta.project_ids.length;
+        if (count === 0) return stored;
+        return { title: t("template_version_published.title", { version }), body: t("template_version_published.body", { count }) };
+      }
+      // Mục BA tự đặt của mẫu khung tự lưu chờ duyệt
+      case "skeleton_headings_pending": {
+        const pending = num(meta.pending);
+        if (pending === undefined) return stored;
+        return { title: t("skeleton_headings_pending.title", { count: pending }), body: t("skeleton_headings_pending.body") };
+      }
+      // Đổi mẫu kẹt sau nhiều lần phục hồi: người tạo mở dự án và bấm Khôi phục
+      case "template_migration_failed":
+        return { title: t("template_migration_failed.title"), body: t("template_migration_failed.body") };
       default:
         return stored;
     }

@@ -151,6 +151,8 @@ export default function GateCard({
     }
   };
   const locked = busy || submitting;
+  /** FLF-411 U1-4: ô lý do "Giữ nguyên" của một cờ đang mở ⇒ chưa cho "Đúng rồi, đi tiếp" (cờ không được qua mà không lý do). */
+  const [keepingFlag, setKeepingFlag] = useState(false);
 
   // AI không được gọi (bước chỉ chốt một field đã có từ bước trước): ghi 0 op là đúng, không phải lỗi — không cảnh báo
   const nothingToDo = payload?.calls_used === 0 && Boolean(payload.no_change_reason) && emptySections.length === 0;
@@ -207,6 +209,7 @@ export default function GateCard({
         onFixFlag={onFixFlag}
         onKeepFlag={onKeepFlag}
         locked={locked}
+        onKeepingChange={setKeepingFlag}
       />
 
       {payload?.table && <GateTable table={payload.table} defaultOpen={stepId === "S-1.1"} />}
@@ -239,7 +242,13 @@ export default function GateCard({
 
       <QuickReplyChips>
         {!signOffBlocked && (
-          <QuickReplyChip tone="primary" busy={locked} disabled={!actions.includes("accept")} onClick={() => void act("accept")}>
+          <QuickReplyChip
+            tone="primary"
+            busy={locked}
+            disabled={!actions.includes("accept") || keepingFlag}
+            title={keepingFlag ? t("finishKeepFirst") : undefined}
+            onClick={() => void act("accept")}
+          >
             {/* FLF-248: Accept ở S-9.5 là ký baseline — nhãn chung "đi tiếp" làm người dùng đi tìm nút ký ở chat */}
             {stepId === SIGN_OFF_STEP ? t("signBaseline") : t("accept")}
           </QuickReplyChip>

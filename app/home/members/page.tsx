@@ -20,7 +20,7 @@ import {
   revokeInvitation,
   switchOrganization,
 } from "@/lib/api/orgs";
-import { decodeJwt, getActiveOrgId, getStoredAuthToken } from "@/lib/api/token-store";
+import { decodeJwt, getAccessToken, getActiveOrgId } from "@/lib/api/token-store";
 import type {
   CreatedInvitation,
   Invitation,
@@ -60,7 +60,7 @@ export default function MembersPage() {
   const tc = useTranslations("app.common");
   const format = useFormatter();
   const orgId = getActiveOrgId();
-  const token = getStoredAuthToken();
+  const token = getAccessToken();
   const myUserId = token ? (decodeJwt(token)?.userId ?? null) : null;
 
   const [org, setOrg] = useState<OrganizationDetail | null>(null);
