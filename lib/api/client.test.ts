@@ -256,4 +256,20 @@ describe("refreshSession (FLF-137)", () => {
     await expect(refreshSession({ force: true })).resolves.toBe("ok");
     expect(refreshCalls()).toHaveLength(2);
   });
+
+  it("force + 401 vì tab khác vừa xoay vòng ⇒ vẫn dùng token tab kia, KHÔNG gọi /auth/logout (FLF-427)", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    // Token còn hạn nhưng phiên đã bị thu hồi (SESSION_REVOKED)
+    saveAuthToken(makeJwt({ role: "user", exp: futureExp() }));
+    const otherTabToken = makeJwt({ role: "user", exp: futureExp() + 100 });
+    fetchMock.mockImplementationOnce(async () => {
+      await sendFromOtherTab(otherTabToken, getAccessToken);
+      return jsonResponse(401, { data: null, error: { code: "CONCURRENT_REFRESH", message: "x" } });
+    });
+
+    await expect(refreshSession({ force: true })).resolves.toBe("ok");
+
+    expect(getAccessToken()).toBe(otherTabToken);
+    expect(logoutCalls()).toHaveLength(0);
+  });
 });

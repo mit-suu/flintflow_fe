@@ -101,8 +101,8 @@ const isSuspendedResponse = async (res: Response): Promise<boolean> => {
   return true;
 };
 
-const requestRefresh = async (tokenAtStart: string | null, force?: boolean): Promise<RefreshOutcome> => {
-  if (!force && adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutcome> => {
+  if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
 
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -117,7 +117,7 @@ const requestRefresh = async (tokenAtStart: string | null, force?: boolean): Pro
       if (res.status === 401 || res.status === 403) {
         // Tab khác (không có Web Locks) có thể đã xoay vòng refresh token ngay trước request này —
         // khi đó đăng xuất sẽ gọi /auth/logout với cookie MỚI và thu hồi luôn phiên vừa tạo.
-        if (!force && adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+        if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
         if (await isSuspendedResponse(res)) return "rejected";
         clearAuthToken();
         return "rejected";
@@ -147,6 +147,12 @@ const requestRefresh = async (tokenAtStart: string | null, force?: boolean): Pro
   }
 };
 
+/**
+ * `force` (FLF-427) chỉ bỏ qua cache 2 giây: token còn hạn vẫn có thể đã bị thu hồi (`SESSION_REVOKED`).
+ * KHÔNG bỏ qua bước nhận token tab khác vừa refresh trong `requestRefresh` — token lúc bắt đầu chính là token đã
+ * chết, nên token khác nó luôn mới hơn; bỏ bước đó thì 401 do tab khác vừa xoay vòng sẽ gọi /auth/logout bằng
+ * cookie mới và đăng xuất mọi tab.
+ */
 export const refreshSession = async (options?: { force?: boolean }): Promise<RefreshOutcome> => {
   // If recently refreshed (within 2s) and the in-memory token is still valid, reuse without re-calling BE
   if (!options?.force && Date.now() - lastRefreshTime < 2000 && isTokenFresh(getAccessToken())) {
@@ -159,7 +165,7 @@ export const refreshSession = async (options?: { force?: boolean }): Promise<Ref
   }
 
   const tokenAtStart = getAccessToken();
-  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart, options?.force)).finally(() => {
+  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart)).finally(() => {
     refreshPromise = null;
   });
 
