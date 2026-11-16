@@ -7,6 +7,7 @@ import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
 import PasswordInput from "../../../components/PasswordInput";
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import GoogleConnectCard from "@/components/integrations/GoogleConnectCard";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { ApiClientError } from "../../../lib/api/client";
 import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../../../lib/api/users";
@@ -441,6 +442,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-6 max-w-[760px]">
             <ProfileInfoCard user={user} onUpdated={setUser} hasOrg={hasOrg} />
             <ChangePasswordCard user={user} />
+            <GoogleConnectCard className={cardClass} />
             <LogoutAllCard />
           </div>
         )}

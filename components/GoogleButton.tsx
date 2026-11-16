@@ -12,7 +12,7 @@ interface GoogleButtonProps {
   disabled?: boolean;
 }
 
-const GOOGLE_G_LOGO = (
+export const GOOGLE_G_LOGO = (
   <svg className="h-5 w-5 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
     <path
       fill="#EA4335"
