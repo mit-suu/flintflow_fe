@@ -1261,9 +1261,10 @@
         "loading": "Loading your organizations…",
         "emptyTitle": "You are not in any organization yet",
         "emptyBody": "Create an organization to start a project, or enter an invitation code to join someone else's.",
-        "rememberChoice": "Remember this organization as default",
-        "defaultBadge": "Default",
-        "clearDefault": "Remove default"
+        "rememberChoice": "Remember my choice for next sign-in",
+        "defaultBadge": "Default at sign-in",
+        "clearDefault": "Forget choice",
+        "setDefault": "Remember for sign-in"
       },
       "members": {
         "title": "Members",

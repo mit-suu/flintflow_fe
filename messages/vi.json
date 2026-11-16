@@ -1261,9 +1261,10 @@
         "loading": "Đang tải danh sách tổ chức…",
         "emptyTitle": "Bạn chưa thuộc tổ chức nào",
         "emptyBody": "Tạo một tổ chức để bắt đầu dự án, hoặc nhập mã mời để tham gia tổ chức của người khác.",
-        "rememberChoice": "Ghi nhớ tổ chức này làm mặc định",
-        "defaultBadge": "Mặc định",
-        "clearDefault": "Bỏ mặc định"
+        "rememberChoice": "Ghi nhớ lựa chọn cho lần đăng nhập sau",
+        "defaultBadge": "Mặc định khi đăng nhập",
+        "clearDefault": "Bỏ ghi nhớ",
+        "setDefault": "Ghi nhớ khi đăng nhập"
       },
       "members": {
         "title": "Thành viên",

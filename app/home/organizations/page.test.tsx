@@ -77,7 +77,7 @@ describe("đổi tổ chức (UC-10)", () => {
     });
     renderPage();
 
-    const checkbox = await screen.findByRole("checkbox", { name: "Ghi nhớ tổ chức này làm mặc định" });
+    const checkbox = await screen.findByRole("checkbox", { name: "Ghi nhớ lựa chọn cho lần đăng nhập sau" });
     expect(checkbox).not.toBeChecked();
 
     fireEvent.click(checkbox);
@@ -89,7 +89,7 @@ describe("đổi tổ chức (UC-10)", () => {
     );
   });
 
-  it("tổ chức đang là mặc định hiện huy hiệu Mặc định và nút Bỏ mặc định", async () => {
+  it("tổ chức đang là mặc định hiện huy hiệu “Mặc định khi đăng nhập” và nút “Bỏ ghi nhớ”", async () => {
     vi.mocked(fetchMyOrganizations).mockResolvedValue([
       { id: "org-a", name: "Nhóm A", role: "lead", joinedAt: "2026-09-01T00:00:00Z", isDefault: true },
       { id: "org-b", name: "Nhóm B", role: "viewer", joinedAt: "2026-09-02T00:00:00Z" },
@@ -98,13 +98,40 @@ describe("đổi tổ chức (UC-10)", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Mặc định")).toBeInTheDocument();
-    const clearBtn = screen.getByRole("button", { name: "Bỏ mặc định" });
+    expect(await screen.findByText("Mặc định khi đăng nhập")).toBeInTheDocument();
+    const clearBtn = screen.getByRole("button", { name: "Bỏ ghi nhớ" });
 
     fireEvent.click(clearBtn);
 
     await waitFor(() => expect(updateMyPreferredOrganization).toHaveBeenCalledWith(null));
-    await waitFor(() => expect(screen.queryByText("Mặc định")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Mặc định khi đăng nhập")).toBeNull());
+  });
+
+  it("tổ chức đang mở chưa là mặc định có nút “Ghi nhớ khi đăng nhập”; bấm thì lưu theo tài khoản (FLF-427)", async () => {
+    vi.mocked(updateMyPreferredOrganization).mockResolvedValue({ id: "u1", email: "test@flintflow.vn" } as never);
+    renderPage();
+
+    // Chỉ tổ chức đang mở (org-a) có nút này — org khác dùng checkbox + "Mở tổ chức này"
+    const setBtn = await screen.findByRole("button", { name: "Ghi nhớ khi đăng nhập" });
+    expect(screen.getAllByRole("button", { name: "Ghi nhớ khi đăng nhập" })).toHaveLength(1);
+
+    fireEvent.click(setBtn);
+
+    await waitFor(() => expect(updateMyPreferredOrganization).toHaveBeenCalledWith("org-a"));
+    expect(await screen.findByText("Mặc định khi đăng nhập")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bỏ ghi nhớ" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ghi nhớ khi đăng nhập" })).toBeNull();
+    expect(switchOrganization).not.toHaveBeenCalled();
+  });
+
+  it("chỉ có một tổ chức thì không hiện nút “Ghi nhớ khi đăng nhập”", async () => {
+    vi.mocked(fetchMyOrganizations).mockResolvedValue([
+      { id: "org-a", name: "Nhóm A", role: "lead", joinedAt: "2026-09-01T00:00:00Z" },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText("Nhóm A")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ghi nhớ khi đăng nhập" })).toBeNull();
   });
 
   it("chưa có activeOrgId thì không hiển thị TopBar (tránh crash context)", async () => {

@@ -24,7 +24,7 @@ export default function OrganizationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
   const [rememberChoice, setRememberChoice] = useState(false);
-  const [clearingDefault, setClearingDefault] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
   const activeOrgId = getActiveOrgId();
   const hasOrg = Boolean(activeOrgId);
 
@@ -55,16 +55,20 @@ export default function OrganizationsPage() {
     }
   };
 
-  const handleClearDefault = async () => {
-    setClearingDefault(true);
+  /**
+   * Đặt (`orgId`) hoặc bỏ (`null`) tổ chức mặc định khi đăng nhập. Tổ chức đang mở không có nút "Mở tổ chức này"
+   * nên checkbox ghi nhớ không áp được cho nó — nút "Ghi nhớ khi đăng nhập" lấp chỗ đó (FLF-427).
+   */
+  const handleSetDefault = async (orgId: string | null) => {
+    setSavingDefault(true);
     setError(null);
     try {
-      await updateMyPreferredOrganization(null);
-      setOrgs((prev) => (prev ? prev.map((o) => ({ ...o, isDefault: false })) : null));
+      await updateMyPreferredOrganization(orgId);
+      setOrgs((prev) => (prev ? prev.map((o) => ({ ...o, isDefault: orgId !== null && o.id === orgId })) : null));
     } catch (err) {
       setError(userErrorMessage(err));
     } finally {
-      setClearingDefault(false);
+      setSavingDefault(false);
     }
   };
 
@@ -163,11 +167,21 @@ export default function OrganizationsPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          loading={clearingDefault}
-                          disabled={clearingDefault}
-                          onClick={() => void handleClearDefault()}
+                          loading={savingDefault}
+                          disabled={savingDefault}
+                          onClick={() => void handleSetDefault(null)}
                         >
                           {t("clearDefault")}
+                        </Button>
+                      ) : isCurrent && (orgs?.length ?? 0) >= 2 ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          loading={savingDefault}
+                          disabled={savingDefault}
+                          onClick={() => void handleSetDefault(org.id)}
+                        >
+                          {t("setDefault")}
                         </Button>
                       ) : null}
                       {isCurrent ? (
