@@ -85,6 +85,17 @@ describe("HomeFrame", () => {
     expect(backLink).toHaveAttribute("href", "/admin/metrics");
   });
 
+  it("chưa có tổ chức mà mở /home/organizations: khung tối giản hiện thẳng nội dung, không bọc OrgGuard", () => {
+    pathname = "/home/organizations";
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    renderWithIntl(<HomeFrame user={user}><p>chọn tổ chức</p></HomeFrame>);
+
+    expect(screen.getByText("chọn tổ chức")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-guard")).toBeNull();
+    expect(screen.queryByTestId("app-sidebar")).toBeNull();
+    expect(screen.queryByTestId("projects-provider")).toBeNull();
+  });
+
   it("có tổ chức: khung đầy đủ với thanh bên và ProjectsProvider", () => {
     pathname = "/home";
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");

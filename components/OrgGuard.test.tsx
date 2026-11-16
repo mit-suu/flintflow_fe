@@ -164,5 +164,22 @@ describe("OrgGuard (BPMN Flow 10.6 - chặn trước khi BE trả 409)", () => {
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith(ORGANIZATIONS_PATH));
     expect(switchOrganization).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(screen.queryByText("nội dung")).not.toBeInTheDocument();
+  });
+
+  it("ở chính trang /home/organizations thì không chặn (tránh vòng lặp)", async () => {
+    pathname = ORGANIZATIONS_PATH;
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+
+    renderWithIntl(
+      <OrgGuard>
+        <p>nội dung</p>
+      </OrgGuard>
+    );
+
+    expect(screen.getByText("nội dung")).toBeInTheDocument();
+    expect(fetchMyOrganizations).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

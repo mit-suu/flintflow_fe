@@ -580,7 +580,10 @@
         "project": "Dự án",
         "projectAll": "Mọi dự án"
       },
-      "noTxFiltered": "Không có giao dịch nào khớp bộ lọc"
+      "noTxFiltered": "Không có giao dịch nào khớp bộ lọc",
+      "planLimitsSummary": "Tối đa {members} thành viên · {projects} dự án · {tokens} token tài liệu tham khảo/dự án",
+      "planLimitsSummaryLegacy": "Tối đa {members} thành viên · {projects} dự án",
+      "referenceCodeLabel": "Mã GD: {code}"
     },
     "checkout": {
       "title": "Giao dịch",
@@ -632,6 +635,29 @@
         "title": "Đã chuyển sang gói {plan}",
         "bodyUntil": "Gói {plan} có hiệu lực đến {date}.",
         "bodyActive": "Gói {plan} đã được kích hoạt."
+      },
+      "plan_expired": {
+        "title": "Gói {previousPlan} đã hết hạn",
+        "bodyGranted": "Tổ chức đã chuyển về gói {plan} và được cộng +{credits} credit cho kỳ mới đến {date}. Mua lại gói {previousPlan} để tiếp tục dùng giới hạn cao hơn.",
+        "bodyGrantedNoDate": "Tổ chức đã chuyển về gói {plan} và được cộng +{credits} credit cho kỳ mới. Mua lại gói {previousPlan} để tiếp tục dùng giới hạn cao hơn.",
+        "body": "Tổ chức đã chuyển về gói {plan}. Mua lại gói {previousPlan} để tiếp tục dùng giới hạn cao hơn."
+      },
+      "credits_renewed": {
+        "title": "Đã cấp credit kỳ mới",
+        "body": "Ví tổ chức đã được cộng +{credits} credit cho kỳ mới đến {date}.",
+        "bodyNoDate": "Ví tổ chức đã được cộng +{credits} credit cho kỳ mới."
+      },
+      "credit_topup_needed": {
+        "title": "Hết credit - bước AI đang dừng",
+        "body": "Dự án \"{project}\" dừng ở {step} vì không đủ credit. Nạp thêm để chạy tiếp - sau khi nạp thêm credit, thành viên thực hiện mở lại dự án và bấm tiếp tục.",
+        "stepExtractHeading": "bước trích dữ liệu mục \"{heading}\"",
+        "stepExtractSection": "bước trích dữ liệu mục {section}",
+        "stepExtractGeneric": "bước trích dữ liệu tài liệu",
+        "stepSemanticCheck": "bước AI kiểm tra nội dung tài liệu vừa nhập",
+        "stepCrClarify": "bước AI làm rõ yêu cầu của {cr}",
+        "stepCrPropose": "bước AI đề xuất sửa của {cr}",
+        "stepCrVerify": "bước AI kiểm tra đề xuất của {cr}",
+        "stepGeneric": "một bước AI"
       },
       "phase_accepted": {
         "title": "Đã hoàn tất giai đoạn {phase}",
@@ -746,6 +772,14 @@
         "title": "Comment {comment} đã thành {cr}",
         "body": "Góp ý của bạn trên \"{anchor}\" đã được ghi nhận thành change request {cr}.",
         "bodyShort": "Góp ý {comment} đã được ghi nhận thành {cr}."
+      },
+      "credits_adjusted": {
+        "titleAdded": "Tổ chức được cộng credit",
+        "titleDeducted": "Tổ chức bị trừ credit",
+        "bodyAdded": "+{credits, plural, other {#}} credit cho {org}. Lý do: {reason}",
+        "bodyDeducted": "-{credits, plural, other {#}} credit cho {org}. Lý do: {reason}",
+        "bodyAddedGeneric": "+{credits, plural, other {#}} credit. Lý do: {reason}",
+        "bodyDeductedGeneric": "-{credits, plural, other {#}} credit. Lý do: {reason}"
       }
     },
     "common": {
@@ -1293,12 +1327,7 @@
           "codeTitle": "Mã mời vừa tạo",
           "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn.",
           "emailRequired": "Hãy nhập email người được mời - mã mời sẽ được gửi tới email đó.",
-          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn - nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này.",
-          "requestTitle": "Đề xuất mời thành viên",
-          "requestCta": "Gửi yêu cầu cho Lead duyệt",
-          "requesting": "Đang gửi…",
-          "requestSentTitle": "Đã gửi yêu cầu",
-          "requestSent": "Lead sẽ duyệt yêu cầu mời {email}. Khi được duyệt, mã mời mới được gửi tới email đó - bạn sẽ nhận thông báo."
+          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn - nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này."
         },
         "invitations": {
           "title": "Lời mời",
@@ -1310,18 +1339,8 @@
             "pending": "Đang chờ",
             "accepted": "Đã dùng",
             "revoked": "Đã thu hồi",
-            "expired": "Hết hạn",
-            "awaiting_approval": "Chờ Lead duyệt",
-            "rejected": "Bị từ chối"
-          },
-          "mineTitle": "Yêu cầu mời của bạn",
-          "requestedBy": "Đề xuất bởi {name}",
-          "approve": "Duyệt",
-          "reject": "Từ chối",
-          "cancelRequest": "Huỷ yêu cầu",
-          "approvedTitle": "Đã duyệt - mã mời",
-          "approvedBody": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây.",
-          "dismiss": "Đóng"
+            "expired": "Hết hạn"
+          }
         },
         "danger": {
           "title": "Xoá tổ chức",
@@ -1342,8 +1361,7 @@
           "saving": "Đang lưu…"
         },
         "soleLeadHint": "Bạn là Lead duy nhất - hãy chỉ định một thành viên khác làm Lead trước khi rời.",
-        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới.",
-        "analystHint": "Bạn gửi được yêu cầu mời; Lead duyệt thì mã mới được gửi tới email người được mời. Chỉ Lead đổi vai trò hoặc xoá thành viên."
+        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
       },
       "library": {
         "title": "Thư viện mẫu",
@@ -3244,6 +3262,7 @@
     "INVITE_INVALID": "Mã mời không dùng được: đã hết hạn, đã dùng hoặc đã bị thu hồi.",
     "INVITE_NOT_FOUND": "Không tìm thấy lời mời.",
     "INVITE_ALREADY_USED": "Mã mời đã được dùng.",
+    "INVITE_EMAIL_MISMATCH": "Mã mời này được cấp riêng cho một địa chỉ email khác.",
     "PLAN_LIMIT_MEMBERS": "Tổ chức đã đạt trần số thành viên của gói hiện tại.",
     "PLAN_LIMIT_PROJECTS": "Tổ chức đã đạt trần số dự án của gói hiện tại. Xoá bớt dự án hoặc nâng gói để tạo thêm.",
     "ACCOUNT_SUSPENDED": "Tài khoản đã bị khoá.",
@@ -3320,7 +3339,6 @@
     "ORG_CONTEXT_MISSING": "Hệ thống gặp lỗi khi xác định tổ chức. Vui lòng tải lại trang.",
     "METHOD_NOT_ALLOWED": "Thao tác này không được hỗ trợ.",
     "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ.",
-    "INVITE_NOT_AWAITING_APPROVAL": "Lời mời không còn chờ duyệt: đã được xử lý, đã huỷ hoặc đã hết hạn.",
     "page": {
       "eyebrow": "Lỗi hệ thống",
       "title": "Đã có lỗi xảy ra",

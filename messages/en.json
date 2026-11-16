@@ -580,7 +580,10 @@
         "project": "Project",
         "projectAll": "All projects"
       },
-      "noTxFiltered": "No transactions match the filters"
+      "noTxFiltered": "No transactions match the filters",
+      "planLimitsSummary": "Up to {members} members · {projects} projects · {tokens} reference tokens/project",
+      "planLimitsSummaryLegacy": "Up to {members} members · {projects} projects",
+      "referenceCodeLabel": "Ref: {code}"
     },
     "checkout": {
       "title": "Transaction",
@@ -632,6 +635,29 @@
         "title": "Switched to the {plan} plan",
         "bodyUntil": "The {plan} plan is valid until {date}.",
         "bodyActive": "The {plan} plan has been activated."
+      },
+      "plan_expired": {
+        "title": "Your {previousPlan} plan has expired",
+        "bodyGranted": "Your organization moved to the {plan} plan and received +{credits} credits for the new cycle until {date}. Repurchase {previousPlan} to keep higher limits.",
+        "bodyGrantedNoDate": "Your organization moved to the {plan} plan and received +{credits} credits for the new cycle. Repurchase {previousPlan} to keep higher limits.",
+        "body": "Your organization moved to the {plan} plan. Repurchase {previousPlan} to keep higher limits."
+      },
+      "credits_renewed": {
+        "title": "New cycle credits granted",
+        "body": "Your organization wallet received +{credits} credits for the new cycle until {date}.",
+        "bodyNoDate": "Your organization wallet received +{credits} credits for the new cycle."
+      },
+      "credit_topup_needed": {
+        "title": "Out of credits - AI step paused",
+        "body": "Project \"{project}\" paused at {step} due to insufficient credits. Top up to continue - after credits are added, the member running the step should reopen the project and press Continue.",
+        "stepExtractHeading": "extracting section \"{heading}\"",
+        "stepExtractSection": "extracting section {section}",
+        "stepExtractGeneric": "document data extraction",
+        "stepSemanticCheck": "the AI content check for the imported document",
+        "stepCrClarify": "AI requirement clarification for {cr}",
+        "stepCrPropose": "AI change proposal for {cr}",
+        "stepCrVerify": "AI proposal verification for {cr}",
+        "stepGeneric": "an AI step"
       },
       "phase_accepted": {
         "title": "Stage {phase} completed",
@@ -746,6 +772,14 @@
         "title": "Comment {comment} converted to {cr}",
         "body": "Your feedback on \"{anchor}\" has been recorded as change request {cr}.",
         "bodyShort": "Feedback {comment} has been recorded as {cr}."
+      },
+      "credits_adjusted": {
+        "titleAdded": "Organization credits added",
+        "titleDeducted": "Organization credits deducted",
+        "bodyAdded": "+{credits, plural, one {# credit} other {# credits}} for {org}. Reason: {reason}",
+        "bodyDeducted": "-{credits, plural, one {# credit} other {# credits}} for {org}. Reason: {reason}",
+        "bodyAddedGeneric": "+{credits, plural, one {# credit} other {# credits}}. Reason: {reason}",
+        "bodyDeductedGeneric": "-{credits, plural, one {# credit} other {# credits}}. Reason: {reason}"
       }
     },
     "common": {
@@ -1293,12 +1327,7 @@
           "codeTitle": "New invitation code",
           "codeBody": "This code is shown only once. Send it to the invitee; it works once and expires.",
           "emailRequired": "Enter the invitee email - the invitation code is sent to that address.",
-          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires - if the invitee cannot find the email, you can send them this code directly.",
-          "requestTitle": "Request an invitation",
-          "requestCta": "Send request for Lead approval",
-          "requesting": "Sending…",
-          "requestSentTitle": "Request sent",
-          "requestSent": "A Lead will review the request to invite {email}. Once approved, the invitation code is emailed to that address - you will be notified."
+          "codeSent": "The code was sent to {email}. It is shown here only once, works once and expires - if the invitee cannot find the email, you can send them this code directly."
         },
         "invitations": {
           "title": "Invitations",
@@ -1310,18 +1339,8 @@
             "pending": "Pending",
             "accepted": "Used",
             "revoked": "Revoked",
-            "expired": "Expired",
-            "awaiting_approval": "Awaiting Lead approval",
-            "rejected": "Rejected"
-          },
-          "mineTitle": "Your invitation requests",
-          "requestedBy": "Requested by {name}",
-          "approve": "Approve",
-          "reject": "Reject",
-          "cancelRequest": "Cancel request",
-          "approvedTitle": "Approved - invitation code",
-          "approvedBody": "The code was sent to {email}. It is shown here only once.",
-          "dismiss": "Dismiss"
+            "expired": "Expired"
+          }
         },
         "danger": {
           "title": "Delete organization",
@@ -1342,8 +1361,7 @@
           "saving": "Saving…"
         },
         "soleLeadHint": "You are the only Lead - make another member a Lead before you leave.",
-        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below.",
-        "analystHint": "You can request an invitation; the code is emailed to the invitee only after a Lead approves. Only a Lead can change roles or remove members."
+        "soleLeadAloneHint": "You are the only member. If you no longer need this organization, delete it below."
       },
       "library": {
         "title": "Template library",
@@ -3244,6 +3262,7 @@
     "INVITE_INVALID": "This invitation code cannot be used: it has expired, been used, or been revoked.",
     "INVITE_NOT_FOUND": "Invitation not found.",
     "INVITE_ALREADY_USED": "This invitation code has already been used.",
+    "INVITE_EMAIL_MISMATCH": "This invitation code was issued for a different email address.",
     "PLAN_LIMIT_MEMBERS": "The organization has reached the member limit of its current plan.",
     "PLAN_LIMIT_PROJECTS": "The organization has reached the project limit of its current plan. Delete a project or upgrade to create more.",
     "ACCOUNT_SUSPENDED": "This account has been suspended.",
@@ -3320,7 +3339,6 @@
     "ORG_CONTEXT_MISSING": "Couldn't determine your organization. Please reload the page.",
     "METHOD_NOT_ALLOWED": "This action isn't supported.",
     "UNSUPPORTED_MEDIA_TYPE": "The data format you sent isn't supported.",
-    "INVITE_NOT_AWAITING_APPROVAL": "This invitation is no longer awaiting approval: it was handled, cancelled or has expired.",
     "page": {
       "eyebrow": "System error",
       "title": "Something went wrong",

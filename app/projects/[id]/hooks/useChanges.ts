@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
 import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } from "@/lib/api/spine";
 import type { ApplyResult, ChangeRequestInfo, Op, PreviewResult } from "@/types/pipeline";
@@ -77,6 +77,7 @@ export function useChanges(
   { syncBeforeSend, onConflict }: UseChangesOptions = {}
 ): UseChangesResult {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const previewLockRef = useRef(false);
   const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
   const [pendingInstruction, setPendingInstruction] = useState("");
   /** Lô op của bản xem trước dựng từ op (không phải câu lệnh) — xác nhận gửi lại đúng lô cùng `preview_id`. */
@@ -107,7 +108,9 @@ export function useChanges(
 
   const requestPreview = useCallback(
     async (instruction: string): Promise<PreviewOutcome> => {
-      if (getBaseVersion() === null || !instruction.trim()) return "skipped";
+      // FLF-400: lệnh trước còn đang xem trước ⇒ không gửi lần hai (bấm Gửi / Enter liền tay)
+      if (getBaseVersion() === null || !instruction.trim() || previewLockRef.current) return "skipped";
+      previewLockRef.current = true;
       setPreviewing(true);
       setError(null);
       setClarification(null);
@@ -140,6 +143,7 @@ export function useChanges(
         handleFailure(err);
         return "error";
       } finally {
+        previewLockRef.current = false;
         setPreviewing(false);
       }
     },

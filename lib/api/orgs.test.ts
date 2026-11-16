@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiCall } from "./client";
-import { onOrganizationChanged, renameOrganization, switchOrganization } from "./orgs";
+import { changeMemberRole, onOrganizationChanged, renameOrganization, switchOrganization } from "./orgs";
 
 vi.mock("./client", () => ({ apiCall: vi.fn() }));
 
@@ -80,5 +80,41 @@ describe("switchOrganization - chọn tổ chức kèm ghi nhớ mặc định",
       method: "POST",
       body: JSON.stringify({ rememberAsDefault: false }),
     });
+  });
+});
+
+describe("changeMemberRole - phát sự kiện đổi tổ chức", () => {
+  const listener = vi.fn();
+  let unsubscribe: () => void;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    unsubscribe = onOrganizationChanged(listener);
+  });
+  afterEach(() => unsubscribe());
+
+  it("đổi vai trò thành công ⇒ PATCH /orgs/:orgId/members/:userId/role rồi phát sự kiện đúng một lần", async () => {
+    const updated = {
+      userId: "u-1",
+      email: "u1@flintflow.test",
+      name: "An",
+      role: "analyst",
+      joinedAt: "2026-09-01T00:00:00Z",
+    };
+    vi.mocked(apiCall).mockResolvedValue({ data: updated, meta: null, error: null } as never);
+
+    await expect(changeMemberRole("org-a", "u-1", "analyst")).resolves.toEqual(updated);
+    expect(apiCall).toHaveBeenCalledWith("/orgs/org-a/members/u-1/role", {
+      method: "PATCH",
+      body: JSON.stringify({ role: "analyst" }),
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("BE từ chối ⇒ ném lỗi, không phát sự kiện", async () => {
+    vi.mocked(apiCall).mockRejectedValue(new Error("LAST_LEAD"));
+
+    await expect(changeMemberRole("org-a", "u-1", "analyst")).rejects.toThrow("LAST_LEAD");
+    expect(listener).not.toHaveBeenCalled();
   });
 });

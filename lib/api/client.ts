@@ -1,8 +1,9 @@
 import { clearAuthToken, logoutAndRedirect } from "../auth";
 import { ACCOUNT_SUSPENDED, endSuspendedSession } from "../account-suspended";
+import { isLostOrgError, recoverFromLostOrgAccess } from "../org-access-lost";
 import { localizeApiError } from "./error-messages";
 import { MODE_SWITCH_ERROR_CODES, signalProjectModeMaybeChanged } from "../project-mode-signal";
-import { decodeJwt, getAccessToken, saveAuthToken } from "./token-store";
+import { decodeJwt, getAccessToken, getActiveOrgId, saveAuthToken } from "./token-store";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -58,6 +59,7 @@ export type RefreshOutcome = "ok" | "rejected" | "failed";
 const REFRESH_LOCK_NAME = "flintflow-auth-refresh";
 
 let refreshPromise: Promise<RefreshOutcome> | null = null;
+let refreshForced = false;
 let lastRefreshTime = 0;
 
 const isTokenFresh = (token: string | null): token is string => {
@@ -84,25 +86,71 @@ const withCrossTabLock = <T>(fn: () => Promise<T>): Promise<T> => {
   return fn();
 };
 
+const readJsonClone = async (res: Response): Promise<ApiResponse | null> => {
+  try {
+    return (await res.clone().json()) as ApiResponse;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * 403 `ACCOUNT_SUSPENDED` (FLF-345): tài khoản bị khoá giữa phiên ⇒ đăng xuất, về /login kèm lý do khoá.
  * Đọc trên bản clone để nơi gọi vẫn đọc được body của `res`.
  */
 const isSuspendedResponse = async (res: Response): Promise<boolean> => {
   if (res.status !== 403) return false;
-  let body: ApiResponse;
-  try {
-    body = (await res.clone().json()) as ApiResponse;
-  } catch {
-    return false;
-  }
+  const body = await readJsonClone(res);
   if (body?.error?.code !== ACCOUNT_SUSPENDED) return false;
   endSuspendedSession(body.meta);
   return true;
 };
 
-const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutcome> => {
-  if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+/** Đọc số org còn lại bằng token vừa refresh (gọi `fetch` trực tiếp để tránh vòng import với `orgs.ts`). */
+const fetchOrgsCount = async (): Promise<number | null> => {
+  const token = getAccessToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE_URL}/orgs`, {
+    headers,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    if (await isSuspendedResponse(res)) return null;
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  const json = (await res.json()) as ApiResponse<unknown[]>;
+  if (!Array.isArray(json.data)) {
+    throw new Error("INVALID_ORGS_RESPONSE");
+  }
+  return json.data.length;
+};
+
+/**
+ * 403 `ORG_FORBIDDEN`, 409 `NO_ACTIVE_ORG`, hoặc 404 `ORG_NOT_FOUND` trên `/orgs/<activeOrgId>`:
+ * phiên đang giữ `orgId` không còn quyền ⇒ thu hồi và đưa về chọn tổ chức / onboarding.
+ * Đọc trên bản clone để nơi gọi vẫn nhận nguyên `Response` và ném `ApiClientError` chuẩn.
+ */
+const isOrgAccessLostResponse = async (
+  res: Response,
+  endpoint: string,
+  activeOrgId: string | null
+): Promise<boolean> => {
+  if (res.status !== 403 && res.status !== 409 && res.status !== 404) return false;
+  const body = await readJsonClone(res);
+  if (!isLostOrgError(res.status, body?.error?.code, endpoint, activeOrgId)) return false;
+  void recoverFromLostOrgAccess({
+    refresh: () => refreshSession({ force: true }),
+    fetchOrgsCount,
+  });
+  return true;
+};
+
+const requestRefresh = async (tokenAtStart: string | null, force = false): Promise<RefreshOutcome> => {
+  if (!force && adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
 
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -148,25 +196,32 @@ const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutco
 };
 
 /**
- * `force` (FLF-427) chỉ bỏ qua cache 2 giây: token còn hạn vẫn có thể đã bị thu hồi (`SESSION_REVOKED`).
- * KHÔNG bỏ qua bước nhận token tab khác vừa refresh trong `requestRefresh` — token lúc bắt đầu chính là token đã
- * chết, nên token khác nó luôn mới hơn; bỏ bước đó thì 401 do tab khác vừa xoay vòng sẽ gọi /auth/logout bằng
- * cookie mới và đăng xuất mọi tab.
+ * `force` bỏ qua cache 2 giây và bước nhận token tab khác lúc bắt đầu: token còn hạn vẫn có thể đã bị thu hồi
+ * (`SESSION_REVOKED`, FLF-427) hoặc mang org đã mất quyền (FLF-422). Nhánh `/auth/refresh` trả 401/403 trong
+ * `requestRefresh` vẫn LUÔN nhận token tab khác vừa xoay vòng — bỏ bước đó thì sẽ gọi /auth/logout bằng cookie
+ * mới và đăng xuất mọi tab.
  */
 export const refreshSession = async (options?: { force?: boolean }): Promise<RefreshOutcome> => {
+  const force = Boolean(options?.force);
+
   // If recently refreshed (within 2s) and the in-memory token is still valid, reuse without re-calling BE
-  if (!options?.force && Date.now() - lastRefreshTime < 2000 && isTokenFresh(getAccessToken())) {
+  if (!force && Date.now() - lastRefreshTime < 2000 && isTokenFresh(getAccessToken())) {
     return "ok";
   }
 
-  // If a refresh is already in progress, deduplicate by waiting on the same promise
-  if (refreshPromise) {
-    return refreshPromise;
+  // If a refresh is already in progress, share it when non-forced or already forced; otherwise wait for it
+  // to settle before issuing a forced refresh so we neither reuse a stale-org token nor race /auth/refresh.
+  while (refreshPromise) {
+    if (!force || refreshForced) return refreshPromise;
+    const outcome = await refreshPromise;
+    if (outcome === "rejected") return "rejected";
   }
 
   const tokenAtStart = getAccessToken();
-  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart)).finally(() => {
+  refreshForced = force;
+  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart, force)).finally(() => {
     refreshPromise = null;
+    refreshForced = false;
   });
 
   return refreshPromise;
@@ -246,7 +301,10 @@ export const authFetch = async (
     throw new ApiClientError(0, "NETWORK_ERROR", err instanceof Error ? err.message : String(err));
   }
 
-  await isSuspendedResponse(res);
+  if (!(await isSuspendedResponse(res))) {
+    const activeOrgId = (tokenBeforeRequest ? decodeJwt(tokenBeforeRequest)?.orgId : null) ?? getActiveOrgId();
+    await isOrgAccessLostResponse(res, endpoint, activeOrgId);
+  }
 
   // 3. Handle 401 Unauthorized with concurrency awareness
   if (res.status === 401 && retry) {
