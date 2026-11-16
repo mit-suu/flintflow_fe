@@ -213,4 +213,19 @@ describe("useChanges - cổng đồng bộ trước khi gửi và 409", () => {
     await act(async () => void (await result.current.requestPreview("làm rõ vai trò")));
     await waitFor(() => expect(result.current.preview).not.toBeNull());
   });
+
+  it("FLF-400: requestPreview gọi 2 lần liền ⇒ chỉ 1 request xem trước, lần sau trả `skipped`", async () => {
+    const baseVersion = await seedActor();
+    const previewSpy = vi.spyOn(spineApi, "previewChanges");
+    const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, vi.fn()));
+
+    let outcomes: string[] = [];
+    await act(async () => {
+      outcomes = await Promise.all([result.current.requestPreview("làm rõ vai trò"), result.current.requestPreview("làm rõ vai trò")]);
+    });
+
+    expect(previewSpy).toHaveBeenCalledTimes(1);
+    expect(outcomes).toEqual(["preview", "skipped"]);
+    previewSpy.mockRestore();
+  });
 });

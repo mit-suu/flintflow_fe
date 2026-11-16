@@ -78,12 +78,18 @@ export default function AppShell({ sidebar, user, children }: AppShellProps) {
   const t = useTranslations("app.shell");
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
-  const [balance, setBalance] = useState<BalanceResponse | null>(null);
+  const [balanceState, setBalanceState] = useState<{ orgId: string; data: BalanceResponse } | null>(null);
   /** Tăng để tải lại số dư mà không đổi trang (`reloadBalance`). */
   const [balanceRequest, setBalanceRequest] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
   const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsedSnapshot, () => false);
-  const role = useActiveOrganization()?.role;
+  const activeOrg = useActiveOrganization();
+  const orgId = activeOrg?.id;
+  const role = activeOrg?.role;
+  const balance =
+    activeOrg && activeOrg.role !== "viewer" && balanceState?.orgId === activeOrg.id
+      ? balanceState.data
+      : null;
 
   const openNav = useCallback(() => setNavOpen(true), []);
   const closeNav = useCallback(() => setNavOpen(false), []);
@@ -97,17 +103,17 @@ export default function AppShell({ sidebar, user, children }: AppShellProps) {
   // xem số dư (Flow 10) ⇒ chờ biết vai trò; Viewer không gọi (gọi là 403) — thanh bên hiện nhãn gói mặc định.
   // `balanceRequest`: trang vừa trừ credit (`reloadBalance`) ⇒ tải lại ngay, không chờ đổi trang.
   useEffect(() => {
-    if (!role || role === "viewer") return;
+    if (!orgId || !role || role === "viewer") return;
     let cancelled = false;
     fetchBalance()
       .then((next) => {
-        if (!cancelled) setBalance(next);
+        if (!cancelled) setBalanceState({ orgId, data: next });
       })
       .catch(() => undefined); // chip giữ số cũ / ẩn; trang billing tự báo lỗi của nó
     return () => {
       cancelled = true;
     };
-  }, [pathname, role, balanceRequest]);
+  }, [pathname, orgId, role, balanceRequest]);
 
   // Drawer mobile là lớp phủ modal: focus vào trong + giữ Tab, đóng thì trả focus về nút Mở menu; Esc đóng
   useDialogFocus(drawerRef, navOpen);

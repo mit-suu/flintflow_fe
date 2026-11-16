@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { API_BASE_URL, ApiClientError, apiCall } from "./client";
-import { getAccessToken, getStoredAuthToken, saveAuthToken, setAccessToken } from "./token-store";
+import { getAccessToken, saveAuthToken, setAccessToken } from "./token-store";
 
 const makeJwt = (payload: Record<string, unknown>) =>
   `header.${btoa(JSON.stringify(payload))}.signature`;
@@ -13,19 +13,27 @@ const jsonResponse = (status: number, body: unknown) =>
 
 const futureExp = () => Math.floor(Date.now() / 1000) + 3600;
 
+/** Giả một tab khác vừa refresh: gửi token qua kênh dùng chung, chờ tới khi bộ nhớ tab này nhận được. */
+const sendFromOtherTab = async (token: string, readToken: () => string | null) => {
+  const otherTab = new BroadcastChannel("flintflow-auth");
+  otherTab.postMessage({ type: "token", token });
+  await vi.waitFor(() => expect(readToken()).toBe(token));
+  otherTab.close();
+};
+
 describe("token-store", () => {
   beforeEach(() => {
     localStorage.clear();
     setAccessToken(null);
   });
 
-  it("saveAuthToken lưu token vào bộ nhớ, localStorage và lấy role từ JWT", () => {
+  it("saveAuthToken lưu token vào bộ nhớ (không vào localStorage) và lấy role từ JWT", () => {
     const token = makeJwt({ role: "admin", exp: futureExp() });
 
     saveAuthToken(token);
 
     expect(getAccessToken()).toBe(token);
-    expect(getStoredAuthToken()).toBe(token);
+    expect(localStorage.getItem("accessToken")).toBeNull();
     expect(localStorage.getItem("userRole")).toBe("admin");
   });
 });
@@ -159,31 +167,31 @@ describe("refreshSession (FLF-137)", () => {
   const logoutCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/logout"));
 
   it("BE lỗi 5xx / cold start ⇒ `failed`, giữ token và KHÔNG gọi /auth/logout", async () => {
-    const { refreshSession, getStoredAuthToken, saveAuthToken } = await load();
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
     const token = expiredToken();
     saveAuthToken(token);
     fetchMock.mockResolvedValueOnce(new Response("Service Unavailable", { status: 503 }));
 
     await expect(refreshSession()).resolves.toBe("failed");
 
-    expect(getStoredAuthToken()).toBe(token);
+    expect(getAccessToken()).toBe(token);
     expect(logoutCalls()).toHaveLength(0);
   });
 
   it("lỗi mạng ⇒ `failed`, không đăng xuất", async () => {
-    const { refreshSession, getStoredAuthToken, saveAuthToken } = await load();
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
     saveAuthToken(expiredToken());
     fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(refreshSession()).resolves.toBe("failed");
 
-    expect(getStoredAuthToken()).not.toBeNull();
+    expect(getAccessToken()).not.toBeNull();
     expect(logoutCalls()).toHaveLength(0);
   });
 
   it("BE từ chối (401) ⇒ `rejected`, xoá token", async () => {
-    const { refreshSession, getStoredAuthToken, saveAuthToken } = await load();
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
     saveAuthToken(expiredToken());
     fetchMock
       .mockResolvedValueOnce(jsonResponse(401, { data: null, error: { code: "MISSING_REFRESH_TOKEN", message: "x" } }))
@@ -191,32 +199,32 @@ describe("refreshSession (FLF-137)", () => {
 
     await expect(refreshSession()).resolves.toBe("rejected");
 
-    expect(getStoredAuthToken()).toBeNull();
+    expect(getAccessToken()).toBeNull();
   });
 
   it("401 vì tab khác vừa xoay vòng refresh token ⇒ dùng token tab kia, không đăng xuất", async () => {
-    const { refreshSession, getAccessToken, getStoredAuthToken, saveAuthToken } = await load();
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
     saveAuthToken(expiredToken());
     const otherTabToken = makeJwt({ role: "user", exp: futureExp() });
     fetchMock.mockImplementationOnce(async () => {
-      // Tab khác lưu token mới vào localStorage (dùng chung) trong lúc request của tab này đang bay
-      localStorage.setItem("accessToken", otherTabToken);
+      // Tab khác gửi token mới qua BroadcastChannel trong lúc request của tab này đang bay
+      await sendFromOtherTab(otherTabToken, getAccessToken);
       return jsonResponse(401, { data: null, error: { code: "CONCURRENT_REFRESH", message: "x" } });
     });
 
     await expect(refreshSession()).resolves.toBe("ok");
 
-    expect(getStoredAuthToken()).toBe(otherTabToken);
+    expect(getAccessToken()).toBe(otherTabToken);
     expect(getAccessToken()).toBe(otherTabToken);
     expect(logoutCalls()).toHaveLength(0);
   });
 
   it("refresh chạy trong Web Lock dùng chung giữa các tab; tab kia refresh xong trong lúc chờ khoá ⇒ không gọi BE", async () => {
-    const { refreshSession, getStoredAuthToken, saveAuthToken } = await load();
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
     saveAuthToken(expiredToken());
     const otherTabToken = makeJwt({ role: "user", exp: futureExp() });
     const request = vi.fn(async (_name: string, fn: () => Promise<unknown>) => {
-      localStorage.setItem("accessToken", otherTabToken);
+      await sendFromOtherTab(otherTabToken, getAccessToken);
       return fn();
     });
     vi.stubGlobal("navigator", { ...navigator, locks: { request } });
@@ -225,6 +233,91 @@ describe("refreshSession (FLF-137)", () => {
 
     expect(request).toHaveBeenCalledWith("flintflow-auth-refresh", expect.any(Function));
     expect(refreshCalls()).toHaveLength(0);
-    expect(getStoredAuthToken()).toBe(otherTabToken);
+    expect(getAccessToken()).toBe(otherTabToken);
+  });
+
+  it("refreshSession({ force: true }) bỏ qua bộ đệm 2s và không thoát sớm dù tab khác gửi token mới", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    const initial = makeJwt({ role: "user", orgId: "org-a", exp: futureExp() });
+    const otherTabToken = makeJwt({ role: "user", orgId: "org-a", exp: futureExp() + 30 });
+    const forcedToken = makeJwt({ role: "user", exp: futureExp() + 60 });
+    saveAuthToken(initial);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: initial }, error: null }));
+    expect(await refreshSession()).toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+
+    const request = vi.fn(async (_name: string, fn: () => Promise<unknown>) => {
+      await sendFromOtherTab(otherTabToken, getAccessToken);
+      return fn();
+    });
+    vi.stubGlobal("navigator", { ...navigator, locks: { request } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: forcedToken }, error: null }));
+
+    await expect(refreshSession({ force: true })).resolves.toBe("ok");
+
+    expect(refreshCalls()).toHaveLength(2);
+    expect(getAccessToken()).toBe(forcedToken);
+  });
+
+  it("refreshSession({ force: true }) khi đang có refresh thường chạy dở ⇒ chờ lượt cũ xong rồi mới gọi cưỡng bức, không đè refreshPromise", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    saveAuthToken(expiredToken());
+    const staleToken = makeJwt({ role: "user", orgId: "org-a", exp: futureExp() });
+    const freshToken = makeJwt({ role: "user", exp: futureExp() + 60 });
+
+    let resolveFirst: (res: Response) => void = () => undefined;
+    fetchMock
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: freshToken }, error: null }));
+
+    const first = refreshSession();
+    const forced = refreshSession({ force: true });
+
+    expect(refreshCalls()).toHaveLength(1);
+    resolveFirst(jsonResponse(200, { data: { accessToken: staleToken }, error: null }));
+
+    await expect(first).resolves.toBe("ok");
+    await expect(forced).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(2);
+    expect(getAccessToken()).toBe(freshToken);
+  });
+
+  it("refreshSession({ force: true }) dừng với `rejected` nếu refresh đang chạy bị từ chối", async () => {
+    const { refreshSession, saveAuthToken } = await load();
+    saveAuthToken(expiredToken());
+
+    let resolveFirst: (res: Response) => void = () => undefined;
+    fetchMock
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValue(jsonResponse(200, { data: null, error: null }));
+
+    const first = refreshSession();
+    const forced = refreshSession({ force: true });
+
+    resolveFirst(jsonResponse(401, { data: null, error: { code: "MISSING_REFRESH_TOKEN", message: "x" } }));
+
+    await expect(first).resolves.toBe("rejected");
+    await expect(forced).resolves.toBe("rejected");
+    expect(refreshCalls()).toHaveLength(1);
+  });
+
+  it("nhiều refreshSession({ force: true }) gọi đồng thời ⇒ gộp thành một lượt /auth/refresh", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    saveAuthToken(makeJwt({ role: "user", orgId: "org-a", exp: futureExp() }));
+    const freshToken = makeJwt({ role: "user", exp: futureExp() + 60 });
+
+    let resolveRefresh: (res: Response) => void = () => undefined;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveRefresh = resolve)));
+
+    const p1 = refreshSession({ force: true });
+    const p2 = refreshSession({ force: true });
+
+    resolveRefresh(jsonResponse(200, { data: { accessToken: freshToken }, error: null }));
+
+    await expect(p1).resolves.toBe("ok");
+    await expect(p2).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+    expect(getAccessToken()).toBe(freshToken);
   });
 });

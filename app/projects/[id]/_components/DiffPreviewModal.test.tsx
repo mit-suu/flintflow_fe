@@ -22,7 +22,9 @@ describe("DiffPreviewModal", () => {
   it("hiện bảng phần thay đổi (tên, không phải path) / trước / sau từ preview.changes", () => {
     renderWithIntl(<DiffPreviewModal preview={basePreview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
 
-    expect(screen.getByText("Tác nhân A03 - Tên")).toHaveAttribute("title", "actors[id=A03].name");
+    // FLF-411 #23: câu theo tên phần tử, không mã nội bộ / path
+    expect(screen.getByRole("cell", { name: "Sửa tên của một tác nhân" })).toBeInTheDocument();
+    expect(screen.queryByText(/A03/)).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Phần thay đổi" })).toBeInTheDocument();
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.getByText("Administrator")).toBeInTheDocument();
@@ -107,8 +109,41 @@ describe("DiffPreviewModal", () => {
 
     expect(screen.getByText("2.1 Actors", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Sơ đồ sẽ vẽ lại: 1")).toBeInTheDocument();
-    expect(screen.getByText(/Đang được nhắc tới ở: Use case UC01 - Tác nhân/)).toBeInTheDocument();
+    expect(screen.getByText(/Đang được nhắc tới ở: Use case “UC01”/)).toBeInTheDocument();
     expect(screen.queryByText(/fixed:|\[id=/)).not.toBeInTheDocument();
+  });
+
+  it("FLF-411 #23 #24: xoá phần tử theo tên, giá trị chỉ phần đọc được, tham chiếu theo tên, tóm tắt từ thay đổi", () => {
+    const spine = {
+      actors: [{ id: "A04", name: "Patron", kind: "human" }, { id: "A02", name: "Menu Manager", kind: "human" }],
+      use_cases: [{ id: "UC-06", name: "Order a Meal" }],
+      entities: [{ id: "E01", name: "User" }],
+    } as unknown as Spine;
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [
+        { op: "set", path: "project.system_name", before: "Cafeteria Ordering System", value: "ShuttleBook", reason: null },
+        { op: "remove", path: "actors[id=A04]", before: { id: "A04", name: "Patron", kind: "human", description: "", flows_in: ["payroll deduction"] }, value: { _absent: true }, reason: null },
+        { op: "remove", path: "actors[id=A02]", before: { id: "A02", name: "Menu Manager", kind: "human", flows_out: ["menu"] }, value: { _absent: true }, reason: null },
+        { op: "remove", path: "entities[id=E01]", before: { id: "E01", relation_optional: null, attributes: [] }, value: { _absent: true }, reason: null },
+        { op: "set", path: "actors[id=A02].kind", before: "human", value: "system", reason: null },
+      ],
+      impact: { fields: [], sections: [{ id: "fixed:2.1", relation: "owner" }], diagrams: [], referrers: [{ path: "use_cases[id=UC-06].actor_ids", id: "A04" }, { path: "use_cases[id=UC-06].actor_ids", id: "A02" }] },
+    };
+    renderWithIntl(<DiffPreviewModal preview={preview} spine={spine} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+
+    expect(screen.getByText("Đổi tên hệ thống")).toBeInTheDocument();
+    expect(screen.getByText("Xoá tác nhân “Patron”")).toBeInTheDocument();
+    expect(screen.getByText("Xoá thực thể dữ liệu “User”")).toBeInTheDocument();
+    expect(screen.getByText("Sửa loại của tác nhân “Menu Manager”")).toBeInTheDocument();
+    expect(screen.getByText("Người dùng")).toBeInTheDocument();
+    expect(screen.getByText("Hệ thống ngoài")).toBeInTheDocument();
+    expect(screen.getByText(/Đang được nhắc tới ở: Use case “Order a Meal”$/)).toBeInTheDocument();
+    expect(screen.getByTestId("diff-summary")).toHaveTextContent(
+      "Xoá 2 tác nhân: Patron, Menu Manager; Xoá 1 thực thể dữ liệu: User; Đổi tên hệ thống; Sửa loại của tác nhân “Menu Manager”"
+    );
+    const dialogText = document.body.textContent ?? "";
+    for (const raw of ["A04", "A02", "E01", "flows_in", "flows_out", "relation_optional", "Loại: human", "Mã:"]) expect(dialogText).not.toContain(raw);
   });
 
   it("không có thay đổi nào thì hiện thông báo trống", () => {
@@ -155,7 +190,8 @@ describe("DiffPreviewModal - FLF-177", () => {
           onConfirm={vi.fn()}
         />
       );
-      expect(screen.getByText(/Tác nhân: Lecturer;/)).toBeInTheDocument();
+      expect(screen.getByText(/Send Absence Warning; Tác nhân: Lecturer/)).toBeInTheDocument();
+      expect(screen.getByText("Thêm use case “Send Absence Warning”")).toBeInTheDocument();
       expect(screen.queryByText(/Tác nhân: A01/)).not.toBeInTheDocument();
       expect(screen.getByRole("alert")).toHaveTextContent("“Send Absence Warning” chưa gắn chức năng nào");
       expect(screen.getByRole("button", { name: "Xác nhận" })).toBeEnabled();

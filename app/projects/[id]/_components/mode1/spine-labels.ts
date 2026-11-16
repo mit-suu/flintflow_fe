@@ -75,6 +75,9 @@ export const RULE_KEYS = [
   // FLF-278: mẫu cố định (mẫu bắt buộc / mẫu công ty của dự án có sẵn)
   "template_section_absent",
   "template_section_empty",
+  // FLF-395: sau khi đổi mẫu
+  "template_section_migration_missing",
+  "section_reference_after_migration",
   "import_title_content_mismatch",
   "verification_orphan",
   "import_needs_review",
@@ -166,6 +169,63 @@ export const resolveRefs = (field: string | undefined, value: unknown, names: Re
   const name = (id: unknown) => (typeof id === "string" && table[id]) || id;
   return Array.isArray(value) ? value.map(name) : name(value);
 };
+
+/**
+ * FLF-411 #23: phần tử trong bản xem trước thay đổi gọi bằng TÊN, không bằng mã nội bộ (`A04`). Chỉ mã in ra tài liệu
+ * (use case, quy tắc nghiệp vụ, thông báo, NFR) mới được dùng thay tên khi phần tử không có tên.
+ */
+const NAME_FIELDS = ["name", "term", "title", "heading"] as const;
+const DESCRIPTION_FIELDS = ["description", "statement", "definition", "text"] as const;
+const DOC_CODE_COLLECTIONS: ReadonlySet<string> = new Set(["use_cases", "business_rules", "messages", "nfrs"]);
+/** Field enum có nhãn (`mode1.spine.values.<nhóm>.<giá trị>`). `type` của actor cũ dùng chung nhãn với `kind`. */
+const ENUM_FIELDS: Readonly<Record<string, string>> = { kind: "kind", type: "kind", priority: "priority", category: "category", tier: "tier", status: "status" };
+
+/** Tên mọi phần tử có tên trong Spine, theo bộ sưu tập: `{ actors: { A04: "Patron" } }`. */
+export type ElementNames = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+const nameOf = (value: unknown): string | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const rec = value as Record<string, unknown>;
+  for (const f of NAME_FIELDS) {
+    const v = rec[f];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
+};
+
+export const elementNames = (spine: object | null | undefined): ElementNames => {
+  if (!spine) return {};
+  const out: Record<string, Record<string, string>> = {};
+  for (const [col, items] of Object.entries(spine as Record<string, unknown>)) {
+    if (!Array.isArray(items)) continue;
+    const table: Record<string, string> = {};
+    for (const item of items) {
+      const name = nameOf(item);
+      const id = item && typeof item === "object" ? (item as Record<string, unknown>).id : undefined;
+      if (typeof id === "string" && name) table[id] = name;
+    }
+    if (Object.keys(table).length) out[col] = table;
+  }
+  return out;
+};
+
+/** `actors[id=A04].flows_in` ⇒ { collection: "actors", key: "A04", field: "flows_in" }; `project.system_name` ⇒ field. */
+const ELEMENT_PATH = /^([a-z_]+)(?:\[(?:[a-z_]+=)?([^\]]*)\])?(?:\.([a-z_]+))?/;
+export const parseElementPath = (path: string): { collection: string; key: string | undefined; field: string | undefined; whole: boolean } | null => {
+  const m = ELEMENT_PATH.exec(path);
+  if (!m) return null;
+  return { collection: m[1], key: m[2], field: m[3], whole: m[0] === path && m[3] === undefined };
+};
+
+const isAbsent = (v: unknown) => typeof v === "object" && v !== null && "_absent" in (v as Record<string, unknown>);
+
+const lowerFirst = (text: string) => (text ? text.charAt(0).toLocaleLowerCase() + text.slice(1) : text);
+
+type ChangeLike = { op: string; path: string; before?: unknown; value?: unknown };
+
+/** Thao tác trên cả phần tử: xoá / thêm / thay nguyên khối. */
+const wholeVerb = (c: ChangeLike, key: string | undefined): "add" | "remove" | "replace" =>
+  c.op === "remove" || isAbsent(c.value) ? "remove" : c.op === "add" || key === "" || c.before == null || isAbsent(c.before) ? "add" : "replace";
 
 export const spineLabels = (t: Mode1T, localeName: string, sectionNames?: ReadonlyMap<string, string>) => {
   const locale = isLocale(localeName) ? localeName : DEFAULT_LOCALE;
@@ -265,6 +325,113 @@ export const spineLabels = (t: Mode1T, localeName: string, sectionNames?: Readon
     return String(value);
   };
 
+  /** Nhãn giá trị enum (`human` ⇒ "Người dùng"); giá trị lạ ⇒ giữ nguyên. */
+  const enumLabel = (field: string | undefined, value: unknown): unknown => {
+    const group = field ? ENUM_FIELDS[field] : undefined;
+    if (!group || typeof value !== "string" || !KEY_SAFE.test(value)) return value;
+    const key = `spine.values.${group}.${value}`;
+    return t.has(key) ? t(key) : value;
+  };
+
+  /** Tên phần tử (từ chính giá trị, rồi bảng tên Spine); không có ⇒ mã nếu là mã in ra tài liệu, còn lại `null`. */
+  const elementName = (collection: string, key: string | undefined, values: unknown[], names?: ElementNames): string | null => {
+    for (const v of values) {
+      const n = nameOf(v);
+      if (n) return n;
+    }
+    const fromSpine = key ? names?.[collection]?.[key] : undefined;
+    if (fromSpine) return fromSpine;
+    return key && DOC_CODE_COLLECTIONS.has(collection) && !/^\d+$/.test(key) ? key : null;
+  };
+
+  /**
+   * Giá trị cho bảng xem trước: chỉ phần người đọc được. Phần tử nguyên khối ⇒ "Tên - Mô tả"; field enum ⇒ nhãn; field
+   * tham chiếu ⇒ tên phần tử; object khác ⇒ chỉ các field có nhãn (bỏ `id`, khoá thô như `flows_in`).
+   */
+  const humanValue = (value: unknown, field: string | undefined, names?: RefNames): string => {
+    if (value === undefined || value === null || value === "") return "-";
+    if (typeof value === "object" && !Array.isArray(value)) {
+      const rec = value as Record<string, unknown>;
+      const name = nameOf(rec);
+      const desc = DESCRIPTION_FIELDS.map((f) => rec[f]).find((v): v is string => typeof v === "string" && v.trim() !== "");
+      if (name || desc) {
+        // Phần tử mới: kèm các liên kết (tác nhân, chức năng…) gọi bằng tên — thông tin người duyệt cần, không phải khoá thô
+        const links = Object.entries(rec)
+          .filter(([k, v]) => k in REF_FIELDS && !(Array.isArray(v) && v.length === 0) && v !== null && v !== "")
+          .map(([k, v]) => `${fieldLabel(k)}: ${humanValue(v, k, names)}`);
+        return [[name, desc].filter(Boolean).join(" - "), ...links].join("; ");
+      }
+      const entries = Object.entries(rec).filter(([k, v]) => k !== "id" && !k.startsWith("_") && lookup("fields", k) !== null && v !== null && v !== "");
+      return entries.length ? entries.map(([k, v]) => `${fieldLabel(k)}: ${humanValue(v, k, names)}`).join("; ") : "-";
+    }
+    if (Array.isArray(value)) return value.length ? value.map((v) => humanValue(v, field, names)).join(", ") : "-";
+    return readableValue(enumLabel(field, resolveRefs(field, value, names)), names);
+  };
+
+  /**
+   * Một thay đổi ⇒ câu cho người: "Xoá tác nhân “Patron”", "Đổi tên hệ thống", "Sửa mô tả của use case “View Menu”".
+   * Path không đọc được ⇒ nhãn path như cũ.
+   */
+  const changeLabel = (change: ChangeLike, names?: ElementNames): string => {
+    const p = parseElementPath(change.path);
+    if (!p || !isEntity(p.collection)) return pathLabel(change.path);
+    if (p.collection === "project") {
+      if (!p.field) return pathLabel(change.path);
+      const field = lookup("change.projectFields", p.field) ?? lowerFirst(fieldLabel(p.field));
+      return t("spine.change.setProject", { field });
+    }
+    const entity = lowerFirst(entityLabel(p.collection));
+    if (p.whole || (p.key === "" && !p.field)) {
+      const name = elementName(p.collection, p.key || undefined, [change.before, change.value], names);
+      const verb = wholeVerb(change, p.key);
+      return name ? t(`spine.change.${verb}`, { entity, name }) : t(`spine.change.${verb}Unnamed`, { entity });
+    }
+    const name = elementName(p.collection, p.key || undefined, [], names);
+    const field = lowerFirst(p.field ? fieldLabel(p.field) : t("spine.wholeValue"));
+    return name ? t("spine.change.setField", { field, entity, name }) : t("spine.change.setFieldUnnamed", { field, entity });
+  };
+
+  /** Phần tử chứa một chỗ tham chiếu (`use_cases[id=UC-06].actor_ids`) ⇒ "Use case “View Menu”". */
+  const referrerLabel = (path: string, names?: ElementNames): string => {
+    const p = parseElementPath(path);
+    if (!p || !isEntity(p.collection) || p.collection === "project") return humanizeText(path);
+    const name = elementName(p.collection, p.key || undefined, [], names);
+    return name ? `${entityLabel(p.collection)} “${name}”` : entityLabel(p.collection);
+  };
+
+  /**
+   * FLF-411 #24: câu tóm tắt dựng từ CHÍNH các thay đổi (không từ lời model): "Xoá 6 tác nhân: Patron, …; Đổi tên hệ thống".
+   * Gom theo (thao tác, bộ sưu tập); tối đa `maxNames` tên mỗi nhóm.
+   */
+  const changeSummary = (changes: readonly ChangeLike[], names?: ElementNames, maxNames = 4): string => {
+    const groups = new Map<string, { verb: "add" | "remove" | "set"; collection: string; names: string[]; count: number }>();
+    const singles: string[] = [];
+    for (const c of changes) {
+      const p = parseElementPath(c.path);
+      if (!p || !isEntity(p.collection) || p.collection === "project" || !(p.whole || (p.key === "" && !p.field))) {
+        const label = changeLabel(c, names);
+        if (!singles.includes(label)) singles.push(label);
+        continue;
+      }
+      const w = wholeVerb(c, p.key);
+      const verb = w === "replace" ? "set" : w;
+      const k = `${verb}|${p.collection}`;
+      const g = groups.get(k) ?? { verb, collection: p.collection, names: [], count: 0 };
+      g.count += 1;
+      const n = elementName(p.collection, p.key || undefined, [c.before, c.value], names);
+      if (n && !g.names.includes(n)) g.names.push(n);
+      groups.set(k, g);
+    }
+    const parts = [...groups.values()].map((g) => {
+      const part = t("spine.change.summaryCount", { verb: t(`spine.change.verbs.${g.verb}`), count: g.count, entity: lowerFirst(entityLabel(g.collection)) });
+      if (!g.names.length) return part;
+      const shown = g.names.slice(0, maxNames).join(", ");
+      const list = g.names.length > maxNames ? t("spine.change.summaryMore", { names: shown, count: g.names.length - maxNames }) : shown;
+      return t("spine.change.summaryNames", { part, names: list });
+    });
+    return [...parts, ...singles].join("; ");
+  };
+
   /**
    * Lỗi của một lô sửa ⇒ câu cho người. Có luật mà câu BE chỉ là mã + tên field (`schema_invalid`: `Sai schema tại
    * "screens.0": Unrecognized key: "authorized_role_ids"`) — nói bằng lời; luật còn lại chỉ humanize path/mã mục.
@@ -295,6 +462,11 @@ export const spineLabels = (t: Mode1T, localeName: string, sectionNames?: Readon
     readableValue,
     violationText,
     sourceRefLabel,
+    enumLabel,
+    humanValue,
+    changeLabel,
+    referrerLabel,
+    changeSummary,
   };
 };
 

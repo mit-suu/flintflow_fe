@@ -2,35 +2,32 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { listFolders } from "@/lib/api/folders";
-import { listProjects } from "@/lib/api/projects";
+import { listProjectsPage } from "@/lib/api/projects";
 import type { Folder } from "@/types/folder";
 import type { Project } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface ProjectsContextValue {
-  /** Mọi dự án của user (cả đang làm và lưu trữ) — dashboard lọc trạng thái trên danh sách này. */
-  projects: Project[];
-  /** Thư mục của user, kèm `projectCount` do BE đếm. */
+  /** 3 dự án đang làm sửa gần nhất (sidebar "Gần đây") — BE sắp sẵn. */
+  recentProjects: Project[];
+  /** Số dự án đang làm của org (badge tab "Dự án"). */
+  activeCount: number;
+  /** Org có ít nhất một dự án (kể cả lưu trữ) — chưa có dự án lẫn thư mục thì dashboard hiện màn bắt đầu. */
+  hasProjects: boolean;
+  /** Thư mục của org, kèm `projectCount` do BE đếm. */
   folders: Folder[];
   loading: boolean;
   /** Lỗi tải dự án (chặn dashboard). */
   error: string | null;
   /** Lỗi tải thư mục — riêng, để dự án vẫn hiện bình thường. */
   foldersError: string | null;
-  /** Tải lại cả dự án lẫn thư mục (số dự án trong thư mục phụ thuộc thao tác trên dự án). */
+  /** Tải lại tóm tắt dự án lẫn thư mục (số dự án trong thư mục phụ thuộc thao tác trên dự án). */
   reload: () => Promise<void>;
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | null>(null);
 
 const RECENT_LIMIT = 3;
-
-/** 3 dự án đang làm sửa gần nhất (sidebar "Gần đây"). */
-export const selectRecentProjects = (projects: readonly Project[], limit = RECENT_LIMIT): Project[] =>
-  [...projects]
-    .filter((p) => p.status === "active")
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, limit);
 
 const messageOf = (err: unknown, fallback: string) => userErrorMessage(err, fallback);
 
@@ -44,11 +41,14 @@ export const projectsErrorText = (error: string, t: (key: ProjectsLoadErrorKey) 
   error === "@projectsLoadFailed" || error === "@foldersLoadFailed" ? t(error.slice(1) as ProjectsLoadErrorKey) : error;
 
 /**
- * Tải `GET /projects` + `GET /folders` một lần cho cả khung `/home/*` để sidebar ("Gần đây") và dashboard
- * không gọi lặp.
+ * Tóm tắt dự án + thư mục cho cả khung `/home/*` (sidebar "Gần đây", badge tab, màn bắt đầu của dashboard). Không tải mọi
+ * dự án (FLF-404): danh sách dài của dashboard tự tải theo trang. Hai lời gọi trang nhỏ:
+ * 3 dự án đang làm sửa gần nhất (kèm tổng đang làm) và 1 dự án bất kỳ (chỉ để biết org đã có dự án chưa).
  */
 export function ProjectsProvider({ children }: { children: ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
+  const [activeCount, setActiveCount] = useState(0);
+  const [hasProjects, setHasProjects] = useState(false);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +57,20 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   // setState chỉ nằm trong callback của promise ⇒ effect gọi hàm này không set state đồng bộ
   const fetchAll = useCallback(
     () =>
-      Promise.allSettled([listProjects(), listFolders()])
+      Promise.allSettled([
+        Promise.all([
+          listProjectsPage({ page: 1, limit: RECENT_LIMIT, status: "active", sort: "updated" }),
+          listProjectsPage({ page: 1, limit: 1 }),
+        ]),
+        listFolders(),
+      ])
         .then(([projectsRes, foldersRes]) => {
-          if (projectsRes.status === "fulfilled") setProjects(projectsRes.value.data ?? []);
+          if (projectsRes.status === "fulfilled") {
+            const [recent, any] = projectsRes.value;
+            setRecentProjects(recent.items);
+            setActiveCount(recent.meta.total);
+            setHasProjects(any.meta.total > 0);
+          }
           if (foldersRes.status === "fulfilled") setFolders(foldersRes.value.data ?? []);
           setError(projectsRes.status === "rejected" ? messageOf(projectsRes.reason, "@projectsLoadFailed") : null);
           setFoldersError(foldersRes.status === "rejected" ? messageOf(foldersRes.reason, "@foldersLoadFailed") : null);
@@ -78,8 +89,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   }, [fetchAll]);
 
   const value = useMemo(
-    () => ({ projects, folders, loading, error, foldersError, reload }),
-    [projects, folders, loading, error, foldersError, reload]
+    () => ({ recentProjects, activeCount, hasProjects, folders, loading, error, foldersError, reload }),
+    [recentProjects, activeCount, hasProjects, folders, loading, error, foldersError, reload]
   );
   return <ProjectsContext.Provider value={value}>{children}</ProjectsContext.Provider>;
 }

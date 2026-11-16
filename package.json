@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "sync:registry": "node scripts/sync-step-registry.mjs",
     "e2e": "playwright test",
+    "e2e:local": "node scripts/run-e2e.mjs",
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {

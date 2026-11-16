@@ -29,7 +29,10 @@ export default function DocumentLanguageChip({ language, compact = false }: { la
             {language.toUpperCase()}
           </span>
         ) : (
-          <span lang={lang}>{name}</span>
+          // Tiền tố "Tài liệu:" để không lẫn với nút đổi ngôn ngữ GIAO DIỆN (VI / EN) cùng nằm trên header
+          <span>
+            {t("prefix")} <span lang={lang}>{name}</span>
+          </span>
         )}
       </Badge>
     </span>

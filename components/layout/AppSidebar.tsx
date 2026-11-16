@@ -8,8 +8,8 @@ import { useUnreadNotificationCount } from "@/components/NotificationBell";
 import FeedbackDialog from "@/components/project/FeedbackDialog";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import { selectRecentProjects, useProjects } from "@/lib/hooks/use-projects";
-import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { useProjects } from "@/lib/hooks/use-projects";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { useAppShell } from "./AppShell";
 import OrgSwitcher from "./OrgSwitcher";
 import RecentProjects from "./RecentProjects";
@@ -30,14 +30,15 @@ export default function AppSidebar() {
     collapsed: collapsedPref,
     toggleCollapsed
   } = useAppShell();
-  const { projects } = useProjects();
+  // 3 dự án đang làm sửa gần nhất — BE sắp sẵn (FLF-404: không còn tải mọi dự án)
+  const { recentProjects: recent } = useProjects();
   const unreadCount = useUnreadNotificationCount();
-  const activeOrg = useActiveOrganization();
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const hideBilling = orgLoading || orgError || activeOrg?.role === "viewer";
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Drawer mobile luôn mở rộng; thu gọn chỉ áp dụng trên desktop
   const collapsed = collapsedPref && !navOpen;
-  const recent = selectRecentProjects(projects);
 
   return (
     // Cột nền xám nhạt, bên trong là một card trắng bo góc nổi lên (sidebar kiểu "floating panel")
@@ -122,23 +123,25 @@ export default function AppSidebar() {
               {section.id === "org" && activeOrg ? (
                 <OrgSwitcher activeOrg={activeOrg} collapsed={collapsed} />
               ) : null}
-              {section.items.map((item) => (
-                <SidebarNavItem
-                  key={item.id}
-                  item={item}
-                  collapsed={collapsed}
-                  active={
-                    item.status === "ready" &&
-                    isSidebarItemActive(item, pathname)
-                  }
-                  count={
-                    item.status === "ready" && item.badge === "unread"
-                      ? unreadCount
-                      : 0
-                  }
-                  onNavigate={closeNav}
-                />
-              ))}
+              {section.items
+                .filter((item) => !(item.id === "billing" && hideBilling))
+                .map((item) => (
+                  <SidebarNavItem
+                    key={item.id}
+                    item={item}
+                    collapsed={collapsed}
+                    active={
+                      item.status === "ready" &&
+                      isSidebarItemActive(item, pathname)
+                    }
+                    count={
+                      item.status === "ready" && item.badge === "unread"
+                        ? unreadCount
+                        : 0
+                    }
+                    onNavigate={closeNav}
+                  />
+                ))}
             </nav>
           ))}
           {!collapsed && (

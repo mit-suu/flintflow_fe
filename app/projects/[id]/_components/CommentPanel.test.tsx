@@ -1,10 +1,13 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl as render } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import CommentPanel, { type CommentTab } from "./CommentPanel";
 import { readChatCrDraft } from "./mode1/prefill";
 import type { SrsComment } from "@/types/comment";
 import type { OrgRole } from "@/types/organization";
+
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const comment = (over: Partial<SrsComment> = {}): SrsComment => ({
   comment_id: "CM-001",
@@ -23,8 +26,17 @@ const comment = (over: Partial<SrsComment> = {}): SrsComment => ({
   ...over,
 });
 
-const renderPanel = (props: { role: OrgRole | null; comments?: SrsComment[]; canCreateCr?: boolean; anchorExists?: boolean; blocked?: string | null; tab?: CommentTab }) => {
+const renderPanel = (props: {
+  role: OrgRole | null;
+  comments?: SrsComment[];
+  canCreateCr?: boolean;
+  anchorExists?: boolean;
+  blocked?: string | null;
+  tab?: CommentTab;
+}) => {
   const onResolve = vi.fn(async () => {});
+  const onReply = vi.fn(async () => {});
+  const onLocate = vi.fn();
   const onTabChange = vi.fn();
   render(
     <CommentPanel
@@ -43,27 +55,60 @@ const renderPanel = (props: { role: OrgRole | null; comments?: SrsComment[]; can
       onClearFocus={() => {}}
       onCancelTarget={() => {}}
       onPost={async () => {}}
-      onReply={async () => {}}
+      onReply={onReply}
       onResolve={onResolve}
+      onLocate={onLocate}
     />
   );
-  return { onResolve, onTabChange, card: screen.queryAllByRole("listitem")[0] };
+  return { onResolve, onReply, onLocate, onTabChange, card: screen.queryAllByRole("listitem")[0] };
+};
+
+/** Mở menu ✓ (xử lý) của thẻ, trả về menu vừa mở. */
+const openResolveMenu = (card: HTMLElement) => {
+  fireEvent.click(within(card).getByRole("button", { name: "Xử lý comment" }));
+  return screen.getByRole("menu");
 };
 
 describe("CommentPanel (UC-49)", () => {
-  it("Viewer chỉ thấy Trả lời - không Resolve, không Tạo CR", () => {
+  it("Viewer chỉ có ô trả lời - không nút xử lý, không menu thêm (Tạo CR)", () => {
     const { card } = renderPanel({ role: "viewer" });
-    expect(within(card).getByRole("button", { name: "Trả lời" })).toBeInTheDocument();
-    expect(within(card).queryByRole("button", { name: "Đánh dấu đã xử lý" })).not.toBeInTheDocument();
-    expect(within(card).queryByRole("link", { name: "Tạo CR từ comment" })).not.toBeInTheDocument();
+    expect(within(card).getByRole("textbox", { name: "Trả lời…" })).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Xử lý comment" })).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Thêm thao tác" })).not.toBeInTheDocument();
   });
 
-  it("Analyst: Resolve gọi onResolve; Tạo CR mở form điền sẵn nguồn Viewer comment, người yêu cầu = tác giả, comment_id", () => {
-    const { card, onResolve } = renderPanel({ role: "analyst" });
-    fireEvent.click(within(card).getByRole("button", { name: "Đánh dấu đã xử lý" }));
-    expect(onResolve).toHaveBeenCalledWith("CM-001");
+  it("ô trả lời: bấm vào mới hiện Gửi, gửi đúng comment rồi thu lại", async () => {
+    const { card, onReply } = renderPanel({ role: "viewer" });
+    const box = within(card).getByRole("textbox", { name: "Trả lời…" });
+    expect(within(card).queryByRole("button", { name: "Gửi" })).not.toBeInTheDocument();
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: "Đồng ý" } });
+    fireEvent.click(within(card).getByRole("button", { name: "Gửi" }));
+    expect(onReply).toHaveBeenCalledWith("CM-001", "Đồng ý");
+    expect(await within(card).findByRole("textbox", { name: "Trả lời…" })).toHaveValue("");
+  });
 
-    const href = within(card).getByRole("link", { name: "Tạo CR từ comment" }).getAttribute("href")!;
+  it("Analyst: menu xử lý ⇒ Đã sửa gửi nhánh fixed; Giữ nguyên bắt lý do rồi gửi nhánh kept", async () => {
+    const { card, onResolve } = renderPanel({ role: "analyst" });
+    fireEvent.click(within(openResolveMenu(card)).getByRole("menuitem", { name: "Đã sửa" }));
+    expect(onResolve).toHaveBeenCalledWith("CM-001", { kind: "fixed" });
+    // Nút ✓ khoá trong lúc đang gửi; chờ lượt trước xong mới mở lại menu
+    await waitFor(() => expect(within(card).getByRole("button", { name: "Xử lý comment" })).toBeEnabled());
+
+    fireEvent.click(within(openResolveMenu(card)).getByRole("menuitem", { name: "Giữ nguyên…" }));
+    const save = within(card).getByRole("button", { name: "Lưu lý do" });
+    expect(save).toBeDisabled();
+    fireEvent.change(within(card).getByLabelText("Vì sao giữ nguyên?"), { target: { value: "Khách chốt giữ nguyên." } });
+    fireEvent.click(save);
+    expect(onResolve).toHaveBeenLastCalledWith("CM-001", { kind: "kept", reason: "Khách chốt giữ nguyên." });
+  });
+
+  it("Tạo CR (menu ⋯) mở form điền sẵn nguồn Viewer comment, người yêu cầu = tác giả, comment_id", () => {
+    push.mockClear();
+    const { card } = renderPanel({ role: "analyst" });
+    fireEvent.click(within(card).getByRole("button", { name: "Thêm thao tác" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Tạo CR từ comment" }));
+    const href = push.mock.calls[0][0] as string;
     expect(href.startsWith("/projects/p1?")).toBe(true);
     const prefill = readChatCrDraft(new URL(href, "http://x").searchParams);
     expect(prefill).toMatchObject({
@@ -77,18 +122,26 @@ describe("CommentPanel (UC-49)", () => {
     expect(prefill?.text).toContain("3.2.4 Cancel booking › Block 1 (bản 1.0)");
   });
 
-  it("chưa có baseline / dự án không có luồng CR ⇒ Lead chỉ có Resolve", () => {
+  it("chưa có baseline / dự án không có luồng CR ⇒ Lead chỉ có nút xử lý, không có menu thêm", () => {
     const { card } = renderPanel({ role: "lead", canCreateCr: false });
-    expect(within(card).getByRole("button", { name: "Đánh dấu đã xử lý" })).toBeInTheDocument();
-    expect(within(card).queryByRole("link", { name: "Tạo CR từ comment" })).not.toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Xử lý comment" })).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Thêm thao tác" })).not.toBeInTheDocument();
   });
 
   it("comment đã thành CR: badge mang mã CR, không còn nút xử lý; chỗ ghim mất ở bản này thì báo", () => {
     const { card } = renderPanel({ role: "lead", comments: [comment({ status: "converted", cr_id: "CR-005" })], anchorExists: false, tab: "closed" });
     expect(card.textContent).toContain("Đã thành CR-005");
     expect(card.textContent).toContain("Nội dung được ghim không còn trong phiên bản này.");
-    expect(within(card).queryByRole("button", { name: "Đánh dấu đã xử lý" })).not.toBeInTheDocument();
-    expect(within(card).queryByRole("link", { name: "Tạo CR từ comment" })).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Xử lý comment" })).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Thêm thao tác" })).not.toBeInTheDocument();
+  });
+
+  it("bấm vào thẻ ⇒ cuộn tới chỗ ghim; bấm nút bên trong thẻ thì không", () => {
+    const { card, onLocate } = renderPanel({ role: "lead", canCreateCr: false });
+    fireEvent.click(within(card).getByText("Cần nói rõ ai được huỷ."));
+    expect(onLocate).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(card).getByRole("button", { name: "Xử lý comment" }));
+    expect(onLocate).toHaveBeenCalledTimes(1);
   });
 
   it("hai tab Đang mở / Đã đóng có đếm số; mỗi tab chỉ hiện comment của nó", () => {

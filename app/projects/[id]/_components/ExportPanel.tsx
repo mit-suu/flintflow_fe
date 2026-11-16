@@ -15,6 +15,7 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 import { hookErrorText } from "@/lib/hook-errors";
 import { isGoogleAuthEnabled } from "@/lib/google-auth";
 import GoogleDocsExportSection from "./GoogleDocsExportSection";
+import { openMigrationMissing } from "./template-migration/missing-flags";
 
 interface ExportPanelProps {
   projectId: string;
@@ -36,6 +37,11 @@ interface ExportPanelProps {
    * Dự án "Upload SRS có sẵn": bản in lấy chính file upload làm nền, không có phụ lục cờ §I ⇒ chỉ báo số cờ đỏ đang mở.
    */
   sourceFile?: boolean;
+  /**
+   * FLF-410: số màn đang chờ lượt "Vẽ lại bằng mockup" chạy nền. > 0 ⇒ bấm tải bản nháp hỏi trước: xuất ngay (các màn đó dùng
+   * ảnh gốc) hoặc đợi vẽ xong rồi tự xuất.
+   */
+  mockupPending?: number;
 }
 
 /** Ghim thẻ `<a download>` vào DOM trước khi click — Safari/Firefox bỏ qua click trên thẻ rời DOM. */
@@ -73,6 +79,7 @@ export default function ExportPanel({
   onTranslate,
   otherLanguageAvailable = false,
   sourceFile = false,
+  mockupPending = 0,
 }: ExportPanelProps) {
   const t = useTranslations("workspace.export");
   const tHook = useTranslations("workspace.hookErrors");
@@ -92,6 +99,9 @@ export default function ExportPanel({
   // FLF-265: `meta.translation` của chính nguồn đang xem thắng giá trị client tự suy
   const language = shownDocumentLanguage(translation, documentLanguage);
   const [downloading, setDownloading] = useState(false);
+  /** FLF-410: hỏi "xuất ngay hay đợi" khi còn màn đang vẽ mockup; `waiting` ⇒ tự xuất khi lượt vẽ xong. */
+  const [mockupAsk, setMockupAsk] = useState(false);
+  const [waitingMockups, setWaitingMockups] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   // FLF-334 B: ngôn ngữ của file — mặc định ngôn ngữ tài liệu (không gửi `lang`, file như trước)
   const [fileLanguage, setFileLanguage] = useState<DocumentLanguage | null>(null);
@@ -117,6 +127,9 @@ export default function ExportPanel({
   const selectFormat = (next: PanelFormat) => {
     setFormat(next);
     resetDownloadError();
+    // Câu hỏi / lượt chờ mockup thuộc lần tải của định dạng cũ — để lại thì tự tải nhầm định dạng khi vẽ xong
+    setMockupAsk(false);
+    setWaitingMockups(false);
   };
 
   const selectLanguage = (next: DocumentLanguage) => {
@@ -151,6 +164,8 @@ export default function ExportPanel({
   // FLF-329: cờ đỏ đã waive (dữ liệu cũ) / giữ nguyên vẫn chặn ⇒ vẫn đếm
   const openRedFlags = flags?.filter((f) => f.level === "red" && !f.resolved_at).length;
   const redCount = openRedFlags ?? document?.flagsAppendix?.redOpen.length ?? 0;
+  // Mục của mẫu mới chưa viết sau đổi mẫu: chặn phát hành bản mới, bản nháp vẫn tải được
+  const migrationMissing = flags ? openMigrationMissing(flags).length : 0;
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -191,6 +206,18 @@ export default function ExportPanel({
       setDownloading(false);
     }
   };
+
+  // FLF-410: "Đợi vẽ xong rồi xuất" — lượt vẽ mockup hết màn chờ ⇒ tự tải bản nháp (lùi một microtask: không set state đồng
+  // bộ trong effect)
+  useEffect(() => {
+    if (!waitingMockups || mockupPending > 0) return;
+    queueMicrotask(() => {
+      setWaitingMockups(false);
+      void handleDownload();
+    });
+    // `handleDownload` đọc state mới nhất mỗi lần render — chỉ cần chạy khi điều kiện chờ đổi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingMockups, mockupPending]);
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose}>
@@ -317,6 +344,12 @@ export default function ExportPanel({
           </div>
         )}
 
+        {migrationMissing > 0 && (
+          <div role="status" className="bg-accent-gold-soft rounded-control p-3 text-body text-accent-gold-text leading-relaxed">
+            {t("migrationMissing", { count: migrationMissing })}
+          </div>
+        )}
+
         {/* FLF-265: chỉ báo, KHÔNG chặn tải — mục chưa dịch in chữ gốc trong file (BE không bao giờ dịch lúc xuất) */}
         {!requestedLanguage && !empty && document && translation && translation.missing > 0 && (
           <div role="status" className="bg-accent-gold-soft border border-accent-gold-border rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex flex-col items-start gap-1.5">
@@ -366,12 +399,42 @@ export default function ExportPanel({
           />
         ) : (
           <>
+            {(mockupAsk || waitingMockups) && mockupPending > 0 && source === "draft" && (
+              <div role="alert" className="flex flex-col gap-2 rounded-[10px] bg-[#FFF6E5] px-3 py-2.5 text-body text-[#7A4B00]">
+                <span>{waitingMockups ? t("mockupWaiting", { count: mockupPending }) : t("mockupPending", { count: mockupPending })}</span>
+                {!waitingMockups && (
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMockupAsk(false);
+                        void handleDownload();
+                      }}
+                      className="font-bold hover:underline cursor-pointer"
+                    >
+                      {t("mockupExportNow")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMockupAsk(false);
+                        setWaitingMockups(true);
+                      }}
+                      className="font-bold hover:underline cursor-pointer"
+                    >
+                      {t("mockupWait")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
 
             <button
               type="button"
               disabled={downloading || empty || loading}
-              onClick={() => void handleDownload()}
+              onClick={() => (mockupPending > 0 && source === "draft" ? setMockupAsk(true) : void handleDownload())}
               className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
             >
               {downloading

@@ -16,6 +16,7 @@ const infinite = (over: Partial<InfiniteListState<string>> = {}): InfiniteListSt
   hasMore: true,
   retry: vi.fn(),
   reload: vi.fn(),
+  updateItems: vi.fn(),
   sentinelRef: vi.fn(),
   ...over,
 });
@@ -67,6 +68,14 @@ describe("PagedDataList + Pagination", () => {
     expect(list.setPage).toHaveBeenCalledWith(3);
     fireEvent.click(screen.getByRole("button", { name: "Trang trước" }));
     expect(list.setPage).toHaveBeenCalledWith(1);
+  });
+
+  it("đổi trang ⇒ cuộn đầu danh sách lên mép trên vùng cuộn (không đứng yên ở cuối trang)", () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    renderWithIntl(<PagedDataList list={paged({ page: 2 })} {...common} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tới trang 3" }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    scrollIntoView.mockRestore();
   });
 
   it("chỉ một trang ⇒ không có thanh chuyển trang; trang cuối ⇒ khoá nút Trang sau", () => {

@@ -62,6 +62,19 @@ describe("StructurePreview - màn đọc khung (business-flow §3.1.2)", () => {
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 
+  it("FLF-411 U1-1: khung mẫu (chế độ 3) không nói \"đọc phần đã có\"; U3-3: mục không tên không in mã custom:CS02", () => {
+    const tpl: Preview = {
+      ...preview,
+      summary: { present: 0, missing: 3, out_of_scope: 1, kind: "template" },
+      sections: [...preview.sections.slice(0, 3), { section_id: "custom:CS02", title: "custom:CS02", status: "out_of_scope", order: 3 }],
+    };
+    const { container } = renderWithIntl(<StructurePreview fileName="Report3.docx" preview={tpl} estimate={null} credits={5} {...handlers()} />);
+    expect(screen.getByText(/File là khung mẫu, chưa có nội dung để đọc/)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/đọc phần đã có|bản gốc 0\.1/);
+    expect(container.textContent).not.toContain("custom:CS02");
+    expect(screen.getByText("Mục riêng")).toBeInTheDocument();
+  });
+
   it("chữ trên màn không còn thuật ngữ nội bộ; bản tiếng Anh không sót tiếng Việt", () => {
     const { container, unmount } = renderWithIntl(<StructurePreview fileName="SRS.docx" preview={preview} estimate={estimate(12, 100)} credits={100} {...handlers()} />);
     expect(container.textContent).not.toMatch(/\b(block|field|section|mapping|baseline|v0)\b|tất định|quyết toán|S-\d/i);
@@ -115,6 +128,51 @@ describe("ImportProgress - tiến trình đọc file", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Tiếp tục/ }));
     expect(onResume).toHaveBeenCalled();
+  });
+
+  it("FLF-411 U-1 / #14: mục xếp theo thứ tự trong file (heading_map), không để mục nhóm BE đọc trước lên đầu; không in mã mục", () => {
+    const sec = (section_id: string, status: "done" | "pending" = "pending") => ({ section_id, status, fields_total: 0, fields_needing_review: 0, error: null });
+    const headings = [
+      { block_id: "B0001", heading_text: "1. Product Overview", section_id: "fixed:1", confidence: 1, detected_by: "style", confirmed: true },
+      { block_id: "B0002", heading_text: "2.1 Actors", section_id: "fixed:2.1", confidence: 1, detected_by: "style", confirmed: true },
+      { block_id: "B0040", heading_text: "3.2 Ordering", section_id: "unmapped", confidence: 1, detected_by: "style", confirmed: true },
+    ] as unknown as Parameters<typeof ImportProgress>[0]["headings"];
+    renderWithIntl(
+      <ImportProgress doc={doc({})} sections={[sec("feature:@B0040"), sec("custom:CS02"), sec("fixed:1", "done"), sec("fixed:2.1")]} headings={headings} onResume={() => {}} />
+    );
+    const paper = screen.getByRole("region", { name: "Tài liệu của bạn" });
+    const rows = Array.from(paper.querySelectorAll("li")).map((li) => li.textContent ?? "");
+    expect(rows[0]).toContain("1. Product Overview");
+    expect(rows[1]).toContain("2.1 Actors");
+    expect(rows[2]).toContain("3.2 Ordering");
+    expect(paper.textContent).not.toMatch(/custom:|feature:|@B\d/);
+  });
+
+  it("FLF-411 U2-8: có danh sách mục của màn đọc khung ⇒ đếm đúng tập đó (heading tính năng không tính), mục lỗi vẫn hiện", () => {
+    const sec = (section_id: string, status: "done" | "pending" | "failed" = "pending") => ({ section_id, status, fields_total: 0, fields_needing_review: 0, error: null });
+    renderWithIntl(
+      <ImportProgress
+        doc={doc({})}
+        sections={[sec("feature:@B0383", "done"), sec("fixed:1", "done"), sec("function:@B0384"), sec("feature:@B0439", "failed")]}
+        previewSectionIds={["fixed:1", "function:@B0384"]}
+        onResume={() => {}}
+      />
+    );
+    expect(screen.getByText("mục đã đọc").parentElement).toHaveTextContent("1/2");
+    const paper = screen.getByRole("region", { name: "Tài liệu của bạn" });
+    expect(paper.querySelectorAll("li")).toHaveLength(3);
+  });
+
+  it("FLF-411 U1-2: khung mẫu / chế độ 3-4 không nói \"bản gốc 0.1\"; chế độ 1 vẫn nói", () => {
+    const { container, unmount } = renderWithIntl(<ImportProgress doc={doc({})} sections={[]} resolvedMode={3} fileKind="template" onResume={() => {}} />);
+    expect(container.textContent).not.toContain("0.1");
+    expect(container.textContent).toContain("Đánh dấu các mục của khung mẫu");
+    unmount();
+    const m4 = renderWithIntl(<ImportProgress doc={doc({})} sections={[]} resolvedMode={4} fileKind="written" onResume={() => {}} />);
+    expect(m4.container.textContent).not.toContain("0.1");
+    m4.unmount();
+    const m1 = renderWithIntl(<ImportProgress doc={doc({})} sections={[]} resolvedMode={1} fileKind="written" onResume={() => {}} />);
+    expect(m1.container.textContent).toContain("Ghép thành bản gốc 0.1");
   });
 
   it("dựng tài liệu bị dừng ⇒ banner Tiếp tục; AI quá tải ⇒ dòng đọc lại ảnh", () => {

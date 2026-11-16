@@ -162,4 +162,26 @@ describe("Mode1WorkspaceTools - Analyst (không phải Lead)", () => {
     expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
   });
+
+  it("Lead thấy lối Đổi mẫu (đọc baseline, gói duyệt, lần đổi mẫu); Viewer thì không gọi API đổi mẫu", async () => {
+    serveVersions([VERSION_00]);
+    servePackage();
+    const migrationCalls = { n: 0 };
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/baselines`, () => HttpResponse.json({ data: [{ id: "B01" }], error: null })),
+      http.get(`${API_BASE_URL}/projects/:projectId/template-migrations`, () => {
+        migrationCalls.n += 1;
+        return HttpResponse.json({ data: [], error: null });
+      })
+    );
+    const { unmount } = renderTools({ orgRole: "lead" });
+    expect(await screen.findByRole("link", { name: "Đổi mẫu" })).toHaveAttribute("href", `/projects/${P}?panel=template`);
+    expect(migrationCalls.n).toBe(1);
+    unmount();
+
+    migrationCalls.n = 0;
+    renderTools({ orgRole: "viewer", readOnly: true });
+    await screen.findByText("Cờ & change request");
+    expect(migrationCalls.n).toBe(0);
+  });
 });

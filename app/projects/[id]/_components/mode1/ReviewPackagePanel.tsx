@@ -25,6 +25,8 @@ interface ReviewPackagePanelProps {
    * Có giá trị ⇒ khoá "Gửi Lead duyệt cả gói" và "Phát hành thẳng" — gói lúc đó thiếu đúng thay đổi đang sửa.
    */
   crInProgress?: string | null;
+  /** Số mục thiếu sau đổi mẫu còn cờ đỏ (cờ `template_section_migration_missing`) — chặn gửi duyệt / phát hành, nêu rõ lý do. */
+  migrationMissing?: number;
 }
 
 const REASON_MIN = 10;
@@ -34,7 +36,7 @@ const REASON_MIN = 10;
  * BA **gửi Lead duyệt cả gói** (cờ đỏ = 0) ⇒ bản nháp khoá; Lead **duyệt cả gói** (= phát hành số chính) hoặc **yêu cầu
  * sửa** kèm lý do ⇒ mở khoá. Lead tự làm thì phát hành thẳng từ đây. Không duyệt từng CR.
  */
-export default function ReviewPackagePanel({ projectId, role, onChanged, refreshToken = 0, crInProgress = null }: ReviewPackagePanelProps) {
+export default function ReviewPackagePanel({ projectId, role, onChanged, refreshToken = 0, crInProgress = null, migrationMissing = 0 }: ReviewPackagePanelProps) {
   const t = useTranslations("mode1.reviewPackage");
   const L = useMode1Labels();
   const [pkg, setPkg] = useState<ReviewPackage | null>(null);
@@ -97,9 +99,14 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
         : t("blockedEditingNew")
       : count === 0
         ? t("blockedEmpty")
-        : pkg.red_open > 0
+        : migrationMissing > 0
+          ? t("blockedMigrationMissing", { count: migrationMissing })
+          : pkg.red_open > 0
           ? t("blockedRed", { count: pkg.red_open })
           : null;
+  const migrationBlock = migrationMissing > 0 ? t("blockedMigrationMissing", { count: migrationMissing }) : null;
+  // Gói đang chờ duyệt không có `submitBlocked` nhưng vẫn không duyệt được khi còn mục thiếu
+  const shownBlock = submitBlocked ?? (pending && isLead ? migrationBlock : null);
   const btn = "px-3 py-1.5 rounded-[10px] text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
 
   return (
@@ -213,7 +220,13 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
           )}
           {isLead && pending && (
             <>
-              <button type="button" disabled={busy !== null} onClick={() => setAsking("release")} className={`${btn} bg-[#6A62C4] text-white`}>
+              <button
+                type="button"
+                disabled={busy !== null || migrationMissing > 0}
+                title={migrationBlock ?? undefined}
+                onClick={() => setAsking("release")}
+                className={`${btn} bg-[#6A62C4] text-white`}
+              >
                 {t("approveAll")}
               </button>
               <button type="button" disabled={busy !== null} onClick={() => setAsking("changes")} className={`${btn} border border-[#F2CACA] bg-white text-[#B03030]`}>
@@ -234,7 +247,7 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
           )}
         </div>
       )}
-      {submitBlocked && asking === null && (canSubmit || isLead) && <p className="text-body text-[#8A6D1F]">{submitBlocked}</p>}
+      {shownBlock && asking === null && (canSubmit || isLead) && <p className="text-body text-[#8A6D1F]">{shownBlock}</p>}
     </section>
   );
 }

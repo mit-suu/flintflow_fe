@@ -1,76 +1,83 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Card } from "@/components/shadcn/card";
+import { PagedDataList } from "@/components/ui";
 import { fetchTemplateGaps, type TemplateGapRow } from "@/lib/api/admin";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import AdminHeader from "../_components/AdminHeader";
-import { AdminMain, AdminPageHeader, AdminScroll, ErrorBanner, LoadingBlock } from "../_components/AdminPage";
+import { AdminMain, AdminPageHeader, AdminScroll, ErrorBanner } from "../_components/AdminPage";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { sectionLabel } from "@/lib/constants/fpt-sections";
+
+const PAGE_SIZE = 20;
+
+/** Cột từ `md`: tiêu đề | số dự án gặp | còn trống | gợi ý đích. Dưới `md` các ô xếp dưới tiêu đề. */
+const ROW_GRID = "md:grid md:grid-cols-[minmax(0,1fr)_96px_96px_minmax(0,0.8fr)] md:items-center md:gap-4";
 
 /**
  * FLF-278 trên FLF-335/336: heading của mẫu bắt buộc mà FlintFlow không có mục tương ứng (thành mục riêng) và còn trống ở
  * bao nhiêu dự án — đầu vào để nhóm quyết định mở rộng Spine (`flintflow_be/docs/template-gap-proposal.md`). Chỉ đọc.
+ * Thanh số trang (FLF-404): BE gom toàn bộ rồi cắt trang, không còn cắt cứng 100 dòng.
  */
 export default function AdminTemplateGapsPage() {
   const t = useTranslations("admin");
-  const [data, setData] = useState<{ projects: number; rows: TemplateGapRow[] } | null>(null);
-  /** Lỗi tải gần nhất: dịch lúc render — đổi ngôn ngữ không phải tải lại. */
-  const [error, setError] = useState<{ cause: unknown } | null>(null);
+  /** Số dự án làm cơ sở thống kê — của toàn bộ, không theo trang. */
+  const [projects, setProjects] = useState<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchTemplateGaps()
-      .then((next) => {
-        if (!cancelled) setData(next);
-      })
-      .catch((err) => {
-        if (!cancelled) setError({ cause: err });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const list = usePagedList<TemplateGapRow>({
+    key: "gaps",
+    fetchPage: async (page) => {
+      const res = await fetchTemplateGaps(page, PAGE_SIZE);
+      setProjects(res.projects);
+      return res;
+    },
+  });
 
   return (
     <>
       <AdminHeader />
       <AdminMain>
         <AdminPageHeader title={t("templateGaps.title")} description={t("templateGaps.description")} />
-        {error && <ErrorBanner message={userErrorMessage(error.cause, t("templateGaps.loadFailed"))} />}
+        {list.error ? <ErrorBanner message={userErrorMessage(list.error, t("templateGaps.loadFailed"))} /> : null}
         <AdminScroll>
-          {data === null && !error ? (
-            <LoadingBlock label={t("templateGaps.loading")} variant="list" />
-          ) : !data || data.rows.length === 0 ? (
-            <Card className="py-16">
-              <p className="text-muted-foreground text-center text-body">{t("templateGaps.empty")}</p>
-            </Card>
-          ) : (
-            <Card className="py-0 overflow-hidden">
-              <p className="text-muted-foreground px-5 pt-4 text-caption">{t("templateGaps.basis", { projects: data.projects })}</p>
-              <table className="w-full text-body">
-                <thead>
-                  <tr className="text-muted-foreground text-caption text-left">
-                    <th className="px-5 py-2 font-semibold">{t("templateGaps.colTitle")}</th>
-                    <th className="px-3 py-2 font-semibold text-right">{t("templateGaps.colProjects")}</th>
-                    <th className="px-3 py-2 font-semibold text-right">{t("templateGaps.colEmpty")}</th>
-                    <th className="px-5 py-2 font-semibold">{t("templateGaps.colSuggested")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.rows.map((row) => (
-                    <tr key={row.key} className="border-t">
-                      <td className="px-5 py-2.5">{row.samples.join(" · ")}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{row.projects}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{row.empty}</td>
-                      <td className="px-5 py-2.5 text-muted-foreground">{row.suggested_destination ? sectionLabel(row.suggested_destination, "vi") : "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
+          {projects !== null && list.total > 0 && (
+            <p className="text-muted-foreground shrink-0 text-caption">{t("templateGaps.basis", { projects })}</p>
           )}
+          <PagedDataList
+            list={list}
+            getKey={(row) => row.key}
+            loadingLabel={t("templateGaps.loading")}
+            rowClassName={`flex flex-col gap-1 text-body ${ROW_GRID}`}
+            empty={
+              !list.error && (
+                <p className="bg-surface-container-low text-muted-foreground rounded-card px-4 py-16 text-center text-body">{t("templateGaps.empty")}</p>
+              )
+            }
+            // Tiêu đề cột chỉ có khi các ô thẳng cột (từ `md`)
+            header={
+              <div aria-hidden className={`hidden ${ROW_GRID} text-muted-foreground px-3 pt-1.5 pb-2 text-caption font-semibold`}>
+                <span>{t("templateGaps.colTitle")}</span>
+                <span className="text-right">{t("templateGaps.colProjects")}</span>
+                <span className="text-right">{t("templateGaps.colEmpty")}</span>
+                <span>{t("templateGaps.colSuggested")}</span>
+              </div>
+            }
+            renderItem={(row) => (
+              <>
+                <span className="min-w-0 break-words">{row.samples.join(" · ")}</span>
+                <span className="text-muted-foreground tabular-nums md:text-right md:text-foreground">
+                  <span className="md:hidden">{t("templateGaps.colProjects")}: </span>
+                  {row.projects}
+                </span>
+                <span className="text-muted-foreground tabular-nums md:text-right md:text-foreground">
+                  <span className="md:hidden">{t("templateGaps.colEmpty")}: </span>
+                  {row.empty}
+                </span>
+                <span className="text-muted-foreground min-w-0">{row.suggested_destination ? sectionLabel(row.suggested_destination, "vi") : "-"}</span>
+              </>
+            )}
+          />
         </AdminScroll>
       </AdminMain>
     </>

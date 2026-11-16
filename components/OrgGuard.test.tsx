@@ -3,7 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
-import OrgGuard, { ONBOARDING_PATH } from "./OrgGuard";
+import OrgGuard, { ONBOARDING_PATH, ORGANIZATIONS_PATH } from "./OrgGuard";
 
 const replace = vi.fn();
 let pathname = "/home";
@@ -90,6 +90,37 @@ describe("OrgGuard (BPMN Flow 10.6 - chặn trước khi BE trả 409)", () => {
 
   it("ở chính trang onboarding thì không chặn (tránh vòng lặp)", async () => {
     pathname = ONBOARDING_PATH;
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+
+    renderWithIntl(
+      <OrgGuard>
+        <p>nội dung</p>
+      </OrgGuard>
+    );
+
+    expect(screen.getByText("nội dung")).toBeInTheDocument();
+    expect(fetchMyOrganizations).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("thuộc từ 2 org trở lên mà chưa chọn org ⇒ đưa sang /home/organizations thay vì tự chọn org đầu", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    vi.mocked(fetchMyOrganizations).mockResolvedValue([org("org-1"), org("org-2")]);
+
+    renderWithIntl(
+      <OrgGuard>
+        <p>nội dung</p>
+      </OrgGuard>
+    );
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(ORGANIZATIONS_PATH));
+    expect(switchOrganization).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(screen.queryByText("nội dung")).not.toBeInTheDocument();
+  });
+
+  it("ở chính trang /home/organizations thì không chặn (tránh vòng lặp)", async () => {
+    pathname = ORGANIZATIONS_PATH;
     vi.mocked(getActiveOrgId).mockReturnValue(null);
 
     renderWithIntl(

@@ -45,6 +45,10 @@ export const getImport = (projectId: string) => apiCall<GetImportResponse>(`${ba
 export const patchMapping = (projectId: string, body: MappingPatchRequest) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/mapping`, { method: "PATCH", body: JSON.stringify(body) });
 
+/** FLF-412: cả tập mục chọn Bỏ chữ ở màn đọc khung (trước Bắt đầu) — BE tính lại bản sơ bộ, đọc lại `GET /import`. */
+export const setDropText = (projectId: string, importId: string, keys: string[]) =>
+  apiCall<ImportStateResponse>(`${base(projectId)}/import/drop-text`, { method: "PATCH", body: JSON.stringify({ import_id: importId, keys }) });
+
 /**
  * Nút "Bắt đầu" (FLF-343): BE chạy một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu "đây là bản mới nhất"
  * (bắt buộc khi file chưa xác nhận — thiếu ⇒ 409 `IMPORT_NEEDS_LATEST_CONFIRM`).

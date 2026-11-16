@@ -126,3 +126,19 @@ export const fallbackGateMessage = (
   const rest = groups.size > FALLBACK_MAX_GROUPS ? t("fallbackRest") : "";
   return t("fallbackUpdated", { parts: parts.join(", "), rest });
 };
+
+/**
+ * FLF-411 #19: cờ thuộc phạm vi cổng chốt đang mở — bước sở hữu cờ (`remediation_step`, BE đặt bằng bước sở hữu mục của cờ)
+ * là bước của cổng, hoặc một bước của giai đoạn khi là cổng cuối giai đoạn. Cờ của mục bước khác sở hữu (vd "4.2.2 chưa có
+ * dữ liệu" khi đang ở "Tầm nhìn") không nêu ở thẻ chốt — chúng nằm ở panel Kiểm tra.
+ */
+export const isFlagInGateScope = (
+  flag: { remediation_step?: string | null },
+  scope: { stepId: string | null; phase?: string | null; stepIds?: readonly string[] }
+): boolean => {
+  const owner = flag.remediation_step;
+  if (!owner) return false;
+  if (owner === scope.stepId || scope.stepIds?.includes(owner)) return true;
+  // Cổng cuối giai đoạn: mọi bước của giai đoạn (kể cả bước tự qua) — `S-5.1@SCR01` thuộc giai đoạn `S-5`
+  return !!scope.phase && owner.split(".")[0] === scope.phase;
+};

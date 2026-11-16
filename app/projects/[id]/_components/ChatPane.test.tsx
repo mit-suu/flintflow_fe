@@ -50,6 +50,9 @@ const renderPane = (
     knowledgePending?: boolean;
     streamingMessage?: string | null;
     isStreaming?: boolean;
+    questionCard?: React.ReactNode;
+    questionCardVisible?: boolean;
+    inputPlaceholder?: string;
   } = {}
 ) => {
   renderWithIntl(
@@ -71,6 +74,19 @@ const renderPane = (
 
 // FLF-279: lượt tri thức không stream chữ, nên nếu không vẽ gì thì khung chat im lặng hoàn toàn trong
 // lúc chờ — đúng cái acceptance criteria muốn tránh.
+describe("ChatPane - chữ gợi ý ô nhập khi đang có câu hỏi chờ (FLF-393)", () => {
+  it("có thẻ lựa chọn ⇒ \"Hoặc trả lời trực tiếp…\"", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { questionCard: <div>thẻ</div>, questionCardVisible: true })
+    expect(screen.getByPlaceholderText("Hoặc trả lời trực tiếp…")).toBeInTheDocument()
+  })
+
+  it("mọi câu chờ đều là câu mở (thẻ không vẽ gì) ⇒ không nói \"Hoặc trả lời trực tiếp…\", dùng chữ trang truyền vào", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { questionCard: <div />, questionCardVisible: false, inputPlaceholder: "Trả lời các câu hỏi ở trên…" })
+    expect(screen.queryByPlaceholderText("Hoặc trả lời trực tiếp…")).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText("Trả lời các câu hỏi ở trên…")).toBeInTheDocument()
+  })
+})
+
 describe("ChatPane - chờ câu trả lời tri thức", () => {
   it("hiện dòng chờ có role=status khi knowledgePending", () => {
     renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true });

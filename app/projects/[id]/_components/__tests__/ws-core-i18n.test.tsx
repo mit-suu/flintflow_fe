@@ -20,6 +20,9 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Header có nút đổi ngôn ngữ (LocaleSwitcher) — dùng router để làm mới trang sau khi đổi
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
+
 // Tên dự án / tiêu đề thay đổi là dữ liệu (không dịch) — đặt không dấu để phép thử chỉ đo chữ giao diện.
 const PROJECT = { _id: "p1", name: "FlintFlow", domain: "SaaS", status: "active" } as Project;
 

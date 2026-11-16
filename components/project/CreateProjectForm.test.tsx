@@ -87,6 +87,26 @@ describe("CreateProjectForm - hộp Tạo dự án hai ô (business-flow §1)", 
     expect(screen.queryByText(/File này trông như một SRS/)).not.toBeInTheDocument();
   });
 
+  it("FLF-409: tham khảo có thể là SRS (vd bảng Use Case) ⇒ chỉ nhắc một dòng, không hỏi; có SRS rồi ⇒ không nhắc", async () => {
+    vi.mocked(precheckDocx).mockResolvedValue({ data: { looks_like_srs: false, srs_suggestion: "possible", stamp: null }, error: null } as never);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.change(refInput(), { target: { files: [docx("Bang Use Case.docx")] } });
+    expect(await screen.findByText(/Nếu đây là SRS bạn muốn FlintFlow hoàn thiện/)).toBeInTheDocument();
+    expect(screen.queryByText(/File này trông như một SRS/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Giữ làm tham khảo" })).not.toBeInTheDocument();
+    fireEvent.change(srsInput(), { target: { files: [docx("SRS.docx")] } });
+    expect(screen.queryByText(/Nếu đây là SRS bạn muốn FlintFlow hoàn thiện/)).not.toBeInTheDocument();
+  });
+
+  it("FLF-409: nhắc nhẹ ⇒ bấm Chuyển sang ô SRS ⇒ file vào ô SRS", async () => {
+    vi.mocked(precheckDocx).mockResolvedValue({ data: { looks_like_srs: false, srs_suggestion: "possible", stamp: null }, error: null } as never);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.change(refInput(), { target: { files: [docx("SRS tu do.docx")] } });
+    await screen.findByText(/Nếu đây là SRS bạn muốn FlintFlow hoàn thiện/);
+    fireEvent.click(screen.getByRole("button", { name: "Chuyển sang ô SRS" }));
+    expect(screen.getByLabelText(/Bổ sung các mục còn thiếu/)).toBeInTheDocument();
+  });
+
   it("có SRS + tham khảo trông như SRS ⇒ cảnh báo bản khác, Giữ làm tham khảo ⇒ ẩn gợi ý; tham khảo tải lên sau khi tạo", async () => {
     vi.mocked(precheckDocx).mockResolvedValue({ data: { looks_like_srs: true, stamp: null }, error: null } as never);
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);

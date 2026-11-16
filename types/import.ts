@@ -313,6 +313,16 @@ export interface GetImportResponse {
   target_structure?: TargetStructure | null;
   /** Màn đọc khung: cấu trúc đích sơ bộ tính bằng Code lúc upload (trước Bắt đầu, không tốn credit). */
   structure_preview?: StructurePreview | null;
+  /** FLF-412: mục có chữ của file + lựa chọn Bỏ chữ — chỉ có trước Bắt đầu; khác ⇒ null. */
+  text_sections?: TextSection[] | null;
+}
+
+/** FLF-412: vùng heading có chữ ở màn đọc khung (khoá = `block_id` của heading). */
+export interface TextSection {
+  key: string;
+  title: string;
+  level: number;
+  dropped: boolean;
 }
 
 /**

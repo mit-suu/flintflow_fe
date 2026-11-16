@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useTransition } from "react";
-import { getStoredAuthToken } from "@/lib/api/token-store";
+import { hasSession } from "@/lib/api/token-store";
 import { updateMyLocale } from "@/lib/api/users";
 import { markAccountLocaleSettled } from "@/lib/hooks/use-account-locale";
 import { LOCALES, persistLocale, type Locale } from "@/lib/i18n";
@@ -55,7 +55,7 @@ export default function LocaleSwitcher({ className = "" }: { className?: string 
     markAccountLocaleSettled();
     // Đã đăng nhập ⇒ lưu vào tài khoản (lần đăng nhập sau, thiết bị khác theo lựa chọn này). Lỗi không chặn đổi
     // ngôn ngữ trên thiết bị này, nhưng phải để lại dấu vết.
-    if (getStoredAuthToken()) {
+    if (hasSession()) {
       void updateMyLocale(locale).catch((err: unknown) => {
         console.error("[LocaleSwitcher] Failed to save locale to account:", err);
       });
