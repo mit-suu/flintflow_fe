@@ -3,7 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
-import OrgGuard, { ONBOARDING_PATH, ORGANIZATIONS_PATH } from "./OrgGuard";
+import OrgGuard, { ONBOARDING_PATH, ORGANIZATIONS_PATH, PROFILE_PATH } from "./OrgGuard";
 
 const replace = vi.fn();
 let pathname = "/home";
@@ -103,9 +103,58 @@ describe("OrgGuard (BPMN Flow 10.6 - chặn trước khi BE trả 409)", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("thuộc từ 2 org trở lên mà chưa chọn org ⇒ đưa sang /home/organizations thay vì tự chọn org đầu", async () => {
+  it("ở trang organizations hoặc profile thì không chặn (miễn trừ cho trang không cần org)", async () => {
     vi.mocked(getActiveOrgId).mockReturnValue(null);
-    vi.mocked(fetchMyOrganizations).mockResolvedValue([org("org-1"), org("org-2")]);
+
+    pathname = ORGANIZATIONS_PATH;
+    const { rerender } = renderWithIntl(
+      <OrgGuard>
+        <p>trang đổi tổ chức</p>
+      </OrgGuard>
+    );
+    expect(screen.getByText("trang đổi tổ chức")).toBeInTheDocument();
+    expect(fetchMyOrganizations).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+
+    pathname = PROFILE_PATH;
+    rerender(
+      <OrgGuard>
+        <p>trang hồ sơ</p>
+      </OrgGuard>
+    );
+    expect(screen.getByText("trang hồ sơ")).toBeInTheDocument();
+    expect(fetchMyOrganizations).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("tài khoản có nhiều tổ chức và có tổ chức mặc định ⇒ tự mở tổ chức mặc định rồi tải lại trang", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    vi.mocked(fetchMyOrganizations).mockResolvedValue([
+      { ...org("org-1"), isDefault: false },
+      { ...org("org-2"), isDefault: true },
+    ]);
+    vi.mocked(switchOrganization).mockResolvedValue({
+      accessToken: "t",
+      organization: org("org-2"),
+    });
+
+    renderWithIntl(
+      <OrgGuard>
+        <p>nội dung</p>
+      </OrgGuard>
+    );
+
+    await waitFor(() => expect(switchOrganization).toHaveBeenCalledWith("org-2"));
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("tài khoản có nhiều tổ chức nhưng chưa chọn mặc định ⇒ đẩy sang trang chọn tổ chức", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    vi.mocked(fetchMyOrganizations).mockResolvedValue([
+      { ...org("org-1"), isDefault: false },
+      { ...org("org-2"), isDefault: false },
+    ]);
 
     renderWithIntl(
       <OrgGuard>

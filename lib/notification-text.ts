@@ -198,6 +198,183 @@ export const useNotificationText = () => {
       // Đổi mẫu kẹt sau nhiều lần phục hồi: người tạo mở dự án và bấm Khôi phục
       case "template_migration_failed":
         return { title: t("template_migration_failed.title"), body: t("template_migration_failed.body") };
+      // FLF-427 (UC-71, BR-06): 17 loại thông báo song ngữ chuẩn hoá
+      case "org_member_joined": {
+        const name = str(meta.memberName) || notification.body.match(/^(.+?)\s+đã tham gia/i)?.[1] || (locale === "en" ? "A member" : "Một thành viên");
+        const org = str(meta.organizationName) || notification.body.match(/đã tham gia\s+(.+?)\s+với vai trò/i)?.[1] || (locale === "en" ? "the organization" : "tổ chức");
+        const roleRaw = str(meta.role) || notification.body.match(/với vai trò\s+(.+?)\.?$/i)?.[1] || "member";
+        const roleKey = roleRaw.toLowerCase();
+        const role = roleKey === "lead" || roleKey === "analyst" || roleKey === "viewer" ? tRoles(roleKey) : roleRaw;
+        return {
+          title: t("org_member_joined.title"),
+          body: t("org_member_joined.body", { name, org, role }),
+        };
+      }
+      case "org_role_changed": {
+        const roleRaw = str(meta.role) || notification.body.match(/Bạn giờ là\s+(.+?)\s+trong/i)?.[1] || "member";
+        const roleKey = roleRaw.toLowerCase();
+        const role = roleKey === "lead" || roleKey === "analyst" || roleKey === "viewer" ? tRoles(roleKey) : roleRaw;
+        const org = str(meta.organizationName);
+        return {
+          title: t("org_role_changed.title"),
+          body: org ? t("org_role_changed.body", { role, org }) : t("org_role_changed.bodyGeneric", { role }),
+        };
+      }
+      case "org_member_removed": {
+        const org = str(meta.organizationName);
+        return {
+          title: t("org_member_removed.title"),
+          body: org ? t("org_member_removed.body", { org }) : t("org_member_removed.bodyGeneric"),
+        };
+      }
+      case "org_member_left": {
+        const name = str(meta.memberName) || notification.body.match(/^(.+?)\s+đã rời/i)?.[1] || (locale === "en" ? "A member" : "Một thành viên");
+        const org = str(meta.organizationName) || notification.body.match(/đã rời\s+(.+?)\.?$/i)?.[1] || (locale === "en" ? "the organization" : "tổ chức");
+        return {
+          title: t("org_member_left.title"),
+          body: t("org_member_left.body", { name, org }),
+        };
+      }
+      case "baseline_submitted": {
+        const project = str(meta.projectName) || (locale === "en" ? "Project" : "Dự án");
+        return {
+          title: t("baseline_submitted.title", { project }),
+          body: t("baseline_submitted.body"),
+        };
+      }
+      case "baseline_rejected": {
+        const project = str(meta.projectName);
+        const reason = str(meta.reason) || notification.body || "";
+        return {
+          title: t("baseline_rejected.title", { project: project || (locale === "en" ? "Project" : "Dự án") }),
+          body: project ? t("baseline_rejected.body", { project, reason }) : t("baseline_rejected.bodyGeneric", { reason }),
+        };
+      }
+      case "baseline_approved": {
+        const version = str(meta.version) || notification.title.match(/Baseline\s+(\S+)\s+đã được duyệt/i)?.[1] || "v1.0";
+        return {
+          title: t("baseline_approved.title", { version }),
+          body: t("baseline_approved.body", { version }),
+        };
+      }
+      case "project_converted": {
+        const version = str(meta.version) || str(meta.doc_version) || notification.body.match(/phiên bản\s+(\S+?)\./i)?.[1] || "1.0";
+        return {
+          title: t("project_converted.title"),
+          body: t("project_converted.body", { version }),
+        };
+      }
+      case "change_request_written": {
+        const cr = str(meta.cr_id) || notification.title.match(/^(\S+)\s+đã ghi vào bản nháp/i)?.[1] || "CR";
+        const title = str(meta.cr_title);
+        const version = str(meta.result_doc_version) || str(meta.version) || notification.body.match(/bản nháp chung \(bản\s+(\S+?)\)/i)?.[1] || "1.0";
+        return {
+          title: t("change_request_written.title", { cr }),
+          body: title ? t("change_request_written.body", { cr, title, version }) : t("change_request_written.bodyShort", { cr, version }),
+        };
+      }
+      case "change_request_decided": {
+        const cr = str(meta.cr_id) || notification.title.match(/^([A-Za-z0-9_-]+)/i)?.[1] || "CR";
+        const title = str(meta.cr_title) || cr;
+        const version = str(meta.result_doc_version) || str(meta.version);
+        const group = str(meta.group_title) || (locale === "en" ? "Change group" : "Nhóm thay đổi");
+        const decision = str(meta.decision) || (notification.title.includes("được duyệt") ? "approved" : "rejected");
+        const reason = str(meta.reason);
+
+        if (version) {
+          return {
+            title: t("change_request_decided.titleWritten", { cr, title, version }),
+            body: t("change_request_decided.bodyWritten", { cr, title, version }),
+          };
+        }
+        if (decision === "approved") {
+          return {
+            title: t("change_request_decided.titleApproved", { cr, group, title }),
+            body: t("change_request_decided.bodyApproved", { cr, group, title }),
+          };
+        }
+        return {
+          title: t("change_request_decided.titleRejected", { cr, group, title }),
+          body: reason
+            ? t("change_request_decided.bodyRejectedReason", { cr, group, title, reason })
+            : t("change_request_decided.bodyRejected", { cr, group, title }),
+        };
+      }
+      case "review_package_submitted": {
+        const project = str(meta.projectName) || (locale === "en" ? "Project" : "Dự án");
+        const crIds = Array.isArray(meta.cr_ids) ? meta.cr_ids : (meta.crs ? [String(meta.crs)] : []);
+        const count = num(meta.count) ?? (crIds.length > 0 ? crIds.length : parseInt(notification.title.match(/:\s*(\d+)\s+thay đổi/i)?.[1] ?? "0", 10));
+        const crs = str(meta.crs) || (crIds.length > 0 ? crIds.join(", ") : "") || notification.body.match(/Gói\s+(.+?)\s+đã qua kiểm tra/i)?.[1] || "";
+        return {
+          title: t("review_package_submitted.title", { project, count, crs }),
+          body: t("review_package_submitted.body", { project, count, crs }),
+        };
+      }
+      case "review_package_changes_requested": {
+        const project = str(meta.projectName) || (locale === "en" ? "Project" : "Dự án");
+        const reason = str(meta.reason) || notification.body || "";
+        return {
+          title: t("review_package_changes_requested.title", { project }),
+          body: t("review_package_changes_requested.body", { reason }),
+        };
+      }
+      case "review_package_released": {
+        const project = str(meta.projectName) || (locale === "en" ? "Project" : "Dự án");
+        const version = str(meta.version) || notification.title.match(/phát hành bản\s+(\S+)/i)?.[1] || "v1.0";
+        const crIds = Array.isArray(meta.cr_ids) ? meta.cr_ids : (meta.crs ? [String(meta.crs)] : []);
+        const crs = str(meta.crs) || (crIds.length > 0 ? crIds.join(", ") : "") || notification.body.match(/Gói\s+(.+?)\s+đã vào bản/i)?.[1] || "";
+        return {
+          title: t("review_package_released.title", { project, version }),
+          body: t("review_package_released.body", { project, version, crs }),
+        };
+      }
+      case "comment_posted": {
+        const project = str(meta.projectName) || (locale === "en" ? "project" : "dự án");
+        const comment = str(meta.comment_id) || notification.body.match(/^(\S+)\s+trên/i)?.[1] || "Comment";
+        const anchor = str(meta.anchor_label);
+        const version = str(meta.version_label);
+        const preview = str(meta.preview);
+        return {
+          title: t("comment_posted.title", { project }),
+          body: anchor && version && preview !== undefined
+            ? t("comment_posted.body", { project, comment, anchor, version, preview })
+            : t("comment_posted.bodyShort", { comment }),
+        };
+      }
+      case "comment_replied": {
+        const comment = str(meta.comment_id) || notification.title.match(/^Trả lời mới ở\s+(\S+)/i)?.[1] || "Comment";
+        const project = str(meta.projectName);
+        const anchor = str(meta.anchor_label);
+        const preview = str(meta.preview);
+        return {
+          title: t("comment_replied.title", { comment }),
+          body: anchor && project && preview !== undefined
+            ? t("comment_replied.body", { comment, anchor, project, preview })
+            : t("comment_replied.bodyShort", { comment }),
+        };
+      }
+      case "comment_resolved": {
+        const comment = str(meta.comment_id) || notification.title.match(/^Comment\s+(\S+)\s+đã được xử lý/i)?.[1] || "Comment";
+        const project = str(meta.projectName);
+        const anchor = str(meta.anchor_label);
+        return {
+          title: t("comment_resolved.title", { comment }),
+          body: anchor && project
+            ? t("comment_resolved.body", { comment, anchor, project })
+            : t("comment_resolved.bodyShort", { comment }),
+        };
+      }
+      case "comment_converted": {
+        const comment = str(meta.comment_id) || notification.title.match(/^Comment\s+(\S+)\s+đã thành/i)?.[1] || "Comment";
+        const cr = str(meta.cr_id) || notification.title.match(/đã thành\s+(\S+)/i)?.[1] || "CR";
+        const anchor = str(meta.anchor_label);
+        return {
+          title: t("comment_converted.title", { comment, cr }),
+          body: anchor
+            ? t("comment_converted.body", { comment, cr, anchor })
+            : t("comment_converted.bodyShort", { comment, cr }),
+        };
+      }
       // UC-68: Admin điều chỉnh credit ví org — hỗ trợ cả dòng cũ thiếu `meta.organizationName`
       case "credits_adjusted": {
         const amount = num(meta.amount);

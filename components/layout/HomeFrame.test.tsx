@@ -25,6 +25,7 @@ vi.mock("@/lib/hooks/use-projects", () => ({ ProjectsProvider: ({ children }: { 
 vi.mock("@/components/OrgGuard", () => ({
   ONBOARDING_PATH: "/home/onboarding",
   ORGANIZATIONS_PATH: "/home/organizations",
+  PROFILE_PATH: "/home/profile",
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="org-guard">{children}</div>,
 }));
 
@@ -56,6 +57,32 @@ describe("HomeFrame", () => {
 
     expect(screen.getByTestId("org-guard")).toBeInTheDocument();
     expect(screen.queryByTestId("app-sidebar")).toBeNull();
+  });
+
+  it("chưa có tổ chức ở /home/organizations hoặc /home/profile: miễn trừ OrgGuard, có lối vào hồ sơ hoặc quay lại", () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+
+    pathname = "/home/organizations";
+    const { rerender } = renderWithIntl(<HomeFrame user={user}><p>màn organizations</p></HomeFrame>);
+    expect(screen.getByText("màn organizations")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-guard")).toBeNull();
+    const profileLink = screen.getByRole("link", { name: "Hồ sơ" });
+    expect(profileLink).toHaveAttribute("href", "/home/profile");
+
+    pathname = "/home/profile";
+    rerender(<HomeFrame user={user}><p>màn profile</p></HomeFrame>);
+    expect(screen.getByText("màn profile")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-guard")).toBeNull();
+    const backLink = screen.getByRole("link", { name: /Quay lại|Về/ });
+    expect(backLink).toHaveAttribute("href", "/home");
+  });
+
+  it("chưa có tổ chức ở /home/profile nhưng là admin: link quay lại trỏ về /admin/metrics", () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    pathname = "/home/profile";
+    renderWithIntl(<HomeFrame user={{ ...user, isAdmin: true }}><p>màn profile admin</p></HomeFrame>);
+    const backLink = screen.getByRole("link", { name: /Quay lại|Về/ });
+    expect(backLink).toHaveAttribute("href", "/admin/metrics");
   });
 
   it("chưa có tổ chức mà mở /home/organizations: khung tối giản hiện thẳng nội dung, không bọc OrgGuard", () => {

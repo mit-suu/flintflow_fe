@@ -1,12 +1,14 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import GoogleButton from "../../../components/GoogleButton";
 import { saveAuthToken } from "../../../lib/auth";
 import { buildVerifyEmailHref } from "../../../lib/otp";
 import { applyAccountLocale } from "@/lib/i18n";
+import { ACCOUNT_SUSPENDED, suspensionFromMeta, type SuspensionNotice } from "@/lib/account-suspended";
+import { resolvePostAuthDestination } from "@/lib/post-auth-redirect";
 import {
   AuthAlert,
   AuthCard,
@@ -30,6 +32,8 @@ export default function RegisterPage() {
   const tc = useTranslations("auth.common");
   const tg = useTranslations("auth.google");
   const tp = useTranslations("password");
+  const tl = useTranslations("auth.login");
+  const format = useFormatter();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,6 +41,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suspension, setSuspension] = useState<SuspensionNotice | null>(null);
 
   // Chỉ báo khi user đã gõ vào ô xác nhận, tránh đỏ ngay từ lúc mới vào trang
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
@@ -46,6 +51,7 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuspension(null);
 
     if (password !== confirmPassword) {
       setError(tc("passwordMismatch"));
@@ -69,6 +75,10 @@ export default function RegisterPage() {
       const json = await res.json();
 
       if (!res.ok || json.error) {
+        if (json.error?.code === ACCOUNT_SUSPENDED) {
+          setSuspension(suspensionFromMeta(json.meta ?? json.error?.meta));
+          return;
+        }
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
@@ -84,6 +94,7 @@ export default function RegisterPage() {
   const handleGoogle = async (idToken: string) => {
     setLoading(true);
     setError(null);
+    setSuspension(null);
     try {
       const res = await fetch(`${API_BASE_URL}/auth/google`, {
         method: "POST",
@@ -93,20 +104,33 @@ export default function RegisterPage() {
       });
       const json = await res.json();
       if (!res.ok || json.error) {
+        if (json.error?.code === ACCOUNT_SUSPENDED) {
+          setSuspension(suspensionFromMeta(json.meta ?? json.error?.meta));
+          return;
+        }
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("googleFailed")));
       }
+      const userRole = json.data?.user?.role || json.data?.role;
       if (json.data?.accessToken) {
-        saveAuthToken(json.data.accessToken, undefined, { persistent: true });
+        saveAuthToken(json.data.accessToken, userRole, { persistent: true });
       }
       // Google có thể đăng nhập vào tài khoản cũ đã chọn ngôn ngữ (FLF-259).
       applyAccountLocale(json.data?.user?.locale);
-      window.location.href = "/home";
+      const destination = resolvePostAuthDestination({
+        role: userRole,
+        needsOnboarding: json.data?.needsOnboarding,
+        activeOrgId: json.data?.activeOrgId,
+        organizations: json.data?.organizations,
+      });
+      window.location.href = destination;
     } catch (err) {
       setError(userErrorMessage(err, t("googleFailed")));
     } finally {
       setLoading(false);
     }
   };
+
+  const suspendedDate = suspension?.suspendedAt ? new Date(suspension.suspendedAt) : null;
 
   return (
     <AuthCard>
@@ -116,6 +140,18 @@ export default function RegisterPage() {
       <Divider>{t("orEmail")}</Divider>
 
       {error && <AuthAlert tone="error">{error}</AuthAlert>}
+      {suspension && (
+        <AuthAlert tone="error">
+          <p>
+            <strong>{tl("suspendedTitle")}</strong>
+          </p>
+          {suspension.reason && <p>{tl("suspendedReason", { reason: suspension.reason })}</p>}
+          {suspendedDate && !Number.isNaN(suspendedDate.getTime()) && (
+            <p>{tl("suspendedAt", { date: format.dateTime(suspendedDate, { dateStyle: "medium" }) })}</p>
+          )}
+          <p className="mt-1">{tl("suspendedHelp")}</p>
+        </AuthAlert>
+      )}
 
       <form className="flex flex-col gap-4" onSubmit={handleRegister}>
         <TextField

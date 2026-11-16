@@ -692,6 +692,87 @@
         "title": "Template change got stuck",
         "body": "The template change could not finish after several attempts. Open the project and choose Restore to go back to before the template change."
       },
+      "org_member_joined": {
+        "title": "New member joined the organization",
+        "body": "{name} joined {org} as {role}."
+      },
+      "org_role_changed": {
+        "title": "Your role has changed",
+        "body": "You are now {role} in {org}.",
+        "bodyGeneric": "You are now {role}."
+      },
+      "org_member_removed": {
+        "title": "You have been removed from the organization",
+        "body": "You are no longer a member of {org}.",
+        "bodyGeneric": "You are no longer a member of the organization."
+      },
+      "org_member_left": {
+        "title": "A member left the organization",
+        "body": "{name} left {org}."
+      },
+      "baseline_submitted": {
+        "title": "{project} is awaiting your baseline approval",
+        "body": "The document passed checks with no red flags. Review and approve to lock the baseline."
+      },
+      "baseline_rejected": {
+        "title": "{project}: Lead requested revisions on baseline",
+        "body": "{project}: {reason}",
+        "bodyGeneric": "{reason}"
+      },
+      "baseline_approved": {
+        "title": "Baseline {version} has been approved",
+        "body": "The baseline submission has been approved by the Lead and locked at {version}."
+      },
+      "project_converted": {
+        "title": "Baseline finalized - project switched to change management mode",
+        "body": "The document is locked at version {version}. All subsequent edits go through Change Requests; flags can no longer be waived."
+      },
+      "change_request_written": {
+        "title": "{cr} written to draft",
+        "body": "Change \"{title}\" has been written to the shared draft (version {version}). Submit the package to the Lead when ready to release.",
+        "bodyShort": "{cr} has been written to the shared draft (version {version}). Submit the package to the Lead when ready to release."
+      },
+      "change_request_decided": {
+        "titleWritten": "{cr} has been written to version {version}",
+        "bodyWritten": "Change \"{title}\" has been written to the document, version {version}.",
+        "titleApproved": "{cr}: change group \"{group}\" approved",
+        "bodyApproved": "Change group \"{group}\" of \"{title}\" was approved.",
+        "titleRejected": "{cr}: change group \"{group}\" rejected",
+        "bodyRejected": "Change group \"{group}\" of \"{title}\" was rejected.",
+        "bodyRejectedReason": "Change group \"{group}\" of \"{title}\" was rejected: {reason}."
+      },
+      "review_package_submitted": {
+        "title": "{project}: {count} changes awaiting your review",
+        "body": "Package {crs} passed checks with no red flags. Approve the package to release a new version, or request changes."
+      },
+      "review_package_changes_requested": {
+        "title": "{project}: Lead requested changes on the review package",
+        "body": "{reason}"
+      },
+      "review_package_released": {
+        "title": "{project}: Lead approved the package, releasing version {version}",
+        "body": "Package {crs} has been merged into version {version}. Download clean and marked versions in the Version section."
+      },
+      "comment_posted": {
+        "title": "New comment in {project}",
+        "body": "{comment} on \"{anchor}\" ({version}): {preview}",
+        "bodyShort": "New comment posted ({comment})."
+      },
+      "comment_replied": {
+        "title": "New reply on {comment}",
+        "body": "On \"{anchor}\" ({project}): {preview}",
+        "bodyShort": "New reply on comment ({comment})."
+      },
+      "comment_resolved": {
+        "title": "Comment {comment} has been resolved",
+        "body": "Your feedback on \"{anchor}\" ({project}) has been marked as resolved.",
+        "bodyShort": "Your feedback {comment} has been marked as resolved."
+      },
+      "comment_converted": {
+        "title": "Comment {comment} converted to {cr}",
+        "body": "Your feedback on \"{anchor}\" has been recorded as change request {cr}.",
+        "bodyShort": "Feedback {comment} has been recorded as {cr}."
+      },
       "credits_adjusted": {
         "titleAdded": "Organization credits added",
         "titleDeducted": "Organization credits deducted",
@@ -739,6 +820,7 @@
       "profile": "Your profile",
       "billing": "Billing",
       "logout": "Sign out",
+      "back": "Back",
       "planAdmin": "Admin",
       "plan": "{plan} plan",
       "planFree": "Free plan",
@@ -1212,7 +1294,11 @@
         "goToProjects": "Go to projects",
         "loading": "Loading your organizations…",
         "emptyTitle": "You are not in any organization yet",
-        "emptyBody": "Create an organization to start a project, or enter an invitation code to join someone else's."
+        "emptyBody": "Create an organization to start a project, or enter an invitation code to join someone else's.",
+        "rememberChoice": "Remember my choice for next sign-in",
+        "defaultBadge": "Default at sign-in",
+        "clearDefault": "Forget choice",
+        "setDefault": "Remember for sign-in"
       },
       "members": {
         "title": "Members",
@@ -3107,6 +3193,9 @@
     "TOKEN_EXPIRED": "The link has expired. Please request a new one.",
     "TOKEN_REUSE_DETECTED": "Session reuse detected - all sessions were signed out to protect your account.",
     "UNAUTHORIZED": "Your session has expired. Please log in again.",
+    "SESSION_REVOKED": "Your session has ended. Please sign in again.",
+    "VALIDATION_ERROR": "The submitted data is invalid. Please check your input and try again.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
     "INVALID_ACCESS_TOKEN": "Your session has expired. Please log in again.",
     "MISSING_ACCESS_TOKEN": "Your session has expired. Please log in again.",
     "INVALID_REFRESH_TOKEN": "Your session has expired. Please log in again.",
@@ -3340,6 +3429,7 @@
     "profile": {
       "fallbackName": "Administrator",
       "account": "Account",
+      "accountSettings": "Profile & security",
       "backToDashboard": "Back to Dashboard",
       "signOut": "Sign out",
       "signOutConfirm": "Sign out of the admin area? You'll need to sign in again next time."

@@ -8,6 +8,7 @@ import { getRememberedEmail, saveAuthToken, setRememberedEmail } from "../../../
 import { buildVerifyEmailHref } from "../../../lib/otp";
 import { localizeApiError } from "@/lib/api/error-messages";
 import { ACCOUNT_SUSPENDED, suspensionFromMeta, takeSuspension, type SuspensionNotice } from "@/lib/account-suspended";
+import { resolvePostAuthDestination, type PostAuthContext } from "@/lib/post-auth-redirect";
 import { applyAccountLocale } from "@/lib/i18n";
 import {
   AuthAlert,
@@ -59,7 +60,8 @@ export default function LoginPage() {
     accessToken: string | undefined,
     userRole: string | undefined,
     loginEmail?: string,
-    accountLocale?: unknown
+    accountLocale?: unknown,
+    postAuthCtx?: PostAuthContext
   ) => {
     if (accessToken) {
       saveAuthToken(accessToken, userRole, { persistent: rememberMe });
@@ -67,7 +69,13 @@ export default function LoginPage() {
     setRememberedEmail(rememberMe && loginEmail ? loginEmail.trim().toLowerCase() : null);
     // FLF-259: ghi cookie trước khi tải trang ⇒ trang đầu đã đúng ngôn ngữ tài khoản. Chưa chọn ⇒ /home lưu sau.
     applyAccountLocale(accountLocale);
-    window.location.href = userRole === "admin" ? "/admin/metrics" : "/home";
+    const destination = resolvePostAuthDestination({
+      role: userRole,
+      needsOnboarding: postAuthCtx?.needsOnboarding,
+      activeOrgId: postAuthCtx?.activeOrgId,
+      organizations: postAuthCtx?.organizations,
+    });
+    window.location.href = destination;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -92,13 +100,23 @@ export default function LoginPage() {
           setIsUnverified(true);
         }
         if (json.error?.code === ACCOUNT_SUSPENDED) {
-          setSuspension(suspensionFromMeta(json.meta));
+          setSuspension(suspensionFromMeta(json.meta ?? json.error?.meta));
           return;
         }
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
-      completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, email, json.data?.user?.locale);
+      completeLogin(
+        json.data?.accessToken,
+        json.data?.user?.role || json.data?.role,
+        email,
+        json.data?.user?.locale,
+        {
+          needsOnboarding: json.data?.needsOnboarding,
+          activeOrgId: json.data?.activeOrgId,
+          organizations: json.data?.organizations,
+        }
+      );
     } catch (err) {
       setError(userErrorMessage(err, tc("genericError")));
     } finally {
@@ -145,7 +163,7 @@ export default function LoginPage() {
       const json = await res.json();
       if (!res.ok || json.error) {
         if (json.error?.code === ACCOUNT_SUSPENDED) {
-          setSuspension(suspensionFromMeta(json.meta));
+          setSuspension(suspensionFromMeta(json.meta ?? json.error?.meta));
           return;
         }
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("googleFailed")));
@@ -154,7 +172,12 @@ export default function LoginPage() {
         json.data?.accessToken,
         json.data?.user?.role || json.data?.role,
         json.data?.user?.email,
-        json.data?.user?.locale
+        json.data?.user?.locale,
+        {
+          needsOnboarding: json.data?.needsOnboarding,
+          activeOrgId: json.data?.activeOrgId,
+          organizations: json.data?.organizations,
+        }
       );
     } catch (err) {
       setError(userErrorMessage(err, t("googleFailed")));
