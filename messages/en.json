@@ -1786,6 +1786,7 @@
       "comment": "Comment",
       "editSection": "Edit this section",
       "heading": "SRS - {name}",
+      "signedBadge": "Baseline",
       "openIssuesTitle": "Open the document's issue list",
       "blockingCount": "{count, plural, one {# issue to resolve} other {# issues to resolve}}",
       "suggestionCount": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
