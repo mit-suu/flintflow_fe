@@ -23,7 +23,10 @@ vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(), moveProjectsToFolder
 vi.mock("@/lib/api/pipeline", () => ({ getProgress: vi.fn(async () => ({ data: null, error: null })) }));
 // Vai trò trong tổ chức đang mở — mặc định chưa biết (null) ⇒ trang coi như được soạn
 const activeOrg = vi.hoisted(() => ({ current: null as { id: string; name: string; role: "lead" | "analyst" | "viewer" } | null }));
-vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.current }));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => activeOrg.current,
+  useActiveOrganizationState: () => ({ org: activeOrg.current, loading: false, error: false }),
+}));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 10, planLabel: "Free" })) }));
 
 const project = (id: string, over: Partial<Project> = {}): Project => ({

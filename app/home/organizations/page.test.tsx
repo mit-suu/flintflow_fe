@@ -18,6 +18,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => null) }));
 vi.mock("@/lib/hooks/use-active-org", () => ({
   useActiveOrganization: () => ({ id: "org-a", name: "Nhóm A", role: "lead" }),
+  useActiveOrganizationState: () => ({ org: { id: "org-a", name: "Nhóm A", role: "lead" }, loading: false, error: false }),
 }));
 
 const assign = vi.fn();

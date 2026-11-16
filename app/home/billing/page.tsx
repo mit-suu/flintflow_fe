@@ -26,13 +26,23 @@ import { listProjects } from "@/lib/api/projects";
 import { tPhase, tStep } from "@/lib/i18n";
 import { emitNotificationsChanged } from "@/lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 
 const signedAmount = (tx: CreditTransaction) => {
   if (tx.type === "purchase" || tx.type === "monthly_reset") return `+${tx.amount}`;
   if (tx.type === "deduct") return `−${tx.amount}`;
+  if (tx.type === "admin_adjust") {
+    if (tx.direction === "credit") return `+${tx.amount}`;
+    if (tx.direction === "debit") return `−${tx.amount}`;
+  }
   return String(tx.amount);
+};
+
+const amountToneClass = (tx: CreditTransaction) => {
+  if (tx.type === "purchase" || (tx.type === "admin_adjust" && tx.direction === "credit")) return "text-success";
+  if (tx.type === "deduct" || (tx.type === "admin_adjust" && tx.direction === "debit")) return "text-error";
+  return "text-on-surface-variant";
 };
 
 /** Ô không có dữ liệu (dòng cũ chưa ghi step / token, giao dịch không gắn dự án). */
@@ -83,12 +93,13 @@ const STAT_TONE: Record<StatTone, string> = {
 };
 
 /** Thẻ số của trang ví: nhãn nhỏ in hoa, số lớn, dòng đơn vị. */
-function StatCard({ label, value, hint, tone = "plain" }: { label: string; value: ReactNode; hint: string; tone?: StatTone }) {
+function StatCard({ label, value, hint, extra, tone = "plain" }: { label: string; value: ReactNode; hint: string; extra?: ReactNode; tone?: StatTone }) {
   return (
     <div className="rounded-card bg-surface-container-low p-5">
       <div className="text-body font-bold text-on-surface-muted uppercase tracking-[0.04em]">{label}</div>
       <div className={`text-metric font-bold leading-tight tracking-tight mt-1 ${STAT_TONE[tone]}`}>{value}</div>
       <div className="text-body text-on-surface-subtle">{hint}</div>
+      {extra && <div className="text-caption text-on-surface-muted mt-1">{extra}</div>}
     </div>
   );
 }
@@ -115,10 +126,16 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   // Ví là của tổ chức và chỉ Lead được nạp / đổi gói (UC-59, UC-62). Biết chắc không phải Lead thì ẩn nút mua —
-  // trước đây Analyst bấm "Mua ngay" chỉ nhận câu chung chung "Vai trò của bạn không được phép...". Chưa biết vai
-  // trò (đang tải / lỗi) thì vẫn hiện: BE vẫn chặn, và Lead không bao giờ bị mất nút.
-  const activeOrg = useActiveOrganization();
-  const canPurchase = activeOrg === null || activeOrg.role === "lead";
+  // trước đây Analyst bấm "Mua ngay" chỉ nhận câu chung chung "Vai trò của bạn không được phép...". Đang tải tổ chức
+  // (`orgLoading`) thì giữ skeleton và chặn mọi lời gọi API theo vai trò; xong mà không thuộc org nào (`activeOrg === null`)
+  // vẫn hiện nút (BE vẫn chặn, Lead không bị mất nút).
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const isViewer = !orgLoading && !orgError && activeOrg?.role === "viewer";
+  const billingBlocked = orgLoading || orgError || isViewer;
+  const canPurchase = !billingBlocked && (activeOrg === null || activeOrg.role === "lead");
+  const activeOrgId = activeOrg?.id ?? null;
+  const showLoading = orgLoading || loading;
+  const effectiveFilters: LedgerFilters = !canPurchase && filters.kind === "payment" ? { ...filters, kind: "all" } : filters;
   const [error, setError] = useState<string | null>(null);
   /** FLF-332: Analyst báo Lead nạp — `sent` giữ số Lead đã được báo để nói rõ ai nhận. */
   const [topup, setTopup] = useState<{ busy: boolean; sent: number | null }>({ busy: false, sent: null });
@@ -136,8 +153,9 @@ export default function BillingPage() {
 
   // Lịch sử theo số trang (FLF-404): đổi bộ lọc ⇒ về trang 1; phản hồi của bộ lọc / trang cũ về muộn bị bỏ
   const ledger = usePagedList<CreditTransaction>({
-    key: JSON.stringify(filters),
-    fetchPage: (page) => fetchTransactions(page, LEDGER_PAGE_SIZE, toApiFilters(filters)),
+    key: JSON.stringify({ orgId: activeOrgId, filters: effectiveFilters }),
+    enabled: !billingBlocked,
+    fetchPage: (page) => fetchTransactions(page, LEDGER_PAGE_SIZE, toApiFilters(effectiveFilters)),
   });
 
   const loadBalance = useCallback(async () => {
@@ -145,8 +163,8 @@ export default function BillingPage() {
   }, []);
 
   // Lựa chọn của bộ lọc thành viên / dự án. Lỗi ở đây chỉ làm mất bộ lọc, không chặn trang.
-  const activeOrgId = activeOrg?.id ?? null;
   useEffect(() => {
+    if (billingBlocked) return;
     let cancelled = false;
     const loadChoices = async () => {
       const [members, projects] = await Promise.all([
@@ -161,9 +179,14 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeOrgId]);
+  }, [activeOrgId, billingBlocked]);
 
   useEffect(() => {
+    if (isViewer) router.replace("/home");
+  }, [isViewer, router]);
+
+  useEffect(() => {
+    if (billingBlocked) return;
     let cancelled = false;
     const load = async () => {
       try {
@@ -182,7 +205,7 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadBalance]);
+  }, [activeOrgId, billingBlocked, loadBalance]);
 
   const handleBuy = async (pkg: CreditPackage) => {
     setBusy(pkg.id);
@@ -214,11 +237,11 @@ export default function BillingPage() {
   // Chuỗi rỗng từ `userErrorMessage` = không có câu của BE ⇒ câu chung
   const ledgerError = ledger.error ? userErrorMessage(ledger.error) || t("errors.loadHistory") : null;
 
-  const filtered = filters.kind !== "all" || filters.memberId !== "all" || filters.projectId !== "all";
+  const filtered = effectiveFilters.kind !== "all" || effectiveFilters.memberId !== "all" || effectiveFilters.projectId !== "all";
   const kindOptions: { value: LedgerFilters["kind"]; label: string }[] = [
     { value: "all", label: t("filter.kindAll") },
     { value: "usage", label: t("filter.usage") },
-    { value: "payment", label: t("filter.payment") },
+    ...(canPurchase ? [{ value: "payment" as const, label: t("filter.payment") }] : []),
   ];
   const memberOptions = [{ value: "all", label: t("filter.memberAll") }, ...memberChoices];
   const projectOptions = [{ value: "all", label: t("filter.projectAll") }, ...projectChoices];
@@ -228,15 +251,62 @@ export default function BillingPage() {
     const label = tStep(stepId, locale);
     return label === stepId ? tPhase(stepId, locale) : label;
   };
-  const packageLabel = (packageId?: string) => packages.find((p) => p.id === packageId)?.label ?? t("txType.purchase");
+  const packageLabel = (packageId?: string | null) => {
+    if (packageId?.startsWith("plan:")) {
+      const planId = packageId.slice("plan:".length);
+      const matchedPlan = plans.find((p) => p.id === planId);
+      return matchedPlan ? t("buyPlan", { plan: matchedPlan.label }) : t("txType.purchase");
+    }
+    const matchedPkg = packages.find((p) => p.id === packageId);
+    if (matchedPkg) {
+      return matchedPkg.credits != null ? t("packageLabel", { credits: format.number(matchedPkg.credits) }) : matchedPkg.label;
+    }
+    return t("txType.purchase");
+  };
   const tokensOf = (tx: CreditTransaction) =>
     tx.tokensIn != null && tx.tokensOut != null ? `${format.number(tx.tokensIn)} / ${format.number(tx.tokensOut)}` : EMPTY_CELL;
 
   const lowCredit = balance ? balance.available < balance.lowCreditThreshold : false;
-  const currentPlanPrice = plans.find((p) => p.id === balance?.plan)?.priceVnd ?? 0;
+  const currentPlanDef = plans.find((p) => p.id === balance?.plan);
+  const currentPlanPrice = currentPlanDef?.priceVnd ?? 0;
+  const rawPlanLimits =
+    balance?.planLimits ??
+    (currentPlanDef?.maxMembers != null && currentPlanDef?.maxProjects != null
+      ? {
+          maxMembers: currentPlanDef.maxMembers,
+          maxProjects: currentPlanDef.maxProjects,
+          maxReferenceTokens: currentPlanDef.maxReferenceTokens,
+        }
+      : null);
+  const currentPlanLimits = rawPlanLimits
+    ? {
+        ...rawPlanLimits,
+        maxReferenceTokens: rawPlanLimits.maxReferenceTokens ?? currentPlanDef?.maxReferenceTokens,
+      }
+    : null;
+
+  if (isViewer) return null;
+
+  const formatPlanLimits = ({
+    maxMembers,
+    maxProjects,
+    maxReferenceTokens,
+  }: {
+    maxMembers: number;
+    maxProjects: number;
+    maxReferenceTokens?: number | null;
+  }) => {
+    const base = {
+      members: format.number(maxMembers),
+      projects: format.number(maxProjects),
+    };
+    return maxReferenceTokens != null
+      ? t("planLimitsSummary", { ...base, tokens: format.number(maxReferenceTokens) })
+      : t("planLimitsSummaryLegacy", base);
+  };
 
   // Bốn thẻ cùng một khuôn: ba con số của ví và gói hiện tại. Đơn vị "credit" giữ nguyên chữ, bản en có số nhiều.
-  const statCards: { key: string; label: string; value: ReactNode; hint: string; tone: StatTone }[] = balance
+  const statCards: { key: string; label: string; value: ReactNode; hint: string; extra?: ReactNode; tone: StatTone }[] = balance
     ? [
         { key: "available", label: t("available"), value: format.number(balance.available), hint: creditUnit(balance.available), tone: lowCredit ? "error" : "primary" },
         { key: "balance", label: t("balance"), value: format.number(balance.balance), hint: creditUnit(balance.balance), tone: "plain" },
@@ -254,6 +324,7 @@ export default function BillingPage() {
                 }),
               })
             : t("defaultPlan"),
+          extra: currentPlanLimits ? formatPlanLimits(currentPlanLimits) : undefined,
           tone: "plain",
         },
       ]
@@ -267,14 +338,14 @@ export default function BillingPage() {
       <div className={`flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 pb-scroll-end bg-surface-container-lowest ${PAGE_GUTTER}`}>
         <h1 className="mt-6 sm:mt-8 text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
-        {error !== null && (
+        {(error !== null || orgError) && (
           <div className="flex items-center gap-3 bg-error-container text-on-error-container px-4 py-3 rounded-control text-body font-medium">
             <span className="flex-1">{error || t("errors.load")}</span>
-            <IconButton icon="close" label={tc("dismiss")} size="sm" onClick={() => setError(null)} className="shrink-0" />
+            {error !== null && <IconButton icon="close" label={tc("dismiss")} size="sm" onClick={() => setError(null)} className="shrink-0" />}
           </div>
         )}
 
-        {loading ? (
+        {orgError ? null : showLoading ? (
           <PageSkeleton variant="cards" label={t("loading")} />
         ) : (
           <>
@@ -282,7 +353,7 @@ export default function BillingPage() {
             {balance && (
               <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map((card) => (
-                  <StatCard key={card.key} label={card.label} value={card.value} hint={card.hint} tone={card.tone} />
+                  <StatCard key={card.key} label={card.label} value={card.value} hint={card.hint} extra={card.extra} tone={card.tone} />
                 ))}
               </section>
             )}
@@ -360,6 +431,15 @@ export default function BillingPage() {
                           {t("creditsPerMonth", { credits: format.number(plan.monthlyCredits) })} ·{" "}
                           {plan.priceVnd === 0 ? t("free") : t("pricePerMonth", { price: formatVnd(plan.priceVnd, locale) })}
                         </div>
+                        {plan.maxMembers != null && plan.maxProjects != null && (
+                          <div className="text-caption text-on-surface-muted mt-0.5">
+                            {formatPlanLimits({
+                              maxMembers: plan.maxMembers,
+                              maxProjects: plan.maxProjects,
+                              maxReferenceTokens: plan.maxReferenceTokens,
+                            })}
+                          </div>
+                        )}
                       </div>
                       {isCurrent ? (
                         <Badge tone="primary" size="md">
@@ -398,17 +478,18 @@ export default function BillingPage() {
         )}
 
         {/* Ledger — UC-59 thanh toán (cả đang chờ / lỗi) + UC-60 chi tiết từng lượt gọi AI. Tải song song với ví, theo số trang. */}
-        <section aria-label={t("history")} className="flex flex-col gap-3">
+        {!billingBlocked && (
+          <section aria-label={t("history")} className="flex flex-col gap-3">
           {/* Tiêu đề + bộ lọc dính ở đầu vùng cuộn khi lướt lịch sử dài */}
           <div className={`sticky top-0 z-30 -mt-3 py-3 bg-surface-container-lowest flex flex-wrap items-center justify-between gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
             <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <FilterSelect label={t("filter.kind")} value={filters.kind} options={kindOptions} onChange={(kind) => changeFilter({ kind })} />
+              <FilterSelect label={t("filter.kind")} value={effectiveFilters.kind} options={kindOptions} onChange={(kind) => changeFilter({ kind })} />
               {projectChoices.length > 0 && (
-                <FilterSelect label={t("filter.project")} value={filters.projectId} options={projectOptions} onChange={(projectId) => changeFilter({ projectId })} />
+                <FilterSelect label={t("filter.project")} value={effectiveFilters.projectId} options={projectOptions} onChange={(projectId) => changeFilter({ projectId })} />
               )}
               {memberChoices.length > 0 && (
-                <FilterSelect label={t("filter.member")} value={filters.memberId} options={memberOptions} onChange={(memberId) => changeFilter({ memberId })} />
+                <FilterSelect label={t("filter.member")} value={effectiveFilters.memberId} options={memberOptions} onChange={(memberId) => changeFilter({ memberId })} />
               )}
             </div>
           </div>
@@ -469,7 +550,10 @@ export default function BillingPage() {
                   <div className="max-xl:order-3 max-xl:basis-full min-w-0 text-on-surface-variant">
                     <div>{isPayment ? packageLabel(tx.packageId) : actionLabel(tx.actionType)}</div>
                     {tx.stepId && <div className="text-caption text-on-surface-muted">{stepLabel(tx.stepId)}</div>}
-                    {tx.price != null && <div className="text-caption text-on-surface-muted">{formatVnd(tx.price, locale)}</div>}
+                    {isPayment && tx.price != null && <div className="text-caption text-on-surface-muted">{formatVnd(tx.price, locale)}</div>}
+                    {isPayment && tx.referenceCode && (
+                      <div className="text-caption text-on-surface-muted">{t("referenceCodeLabel", { code: tx.referenceCode })}</div>
+                    )}
                     {tx.type === "payment" && tx.paymentStatus === "pending" && tx.intentId && (
                       <Button variant="secondary" size="sm" className="mt-1" onClick={() => router.push(`/home/billing/checkout?intentId=${encodeURIComponent(tx.intentId!)}`)}>
                         {t("openQr")}
@@ -483,9 +567,7 @@ export default function BillingPage() {
                     {tokensOf(tx)}
                   </span>
                   <span
-                    className={`max-xl:order-2 text-right font-bold whitespace-nowrap ${
-                      tx.type === "purchase" ? "text-success" : tx.type === "deduct" ? "text-error" : "text-on-surface-variant"
-                    }`}
+                    className={`max-xl:order-2 text-right font-bold whitespace-nowrap ${amountToneClass(tx)}`}
                   >
                     {signedAmount(tx)}
                   </span>
@@ -497,7 +579,8 @@ export default function BillingPage() {
               );
             }}
           />
-        </section>
+          </section>
+        )}
       </div>
     </>
   );

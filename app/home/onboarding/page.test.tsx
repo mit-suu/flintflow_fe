@@ -24,6 +24,7 @@ vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: () => shared.activeOrg
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => null) }));
 vi.mock("@/lib/hooks/use-active-org", () => ({
   useActiveOrganization: () => ({ id: "org-1", name: "Nhóm A", role: "lead" }),
+  useActiveOrganizationState: () => ({ org: { id: "org-1", name: "Nhóm A", role: "lead" }, loading: false, error: false }),
 }));
 vi.mock("@/lib/api/orgs", () => ({
   createOrganization: vi.fn(),

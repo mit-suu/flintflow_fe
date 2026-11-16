@@ -13,6 +13,7 @@ import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../..
 import { logoutAndRedirect } from "../../../lib/auth";
 import type { User } from "../../../types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 
 // Mỗi khối là một mảng nền mờ, không viền — cùng ngôn ngữ với danh sách ở trang Thành viên.
 const cardClass = "bg-surface-container-low rounded-card p-5 sm:p-6 flex flex-col gap-4";
@@ -36,6 +37,8 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
   const format = useFormatter();
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const hideCredits = orgLoading || orgError || activeOrg?.role === "viewer";
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name ?? "");
   const [saving, setSaving] = useState(false);
@@ -157,23 +160,25 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
             : "-"}
         </InfoRow>
 
-        <InfoRow label={t("credits")}>
-          <div className="flex items-center gap-3">
-            {user.creditOrganization ? (
-              <span className="min-w-0">
-                <span className="font-bold">{t("creditAmount", { credits: format.number(user.balance ?? 0) })}</span>{" "}
-                <span className="text-on-surface-muted" data-testid="credit-org">
-                  {t("creditOrg", { org: user.creditOrganization.name })}
+        {!hideCredits && (
+          <InfoRow label={t("credits")}>
+            <div className="flex items-center gap-3">
+              {user.creditOrganization ? (
+                <span className="min-w-0">
+                  <span className="font-bold">{t("creditAmount", { credits: format.number(user.balance ?? 0) })}</span>{" "}
+                  <span className="text-on-surface-muted" data-testid="credit-org">
+                    {t("creditOrg", { org: user.creditOrganization.name })}
+                  </span>
                 </span>
-              </span>
-            ) : (
-              <span className="text-on-surface-muted">{t("creditNoOrg")}</span>
-            )}
-            <Link href="/home/billing" className="ml-auto text-body font-bold text-primary hover:underline shrink-0">
-              {t("toBilling")}
-            </Link>
-          </div>
-        </InfoRow>
+              ) : (
+                <span className="text-on-surface-muted">{t("creditNoOrg")}</span>
+              )}
+              <Link href="/home/billing" className="ml-auto text-body font-bold text-primary hover:underline shrink-0">
+                {t("toBilling")}
+              </Link>
+            </div>
+          </InfoRow>
+        )}
       </div>
     </section>
   );
