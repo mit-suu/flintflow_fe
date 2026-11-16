@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "@/components/Logo";
-import OrgGuard, { ONBOARDING_PATH } from "@/components/OrgGuard";
+import OrgGuard, { ONBOARDING_PATH, ORGANIZATIONS_PATH } from "@/components/OrgGuard";
 import Button from "@/components/ui/Button";
 import { logoutAndRedirect } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -59,7 +59,7 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
           </div>
         </header>
         <main className="px-4 sm:px-6">
-          {pathname === ONBOARDING_PATH ? children : <OrgGuard>{children}</OrgGuard>}
+          {pathname === ONBOARDING_PATH || pathname === ORGANIZATIONS_PATH ? children : <OrgGuard>{children}</OrgGuard>}
         </main>
       </div>
     );

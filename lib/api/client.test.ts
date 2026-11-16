@@ -235,4 +235,89 @@ describe("refreshSession (FLF-137)", () => {
     expect(refreshCalls()).toHaveLength(0);
     expect(getAccessToken()).toBe(otherTabToken);
   });
+
+  it("refreshSession({ force: true }) bỏ qua bộ đệm 2s và không thoát sớm dù tab khác gửi token mới", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    const initial = makeJwt({ role: "user", orgId: "org-a", exp: futureExp() });
+    const otherTabToken = makeJwt({ role: "user", orgId: "org-a", exp: futureExp() + 30 });
+    const forcedToken = makeJwt({ role: "user", exp: futureExp() + 60 });
+    saveAuthToken(initial);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: initial }, error: null }));
+    expect(await refreshSession()).toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+
+    const request = vi.fn(async (_name: string, fn: () => Promise<unknown>) => {
+      await sendFromOtherTab(otherTabToken, getAccessToken);
+      return fn();
+    });
+    vi.stubGlobal("navigator", { ...navigator, locks: { request } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: forcedToken }, error: null }));
+
+    await expect(refreshSession({ force: true })).resolves.toBe("ok");
+
+    expect(refreshCalls()).toHaveLength(2);
+    expect(getAccessToken()).toBe(forcedToken);
+  });
+
+  it("refreshSession({ force: true }) khi đang có refresh thường chạy dở ⇒ chờ lượt cũ xong rồi mới gọi cưỡng bức, không đè refreshPromise", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    saveAuthToken(expiredToken());
+    const staleToken = makeJwt({ role: "user", orgId: "org-a", exp: futureExp() });
+    const freshToken = makeJwt({ role: "user", exp: futureExp() + 60 });
+
+    let resolveFirst: (res: Response) => void = () => undefined;
+    fetchMock
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: freshToken }, error: null }));
+
+    const first = refreshSession();
+    const forced = refreshSession({ force: true });
+
+    expect(refreshCalls()).toHaveLength(1);
+    resolveFirst(jsonResponse(200, { data: { accessToken: staleToken }, error: null }));
+
+    await expect(first).resolves.toBe("ok");
+    await expect(forced).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(2);
+    expect(getAccessToken()).toBe(freshToken);
+  });
+
+  it("refreshSession({ force: true }) dừng với `rejected` nếu refresh đang chạy bị từ chối", async () => {
+    const { refreshSession, saveAuthToken } = await load();
+    saveAuthToken(expiredToken());
+
+    let resolveFirst: (res: Response) => void = () => undefined;
+    fetchMock
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValue(jsonResponse(200, { data: null, error: null }));
+
+    const first = refreshSession();
+    const forced = refreshSession({ force: true });
+
+    resolveFirst(jsonResponse(401, { data: null, error: { code: "MISSING_REFRESH_TOKEN", message: "x" } }));
+
+    await expect(first).resolves.toBe("rejected");
+    await expect(forced).resolves.toBe("rejected");
+    expect(refreshCalls()).toHaveLength(1);
+  });
+
+  it("nhiều refreshSession({ force: true }) gọi đồng thời ⇒ gộp thành một lượt /auth/refresh", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    saveAuthToken(makeJwt({ role: "user", orgId: "org-a", exp: futureExp() }));
+    const freshToken = makeJwt({ role: "user", exp: futureExp() + 60 });
+
+    let resolveRefresh: (res: Response) => void = () => undefined;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveRefresh = resolve)));
+
+    const p1 = refreshSession({ force: true });
+    const p2 = refreshSession({ force: true });
+
+    resolveRefresh(jsonResponse(200, { data: { accessToken: freshToken }, error: null }));
+
+    await expect(p1).resolves.toBe("ok");
+    await expect(p2).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+    expect(getAccessToken()).toBe(freshToken);
+  });
 });

@@ -1241,12 +1241,7 @@
           "codeTitle": "Mã mời vừa tạo",
           "codeBody": "Mã chỉ hiện một lần. Gửi cho người được mời; mã dùng được một lần và có hạn.",
           "emailRequired": "Hãy nhập email người được mời - mã mời sẽ được gửi tới email đó.",
-          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn - nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này.",
-          "requestTitle": "Đề xuất mời thành viên",
-          "requestCta": "Gửi yêu cầu cho Lead duyệt",
-          "requesting": "Đang gửi…",
-          "requestSentTitle": "Đã gửi yêu cầu",
-          "requestSent": "Lead sẽ duyệt yêu cầu mời {email}. Khi được duyệt, mã mời mới được gửi tới email đó - bạn sẽ nhận thông báo."
+          "codeSent": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây, dùng được một lần và có hạn - nếu người nhận không thấy email, bạn có thể gửi trực tiếp mã này."
         },
         "invitations": {
           "title": "Lời mời",
@@ -1258,18 +1253,8 @@
             "pending": "Đang chờ",
             "accepted": "Đã dùng",
             "revoked": "Đã thu hồi",
-            "expired": "Hết hạn",
-            "awaiting_approval": "Chờ Lead duyệt",
-            "rejected": "Bị từ chối"
-          },
-          "mineTitle": "Yêu cầu mời của bạn",
-          "requestedBy": "Đề xuất bởi {name}",
-          "approve": "Duyệt",
-          "reject": "Từ chối",
-          "cancelRequest": "Huỷ yêu cầu",
-          "approvedTitle": "Đã duyệt - mã mời",
-          "approvedBody": "Đã gửi mã tới {email}. Mã chỉ hiện một lần ở đây.",
-          "dismiss": "Đóng"
+            "expired": "Hết hạn"
+          }
         },
         "danger": {
           "title": "Xoá tổ chức",
@@ -1290,8 +1275,7 @@
           "saving": "Đang lưu…"
         },
         "soleLeadHint": "Bạn là Lead duy nhất - hãy chỉ định một thành viên khác làm Lead trước khi rời.",
-        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới.",
-        "analystHint": "Bạn gửi được yêu cầu mời; Lead duyệt thì mã mới được gửi tới email người được mời. Chỉ Lead đổi vai trò hoặc xoá thành viên."
+        "soleLeadAloneHint": "Bạn là thành viên duy nhất. Không cần tổ chức này nữa thì xoá tổ chức ở bên dưới."
       },
       "library": {
         "title": "Thư viện mẫu",
@@ -3189,6 +3173,7 @@
     "INVITE_INVALID": "Mã mời không dùng được: đã hết hạn, đã dùng hoặc đã bị thu hồi.",
     "INVITE_NOT_FOUND": "Không tìm thấy lời mời.",
     "INVITE_ALREADY_USED": "Mã mời đã được dùng.",
+    "INVITE_EMAIL_MISMATCH": "Mã mời này được cấp riêng cho một địa chỉ email khác.",
     "PLAN_LIMIT_MEMBERS": "Tổ chức đã đạt trần số thành viên của gói hiện tại.",
     "PLAN_LIMIT_PROJECTS": "Tổ chức đã đạt trần số dự án của gói hiện tại. Xoá bớt dự án hoặc nâng gói để tạo thêm.",
     "ACCOUNT_SUSPENDED": "Tài khoản đã bị khoá.",
@@ -3265,7 +3250,6 @@
     "ORG_CONTEXT_MISSING": "Hệ thống gặp lỗi khi xác định tổ chức. Vui lòng tải lại trang.",
     "METHOD_NOT_ALLOWED": "Thao tác này không được hỗ trợ.",
     "UNSUPPORTED_MEDIA_TYPE": "Định dạng dữ liệu gửi lên không được hỗ trợ.",
-    "INVITE_NOT_AWAITING_APPROVAL": "Lời mời không còn chờ duyệt: đã được xử lý, đã huỷ hoặc đã hết hạn.",
     "page": {
       "eyebrow": "Lỗi hệ thống",
       "title": "Đã có lỗi xảy ra",

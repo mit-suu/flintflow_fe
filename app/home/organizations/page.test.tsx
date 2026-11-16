@@ -95,4 +95,25 @@ describe("đổi tổ chức (UC-10)", () => {
     expect(cta).toHaveLength(1);
     expect(cta[0]).toHaveAttribute("href", "/home/onboarding");
   });
+
+  it("chưa có org đang mở (getActiveOrgId = null, ngoài AppShell): render danh sách org không cần TopBar và không đánh dấu Đang mở", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    vi.mocked(switchOrganization).mockResolvedValue({
+      accessToken: "t",
+      organization: { id: "org-a", name: "Nhóm A", role: "lead", joinedAt: "2026-09-01T00:00:00Z" },
+    });
+
+    renderWithIntl(<OrganizationsPage />);
+
+    expect(await screen.findByText("Nhóm A")).toBeInTheDocument();
+    expect(screen.getByText("Nhóm B")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Đang mở")).not.toBeInTheDocument();
+    const switchButtons = screen.getAllByRole("button", { name: "Mở tổ chức này" });
+    expect(switchButtons).toHaveLength(2);
+
+    fireEvent.click(switchButtons[0]);
+    await waitFor(() => expect(switchOrganization).toHaveBeenCalledWith("org-a"));
+    expect(assign).toHaveBeenCalledWith("/home");
+  });
 });
