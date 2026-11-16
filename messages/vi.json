@@ -1072,6 +1072,22 @@
       "logoutAllConfirmCta": "Đăng xuất tất cả",
       "logoutAllFailed": "Không đăng xuất được mọi thiết bị. Vui lòng thử lại."
     },
+    "integrations": {
+      "title": "Tích hợp",
+      "googleDocs": "Google Docs",
+      "googleDocsBody": "Xuất tài liệu, nhập Google Doc, trợ lý AI",
+      "loading": "Đang kiểm tra kết nối…",
+      "loadFailed": "Không tải được trạng thái kết nối Google.",
+      "connected": "Đã kết nối",
+      "disconnected": "Chưa kết nối",
+      "reconnectRequired": "Cần kết nối lại",
+      "connect": "Kết nối",
+      "reconnect": "Kết nối lại",
+      "disconnect": "Ngắt kết nối",
+      "connectFailed": "Không kết nối được tài khoản Google. Vui lòng thử lại.",
+      "disconnectFailed": "Không ngắt kết nối được. Vui lòng thử lại.",
+      "cancelled": "Cửa sổ Google đã đóng trước khi cấp quyền. Nếu không thấy cửa sổ, hãy cho phép trình duyệt mở popup."
+    },
     "org": {
       "roles": {
         "lead": "Lead",
@@ -1781,6 +1797,25 @@
       "translateRest": "Dịch nốt",
       "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.",
       "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác - hãy tải theo ngôn ngữ tài liệu.",
+      "googleDocs": {
+        "officialNote": "Bản Word là bản chính thức. Google Docs dùng để xem và cộng tác, định dạng có thể lệch một chút.",
+        "lastExport": "Đã xuất lúc {time}: {title}",
+        "open": "Mở",
+        "modeLabel": "Cách xuất",
+        "modeUpdate": "Cập nhật file này",
+        "modeNew": "Tạo bản mới",
+        "overwriteWarning": "Cập nhật sẽ ghi đè mọi chỉnh sửa đã làm trên Google Docs.",
+        "export": "Xuất sang Google Docs",
+        "connectAndExport": "Kết nối Google và xuất",
+        "exporting": "Đang xuất sang Google Docs…",
+        "created": "Đã tạo Google Doc \"{title}\"",
+        "updated": "Đã cập nhật Google Doc \"{title}\"",
+        "recreated": "File cũ đã bị xoá nên đã tạo file mới.",
+        "openGoogleDocs": "Mở Google Docs",
+        "failed": "Xuất sang Google Docs thất bại.",
+        "cancelled": "Cửa sổ Google đã đóng trước khi cấp quyền. Nếu không thấy cửa sổ, hãy cho phép trình duyệt mở popup.",
+        "unavailable": "Tính năng xuất sang Google Docs chưa được bật trên hệ thống."
+      },
       "close": "Đóng"
     },
     "change": {
@@ -2886,6 +2921,11 @@
     "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
     "NO_WORKING_DRAFT": "Dự án chưa có nội dung nào để dựng tài liệu.",
     "PDF_EXPORT_UNAVAILABLE": "Chưa xuất được PDF lúc này. Bạn hãy thử lại sau ít phút, hoặc tải bản Word.",
+    "GOOGLE_INTEGRATION_DISABLED": "Tính năng kết nối Google chưa được bật trên hệ thống.",
+    "GOOGLE_CONSENT_INCOMPLETE": "Chưa nhận đủ quyền từ Google. Hãy kết nối lại và đồng ý cho FlintFlow truy cập các file trên Google Drive.",
+    "GOOGLE_RECONNECT_REQUIRED": "Cần kết nối lại tài khoản Google để tiếp tục.",
+    "GOOGLE_DRIVE_QUOTA_EXCEEDED": "Google Drive đang giới hạn (hết dung lượng hoặc quá nhiều lượt gọi). Vui lòng thử lại sau hoặc giải phóng dung lượng Drive.",
+    "GOOGLE_FILE_FORBIDDEN": "Google Drive từ chối truy cập file này.",
     "TRANSLATION_INCOMPLETE": "Tài liệu còn mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT_ONE": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",

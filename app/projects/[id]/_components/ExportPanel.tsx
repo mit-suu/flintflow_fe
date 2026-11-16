@@ -13,6 +13,8 @@ import { versionFileName } from "@/types/doc-version";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { hookErrorText } from "@/lib/hook-errors";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
+import GoogleDocsExportSection from "./GoogleDocsExportSection";
 
 interface ExportPanelProps {
   projectId: string;
@@ -49,9 +51,13 @@ const triggerDownload = (blob: Blob, fileName: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
-const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string; extension: string }> = [
+/** Word / PDF tải file về máy; Google Docs upload lên Drive của user (cần client id Google ở FE). */
+type PanelFormat = ExportFormat | "google-docs";
+
+const FORMAT_OPTIONS: ReadonlyArray<{ value: PanelFormat; label: string; extension: string }> = [
   { value: "word", label: "Word", extension: ".docx" },
   { value: "pdf", label: "PDF", extension: ".pdf" },
+  ...(isGoogleAuthEnabled ? [{ value: "google-docs" as const, label: "Google Docs", extension: "" }] : []),
 ];
 
 /**
@@ -73,7 +79,7 @@ export default function ExportPanel({
   const tLanguage = useTranslations("common.documentLanguage");
   const baselineCheckFailed = t("baselineCheckFailed");
   const [source, setSource] = useState<DocumentSource>("draft");
-  const [format, setFormat] = useState<ExportFormat>("word");
+  const [format, setFormat] = useState<PanelFormat>("word");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
   const hasBaseline = baselines.length > 0;
@@ -108,7 +114,7 @@ export default function ExportPanel({
     resetDownloadError();
   };
 
-  const selectFormat = (next: ExportFormat) => {
+  const selectFormat = (next: PanelFormat) => {
     setFormat(next);
     resetDownloadError();
   };
@@ -349,24 +355,37 @@ export default function ExportPanel({
           </div>
         )}
 
-        {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
+        {format === "google-docs" ? (
+          <GoogleDocsExportSection
+            projectId={projectId}
+            source={source}
+            baselineId={baselineId}
+            lang={requestedLanguage}
+            fileLanguage={requestedLanguage ?? language ?? undefined}
+            disabled={empty || loading}
+          />
+        ) : (
+          <>
+            {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
 
-        <button
-          type="button"
-          disabled={downloading || empty || loading}
-          onClick={() => void handleDownload()}
-          className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-        >
-          {downloading
-            ? format === "pdf"
-              ? t("creatingPdf")
-              : t("downloading")
-            : source === "draft"
-              ? t("downloadDraft", { extension })
-              : baselineVersion
-                ? t("downloadBaselineVersion", { extension, version: baselineVersion })
-                : t("downloadBaseline", { extension })}
-        </button>
+            <button
+              type="button"
+              disabled={downloading || empty || loading}
+              onClick={() => void handleDownload()}
+              className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+            >
+              {downloading
+                ? format === "pdf"
+                  ? t("creatingPdf")
+                  : t("downloading")
+                : source === "draft"
+                  ? t("downloadDraft", { extension })
+                  : baselineVersion
+                    ? t("downloadBaselineVersion", { extension, version: baselineVersion })
+                    : t("downloadBaseline", { extension })}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
