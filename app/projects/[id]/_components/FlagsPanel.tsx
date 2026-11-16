@@ -117,8 +117,11 @@ interface FlagsPanelProps {
   outdatedCount?: number;
   onRewriteOutdated?: () => void;
   rewriting?: boolean;
-  /** "Sửa trong chat" trên một vấn đề — bật chip Sửa tài liệu, điền sẵn tên mục. */
-  onEditSection?: (sectionLabel: string) => void;
+  /**
+   * "Sửa trong chat" trên một vấn đề — bật chip Sửa tài liệu, điền sẵn tên mục **và câu của cờ** (FLF-428: BE nhận ra cờ đích
+   * từ câu này để model sửa đúng field và báo lại nếu cờ chưa đóng).
+   */
+  onEditSection?: (sectionLabel: string, issue?: string) => void;
   /** FLF-278: "Nhờ AI soạn" trên cờ mục của mẫu còn trống — điền sẵn lệnh soạn nháp vào ô chat. */
   onDraftSection?: (sectionLabel: string) => void;
   /** Bước đã chốt: cờ "rỗng" của bước đã chốt là vấn đề cần xử lý, không phải "sẽ điền ở bước sau" (FLF-248). */
@@ -318,6 +321,8 @@ export default function FlagsPanel({
    * bản. Nên nhãn phải nói thẳng điều đó; để nguyên chữ "Bỏ qua" là hứa một lối thoát không có thật,
    * người dùng bấm xong vẫn không chốt được mà không hiểu vì sao.
    */
+  // FLF-428: là nút mở hộp ghi lý do, không phải trạng thái — chữ dạng mệnh lệnh + gạch chân chấm để không đọc nhầm thành
+  // "đang giữ nguyên"
   const waiveLink = (flag: Flag) =>
     (flag.level === "red" ? onKeep : onWaive) &&
     isFlagWaivable(flag.rule_id) && (
@@ -329,7 +334,7 @@ export default function FlagsPanel({
           setWaivingId(flag.id);
         }}
         title={flag.level === "red" ? t("keepTitle") : undefined}
-        className={`${textButton} ${secondary} text-on-surface-muted hover:text-on-surface`}
+        className={`${textButton} ${secondary} text-on-surface-muted underline decoration-dotted underline-offset-2 hover:text-on-surface`}
       >
         {flag.level === "red" ? (flag.kept_reason ? t("keptEdit") : t("keepBlocking")) : t("waive")}
       </button>
@@ -409,7 +414,7 @@ export default function FlagsPanel({
                 {onEditSection && (
                   <button
                     type="button"
-                    onClick={() => onEditSection(sectionName(flag.section_id))}
+                    onClick={() => onEditSection(sectionName(flag.section_id), flag.message)}
                     className={`${textButton} ${secondary} text-primary`}
                     title={t("editInChatTitle")}
                   >
