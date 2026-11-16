@@ -4,10 +4,12 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { BackLink as UiBackLink, Skeleton } from "@/components/ui";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ApiClientError } from "@/lib/api/client";
 import { fetchCheckout, formatVnd, type PaymentIntentDTO } from "../../../../lib/api/billing";
 import { emitNotificationsChanged } from "../../../../lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 
 // Guide payment_service: poll 3-5s, dừng sau 10-15 phút
 const POLL_MS = 4_000;
@@ -70,7 +72,14 @@ function Checkout({ intentId }: { intentId: string }) {
         if (cancelled) return;
         // Chuỗi rỗng = lỗi tải, dịch lúc render ⇒ `t` không vào dependency (effect này đang poll).
         setError(userErrorMessage(err));
-        timer = window.setTimeout(tick, POLL_MS);
+        const terminal = err instanceof ApiClientError && (err.status === 401 || err.status === 403 || err.status === 404);
+        if (!terminal) {
+          if (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+            timer = window.setTimeout(tick, POLL_MS);
+          } else {
+            setTimedOut(true);
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -198,7 +207,27 @@ function Checkout({ intentId }: { intentId: string }) {
 
 function CheckoutFromQuery() {
   const t = useTranslations("app.checkout");
+  const router = useRouter();
   const intentId = useSearchParams().get("intentId");
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const isViewer = !orgLoading && !orgError && activeOrg?.role === "viewer";
+  const isAnalyst = !orgLoading && !orgError && activeOrg?.role === "analyst";
+
+  useEffect(() => {
+    if (isViewer) router.replace("/home");
+    else if (isAnalyst) router.replace("/home/billing");
+  }, [isViewer, isAnalyst, router]);
+
+  if (orgLoading) return <CheckoutFallback />;
+  if (isViewer || isAnalyst) return null;
+  if (orgError) {
+    return (
+      <CenteredCard>
+        <div className="text-body text-on-error-container">{t("loadFailed")}</div>
+        <BackLink />
+      </CenteredCard>
+    );
+  }
 
   if (!intentId) {
     return (

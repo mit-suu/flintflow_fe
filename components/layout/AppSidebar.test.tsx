@@ -15,8 +15,15 @@ vi.mock("@/lib/api/projects", () => ({ listProjectsPage: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 120, planLabel: "Pro" })) }));
-const activeOrg = vi.hoisted(() => ({ value: null as null | { id: string; name: string; role: "lead" } }));
-vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
+const activeOrg = vi.hoisted(() => ({
+  value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
+  loading: false,
+  error: false,
+}));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => activeOrg.value,
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading, error: activeOrg.error }),
+}));
 vi.mock("@/lib/api/notifications", () => ({
   fetchUnreadCount: vi.fn(async () => 3),
   onNotificationsChanged: () => () => {},
@@ -145,6 +152,9 @@ describe("tổ chức đang mở", () => {
 
 describe("AppShell - số dư theo vai trò", () => {
   beforeEach(() => {
+    activeOrg.value = null;
+    activeOrg.loading = false;
+    activeOrg.error = false;
     vi.mocked(fetchBalance).mockClear();
   });
 
@@ -157,10 +167,44 @@ describe("AppShell - số dư theo vai trò", () => {
   });
 
   it("Viewer ⇒ không gọi /billing/balance (BE chỉ cho Lead/Analyst, gọi là 403)", async () => {
-    activeOrg.value = { id: "o1", name: "Org", role: "viewer" as never };
+    activeOrg.value = { id: "o1", name: "Org", role: "viewer" };
     renderSidebar([]);
     await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
     expect(fetchBalance).not.toHaveBeenCalled();
     activeOrg.value = null;
+  });
+
+  it("Viewer ⇒ ẩn mục Credits & Thanh toán (/home/billing); Lead và Analyst vẫn thấy", async () => {
+    activeOrg.value = { id: "o1", name: "Org", role: "viewer" };
+    const { unmount } = renderSidebar([]);
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /Credits & Thanh toán/ })).toBeNull();
+    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).not.toContain("/home/billing");
+    unmount();
+
+    activeOrg.value = { id: "o1", name: "Org", role: "analyst" };
+    const { unmount: unmountAnalyst } = renderSidebar([]);
+    expect(screen.getByRole("link", { name: /Credits & Thanh toán/ })).toHaveAttribute("href", "/home/billing");
+    unmountAnalyst();
+
+    activeOrg.value = { id: "o1", name: "Org", role: "lead" };
+    renderSidebar([]);
+    expect(screen.getByRole("link", { name: /Credits & Thanh toán/ })).toHaveAttribute("href", "/home/billing");
+  });
+
+  it("đang tải tổ chức (cold load) ⇒ ẩn mục Credits & Thanh toán và không gọi /billing/balance", async () => {
+    activeOrg.loading = true;
+    renderSidebar([]);
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /Credits & Thanh toán/ })).toBeNull();
+    expect(fetchBalance).not.toHaveBeenCalled();
+  });
+
+  it("tải tổ chức lỗi ⇒ ẩn mục Credits & Thanh toán (fail closed) và không gọi /billing/balance", async () => {
+    activeOrg.error = true;
+    renderSidebar([]);
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /Credits & Thanh toán/ })).toBeNull();
+    expect(fetchBalance).not.toHaveBeenCalled();
   });
 });

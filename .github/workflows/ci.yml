@@ -82,12 +82,26 @@ jobs:
 
       # `flintflow_be` là repo public nên `GITHUB_TOKEN` mặc định đọc được, không cần secret riêng.
       # Nếu sau này chuyển sang private thì thêm `token: ${{ secrets.BE_REPO_TOKEN }}` (PAT có quyền
-      # đọc Contents của repo đó).
+      # đọc Contents của repo đó). Nếu PR có nhánh cùng tên bên `flintflow_be` thì ưu tiên checkout
+      # nhánh đó để kiểm E2E đồng bộ cả hai phía trước khi merge vào `develop`.
+      - name: Resolve backend ref
+        id: be-ref
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ -n "$HEAD_REF" ] && git ls-remote --exit-code --heads https://github.com/mit-suu/flintflow_be.git "$HEAD_REF" >/dev/null 2>&1; then
+            echo "Using matching backend branch: $HEAD_REF"
+            echo "ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "Using default backend branch: develop"
+            echo "ref=develop" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout backend
         uses: actions/checkout@v4
         with:
           repository: mit-suu/flintflow_be
-          ref: develop
+          ref: ${{ steps.be-ref.outputs.ref }}
           path: backend
 
       - name: Install backend deps
@@ -133,6 +147,18 @@ jobs:
           E2E_EMAIL: fixture@flintflow.io
           E2E_PASSWORD: fixture-password-123
         run: npm run seed:e2e-user
+
+      - name: Seed e2e billing accounts
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://localhost:27017/flintflow_e2e
+          JWT_ACCESS_SECRET: e2e-access-secret-not-a-real-key-32chars
+          JWT_REFRESH_SECRET: e2e-refresh-secret-not-a-real-key-32chars
+        run: |
+          if node -e "const fs=require('node:fs'); const p=JSON.parse(fs.readFileSync('./package.json','utf8')); process.exit(p.scripts && p.scripts['seed:e2e-billing'] ? 0 : 1)"; then
+            npm run seed:e2e-billing
+          fi
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
