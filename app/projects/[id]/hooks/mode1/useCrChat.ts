@@ -119,6 +119,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
   const alive = useRef(true);
+  const sendingRef = useRef(false);
   // CR vừa ghi bản nháp ⇒ trang tải lại Spine / tài liệu / version (giữ hàm mới nhất, không làm đổi `submit`)
   const onWrittenRef = useRef(onWritten);
   useEffect(() => {
@@ -278,16 +279,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     [advance, call, pending, pendingSeed, prefill, projectId]
   );
 
-  /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
-  const send = useCallback(
-    async (text: string) => {
-      const value = text.trim();
-      if (!value) return;
-      if (!detail) {
-        setSent(null);
-        setPending(value);
-        return;
-      }
+  const sendToCr = useCallback(
+    async (detail: CrDetail, value: string) => {
       const c = detail.change_request;
       if (redraftFor) {
         const locId = redraftFor;
@@ -321,7 +314,29 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (!CR_AMENDABLE_STATUSES.includes(c.status)) return setError(t("running"));
       await advance(r);
     },
-    [advance, call, detail, projectId, redraftFor, t]
+    [advance, call, projectId, redraftFor, t]
+  );
+
+  /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
+  const send = useCallback(
+    async (text: string) => {
+      const value = text.trim();
+      if (!value) return;
+      if (!detail) {
+        setSent(null);
+        setPending(value);
+        return;
+      }
+      // FLF-400: lượt gửi trước vào CR chưa xong ⇒ bỏ qua, không gửi lần hai (`busy` là state, chậm một khung render)
+      if (sendingRef.current) return;
+      sendingRef.current = true;
+      try {
+        await sendToCr(detail, value);
+      } finally {
+        sendingRef.current = false;
+      }
+    },
+    [detail, sendToCr]
   );
 
   const withCr = <T,>(fn: (id: string, d: CrDetail) => T): T | undefined => (detail ? fn(detail.change_request.cr_id, detail) : undefined);
