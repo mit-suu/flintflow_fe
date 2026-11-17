@@ -108,6 +108,8 @@ import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
 import { isRedrawable, issueCounts, readableMessage, type RedrawReport } from "./_components/flag-rules";
+import { canShowRerunCard } from "./_components/rerun-card";
+import { contentChangeCount } from "./_components/change-count";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -1026,7 +1028,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
-      setToast(result.changes.length > 0 ? t("toasts.changesApplied", { count: result.changes.length }) : t("toasts.noChange"));
+      // FLF-431: chỉ đếm thay đổi nội dung — "Xác nhận không đổi" chỉ ghi mốc duyệt, không được báo "Đã áp dụng 44 thay đổi"
+      const contentCount = contentChangeCount(result.changes);
+      setToast(contentCount > 0 ? t("toasts.changesApplied", { count: contentCount }) : t("toasts.noChange"));
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
@@ -1891,6 +1895,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   };
   const shownToast = toast ?? (ws.notice ? noticeText(ws.notice) : null);
 
+  // FLF-431 (BarberGo #21): thẻ chạy lại bước hiện cả khi cổng của bước khác (Ký baseline) đang mở
+  const rerunCardAllowed = viewedStep !== null && canShowRerunCard(aiWorking, runner.state, viewedStep);
+
   const rerunStaleStep = async (stepId: string) => {
     const text = t("rerunStep.message");
     await runner.run(stepId, { message: text, standalone: true, reopen: true, onStarted: () => ws.appendLocalMessage(text, stepId) });
@@ -2121,7 +2128,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
-          {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
+          {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && rerunCardAllowed && (
             <div
               ref={staleCardRef}
               onAnimationEnd={(e) => e.currentTarget.classList.remove("ff-flash")}
@@ -2337,6 +2344,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <DocumentPane
           projectId={projectId}
           projectName={documentName}
+          baselineVersions={spine?.baselines.map((b) => b.version) ?? []}
           flags={flags}
           doc={doc}
           newerVersion={follow.hasNewer && followBusy ? { onApply: follow.apply } : null}
