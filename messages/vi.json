@@ -1958,7 +1958,7 @@
       "waiveFailed": "Không bỏ qua được vấn đề này",
       "openStepAria": "Mở bước {label} ({stepId})",
       "keepTitle": "Ghi lại lý do giữ nguyên. Cờ đỏ vẫn chặn chốt bản cho tới khi nội dung được sửa.",
-      "keepBlocking": "Giữ nguyên (vẫn chặn)",
+      "keepBlocking": "Giữ nguyên kèm lý do…",
       "waive": "Bỏ qua",
       "right": "Đúng",
       "wrong": "Sai",
@@ -2008,6 +2008,10 @@
         "link": {
           "title": "Chưa gắn chức năng",
           "hint": "Màn hình, use case hoặc tính năng này chưa có chức năng nào gắn vào - gõ lệnh sửa trong chat để thêm hoặc gắn chức năng."
+        },
+        "actor": {
+          "title": "Chưa gắn tác nhân",
+          "hint": "Màn hình này chưa có tác nhân nào dùng: không có trong bảng phân quyền và không có chức năng nào của use case trên màn - gõ lệnh sửa trong chat để thêm phân quyền (ví dụ: cho Guest và Customer dùng màn này)."
         },
         "reaccept": {
           "title": "Cần bạn duyệt lại",
@@ -2563,6 +2567,7 @@
       "acceptAsIsEmpty": "Duyệt như hiện tại:",
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
       "editSection": "Trong {label}: ",
+      "editFlag": "Trong {label}: sửa vấn đề \"{issue}\" ",
       "fixComment": "Trong {label}, sửa theo góp ý: {text}",
       "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. "
     },
@@ -2702,6 +2707,7 @@
       "derived_from_changed_assumption": "Dựa trên giả định đã bị đổi",
       "screen_placeholder": "Màn hình để trống có chủ đích",
       "orphan_screen_at_baseline": "Màn hình không gắn chức năng",
+      "screen_no_actor": "Màn hình chưa có tác nhân nào dùng",
       "system_name_missing": "Thiếu tên hệ thống",
       "actor_name_shape": "Tên actor chưa đúng dạng",
       "original_diagram_stale": "Hình gốc lệch dữ liệu",
@@ -4330,6 +4336,7 @@
         "screen_pending_at_baseline": "Màn hình chưa mô tả xong",
         "orphan_screen_at_baseline": "Màn hình không nằm trong luồng nào",
         "orphan_screen": "Màn hình không nằm trong luồng nào",
+        "screen_no_actor": "Màn hình chưa có tác nhân nào dùng",
         "orphan_actor": "Tác nhân chưa gắn use case",
         "usecase_no_function": "Use case chưa gắn chức năng",
         "screen_no_function": "Màn hình chưa có chức năng",

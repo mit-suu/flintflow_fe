@@ -10,6 +10,8 @@ const EXTRA_RULES = [
   "derived_from_changed_assumption",
   "screen_placeholder",
   "orphan_screen_at_baseline",
+  // FLF-428: màn có trong luồng mà chưa tác nhân nào dùng (tách khỏi orphan_screen)
+  "screen_no_actor",
   "system_name_missing",
   "actor_name_shape",
   // Mode 1 §4.13: hình người dùng vẽ sẵn không còn khớp dữ liệu — mở CR để thay bằng sơ đồ vẽ lại
@@ -69,7 +71,7 @@ export const readableMessage = (message: string, sectionId: string, sectionLabel
 
 // ─── gom theo việc người dùng phải làm (không theo luật) ─────────────
 
-export type IssueAction = "confirm" | "run_step" | "fill" | "link" | "reaccept" | "redraw" | "fix";
+export type IssueAction = "confirm" | "run_step" | "fill" | "link" | "actor" | "reaccept" | "redraw" | "fix";
 
 const ACTION_OF_RULE: Record<string, IssueAction> = {
   unconfirmed_assumption: "confirm",
@@ -80,6 +82,8 @@ const ACTION_OF_RULE: Record<string, IssueAction> = {
   screen_no_function: "run_step",
   empty_feature: "run_step",
   orphan_screen_at_baseline: "run_step",
+  // FLF-428: màn chưa có tác nhân — việc phải làm là thêm phân quyền (sửa qua chat), không chờ bước nào
+  screen_no_actor: "actor",
   section_awaiting_reaccept: "reaccept",
   section_stale_at_baseline: "reaccept",
   diagram_stale: "redraw",
@@ -96,16 +100,18 @@ const LINK_RULES: ReadonlySet<string> = new Set(["screen_no_function", "usecase_
  * FLF-248: "sẽ điền ở bước sau" chỉ đúng khi bước sở hữu CHƯA chốt. Bước đã chốt mà mục vẫn rỗng thì không
  * còn bước nào điền nữa — BE vẫn coi cờ đỏ đó chặn ký baseline, nên panel phải đếm và cho đường xử lý.
  */
-export const actionOfFlag = (flag: Pick<Flag, "rule_id" | "remediation_step">, acceptedSteps?: ReadonlySet<string>): IssueAction => {
+export const actionOfFlag = (flag: Pick<Flag, "rule_id" | "remediation_step"> & Partial<Pick<Flag, "section_id">>, acceptedSteps?: ReadonlySet<string>): IssueAction => {
   const action = actionOf(flag.rule_id);
   if (action !== "run_step" || !acceptedSteps?.has(flag.remediation_step)) return action;
+  // FLF-428: màn mồ côi vì chưa có tác nhân (BE đặt mục §3.1.3 Screen Authorization) ⇒ nhóm "Chưa gắn tác nhân"
+  if (flag.rule_id === "orphan_screen_at_baseline" && flag.section_id === "fixed:3.1.3") return "actor";
   // FLF-411 U2-3: màn / use case / tính năng chưa gắn chức năng không phải "mục bắt buộc còn trống" — nhóm riêng
   return LINK_RULES.has(flag.rule_id) ? "link" : "fill";
 };
 
 
 /** Thứ tự hiện các nhóm. Tiêu đề + câu giải thích của mỗi nhóm: `workspace.flags.action.<action>`. */
-export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "link", "reaccept", "redraw", "run_step"];
+export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "link", "actor", "reaccept", "redraw", "run_step"];
 
 export interface ActionGroup {
   action: IssueAction;

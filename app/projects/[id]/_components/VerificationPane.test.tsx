@@ -65,7 +65,7 @@ describe("VerificationPane", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Giữ nguyên (vẫn chặn)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Giữ nguyên kèm lý do…" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
   });
 
