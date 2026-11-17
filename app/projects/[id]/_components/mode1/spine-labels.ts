@@ -147,6 +147,8 @@ const REF_FIELDS: Readonly<Record<string, NamedCollection>> = {
   feature_id: "features",
   screen_id: "screens",
   flow_to: "screens",
+  // P06 (CR #4): cạnh luồng màn `{ to, trigger }` — "to: SCR-05" thành "Tới màn: Product Detail"
+  to: "screens",
   function_ids: "functions",
   primary_function_id: "functions",
   includes: "use_cases",
