@@ -34,6 +34,13 @@ const docxForm = (file: File) => {
 export const uploadImport = (projectId: string, file: File) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import`, { method: "POST", body: docxForm(file) });
 
+/**
+ * Như `uploadImport` nhưng file lấy từ Google Drive (contract #46): `fileId` là file user chọn trong Google Picker. Thêm lỗi
+ * Google (`GOOGLE_RECONNECT_REQUIRED`, `GOOGLE_FILE_UNSUPPORTED`, `GOOGLE_EXPORT_TOO_LARGE`…).
+ */
+export const importFromGoogleDocs = (projectId: string, fileId: string) =>
+  apiCall<ImportStateResponse>(`${base(projectId)}/import/google-docs`, { method: "POST", body: JSON.stringify({ fileId }) });
+
 export const confirmLatest = (projectId: string, importId: string) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/confirm-latest`, {
     method: "POST",
