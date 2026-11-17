@@ -485,7 +485,7 @@
       "vietqrNote": "Pay by bank transfer with a VietQR code. Credits are added automatically once the transaction is confirmed.",
       "plans": "Plans",
       "creditsPerMonth": "{credits} credits / month",
-      "free": "Free",
+      "comparePlans": "Compare plans",
       "pricePerMonth": "{price} / month",
       "current": "Current",
       "switching": "Switching…",
@@ -560,6 +560,8 @@
       "topupRequestFailed": "Could not notify the Lead. Please try again.",
       "leadOnlyPurchase": "Only the organization Lead can buy credits or change the plan. When the organization needs more credits, let your Lead know.",
       "packageLabel": "{credits}-credit pack",
+      "bestValue": "Best value",
+      "perCredit": "≈ {price} per credit",
       "creditUnit": {
         "one": "credit",
         "other": "credits"
@@ -1265,7 +1267,11 @@
       "disconnect": "Disconnect",
       "connectFailed": "Could not connect your Google account. Please try again.",
       "disconnectFailed": "Could not disconnect. Please try again.",
-      "cancelled": "The Google window closed before access was granted. If no window appeared, allow pop-ups for this site."
+      "cancelled": "The Google window closed before access was granted. If no window appeared, allow pop-ups for this site.",
+      "or": "or",
+      "pickFromDrive": "Choose from Google Drive",
+      "pickerOpening": "Opening Google Drive…",
+      "pickerFailed": "Could not open Google Drive. Check your connection or ad blocker, then try again."
     },
     "org": {
       "roles": {
@@ -1333,6 +1339,7 @@
         "cancel": "Cancel",
         "leadOnly": "Only a Lead can invite, change roles or remove members.",
         "loadError": "Could not load the member list.",
+        "loading": "Loading the member list",
         "invite": {
           "title": "Invite a member",
           "roleLabel": "Role",
@@ -3279,6 +3286,9 @@
     "GOOGLE_RECONNECT_REQUIRED": "Reconnect your Google account to continue.",
     "GOOGLE_DRIVE_QUOTA_EXCEEDED": "Google Drive is limiting requests (storage full or too many calls). Please try again later or free up Drive space.",
     "GOOGLE_FILE_FORBIDDEN": "Google Drive denied access to this file.",
+    "GOOGLE_FILE_NOT_FOUND": "File not found on Google Drive (it may have been deleted).",
+    "GOOGLE_FILE_UNSUPPORTED": "Only Google Docs or Word (.docx) files can be imported from Google Drive.",
+    "GOOGLE_EXPORT_TOO_LARGE": "This Google Doc is too large for Google to convert to Word. Download it as .docx (File > Download) and upload it from your computer.",
     "TRANSLATION_INCOMPLETE": "Some items are not translated into this language yet, so the file can't be downloaded. Translate the rest, then try again.",
     "TRANSLATION_INCOMPLETE_COUNT_ONE": "{missing} item is not translated into this language yet, so the file can't be downloaded. Translate the rest, then try again.",
     "TRANSLATION_INCOMPLETE_COUNT": "{missing} items are not translated into this language yet, so the file can't be downloaded. Translate the rest, then try again.",
@@ -3672,7 +3682,8 @@
         "material": "Reading the document…",
         "reject": "Dropping the proposal…",
         "redraft": "AI is redrafting the proposal…",
-        "manual": "Saving your own edit…"
+        "manual": "Saving your own edit…",
+        "cancel": "Cancelling the change request…"
       },
       "approved": {
         "step": "Approved changes ({count} parts)",
@@ -3826,7 +3837,15 @@
       "conflictStep": "Someone just edited the same place",
       "conflictLabel": "Places edited by someone else while waiting",
       "conflictIntro": "{count, plural, one {# place was} other {# places were}} changed by someone else while you were waiting to confirm. Nothing was written - compare and choose (there is no overwrite, so their change is never lost).",
-      "replyLabel": "AI answer"
+      "replyLabel": "AI answer",
+      "withdraw": {
+        "step": "Confirm",
+        "label": "Confirm withdrawing the request",
+        "question": "You answered “{text}” - do you want to drop {crId}? Cancelling stops the change request for good; the document stays as it is.",
+        "cancelCr": "Cancel {crId}",
+        "answer": "No, send it as my answer",
+        "dismiss": "Let me answer again"
+      }
     },
     "crChat": {
       "hintNew": "Type a document edit, e.g. Add a performance requirement for the search screen",
@@ -3835,7 +3854,8 @@
       "hintAmend": "Type another edit to merge into {crId}…",
       "multiQuestion": "AI is asking several questions - answer them in the question card above (pick a suggestion or type each answer).",
       "paused": "The AI step is paused - click “Continue” above first.",
-      "running": "AI is running - wait for this step to finish, then type again."
+      "running": "AI is running - wait for this step to finish, then type again.",
+      "withdrawReason": "The requester withdrew it during clarification: “{text}”"
     },
     "crWorkspace": {
       "loading": "Loading change request",
@@ -4703,7 +4723,12 @@
       "title": "Upload an existing SRS (.docx)",
       "hint": "Word .docx file up to {max} MB. Other people's Track Changes/comments must be accepted/rejected before uploading.",
       "tooLarge": "File {name} is {size} MB, over the {max} MB limit - compress the images in Word (File → Compress Pictures) or split off appendices, then try again.",
-      "uploading": "Uploading and checking the file…"
+      "uploading": "Uploading and checking the file…",
+      "picked": "Selected:",
+      "pickedGoogleDoc": "Google Docs",
+      "pickedWord": "Word on Drive",
+      "removePicked": "Remove selected file",
+      "continue": "Continue"
     },
     "valueEditor": {
       "tableBlock": "Table {n} (one row per line, cells separated by “|”)",

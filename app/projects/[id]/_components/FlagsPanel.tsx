@@ -528,7 +528,7 @@ export default function FlagsPanel({
         idBase="doc-issues"
         value={tab}
         onChange={setTab}
-        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
+        className="self-stretch flex-wrap [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
         options={[
           { value: "blocking", label: t("tab.blocking"), count: counts.blocking },
           { value: "suggestions", label: t("tab.suggestions"), count: counts.suggestions },

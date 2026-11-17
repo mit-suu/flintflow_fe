@@ -1051,7 +1051,17 @@ function DocumentPaneView({
             )}
           </div>
         )}
-        {loading && <div className="text-body text-on-surface-muted italic">{t("loading")}</div>}
+        {/* Lần tải đầu: dòng giữ chỗ cùng nhịp với tài liệu thật (tiêu đề mục + đoạn chữ), không phải một dòng chữ "Đang tải" */}
+        {loading && (
+          <div aria-hidden className="flex flex-col gap-3.5 pt-1">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-3 w-1/5" />
+            <div className="h-2" />
+            {Array.from({ length: 9 }, (_, i) => (
+              <Skeleton key={i} className={`h-3 ${i % 4 === 3 ? "w-2/3" : "w-full"}`} />
+            ))}
+          </div>
+        )}
 
         {/* Dự án chưa chạy bước nào: nói tài liệu sẽ tự hiện, không mời bấm gì — không có việc nào cho người dùng ở đây */}
         {empty && <div className="text-body text-on-surface-muted italic">{t("emptyDocument")}</div>}

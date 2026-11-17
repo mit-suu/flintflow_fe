@@ -485,7 +485,7 @@
       "vietqrNote": "Thanh toán bằng chuyển khoản ngân hàng qua mã VietQR. Credit được cộng tự động khi giao dịch được xác nhận.",
       "plans": "Gói sử dụng",
       "creditsPerMonth": "{credits} credit / tháng",
-      "free": "Miễn phí",
+      "comparePlans": "So sánh các gói",
       "pricePerMonth": "{price} / tháng",
       "current": "Đang dùng",
       "switching": "Đang đổi…",
@@ -560,6 +560,8 @@
       "topupRequestFailed": "Chưa báo được Lead. Vui lòng thử lại.",
       "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead.",
       "packageLabel": "Gói {credits} credit",
+      "bestValue": "Tiết kiệm nhất",
+      "perCredit": "≈ {price} / credit",
       "creditUnit": {
         "one": "credit",
         "other": "credit"
@@ -1265,7 +1267,11 @@
       "disconnect": "Ngắt kết nối",
       "connectFailed": "Không kết nối được tài khoản Google. Vui lòng thử lại.",
       "disconnectFailed": "Không ngắt kết nối được. Vui lòng thử lại.",
-      "cancelled": "Cửa sổ Google đã đóng trước khi cấp quyền. Nếu không thấy cửa sổ, hãy cho phép trình duyệt mở popup."
+      "cancelled": "Cửa sổ Google đã đóng trước khi cấp quyền. Nếu không thấy cửa sổ, hãy cho phép trình duyệt mở popup.",
+      "or": "hoặc",
+      "pickFromDrive": "Chọn từ Google Drive",
+      "pickerOpening": "Đang mở Google Drive…",
+      "pickerFailed": "Không mở được Google Drive. Kiểm tra kết nối mạng hoặc trình chặn quảng cáo, rồi thử lại."
     },
     "org": {
       "roles": {
@@ -1333,6 +1339,7 @@
         "cancel": "Huỷ",
         "leadOnly": "Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.",
         "loadError": "Không tải được danh sách thành viên.",
+        "loading": "Đang tải danh sách thành viên",
         "invite": {
           "title": "Mời thành viên",
           "roleLabel": "Vai trò",
@@ -3278,6 +3285,9 @@
     "GOOGLE_RECONNECT_REQUIRED": "Cần kết nối lại tài khoản Google để tiếp tục.",
     "GOOGLE_DRIVE_QUOTA_EXCEEDED": "Google Drive đang giới hạn (hết dung lượng hoặc quá nhiều lượt gọi). Vui lòng thử lại sau hoặc giải phóng dung lượng Drive.",
     "GOOGLE_FILE_FORBIDDEN": "Google Drive từ chối truy cập file này.",
+    "GOOGLE_FILE_NOT_FOUND": "Không tìm thấy file trên Google Drive (có thể đã bị xoá).",
+    "GOOGLE_FILE_UNSUPPORTED": "Chỉ nhập được Google Docs hoặc file Word (.docx) từ Google Drive.",
+    "GOOGLE_EXPORT_TOO_LARGE": "Google Doc này quá lớn để Google chuyển sang Word. Hãy tải file về dạng .docx (Tệp > Tải xuống) rồi tải lên từ máy.",
     "TRANSLATION_INCOMPLETE": "Tài liệu còn mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT_ONE": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
@@ -3671,7 +3681,8 @@
         "material": "Đang đọc tài liệu…",
         "reject": "Đang bỏ đề xuất…",
         "redraft": "AI đang soạn lại đề xuất…",
-        "manual": "Đang lưu bản bạn tự sửa…"
+        "manual": "Đang lưu bản bạn tự sửa…",
+        "cancel": "Đang huỷ change request…"
       },
       "approved": {
         "step": "Thay đổi đã duyệt ({count} phần)",
@@ -3825,7 +3836,15 @@
       "conflictStep": "Có người vừa sửa cùng chỗ",
       "conflictLabel": "Chỗ bị người khác sửa trong lúc chờ",
       "conflictIntro": "{count, plural, other {# chỗ}} đã được người khác sửa trong lúc bạn chờ xác nhận. Chưa ghi gì - xem so sánh và chọn cách xử lý (không có nút ghi đè để không xoá phần người khác vừa sửa).",
-      "replyLabel": "AI trả lời"
+      "replyLabel": "AI trả lời",
+      "withdraw": {
+        "step": "Xác nhận",
+        "label": "Xác nhận rút lại yêu cầu",
+        "question": "Bạn trả lời “{text}” - có phải bạn muốn bỏ {crId}? Huỷ thì change request dừng hẳn, tài liệu không đổi gì.",
+        "cancelCr": "Huỷ {crId}",
+        "answer": "Không, gửi làm câu trả lời",
+        "dismiss": "Để tôi trả lời lại"
+      }
     },
     "crChat": {
       "hintNew": "Gõ yêu cầu sửa tài liệu, vd: Thêm yêu cầu hiệu năng cho màn tra cứu",
@@ -3834,7 +3853,8 @@
       "hintAmend": "Gõ thêm lệnh sửa để gộp vào {crId}…",
       "multiQuestion": "AI đang hỏi nhiều câu - trả lời ở thẻ câu hỏi phía trên (chọn gợi ý hoặc gõ từng câu).",
       "paused": "Bước AI đang tạm dừng - bấm “Tiếp tục” ở phía trên trước.",
-      "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp."
+      "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp.",
+      "withdrawReason": "Người yêu cầu rút lại ở bước làm rõ: “{text}”"
     },
     "crWorkspace": {
       "loading": "Đang tải change request",
@@ -4702,7 +4722,12 @@
       "title": "Tải lên SRS có sẵn (.docx)",
       "hint": "File Word .docx tối đa {max} MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.",
       "tooLarge": "File {name} nặng {size} MB, lớn hơn giới hạn {max} MB - hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.",
-      "uploading": "Đang tải lên và kiểm tra file…"
+      "uploading": "Đang tải lên và kiểm tra file…",
+      "picked": "Đã chọn:",
+      "pickedGoogleDoc": "Google Docs",
+      "pickedWord": "Word trên Drive",
+      "removePicked": "Bỏ file đã chọn",
+      "continue": "Tiếp tục"
     },
     "valueEditor": {
       "tableBlock": "Bảng {n} (mỗi dòng một hàng, ô cách nhau “|”)",

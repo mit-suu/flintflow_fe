@@ -53,5 +53,11 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   },
 ];
 
+/**
+ * Cookie bản sao của trạng thái thu gọn sidebar (bản chính ở localStorage, `AppShell`). Server đọc nó để khung chờ xác
+ * thực (`ShellSkeleton`) có đúng bề ngang ngay trong HTML đầu tiên. Để ở đây vì file này không phải module client.
+ */
+export const SIDEBAR_COLLAPSED_COOKIE = "ff_sidebar_collapsed";
+
 export const isSidebarItemActive = (item: ReadySidebarItem, pathname: string): boolean =>
   item.match === "exact" ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
