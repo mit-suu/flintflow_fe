@@ -78,7 +78,9 @@ describe("WorkspacePage - tải theo ngôn ngữ còn lại (FLF-334 B)", () => 
       }),
       http.get("*/projects/:projectId/translations/status", ({ request }) => {
         statusUrls.push(new URL(request.url).search);
-        return HttpResponse.json({ data: { locale: "vi", source_locale: "en", total: 40, missing: 5, batches: 1, estimated_credits: 2 }, error: null });
+        // P09 (câu 11): lượt đếm lúc bấm tải chưa thấy thiếu (vd bản dịch vừa bị đổi sau đó) ⇒ tải, BE 409 ⇒ vẫn mời "Dịch nốt"
+        const missing = statusUrls.length === 1 ? 0 : 5;
+        return HttpResponse.json({ data: { locale: "vi", source_locale: "en", total: 40, missing, batches: 1, estimated_credits: 2 }, error: null });
       })
     );
     renderWithIntl(<WorkspacePage />);
