@@ -8,6 +8,7 @@ import Icon from "@/components/ui/Icon";
 import Skeleton from "@/components/ui/Skeleton";
 import { BlockView, depthOf, followsHeading, headingSize, sectionLabel } from "../_components/DocumentPane";
 import type { Block, RenderedDocument, RenderedSection, RocRow } from "@/types/document";
+import { isGuidanceOnly } from "@/lib/instruction-text";
 import type { DocumentLanguage } from "@/types/project";
 
 /**
@@ -136,7 +137,7 @@ export default function ViewDocument({
         );
         const sectionKey = pinKey(section.id, null);
         // Heading nhóm: chỉ là tiêu đề chương / mục cha, không có nội dung riêng (cùng cách workspace hiển thị) — không
-        // "chưa hoàn thiện", nhưng vẫn ghim comment được như mọi mục
+        // "chưa soạn", nhưng vẫn ghim comment được như mọi mục
         if (section.id.startsWith("group:") && section.blocks.length === 0 && !isIncomplete(section)) {
           return (
             <div key={section.id} className="pt-6 first:pt-0">
@@ -146,7 +147,9 @@ export default function ViewDocument({
             </div>
           );
         }
-        const incomplete = section === rawSection && (isIncomplete(section) || section.blocks.length === 0);
+        // P07 (câu 3): mục chỉ có chữ hướng dẫn của mẫu ⇒ "Chưa soạn" + hướng dẫn mờ bên dưới (bản Word không in hướng dẫn)
+        const guidanceOnly = section === rawSection && isGuidanceOnly(section.blocks);
+        const incomplete = section === rawSection && (isIncomplete(section) || section.blocks.length === 0 || guidanceOnly);
         return (
           <article key={section.id} aria-label={sectionLabel(section)} className="pt-4 first:pt-0 flex flex-col gap-1">
             <Pinnable id={pinDomId(sectionKey)} tone={tone(sectionKey)} gutter={gutter(section, null)}>
@@ -160,6 +163,13 @@ export default function ViewDocument({
                 )}
               </div>
             </Pinnable>
+            {guidanceOnly && (
+              <div data-template-guidance className="flex flex-col gap-1 opacity-60 italic text-on-surface-muted">
+                {section.blocks.map((block, i) => (
+                  <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+                ))}
+              </div>
+            )}
             {!incomplete &&
               section.blocks.map((block, i) => {
                 const key = pinKey(section.id, i);

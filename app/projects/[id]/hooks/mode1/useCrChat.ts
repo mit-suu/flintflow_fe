@@ -6,6 +6,7 @@ import {
   addCrMaterialFile,
   addCrMaterialText,
   answerClarifications,
+  cancelCr,
   createCr,
   deleteCrMaterial,
   draftInOwnerStep,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/api/change-requests";
 import { CR_AMENDABLE_STATUSES, CR_OPEN_STATUSES, CR_REDRAFT_STATUSES, type CrDetail, type CrLocation, type NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { useErrorText } from "../../_components/mode1/i18n";
+import { answersWithdraw } from "@/lib/withdrawal";
 
 /** Nguồn + người yêu cầu chọn ở thẻ 3.1 trong chat. */
 export interface CrChatSource {
@@ -39,7 +41,7 @@ export interface CrChatPrefill {
 }
 
 /** Việc đang chạy — để luồng chat nói "AI đang …". */
-export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft";
+export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft" | "cancel";
 
 /** Đề xuất đã đổi (AI làm lại / soạn lại) ⇒ khoá khác ⇒ người dùng phải đồng ý lại. */
 export const proposalKey = (l: CrLocation): string =>
@@ -116,6 +118,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   const [redraftFor, setRedraftFor] = useState<string | null>(null);
   /** FLF-375: câu hỏi giữa chừng + câu AI trả lời (chỉ trong phiên xem, không ghi vào CR). */
   const [replies, setReplies] = useState<{ question: string; reply: string }[]>([]);
+  /**
+   * FLF-439: câu trả lời làm rõ là lời rút lại ("không đổi nữa", "thôi khỏi") ⇒ chưa gửi, hỏi "huỷ CR?" — giữ các câu trả lời
+   * để "Gửi như câu trả lời" khi người dùng thật ra đang trả lời. Không tự huỷ: huỷ CR không quay lại được.
+   */
+  const [withdrawAsk, setWithdrawAsk] = useState<string[] | null>(null);
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
   const alive = useRef(true);
@@ -195,11 +202,14 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
 
   /** Bước AI kế tiếp chạy được mà không cần người — `null` nếu đang chờ người dùng. */
   const nextAuto = useCallback(
-    (d: CrDetail, set: ReadonlySet<string> = accepted): CrAction | null => {
+    (d: CrDetail, set: ReadonlySet<string> = accepted, afterAnswer = false): CrAction | null => {
       const c = d.change_request;
       if (c.paused) return null;
       if (c.status === "draft" || c.status === "clarifying") return "clarify";
       if (needImpact(d)) return "impact";
+      // P08 (CR #6): người dùng vừa trả lời câu làm rõ ⇒ đã quyết xong phần cần hỏi, chạy tiếp đề xuất luôn (không bắt bấm
+      // "Tiếp tục - AI đề xuất sửa"); danh sách phần liên quan vẫn hiện trong chat
+      if (afterAnswer && c.status === "impact_review" && d.locations.length > 0) return "propose";
       // Lô đã duyệt ở bản xem trước: phần liên quan là đúng phần lô chạm tới ⇒ không dừng chờ "AI đề xuất sửa"
       if (c.status === "impact_review" && d.locations.length > 0 && fromApprovedPreview(d)) return "propose";
       if (c.status === "proposing" && d.locations.some(needsProposal)) return "propose";
@@ -237,11 +247,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
    * đề xuất xong vẫn bỏ sót vị trí) ⇒ dừng để người dùng quyết, không gọi AI lặp tốn credit.
    */
   const advance = useCallback(
-    async (start: CrDetail | null, set: ReadonlySet<string> = accepted, previous: CrAction | null = null) => {
+    async (start: CrDetail | null, set: ReadonlySet<string> = accepted, previous: CrAction | null = null, afterAnswer = false) => {
       let cur = start;
       let last = previous;
       for (let i = 0; cur && i < 8; i++) {
-        const action = nextAuto(cur, set);
+        const action = nextAuto(cur, set, afterAnswer);
         if (!action || action === last) return;
         last = action;
         const id = cur.change_request.cr_id;
@@ -293,8 +303,9 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       }
       if (c.status === "awaiting_answers") {
         if (detail.pending_questions.length === 1) {
+          if (answersWithdraw([value])) return setWithdrawAsk([value]);
           const d = await call("answers", () => answerClarifications(projectId, c.cr_id, [value]));
-          await advance(d);
+          await advance(d, accepted, null, true);
         } else {
           setError(t("multiQuestion"));
         }
@@ -314,7 +325,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (!CR_AMENDABLE_STATUSES.includes(c.status)) return setError(t("running"));
       await advance(r);
     },
-    [advance, call, projectId, redraftFor, t]
+    [accepted, advance, call, projectId, redraftFor, t]
   );
 
   /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
@@ -400,9 +411,29 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       }),
     answer: (answers: string[]) =>
       void withCr(async (id) => {
+        if (answersWithdraw(answers)) return setWithdrawAsk(answers);
+        const d = await call("answers", () => answerClarifications(projectId, id, answers));
+        await advance(d, accepted, null, true);
+      }),
+    /** FLF-439: câu trả lời đang chờ xác nhận là rút lại (`null` = không hỏi). */
+    withdrawAsk,
+    /** Đúng là rút lại ⇒ huỷ CR, lý do ghi nguyên câu người dùng gõ. */
+    confirmWithdraw: () =>
+      void withCr(async (id) => {
+        const text = (withdrawAsk ?? []).map((a) => a.trim()).filter(Boolean).join(" / ");
+        const d = await call("cancel", () => cancelCr(projectId, id, t("withdrawReason", { text })));
+        if (d) setWithdrawAsk(null);
+      }),
+    /** Không phải rút lại ⇒ gửi đúng các câu đó làm câu trả lời như bình thường. */
+    answerAnyway: () =>
+      void withCr(async (id) => {
+        const answers = withdrawAsk;
+        if (!answers) return;
+        setWithdrawAsk(null);
         const d = await call("answers", () => answerClarifications(projectId, id, answers));
         await advance(d);
       }),
+    dismissWithdraw: () => setWithdrawAsk(null),
     addMaterialText: (name: string, text: string) => withCr((id) => call("material", () => addCrMaterialText(projectId, id, { name, text })).then((d) => d !== null)),
     addMaterialFile: (file: File) => withCr((id) => call("material", () => addCrMaterialFile(projectId, id, file))),
     removeMaterial: (materialId: string) => withCr((id) => call("material", () => deleteCrMaterial(projectId, id, materialId))),

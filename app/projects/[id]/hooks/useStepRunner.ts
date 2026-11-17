@@ -370,6 +370,22 @@ export const STREAM_CLOSED = "STREAM_CLOSED";
 
 /** Không có tín hiệu nào trong ngần này ⇒ coi như mất kết nối, đi hỏi BE lượt còn sống không (03 §3). */
 export const HEARTBEAT_TIMEOUT_MS = 30_000;
+
+/**
+ * FLF-432: lượt của dự án còn việc cho người dùng (cổng chốt / đang chờ trả lời) hoặc còn chạy ở BE — dùng khi luồng SSE đóng
+ * mà không có sự kiện kết thúc. `null` khi không có lượt nào như vậy, hoặc đọc lỗi.
+ */
+export const liveRunOf = async (projectId: string): Promise<RunState | null> => {
+  let run: RunState | null = null;
+  try {
+    run = (await getActiveRunState(projectId)).data ?? null;
+  } catch {
+    return null;
+  }
+  if (!run) return null;
+  if (run.status === "gate" || run.status === "waiting_answer") return run;
+  return run.status === "running" && run.alive !== false ? run : null;
+};
 const WATCHDOG_TICK_MS = 5_000;
 
 const toFailure = (err: unknown): { code: string; message: string; meta?: Record<string, unknown> } =>
@@ -604,7 +620,10 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
             dispatch({ type: "event", event, at: Date.now() });
             awaiting.see(event);
             if (event.type === "ops_applied") onSpineChanged(event.spine_version);
-            if (event.type === "gate_ready" || event.type === "auto_accepted") onSpineChanged();
+            // P08 (QLHS #5/#11): gate_ready mang version CUỐI của lượt — giữ ngay cho lượt ghi kế tiếp (trả lời thẻ, duyệt,
+            // Thử lại) thay vì chờ tải lại Spine rồi gửi `base_version` cũ ăn 409
+            if (event.type === "gate_ready") onSpineChanged(event.spine_version);
+            if (event.type === "auto_accepted") onSpineChanged();
             if ((event.type === "gate_ready" && !event.auto) || event.type === "phase_gate") stoppedAtGate = true;
             // gate_ready của bước được tự duyệt ngay sau đó không phải chỗ dừng
             if (event.type === "auto_accepted") stoppedAtGate = false;
@@ -617,7 +636,15 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (!stoppedAtGate) phaseRef.current = null;
         // Giai đoạn đã xong: luồng đóng mà không có cổng chốt nào. Không trả về "rảnh" ở đây thì màn hình
         // treo ở trạng thái đang chạy — không thẻ tiến trình, không thẻ "Bước này sẽ…", không nút nào.
-        if (!stoppedAtGate && !failed && !sawError && !controller.signal.aborted) dispatch(awaiting.awaiting() ? { type: "detached" } : { type: "reset" });
+        if (!stoppedAtGate && !failed && !sawError && !controller.signal.aborted) {
+          // FLF-432 (luồng C #9): luồng đóng mà không có cổng — có thể BE đã tới cổng / đang hỏi mà sự kiện không tới (mạng,
+          // proxy cắt SSE). Hỏi lượt đang chạy của dự án trước khi coi là rảnh; không thì màn hình đứng ở "đang làm" hoặc mất cổng.
+          const live = awaiting.awaiting() ? null : await liveRunOf(projectId);
+          if (live) {
+            stepRef.current = live.step_id;
+            dispatch({ type: "restored", state: live, at: Date.now() });
+          } else dispatch(awaiting.awaiting() ? { type: "detached" } : { type: "reset" });
+        }
         onSpineChanged();
         if (abortRef.current === controller) abortRef.current = null;
       }
@@ -734,13 +761,23 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       if (gateLockRef.current) return "skipped";
       gateLockRef.current = true;
       dispatch({ type: "busy", busy: true });
+      const send = (version: number) =>
+        submitGate(projectId, stepId, { session_id: sessionId, action, base_version: version, ...(note ? { note } : {}) });
       try {
-        const res = await submitGate(projectId, stepId, {
-          session_id: sessionId,
-          action,
-          base_version: baseVersion,
-          ...(note ? { note } : {}),
-        });
+        let res;
+        try {
+          res = await send(baseVersion);
+        } catch (err) {
+          // P08 (QLHS #5/#11): version của FE đi sau BE vì chính lượt trước của phiên này (render sơ đồ, tính lại cờ sau
+          // gate_ready) — đọc version mới nhất rồi gửi lại đúng một lần; lệch thật thì lần hai cũng 409 và rơi xuống báo lỗi
+          if (!isVersionConflict(err)) throw err;
+          const fresh = await getSpine(projectId)
+            .then((r) => r.data?.spine_version ?? null)
+            .catch(() => null);
+          if (fresh === null || fresh === baseVersion) throw err;
+          onSpineChanged(fresh);
+          res = await send(fresh);
+        }
         onSpineChanged(res.data?.spine_version);
         if (res.data) onGateDone?.(res.data);
         if (action === "revision" && res.data?.message_vi?.trim()) onRevisionMessage?.(res.data.message_vi.trim(), stepId);
@@ -834,14 +871,18 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   // ─── canh chừng: không có tín hiệu nào quá lâu ⇒ hỏi BE lượt còn sống không (03 §3) ───
   // Không có SSE (state dựng lại từ run-state) thì run-state là nguồn tin duy nhất: hỏi mỗi nhịp, không chờ quá
   // hạn heartbeat, và không báo "mất kết nối" — đó là cách theo dõi bình thường chứ không phải sự cố (FLF-222).
-  const waiting = state.busy && (state.status === "drafting" || state.status === "intake" || state.status === "eliciting" || state.status === "applied" || state.status === "rendering");
+  // FLF-432: `reconnecting` vẫn là đang chờ — trước đây vào `reconnecting` là tắt luôn nhịp hỏi sau một lần
+  const waiting =
+    state.busy &&
+    (state.status === "drafting" || state.status === "intake" || state.status === "eliciting" || state.status === "applied" || state.status === "rendering" || state.status === "reconnecting");
   const polling = state.source === "restored";
   useEffect(() => {
-    if (!waiting || !state.stepId) return;
+    if (!waiting) return;
     const timer = setInterval(() => {
       if (!polling && (state.lastEventAt === null || Date.now() - state.lastEventAt < HEARTBEAT_TIMEOUT_MS)) return;
       if (!polling) dispatch({ type: "reconnecting" });
-      void getRunState(projectId, state.stepId as string)
+      // FLF-432: chạy cả giai đoạn mà chưa có `phase_progress` (đang phỏng vấn đầu giai đoạn) thì chưa biết bước ⇒ hỏi lượt đang chạy của dự án
+      void (state.stepId ? getRunState(projectId, state.stepId) : getActiveRunState(projectId))
         .then((res) => {
           const run = res.data;
           if (!run) {

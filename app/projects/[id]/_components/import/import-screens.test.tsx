@@ -44,6 +44,19 @@ describe("StructurePreview - màn đọc khung (business-flow §3.1.2)", () => {
     expect(h.onPickAnother).toHaveBeenCalled();
   });
 
+  it("P09 (#15): mục có trích đoạn ⇒ hiện chữ FlintFlow đọc được (không phải thanh xám); mục còn trống không có chữ", () => {
+    const withExcerpt: Preview = {
+      ...preview,
+      sections: preview.sections.map((s) =>
+        s.section_id === "fixed:1" ? { ...s, excerpt: "Lumen is a course management SaaS for small training centres." } : s
+      ),
+    };
+    renderWithIntl(<StructurePreview fileName="SRS.docx" preview={withExcerpt} estimate={null} credits={10} {...handlers()} />);
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("Lumen is a course management SaaS for small training centres.");
+    expect(rows[1].textContent).not.toContain("Lumen");
+  });
+
   it("thiếu credit ⇒ khoá Bắt đầu + link nạp credit", () => {
     renderWithIntl(<StructurePreview fileName="SRS.docx" preview={preview} estimate={estimate(50, 10)} credits={10} {...handlers()} />);
     expect(screen.getByRole("button", { name: /Bắt đầu/ })).toBeDisabled();

@@ -54,6 +54,7 @@ export const RULE_KEYS = [
   "screen_pending_at_baseline",
   "orphan_screen_at_baseline",
   "orphan_screen",
+  "screen_no_actor",
   "orphan_actor",
   "usecase_no_function",
   "screen_no_function",
@@ -146,6 +147,8 @@ const REF_FIELDS: Readonly<Record<string, NamedCollection>> = {
   feature_id: "features",
   screen_id: "screens",
   flow_to: "screens",
+  // P06 (CR #4): cạnh luồng màn `{ to, trigger }` — "to: SCR-05" thành "Tới màn: Product Detail"
+  to: "screens",
   function_ids: "functions",
   primary_function_id: "functions",
   includes: "use_cases",

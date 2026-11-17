@@ -918,6 +918,11 @@
       "submit": "Start",
       "missingProject": "The new project was not returned",
       "failed": "Could not create the project",
+      "quota": {
+        "usage": "{used}/{max} projects used on the {plan} plan",
+        "full": "The {plan} plan allows up to {max} projects and the organization has used them all. Delete a project or upgrade to create more.",
+        "seePlans": "View plans"
+      },
       "srs": {
         "label": "SRS",
         "hint": "A .docx file FlintFlow will edit and complete - a blank customer template works too. Skip if you have none.",
@@ -1609,7 +1614,7 @@
       "loading": "Loading document…",
       "loadFailed": "Could not load the document",
       "loadFailedWith": "Could not load the document: {error}",
-      "incomplete": "not complete yet",
+      "incomplete": "not written yet",
       "commentsLoadFailed": "Could not load comments",
       "draftLabel": "draft",
       "viewerPickBaseline": "Viewers can only comment on released versions - pick a baseline above.",
@@ -1704,6 +1709,7 @@
       "responding": "Responding...",
       "badgeHint": "Chat doesn’t write to the document; every change goes through a preview before it’s applied",
       "openQuestions": "AI questions",
+      "answered": "Answered: {answer}",
       "badge": {
         "chatOnly": "Chat only",
         "pending": "Awaiting your confirmation ({count, plural, one {# change} other {# changes}})",
@@ -1861,7 +1867,7 @@
       "newerVersionApply": "Update",
       "awaitingReaccept": "Awaiting re-approval",
       "viewAt": "see {step} · {label}",
-      "incomplete": "Not complete yet - content appears once the step owning this section runs.",
+      "incomplete": "Not written yet - content appears once the step owning this section runs.",
       "untitled": "Project",
       "reload": "↻ Reload",
       "loading": "Loading document…",
@@ -1880,8 +1886,8 @@
       "retryDiagram": "Retry",
       "imageAlt": "Diagram",
       "emptyMode1": "Section is empty - create a change request (source: gap report) to fill it in.",
-      "incompleteShort": "Not complete yet",
-      "emptyRunStep": "No content yet - run step {stepId} · {label}",
+      "incompleteShort": "Not written yet",
+      "emptyRunStep": "Not written yet - run step {stepId} · {label}",
       "openStep": "Open step",
       "customTitle": "Section outside the FlintFlow standard template - kept verbatim from the uploaded file, edit via chat",
       "templateSection": "Template section",
@@ -1895,6 +1901,7 @@
       "comment": "Comment",
       "editSection": "Edit this section",
       "heading": "SRS - {name}",
+      "signedBadge": "Baseline",
       "openIssuesTitle": "Open the document's issue list",
       "blockingCount": "{count, plural, one {# issue to resolve} other {# issues to resolve}}",
       "suggestionCount": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
@@ -1958,7 +1965,7 @@
       "waiveFailed": "Could not skip this issue",
       "openStepAria": "Open step {label} ({stepId})",
       "keepTitle": "Records why it is kept as is. A red flag still blocks the baseline until the content is fixed.",
-      "keepBlocking": "Keep as is (still blocks)",
+      "keepBlocking": "Keep as is with a reason…",
       "waive": "Skip",
       "right": "Correct",
       "wrong": "Wrong",
@@ -2008,6 +2015,10 @@
         "link": {
           "title": "No function linked yet",
           "hint": "This screen, use case or feature has no function linked to it - type an edit command in chat to add or link one."
+        },
+        "actor": {
+          "title": "No actor assigned yet",
+          "hint": "No actor uses this screen: it is not in the screen authorization table and no use case function is on it - type an edit command in chat to add the permission (e.g. let Guest and Customer use this screen)."
         },
         "reaccept": {
           "title": "Needs your re-approval",
@@ -2089,6 +2100,12 @@
       "language": "Language",
       "untranslated": "{count, plural, one {# section is} other {# sections are}} not translated - the file will print the original text there. You can still download.",
       "translateFirst": "Translate document first",
+      "translateBeforeExport": "Translate {count, plural, one {# missing item} other {# missing items}} (~{credits} credits) and then export?",
+      "translateThenExport": "Translate, then export",
+      "exportAsIs": "Export as is (original text)",
+      "translateCancel": "Cancel",
+      "translatingBeforeExport": "Translating the missing items, the file downloads when done…",
+      "translateBeforeExportFailed": "Translation did not finish, so nothing was exported. The translated part is kept.",
       "fileLanguage": "File language",
       "translationIncomplete": "{count, plural, one {# item is} other {# items are}} not translated into {language} yet, so this file can't be downloaded.",
       "translateRest": "Translate the rest",
@@ -2564,6 +2581,7 @@
       "acceptAsIsEmpty": "Approve as is:",
       "fixFlag": "Please fix this issue as suggested: {message}",
       "editSection": "In {label}: ",
+      "editFlag": "In {label}: fix the issue \"{issue}\" ",
       "fixComment": "In {label}, fix per this comment: {text}",
       "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. "
     },
@@ -2657,6 +2675,8 @@
       "viewerNotice": "You are viewing as a Viewer - you can read the document but cannot send messages or run AI steps.",
       "staleNotice": "Step <strong>{step}</strong> is accepted, but <strong>{sections}</strong> is outdated after later edits. Rerun the step so the AI updates it, review it, then click Approve at the gate.",
       "rerunStep": "Update this step",
+      "continueNotice": "Step <strong>{step}</strong> is next but has not run yet.",
+      "continueRun": "Continue",
       "keeping": "Approving…",
       "keepAsIs": "Keep as is, re-approve",
       "close": "Close",
@@ -2675,6 +2695,8 @@
       "undone": "Undid the latest edit",
       "languageSwitched": "Switched the document to {language}",
       "aiBusyAsk": "The AI is working - wait for this turn to finish before asking again",
+      "gateEditCallLimit": "This step has used all 8 AI calls - your request moved to Edit document: review the preview, then press Apply.",
+      "gateEditOtherSection": "This request belongs to another section than the current step - it moved to Edit document: review the preview, then press Apply.",
       "aiBusyChat": "The AI is working - wait for this turn to finish before messaging again",
       "gateBlocked": "This step cannot be accepted yet - resolve what is blocking it on the review card, then come back",
       "stepKept": "Re-approved {step} without changes"
@@ -2703,6 +2725,7 @@
       "derived_from_changed_assumption": "Based on a changed assumption",
       "screen_placeholder": "Screen intentionally left blank",
       "orphan_screen_at_baseline": "Screen not linked to a function",
+      "screen_no_actor": "No actor uses this screen",
       "system_name_missing": "System name missing",
       "actor_name_shape": "Actor name not in the expected form",
       "original_diagram_stale": "Original figure out of sync with data",
@@ -3681,7 +3704,8 @@
         "material": "Reading the document…",
         "reject": "Dropping the proposal…",
         "redraft": "AI is redrafting the proposal…",
-        "manual": "Saving your own edit…"
+        "manual": "Saving your own edit…",
+        "cancel": "Cancelling the change request…"
       },
       "approved": {
         "step": "Approved changes ({count} parts)",
@@ -3835,7 +3859,15 @@
       "conflictStep": "Someone just edited the same place",
       "conflictLabel": "Places edited by someone else while waiting",
       "conflictIntro": "{count, plural, one {# place was} other {# places were}} changed by someone else while you were waiting to confirm. Nothing was written - compare and choose (there is no overwrite, so their change is never lost).",
-      "replyLabel": "AI answer"
+      "replyLabel": "AI answer",
+      "withdraw": {
+        "step": "Confirm",
+        "label": "Confirm withdrawing the request",
+        "question": "You answered “{text}” - do you want to drop {crId}? Cancelling stops the change request for good; the document stays as it is.",
+        "cancelCr": "Cancel {crId}",
+        "answer": "No, send it as my answer",
+        "dismiss": "Let me answer again"
+      }
     },
     "crChat": {
       "hintNew": "Type a document edit, e.g. Add a performance requirement for the search screen",
@@ -3844,7 +3876,8 @@
       "hintAmend": "Type another edit to merge into {crId}…",
       "multiQuestion": "AI is asking several questions - answer them in the question card above (pick a suggestion or type each answer).",
       "paused": "The AI step is paused - click “Continue” above first.",
-      "running": "AI is running - wait for this step to finish, then type again."
+      "running": "AI is running - wait for this step to finish, then type again.",
+      "withdrawReason": "The requester withdrew it during clarification: “{text}”"
     },
     "crWorkspace": {
       "loading": "Loading change request",
@@ -4272,6 +4305,7 @@
         "permissions": "Permissions",
         "action": "Action",
         "flow_to": "Navigates to screen",
+        "to": "To screen",
         "is_popup": "Is popup",
         "tabs": "Tabs",
         "primary_function_id": "Primary function",
@@ -4321,6 +4355,7 @@
         "screen_pending_at_baseline": "Screen description incomplete",
         "orphan_screen_at_baseline": "Screen is not part of any flow",
         "orphan_screen": "Screen is not part of any flow",
+        "screen_no_actor": "No actor uses this screen",
         "orphan_actor": "Actor has no use case",
         "usecase_no_function": "Use case has no function",
         "screen_no_function": "Screen has no function",

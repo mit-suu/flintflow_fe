@@ -15,6 +15,7 @@ import {
   NONSCREEN_LOOP,
   PHASE_LABELS_VI,
   getStepDef,
+  loopDisplayName,
   parseStepId,
   type PhaseId,
 } from "./constants/step-registry";
@@ -86,7 +87,7 @@ export const tStep = (stepId: string, locale: Locale = DEFAULT_LOCALE): string =
   if (!def) return stepId;
   const base = locale === "en" ? def.label_en : def.label_vi;
   if (!def.loop) return base;
-  const loop = def.loop === NONSCREEN_LOOP ? LOOP_SUFFIX[locale].nonscreen : def.loop;
+  const loop = def.loop === NONSCREEN_LOOP ? LOOP_SUFFIX[locale].nonscreen : loopDisplayName(def.loop);
   return `${base} · ${loop}`;
 };
 

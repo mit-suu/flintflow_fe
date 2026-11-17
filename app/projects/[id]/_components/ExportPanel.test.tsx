@@ -5,9 +5,16 @@ import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ExportPanel from "./ExportPanel";
 import * as exportApi from "@/lib/api/export";
+import * as translationsApi from "@/lib/api/translations";
 import { ApiClientError } from "@/lib/api/client";
 import type { RenderedDocument } from "@/types/document";
 import type { Baseline } from "@/types/spine";
+
+// Câu 11 (P09): mặc định không còn mục nào chưa dịch ⇒ bấm tải không hỏi (test riêng đặt lại)
+vi.mock("@/lib/api/translations", () => ({
+  getTranslationStatus: vi.fn(async () => ({ data: { locale: "vi", source_locale: "en", total: 10, missing: 0, batches: 0, estimated_credits: 0 }, error: null })),
+  runTranslation: vi.fn(),
+}));
 
 vi.mock("@/lib/api/export", () => ({
   getDocument: vi.fn(),
@@ -38,7 +45,8 @@ describe("ExportPanel", () => {
   const listBaselines = vi.mocked(exportApi.listBaselines);
 
   beforeEach(() => {
-    getDocument.mockReset();
+    // Mặc định: chưa ghép tài liệu — ca không tự đặt getDocument vẫn có Promise (không lỗi `.then` of undefined)
+    getDocument.mockReset().mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
     downloadWordExport.mockReset();
     listBaselines.mockReset();
     listBaselines.mockResolvedValue({ data: [], error: null });
@@ -83,6 +91,15 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
+  it("FLF-431: có baseline ⇒ mặc định Bản baseline; người dùng đã chọn Bản nháp thì giữ", async () => {
+    listBaselines.mockResolvedValue({ data: [{ id: "BL001", version: "v1.0" } as Baseline], error: null });
+    renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
+    const baselineTab = await screen.findByRole("tab", { name: "Bản baseline" });
+    await waitFor(() => expect(baselineTab).toHaveAttribute("aria-selected", "true"));
+    fireEvent.click(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" }));
+    expect(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("FLF-334: BE không gửi tên ⇒ tên dự phòng theo quy tắc chung (chưa baseline / nháp sau baseline / baseline)", async () => {
     const names: string[] = [];
     vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
@@ -102,7 +119,9 @@ describe("ExportPanel", () => {
     renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
     const tab = await screen.findByRole("tab", { name: "Bản baseline" });
     await waitFor(() => expect(tab).not.toBeDisabled());
-    fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
+    // FLF-431: có baseline ⇒ mặc định tab baseline; bản nháp phải chọn tab
+    fireEvent.click(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
     await waitFor(() => expect(names).toHaveLength(2));
     fireEvent.click(tab);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
@@ -126,7 +145,9 @@ describe("ExportPanel", () => {
     renderWithIntl(<ExportPanel projectId="p1" projectName="FAP" onClose={vi.fn()} />);
     const tab = await screen.findByRole("tab", { name: "Bản baseline" });
     await waitFor(() => expect(tab).not.toBeDisabled());
-    fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
+    // FLF-431: có baseline ⇒ mặc định tab baseline; bản nháp phải chọn tab
+    fireEvent.click(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
     await waitFor(() => expect(names).toHaveLength(1));
     fireEvent.click(tab);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
@@ -202,11 +223,11 @@ describe("ExportPanel - chọn định dạng Word / PDF (FLF-316)", () => {
     renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
 
     expect(await screen.findByRole("radio", { name: /Word/ })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("button", { name: "Tải bản nháp (.docx)" })).toBeInTheDocument();
 
     const baselineTab = screen.getByRole("tab", { name: "Bản baseline" });
     await waitFor(() => expect(baselineTab).toBeEnabled());
-    fireEvent.click(baselineTab);
+    // FLF-431: có baseline ⇒ tự chọn tab baseline
+    await waitFor(() => expect(baselineTab).toHaveAttribute("aria-selected", "true"));
     fireEvent.click(screen.getByRole("radio", { name: /PDF/ }));
     expect(screen.getByRole("radio", { name: /PDF/ })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("tab", { name: "Bản baseline" })).toHaveAttribute("aria-selected", "true");
@@ -256,7 +277,8 @@ describe("ExportPanel - ngôn ngữ tài liệu (FLF-265)", () => {
   const languageRow = () => screen.getByText("Ngôn ngữ").nextElementSibling;
 
   beforeEach(() => {
-    getDocument.mockReset();
+    // Mặc định: chưa ghép tài liệu — ca không tự đặt getDocument vẫn có Promise (không lỗi `.then` of undefined)
+    getDocument.mockReset().mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
     downloadWordExport.mockReset();
     listBaselines.mockReset();
     listBaselines.mockResolvedValue({ data: [], error: null });
@@ -323,7 +345,8 @@ describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
   const draftMeta = { assembled_at_version: 3, spine_version: 3, stale: false };
 
   beforeEach(() => {
-    getDocument.mockReset();
+    // Mặc định: chưa ghép tài liệu — ca không tự đặt getDocument vẫn có Promise (không lỗi `.then` of undefined)
+    getDocument.mockReset().mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
     downloadWordExport.mockReset();
     listBaselines.mockReset();
     listBaselines.mockResolvedValue({ data: [], error: null });
@@ -423,5 +446,93 @@ describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
     const flag = { id: "F1", level: "red" as const, rule_id: "template_section_migration_missing", section_id: "custom:new", message: "m", remediation_step: "", opened_at_version: 1, resolved_at: null, waived_by_user: false, waive_reason: null, waived_at_version: null };
     renderWithIntl(<ExportPanel projectId="p1" onClose={() => {}} flags={[flag]} />);
     expect(await screen.findByText(/Còn 1 mục của mẫu mới chưa viết/)).toBeInTheDocument();
+  });
+});
+
+describe("ExportPanel - hỏi dịch phần còn thiếu trước khi xuất (câu 11, P09)", () => {
+  const getDocument = vi.mocked(exportApi.getDocument);
+  const downloadWordExport = vi.mocked(exportApi.downloadWordExport);
+  const listBaselines = vi.mocked(exportApi.listBaselines);
+  const getTranslationStatus = vi.mocked(translationsApi.getTranslationStatus);
+  const runTranslation = vi.mocked(translationsApi.runTranslation);
+  const status = (missing: number) => ({ data: { locale: "vi" as const, source_locale: "en" as const, total: 40, missing, batches: 2, estimated_credits: 4 }, error: null });
+
+  beforeEach(() => {
+    getDocument.mockReset();
+    downloadWordExport.mockReset();
+    runTranslation.mockReset();
+    getTranslationStatus.mockReset();
+    listBaselines.mockResolvedValue({ data: [], error: null });
+    getDocument.mockResolvedValue({ data: fixture, error: null, meta: { assembled_at_version: 3, spine_version: 3, stale: false } });
+    downloadWordExport.mockResolvedValue({ blob: new Blob(["x"]), filename: "x.docx" });
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  });
+
+  it("còn mục chưa dịch ⇒ hỏi số mục + credit, không tự dịch; “Xuất luôn” tải ngay", async () => {
+    getTranslationStatus.mockResolvedValue(status(7));
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" onTranslate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
+
+    const ask = await screen.findByRole("alert");
+    expect(ask).toHaveTextContent("Dịch 7 mục còn thiếu (~4 credit) rồi xuất?");
+    expect(runTranslation).not.toHaveBeenCalled();
+    expect(downloadWordExport).not.toHaveBeenCalled();
+    fireEvent.click(within(ask).getByRole("button", { name: "Xuất luôn (giữ chữ gốc)" }));
+    await waitFor(() => expect(downloadWordExport).toHaveBeenCalledWith("p1", "draft", undefined, undefined));
+    expect(runTranslation).not.toHaveBeenCalled();
+  });
+
+  it("“Dịch rồi xuất” ⇒ chạy lô tới khi remaining = 0 rồi mới tải", async () => {
+    getTranslationStatus.mockResolvedValue(status(7));
+    runTranslation.mockResolvedValueOnce({ data: { translated: 5, remaining: 2, credits_used: 2 }, error: null })
+      .mockResolvedValueOnce({ data: { translated: 2, remaining: 0, credits_used: 2 }, error: null });
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" onTranslate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
+    fireEvent.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Dịch rồi xuất" }));
+
+    await waitFor(() => expect(downloadWordExport).toHaveBeenCalledTimes(1));
+    expect(runTranslation).toHaveBeenCalledTimes(2);
+    expect(runTranslation.mock.invocationCallOrder[1]).toBeLessThan(downloadWordExport.mock.invocationCallOrder[0]);
+  });
+
+  it("lô không tiến (translated = 0) ⇒ dừng lặp, vẫn xuất; hết credit ⇒ báo lỗi, không xuất", async () => {
+    getTranslationStatus.mockResolvedValue(status(3));
+    runTranslation.mockResolvedValue({ data: { translated: 0, remaining: 3, credits_used: 0 }, error: null });
+    const { unmount } = renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" onTranslate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
+    fireEvent.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Dịch rồi xuất" }));
+    await waitFor(() => expect(downloadWordExport).toHaveBeenCalledTimes(1));
+    expect(runTranslation).toHaveBeenCalledTimes(1);
+    unmount();
+
+    downloadWordExport.mockClear();
+    runTranslation.mockRejectedValue(new ApiClientError(402, "INSUFFICIENT_CREDIT", "hết credit"));
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" onTranslate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
+    fireEvent.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Dịch rồi xuất" }));
+    await waitFor(() => expect(runTranslation).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Tải bản nháp/ })).toBeEnabled());
+    expect(downloadWordExport).not.toHaveBeenCalled();
+  });
+
+  it("Viewer (không onTranslate) ⇒ không hỏi, tải như cũ", async () => {
+    getTranslationStatus.mockResolvedValue(status(7));
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
+    await waitFor(() => expect(downloadWordExport).toHaveBeenCalledTimes(1));
+    expect(getTranslationStatus).not.toHaveBeenCalled();
+  });
+
+  it("ngôn ngữ còn lại thiếu bản dịch ⇒ hỏi với đúng locale; nút thứ hai là “Thôi” (BE không xuất khi thiếu)", async () => {
+    getTranslationStatus.mockResolvedValue(status(4));
+    renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="en" otherLanguageAvailable onTranslate={vi.fn()} />);
+    fireEvent.click(within(await screen.findByRole("radiogroup", { name: "Ngôn ngữ file" })).getByRole("radio", { name: "Tiếng Việt" }));
+    fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
+    const ask = await screen.findByRole("alert");
+    expect(getTranslationStatus).toHaveBeenCalledWith("p1", { locale: "vi" });
+    fireEvent.click(within(ask).getByRole("button", { name: "Thôi" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(downloadWordExport).not.toHaveBeenCalled();
   });
 });

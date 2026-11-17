@@ -10,6 +10,7 @@ import ScreenMockupRunCard from "./_components/ScreenMockupRunCard";
 import { useScreenMockupRun } from "./hooks/useScreenMockupRun";
 import ScreenMockupDialog from "@/components/project/ScreenMockupDialog";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
+import { setStepScreenNames } from "@/lib/constants/step-registry";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
 import { ApiClientError } from "@/lib/api/client";
 import type { BadgeTone } from "@/components/ui/Badge";
@@ -39,7 +40,8 @@ import ChatSessionHistory from "./_components/ChatSessionHistory";
 import ChatPane from "./_components/ChatPane";
 import ResizeHandle from "./_components/ResizeHandle";
 import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
-import { SectionNamesContext } from "./_components/mode1/i18n";
+import { RefNamesContext, SectionNamesContext } from "./_components/mode1/i18n";
+import { refNames } from "./_components/mode1/spine-labels";
 import { sectionLabel as fptSectionLabel } from "@/lib/constants/fpt-sections";
 import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
@@ -75,6 +77,7 @@ import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import { isFlagInGateScope } from "./_components/gate-helpers";
+import { gateEditRoute } from "./_components/gate-edit-route";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
@@ -108,6 +111,9 @@ import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
 import { isRedrawable, issueCounts, readableMessage, type RedrawReport } from "./_components/flag-rules";
+import { canShowContinueCard } from "./_components/continue-card";
+import { canShowRerunCard } from "./_components/rerun-card";
+import { contentChangeCount } from "./_components/change-count";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -760,6 +766,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
 
   const spine = spineState.spine;
+  // P06: nhãn bước vòng S-5 dùng tên màn ("Hàng đợi màn · Book Appointment"), nạp trước khi thành phần con dựng nhãn
+  const screenNames = useMemo(() => new Map((spine?.screens ?? []).map((sc) => [sc.id, sc.name] as const)), [spine?.screens]);
+  setStepScreenNames(screenNames);
+  // P06: tên phần tử cho dòng so sánh giá trị (mã màn trong `flow_to` ⇒ tên màn)
+  const elementNames = useMemo(() => refNames(spine), [spine]);
   const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
 
   // Reload / mất mạng giữa chừng: dựng lại đúng chỗ đang dở (BUG-07) — không chạy lại, không tốn credit.
@@ -1026,7 +1037,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
-      setToast(result.changes.length > 0 ? t("toasts.changesApplied", { count: result.changes.length }) : t("toasts.noChange"));
+      // FLF-431: chỉ đếm thay đổi nội dung — "Xác nhận không đổi" chỉ ghi mốc duyệt, không được báo "Đã áp dụng 44 thay đổi"
+      const contentCount = contentChangeCount(result.changes);
+      setToast(contentCount > 0 ? t("toasts.changesApplied", { count: contentCount }) : t("toasts.noChange"));
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
@@ -1535,6 +1548,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     (ws.activeSession?.messages.length ?? 0) === 0 &&
     (spine?.addendum.length ?? 0) === 0;
 
+  /** FLF-432: thẻ "Tiếp tục" — bước tới lượt chưa chạy, không lượt nào đang chạy, phiên đã có hội thoại (`continue-card.ts`). */
+  const showContinueCard = canShowContinueCard({
+    mode1,
+    canEdit,
+    onPipelineSession,
+    stepNotStarted,
+    aiWorking,
+    showOpening,
+    sessionMessages: ws.activeSession?.messages.length ?? 0,
+  });
+
   /**
    * FLF-416 (BF §3.1.2): dự án vừa sang Luồng 2 từ file upload (chế độ 3 SRS viết dở / chế độ 4 bổ sung theo mẫu chuẩn) —
    * phần đã có trong file là đầu vào Brief ⇒ AI tự mở lời, chỉ hỏi phần thiếu, không chờ người dùng gõ trước. Khung mẫu
@@ -1792,7 +1816,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     }
     const raw = (custom ?? ws.inputMessage).trim();
     const status = runner.state.status;
-    const toRun = stepNotStarted || (reopenable && status === "idle");
+    // FLF-432 (QLHS #7): lượt trước bị gián đoạn (BE khởi động lại) ⇒ tin nhắn chạy lại bước tới lượt, không rơi vào hỏi
+    // đáp thường (AI trả lời như bước vẫn đang chạy, bước không bao giờ tiến)
+    const resumable = status === "interrupted" && viewedStep !== null && viewedStep === currentStep;
+    const toRun = stepNotStarted || resumable || (reopenable && status === "idle");
     if (status !== "needs_input" && status !== "gate_ready" && !toRun) return sendChat(custom);
     if (!(await ws.uploadPendingAttachments())) return;
     const text = raw || t("session.attachmentOnly");
@@ -1827,6 +1854,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         return;
       }
       if (runner.locked("gate")) return;
+      // P08: bước hết 8 lượt gọi AI, hoặc lệnh nhắm mục bước này không ghi (S-7.4 "thêm thông báo vào mục 5.3") ⇒ đi đường
+      // "Sửa tài liệu" (xem trước + Áp dụng) thay vì gửi revision rồi bị từ chối / bị bỏ
+      const route = gateEditRoute(text, runner.state.stepId, gate?.calls_used);
+      if (route) {
+        setToast(t(route === "callLimit" ? "toasts.gateEditCallLimit" : "toasts.gateEditOtherSection"));
+        release();
+        submitEditInstruction(text);
+        return;
+      }
       ws.appendLocalMessage(text, runner.state.stepId);
       // Thẻ cổng đã cũ (bước đã về chờ chạy) thì runner tự chạy lại bước với đúng lời nhắn này
       const turn = runner.gate("revision", text);
@@ -1844,7 +1880,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       },
     };
     // Bước mở lại (màn để trống / mục đã cũ) chạy lẻ; bước tới lượt chạy cả giai đoạn cho cả hai chế độ duyệt
-    const turn = reopenable && !stepNotStarted ? runner.run(stepId, { ...start, standalone: true }) : runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
+    const turn = reopenable && !stepNotStarted && !resumable ? runner.run(stepId, { ...start, standalone: true }) : runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
     release();
     await turn;
   };
@@ -1891,6 +1927,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   };
   const shownToast = toast ?? (ws.notice ? noticeText(ws.notice) : null);
 
+  // FLF-431 (BarberGo #21): thẻ chạy lại bước hiện cả khi cổng của bước khác (Ký baseline) đang mở
+  const rerunCardAllowed = viewedStep !== null && canShowRerunCard(aiWorking, runner.state, viewedStep);
+
   const rerunStaleStep = async (stepId: string) => {
     const text = t("rerunStep.message");
     await runner.run(stepId, { message: text, standalone: true, reopen: true, onStarted: () => ws.appendLocalMessage(text, stepId) });
@@ -1899,6 +1938,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   return (
     // Tên mục theo tài liệu đang xem cho nhãn mục của mode 1 (mẫu cố định / file có sẵn đặt tên khác mẫu FPT)
     <SectionNamesContext.Provider value={panelSectionNames}>
+    <RefNamesContext.Provider value={elementNames}>
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
       {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
@@ -2119,9 +2159,25 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           {flow2AutoStart && currentStep && <RunOnce onRun={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
+          {/* FLF-432 (QLHS #10, luồng C #2): bước tới lượt chưa chạy mà không có lượt nào đang chạy (BE khởi động lại giữa
+              chừng, sang giai đoạn mới) — trước chỉ có cách gõ chat. Phiên còn trống thì ChatPane đã có lời mời riêng. */}
+          {showContinueCard && currentStep && (
+            <div className="bg-primary-soft rounded-control p-3 flex flex-wrap items-center justify-between gap-2 text-body text-on-surface">
+              <p className="leading-relaxed">
+                {t.rich("page.continueNotice", { step: stepLabel(currentStep, locale), strong: (chunks) => <strong>{chunks}</strong> })}
+              </p>
+              <button
+                type="button"
+                onClick={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)}
+                className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+              >
+                {t("page.continueRun")}
+              </button>
+            </div>
+          )}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
-          {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runner.state.status === "idle" && !aiWorking && (
+          {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && rerunCardAllowed && (
             <div
               ref={staleCardRef}
               onAnimationEnd={(e) => e.currentTarget.classList.remove("ff-flash")}
@@ -2337,6 +2393,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <DocumentPane
           projectId={projectId}
           projectName={documentName}
+          baselineVersions={spine?.baselines.map((b) => b.version) ?? []}
           flags={flags}
           doc={doc}
           newerVersion={follow.hasNewer && followBusy ? { onApply: follow.apply } : null}
@@ -2484,7 +2541,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   }
                 : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
-              onEditSection: canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined,
+              onEditSection: canEdit ? (label, issue) => startEditing(issue ? t("userText.editFlag", { label, issue }) : t("userText.editSection", { label })) : undefined,
               onDraftSection: canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined,
               acceptedSteps,
             }}
@@ -2685,6 +2742,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         </Suspense>
       )}
     </div>
+    </RefNamesContext.Provider>
     </SectionNamesContext.Provider>
   );
 }

@@ -331,7 +331,8 @@ export interface TextSection {
  */
 export interface StructurePreview {
   summary: { present: number; missing: number; out_of_scope: number; kind: "written" | "template" };
-  sections: { section_id: string; title: string; status: TargetSectionStatus; order: number }[];
+  /** `excerpt` (P09 #15): trích đoạn chữ khách viết dưới mục (≤ 200 ký tự) — mục còn trống / import cũ ⇒ không có. */
+  sections: { section_id: string; title: string; status: TargetSectionStatus; order: number; excerpt?: string }[];
   resolved_mode: 1 | 3 | 4;
   intent: "fixed" | "free";
   computed_at: string;
