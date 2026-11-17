@@ -80,7 +80,7 @@ function WalletFigure({ label, value, unit }: { label: string; value: string; un
     <div className="rounded-control bg-surface-container-lowest/70 px-4 py-3">
       <dt className="text-caption font-bold uppercase tracking-[0.04em] text-on-surface-muted">{label}</dt>
       <dd className="mt-0.5 text-heading font-bold text-on-surface tabular-nums">
-        {value} <span className="text-body font-medium text-on-surface-muted">{unit}</span>
+        <span>{value}</span> <span className="text-body font-medium text-on-surface-muted">{unit}</span>
       </dd>
     </div>
   );
