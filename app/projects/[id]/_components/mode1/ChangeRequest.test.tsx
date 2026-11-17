@@ -141,3 +141,18 @@ describe("CrWorkspace - Viewer (readOnly)", () => {
     expect(screen.queryByRole("button", { name: "AI đề xuất sửa" })).not.toBeInTheDocument();
   });
 });
+
+describe("CR của người khác (BF §3.2 / UC-45 A6, UC-48)", () => {
+  it("Analyst khác xem ⇒ dòng 'treo ở <người tạo>', không link mở khung chat, không Huỷ CR; Lead xem ⇒ còn Huỷ CR", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact"]);
+    const { unmount } = renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} myUserId="user-khac" orgRole="analyst" />);
+    expect(await screen.findByText(/đề xuất treo ở người đó/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Mở trong khung chat" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ CR" })).not.toBeInTheDocument();
+    unmount();
+
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} myUserId="user-lead" orgRole="lead" />);
+    expect(await screen.findByRole("button", { name: "Huỷ CR" })).toBeInTheDocument();
+  });
+});

@@ -26,13 +26,17 @@ interface CrWorkspaceProps {
   onChanged?: () => void;
   /** Viewer: chỉ xem CR — ẩn mọi nút hành động (BE cũng chặn ghi với 403). */
   readOnly?: boolean;
+  /** BF §3.2 / UC-45 A6: người đang xem — CR của người khác treo ở người tạo (không mở vào chat của mình). */
+  myUserId?: string | null;
+  /** UC-48 (AC-48.2): Huỷ CR chỉ người tạo hoặc Lead. */
+  orgRole?: string | null;
 }
 
 /**
  * Workspace một change request (3.1–3.14): mọi nút hành động chọn theo `status` BE trả. Bước AI (làm rõ, đề
  * xuất, kiểm) chạy đồng bộ; hết credit / lỗi AI ⇒ CR `paused` + nút tiếp tục.
  */
-export default function CrWorkspace({ projectId, crId, onChanged, readOnly = false }: CrWorkspaceProps) {
+export default function CrWorkspace({ projectId, crId, onChanged, readOnly = false, myUserId = null, orgRole = null }: CrWorkspaceProps) {
   const t = useTranslations("mode1.crWorkspace");
   const L = useMode1Labels();
   const cr = useChangeRequest(projectId, crId);
@@ -68,8 +72,13 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
    * FLF-375: popup CR chỉ để xem lại / Lead duyệt gói. Mọi bước của CR đang mở (làm rõ, đề xuất, kiểm, xác nhận) làm trong
    * khung chat — một chỗ làm việc, không có bộ nút thứ hai.
    */
+  // Không biết mình là ai (props cũ) ⇒ coi như của mình, giữ hành vi cũ; BE vẫn chặn 403 `CR_NOT_REQUESTER`
+  const mine = !myUserId || c.created_by === myUserId;
+  const canCancel = mine || orgRole === "lead";
   let next: ReactNode = null;
-  if (c.paused || (!terminal && c.status !== "in_review")) {
+  if (!mine && (c.paused || (!terminal && c.status !== "in_review"))) {
+    next = <Step text={t("heldByOther", { who: c.created_by_name || c.requester, status: L.crStatus(c.status) })} />;
+  } else if (c.paused || (!terminal && c.status !== "in_review")) {
     next = (
       <Step text={t("inChatText", { status: L.crStatus(c.status) })}>
         <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-body font-bold">
@@ -134,7 +143,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
             {t("meta", { requester: c.requester, created: L.formatDateTime(c.created_at), version: c.base_doc_version })}
           </p>
         </div>
-        {!terminal && !readOnly && (
+        {!terminal && !readOnly && canCancel && (
           <button type="button" onClick={() => setDialog("cancel")} disabled={busy} className="px-3 py-1.5 rounded-[8px] border border-[#F2CACA] bg-white text-body font-bold text-[#B03030] disabled:opacity-50">
             {t("cancelCr")}
           </button>

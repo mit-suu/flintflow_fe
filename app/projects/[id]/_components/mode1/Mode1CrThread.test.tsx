@@ -4,7 +4,7 @@ import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
-import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
+import { MODE1_PROJECT_ID, MODE1_USER_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
 import { importToGapReview } from "@/mocks/mode1/flows";
 import { useCrChat } from "../../hooks/mode1/useCrChat";
@@ -30,8 +30,8 @@ afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
 /** Khung chat tối giản: luồng CR + ô nhập gửi qua `chat.send` như workspace. */
-function Harness({ myUserId = null }: { myUserId?: string | null }) {
-  const chat = useCrChat(P);
+function Harness({ myUserId = MODE1_USER_ID }: { myUserId?: string | null }) {
+  const chat = useCrChat(P, true, undefined, myUserId);
   const [text, setText] = useState("");
   return (
     <>
@@ -67,7 +67,7 @@ describe("Mode1CrThread - CR trong khung chat", () => {
     expect(await screen.findByLabelText("Hướng dẫn sửa tài liệu")).toBeInTheDocument();
 
     await say("Đăng xuất mọi thiết bị - yêu cầu còn mơ hồ");
-    expect(screen.getByText("Đăng xuất mọi thiết bị - yêu cầu còn mơ hồ")).toBeInTheDocument();
+    expect(await screen.findByText("Đăng xuất mọi thiết bị - yêu cầu còn mơ hồ")).toBeInTheDocument();
     await click("Lan · yêu cầu miệng");
 
     // 3.1 xong ⇒ CR mở, 3.2 tự chạy ⇒ AI hỏi kèm gợi ý
@@ -116,7 +116,7 @@ describe("Mode1CrThread - CR trong khung chat", () => {
     expect(screen.queryByText(/CR-001 đã ghi vào bản nháp chung/)).not.toBeInTheDocument();
     await say("Đổi tên màn hình đăng nhập");
     expect(screen.queryByLabelText("Đã ghi vào bản nháp")).not.toBeInTheDocument();
-    expect(screen.getByText("Đổi tên màn hình đăng nhập")).toBeInTheDocument();
+    expect(await screen.findByText("Đổi tên màn hình đăng nhập")).toBeInTheDocument();
   });
 
   it("gõ thêm khi CR đang mở ⇒ gộp vào cùng CR, chạy lại làm rõ + tìm vị trí", async () => {
@@ -314,14 +314,34 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     expect(S().crs.get("CR-001")!.locations[0].conflict).toBeNull();
   });
 
-  it("BF §3.2: người khác mở CR đã sẵn sàng ⇒ thấy 'đang treo ở X', không có nút xác nhận", async () => {
+  it("BF §3.2 / UC-45 A6: CR của người khác không vào khung chat của mình - không thẻ đề xuất, không nút xác nhận, lệnh sửa mở CR mới", async () => {
     const d = await proposalsOf(1);
     d.change_request.status = "ready_to_submit";
     d.change_request.created_by = "user-lan";
     d.change_request.created_by_name = "Lan";
     renderWithIntl(<Harness myUserId="user-huy" />);
-    expect(await screen.findByText(/đang treo ở Lan/)).toBeInTheDocument();
+    const input = screen.getByLabelText("Ô chat");
+    await waitFor(() => expect(input).toHaveAttribute("placeholder", expect.stringMatching(/^Gõ yêu cầu sửa tài liệu/)));
+    expect(screen.queryByLabelText("Đề xuất sửa")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Đồng ý tất cả/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).not.toBeInTheDocument();
+
+    // Lệnh sửa của mình ⇒ thẻ chọn người yêu cầu cho CR mới, không gộp vào CR-001 của Lan
+    fireEvent.change(input, { target: { value: "Đổi mục tiêu thành 60%" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi chat" }));
+    expect(await screen.findByText(/Ai yêu cầu thay đổi này/)).toBeInTheDocument();
+    expect(S().crs.get("CR-001")!.change_request.amendments).toHaveLength(0);
+  });
+
+  it("UC-46 / AC-43.3: gói đang chờ Lead duyệt ⇒ ô chat báo bản nháp khoá, lệnh sửa không mở CR mới", async () => {
+    S().submission = { status: "pending", submitted_by: "user-lan", submitted_at: new Date().toISOString(), spine_version: 1, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] };
+    renderWithIntl(<Harness />);
+    const input = screen.getByLabelText("Ô chat");
+    await waitFor(() => expect(input).toHaveAttribute("placeholder", expect.stringMatching(/chờ Lead duyệt/)));
+    fireEvent.change(input, { target: { value: "Đổi mục tiêu thành 60%" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi chat" }));
+    expect(await screen.findByText(/tạm khoá, chưa mở change request mới/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ai yêu cầu thay đổi này/)).not.toBeInTheDocument();
   });
 
   it("5 phần đều đạt ⇒ danh sách gọn, bấm một lần Đồng ý tất cả ⇒ CR đi tiếp tới xác nhận", async () => {
@@ -376,10 +396,10 @@ const PREVIEW_DESCRIPTION = ["thêm UC phúc khảo điểm", "", "Trả lời l
 
 /** FLF-318: lệnh thêm / xoá use case đi vòng hỏi đáp + bản xem trước như trước baseline rồi mới tạo CR kèm bản xem trước. */
 function PreviewHarness({ onWritten }: { onWritten?: (crId: string) => void }) {
-  const chat = useCrChat(P, true, onWritten);
+  const chat = useCrChat(P, true, onWritten, MODE1_USER_ID);
   return (
     <>
-      <Mode1CrThread projectId={P} chat={chat} me="Lan" />
+      <Mode1CrThread projectId={P} chat={chat} me="Lan" myUserId={MODE1_USER_ID} />
       <button
         type="button"
         onClick={() => chat.startFromPreview("thêm UC phúc khảo điểm", PREVIEW_DESCRIPTION, "pv-1")}

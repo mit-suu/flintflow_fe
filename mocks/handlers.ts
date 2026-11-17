@@ -1057,6 +1057,10 @@ export const handlers = [
 
   // ─── T16: preview / reconcile / undo / traceability / flags waive+recompute / document / export ───
 
+  // BF §3.2 (trước baseline): mục có bản xem trước chưa áp của người khác — contract #8c; mock một người dùng ⇒ rỗng
+  http.get(api("/projects/:projectId/changes/pending-sections"), () => ok([])),
+  // Bỏ bản xem trước của chính mình — contract #8d
+  http.delete(api("/projects/:projectId/changes/preview/:previewId"), () => ok({ discarded: true })),
   http.post(api("/projects/:projectId/changes/preview"), async ({ request }) => {
     const body = (await request.json()) as ChangeRequest;
     if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
