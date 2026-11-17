@@ -2419,7 +2419,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               onRedraft={() => void changes.redraftConflict()}
               onDropRequest={() => {
                 const who = [...new Set(changes.conflict?.items.map((c) => c.changed_by) ?? [])].join(", ");
-                void changes.dropConflict(t("page.dropRequestNote", { who }));
+                // Bỏ yêu cầu ⇒ đóng thẻ sửa; lý do BE vừa ghi vào phiên hiện trong lịch sử chat
+                void changes.dropConflict(t("page.dropRequestNote", { who })).then(() => {
+                  setEditCardOpen(false);
+                  if (activeSessionId) void reloadActiveSession(activeSessionId);
+                });
               }}
               requiresCr={mode1}
               onShowDetail={() => setEditDetailOpen(true)}
