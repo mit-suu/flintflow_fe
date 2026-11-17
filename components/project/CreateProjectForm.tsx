@@ -17,6 +17,9 @@ import OrgTemplatePicker from "./OrgTemplatePicker";
 import { splitDuplicateFiles } from "@/lib/file-fingerprint";
 import { ReferenceSlot, SrsSlot, REFERENCE_MAX_BYTES, SRS_MAX_BYTES, isDocx, isReferenceType, type ReferenceFile } from "./create-project-file-slots";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { ApiClientError } from "@/lib/api/client";
+import { useProjectQuota } from "@/lib/hooks/use-project-quota";
+import Link from "next/link";
 
 const NAME_MAX = 100; // khớp CreateProjectSchema ở BE
 
@@ -65,7 +68,12 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const languageLabelId = `document-language-${variant}`;
   const submitting = stage !== null;
   const hasSrs = !!srsFile || !!orgTemplate;
-  const canSubmit = name.trim().length > 0 && !submitting && checkingRefs === 0;
+  // UC-16: báo hạn mức trước khi điền (E2E BarberGo #1) — hết chỗ thì khoá Bắt đầu, câu nêu rõ trần của gói (#2)
+  const { quota, reload: reloadQuota } = useProjectQuota();
+  // BE vừa từ chối vì hết hạn mức (số đọc lúc mở hộp đã cũ — người khác vừa tạo) ⇒ coi như đầy ngay, không chờ đọc lại
+  const [limitHit, setLimitHit] = useState(false);
+  const quotaFull = quota !== null && (limitHit || quota.used >= quota.max);
+  const canSubmit = name.trim().length > 0 && !submitting && checkingRefs === 0 && !quotaFull;
   // File chọn ở đây chỉ nằm trong bộ nhớ của tab tới khi bấm Bắt đầu: tải lại trang / đóng tab là mất ⇒ trình duyệt hỏi trước.
   // Đã bấm Bắt đầu thì `UploadLeaveGuard` (layout gốc) che tiếp lúc file tải nền.
   const pendingFiles = submitting ? 0 : (hasSrs ? 1 : 0) + references.length;
@@ -132,7 +140,15 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
       if (!res.data) throw new Error(t("missingProject"));
       project = res.data;
     } catch (err) {
-      setError(userErrorMessage(err, t("failed")));
+      if (err instanceof ApiClientError && err.code === "PLAN_LIMIT_PROJECTS") {
+        // Có hạn mức ⇒ khung hạn mức nói trần + khoá nút; chưa đọc được hạn mức thì giữ câu của BE ("Gói Free chỉ cho tối đa
+        // 3 dự án") thay vì câu chung không nói trần là bao nhiêu (E2E BarberGo #2)
+        setLimitHit(true);
+        reloadQuota();
+        if (!quota) setError(err.rawMessage || err.message);
+      } else {
+        setError(userErrorMessage(err, t("failed")));
+      }
       setStage(null);
       return;
     }
@@ -146,6 +162,21 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Hạn mức dự án đứng đầu hộp: biết còn chỗ hay không trước khi điền gì (E2E BarberGo #1) */}
+      {quota && (
+        <div
+          role={quotaFull ? "alert" : undefined}
+          className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-control px-3 py-2 text-caption ${quotaFull ? "bg-error-container text-on-error-container" : "bg-surface-container text-on-surface-variant"}`}
+        >
+          <span>{quotaFull ? t("quota.full", { plan: quota.planLabel, max: quota.max }) : t("quota.usage", { used: quota.used, max: quota.max, plan: quota.planLabel })}</span>
+          {quotaFull && (
+            <Link href="/home/billing" className="font-bold underline underline-offset-2">
+              {t("quota.seePlans")}
+            </Link>
+          )}
+        </div>
+      )}
+
       {/* Tên dự án + ngôn ngữ cùng một hàng; có SRS ⇒ ngôn ngữ theo file nên ô ngôn ngữ ẩn, tên chiếm cả hàng */}
       <div className={`grid gap-4 ${hasSrs ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto]"}`}>
         <div className="flex flex-col gap-1.5 min-w-0">
