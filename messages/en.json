@@ -1955,7 +1955,7 @@
       "waiveFailed": "Could not skip this issue",
       "openStepAria": "Open step {label} ({stepId})",
       "keepTitle": "Records why it is kept as is. A red flag still blocks the baseline until the content is fixed.",
-      "keepBlocking": "Keep as is (still blocks)",
+      "keepBlocking": "Keep as is with a reason…",
       "waive": "Skip",
       "right": "Correct",
       "wrong": "Wrong",
@@ -2005,6 +2005,10 @@
         "link": {
           "title": "No function linked yet",
           "hint": "This screen, use case or feature has no function linked to it - type an edit command in chat to add or link one."
+        },
+        "actor": {
+          "title": "No actor assigned yet",
+          "hint": "No actor uses this screen: it is not in the screen authorization table and no use case function is on it - type an edit command in chat to add the permission (e.g. let Guest and Customer use this screen)."
         },
         "reaccept": {
           "title": "Needs your re-approval",
@@ -2561,6 +2565,7 @@
       "acceptAsIsEmpty": "Approve as is:",
       "fixFlag": "Please fix this issue as suggested: {message}",
       "editSection": "In {label}: ",
+      "editFlag": "In {label}: fix the issue \"{issue}\" ",
       "fixComment": "In {label}, fix per this comment: {text}",
       "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. "
     },
@@ -2700,6 +2705,7 @@
       "derived_from_changed_assumption": "Based on a changed assumption",
       "screen_placeholder": "Screen intentionally left blank",
       "orphan_screen_at_baseline": "Screen not linked to a function",
+      "screen_no_actor": "No actor uses this screen",
       "system_name_missing": "System name missing",
       "actor_name_shape": "Actor name not in the expected form",
       "original_diagram_stale": "Original figure out of sync with data",
@@ -4318,6 +4324,7 @@
         "screen_pending_at_baseline": "Screen description incomplete",
         "orphan_screen_at_baseline": "Screen is not part of any flow",
         "orphan_screen": "Screen is not part of any flow",
+        "screen_no_actor": "No actor uses this screen",
         "orphan_actor": "Actor has no use case",
         "usecase_no_function": "Use case has no function",
         "screen_no_function": "Screen has no function",

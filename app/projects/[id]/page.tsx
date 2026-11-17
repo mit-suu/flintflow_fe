@@ -2573,7 +2573,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   }
                 : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
-              onEditSection: canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined,
+              onEditSection: canEdit ? (label, issue) => startEditing(issue ? t("userText.editFlag", { label, issue }) : t("userText.editSection", { label })) : undefined,
               onDraftSection: canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined,
               acceptedSteps,
             }}

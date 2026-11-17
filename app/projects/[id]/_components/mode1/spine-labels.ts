@@ -54,6 +54,7 @@ export const RULE_KEYS = [
   "screen_pending_at_baseline",
   "orphan_screen_at_baseline",
   "orphan_screen",
+  "screen_no_actor",
   "orphan_actor",
   "usecase_no_function",
   "screen_no_function",
