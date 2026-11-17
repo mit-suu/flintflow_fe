@@ -918,6 +918,11 @@
       "submit": "Start",
       "missingProject": "The new project was not returned",
       "failed": "Could not create the project",
+      "quota": {
+        "usage": "{used}/{max} projects used on the {plan} plan",
+        "full": "The {plan} plan allows up to {max} projects and the organization has used them all. Delete a project or upgrade to create more.",
+        "seePlans": "View plans"
+      },
       "srs": {
         "label": "SRS",
         "hint": "A .docx file FlintFlow will edit and complete - a blank customer template works too. Skip if you have none.",

@@ -918,6 +918,11 @@
       "submit": "Bắt đầu",
       "missingProject": "Không nhận được dự án vừa tạo",
       "failed": "Không thể tạo dự án",
+      "quota": {
+        "usage": "Đã dùng {used}/{max} dự án của gói {plan}",
+        "full": "Gói {plan} chỉ cho tối đa {max} dự án và tổ chức đã dùng hết. Xoá bớt dự án hoặc nâng gói để tạo thêm.",
+        "seePlans": "Xem gói"
+      },
       "srs": {
         "label": "SRS",
         "hint": "File .docx FlintFlow sẽ sửa và hoàn thiện - kể cả mẫu khách còn trống. Không có thì bỏ qua.",
