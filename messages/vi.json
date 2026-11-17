@@ -1855,8 +1855,8 @@
     },
     "document": {
       "status": {
-        "accepted": "Accepted",
-        "draft": "Draft",
+        "accepted": "Đã chốt",
+        "draft": "Bản nháp",
         "stale": "Cũ",
         "derived": "Dẫn xuất"
       },
@@ -1884,7 +1884,7 @@
       "diagramNotDrawnHint": "Bấm thử lại để vẽ lại sơ đồ này từ dữ liệu hiện tại.",
       "diagramNotDrawnReadOnly": "Sơ đồ sẽ hiện khi được vẽ lại thành công.",
       "retryDiagram": "Thử lại",
-      "imageAlt": "Diagram",
+      "imageAlt": "Sơ đồ",
       "emptyMode1": "Mục còn trống - tạo change request (nguồn gap report) để bổ sung.",
       "incompleteShort": "Chưa soạn",
       "emptyRunStep": "Chưa soạn - chạy bước {stepId} · {label}",

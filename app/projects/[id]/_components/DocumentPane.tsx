@@ -977,7 +977,7 @@ function DocumentPaneView({
             <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
           )}
           {document?.watermark && !isSignedVersion(document.version, baselineVersions) && (
-            <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark}</span>
+            <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark === "DRAFT" ? t("status.draft") : document.watermark}</span>
           )}
           {document && isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-success-soft text-success">{t("signedBadge")}</span>
