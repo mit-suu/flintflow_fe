@@ -38,7 +38,8 @@ describe("ExportPanel", () => {
   const listBaselines = vi.mocked(exportApi.listBaselines);
 
   beforeEach(() => {
-    getDocument.mockReset();
+    // Mặc định: chưa ghép tài liệu — ca không tự đặt getDocument vẫn có Promise (không lỗi `.then` of undefined)
+    getDocument.mockReset().mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
     downloadWordExport.mockReset();
     listBaselines.mockReset();
     listBaselines.mockResolvedValue({ data: [], error: null });
@@ -269,7 +270,8 @@ describe("ExportPanel - ngôn ngữ tài liệu (FLF-265)", () => {
   const languageRow = () => screen.getByText("Ngôn ngữ").nextElementSibling;
 
   beforeEach(() => {
-    getDocument.mockReset();
+    // Mặc định: chưa ghép tài liệu — ca không tự đặt getDocument vẫn có Promise (không lỗi `.then` of undefined)
+    getDocument.mockReset().mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
     downloadWordExport.mockReset();
     listBaselines.mockReset();
     listBaselines.mockResolvedValue({ data: [], error: null });
@@ -336,7 +338,8 @@ describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
   const draftMeta = { assembled_at_version: 3, spine_version: 3, stale: false };
 
   beforeEach(() => {
-    getDocument.mockReset();
+    // Mặc định: chưa ghép tài liệu — ca không tự đặt getDocument vẫn có Promise (không lỗi `.then` of undefined)
+    getDocument.mockReset().mockResolvedValue({ data: null, error: null, meta: { state: "not_assembled" } });
     downloadWordExport.mockReset();
     listBaselines.mockReset();
     listBaselines.mockResolvedValue({ data: [], error: null });
