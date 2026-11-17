@@ -5,6 +5,7 @@ import { Avatar, Button, LINK_PRIMARY, PageSkeleton } from "@/components/ui";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/layout/TopBar";
+import { ACCOUNT_PAGE_SCROLL_CLASS } from "@/components/page-shells/AccountPagesShell";
 import PasswordInput from "../../../components/PasswordInput";
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import GoogleConnectCard from "@/components/integrations/GoogleConnectCard";
@@ -429,7 +430,7 @@ export default function ProfilePage() {
     <>
       {hasOrg ? <TopBar trail={[tc("account"), t("breadcrumb")]} /> : null}
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
+      <div className={ACCOUNT_PAGE_SCROLL_CLASS}>
         <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
 
         {loading ? (

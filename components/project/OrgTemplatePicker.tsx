@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { EmptyState, Icon, Modal, SearchInput, Skeleton } from "@/components/ui";
 import NewTemplateUpload from "@/components/org-template/new-template-upload";
 import { listOrgTemplates, listOrgTemplatesPage } from "@/lib/api/org-library";
-import { fetchOrganization } from "@/lib/api/orgs";
+import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { versionFacts } from "@/lib/org-template-version";
@@ -45,8 +45,11 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
   });
   const [open, setOpen] = useState(false);
   const [orgId] = useState(() => getActiveOrgId());
-  /** FLF-412: chỉ Lead tải mẫu mới lên thư viện ngay tại đây. */
-  const [isLead, setIsLead] = useState(false);
+  /**
+   * FLF-412: chỉ Lead tải mẫu mới lên thư viện ngay tại đây. Vai trò lấy từ store tổ chức dùng chung (đã có sẵn / bản nhớ)
+   * ⇒ nút hiện ngay khi mở form, không chờ một lượt `GET /orgs/:id` riêng rồi mới chen vào.
+   */
+  const isLead = useActiveOrganization()?.role === "lead";
   const [uploading, setUploading] = useState(false);
 
   // Chỉ cần biết tổ chức có mẫu nào không (và bao nhiêu) — một trang 1 mục là đủ, danh sách thật tải trong hộp chọn
@@ -59,9 +62,6 @@ export default function OrgTemplatePicker({ disabled = false, onPick }: OrgTempl
         if (!cancelled) setTotal(res.meta.total);
       })
       .catch(() => !cancelled && setTotal(0));
-    fetchOrganization(orgId)
-      .then((org) => !cancelled && setIsLead(org.role === "lead"))
-      .catch(() => undefined);
     return () => {
       cancelled = true;
     };

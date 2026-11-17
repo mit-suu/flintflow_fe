@@ -485,7 +485,7 @@
       "vietqrNote": "Pay by bank transfer with a VietQR code. Credits are added automatically once the transaction is confirmed.",
       "plans": "Plans",
       "creditsPerMonth": "{credits} credits / month",
-      "free": "Free",
+      "comparePlans": "Compare plans",
       "pricePerMonth": "{price} / month",
       "current": "Current",
       "switching": "Switching…",
@@ -560,6 +560,8 @@
       "topupRequestFailed": "Could not notify the Lead. Please try again.",
       "leadOnlyPurchase": "Only the organization Lead can buy credits or change the plan. When the organization needs more credits, let your Lead know.",
       "packageLabel": "{credits}-credit pack",
+      "bestValue": "Best value",
+      "perCredit": "≈ {price} per credit",
       "creditUnit": {
         "one": "credit",
         "other": "credits"
@@ -1337,6 +1339,7 @@
         "cancel": "Cancel",
         "leadOnly": "Only a Lead can invite, change roles or remove members.",
         "loadError": "Could not load the member list.",
+        "loading": "Loading the member list",
         "invite": {
           "title": "Invite a member",
           "roleLabel": "Role",
