@@ -2659,6 +2659,8 @@
       "viewerNotice": "Bạn đang xem với vai trò Viewer - chỉ đọc được tài liệu, không gửi tin hay chạy bước AI.",
       "staleNotice": "Bước <strong>{step}</strong> đã chốt, nhưng <strong>{sections}</strong> đã cũ so với dữ liệu bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.",
       "rerunStep": "Cập nhật lại bước này",
+      "continueNotice": "Bước <strong>{step}</strong> tới lượt nhưng chưa chạy.",
+      "continueRun": "Tiếp tục",
       "keeping": "Đang duyệt…",
       "keepAsIs": "Giữ nguyên, duyệt lại",
       "close": "Đóng",

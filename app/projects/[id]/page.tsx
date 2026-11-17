@@ -113,6 +113,7 @@ import { useChanges } from "./hooks/useChanges";
 import { isRedrawable, issueCounts, readableMessage, type RedrawReport } from "./_components/flag-rules";
 import { canShowRerunCard } from "./_components/rerun-card";
 import { contentChangeCount } from "./_components/change-count";
+import { canShowContinueCard } from "./_components/continue-card";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -1628,6 +1629,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     (ws.activeSession?.messages.length ?? 0) === 0 &&
     (spine?.addendum.length ?? 0) === 0;
 
+  /** FLF-432: thẻ "Tiếp tục" — bước tới lượt chưa chạy, không lượt nào đang chạy, phiên đã có hội thoại (`continue-card.ts`). */
+  const showContinueCard = canShowContinueCard({
+    mode1,
+    canEdit,
+    onPipelineSession,
+    stepNotStarted,
+    aiWorking,
+    showOpening,
+    sessionMessages: ws.activeSession?.messages.length ?? 0,
+  });
+
   /**
    * FLF-416 (BF §3.1.2): dự án vừa sang Luồng 2 từ file upload (chế độ 3 SRS viết dở / chế độ 4 bổ sung theo mẫu chuẩn) —
    * phần đã có trong file là đầu vào Brief ⇒ AI tự mở lời, chỉ hỏi phần thiếu, không chờ người dùng gõ trước. Khung mẫu
@@ -1885,7 +1897,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     }
     const raw = (custom ?? ws.inputMessage).trim();
     const status = runner.state.status;
-    const toRun = stepNotStarted || (reopenable && status === "idle");
+    // FLF-432 (QLHS #7): lượt trước bị gián đoạn (BE khởi động lại) ⇒ tin nhắn chạy lại bước tới lượt, không rơi vào hỏi
+    // đáp thường (AI trả lời như bước vẫn đang chạy, bước không bao giờ tiến)
+    const resumable = status === "interrupted" && viewedStep !== null && viewedStep === currentStep;
+    const toRun = stepNotStarted || resumable || (reopenable && status === "idle");
     if (status !== "needs_input" && status !== "gate_ready" && !toRun) return sendChat(custom);
     if (!(await ws.uploadPendingAttachments())) return;
     const text = raw || t("session.attachmentOnly");
@@ -1937,7 +1952,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       },
     };
     // Bước mở lại (màn để trống / mục đã cũ) chạy lẻ; bước tới lượt chạy cả giai đoạn cho cả hai chế độ duyệt
-    const turn = reopenable && !stepNotStarted ? runner.run(stepId, { ...start, standalone: true }) : runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
+    const turn = reopenable && !stepNotStarted && !resumable ? runner.run(stepId, { ...start, standalone: true }) : runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
     release();
     await turn;
   };
@@ -2214,6 +2229,22 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           {flow2AutoStart && currentStep && <RunOnce onRun={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
+          {/* FLF-432 (QLHS #10, luồng C #2): bước tới lượt chưa chạy mà không có lượt nào đang chạy (BE khởi động lại giữa
+              chừng, sang giai đoạn mới) — trước chỉ có cách gõ chat. Phiên còn trống thì ChatPane đã có lời mời riêng. */}
+          {showContinueCard && currentStep && (
+            <div className="bg-primary-soft rounded-control p-3 flex flex-wrap items-center justify-between gap-2 text-body text-on-surface">
+              <p className="leading-relaxed">
+                {t.rich("page.continueNotice", { step: stepLabel(currentStep, locale), strong: (chunks) => <strong>{chunks}</strong> })}
+              </p>
+              <button
+                type="button"
+                onClick={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)}
+                className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+              >
+                {t("page.continueRun")}
+              </button>
+            </div>
+          )}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && rerunCardAllowed && (

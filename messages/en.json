@@ -2660,6 +2660,8 @@
       "viewerNotice": "You are viewing as a Viewer - you can read the document but cannot send messages or run AI steps.",
       "staleNotice": "Step <strong>{step}</strong> is accepted, but <strong>{sections}</strong> is outdated after later edits. Rerun the step so the AI updates it, review it, then click Approve at the gate.",
       "rerunStep": "Update this step",
+      "continueNotice": "Step <strong>{step}</strong> is next but has not run yet.",
+      "continueRun": "Continue",
       "keeping": "Approving…",
       "keepAsIs": "Keep as is, re-approve",
       "close": "Close",
