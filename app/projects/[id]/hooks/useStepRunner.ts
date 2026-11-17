@@ -85,6 +85,8 @@ export interface RunnerState {
    * Câu hỏi treo ở họ: không hiện thẻ câu hỏi cho mình (BE cũng trả 403 `STEP_NOT_REQUESTER`), chỉ báo ai đang trả lời.
    */
   heldBy: string | null;
+  /** P12 (N1): lượt đang chạy do người khác khởi động ⇒ tên người đó (ô chat ghi "<người> đang chạy bước này…"). */
+  runBy: string | null;
 }
 
 export type RunnerAction =
@@ -140,6 +142,7 @@ export const initialRunnerState: RunnerState = {
   phaseGate: null,
   source: "live",
   heldBy: null,
+  runBy: null,
 };
 
 const STATUS_BY_STAGE: Record<RunStage, RunnerStatus> = {
@@ -292,7 +295,10 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         if (run.by && action.me && run.by !== action.me) return { ...base, heldBy: run.by_name || run.by };
         return { ...base, status: "needs_input", questions: run.questions };
       }
-      if (run.status === "running" && run.alive) return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true };
+      if (run.status === "running" && run.alive) {
+        const other = run.by && action.me && run.by !== action.me ? run.by_name || run.by : null;
+        return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true, runBy: other };
+      }
       if (run.status === "interrupted" || (run.status === "running" && !run.alive)) {
         // Lỗi của lượt (vd lượt chạy tiếp ở nền sau khi trả lời) hiện ở khối lỗi kèm nút làm lại
         return { ...base, status: "interrupted", detail: runnerDetail("interrupted"), error: run.error ?? null };
