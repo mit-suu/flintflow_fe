@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef } fr
 import { useLocale, useTranslations } from "next-intl";
 import { errorText } from "./errors";
 import { statusLabels } from "./labels";
-import { spineLabels } from "./spine-labels";
+import { spineLabels, type RefNames } from "./spine-labels";
 import { tableFields } from "./table-fields";
 import { valueDiff } from "./value-diff";
 
@@ -26,9 +26,12 @@ export interface Mode1T {
  */
 export const SectionNamesContext = createContext<ReadonlyMap<string, string> | null>(null);
 
-export const mode1Labels = (t: Mode1T, locale: string, sectionNames?: ReadonlyMap<string, string> | null) => {
+/** P06: tên phần tử theo mã (màn, chức năng, actor…) — so sánh giá trị in "Tới màn: Product Detail", không "to: SCR-05". */
+export const RefNamesContext = createContext<RefNames | null>(null);
+
+export const mode1Labels = (t: Mode1T, locale: string, sectionNames?: ReadonlyMap<string, string> | null, refNames?: RefNames | null) => {
   const spine = spineLabels(t, locale, sectionNames ?? undefined);
-  const base = { t, locale, ...spine, ...tableFields(t, spine), ...statusLabels(t, locale), ...valueDiff(t, spine) };
+  const base = { t, locale, ...spine, ...tableFields(t, spine), ...statusLabels(t, locale), ...valueDiff(t, spine, refNames ?? undefined) };
   return { ...base, errorText: (err: unknown, fallback?: string) => errorText(err, base, fallback) };
 };
 
@@ -41,7 +44,8 @@ export function useMode1Labels(): Mode1Labels {
   const t = useTranslations("mode1") as unknown as Mode1T;
   const locale = useLocale();
   const sectionNames = useContext(SectionNamesContext);
-  return useMemo(() => mode1Labels(t, locale, sectionNames), [t, locale, sectionNames]);
+  const refNames = useContext(RefNamesContext);
+  return useMemo(() => mode1Labels(t, locale, sectionNames, refNames), [t, locale, sectionNames, refNames]);
 }
 
 /**

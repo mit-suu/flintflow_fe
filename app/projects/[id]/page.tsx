@@ -10,6 +10,7 @@ import ScreenMockupRunCard from "./_components/ScreenMockupRunCard";
 import { useScreenMockupRun } from "./hooks/useScreenMockupRun";
 import ScreenMockupDialog from "@/components/project/ScreenMockupDialog";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
+import { setStepScreenNames } from "@/lib/constants/step-registry";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
 import { ApiClientError } from "@/lib/api/client";
 import type { BadgeTone } from "@/components/ui/Badge";
@@ -38,7 +39,8 @@ import ChatSessionHistory from "./_components/ChatSessionHistory";
 import ChatPane from "./_components/ChatPane";
 import ResizeHandle from "./_components/ResizeHandle";
 import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
-import { SectionNamesContext } from "./_components/mode1/i18n";
+import { RefNamesContext, SectionNamesContext } from "./_components/mode1/i18n";
+import { refNames } from "./_components/mode1/spine-labels";
 import { sectionLabel as fptSectionLabel } from "@/lib/constants/fpt-sections";
 import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
@@ -861,6 +863,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
 
   const spine = spineState.spine;
+  // P06: nhãn bước vòng S-5 dùng tên màn ("Hàng đợi màn · Book Appointment"), nạp trước khi thành phần con dựng nhãn
+  const screenNames = useMemo(() => new Map((spine?.screens ?? []).map((sc) => [sc.id, sc.name] as const)), [spine?.screens]);
+  setStepScreenNames(screenNames);
+  // P06: tên phần tử cho dòng so sánh giá trị (mã màn trong `flow_to` ⇒ tên màn)
+  const elementNames = useMemo(() => refNames(spine), [spine]);
   const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
 
   // Reload / mất mạng giữa chừng: dựng lại đúng chỗ đang dở (BUG-07) — không chạy lại, không tốn credit.
@@ -2010,6 +2017,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   return (
     // Tên mục theo tài liệu đang xem cho nhãn mục của mode 1 (mẫu cố định / file có sẵn đặt tên khác mẫu FPT)
     <SectionNamesContext.Provider value={panelSectionNames}>
+    <RefNamesContext.Provider value={elementNames}>
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
       {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
@@ -2813,6 +2821,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         </Suspense>
       )}
     </div>
+    </RefNamesContext.Provider>
     </SectionNamesContext.Provider>
   );
 }

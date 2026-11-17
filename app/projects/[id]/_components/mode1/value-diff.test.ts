@@ -34,3 +34,16 @@ describe("value-diff - thay đổi phần tử Spine theo field (FLF-186)", () =
     expect(fieldChanges('["A01"]', '["A01","A02"]')).toEqual([{ field: "giá trị", before: "A01", after: "A01, A02" }]);
   });
 });
+
+describe("P06 (CR #4) - cạnh luồng màn in tên màn, không 'to: SCR-05'", () => {
+  it("có tên phần tử ⇒ 'Tới màn: <tên màn>'", async () => {
+    const { createTranslator } = await import("next-intl");
+    const { MESSAGES } = await import("@/test/intl");
+    const { mode1Labels } = await import("./i18n");
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "mode1" }) as never;
+    const labels = mode1Labels(t, "vi", null, { screens: { "SCR-05": "Product Detail" } });
+    const out = labels.fieldChanges(json({ id: "SCR-02", flow_to: [] }), json({ id: "SCR-02", flow_to: [{ to: "SCR-05", trigger: "Click product" }] }));
+    expect(out[0].after).toContain("Tới màn: Product Detail");
+    expect(out[0].after).not.toContain("SCR-05");
+  });
+});

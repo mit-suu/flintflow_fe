@@ -4,7 +4,7 @@
  * Lấy qua `useMode1Labels()` (`L.fieldChanges`, `L.valueSummary`, `L.showValue`).
  */
 import type { Mode1T } from "./i18n";
-import type { SpineLabels } from "./spine-labels";
+import type { RefNames, SpineLabels } from "./spine-labels";
 
 export interface FieldChange {
   field: string;
@@ -22,15 +22,15 @@ const parse = (text: string | null | undefined): Record<string, unknown> | null 
   }
 };
 
-export const valueDiff = (t: Mode1T, spine: Pick<SpineLabels, "readableValue">) => {
-  /** Giá trị field để hiển thị: chữ đọc được (mảng nối ", ", object "Tên: …"), không phải JSON; không có ⇒ "—". */
-  const showValue = (value: unknown): string => spine.readableValue(value);
+export const valueDiff = (t: Mode1T, spine: Pick<SpineLabels, "readableValue">, names?: RefNames) => {
+  /** Giá trị field để hiển thị: chữ đọc được (mảng nối ", ", object "Tên: …"), không phải JSON; không có ⇒ "—". Mã phần tử ⇒ tên (P06). */
+  const showValue = (value: unknown): string => spine.readableValue(value, names);
 
   /** Khối JSON không tách được field (mảng, giá trị đơn) ⇒ chữ đọc được; không phải JSON ⇒ giữ nguyên. */
   const readableText = (text: string | null | undefined): string => {
     if (!text) return "-";
     try {
-      return spine.readableValue(JSON.parse(text));
+      return spine.readableValue(JSON.parse(text), names);
     } catch {
       return text;
     }
