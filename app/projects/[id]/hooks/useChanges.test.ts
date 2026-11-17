@@ -164,9 +164,9 @@ describe("useChanges - cổng đồng bộ trước khi gửi và 409", () => {
     previewSpy.mockRestore();
   });
 
-  it("confirmPreview: cổng vừa kéo Spine lên bản mới hơn bản xem trước ⇒ bỏ xem trước, không gọi /changes", async () => {
+  it("P12: cổng vừa kéo Spine lên bản mới hơn bản xem trước ⇒ VẪN gửi /changes kèm preview_id (BE kiểm theo nội dung từng chỗ)", async () => {
     const baseVersion = await seedActor();
-    const applySpy = vi.spyOn(spineApi, "applyChanges");
+    const applySpy = vi.spyOn(spineApi, "applyChanges").mockResolvedValue({ data: { txn: "t", spine_version: baseVersion + 2, changes: [], spine: {} as never }, error: null });
     let current = baseVersion;
     let synced = false;
     const syncBeforeSend = vi.fn(async () => {
@@ -177,14 +177,37 @@ describe("useChanges - cổng đồng bộ trước khi gửi và 409", () => {
 
     await act(async () => void (await result.current.requestPreview("làm rõ vai trò")));
     await waitFor(() => expect(result.current.preview).not.toBeNull());
-    applySpy.mockClear();
+    const previewId = result.current.preview?.preview_id;
 
-    synced = true; // giữa lúc xem trước và bấm Áp dụng, nơi khác ghi thêm
+    synced = true; // giữa lúc xem trước và bấm Áp dụng, người khác ghi chỗ khác
     await act(async () => void (await result.current.confirmPreview()));
-    expect(applySpy).not.toHaveBeenCalled();
-    expect(result.current.preview).toBeNull();
-    expect(result.current.error).toBe(HOOK_ERROR.documentChanged);
+    expect(applySpy).toHaveBeenCalledWith(P, expect.objectContaining({ preview_id: previewId, base_version: baseVersion + 1 }));
+    expect(result.current.error).toBeNull();
     applySpy.mockRestore();
+  });
+
+  it("P12: 409 kèm meta.conflicts ⇒ màn so sánh (conflict), không câu 'tài liệu vừa thay đổi'; Bỏ yêu cầu xoá bản xem trước kèm lý do", async () => {
+    const baseVersion = await seedActor();
+    const onConflict = vi.fn();
+    const { result } = renderHook(() => useChanges(P, () => baseVersion, () => null, vi.fn(), () => "S1", { onConflict }));
+    await act(async () => void (await result.current.requestPreview("làm rõ vai trò")));
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+
+    const item = { path: "actors[id=A01]", section_id: "fixed:2.1", label: "Founder", at_proposal: "a", current: "b", proposal: "c", changed_by: "Bình", changed_at: null, proposed_at: null };
+    const applySpy = vi
+      .spyOn(spineApi, "applyChanges")
+      .mockRejectedValue(new ApiClientError(409, "SPINE_VERSION_CONFLICT", "Bình vừa sửa", { conflicts: [item], preview_id: "pv-9", instruction: "làm rõ vai trò" }));
+    const discardSpy = vi.spyOn(spineApi, "discardChangePreview").mockResolvedValue({ data: { discarded: true }, error: null });
+    await act(async () => void (await result.current.confirmPreview()));
+    expect(result.current.conflict).toEqual({ instruction: "làm rõ vai trò", previewId: "pv-9", items: [item] });
+    expect(result.current.error).toBeNull();
+    expect(onConflict).toHaveBeenCalledTimes(1);
+
+    await act(async () => void (await result.current.dropConflict("Đã bỏ yêu cầu vì mục đã được Bình sửa")));
+    expect(discardSpy).toHaveBeenCalledWith(P, "pv-9", { sessionId: "S1", note: "Đã bỏ yêu cầu vì mục đã được Bình sửa" });
+    expect(result.current.conflict).toBeNull();
+    applySpy.mockRestore();
+    discardSpy.mockRestore();
   });
 
   it("409 SPINE_VERSION_CONFLICT ⇒ onConflict một lần, báo 'tài liệu vừa thay đổi', bỏ xem trước, KHÔNG tự gửi lại", async () => {

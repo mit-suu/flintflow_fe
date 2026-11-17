@@ -158,6 +158,10 @@ describe("stepRunnerReducer", () => {
     expect(mine).toMatchObject({ status: "needs_input", heldBy: null });
     // Dữ liệu cũ không có `by` ⇒ như trước
     expect(stepRunnerReducer(initialRunnerState, { type: "restored", state: { ...waiting, by: null }, me: "user-tuan" }).status).toBe("needs_input");
+    // P12 (N1): lượt đang chạy của người khác ⇒ biết tên người chạy (ô chat không ghi chung "AI đang làm…")
+    const running = { ...base, status: "running" as const, alive: true, questions: null, by: "user-binh", by_name: "Bình" };
+    expect(stepRunnerReducer(initialRunnerState, { type: "restored", state: running, me: "user-tuan" })).toMatchObject({ busy: true, runBy: "Bình" });
+    expect(stepRunnerReducer(initialRunnerState, { type: "restored", state: running, me: "user-binh" }).runBy).toBeNull();
   });
 
   it("chỉ gate_ready và error là sự kiện kết thúc luồng", () => {
