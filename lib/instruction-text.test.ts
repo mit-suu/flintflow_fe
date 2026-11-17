@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockHasRealText, isInstructionText, isRealText } from "./instruction-text";
+import { blockHasRealText, isGuidanceOnly, isInstructionText, isRealText } from "./instruction-text";
 
 const p = (text: string) => ({ type: "paragraph" as const, runs: [{ text }] });
 
@@ -23,5 +23,15 @@ describe("chữ hướng dẫn của mẫu (FLF-278, đồng bộ BE instruction
     expect(blockHasRealText({ type: "table", header: [[{ text: "[Name]" }]], rows: [[[{ text: "[Role]" }]]] })).toBe(false);
     expect(blockHasRealText({ type: "image", png: "x" })).toBe(true);
     expect(blockHasRealText({ type: "page_break" })).toBe(false);
+  });
+});
+
+describe("isGuidanceOnly (P07, câu 3)", () => {
+  it("mục chỉ có hướng dẫn / dấu chấm lửng ⇒ chưa soạn; có chữ thật, bảng, ảnh hoặc rỗng ⇒ không", () => {
+    expect(isGuidanceOnly([p("[A function can be …]"), p("…")])).toBe(true);
+    expect(isGuidanceOnly([{ type: "bullet_list", items: [[{ text: "[Item]" }], [{ text: "..." }]] }])).toBe(true);
+    expect(isGuidanceOnly([])).toBe(false);
+    expect(isGuidanceOnly([p("[Guide]"), p("The driver confirms the pickup.")])).toBe(false);
+    expect(isGuidanceOnly([{ type: "table", header: [[{ text: "[Name]" }]], rows: [] }])).toBe(false);
   });
 });

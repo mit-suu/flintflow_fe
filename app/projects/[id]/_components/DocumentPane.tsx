@@ -10,7 +10,7 @@ import { fetchDiagramPng } from "@/lib/api/spine";
 import { tStep } from "@/lib/i18n";
 import { hookErrorText } from "@/lib/hook-errors";
 import { shownDocumentLanguage } from "@/lib/document-language";
-import { blockHasRealText } from "@/lib/instruction-text";
+import { blockHasRealText, isGuidanceOnly } from "@/lib/instruction-text";
 import { useDocument, type DocumentUpdate, type UseDocumentResult } from "../hooks/useDocument";
 import DocumentLanguageChip from "./DocumentLanguageChip";
 import DocumentUpdatePill from "./DocumentUpdatePill";
@@ -691,7 +691,9 @@ function SectionView({
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
   const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
   // `feature:*` (§3.2…) chỉ là tiêu đề nhóm, Spine feature không có thân — nội dung nằm ở các function con (FLF-248)
-  const showEmpty = section.blocks.length === 0 && !section.id.startsWith("feature:");
+  // P07 (câu 3): mục chỉ có chữ hướng dẫn của mẫu cũng là mục chưa soạn — nhãn như mục trống, hướng dẫn mờ bên dưới
+  const guidanceOnly = isGuidanceOnly(section.blocks);
+  const showEmpty = (section.blocks.length === 0 || guidanceOnly) && !section.id.startsWith("feature:");
   const custom = section.id.startsWith("custom:");
   // Mục riêng của mẫu chỉ có chữ hướng dẫn (`[Describe …]`) vẫn là mục trống — như BE (cờ mục mẫu, thư viện tổ chức)
   const customEmpty = custom && !section.blocks.some(blockHasRealText);
@@ -802,7 +804,15 @@ function SectionView({
           )}
         </div>
       </div>
-      {section.blocks.length > 0 && (
+      {guidanceOnly && (
+        // Chữ hướng dẫn của mẫu: chỉ để người soạn biết mục cần gì — mờ, không phải nội dung (bản Word không in)
+        <div data-template-guidance className="flex flex-col gap-1 opacity-60 italic text-on-surface-muted">
+          {section.blocks.map((block, i) => (
+            <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+          ))}
+        </div>
+      )}
+      {section.blocks.length > 0 && !guidanceOnly && (
         <>
           {section.blocks.map((block, i) => (
             <Fragment key={i}>
@@ -1089,7 +1099,7 @@ function DocumentPaneView({
               pending={pendingSectionIds.has(section.id)}
               regionState={regionState}
               onSelectStep={onSelectStep}
-              emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
+              emptyHint={section.blocks.length === 0 || isGuidanceOnly(section.blocks) ? emptyHintOf?.(section.id) : undefined}
               mode1={mode1}
               onEdit={onEditSection}
               onDraft={onDraftSection}

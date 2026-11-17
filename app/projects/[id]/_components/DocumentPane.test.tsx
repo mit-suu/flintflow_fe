@@ -106,7 +106,7 @@ describe("DocumentPane", () => {
     expect(screen.getByText("Founder")).toBeInTheDocument();
   });
 
-  it("FLF-248: mục feature (tiêu đề nhóm, không có thân) không hiện 'Chưa hoàn thiện'; mục cố định rỗng vẫn hiện", async () => {
+  it("FLF-248: mục feature (tiêu đề nhóm, không có thân) không hiện 'Chưa soạn'; mục cố định rỗng vẫn hiện", async () => {
     const doc: RenderedDocument = {
       ...fixture,
       sections: [
@@ -119,7 +119,40 @@ describe("DocumentPane", () => {
     renderWithIntl(<DocumentPane projectId="p1" projectName="FlintFlow" />);
 
     await waitFor(() => expect(screen.getByText(/3\.2\. Authentication/)).toBeInTheDocument());
-    expect(screen.getAllByText(/Chưa hoàn thiện/)).toHaveLength(1);
+    expect(screen.getAllByText(/Chưa soạn/)).toHaveLength(1);
+  });
+
+  it("P07 (câu 3): mục chỉ có chữ hướng dẫn của mẫu ⇒ 'Chưa soạn' + hướng dẫn mờ; mục có nội dung không đổi", async () => {
+    const doc: RenderedDocument = {
+      ...fixture,
+      sections: [
+        {
+          id: "function:FN3",
+          number: "3.2.1",
+          heading: "Book Shuttle",
+          level: 3,
+          status: "draft",
+          blocks: [
+            { type: "paragraph", runs: [{ text: "[A function can be a business process or a screen action]" }] },
+            { type: "paragraph", runs: [{ text: "…" }] },
+          ],
+        },
+        { id: "fixed:5.2", number: "5.2", heading: "Common Requirements", level: 2, status: "accepted", blocks: [{ type: "paragraph", runs: [{ text: "Dates use dd/MM/yyyy [ISO]" }] }] },
+      ],
+    };
+    getDocument.mockResolvedValueOnce({ data: doc, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+
+    renderWithIntl(<DocumentPane projectId="p1" projectName="FlintFlow" />);
+
+    await waitFor(() => expect(screen.getByText(/3\.2\.1\. Book Shuttle/)).toBeInTheDocument());
+    const fn = document.querySelector('[data-section-id="function:FN3"]')!;
+    expect(fn).toHaveTextContent("Chưa soạn");
+    const guidance = fn.querySelector("[data-template-guidance]");
+    expect(guidance).toHaveTextContent("[A function can be a business process or a screen action]");
+    expect(guidance?.className).toContain("opacity-60");
+    const common = document.querySelector('[data-section-id="fixed:5.2"]')!;
+    expect(common).not.toHaveTextContent("Chưa soạn");
+    expect(common.querySelector("[data-template-guidance]")).toBeNull();
   });
 
   it("nút Làm mới chỉ tải lại - không còn trạng thái đã cũ nào để người dùng tự xử lý", async () => {
@@ -260,12 +293,12 @@ describe("DocumentPane", () => {
     renderWithIntl(<DocumentPane projectId="p1" onSelectStep={onSelectStep} emptyHintOf={(id) => hints[id]} />);
 
     expect(await screen.findByText("2. Yêu cầu người dùng")).toBeInTheDocument();
-    expect(document.querySelector("[data-section-id=\"group:2\"]")?.textContent).not.toContain("Chưa hoàn thiện");
+    expect(document.querySelector("[data-section-id=\"group:2\"]")?.textContent).not.toContain("Chưa soạn");
     const rules = document.querySelector("[data-section-id=\"fixed:5.1\"]") as HTMLElement;
     // FLF-312: mẫu FPT không bắt buộc — mục trống không mang nhãn "Thiếu"
     expect(rules).not.toHaveTextContent("Thiếu");
-    expect(rules).toHaveTextContent("Chưa có nội dung - chạy step S-7.1");
-    expect(document.querySelector("[data-section-id=\"fixed:4.2.4\"]")).toHaveTextContent("Chưa có nội dung - chạy step S-6.5");
+    expect(rules).toHaveTextContent("Chưa soạn - chạy bước S-7.1");
+    expect(document.querySelector("[data-section-id=\"fixed:4.2.4\"]")).toHaveTextContent("Chưa soạn - chạy bước S-6.5");
     const appendix = document.querySelector("[data-section-id=\"custom:CS02\"]") as HTMLElement;
     expect(appendix).toHaveTextContent("Mục riêng");
     expect(appendix.querySelector("h5")?.textContent).toBe("Phụ lục A Biên bản họp");
