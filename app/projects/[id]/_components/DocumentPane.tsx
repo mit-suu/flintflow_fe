@@ -67,7 +67,7 @@ interface DocumentPaneProps {
   /** Số góp ý đang mở của một mục — vẽ chấm số trên header mục, bấm mở panel Góp ý. */
   commentCountOf?: (sectionId: string) => number;
   /** BF §3.2: người khác đang có bản sửa chưa xác nhận ở mục này (mode 1). */
-  pendingProposalsOf?: (sectionId: string) => { cr_id: string; who: string }[];
+  pendingProposalsOf?: (sectionId: string) => { cr_id?: string; who: string }[];
   onOpenSectionComments?: (sectionId: string) => void;
   /**
    * Chip trạng thái duy nhất trên header: số vấn đề phải xử lý (cờ đỏ + mục cần viết lại) và số gợi ý (cờ vàng).
@@ -666,7 +666,7 @@ function SectionView({
   /** Số góp ý đang mở của mục này. */
   commentCount?: number;
   /** BF §3.2: CR chưa đóng của người khác đang có đề xuất ở mục này. */
-  pendingProposals?: { cr_id: string; who: string }[];
+  pendingProposals?: { cr_id?: string; who: string }[];
   onOpenComments?: () => void;
   onRedraw?: () => Promise<void>;
   onRedrawDiagram?: (diagramId: string) => Promise<void>;
@@ -728,7 +728,7 @@ function SectionView({
           {pendingProposals.length > 0 && (
             // BF §3.2 "Hai người sửa cùng lúc": không khoá, chỉ báo ai đang có bản sửa chưa xác nhận ở mục này
             <span className="text-caption font-bold text-[#8A6D1F]" aria-label={t("pendingProposalsAria")}>
-              {pendingProposals.map((p) => t("pendingProposal", { who: p.who, crId: p.cr_id })).join(" · ")}
+              {pendingProposals.map((p) => (p.cr_id ? t("pendingProposal", { who: p.who, crId: p.cr_id }) : t("pendingPreview", { who: p.who }))).join(" · ")}
             </span>
           )}
         </div>

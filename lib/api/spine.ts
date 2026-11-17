@@ -23,6 +23,14 @@ export const previewChanges = (projectId: string, request: ChangeRequest) =>
     body: JSON.stringify(request),
   });
 
+/** BF §3.2 (trước baseline): mục đang có bản xem trước chưa áp của người khác — contract #8c. */
+export const getPreviewPendingSections = (projectId: string) =>
+  apiCall<{ section_id: string; items: { who: string }[] }[]>(`/projects/${projectId}/changes/pending-sections`);
+
+/** Bỏ bản xem trước của chính mình khi bấm Huỷ — contract #8d. */
+export const discardChangePreview = (projectId: string, previewId: string) =>
+  apiCall<{ discarded: boolean }>(`/projects/${projectId}/changes/preview/${encodeURIComponent(previewId)}`, { method: "DELETE" });
+
 export const applyChanges = (projectId: string, request: ChangeRequest) =>
   apiCall<ApplyResult>(`/projects/${projectId}/changes`, {
     method: "POST",

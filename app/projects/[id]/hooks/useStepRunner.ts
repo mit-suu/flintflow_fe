@@ -80,6 +80,11 @@ export interface RunnerState {
    * lúc đang chờ trả lời) — không có SSE nên tiến trình sau khi trả lời phải theo dõi bằng cách hỏi run-state (FLF-222).
    */
   source: "live" | "restored";
+  /**
+   * BF §3.2 (hai người sửa cùng lúc): bước đang chờ trả lời câu hỏi của lượt do **người khác** khởi động ⇒ tên người đó.
+   * Câu hỏi treo ở họ: không hiện thẻ câu hỏi cho mình (BE cũng trả 403 `STEP_NOT_REQUESTER`), chỉ báo ai đang trả lời.
+   */
+  heldBy: string | null;
 }
 
 export type RunnerAction =
@@ -89,7 +94,7 @@ export type RunnerAction =
   | { type: "answered"; count?: number }
   | { type: "busy"; busy: boolean }
   | { type: "failed"; code: string; message: string; meta?: Record<string, unknown> }
-  | { type: "restored"; state: RunState; at?: number }
+  | { type: "restored"; state: RunState; at?: number; me?: string | null }
   /** Sự kiện của các bước trước trong cùng giai đoạn (chạy liền), dựng lại nhật ký sau reload — FLF-221. */
   | { type: "history"; events: (StepEvent & { at?: number | string })[] }
   | { type: "reconnecting" }
@@ -134,6 +139,7 @@ export const initialRunnerState: RunnerState = {
   autoAccepted: [],
   phaseGate: null,
   source: "live",
+  heldBy: null,
 };
 
 const STATUS_BY_STAGE: Record<RunStage, RunnerStatus> = {
@@ -307,7 +313,11 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         lastEventAt: at,
       };
       if (run.status === "gate" && run.gate_payload) return { ...base, status: "gate_ready", gate: gateOf(run.gate_payload), phaseGate: run.phase_gate ?? null };
-      if (run.status === "waiting_answer" && run.questions) return { ...base, status: "needs_input", questions: run.questions };
+      if (run.status === "waiting_answer" && run.questions) {
+        // Câu hỏi của lượt người khác khởi động ⇒ treo ở họ; mình chỉ thấy ai đang trả lời
+        if (run.by && action.me && run.by !== action.me) return { ...base, heldBy: run.by_name || run.by };
+        return { ...base, status: "needs_input", questions: run.questions };
+      }
       if (run.status === "running" && run.alive) return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true };
       if (run.status === "interrupted" || (run.status === "running" && !run.alive)) {
         // Lỗi của lượt (vd lượt chạy tiếp ở nền sau khi trả lời) hiện ở khối lỗi kèm nút làm lại
@@ -361,6 +371,8 @@ export interface UseStepRunnerOptions {
    * không chạy tiếp, tiến độ giữ nguyên (người dùng chạy lại từ chat khi muốn). Không hỏi khi chạy tiếp trong cùng đơn vị.
    */
   beforePhaseRun?: (next: string, from: string | null) => Promise<boolean>;
+  /** BF §3.2: userId người đang mở trang — để biết câu hỏi đang chờ có phải của mình không. */
+  myUserId?: string | null;
 }
 
 /** Luồng SSE của `/run` chỉ được đóng sau hai sự kiện này (contract §2). */
@@ -441,8 +453,12 @@ const trackAwaiting = () => {
   };
 };
 
-export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, beforePhaseRun, onTranscriptChanged }: UseStepRunnerOptions) {
+export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, beforePhaseRun, onTranscriptChanged, myUserId = null }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
+  const meRef = useRef<string | null>(myUserId);
+  useEffect(() => {
+    meRef.current = myUserId;
+  }, [myUserId]);
   const stepRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   /** Giai đoạn đang chạy liền: còn giá trị ⇒ Accept xong là chạy tiếp phần còn lại, không bắt bấm lại. */
@@ -642,7 +658,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
           const live = awaiting.awaiting() ? null : await liveRunOf(projectId);
           if (live) {
             stepRef.current = live.step_id;
-            dispatch({ type: "restored", state: live, at: Date.now() });
+            dispatch({ type: "restored", state: live, at: Date.now(), me: meRef.current });
           } else dispatch(awaiting.awaiting() ? { type: "detached" } : { type: "reset" });
         }
         onSpineChanged();
@@ -697,7 +713,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (message) {
           const waiting = await getRunState(projectId, stepId).then((r) => r.data).catch(() => null);
           if (waiting?.status === "waiting_answer") {
-            dispatch({ type: "restored", state: waiting, at: Date.now() });
+            dispatch({ type: "restored", state: waiting, at: Date.now(), me: meRef.current });
             transcriptChangedRef.current?.();
             return;
           }
@@ -724,7 +740,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         // Đơn vị giai đoạn (`S-4`, `S-5@S03`) không phải step nhưng là lượt phỏng vấn đầu giai đoạn — vẫn dựng lại thẻ hỏi.
         if (!run || (!getStepDef(run.step_id) && !isPhaseUnit(run.step_id))) return null;
         stepRef.current = run.step_id;
-        dispatch({ type: "restored", state: run, at: Date.now() });
+        dispatch({ type: "restored", state: run, at: Date.now(), me: meRef.current });
         // Chạy cả giai đoạn: nhật ký gồm các bước trước trong giai đoạn (mỗi bước một run-state). Lỗi đọc ⇒ bỏ qua.
         const spine = await getSpine(projectId).then((r) => r.data).catch(() => null);
         if (spine) {
@@ -891,13 +907,13 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
           }
           if (!run.alive) {
             // Lượt chết kèm lỗi (vd DRAFT_REJECTED sau khi thử lại hết lần) ⇒ dựng lại để khối lỗi hiện nút thử lại
-            if (run.status === "interrupted" || run.status === "running") dispatch({ type: "restored", state: run, at: Date.now() });
+            if (run.status === "interrupted" || run.status === "running") dispatch({ type: "restored", state: run, at: Date.now(), me: meRef.current });
             else dispatch({ type: "interrupted" });
             if (polling) onSpineChanged();
             if (polling) transcriptChangedRef.current?.();
             return;
           }
-          dispatch({ type: "restored", state: run, at: Date.now() });
+          dispatch({ type: "restored", state: run, at: Date.now(), me: meRef.current });
           // Lượt nền đã trả lời / hỏi tiếp / tới cổng: lời AI nằm trong transcript ⇒ tải lại phiên chat
           if (polling && run.status !== "running") transcriptChangedRef.current?.();
           // Lượt nền đã ghi Spine: tải lại tài liệu/tiến độ, và giữ `spine_version` cuối cho lượt ghi kế tiếp

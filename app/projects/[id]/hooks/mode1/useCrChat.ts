@@ -17,6 +17,7 @@ import {
   sendCrMessage,
   type CrAction,
 } from "@/lib/api/change-requests";
+import { getReviewPackage } from "@/lib/api/versions";
 import { CR_AMENDABLE_STATUSES, CR_OPEN_STATUSES, CR_REDRAFT_STATUSES, type CrDetail, type CrLocation, type NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { useErrorText } from "../../_components/mode1/i18n";
 import { answersWithdraw } from "@/lib/withdrawal";
@@ -96,7 +97,11 @@ export const titleFromInstruction = (instruction: string): string => {
  * tự chạy tiếp; dừng ở câu hỏi, danh sách phần liên quan, đề xuất chưa được đồng ý, lỗi / hết credit, và "Gửi cho Lead".
  * Mọi trạng thái lấy từ `CrDetail` BE trả — hook chỉ nhớ thêm (localStorage) đề xuất nào người dùng đã đồng ý.
  */
-export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: string) => void) {
+/**
+ * `myUserId`: BF §3.2 / spec UC-45 A6 — khung chat chỉ nhận **CR mở của chính mình**. CR của người khác treo ở người đó
+ * (họ thấy dòng "<ai> có bản sửa chưa xác nhận" trong tài liệu), lệnh sửa của mình mở CR mới chứ không gộp vào CR của họ.
+ */
+export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: string) => void, myUserId: string | null = null) {
   // Chỉ dùng trong callback (`send`) và lúc render (`inputHint`) — không nằm trong effect tải dữ liệu
   const t = useTranslations("mode1.crChat");
   const errorText = useErrorText();
@@ -117,6 +122,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   /** Vị trí đang chờ người dùng gõ hướng "Sửa lại". */
   const [redraftFor, setRedraftFor] = useState<string | null>(null);
   /** FLF-375: câu hỏi giữa chừng + câu AI trả lời (chỉ trong phiên xem, không ghi vào CR). */
+  /** UC-46 / AC-43.3: gói đang chờ Lead duyệt ⇒ bản nháp khoá, không mở CR mới (báo ngay thay vì chờ BE trả 409). */
+  const [draftLocked, setDraftLocked] = useState(false);
   const [replies, setReplies] = useState<{ question: string; reply: string }[]>([]);
   /**
    * FLF-439: câu trả lời làm rõ là lời rút lại ("không đổi nữa", "thôi khỏi") ⇒ chưa gửi, hỏi "huỷ CR?" — giữ các câu trả lời
@@ -162,13 +169,17 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     [projectId]
   );
 
-  // CR đang mở = CR chưa nộp mới nhất (danh sách BE trả mới nhất trước)
+  // CR đang mở = CR chưa nộp mới nhất **của mình** (danh sách BE trả mới nhất trước)
   useEffect(() => {
-    if (!enabled) return;
+    // Chưa biết mình là ai ⇒ chờ, không nhận nhầm CR của người khác
+    if (!enabled || !myUserId) return;
     let cancelled = false;
+    getReviewPackage(projectId)
+      .then((r) => !cancelled && alive.current && setDraftLocked(r.data?.status === "pending"))
+      .catch(() => undefined);
     listCrs(projectId)
       .then(async (res) => {
-        const open = (res.data ?? []).find((c) => CR_OPEN_STATUSES.includes(c.status));
+        const open = (res.data ?? []).find((c) => CR_OPEN_STATUSES.includes(c.status) && c.created_by === myUserId);
         if (!open) return;
         const full = await getCr(projectId, open.cr_id);
         if (!cancelled && alive.current && full.data) setDetail(full.data);
@@ -178,7 +189,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     return () => {
       cancelled = true;
     };
-  }, [projectId, enabled]);
+  }, [projectId, enabled, myUserId]);
 
   const isAccepted = useCallback(
     (l: CrLocation) => accepted.has(proposalKey(l)) || (detail !== null && inApprovedBatch(detail, l)),
@@ -335,6 +346,16 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (!value) return;
       if (!detail) {
         setSent(null);
+        // Đọc lại trạng thái gói ngay lúc gửi (người khác có thể vừa gửi Lead duyệt); không đọc được ⇒ để BE quyết
+        const locked = await getReviewPackage(projectId)
+          .then((r) => r.data?.status === "pending")
+          .catch(() => false);
+        if (!alive.current) return;
+        setDraftLocked(locked);
+        if (locked) {
+          setError(t("draftLocked"));
+          return;
+        }
         setPending(value);
         return;
       }
@@ -347,7 +368,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         sendingRef.current = false;
       }
     },
-    [detail, sendToCr]
+    [detail, sendToCr, projectId, t]
   );
 
   const withCr = <T,>(fn: (id: string, d: CrDetail) => T): T | undefined => (detail ? fn(detail.change_request.cr_id, detail) : undefined);
@@ -362,8 +383,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     redraftFor,
     replies,
     /** Placeholder ô chat theo bước đang ở. */
+    draftLocked,
     inputHint: !detail
-      ? t("hintNew")
+      ? draftLocked
+        ? t("hintLocked")
+        : t("hintNew")
       : redraftFor
         ? t("hintRedraft")
         : detail.change_request.status === "awaiting_answers"

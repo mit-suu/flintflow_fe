@@ -314,7 +314,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
   const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
   // CR vừa ghi bản nháp (1.1, 1.2…) ⇒ khung phải tải lại tài liệu, version và gói thay đổi
-  const crChat = useCrChat(projectId, mode1, () => onSpineChangedRef.current());
+  const crChat = useCrChat(projectId, mode1, () => onSpineChangedRef.current(), ws.user?.id ?? null);
   // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
   const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
@@ -552,7 +552,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    */
   const doc = useDocument(ws.ready ? projectId : "", "draft", undefined, documentRefreshToken, documentLanguage);
   // BF §3.2: mục đang có bản sửa chưa xác nhận của người khác (mode 1)
-  const pendingSections = usePendingSections(projectId, mode1 && ws.ready, documentRefreshToken);
+  // BF §3.2: sau baseline = CR chưa đóng; trước baseline = bản xem trước sửa qua chat chưa áp của người khác
+  const pendingSections = usePendingSections(projectId, ws.ready, documentRefreshToken, mode1 ? "cr" : "preview");
   const { markPending: markDocumentPending, clearPending: clearDocumentPending } = doc;
 
   /**
@@ -727,6 +728,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     getBaseVersion,
     onSpineChanged,
     onGateDone: (res) => setSelectedStepId(res.next_step),
+    myUserId: ws.user?.id ?? null,
     // Lời AI xác nhận việc vừa sửa hiện ngay như một tin của AI, trước khi bước chạy lại
     onRevisionMessage: (message, stepId) => {
       if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
@@ -2177,6 +2179,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           )}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
+          {/* BF §3.2: câu hỏi của lượt người khác khởi động treo ở người đó — không thẻ câu hỏi, chỉ báo ai đang trả lời */}
+          {!mode1 && runner.state.heldBy && (
+            <p role="status" className="bg-surface-container-low rounded-control p-3 text-body text-on-surface-variant leading-relaxed">
+              {t.rich("page.heldByOther", { who: runner.state.heldBy, strong: (chunks) => <strong>{chunks}</strong> })}
+            </p>
+          )}
           {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && rerunCardAllowed && (
             <div
               ref={staleCardRef}
@@ -2185,7 +2193,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <p className="leading-relaxed">
                 {t.rich("page.staleNotice", {
                   step: stepLabel(viewedStep, locale),
-                  sections: staleSectionsOfViewed.map((id) => panelSectionNames.get(id) ?? id).join(", "),
+                  // Tài liệu chưa tải xong ⇒ nhãn mục FPT, không lộ mã nội bộ "fixed:1" (bug T11)
+                  sections: staleSectionsOfViewed.map(panelSectionName).join(", "),
                   strong: (chunks) => <strong>{chunks}</strong>,
                 })}
               </p>
@@ -2410,7 +2419,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           // nhưng chỉ trên bản đã phát hành, nên ở bản nháp chỉ mở cho Lead/Analyst.
           onCommentSection={canEdit ? startComment : undefined}
           commentCountOf={(sectionId) => comments.openCountBySection.get(sectionId) ?? 0}
-          pendingProposalsOf={mode1 ? (sectionId) => pendingSections.get(sectionId)?.items ?? [] : undefined}
+          pendingProposalsOf={(sectionId) => pendingSections.get(sectionId)?.items ?? []}
           onOpenSectionComments={() => openComments()}
           rewriteError={!editCardOpen ? hookError(changes.error) : null}
           onSectionsLoaded={handleSectionsLoaded}
@@ -2722,7 +2731,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
       {mode1 && (
         <Suspense fallback={null}>
-          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} />
+          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} myUserId={ws.user?.id ?? null} orgRole={ws.orgRole ?? null} />
         </Suspense>
       )}
       {/* Đổi mẫu: popup riêng (mode 2 đã có baseline cũng dùng, không mở gap report / CR) */}

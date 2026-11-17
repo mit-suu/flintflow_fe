@@ -1895,6 +1895,7 @@
       "custom": "Custom section",
       "issuesTitle": "See this section's issues",
       "issuesAria": "See {count, plural, one {# issue} other {# issues}} in this section",
+      "pendingPreview": "{who} has an unconfirmed edit in this section",
       "pendingProposal": "{who} ({crId}) has an unconfirmed edit in this section",
       "pendingProposalsAria": "Unconfirmed edits by others",
       "commentsTitle": "See this section's comments",
@@ -2673,6 +2674,7 @@
       "placeholderStart": "Describe your idea or what you want the AI to do…",
       "placeholderStartTemplate": "The template is ready - describe the project idea (who uses it, what for, goals) so FlintFlow can draft every template section…",
       "viewerNotice": "You are viewing as a Viewer - you can read the document but cannot send messages or run AI steps.",
+      "heldByOther": "<strong>{who}</strong> is answering the AI's question on this step - the question stays with them. You can read the document; continue after they finish.",
       "staleNotice": "Step <strong>{step}</strong> is accepted, but <strong>{sections}</strong> is outdated after later edits. Rerun the step so the AI updates it, review it, then click Approve at the gate.",
       "rerunStep": "Update this step",
       "continueNotice": "Step <strong>{step}</strong> is next but has not run yet.",
@@ -3870,6 +3872,8 @@
       }
     },
     "crChat": {
+      "draftLocked": "The draft is waiting for the Lead to review the change package - it is locked, so no new change request can be opened. Continue after the Lead approves or asks for revisions.",
+      "hintLocked": "The draft is waiting for the Lead's review - no new change request yet",
       "hintNew": "Type a document edit, e.g. Add a performance requirement for the search screen",
       "hintRedraft": "Type how to redo the selected proposal…",
       "hintAnswer": "Answer the AI's question…",
@@ -3939,6 +3943,7 @@
       "cancelTitle": "Cancel change request",
       "closeDescription": "Every group was rejected. Closing the CR unlocks all blocks and moves the CR to rejected.",
       "cancelDescription": "Cancelling unlocks every block the CR holds. Nothing is written to the document.",
+      "heldByOther": "This change request belongs to {who} and is at “{status}” - the proposal stays with them; only they can answer, accept and confirm it. You can only view it here; to change something else, type your own edit in the chat to open a new change request.",
       "inChatText": "This change request is at “{status}”. Everything (answering questions, accepting, typing how to change, confirming) happens in the chat on the left - this view is read-only.",
       "openInChat": "Open in chat"
     },

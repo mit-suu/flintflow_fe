@@ -27,14 +27,14 @@ const detail = {
 } as unknown as CrDetail;
 
 beforeEach(() => {
-  api.listCrs.mockReset().mockResolvedValue({ data: [{ cr_id: "CR-001", status: "draft" }] });
+  api.listCrs.mockReset().mockResolvedValue({ data: [{ cr_id: "CR-001", status: "draft", created_by: "u1" }] });
   api.getCr.mockReset().mockResolvedValue({ data: detail });
   api.sendCrMessage.mockReset().mockResolvedValue({ data: { ...detail, message: { kind: "answer", reply: "Không vẽ lại hình." } } });
 });
 
 describe("useCrChat - gửi lặp (FLF-400)", () => {
   it("send gọi 2 lần trong cùng một tick ⇒ sendCrMessage chỉ gọi 1 lần; xong thì gửi tiếp được", async () => {
-    const { result } = renderHookWithIntl(() => useCrChat("p1"));
+    const { result } = renderHookWithIntl(() => useCrChat("p1", true, undefined, "u1"));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
 
     await act(async () => {
@@ -53,13 +53,13 @@ describe("useCrChat - trả lời câu làm rõ ⇒ tự chạy tiếp đề xu�
   const loc = { location_id: "L001", section_id: "fixed:2.2", path: "use_cases[id=UC09]", conclusion: null, proposal: null, verify: null, manual: false, found_by: ["keyword"] };
 
   it("answers ⇒ impact ⇒ propose, không dừng ở 'Tiếp tục - AI đề xuất sửa'", async () => {
-    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "awaiting_answers" }] });
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "awaiting_answers", created_by: "u1" }] });
     api.getCr.mockResolvedValue({ data: withStatus("awaiting_answers") });
     api.answerClarifications.mockResolvedValue({ data: withStatus("impact_review") });
     api.runCrAction.mockImplementation(async (_p: string, _id: string, action: string) =>
       action === "impact" ? { data: withStatus("impact_review", [loc]) } : { data: withStatus("proposing", [{ ...loc, conclusion: "not_related" }]) }
     );
-    const { result } = renderHookWithIntl(() => useCrChat("p-answer"));
+    const { result } = renderHookWithIntl(() => useCrChat("p-answer", true, undefined, "u1"));
     await waitFor(() => expect(result.current.detail?.change_request.status).toBe("awaiting_answers"));
 
     await act(async () => {
@@ -77,7 +77,7 @@ const asking = {
 
 describe("useCrChat - trả lời làm rõ là lời rút lại (FLF-439)", () => {
   beforeEach(() => {
-    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "awaiting_answers" }] });
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "awaiting_answers", created_by: "u1" }] });
     api.getCr.mockResolvedValue({ data: asking });
     api.answerClarifications.mockReset().mockResolvedValue({ data: asking });
     api.cancelCr.mockReset().mockResolvedValue({ data: { ...asking, change_request: { ...asking.change_request, status: "cancelled" } } });
@@ -85,7 +85,7 @@ describe("useCrChat - trả lời làm rõ là lời rút lại (FLF-439)", () =
   });
 
   it("'không đổi nữa' ⇒ chưa gửi câu trả lời, hỏi huỷ CR; Huỷ ⇒ cancelCr kèm lý do là câu đã gõ", async () => {
-    const { result } = renderHookWithIntl(() => useCrChat("p1"));
+    const { result } = renderHookWithIntl(() => useCrChat("p1", true, undefined, "u1"));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
 
     await act(async () => result.current.send("không đổi nữa"));
@@ -98,7 +98,7 @@ describe("useCrChat - trả lời làm rõ là lời rút lại (FLF-439)", () =
   });
 
   it("'Không, gửi làm câu trả lời' ⇒ gửi đúng câu đó; câu trả lời thật ('không đổi') gửi thẳng, không hỏi", async () => {
-    const { result } = renderHookWithIntl(() => useCrChat("p1"));
+    const { result } = renderHookWithIntl(() => useCrChat("p1", true, undefined, "u1"));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
 
     act(() => result.current.answer(["không sửa gì nữa"]));
