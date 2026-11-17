@@ -42,6 +42,11 @@ vi.mock("@/lib/api/token-store", () => ({
 }));
 // TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang thành viên
 vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
+// Store tổ chức dùng chung chưa có gì (chưa nhớ, đang tải) ⇒ trang tự dựa vào chi tiết org nó tải; giữ
+// `fetchOrganization` chỉ do trang gọi để các test xếp lượt trả lời (mockResolvedValueOnce) không bị hook ăn mất
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganizationState: () => ({ org: null, loading: true, error: false }),
+}));
 
 const assign = vi.fn();
 const ME = "u-me";
@@ -72,6 +77,12 @@ const rowAction = async (member: string, action: string) => {
   return screen.getByRole("menuitem", { name: action });
 };
 
+/** Ô chọn vai trò là combobox tự dựng: bấm mở rồi chọn mục (danh sách vẽ ra `body` qua portal nên tìm trên cả màn). */
+const pickOption = (combobox: HTMLElement, option: string) => {
+  fireEvent.click(combobox);
+  fireEvent.mouseDown(screen.getByRole("option", { name: option }));
+};
+
 /** Form mời nằm trong hộp thoại, mở bằng nút cạnh tiêu đề trang. */
 const openInvite = async () => {
   fireEvent.click(await screen.findByRole("button", { name: "Mời thành viên" }));
@@ -93,7 +104,7 @@ describe("trang thành viên - Lead", () => {
     renderWithIntl(<MembersPage />);
 
     const select = await screen.findByRole("combobox", { name: "Vai trò của Bình" });
-    fireEvent.change(select, { target: { value: "viewer" } });
+    pickOption(select, "Viewer");
 
     await waitFor(() => expect(changeMemberRole).toHaveBeenCalledWith("org-a", "u-2", "viewer"));
   });
@@ -129,7 +140,7 @@ describe("trang thành viên - Lead", () => {
     });
     vi.mocked(fetchMembers).mockResolvedValueOnce([member(ME, "analyst", "Tôi"), member("u-2", "lead", "Bình")]);
 
-    fireEvent.change(select, { target: { value: "analyst" } });
+    pickOption(select, "Analyst");
 
     await waitFor(() => expect(changeMemberRole).toHaveBeenCalledWith("org-a", ME, "analyst"));
     expect(await screen.findByText("Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.")).toBeInTheDocument();
@@ -163,7 +174,7 @@ describe("trang thành viên - Lead", () => {
     renderWithIntl(<MembersPage />);
 
     const dialog = await openInvite();
-    fireEvent.change(within(dialog).getByRole("combobox", { name: "Vai trò" }), { target: { value: "viewer" } });
+    pickOption(within(dialog).getByRole("combobox", { name: "Vai trò" }), "Viewer");
     fireEvent.change(within(dialog).getByLabelText("Email người được mời"), { target: { value: "moi@flintflow.test" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Tạo mã mời" }));
 
@@ -204,7 +215,7 @@ describe("trang thành viên - Lead", () => {
     );
     renderWithIntl(<MembersPage />);
 
-    fireEvent.change(await screen.findByRole("combobox", { name: "Vai trò của Bình" }), { target: { value: "viewer" } });
+    pickOption(await screen.findByRole("combobox", { name: "Vai trò của Bình" }), "Viewer");
     expect(await screen.findByRole("alert")).toHaveTextContent("ít nhất một Lead");
   });
 });

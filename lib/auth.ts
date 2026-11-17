@@ -1,5 +1,8 @@
 import { clearAccessToken, decodeJwt, getAccessToken } from "./api/token-store";
 import { clearDocumentImageCache } from "./api/document-image-cache";
+import { clearActiveOrgCache } from "./active-org-cache";
+import { clearProfileName } from "./profile-name-cache";
+import { clearWorkspaceMemory } from "./workspace-memory";
 
 // Hàm token nằm ở `lib/api/token-store.ts`; re-export để giữ đường import cũ `lib/auth`.
 export { decodeJwt, getAccessToken, getUserRole, saveAuthToken, setSessionPersistence } from "./api/token-store";
@@ -28,6 +31,9 @@ export const clearAuthToken = (): Promise<void> => {
   clearAccessToken();
   clearDocumentImageCache();
   if (typeof window !== "undefined") {
+    clearActiveOrgCache();
+    clearProfileName();
+    clearWorkspaceMemory();
     // `accessToken` ở storage chỉ còn ở máy chạy bản cũ — xoá luôn cho sạch
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userRole");

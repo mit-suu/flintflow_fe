@@ -82,13 +82,14 @@ export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }:
   };
 
   return (
-    <div className="flex flex-col gap-2" aria-label={t("aria")}>
+    <div className="@container flex flex-col gap-2" aria-label={t("aria")}>
       <Tabs
         label={t("tabsLabel")}
         idBase="names"
         value={tab}
         onChange={switchTab}
-        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body [&>button]:h-7"
+        layout="grid"
+        className="self-stretch grid-cols-2 @min-[30rem]:grid-cols-4 [&>button]:justify-center [&>button]:px-1 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body [&>button]:h-7"
         options={TABS.map((id) => ({
           value: id,
           label: t(`tab.${id}`),

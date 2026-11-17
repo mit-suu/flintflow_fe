@@ -1,6 +1,8 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createProjectFrom } from "@/lib/api/projects";
+import { createProjectFrom, listProjectsPage } from "@/lib/api/projects";
+import { fetchBalance } from "@/lib/api/billing";
+import { ApiClientError } from "@/lib/api/client";
 import { precheckDocx, uploadProjectDocument } from "@/lib/api/documents";
 import { uploadImport } from "@/lib/api/import";
 import { MESSAGES, renderWithIntl } from "@/test/intl";
@@ -8,7 +10,8 @@ import CreateProjectForm from "./CreateProjectForm";
 
 const DEFAULT_PROJECT_NAME = MESSAGES.vi.app.createProject.defaultName;
 
-vi.mock("@/lib/api/projects", () => ({ createProjectFrom: vi.fn() }));
+vi.mock("@/lib/api/projects", () => ({ createProjectFrom: vi.fn(), listProjectsPage: vi.fn() }));
+vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn() }));
 vi.mock("@/lib/api/documents", () => ({ precheckDocx: vi.fn(), uploadProjectDocument: vi.fn() }));
 vi.mock("@/lib/api/import", () => ({ uploadImport: vi.fn() }));
 vi.mock("@/lib/api/org-library", () => ({ importFromOrgTemplate: vi.fn(), listOrgTemplates: vi.fn(async () => []) }));
@@ -19,7 +22,16 @@ const srsInput = () => document.querySelector<HTMLInputElement>('input[type="fil
 const refInput = () => document.querySelector<HTMLInputElement>('input[type="file"][multiple]')!;
 const created = { data: { _id: "p1", mode: "import" }, error: null } as never;
 
+/** Hạn mức dự án (UC-16): `used` dự án đang làm trên trần `max` của gói Free. */
+const quotaIs = (used: number, max = 3) => {
+  vi.mocked(fetchBalance).mockResolvedValue({ plan: "free", planLabel: "Free", planLimits: { maxProjects: max, maxMembers: 3, monthlyCredits: 0 } } as never);
+  vi.mocked(listProjectsPage).mockResolvedValue({ items: [], meta: { page: 1, limit: 1, total: used, totalPages: used } } as never);
+};
+
 beforeEach(() => {
+  // Mặc định không đọc được hạn mức ⇒ hộp chạy như trước (BE vẫn chặn)
+  vi.mocked(fetchBalance).mockReset().mockRejectedValue(new Error("offline"));
+  vi.mocked(listProjectsPage).mockReset().mockResolvedValue({ items: [], meta: { page: 1, limit: 1, total: 0, totalPages: 1 } } as never);
   vi.mocked(createProjectFrom).mockReset().mockResolvedValue(created);
   vi.mocked(uploadImport).mockReset().mockResolvedValue({ data: {}, error: null } as never);
   vi.mocked(uploadProjectDocument).mockReset().mockResolvedValue({ data: {}, error: null } as never);
@@ -222,5 +234,44 @@ describe("CreateProjectForm - file chưa gửi", () => {
     fireEvent.click(screen.getByRole("button", { name: "Bỏ SRS.docx" }));
     await waitFor(() => expect(onPendingFilesChange).toHaveBeenLastCalledWith(0));
     expect(leaving()).toBe(false);
+  });
+});
+
+describe("CreateProjectForm - hạn mức dự án của gói (E2E BarberGo #1, #2)", () => {
+  it("còn chỗ ⇒ hiện 'Đã dùng x/y' ngay khi mở hộp, nút Bắt đầu bấm được", async () => {
+    quotaIs(2);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    expect(await screen.findByText("Đã dùng 2/3 dự án của gói Free")).toBeInTheDocument();
+    expect(listProjectsPage).toHaveBeenCalledWith({ page: 1, limit: 1, status: "active" });
+    expect(submit()).toBeEnabled();
+  });
+
+  it("hết chỗ ⇒ báo trước, nêu trần của gói, khoá Bắt đầu, có lối sang trang gói", async () => {
+    quotaIs(3);
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Gói Free chỉ cho tối đa 3 dự án và tổ chức đã dùng hết.");
+    expect(screen.getByRole("link", { name: "Xem gói" })).toHaveAttribute("href", "/home/billing");
+    expect(submit()).toBeDisabled();
+    fireEvent.click(submit());
+    expect(createProjectFrom).not.toHaveBeenCalled();
+  });
+
+  it("BE từ chối vì hết hạn mức (số lúc mở hộp đã cũ) ⇒ khung hạn mức chuyển sang hết chỗ, khoá nút", async () => {
+    quotaIs(2);
+    vi.mocked(createProjectFrom).mockRejectedValue(new ApiClientError(402, "PLAN_LIMIT_PROJECTS", "Gói Free chỉ cho tối đa 3 dự án"));
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    await screen.findByText("Đã dùng 2/3 dự án của gói Free");
+    fireEvent.click(submit());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Gói Free chỉ cho tối đa 3 dự án và tổ chức đã dùng hết.");
+    expect(submit()).toBeDisabled();
+    expect(fetchBalance).toHaveBeenCalledTimes(2);
+  });
+
+  it("không đọc được hạn mức mà BE từ chối ⇒ giữ câu của BE có con số trần, không thay bằng câu chung", async () => {
+    vi.mocked(createProjectFrom).mockRejectedValue(new ApiClientError(402, "PLAN_LIMIT_PROJECTS", "Gói Free chỉ cho tối đa 3 dự án"));
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.click(submit());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Gói Free chỉ cho tối đa 3 dự án");
+    expect(screen.queryByText(/Đã dùng/)).not.toBeInTheDocument();
   });
 });

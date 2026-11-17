@@ -1,5 +1,6 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import registry from "../lib/constants/step-registry.json";
+import { loginThroughUi } from "./login-helper";
 
 /**
  * e2e T23 — FE thật trên BE thật, **không msw**.
@@ -57,14 +58,6 @@ const login = async (request: APIRequestContext): Promise<string> => {
 };
 
 /** Đăng nhập qua UI thật, không nhét token vào storage — đó là một phần của luồng cần kiểm. */
-const loginThroughUi = async (page: Page): Promise<void> => {
-  await page.goto("/login");
-  await page.locator("#email").fill(EMAIL);
-  await page.locator("#password").fill(PASSWORD);
-  await page.getByRole("button", { name: /đăng nhập/i }).click();
-  await page.waitForURL(/\/home/, { timeout: 20_000 });
-};
-
 test.describe("workspace end-to-end trên BE thật", () => {
   let token = "";
   let projectId = "";
@@ -95,7 +88,7 @@ test.describe("workspace end-to-end trên BE thật", () => {
 
   test("đăng nhập, thẻ dự án đọc tiến độ thật, workspace và Export chạy trên BE", async ({ page, request }) => {
     // ── 1. Đăng nhập qua UI ────────────────────────────────────────────────────────────
-    await loginThroughUi(page);
+    await loginThroughUi(page, EMAIL, PASSWORD, { timeout: 20_000 });
 
     // ── 2. Thẻ dự án: việc tiếp theo lấy từ step registry, không phải bảng nhãn cứng cũ ────────────
     // Dự án mới đã có Spine rỗng với `progress.current_step = B-0.1` (`spine.repository.INITIAL_STEP`),
@@ -187,7 +180,7 @@ test.describe("workspace end-to-end trên BE thật", () => {
   });
 
   test("không còn đường bật msw ở runtime", async ({ page }) => {
-    await loginThroughUi(page);
+    await loginThroughUi(page, EMAIL, PASSWORD, { timeout: 20_000 });
     // Service worker của msw đã bị gỡ khỏi `public/` — trang không được đăng ký worker nào
     const workers = await page.evaluate(async () => {
       if (!("serviceWorker" in navigator)) return 0;

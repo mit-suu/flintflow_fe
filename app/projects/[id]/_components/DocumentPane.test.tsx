@@ -202,6 +202,19 @@ describe("DocumentPane", () => {
     expect(await screen.findByText("Chờ duyệt lại")).toBeInTheDocument();
   });
 
+  it("P13: khung tài liệu tiếng Việt - nhãn trạng thái mục và chip bản nháp không còn chữ tiếng Anh", async () => {
+    getDocument.mockResolvedValueOnce({ data: fixture, error: null, meta: { assembled_at_version: 5, spine_version: 5, stale: false } });
+
+    renderWithIntl(<DocumentPane projectId="p1" projectName="FlintFlow" />);
+
+    await screen.findByText(/1\. Product Overview/);
+    expect(screen.getAllByText("Đã chốt").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Bản nháp").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Accepted")).toBeNull();
+    expect(screen.queryByText("Draft")).toBeNull();
+    expect(screen.queryByText("DRAFT")).toBeNull();
+  });
+
   it("dự án chưa có nội dung: nói tài liệu sẽ tự hiện, không mời bấm gì", async () => {
     getDocument.mockResolvedValueOnce({ data: null, error: null, meta: { state: "not_assembled" } } as never);
 
