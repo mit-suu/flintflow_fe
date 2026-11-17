@@ -27,6 +27,8 @@ interface ChatBubbleProps {
   isStreaming?: boolean;
   /** Bong bóng hỏi của step đang chạy: nhãn "Chỉ trao đổi" không có nghĩa gì ở đây. */
   hideBadge?: boolean;
+  /** P05: câu hỏi trong tin này đã được trả lời (nội dung câu trả lời) ⇒ thu gọn, không trông như đang chờ. */
+  answered?: string;
 }
 
 /** Nhãn của một tin AI — key trong `workspace.chatBubble.badge`, component dịch lúc render. */
@@ -92,6 +94,7 @@ export default function ChatBubble({
   disabled = false,
   isStreaming = false,
   hideBadge = false,
+  answered,
 }: ChatBubbleProps) {
   const t = useTranslations("workspace.chatBubble");
   const locale = useLocale();
@@ -363,7 +366,18 @@ export default function ChatBubble({
             ) : null}
           </div>
 
-          {!isStreaming && parsed.openQuestions.length > 0 && (
+          {!isStreaming && parsed.openQuestions.length > 0 && answered !== undefined && (
+            // P05: câu đã trả lời ⇒ thu gọn, chữ mờ, không số thứ tự — không còn trông như câu đang chờ
+            <details className="text-body text-on-surface-muted">
+              <summary className="cursor-pointer select-none">{t("answered", { answer: answered.length > 80 ? `${answered.slice(0, 77)}…` : answered })}</summary>
+              <ul className="mt-1.5 flex flex-col gap-1 pl-4 list-disc" aria-label={t("openQuestions")}>
+                {parsed.openQuestions.map((question, i) => (
+                  <li key={i}>{question}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {!isStreaming && parsed.openQuestions.length > 0 && answered === undefined && (
             <ol className="flex flex-col gap-1.5" aria-label={t("openQuestions")}>
               {parsed.openQuestions.map((question, i) => (
                 <li key={i} className="flex items-baseline gap-2.5 text-heading text-on-surface leading-7">
