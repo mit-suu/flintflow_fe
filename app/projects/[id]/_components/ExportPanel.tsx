@@ -5,8 +5,9 @@ import { useTranslations } from "next-intl";
 import { ApiClientError } from "@/lib/api/client";
 import { downloadPdfExport, downloadWordExport, listBaselines, type ExportFormat } from "@/lib/api/export";
 import { shownDocumentLanguage } from "@/lib/document-language";
+import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
 import { useDocument } from "../hooks/useDocument";
-import type { DocumentSource } from "@/types/document";
+import type { DocumentSource, TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import type { Baseline } from "@/types/spine";
 import { versionFileName } from "@/types/doc-version";
@@ -116,9 +117,18 @@ export default function ExportPanel({
    */
   const [incomplete, setIncomplete] = useState<{ count: number | null; message: string; locale: DocumentLanguage; baselineId?: string } | null>(null);
 
+  /**
+   * Câu 11 (P09): tài liệu còn mục chưa dịch ⇒ bấm tải hỏi "Dịch {n} mục còn thiếu (~x credit) rồi xuất?" — không tự dịch.
+   * `translateAsk` = trạng thái dịch của đúng file sắp tải; `translating` = đang chạy lô dịch trước khi xuất.
+   */
+  const [translateAsk, setTranslateAsk] = useState<TranslationStatus | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const translationScope = { ...(requestedLanguage ? { locale: requestedLanguage } : {}), ...(baselineId ? { baselineId } : {}) };
+
   const resetDownloadError = () => {
     setDownloadError(null);
     setIncomplete(null);
+    setTranslateAsk(null);
   };
 
   const selectSource = (next: DocumentSource) => {
@@ -210,6 +220,47 @@ export default function ExportPanel({
     } finally {
       setDownloading(false);
     }
+  };
+
+  /** Sau câu hỏi dịch: còn màn đang vẽ mockup ⇒ hỏi tiếp như cũ, không thì tải. */
+  const proceedDownload = () => (mockupPending > 0 && source === "draft" ? setMockupAsk(true) : void handleDownload());
+
+  /**
+   * Bấm tải: người dịch được (Lead / Analyst mode 2 — có `onTranslate`) và file sắp tải còn mục chưa dịch ⇒ hỏi trước. Đếm bằng
+   * `GET /translations/status` (không gọi model); đếm lỗi ⇒ tải như cũ (BE vẫn là nơi chặn ngôn ngữ khác).
+   */
+  const startDownload = async () => {
+    resetDownloadError();
+    if (onTranslate) {
+      try {
+        const status = (await getTranslationStatus(projectId, translationScope)).data;
+        if (status && status.missing > 0) {
+          setTranslateAsk(status);
+          return;
+        }
+      } catch {
+        // không đếm được ⇒ không hỏi
+      }
+    }
+    proceedDownload();
+  };
+
+  /** "Dịch rồi xuất": chạy lô tới khi `remaining = 0` hoặc lô không tiến (`translated = 0`), rồi xuất. Lỗi (hết credit…) ⇒ dừng, báo. */
+  const translateThenDownload = async () => {
+    setTranslateAsk(null);
+    setTranslating(true);
+    try {
+      for (;;) {
+        const result = (await runTranslation(projectId, undefined, translationScope)).data;
+        if (!result || result.remaining === 0 || result.translated === 0) break;
+      }
+    } catch (err) {
+      setDownloadError(userErrorMessage(err, t("translateBeforeExportFailed")));
+      return;
+    } finally {
+      setTranslating(false);
+    }
+    proceedDownload();
   };
 
   // FLF-410: "Đợi vẽ xong rồi xuất" — lượt vẽ mockup hết màn chờ ⇒ tự tải bản nháp (lùi một microtask: không set state đồng
@@ -434,12 +485,36 @@ export default function ExportPanel({
               </div>
             )}
 
+            {translateAsk && (
+              <div role="alert" className="flex flex-col gap-2 rounded-[10px] bg-[#FFF6E5] px-3 py-2.5 text-body text-[#7A4B00]">
+                <span>{t("translateBeforeExport", { count: translateAsk.missing, credits: translateAsk.estimated_credits })}</span>
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={() => void translateThenDownload()} className="font-bold hover:underline cursor-pointer">
+                    {t("translateThenExport")}
+                  </button>
+                  {/* Ngôn ngữ khác ngôn ngữ tài liệu: BE không xuất khi thiếu bản dịch ⇒ chỉ có Thôi */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTranslateAsk(null);
+                      if (!requestedLanguage) proceedDownload();
+                    }}
+                    className="font-bold hover:underline cursor-pointer"
+                  >
+                    {requestedLanguage ? t("translateCancel") : t("exportAsIs")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {translating && <div role="status" className="text-body text-[#7A4B00]">{t("translatingBeforeExport")}</div>}
+
             {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
 
             <button
               type="button"
-              disabled={downloading || empty || loading}
-              onClick={() => (mockupPending > 0 && source === "draft" ? setMockupAsk(true) : void handleDownload())}
+              disabled={downloading || translating || empty || loading}
+              onClick={() => void startDownload()}
               className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
             >
               {downloading
