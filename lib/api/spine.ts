@@ -28,8 +28,16 @@ export const getPreviewPendingSections = (projectId: string) =>
   apiCall<{ section_id: string; items: { who: string }[] }[]>(`/projects/${projectId}/changes/pending-sections`);
 
 /** Bỏ bản xem trước của chính mình khi bấm Huỷ — contract #8d. */
-export const discardChangePreview = (projectId: string, previewId: string) =>
-  apiCall<{ discarded: boolean }>(`/projects/${projectId}/changes/preview/${encodeURIComponent(previewId)}`, { method: "DELETE" });
+/** P12: `note` + `session_id` ⇒ BE ghi lý do bỏ vào phiên chat ("Bỏ yêu cầu" vì mục đã được người khác sửa). */
+export const discardChangePreview = (projectId: string, previewId: string, options: { sessionId?: string | null; note?: string } = {}) => {
+  const query = new URLSearchParams();
+  if (options.sessionId && options.note) {
+    query.set("session_id", options.sessionId);
+    query.set("note", options.note);
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return apiCall<{ discarded: boolean }>(`/projects/${projectId}/changes/preview/${encodeURIComponent(previewId)}${suffix}`, { method: "DELETE" });
+};
 
 export const applyChanges = (projectId: string, request: ChangeRequest) =>
   apiCall<ApplyResult>(`/projects/${projectId}/changes`, {

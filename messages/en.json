@@ -2314,6 +2314,7 @@
       "apply": "Apply",
       "applied": "Applied {count, plural, one {# change} other {# changes}}",
       "confirmedNoChange": "Confirmed, content unchanged",
+      "alreadyApplied": "{who} already made the same edit - nothing written again.",
       "undoing": "Undoing…",
       "undo": "Undo"
     },
@@ -2655,6 +2656,10 @@
       "chatTitleMode1": "Q&A & edit commands",
       "placeholderSide": "Ask the AI about the project, or turn on Edit document to edit…",
       "placeholderWorking": "The AI is working…",
+      "placeholderHeldBy": "{who} is answering the AI's question on this step…",
+      "placeholderRunBy": "{who} is running this step…",
+      "reconcileRedraft": "The other sections were written. {sections} was just edited by someone else - the AI is redrafting it on the new content; review and confirm.",
+      "dropRequestNote": "Request dropped because {who} already edited this part - keeping the current content.",
       "placeholderAnswerAbove": "Answer the questions above…",
       "placeholderGate": "Tell me what you would like to change…",
       "placeholderStart": "Describe your idea or what you want the AI to do…",

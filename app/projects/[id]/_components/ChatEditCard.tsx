@@ -3,6 +3,8 @@
 import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { PreviewResult } from "@/types/pipeline";
+import type { AlreadyApplied, ChangeConflict } from "../hooks/useChanges";
+import ChangeConflictCard from "./ChangeConflictCard";
 import { describeChange } from "./describe-change";
 import { useMode1Labels } from "./mode1/i18n";
 import type { Locale } from "@/lib/i18n";
@@ -24,6 +26,13 @@ interface ChatEditCardProps {
   /** Bản xem trước của lệnh sửa (không phải của lượt cập nhật mục cũ). */
   preview: PreviewResult | null;
   applied: AppliedEdit | null;
+  /** P12: người khác vừa sửa đúng chữ — màn so sánh 3 cột thay cho bản xem trước. */
+  conflict?: ChangeConflict | null;
+  /** P12: lượt áp vừa rồi không ghi vì người khác đã sửa giống. */
+  alreadyApplied?: AlreadyApplied[] | null;
+  sectionName?: (sectionId: string) => string;
+  onRedraft?: () => void;
+  onDropRequest?: () => void;
   /** Mode 1: áp thẳng không được — nút chính là "Tạo change request". */
   requiresCr?: boolean;
   onShowDetail: () => void;
@@ -48,6 +57,11 @@ export default function ChatEditCard({
   error,
   preview,
   applied,
+  conflict = null,
+  alreadyApplied = null,
+  sectionName = (id) => id,
+  onRedraft,
+  onDropRequest,
   requiresCr = false,
   onShowDetail,
   onApply,
@@ -99,6 +113,10 @@ export default function ChatEditCard({
       )}
 
       {error && <p className="text-body text-error">{error}</p>}
+
+      {conflict && !previewing && (
+        <ChangeConflictCard conflict={conflict} sectionName={sectionName} busy={applying} onRedraft={() => onRedraft?.()} onDrop={() => onDropRequest?.()} />
+      )}
 
       {preview && !applied && (
         <>
@@ -159,7 +177,11 @@ export default function ChatEditCard({
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="flex items-center gap-1.5 text-body font-semibold text-success">
             <Icon name="check-circle" size={15} />
-            {applied.count > 0 ? t("applied", { count: applied.count }) : t("confirmedNoChange")}
+            {applied.count > 0
+              ? t("applied", { count: applied.count })
+              : alreadyApplied?.length
+                ? t("alreadyApplied", { who: [...new Set(alreadyApplied.map((a) => a.changed_by))].join(", ") })
+                : t("confirmedNoChange")}
           </span>
           {applied.count > 0 && onUndo && (
             <button

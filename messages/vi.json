@@ -2313,6 +2313,7 @@
       "apply": "Áp dụng",
       "applied": "Đã áp dụng {count} thay đổi",
       "confirmedNoChange": "Đã xác nhận, nội dung không đổi",
+      "alreadyApplied": "Đã được {who} sửa giống đề xuất của bạn - không ghi lại.",
       "undoing": "Đang hoàn tác…",
       "undo": "Hoàn tác"
     },
@@ -2654,6 +2655,10 @@
       "chatTitleMode1": "Hỏi đáp & lệnh sửa",
       "placeholderSide": "Hỏi AI về dự án, hoặc bật Sửa tài liệu để sửa…",
       "placeholderWorking": "AI đang làm…",
+      "placeholderHeldBy": "{who} đang trả lời câu hỏi của AI ở bước này…",
+      "placeholderRunBy": "{who} đang chạy bước này…",
+      "reconcileRedraft": "Đã ghi các mục khác. {sections} vừa được người khác sửa - AI soạn lại trên nội dung mới, bạn xem rồi xác nhận.",
+      "dropRequestNote": "Đã bỏ yêu cầu vì mục đã được {who} sửa - giữ nội dung hiện tại.",
       "placeholderAnswerAbove": "Trả lời các câu hỏi ở trên…",
       "placeholderGate": "Muốn sửa gì thì bạn nhắn tôi nhé…",
       "placeholderStart": "Kể ý tưởng hoặc điều bạn muốn AI làm…",

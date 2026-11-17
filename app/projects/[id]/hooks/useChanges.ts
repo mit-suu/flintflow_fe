@@ -9,6 +9,42 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export type PreviewSource = "instruction" | "reconcile";
+
+/** P12 (BF §3.2): một chỗ người khác vừa sửa đúng chữ mà bản xem trước định đổi — ① lúc AI soạn · ② hiện tại · ③ đề xuất. */
+export interface ChangeConflictItem {
+  path: string;
+  section_id: string | null;
+  label: string;
+  at_proposal: string;
+  current: string;
+  proposal: string;
+  changed_by: string;
+  changed_at: string | null;
+  proposed_at: string | null;
+}
+
+export interface ChangeConflict {
+  instruction: string;
+  previewId: string | null;
+  items: ChangeConflictItem[];
+}
+
+/** P12: chỗ người khác đã sửa giống đề xuất — không ghi lại. */
+export interface AlreadyApplied {
+  section_id: string | null;
+  label: string;
+  changed_by: string;
+}
+
+/** `409 SPINE_VERSION_CONFLICT` kèm `meta.conflicts` (P12) ⇒ màn so sánh 3 cột thay vì "Tài liệu vừa thay đổi". */
+export const conflictOf = (err: unknown, instruction: string): ChangeConflict | null => {
+  if (!(err instanceof ApiClientError) || err.code !== "SPINE_VERSION_CONFLICT") return null;
+  const items = err.meta?.conflicts;
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const previewId = typeof err.meta?.preview_id === "string" ? err.meta.preview_id : null;
+  const asked = typeof err.meta?.instruction === "string" && err.meta.instruction.trim() ? err.meta.instruction : instruction;
+  return { instruction: asked, previewId, items: items as ChangeConflictItem[] };
+};
 /** `skipped`: chưa gửi gì (chưa biết version, lệnh rỗng). */
 export type PreviewOutcome = "preview" | "clarification" | "error" | "skipped";
 
@@ -22,6 +58,16 @@ export interface UseChangesResult {
   /** `NEEDS_CLARIFICATION` (UC 6.11) — câu hỏi làm rõ lệnh, chưa có preview. */
   clarification: string | null;
   error: string | null;
+  /** P12: người khác vừa sửa đúng chữ bản xem trước định đổi — chưa ghi, chờ "AI soạn lại" / "Bỏ yêu cầu". */
+  conflict: ChangeConflict | null;
+  /** P12: lượt áp vừa rồi không ghi vì người khác đã sửa giống đề xuất. */
+  alreadyApplied: AlreadyApplied[] | null;
+  /** P12 (chốt câu 9): "Viết lại" vừa ghi các mục khác; các mục này bị người khác sửa nên AI đang soạn lại. */
+  redraftSections: string[] | null;
+  /** "AI soạn lại trên nội dung hiện tại": xem trước lại câu lệnh gốc trên Spine mới nhất. */
+  redraftConflict: () => Promise<PreviewOutcome>;
+  /** "Bỏ yêu cầu": xoá bản xem trước ở BE (không tốn credit), ghi lý do vào phiên. */
+  dropConflict: (note: string) => Promise<void>;
   history: Change[];
   historyLoading: boolean;
   /** Xong khi BE đã trả lời (và đã ghi lượt này vào phiên nếu có `getSessionId`) — trả về BE trả lời bằng gì. */
@@ -40,7 +86,8 @@ export interface UseChangesResult {
   cancelPreview: () => void;
   /** Nhận bản xem trước BE đã dựng từ tin chat thường (tin bị nhận là lệnh sửa) — để thẻ sửa có nút Áp dụng. */
   adoptPreview: (preview: PreviewResult, instruction: string) => void;
-  reconcileOnce: () => Promise<void>;
+  /** `knownVersion`: lượt "Viết lại" nối tiếp ngay sau lượt áp (P12, chốt câu 9) — dùng version BE vừa trả. */
+  reconcileOnce: (knownVersion?: number) => Promise<void>;
   undo: () => Promise<void>;
   loadHistory: () => Promise<void>;
 }
@@ -86,6 +133,9 @@ export function useChanges(
   const [applying, setApplying] = useState(false);
   const [clarification, setClarification] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<ChangeConflict | null>(null);
+  const [alreadyApplied, setAlreadyApplied] = useState<AlreadyApplied[] | null>(null);
+  const [redraftSections, setRedraftSections] = useState<string[] | null>(null);
   const [history, setHistory] = useState<Change[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -113,6 +163,8 @@ export function useChanges(
       previewLockRef.current = true;
       setPreviewing(true);
       setError(null);
+      setConflict(null);
+      setAlreadyApplied(null);
       setClarification(null);
       setPreview(null);
       setPendingOps(null);
@@ -180,10 +232,35 @@ export function useChanges(
   const cancelPreview = useCallback(() => {
     // BF §3.2: bỏ bản xem trước ở BE để người khác hết thấy "<mình> có bản sửa chưa xác nhận" ngay (không chờ hết hạn)
     if (preview?.preview_id) void discardChangePreview(projectId, preview.preview_id).catch(() => undefined);
+    // Màn so sánh đang mở: đóng thẻ = bỏ yêu cầu (bản xem trước còn treo ở BE)
+    if (conflict?.previewId) void discardChangePreview(projectId, conflict.previewId).catch(() => undefined);
     setPreview(null);
     setPreviewSource(null);
     setClarification(null);
-  }, [preview, projectId]);
+    setConflict(null);
+    setAlreadyApplied(null);
+  }, [preview, conflict, projectId]);
+
+  const redraftConflict = useCallback(async (): Promise<PreviewOutcome> => {
+    if (!conflict) return "skipped";
+    const { instruction, previewId } = conflict;
+    // Bản xem trước cũ không dùng nữa ⇒ bỏ ở BE (người khác hết thấy dòng chờ của bản cũ)
+    if (previewId) await discardChangePreview(projectId, previewId).catch(() => undefined);
+    setConflict(null);
+    return requestPreview(instruction);
+  }, [conflict, projectId, requestPreview]);
+
+  const dropConflict = useCallback(
+    async (note: string) => {
+      if (!conflict) return;
+      const sessionId = getSessionId();
+      if (conflict.previewId) await discardChangePreview(projectId, conflict.previewId, { sessionId, note }).catch(() => undefined);
+      setConflict(null);
+      setPreview(null);
+      setPreviewSource(null);
+    },
+    [conflict, projectId, getSessionId]
+  );
 
   const adoptPreview = useCallback((next: PreviewResult, instruction: string) => {
     setError(null);
@@ -194,11 +271,12 @@ export function useChanges(
     setPreviewSource("instruction");
   }, []);
 
-  const reconcileOnce = useCallback(async () => {
-    const baseVersion = getBaseVersion();
+  const reconcileOnce = useCallback(async (knownVersion?: number) => {
+    const baseVersion = knownVersion ?? getBaseVersion();
     if (baseVersion === null) return;
     setApplying(true);
     setError(null);
+    if (knownVersion === undefined) setRedraftSections(null);
     try {
       const res = await reconcile(projectId, { base_version: baseVersion });
       if (res.data && isPreviewResult(res.data)) {
@@ -221,16 +299,11 @@ export function useChanges(
       setError(null);
       const sessionId = getSessionId();
       try {
-        const synced = await syncFirst();
+        // P12 (BF §3.2): Spine mới hơn bản xem trước không còn là lý do bỏ — BE kiểm lại theo nội dung từng chỗ (khác chỗ ⇒
+        // ghi, giống ⇒ báo, đúng chữ ⇒ màn so sánh)
+        await syncFirst();
         const baseVersion = getBaseVersion();
         if (baseVersion === null) return;
-        // Spine vừa được kéo lên bản mới hơn bản mà xem trước dựng trên đó ⇒ xem trước không còn đúng: bỏ, user xem trước lại
-        if (synced && preview.base_version < baseVersion) {
-          setPreview(null);
-          setPreviewSource(null);
-          setError(HOOK_ERROR.documentChanged);
-          return;
-        }
         const res =
           previewSource === "instruction"
             ? await applyChanges(projectId, {
@@ -247,11 +320,29 @@ export function useChanges(
               })
             : await reconcile(projectId, { base_version: baseVersion, preview_id: preview.preview_id });
         if (res.data && !isPreviewResult(res.data)) {
+          const same = res.meta?.already_applied;
+          setAlreadyApplied(Array.isArray(same) && same.length > 0 ? (same as AlreadyApplied[]) : null);
           onApplied(res.data, preview.impact?.sections.map((s) => s.id));
           setPreview(null);
           setPreviewSource(null);
+          // P12 (chốt câu 9): "Viết lại" đã ghi các mục khác; mục bị người khác sửa giữa hai lượt ⇒ AI soạn lại ngay trên nội dung mới
+          const redraft = res.meta?.redraft_sections;
+          if (previewSource === "reconcile" && Array.isArray(redraft) && redraft.length > 0) {
+            setRedraftSections(redraft as string[]);
+            setApplying(false);
+            await reconcileOnce(res.data.spine_version);
+          }
         }
       } catch (err) {
+        const clash = previewSource === "instruction" ? conflictOf(err, pendingInstruction) : null;
+        if (clash) {
+          // Màn so sánh 3 cột thay câu chung "Tài liệu vừa thay đổi"; vẫn kéo Spine mới để tài liệu hiện nội dung của người kia
+          setConflict(clash);
+          setPreview(null);
+          setPreviewSource(null);
+          onConflict?.();
+          return;
+        }
         handleFailure(err);
         // 409 thật: bản xem trước dựng trên Spine cũ — bỏ, không để nút Áp dụng gửi lại đúng lô đó
         if (isConflict(err)) {
@@ -262,7 +353,7 @@ export function useChanges(
         setApplying(false);
       }
     },
-    [projectId, getBaseVersion, getSessionId, preview, previewSource, pendingInstruction, pendingOps, onApplied, syncFirst, handleFailure]
+    [projectId, getBaseVersion, getSessionId, preview, previewSource, pendingInstruction, pendingOps, onApplied, syncFirst, handleFailure, reconcileOnce, onConflict]
   );
 
   const undo = useCallback(async () => {
@@ -303,6 +394,11 @@ export function useChanges(
     applying,
     clarification,
     error,
+    conflict,
+    alreadyApplied,
+    redraftSections,
+    redraftConflict,
+    dropConflict,
     history,
     historyLoading,
     requestPreview,

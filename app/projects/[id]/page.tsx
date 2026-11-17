@@ -1253,14 +1253,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   useEffect(() => {
     behindRef.current = follow.behind;
   }, [follow.behind]);
-  // Bản xem trước dựng trên Spine cũ hơn Spine hiện tại không còn đúng: bỏ, user xem trước lại
-  const { preview: openPreview, applying: applyingChange, cancelPreview: dropPreview } = changes;
+  // P12 (BF §3.2, chốt câu 8): Spine mới hơn bản xem trước KHÔNG còn là lý do bỏ bản xem trước — lúc Áp dụng BE kiểm lại
+  // theo nội dung từng chỗ (người kia sửa chỗ khác ⇒ vẫn ghi; đúng chữ ⇒ màn so sánh 3 cột trong thẻ sửa).
+  // "Viết lại" vừa ghi các mục khác, mục bị người khác sửa giữa hai lượt đang được AI soạn lại (chốt câu 9)
+  const { redraftSections } = changes;
   useEffect(() => {
-    if (!openPreview || applyingChange || spineState.version === null || openPreview.base_version >= spineState.version) return;
-    dropPreview();
-    setEditDetailOpen(false);
-    setToast(tHook("documentChanged"));
-  }, [openPreview, applyingChange, spineState.version, dropPreview, tHook]);
+    if (!redraftSections?.length) return;
+    setToast(t("page.reconcileRedraft", { sections: redraftSections.map(panelSectionName).join(", ") }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ báo một lần mỗi lượt
+  }, [redraftSections]);
 
   const openComments = (commentIds?: readonly string[]) => {
     setFocusCommentIds(commentIds ?? null);
@@ -2114,6 +2115,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           inputPlaceholder={
             !mode1 && !onPipelineSession
               ? t("page.placeholderSide")
+              : !mode1 && runner.state.heldBy
+              ? // P12 (N1): lượt của người khác đang chờ trả lời — không phải AI đang làm cho mình
+                t("page.placeholderHeldBy", { who: runner.state.heldBy })
+              : !mode1 && aiWorking && runner.state.runBy
+              ? t("page.placeholderRunBy", { who: runner.state.runBy })
               : !mode1 && aiWorking
               ? t("page.placeholderWorking")
               : !mode1 && gate
@@ -2407,6 +2413,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               error={hookError(changes.error)}
               preview={changes.previewSource === "instruction" ? changes.preview : null}
               applied={appliedEdit}
+              conflict={changes.conflict}
+              alreadyApplied={changes.alreadyApplied}
+              sectionName={panelSectionName}
+              onRedraft={() => void changes.redraftConflict()}
+              onDropRequest={() => {
+                const who = [...new Set(changes.conflict?.items.map((c) => c.changed_by) ?? [])].join(", ");
+                void changes.dropConflict(t("page.dropRequestNote", { who }));
+              }}
               requiresCr={mode1}
               onShowDetail={() => setEditDetailOpen(true)}
               onApply={() => {
