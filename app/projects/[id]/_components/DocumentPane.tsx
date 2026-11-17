@@ -23,6 +23,11 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 interface DocumentPaneProps {
   projectId: string;
   projectName?: string;
+  /**
+   * FLF-431 (FLF-413 #16): số các baseline đã ký. Bản làm việc mang đúng số một baseline (chưa có CR nào đẩy lên số phụ) thì
+   * nội dung chính là bản đã ký ⇒ nhãn "Baseline", không phải `DRAFT`.
+   */
+  baselineVersions?: readonly string[];
   /** Cờ mở, dùng để gắn nút "xem tại step" theo `section_id` (nguồn duy nhất đáng tin cho map này). */
   flags?: Flag[];
   /**
@@ -842,6 +847,12 @@ function SelfLoadingDocumentPane({ refreshToken = 0, documentLanguage = null, ..
 }
 
 /** Document pane thật (T16): render `GET /document` (RenderedDocument, T15) — chỉ đọc. */
+/** FLF-431: số bản đang hiện trùng một baseline đã ký (bỏ tiền tố `v`, so `1.0` = `v1.0`). */
+export const isSignedVersion = (version: string | null | undefined, baselineVersions: readonly string[]): boolean => {
+  const norm = (v: string) => v.trim().replace(/^v/i, "");
+  return !!version && baselineVersions.some((b) => norm(b) === norm(version));
+};
+
 export default function DocumentPane({ doc, ...props }: DocumentPaneProps) {
   return doc ? <DocumentPaneView {...props} doc={doc} /> : <SelfLoadingDocumentPane {...props} />;
 }
@@ -876,6 +887,7 @@ function DocumentPaneView({
   documentLanguage = null,
   onTranslate,
   newerVersion = null,
+  baselineVersions = [],
 }: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
@@ -954,8 +966,11 @@ function DocumentPaneView({
           {document && (
             <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
           )}
-          {document?.watermark && (
+          {document?.watermark && !isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark}</span>
+          )}
+          {document && isSignedVersion(document.version, baselineVersions) && (
+            <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-success-soft text-success">{t("signedBadge")}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">

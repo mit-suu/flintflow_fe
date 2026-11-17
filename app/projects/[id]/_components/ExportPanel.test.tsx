@@ -83,6 +83,15 @@ describe("ExportPanel", () => {
     vi.unstubAllGlobals();
   });
 
+  it("FLF-431: có baseline ⇒ mặc định Bản baseline; người dùng đã chọn Bản nháp thì giữ", async () => {
+    listBaselines.mockResolvedValue({ data: [{ id: "BL001", version: "v1.0" } as Baseline], error: null });
+    renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
+    const baselineTab = await screen.findByRole("tab", { name: "Bản baseline" });
+    await waitFor(() => expect(baselineTab).toHaveAttribute("aria-selected", "true"));
+    fireEvent.click(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" }));
+    expect(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("FLF-334: BE không gửi tên ⇒ tên dự phòng theo quy tắc chung (chưa baseline / nháp sau baseline / baseline)", async () => {
     const names: string[] = [];
     vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:mock-url"), revokeObjectURL: vi.fn() });
@@ -102,7 +111,9 @@ describe("ExportPanel", () => {
     renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
     const tab = await screen.findByRole("tab", { name: "Bản baseline" });
     await waitFor(() => expect(tab).not.toBeDisabled());
-    fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
+    // FLF-431: có baseline ⇒ mặc định tab baseline; bản nháp phải chọn tab
+    fireEvent.click(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
     await waitFor(() => expect(names).toHaveLength(2));
     fireEvent.click(tab);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
@@ -126,7 +137,9 @@ describe("ExportPanel", () => {
     renderWithIntl(<ExportPanel projectId="p1" projectName="FAP" onClose={vi.fn()} />);
     const tab = await screen.findByRole("tab", { name: "Bản baseline" });
     await waitFor(() => expect(tab).not.toBeDisabled());
-    fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
+    // FLF-431: có baseline ⇒ mặc định tab baseline; bản nháp phải chọn tab
+    fireEvent.click(screen.getByRole("tab", { name: "Bản nháp (DRAFT)" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
     await waitFor(() => expect(names).toHaveLength(1));
     fireEvent.click(tab);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
@@ -202,11 +215,11 @@ describe("ExportPanel - chọn định dạng Word / PDF (FLF-316)", () => {
     renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
 
     expect(await screen.findByRole("radio", { name: /Word/ })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("button", { name: "Tải bản nháp (.docx)" })).toBeInTheDocument();
 
     const baselineTab = screen.getByRole("tab", { name: "Bản baseline" });
     await waitFor(() => expect(baselineTab).toBeEnabled());
-    fireEvent.click(baselineTab);
+    // FLF-431: có baseline ⇒ tự chọn tab baseline
+    await waitFor(() => expect(baselineTab).toHaveAttribute("aria-selected", "true"));
     fireEvent.click(screen.getByRole("radio", { name: /PDF/ }));
     expect(screen.getByRole("radio", { name: /PDF/ })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("tab", { name: "Bản baseline" })).toHaveAttribute("aria-selected", "true");

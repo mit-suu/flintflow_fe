@@ -1892,6 +1892,7 @@
       "comment": "Góp ý",
       "editSection": "Sửa mục này",
       "heading": "SRS - {name}",
+      "signedBadge": "Baseline",
       "openIssuesTitle": "Mở danh sách vấn đề của tài liệu",
       "blockingCount": "{count} vấn đề cần xử lý",
       "suggestionCount": "{count} gợi ý nên xem",
