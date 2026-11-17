@@ -195,11 +195,14 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
 
   /** Bước AI kế tiếp chạy được mà không cần người — `null` nếu đang chờ người dùng. */
   const nextAuto = useCallback(
-    (d: CrDetail, set: ReadonlySet<string> = accepted): CrAction | null => {
+    (d: CrDetail, set: ReadonlySet<string> = accepted, afterAnswer = false): CrAction | null => {
       const c = d.change_request;
       if (c.paused) return null;
       if (c.status === "draft" || c.status === "clarifying") return "clarify";
       if (needImpact(d)) return "impact";
+      // P08 (CR #6): người dùng vừa trả lời câu làm rõ ⇒ đã quyết xong phần cần hỏi, chạy tiếp đề xuất luôn (không bắt bấm
+      // "Tiếp tục - AI đề xuất sửa"); danh sách phần liên quan vẫn hiện trong chat
+      if (afterAnswer && c.status === "impact_review" && d.locations.length > 0) return "propose";
       // Lô đã duyệt ở bản xem trước: phần liên quan là đúng phần lô chạm tới ⇒ không dừng chờ "AI đề xuất sửa"
       if (c.status === "impact_review" && d.locations.length > 0 && fromApprovedPreview(d)) return "propose";
       if (c.status === "proposing" && d.locations.some(needsProposal)) return "propose";
@@ -237,11 +240,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
    * đề xuất xong vẫn bỏ sót vị trí) ⇒ dừng để người dùng quyết, không gọi AI lặp tốn credit.
    */
   const advance = useCallback(
-    async (start: CrDetail | null, set: ReadonlySet<string> = accepted, previous: CrAction | null = null) => {
+    async (start: CrDetail | null, set: ReadonlySet<string> = accepted, previous: CrAction | null = null, afterAnswer = false) => {
       let cur = start;
       let last = previous;
       for (let i = 0; cur && i < 8; i++) {
-        const action = nextAuto(cur, set);
+        const action = nextAuto(cur, set, afterAnswer);
         if (!action || action === last) return;
         last = action;
         const id = cur.change_request.cr_id;
@@ -294,7 +297,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (c.status === "awaiting_answers") {
         if (detail.pending_questions.length === 1) {
           const d = await call("answers", () => answerClarifications(projectId, c.cr_id, [value]));
-          await advance(d);
+          await advance(d, accepted, null, true);
         } else {
           setError(t("multiQuestion"));
         }
@@ -314,7 +317,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (!CR_AMENDABLE_STATUSES.includes(c.status)) return setError(t("running"));
       await advance(r);
     },
-    [advance, call, projectId, redraftFor, t]
+    [accepted, advance, call, projectId, redraftFor, t]
   );
 
   /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
@@ -401,7 +404,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     answer: (answers: string[]) =>
       void withCr(async (id) => {
         const d = await call("answers", () => answerClarifications(projectId, id, answers));
-        await advance(d);
+        await advance(d, accepted, null, true);
       }),
     addMaterialText: (name: string, text: string) => withCr((id) => call("material", () => addCrMaterialText(projectId, id, { name, text })).then((d) => d !== null)),
     addMaterialFile: (file: File) => withCr((id) => call("material", () => addCrMaterialFile(projectId, id, file))),
