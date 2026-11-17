@@ -694,6 +694,87 @@
         "title": "Đổi mẫu bị kẹt",
         "body": "Lần đổi mẫu không hoàn tất được sau nhiều lần thử. Mở dự án và chọn Khôi phục để quay về trước lần đổi mẫu."
       },
+      "org_member_joined": {
+        "title": "Thành viên mới tham gia tổ chức",
+        "body": "{name} đã tham gia {org} với vai trò {role}."
+      },
+      "org_role_changed": {
+        "title": "Vai trò của bạn đã thay đổi",
+        "body": "Bạn giờ là {role} trong {org}.",
+        "bodyGeneric": "Bạn giờ là {role}."
+      },
+      "org_member_removed": {
+        "title": "Bạn đã bị xoá khỏi tổ chức",
+        "body": "Bạn không còn là thành viên của {org}.",
+        "bodyGeneric": "Bạn không còn là thành viên của tổ chức."
+      },
+      "org_member_left": {
+        "title": "Một thành viên đã rời tổ chức",
+        "body": "{name} đã rời {org}."
+      },
+      "baseline_submitted": {
+        "title": "{project} chờ bạn duyệt baseline",
+        "body": "Tài liệu đã qua kiểm tra, không còn cờ đỏ. Xem và duyệt để khoá baseline."
+      },
+      "baseline_rejected": {
+        "title": "{project}: Lead chưa duyệt baseline",
+        "body": "{project}: {reason}",
+        "bodyGeneric": "{reason}"
+      },
+      "baseline_approved": {
+        "title": "Baseline {version} đã được duyệt",
+        "body": "Bản bạn gửi duyệt đã được Lead chấp nhận và khoá ở mức {version}."
+      },
+      "project_converted": {
+        "title": "Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi",
+        "body": "Tài liệu được khoá ở phiên bản {version}. Từ giờ mọi chỉnh sửa đi qua Change Request; cờ không còn bỏ qua (waive) được."
+      },
+      "change_request_written": {
+        "title": "{cr} đã ghi vào bản nháp",
+        "body": "Thay đổi \"{title}\" đã ghi vào bản nháp chung (bản {version}). Gửi Lead duyệt cả gói khi muốn phát hành.",
+        "bodyShort": "{cr} đã ghi vào bản nháp chung (bản {version}). Gửi Lead duyệt cả gói khi muốn phát hành."
+      },
+      "change_request_decided": {
+        "titleWritten": "{cr} đã được ghi vào bản {version}",
+        "bodyWritten": "Thay đổi \"{title}\" đã ghi vào tài liệu, bản {version}.",
+        "titleApproved": "{cr}: nhóm thay đổi “{group}” được duyệt",
+        "bodyApproved": "Nhóm thay đổi “{group}” của \"{title}\" được duyệt.",
+        "titleRejected": "{cr}: nhóm thay đổi “{group}” bị từ chối",
+        "bodyRejected": "Nhóm thay đổi “{group}” của \"{title}\" bị từ chối.",
+        "bodyRejectedReason": "Nhóm thay đổi “{group}” của \"{title}\" bị từ chối: {reason}."
+      },
+      "review_package_submitted": {
+        "title": "{project}: {count} thay đổi chờ bạn duyệt",
+        "body": "Gói {crs} đã qua kiểm tra, không còn cờ đỏ. Duyệt cả gói để phát hành bản mới, hoặc yêu cầu sửa."
+      },
+      "review_package_changes_requested": {
+        "title": "{project}: Lead yêu cầu sửa gói thay đổi",
+        "body": "{reason}"
+      },
+      "review_package_released": {
+        "title": "{project}: Lead đã duyệt gói, phát hành bản {version}",
+        "body": "Gói {crs} đã vào bản {version}. Tải bản sạch và bản có đánh dấu ở mục Version."
+      },
+      "comment_posted": {
+        "title": "Comment mới ở {project}",
+        "body": "{comment} trên \"{anchor}\" ({version}): {preview}",
+        "bodyShort": "Có bình luận mới ({comment})."
+      },
+      "comment_replied": {
+        "title": "Trả lời mới ở {comment}",
+        "body": "Trên \"{anchor}\" ({project}): {preview}",
+        "bodyShort": "Có câu trả lời mới cho {comment}."
+      },
+      "comment_resolved": {
+        "title": "Comment {comment} đã được xử lý",
+        "body": "Góp ý của bạn trên \"{anchor}\" ({project}) đã được đánh dấu đã xử lý.",
+        "bodyShort": "Góp ý {comment} của bạn đã được đánh dấu đã xử lý."
+      },
+      "comment_converted": {
+        "title": "Comment {comment} đã thành {cr}",
+        "body": "Góp ý của bạn trên \"{anchor}\" đã được ghi nhận thành change request {cr}.",
+        "bodyShort": "Góp ý {comment} đã được ghi nhận thành {cr}."
+      },
       "credits_adjusted": {
         "titleAdded": "Tổ chức được cộng credit",
         "titleDeducted": "Tổ chức bị trừ credit",
@@ -741,6 +822,7 @@
       "profile": "Hồ sơ cá nhân",
       "billing": "Thanh toán",
       "logout": "Đăng xuất",
+      "back": "Quay lại",
       "planAdmin": "Admin",
       "plan": "Gói {plan}",
       "planFree": "Gói Free",
@@ -1171,6 +1253,26 @@
       "logoutAllConfirmCta": "Đăng xuất tất cả",
       "logoutAllFailed": "Không đăng xuất được mọi thiết bị. Vui lòng thử lại."
     },
+    "integrations": {
+      "title": "Tích hợp",
+      "googleDocs": "Google Docs",
+      "googleDocsBody": "Xuất tài liệu, nhập Google Doc, trợ lý AI",
+      "loading": "Đang kiểm tra kết nối…",
+      "loadFailed": "Không tải được trạng thái kết nối Google.",
+      "connected": "Đã kết nối",
+      "disconnected": "Chưa kết nối",
+      "reconnectRequired": "Cần kết nối lại",
+      "connect": "Kết nối",
+      "reconnect": "Kết nối lại",
+      "disconnect": "Ngắt kết nối",
+      "connectFailed": "Không kết nối được tài khoản Google. Vui lòng thử lại.",
+      "disconnectFailed": "Không ngắt kết nối được. Vui lòng thử lại.",
+      "cancelled": "Cửa sổ Google đã đóng trước khi cấp quyền. Nếu không thấy cửa sổ, hãy cho phép trình duyệt mở popup.",
+      "or": "hoặc",
+      "pickFromDrive": "Chọn từ Google Drive",
+      "pickerOpening": "Đang mở Google Drive…",
+      "pickerFailed": "Không mở được Google Drive. Kiểm tra kết nối mạng hoặc trình chặn quảng cáo, rồi thử lại."
+    },
     "org": {
       "roles": {
         "lead": "Lead",
@@ -1214,7 +1316,11 @@
         "goToProjects": "Vào dự án",
         "loading": "Đang tải danh sách tổ chức…",
         "emptyTitle": "Bạn chưa thuộc tổ chức nào",
-        "emptyBody": "Tạo một tổ chức để bắt đầu dự án, hoặc nhập mã mời để tham gia tổ chức của người khác."
+        "emptyBody": "Tạo một tổ chức để bắt đầu dự án, hoặc nhập mã mời để tham gia tổ chức của người khác.",
+        "rememberChoice": "Ghi nhớ lựa chọn cho lần đăng nhập sau",
+        "defaultBadge": "Mặc định khi đăng nhập",
+        "clearDefault": "Bỏ ghi nhớ",
+        "setDefault": "Ghi nhớ khi đăng nhập"
       },
       "members": {
         "title": "Thành viên",
@@ -1988,6 +2094,25 @@
       "translateRest": "Dịch nốt",
       "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại.",
       "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác - hãy tải theo ngôn ngữ tài liệu.",
+      "googleDocs": {
+        "officialNote": "Bản Word là bản chính thức. Google Docs dùng để xem và cộng tác, định dạng có thể lệch một chút.",
+        "lastExport": "Đã xuất lúc {time}: {title}",
+        "open": "Mở",
+        "modeLabel": "Cách xuất",
+        "modeUpdate": "Cập nhật file này",
+        "modeNew": "Tạo bản mới",
+        "overwriteWarning": "Cập nhật sẽ ghi đè mọi chỉnh sửa đã làm trên Google Docs.",
+        "export": "Xuất sang Google Docs",
+        "connectAndExport": "Kết nối Google và xuất",
+        "exporting": "Đang xuất sang Google Docs…",
+        "created": "Đã tạo Google Doc \"{title}\"",
+        "updated": "Đã cập nhật Google Doc \"{title}\"",
+        "recreated": "File cũ đã bị xoá nên đã tạo file mới.",
+        "openGoogleDocs": "Mở Google Docs",
+        "failed": "Xuất sang Google Docs thất bại.",
+        "cancelled": "Cửa sổ Google đã đóng trước khi cấp quyền. Nếu không thấy cửa sổ, hãy cho phép trình duyệt mở popup.",
+        "unavailable": "Tính năng xuất sang Google Docs chưa được bật trên hệ thống."
+      },
       "close": "Đóng",
       "mockupPending": "Còn {count} màn đang vẽ mockup. Xuất ngay thì các màn đó dùng ảnh gốc.",
       "mockupWaiting": "Đang đợi vẽ xong {count} màn, xong sẽ tự tải bản nháp.",
@@ -3110,6 +3235,9 @@
     "TOKEN_EXPIRED": "Liên kết đã hết hạn. Vui lòng yêu cầu gửi lại.",
     "TOKEN_REUSE_DETECTED": "Phát hiện phiên đăng nhập bị dùng lại - mọi phiên đã bị đăng xuất để bảo vệ tài khoản.",
     "UNAUTHORIZED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "SESSION_REVOKED": "Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.",
+    "VALIDATION_ERROR": "Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại rồi thử lại.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
     "INVALID_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "MISSING_ACCESS_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
     "INVALID_REFRESH_TOKEN": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
@@ -3151,6 +3279,14 @@
     "STEP_NOT_RUNNABLE": "Bước này chưa tới lượt chạy hoặc chưa sẵn sàng duyệt.",
     "NO_WORKING_DRAFT": "Dự án chưa có nội dung nào để dựng tài liệu.",
     "PDF_EXPORT_UNAVAILABLE": "Chưa xuất được PDF lúc này. Bạn hãy thử lại sau ít phút, hoặc tải bản Word.",
+    "GOOGLE_INTEGRATION_DISABLED": "Tính năng kết nối Google chưa được bật trên hệ thống.",
+    "GOOGLE_CONSENT_INCOMPLETE": "Chưa nhận đủ quyền từ Google. Hãy kết nối lại và đồng ý cho FlintFlow truy cập các file trên Google Drive.",
+    "GOOGLE_RECONNECT_REQUIRED": "Cần kết nối lại tài khoản Google để tiếp tục.",
+    "GOOGLE_DRIVE_QUOTA_EXCEEDED": "Google Drive đang giới hạn (hết dung lượng hoặc quá nhiều lượt gọi). Vui lòng thử lại sau hoặc giải phóng dung lượng Drive.",
+    "GOOGLE_FILE_FORBIDDEN": "Google Drive từ chối truy cập file này.",
+    "GOOGLE_FILE_NOT_FOUND": "Không tìm thấy file trên Google Drive (có thể đã bị xoá).",
+    "GOOGLE_FILE_UNSUPPORTED": "Chỉ nhập được Google Docs hoặc file Word (.docx) từ Google Drive.",
+    "GOOGLE_EXPORT_TOO_LARGE": "Google Doc này quá lớn để Google chuyển sang Word. Hãy tải file về dạng .docx (Tệp > Tải xuống) rồi tải lên từ máy.",
     "TRANSLATION_INCOMPLETE": "Tài liệu còn mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT_ONE": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
@@ -3343,6 +3479,7 @@
     "profile": {
       "fallbackName": "Quản trị viên",
       "account": "Tài khoản",
+      "accountSettings": "Hồ sơ & bảo mật",
       "backToDashboard": "Về Dashboard",
       "signOut": "Đăng xuất",
       "signOutConfirm": "Đăng xuất khỏi trang quản trị? Lần sau vào lại phải đăng nhập."
@@ -4574,7 +4711,12 @@
       "title": "Tải lên SRS có sẵn (.docx)",
       "hint": "File Word .docx tối đa {max} MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.",
       "tooLarge": "File {name} nặng {size} MB, lớn hơn giới hạn {max} MB - hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.",
-      "uploading": "Đang tải lên và kiểm tra file…"
+      "uploading": "Đang tải lên và kiểm tra file…",
+      "picked": "Đã chọn:",
+      "pickedGoogleDoc": "Google Docs",
+      "pickedWord": "Word trên Drive",
+      "removePicked": "Bỏ file đã chọn",
+      "continue": "Tiếp tục"
     },
     "valueEditor": {
       "tableBlock": "Bảng {n} (mỗi dòng một hàng, ô cách nhau “|”)",

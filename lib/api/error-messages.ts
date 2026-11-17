@@ -50,6 +50,7 @@ export const looksTechnical = (message: string | null | undefined, locale: Local
   const text = (message ?? "").trim();
   if (!text) return true;
   if (TECHNICAL_PATTERNS.some((pattern) => pattern.test(text))) return true;
+  if (locale === "en" && VIETNAMESE_LETTER.test(text)) return true;
   return locale === "vi" && /[a-z]{3,}\s+[a-z]{3,}/i.test(text) && !VIETNAMESE_LETTER.test(text);
 };
 
@@ -60,7 +61,16 @@ export const genericErrorMessage = (locale: Locale = currentLocale()): string =>
  * Mã FE tự gán khi envelope của BE không có mã (`apiCall`, SSE, tải file…). Câu BE kèm theo (nếu là câu cho người)
  * cụ thể hơn câu dịch của mã ⇒ ưu tiên câu BE; câu dịch của mã chỉ thay cho text kỹ thuật như `HTTP 502`.
  */
-const FALLBACK_CODES: ReadonlySet<string> = new Set(["UNKNOWN_ERROR", "PARSE_ERROR", "STREAM_FAILED", "EXPORT_FAILED", "DOWNLOAD_FAILED", "DIAGRAM_FETCH_FAILED"]);
+const FALLBACK_CODES: ReadonlySet<string> = new Set([
+  "UNKNOWN_ERROR",
+  "PARSE_ERROR",
+  "STREAM_FAILED",
+  "EXPORT_FAILED",
+  "DOWNLOAD_FAILED",
+  "DIAGRAM_FETCH_FAILED",
+  "VALIDATION_ERROR",
+  "FORBIDDEN",
+]);
 
 type DocumentRefMeta = { name: string; doc_code?: number | null };
 const isDocumentRef = (value: unknown): value is DocumentRefMeta => typeof value === "object" && value !== null && typeof (value as DocumentRefMeta).name === "string";
@@ -91,7 +101,7 @@ const withMeta = (code: string | null | undefined, locale: Locale, meta?: Record
   if (code === "IMPORT_FILE_REJECTED" && Array.isArray(meta?.issues)) {
     const reasons = meta.issues
       .map((issue) => (issue as { message?: unknown } | null)?.message)
-      .filter((m): m is string => typeof m === "string" && m.trim() !== "")
+      .filter((m): m is string => typeof m === "string" && m.trim() !== "" && !looksTechnical(m, locale))
       .slice(0, 3);
     if (reasons.length > 0) return `${ERRORS[locale].IMPORT_FILE_REJECTED} ${reasons.join("; ")}`;
   }

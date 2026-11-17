@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { House, LogOut } from "lucide-react";
+import { House, LogOut, UserCog } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { fetchMe } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
+import { useAccountLocaleSync } from "@/lib/hooks/use-account-locale";
 import type { User } from "@/types/user";
 import {
   AlertDialog,
@@ -44,6 +45,8 @@ export default function AdminProfileMenu() {
   const [me, setMe] = useState<User | null>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
+  useAccountLocaleSync(me);
+
   useEffect(() => {
     let cancelled = false;
     // Hỏng thì vẫn hiện menu với avatar mặc định — không chặn thao tác quản trị vì một cái tên.
@@ -80,6 +83,12 @@ export default function AdminProfileMenu() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/home/profile">
+              <UserCog />
+              {t("profile.accountSettings")}
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/home">
               <House />

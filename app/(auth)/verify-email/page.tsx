@@ -8,6 +8,8 @@ import { saveAuthToken } from "../../../lib/auth";
 import OtpInput, { OtpSpamHint, emptyOtp } from "../../../components/OtpInput";
 import { buildVerifyEmailHref, formatOtpTime, useOtpCountdown } from "../../../lib/otp";
 import { localizeApiError } from "@/lib/api/error-messages";
+import { applyAccountLocale } from "@/lib/i18n";
+import { resolvePostAuthDestination } from "@/lib/post-auth-redirect";
 import {
   AuthAlert,
   AuthCard,
@@ -38,16 +40,17 @@ function VerifyEmailContent() {
   const [info, setInfo] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const [destination, setDestination] = useState("/home");
 
   useEffect(() => {
     if (status !== "success") return;
     if (countdown <= 0) {
-      router.push("/home");
+      window.location.href = destination;
       return;
     }
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
-  }, [status, countdown, router]);
+  }, [status, countdown, destination]);
 
   const resetDigits = () => setDigits(emptyOtp());
 
@@ -81,6 +84,14 @@ function VerifyEmailContent() {
         if (json.data?.accessToken) {
           saveAuthToken(json.data.accessToken, userRole, { persistent: true });
         }
+        applyAccountLocale(json.data?.user?.locale);
+        const dest = resolvePostAuthDestination({
+          role: userRole,
+          needsOnboarding: json.data?.needsOnboarding,
+          activeOrgId: json.data?.activeOrgId,
+          organizations: json.data?.organizations,
+        });
+        setDestination(dest);
         setStatus("success");
       } catch (err) {
         setStatus("idle");
@@ -145,7 +156,13 @@ function VerifyEmailContent() {
             b: (chunks) => <strong className="font-bold text-on-surface">{chunks}</strong>,
           })}
         </AuthHeading>
-        <SubmitButton type="button" loadingLabel="" onClick={() => router.push("/home")}>
+        <SubmitButton
+          type="button"
+          loadingLabel=""
+          onClick={() => {
+            window.location.href = destination;
+          }}
+        >
           {t("enterApp")}
         </SubmitButton>
       </AuthCard>

@@ -1,12 +1,15 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import AuthGuard from "@/components/AuthGuard";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import Skeleton from "@/components/ui/Skeleton";
+import { fetchMe } from "@/lib/api/users";
+import { isAccountLocaleSettled, useAccountLocaleSync } from "@/lib/hooks/use-account-locale";
 import type { WorkspaceMemory } from "@/lib/workspace-memory";
+import type { User } from "@/types/user";
 import type { OrgRole } from "@/types/organization";
 import WorkspaceLoading from "./[id]/_components/WorkspaceLoading";
 
@@ -48,11 +51,39 @@ function ProjectsAuthSkeleton({ label }: { label: string }) {
   );
 }
 
-/** Phần client của `app/projects/layout.tsx`: xác thực, kèm khung chờ đúng trang. */
+/**
+ * Đồng bộ ngôn ngữ tài khoản cho khu `/projects/*` (FLF-427, UC-71):
+ * Khi mở thẳng trang dự án (không qua /home) trên thiết bị mới, đồng bộ locale đã lưu trong tài khoản.
+ * Nếu đã đồng bộ trước đó (SPA nav từ /home), bỏ qua để không fetch lặp `GET /users/me`.
+ */
+function ProjectsAccountLocaleSync() {
+  const [me, setMe] = useState<User | null>(null);
+  useAccountLocaleSync(me);
+
+  useEffect(() => {
+    if (isAccountLocaleSettled()) return;
+    let mounted = true;
+    fetchMe()
+      .then((profile) => {
+        if (mounted) setMe(profile);
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return null;
+}
+
+/** Phần client của `app/projects/layout.tsx`: xác thực (kèm khung chờ đúng trang) + đồng bộ ngôn ngữ tài khoản. */
 export default function ProjectsLayoutClient({ boot, children }: { boot: WorkspaceBoot; children: ReactNode }) {
   return (
     <WorkspaceBootProvider value={boot}>
-      <AuthGuard renderSkeleton={(label) => <ProjectsAuthSkeleton label={label} />}>{children}</AuthGuard>
+      <AuthGuard renderSkeleton={(label) => <ProjectsAuthSkeleton label={label} />}>
+        <ProjectsAccountLocaleSync />
+        {children}
+      </AuthGuard>
     </WorkspaceBootProvider>
   );
 }

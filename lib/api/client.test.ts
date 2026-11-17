@@ -89,13 +89,13 @@ describe("apiCall", () => {
     await expect(apiCall("/projects")).rejects.toMatchObject({ code: "VALIDATION_ERROR", message: "Tên dự án quá ngắn" });
   });
 
-  it("message BE là text kỹ thuật (Zod, tiếng Anh) ⇒ câu chung, câu gốc giữ ở rawMessage (FLF-247)", async () => {
+  it("message BE là text kỹ thuật (Zod, tiếng Anh) ⇒ câu dịch của mã (hoặc câu chung), câu gốc giữ ở rawMessage (FLF-247, FLF-427)", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(400, { data: null, error: { code: "VALIDATION_ERROR", message: "✖ Invalid input → at base_version" } })
     );
     await expect(apiCall("/projects")).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
-      message: "Có lỗi xảy ra. Vui lòng thử lại sau.",
+      message: "Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại rồi thử lại.",
       rawMessage: "✖ Invalid input → at base_version",
     });
   });
@@ -234,6 +234,43 @@ describe("refreshSession (FLF-137)", () => {
     expect(request).toHaveBeenCalledWith("flintflow-auth-refresh", expect.any(Function));
     expect(refreshCalls()).toHaveLength(0);
     expect(getAccessToken()).toBe(otherTabToken);
+  });
+
+  it("refreshSession({ force: true }) bỏ qua cache 2 giây và gọi lại BE", async () => {
+    const { refreshSession, saveAuthToken } = await load();
+    const token1 = makeJwt({ role: "user", exp: futureExp() });
+    const token2 = makeJwt({ role: "user", exp: futureExp() + 100 });
+    saveAuthToken(token1);
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: token1 } }))
+      .mockResolvedValueOnce(jsonResponse(200, { data: { accessToken: token2 } }));
+
+    await expect(refreshSession()).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+
+    // Không có force: trong vòng 2 giây ⇒ tái sử dụng kết quả, không gọi lại BE
+    await expect(refreshSession()).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(1);
+
+    // Có force: true ⇒ bỏ qua cache và gọi lại BE
+    await expect(refreshSession({ force: true })).resolves.toBe("ok");
+    expect(refreshCalls()).toHaveLength(2);
+  });
+
+  it("force + 401 vì tab khác vừa xoay vòng ⇒ vẫn dùng token tab kia, KHÔNG gọi /auth/logout (FLF-427)", async () => {
+    const { refreshSession, getAccessToken, saveAuthToken } = await load();
+    // Token còn hạn nhưng phiên đã bị thu hồi (SESSION_REVOKED)
+    saveAuthToken(makeJwt({ role: "user", exp: futureExp() }));
+    const otherTabToken = makeJwt({ role: "user", exp: futureExp() + 100 });
+    fetchMock.mockImplementationOnce(async () => {
+      await sendFromOtherTab(otherTabToken, getAccessToken);
+      return jsonResponse(401, { data: null, error: { code: "CONCURRENT_REFRESH", message: "x" } });
+    });
+
+    await expect(refreshSession({ force: true })).resolves.toBe("ok");
+
+    expect(getAccessToken()).toBe(otherTabToken);
+    expect(logoutCalls()).toHaveLength(0);
   });
 
   it("refreshSession({ force: true }) bỏ qua bộ đệm 2s và không thoát sớm dù tab khác gửi token mới", async () => {

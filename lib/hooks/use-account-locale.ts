@@ -14,6 +14,12 @@ import type { User } from "@/types/user";
  */
 let settled = false;
 
+/**
+ * Đã xử lý ngôn ngữ tài khoản trong lần tải trang này chưa (hoàn tất đồng bộ hoặc user đã chọn).
+ * Cho phép các layout con (`ProjectsLayout`) bỏ qua `fetchMe()` trùng lặp khi điều hướng SPA từ `/home`.
+ */
+export const isAccountLocaleSettled = (): boolean => settled;
+
 /** `LocaleSwitcher` gọi khi user tự chọn: lựa chọn vừa bấm thắng giá trị tài khoản đọc lúc mount. */
 export const markAccountLocaleSettled = (): void => {
   settled = true;

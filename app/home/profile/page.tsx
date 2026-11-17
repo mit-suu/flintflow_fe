@@ -8,10 +8,12 @@ import TopBar from "@/components/layout/TopBar";
 import { ACCOUNT_PAGE_SCROLL_CLASS } from "@/components/page-shells/AccountPagesShell";
 import PasswordInput from "../../../components/PasswordInput";
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import GoogleConnectCard from "@/components/integrations/GoogleConnectCard";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { ApiClientError } from "../../../lib/api/client";
 import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../../../lib/api/users";
 import { logoutAndRedirect } from "../../../lib/auth";
+import { getActiveOrgId } from "@/lib/api/token-store";
 import type { User } from "../../../types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
@@ -34,7 +36,15 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: User) => void }) {
+function ProfileInfoCard({
+  user,
+  onUpdated,
+  hasOrg,
+}: {
+  user: User;
+  onUpdated: (user: User) => void;
+  hasOrg: boolean;
+}) {
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
   const format = useFormatter();
@@ -174,9 +184,11 @@ function ProfileInfoCard({ user, onUpdated }: { user: User; onUpdated: (user: Us
               ) : (
                 <span className="text-on-surface-muted">{t("creditNoOrg")}</span>
               )}
-              <Link href="/home/billing" className="ml-auto text-body font-bold text-primary hover:underline shrink-0">
-                {t("toBilling")}
-              </Link>
+              {hasOrg ? (
+                <Link href="/home/billing" className="ml-auto text-body font-bold text-primary hover:underline shrink-0">
+                  {t("toBilling")}
+                </Link>
+              ) : null}
             </div>
           </InfoRow>
         )}
@@ -394,6 +406,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasOrg = Boolean(getActiveOrgId());
 
   useEffect(() => {
     let cancelled = false;
@@ -415,7 +428,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <TopBar trail={[tc("account"), t("breadcrumb")]} />
+      {hasOrg ? <TopBar trail={[tc("account"), t("breadcrumb")]} /> : null}
 
       <div className={ACCOUNT_PAGE_SCROLL_CLASS}>
         <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
@@ -428,8 +441,9 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="flex flex-col gap-6 max-w-[760px]">
-            <ProfileInfoCard user={user} onUpdated={setUser} />
+            <ProfileInfoCard user={user} onUpdated={setUser} hasOrg={hasOrg} />
             <ChangePasswordCard user={user} />
+            <GoogleConnectCard className={cardClass} />
             <LogoutAllCard />
           </div>
         )}

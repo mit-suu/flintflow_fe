@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
 import Logo from "@/components/Logo";
-import OrgGuard, { ONBOARDING_PATH, ORGANIZATIONS_PATH } from "@/components/OrgGuard";
+import OrgGuard, { ONBOARDING_PATH, ORGANIZATIONS_PATH, PROFILE_PATH } from "@/components/OrgGuard";
 import Button from "@/components/ui/Button";
 import { logoutAndRedirect } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -28,6 +29,7 @@ import AppSidebar from "./AppSidebar";
 export default function HomeFrame({ user, children }: { user: AppUser; children: React.ReactNode }) {
   const pathname = usePathname();
   const t = useTranslations("app.shell");
+  const tp = useTranslations("app.profile");
   // JWT không có tên ⇒ layout chỉ có tên đã nhớ (hoặc rỗng: avatar là logo). Lấy tên thật từ hồ sơ rồi nhớ lại cho lần
   // tải sau; lỗi thì giữ tên đang có.
   const [me, setMe] = useState<User | null>(null);
@@ -51,6 +53,7 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
 
   // Hồ sơ đã về mà chưa đặt tên ⇒ tên chốt là phần trước `@` của email (như trang Hồ sơ); chưa về thì giữ tên đã nhớ / rỗng
   const profileName = me ? me.name?.trim() || me.email.split("@")[0] : null;
+  const isExempt = [ONBOARDING_PATH, ORGANIZATIONS_PATH, PROFILE_PATH].includes(pathname);
 
   if (!getActiveOrgId()) {
     return (
@@ -58,6 +61,21 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
         <header className="flex items-center justify-between gap-3 px-4 sm:px-8 py-4">
           <Logo variant="wordmark" sizeClassName="h-5 w-auto" theme="light" />
           <div className="flex items-center gap-2">
+            {pathname === PROFILE_PATH ? (
+              <Link
+                href={user.isAdmin ? "/admin/metrics" : "/home"}
+                className="inline-flex h-8 items-center rounded-control px-3 text-body font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"
+              >
+                {t("back")}
+              </Link>
+            ) : (
+              <Link
+                href={PROFILE_PATH}
+                className="inline-flex h-8 items-center rounded-control px-3 text-body font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"
+              >
+                {tp("breadcrumb")}
+              </Link>
+            )}
             <LocaleSwitcher />
             <Button size="sm" variant="ghost" onClick={() => void logoutAndRedirect()}>
               {t("logout")}
@@ -65,7 +83,7 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
           </div>
         </header>
         <main className="px-4 sm:px-6">
-          {pathname === ONBOARDING_PATH || pathname === ORGANIZATIONS_PATH ? children : <OrgGuard>{children}</OrgGuard>}
+          {isExempt ? children : <OrgGuard>{children}</OrgGuard>}
         </main>
       </div>
     );
