@@ -167,6 +167,32 @@ const gateOf = (event: GateReadyEvent): RunnerGate => ({
   emptySections: event.empty_sections ?? [],
 });
 
+/** Sự kiện kết thúc một lời AI: lời `elicit` tới sau nó là tin mới, không phải phần tiếp của tin trước. */
+const ELICIT_BOUNDARY = new Set<StepEvent["type"]>(["answer_needed", "answer_received", "draft", "ops_applied", "gate_ready", "auto_accepted", "phase_progress"]);
+
+/**
+ * P13 (E2E P05 #4): chạy cả giai đoạn thì lời AI của nhiều bước (hoặc nhiều lượt hỏi) đổ vào cùng `elicitText` — nối thẳng
+ * `delta` làm hai tin dính chữ ("cứ nói tôi nhé.Hiện chưa có mục tiêu…"). Lời của bước khác, hoặc tới sau một sự kiện kết
+ * thúc lời trước, mở đoạn mới (`\n\n`) như hai tin riêng sau khi tải lại.
+ */
+export const appendElicit = (state: Pick<RunnerState, "elicitText" | "events">, event: Extract<StepEvent, { type: "elicit" }>): string => {
+  if (!state.elicitText) return event.delta;
+  let newMessage = false;
+  for (let i = state.events.length - 1; i >= 0; i--) {
+    const previous = state.events[i];
+    if (previous.type === "elicit") {
+      newMessage = previous.step_id !== event.step_id;
+      break;
+    }
+    if (ELICIT_BOUNDARY.has(previous.type)) {
+      newMessage = true;
+      break;
+    }
+  }
+  if (!newMessage) return state.elicitText + event.delta;
+  return `${state.elicitText.trimEnd()}\n\n${event.delta.trimStart()}`;
+};
+
 /** Máy trạng thái của một lượt chạy step — thuần để test (03-live-status-flow §4). */
 export function stepRunnerReducer(state: RunnerState, action: RunnerAction): RunnerState {
   switch (action.type) {
@@ -209,7 +235,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
             retry: null,
           };
         case "elicit":
-          return { ...next, elicitText: state.elicitText + event.delta };
+          return { ...next, elicitText: appendElicit(state, event) };
         case "answer_needed":
           return { ...next, questions: event.questions, busy: false, detail: runnerDetail("waitingAnswers", event.questions.length) };
         case "answer_received":
