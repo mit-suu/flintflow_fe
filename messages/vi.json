@@ -3680,7 +3680,8 @@
         "material": "Đang đọc tài liệu…",
         "reject": "Đang bỏ đề xuất…",
         "redraft": "AI đang soạn lại đề xuất…",
-        "manual": "Đang lưu bản bạn tự sửa…"
+        "manual": "Đang lưu bản bạn tự sửa…",
+        "cancel": "Đang huỷ change request…"
       },
       "approved": {
         "step": "Thay đổi đã duyệt ({count} phần)",
@@ -3834,7 +3835,15 @@
       "conflictStep": "Có người vừa sửa cùng chỗ",
       "conflictLabel": "Chỗ bị người khác sửa trong lúc chờ",
       "conflictIntro": "{count, plural, other {# chỗ}} đã được người khác sửa trong lúc bạn chờ xác nhận. Chưa ghi gì - xem so sánh và chọn cách xử lý (không có nút ghi đè để không xoá phần người khác vừa sửa).",
-      "replyLabel": "AI trả lời"
+      "replyLabel": "AI trả lời",
+      "withdraw": {
+        "step": "Xác nhận",
+        "label": "Xác nhận rút lại yêu cầu",
+        "question": "Bạn trả lời “{text}” - có phải bạn muốn bỏ {crId}? Huỷ thì change request dừng hẳn, tài liệu không đổi gì.",
+        "cancelCr": "Huỷ {crId}",
+        "answer": "Không, gửi làm câu trả lời",
+        "dismiss": "Để tôi trả lời lại"
+      }
     },
     "crChat": {
       "hintNew": "Gõ yêu cầu sửa tài liệu, vd: Thêm yêu cầu hiệu năng cho màn tra cứu",
@@ -3843,7 +3852,8 @@
       "hintAmend": "Gõ thêm lệnh sửa để gộp vào {crId}…",
       "multiQuestion": "AI đang hỏi nhiều câu - trả lời ở thẻ câu hỏi phía trên (chọn gợi ý hoặc gõ từng câu).",
       "paused": "Bước AI đang tạm dừng - bấm “Tiếp tục” ở phía trên trước.",
-      "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp."
+      "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp.",
+      "withdrawReason": "Người yêu cầu rút lại ở bước làm rõ: “{text}”"
     },
     "crWorkspace": {
       "loading": "Đang tải change request",
