@@ -6,6 +6,7 @@ import {
   addCrMaterialFile,
   addCrMaterialText,
   answerClarifications,
+  cancelCr,
   createCr,
   deleteCrMaterial,
   draftInOwnerStep,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/api/change-requests";
 import { CR_AMENDABLE_STATUSES, CR_OPEN_STATUSES, CR_REDRAFT_STATUSES, type CrDetail, type CrLocation, type NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { useErrorText } from "../../_components/mode1/i18n";
+import { answersWithdraw } from "@/lib/withdrawal";
 
 /** Nguồn + người yêu cầu chọn ở thẻ 3.1 trong chat. */
 export interface CrChatSource {
@@ -39,7 +41,7 @@ export interface CrChatPrefill {
 }
 
 /** Việc đang chạy — để luồng chat nói "AI đang …". */
-export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft";
+export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft" | "cancel";
 
 /** Đề xuất đã đổi (AI làm lại / soạn lại) ⇒ khoá khác ⇒ người dùng phải đồng ý lại. */
 export const proposalKey = (l: CrLocation): string =>
@@ -116,9 +118,15 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   const [redraftFor, setRedraftFor] = useState<string | null>(null);
   /** FLF-375: câu hỏi giữa chừng + câu AI trả lời (chỉ trong phiên xem, không ghi vào CR). */
   const [replies, setReplies] = useState<{ question: string; reply: string }[]>([]);
+  /**
+   * FLF-439: câu trả lời làm rõ là lời rút lại ("không đổi nữa", "thôi khỏi") ⇒ chưa gửi, hỏi "huỷ CR?" — giữ các câu trả lời
+   * để "Gửi như câu trả lời" khi người dùng thật ra đang trả lời. Không tự huỷ: huỷ CR không quay lại được.
+   */
+  const [withdrawAsk, setWithdrawAsk] = useState<string[] | null>(null);
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
   const alive = useRef(true);
+  const sendingRef = useRef(false);
   // CR vừa ghi bản nháp ⇒ trang tải lại Spine / tài liệu / version (giữ hàm mới nhất, không làm đổi `submit`)
   const onWrittenRef = useRef(onWritten);
   useEffect(() => {
@@ -278,16 +286,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     [advance, call, pending, pendingSeed, prefill, projectId]
   );
 
-  /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
-  const send = useCallback(
-    async (text: string) => {
-      const value = text.trim();
-      if (!value) return;
-      if (!detail) {
-        setSent(null);
-        setPending(value);
-        return;
-      }
+  const sendToCr = useCallback(
+    async (detail: CrDetail, value: string) => {
       const c = detail.change_request;
       if (redraftFor) {
         const locId = redraftFor;
@@ -300,6 +300,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       }
       if (c.status === "awaiting_answers") {
         if (detail.pending_questions.length === 1) {
+          if (answersWithdraw([value])) return setWithdrawAsk([value]);
           const d = await call("answers", () => answerClarifications(projectId, c.cr_id, [value]));
           await advance(d);
         } else {
@@ -321,7 +322,29 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (!CR_AMENDABLE_STATUSES.includes(c.status)) return setError(t("running"));
       await advance(r);
     },
-    [advance, call, detail, projectId, redraftFor, t]
+    [advance, call, projectId, redraftFor, t]
+  );
+
+  /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
+  const send = useCallback(
+    async (text: string) => {
+      const value = text.trim();
+      if (!value) return;
+      if (!detail) {
+        setSent(null);
+        setPending(value);
+        return;
+      }
+      // FLF-400: lượt gửi trước vào CR chưa xong ⇒ bỏ qua, không gửi lần hai (`busy` là state, chậm một khung render)
+      if (sendingRef.current) return;
+      sendingRef.current = true;
+      try {
+        await sendToCr(detail, value);
+      } finally {
+        sendingRef.current = false;
+      }
+    },
+    [detail, sendToCr]
   );
 
   const withCr = <T,>(fn: (id: string, d: CrDetail) => T): T | undefined => (detail ? fn(detail.change_request.cr_id, detail) : undefined);
@@ -385,9 +408,29 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       }),
     answer: (answers: string[]) =>
       void withCr(async (id) => {
+        if (answersWithdraw(answers)) return setWithdrawAsk(answers);
         const d = await call("answers", () => answerClarifications(projectId, id, answers));
         await advance(d);
       }),
+    /** FLF-439: câu trả lời đang chờ xác nhận là rút lại (`null` = không hỏi). */
+    withdrawAsk,
+    /** Đúng là rút lại ⇒ huỷ CR, lý do ghi nguyên câu người dùng gõ. */
+    confirmWithdraw: () =>
+      void withCr(async (id) => {
+        const text = (withdrawAsk ?? []).map((a) => a.trim()).filter(Boolean).join(" / ");
+        const d = await call("cancel", () => cancelCr(projectId, id, t("withdrawReason", { text })));
+        if (d) setWithdrawAsk(null);
+      }),
+    /** Không phải rút lại ⇒ gửi đúng các câu đó làm câu trả lời như bình thường. */
+    answerAnyway: () =>
+      void withCr(async (id) => {
+        const answers = withdrawAsk;
+        if (!answers) return;
+        setWithdrawAsk(null);
+        const d = await call("answers", () => answerClarifications(projectId, id, answers));
+        await advance(d);
+      }),
+    dismissWithdraw: () => setWithdrawAsk(null),
     addMaterialText: (name: string, text: string) => withCr((id) => call("material", () => addCrMaterialText(projectId, id, { name, text })).then((d) => d !== null)),
     addMaterialFile: (file: File) => withCr((id) => call("material", () => addCrMaterialFile(projectId, id, file))),
     removeMaterial: (materialId: string) => withCr((id) => call("material", () => deleteCrMaterial(projectId, id, materialId))),

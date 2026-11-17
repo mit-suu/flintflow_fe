@@ -5,7 +5,7 @@ export { default as Badge, type BadgeTone } from "./Badge";
 export { default as Button, type ButtonSize, type ButtonVariant } from "./Button";
 export { default as Card } from "./Card";
 export { default as CountBadge } from "./CountBadge";
-export { InfiniteDataList, ListRowSkeleton, PagedDataList } from "./DataList";
+export { DataListSkeleton, InfiniteDataList, ListRowSkeleton, PagedDataList } from "./DataList";
 export { default as DropdownMenu, type DropdownMenuItem, type DropdownTriggerProps } from "./DropdownMenu";
 export { default as EmptyState } from "./EmptyState";
 export { default as FilterSelect, type FilterOption } from "./FilterSelect";

@@ -160,6 +160,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs, o
             busy={imp.busy === "upload"}
             title={status === "preflight_rejected" ? t("upload.again") : t("upload.title")}
             onUpload={(file) => void imp.upload(file).then(() => setPickAnother(false))}
+            onGoogleImport={(file) => void imp.uploadFromGoogle(file.id).then(() => setPickAnother(false))}
           />
           {pickAnother && (
             <Button variant="ghost" className="self-start" onClick={() => setPickAnother(false)}>

@@ -1,18 +1,11 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { loginThroughUi } from "./login-helper";
 
 const API = process.env.E2E_API_URL ?? "http://localhost:5000/api/v1";
 const LEAD_EMAIL = process.env.E2E_FLF422_LEAD ?? "flf422-lead@flintflow.test";
 const ANALYST_EMAIL = process.env.E2E_FLF422_ANALYST ?? "flf422-analyst@flintflow.test";
 const STRANGER_EMAIL = process.env.E2E_FLF422_STRANGER ?? "flf422-stranger@flintflow.test";
 const PASSWORD = process.env.E2E_FLF422_PASSWORD ?? "Flf422@test";
-
-const loginThroughUi = async (page: Page, email: string): Promise<void> => {
-  await page.goto("/login");
-  await page.locator("#email").fill(email);
-  await page.locator("#password").fill(PASSWORD);
-  await page.getByRole("button", { name: /đăng nhập/i }).click();
-  await page.waitForURL(/\/home/, { timeout: 30_000 });
-};
 
 test.use({ launchOptions: { slowMo: process.env.CI ? 0 : 120 } });
 
@@ -40,7 +33,7 @@ test.describe("FLF-422 · Tổ chức & Thành viên end-to-end", () => {
       const strangerPage = await strangerCtx.newPage();
 
       // ── 1. UC-07 & UC-80: Tạo org từ Onboarding + Đổi tên tổ chức ───────────────────
-      await loginThroughUi(leadPage, LEAD_EMAIL);
+      await loginThroughUi(leadPage, LEAD_EMAIL, PASSWORD);
       await leadPage.waitForURL(/\/home\/onboarding/, { timeout: 20_000 });
       await expect(leadPage.getByRole("heading", { name: "Chọn nơi làm việc" })).toBeVisible();
 
@@ -75,7 +68,7 @@ test.describe("FLF-422 · Tổ chức & Thành viên end-to-end", () => {
       await expect(leadPage.getByText(/Analyst · Đang chờ/)).toBeVisible();
 
       // Người lạ nhập mã cấp cho Analyst -> 403 INVITE_EMAIL_MISMATCH, mã không bị hỏng
-      await loginThroughUi(strangerPage, STRANGER_EMAIL);
+      await loginThroughUi(strangerPage, STRANGER_EMAIL, PASSWORD);
       await strangerPage.waitForURL(/\/home\/onboarding/, { timeout: 20_000 });
       await strangerPage.getByRole("tab", { name: "Nhập mã mời" }).click();
       await strangerPage.locator("#invite-code").fill(code1);
@@ -87,7 +80,7 @@ test.describe("FLF-422 · Tổ chức & Thành viên end-to-end", () => {
       ).toBeVisible();
 
       // Analyst nhập đúng mã -> xem trước -> tham gia -> F5 vẫn giữ Org Alpha Updated
-      await loginThroughUi(analystPage, ANALYST_EMAIL);
+      await loginThroughUi(analystPage, ANALYST_EMAIL, PASSWORD);
       await analystPage.waitForURL(/\/home\/onboarding/, { timeout: 20_000 });
       await analystPage.getByRole("tab", { name: "Nhập mã mời" }).click();
       await analystPage.locator("#invite-code").fill(code1);

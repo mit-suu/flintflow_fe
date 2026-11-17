@@ -7,6 +7,10 @@ import OrgLibraryPage from "./page";
 
 const role = vi.hoisted(() => ({ value: "analyst" }));
 vi.mock("@/lib/api/orgs", () => ({ fetchOrganization: vi.fn(async () => ({ role: role.value })) }));
+// Vai trò đến từ store tổ chức dùng chung ⇒ mock hook theo `role.value` của từng test
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganizationState: () => ({ org: role.value ? { id: "o1", name: "Org", role: role.value } : null, loading: false, error: false }),
+}));
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: () => "o1" }));
 vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
 vi.mock("@/lib/api/org-library", () => ({

@@ -61,6 +61,12 @@ beforeEach(() => {
 });
 
 const page = (items: unknown[]) => ({ items, meta: { page: 1, limit: 20, total: items.length, totalPages: 1 } });
+
+/** Khung giữ chỗ cũng có nhãn "Gói hiện tại" (chữ cố định) ⇒ chờ nó đi rồi mới lấy thẻ gói hiện tại thật. */
+const findCurrentPlanCard = async () => {
+  await waitFor(() => expect(screen.queryByTestId("page-skeleton")).toBeNull());
+  return screen.getByText("Gói hiện tại").parentElement!;
+};
 const at = "2026-11-01T03:00:00.000Z";
 
 describe("lịch sử credit (UC-59, UC-60)", () => {
@@ -130,7 +136,7 @@ describe("lịch sử credit (UC-59, UC-60)", () => {
 
     renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>);
 
-    const currentPlanCard = (await screen.findByText("Gói hiện tại")).parentElement!;
+    const currentPlanCard = await findCurrentPlanCard();
     expect(
       within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án · 200.000 token tài liệu tham khảo/dự án")
     ).toBeInTheDocument();
@@ -436,7 +442,7 @@ describe("gộp và fallback giới hạn gói (UC-56)", () => {
       <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>
     );
 
-    const currentPlanCard = (await screen.findByText("Gói hiện tại")).parentElement!;
+    const currentPlanCard = await findCurrentPlanCard();
     expect(
       within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án · 200.000 token tài liệu tham khảo/dự án")
     ).toBeInTheDocument();
@@ -467,7 +473,7 @@ describe("gộp và fallback giới hạn gói (UC-56)", () => {
       <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<div />}><BillingPage /></AppShell>
     );
 
-    const currentPlanCard = (await screen.findByText("Gói hiện tại")).parentElement!;
+    const currentPlanCard = await findCurrentPlanCard();
     expect(within(currentPlanCard).getByText("Tối đa 3 thành viên · 3 dự án")).toBeInTheDocument();
   });
 });

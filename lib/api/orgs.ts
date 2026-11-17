@@ -74,8 +74,15 @@ export const deleteOrganization = async (
  * UC-10 — chọn org để làm việc. BE trả access token mới mang `orgId`; **phải lưu ngay**, nếu không
  * request kế tiếp vẫn đi với org cũ.
  */
-export const switchOrganization = async (orgId: string): Promise<SwitchOrgResult> => {
-  const result = unwrap(await apiCall<SwitchOrgResult>(`/orgs/${orgId}/switch`, { method: "POST" }));
+export const switchOrganization = async (
+  orgId: string,
+  options?: { rememberAsDefault?: boolean }
+): Promise<SwitchOrgResult> => {
+  const init: RequestInit = { method: "POST" };
+  if (options?.rememberAsDefault !== undefined) {
+    init.body = JSON.stringify({ rememberAsDefault: options.rememberAsDefault });
+  }
+  const result = unwrap(await apiCall<SwitchOrgResult>(`/orgs/${orgId}/switch`, init));
   saveAuthToken(result.accessToken);
   clearDocumentImageCache();
   return result;
