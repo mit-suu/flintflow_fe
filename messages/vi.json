@@ -1697,6 +1697,7 @@
       "responding": "Đang phản hồi...",
       "badgeHint": "Trò chuyện không ghi vào tài liệu; mọi thay đổi đều đi qua bản xem trước rồi mới áp",
       "openQuestions": "Câu hỏi của AI",
+      "answered": "Đã trả lời: {answer}",
       "badge": {
         "chatOnly": "Chỉ trao đổi",
         "pending": "Chờ bạn xác nhận ({count} thay đổi)",

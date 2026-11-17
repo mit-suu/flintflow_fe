@@ -1697,6 +1697,7 @@
       "responding": "Responding...",
       "badgeHint": "Chat doesn’t write to the document; every change goes through a preview before it’s applied",
       "openQuestions": "AI questions",
+      "answered": "Answered: {answer}",
       "badge": {
         "chatOnly": "Chat only",
         "pending": "Awaiting your confirmation ({count, plural, one {# change} other {# changes}})",
