@@ -10,7 +10,7 @@ import { fetchDiagramPng } from "@/lib/api/spine";
 import { tStep } from "@/lib/i18n";
 import { hookErrorText } from "@/lib/hook-errors";
 import { shownDocumentLanguage } from "@/lib/document-language";
-import { blockHasRealText } from "@/lib/instruction-text";
+import { blockHasRealText, isGuidanceOnly } from "@/lib/instruction-text";
 import { useDocument, type DocumentUpdate, type UseDocumentResult } from "../hooks/useDocument";
 import DocumentLanguageChip from "./DocumentLanguageChip";
 import DocumentUpdatePill from "./DocumentUpdatePill";
@@ -23,6 +23,11 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 interface DocumentPaneProps {
   projectId: string;
   projectName?: string;
+  /**
+   * FLF-431 (FLF-413 #16): số các baseline đã ký. Bản làm việc mang đúng số một baseline (chưa có CR nào đẩy lên số phụ) thì
+   * nội dung chính là bản đã ký ⇒ nhãn "Baseline", không phải `DRAFT`.
+   */
+  baselineVersions?: readonly string[];
   /** Cờ mở, dùng để gắn nút "xem tại step" theo `section_id` (nguồn duy nhất đáng tin cho map này). */
   flags?: Flag[];
   /**
@@ -686,7 +691,9 @@ function SectionView({
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
   const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
   // `feature:*` (§3.2…) chỉ là tiêu đề nhóm, Spine feature không có thân — nội dung nằm ở các function con (FLF-248)
-  const showEmpty = section.blocks.length === 0 && !section.id.startsWith("feature:");
+  // P07 (câu 3): mục chỉ có chữ hướng dẫn của mẫu cũng là mục chưa soạn — nhãn như mục trống, hướng dẫn mờ bên dưới
+  const guidanceOnly = isGuidanceOnly(section.blocks);
+  const showEmpty = (section.blocks.length === 0 || guidanceOnly) && !section.id.startsWith("feature:");
   const custom = section.id.startsWith("custom:");
   // Mục riêng của mẫu chỉ có chữ hướng dẫn (`[Describe …]`) vẫn là mục trống — như BE (cờ mục mẫu, thư viện tổ chức)
   const customEmpty = custom && !section.blocks.some(blockHasRealText);
@@ -797,7 +804,15 @@ function SectionView({
           )}
         </div>
       </div>
-      {section.blocks.length > 0 && (
+      {guidanceOnly && (
+        // Chữ hướng dẫn của mẫu: chỉ để người soạn biết mục cần gì — mờ, không phải nội dung (bản Word không in)
+        <div data-template-guidance className="flex flex-col gap-1 opacity-60 italic text-on-surface-muted">
+          {section.blocks.map((block, i) => (
+            <BlockView key={i} block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} />
+          ))}
+        </div>
+      )}
+      {section.blocks.length > 0 && !guidanceOnly && (
         <>
           {section.blocks.map((block, i) => (
             <Fragment key={i}>
@@ -842,6 +857,12 @@ function SelfLoadingDocumentPane({ refreshToken = 0, documentLanguage = null, ..
 }
 
 /** Document pane thật (T16): render `GET /document` (RenderedDocument, T15) — chỉ đọc. */
+/** FLF-431: số bản đang hiện trùng một baseline đã ký (bỏ tiền tố `v`, so `1.0` = `v1.0`). */
+export const isSignedVersion = (version: string | null | undefined, baselineVersions: readonly string[]): boolean => {
+  const norm = (v: string) => v.trim().replace(/^v/i, "");
+  return !!version && baselineVersions.some((b) => norm(b) === norm(version));
+};
+
 export default function DocumentPane({ doc, ...props }: DocumentPaneProps) {
   return doc ? <DocumentPaneView {...props} doc={doc} /> : <SelfLoadingDocumentPane {...props} />;
 }
@@ -876,6 +897,7 @@ function DocumentPaneView({
   documentLanguage = null,
   onTranslate,
   newerVersion = null,
+  baselineVersions = [],
 }: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
@@ -954,8 +976,11 @@ function DocumentPaneView({
           {document && (
             <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
           )}
-          {document?.watermark && (
+          {document?.watermark && !isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark}</span>
+          )}
+          {document && isSignedVersion(document.version, baselineVersions) && (
+            <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-success-soft text-success">{t("signedBadge")}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -1051,7 +1076,17 @@ function DocumentPaneView({
             )}
           </div>
         )}
-        {loading && <div className="text-body text-on-surface-muted italic">{t("loading")}</div>}
+        {/* Lần tải đầu: dòng giữ chỗ cùng nhịp với tài liệu thật (tiêu đề mục + đoạn chữ), không phải một dòng chữ "Đang tải" */}
+        {loading && (
+          <div aria-hidden className="flex flex-col gap-3.5 pt-1">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-3 w-1/5" />
+            <div className="h-2" />
+            {Array.from({ length: 9 }, (_, i) => (
+              <Skeleton key={i} className={`h-3 ${i % 4 === 3 ? "w-2/3" : "w-full"}`} />
+            ))}
+          </div>
+        )}
 
         {/* Dự án chưa chạy bước nào: nói tài liệu sẽ tự hiện, không mời bấm gì — không có việc nào cho người dùng ở đây */}
         {empty && <div className="text-body text-on-surface-muted italic">{t("emptyDocument")}</div>}
@@ -1074,7 +1109,7 @@ function DocumentPaneView({
               pending={pendingSectionIds.has(section.id)}
               regionState={regionState}
               onSelectStep={onSelectStep}
-              emptyHint={section.blocks.length === 0 ? emptyHintOf?.(section.id) : undefined}
+              emptyHint={section.blocks.length === 0 || isGuidanceOnly(section.blocks) ? emptyHintOf?.(section.id) : undefined}
               mode1={mode1}
               onEdit={onEditSection}
               onDraft={onDraftSection}

@@ -74,13 +74,14 @@ export default function ProjectRecordPanel({
   const sources = useSources(projectId, spine.spine_version);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="@container flex flex-col gap-3">
       <Tabs
         label={t("tabsLabel")}
         idBase="project-record"
         value={tab}
         onChange={setTab}
-        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
+        layout="grid"
+        className="self-stretch grid-cols-2 @min-[34rem]:grid-cols-4 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
         options={[
           { value: "agreed", label: t("tab.agreed") },
           { value: "pending", label: t("tab.pending"), ...(pendingCount > 0 ? { count: pendingCount } : {}) },

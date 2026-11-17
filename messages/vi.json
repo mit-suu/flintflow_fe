@@ -485,7 +485,7 @@
       "vietqrNote": "Thanh toán bằng chuyển khoản ngân hàng qua mã VietQR. Credit được cộng tự động khi giao dịch được xác nhận.",
       "plans": "Gói sử dụng",
       "creditsPerMonth": "{credits} credit / tháng",
-      "free": "Miễn phí",
+      "comparePlans": "So sánh các gói",
       "pricePerMonth": "{price} / tháng",
       "current": "Đang dùng",
       "switching": "Đang đổi…",
@@ -560,6 +560,8 @@
       "topupRequestFailed": "Chưa báo được Lead. Vui lòng thử lại.",
       "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead.",
       "packageLabel": "Gói {credits} credit",
+      "bestValue": "Tiết kiệm nhất",
+      "perCredit": "≈ {price} / credit",
       "creditUnit": {
         "one": "credit",
         "other": "credit"
@@ -1337,6 +1339,7 @@
         "cancel": "Huỷ",
         "leadOnly": "Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.",
         "loadError": "Không tải được danh sách thành viên.",
+        "loading": "Đang tải danh sách thành viên",
         "invite": {
           "title": "Mời thành viên",
           "roleLabel": "Vai trò",
@@ -1606,7 +1609,7 @@
       "loading": "Đang tải tài liệu…",
       "loadFailed": "Không tải được tài liệu",
       "loadFailedWith": "Không tải được tài liệu: {error}",
-      "incomplete": "chưa hoàn thiện",
+      "incomplete": "chưa soạn",
       "commentsLoadFailed": "Không tải được comment",
       "draftLabel": "nháp",
       "viewerPickBaseline": "Viewer chỉ comment được trên phiên bản đã phát hành - chọn một bản baseline ở trên.",
@@ -1701,6 +1704,7 @@
       "responding": "Đang phản hồi...",
       "badgeHint": "Trò chuyện không ghi vào tài liệu; mọi thay đổi đều đi qua bản xem trước rồi mới áp",
       "openQuestions": "Câu hỏi của AI",
+      "answered": "Đã trả lời: {answer}",
       "badge": {
         "chatOnly": "Chỉ trao đổi",
         "pending": "Chờ bạn xác nhận ({count} thay đổi)",
@@ -1858,7 +1862,7 @@
       "newerVersionApply": "Cập nhật",
       "awaitingReaccept": "Chờ duyệt lại",
       "viewAt": "xem tại {step} · {label}",
-      "incomplete": "Chưa hoàn thiện - nội dung sẽ có khi step sở hữu section chạy.",
+      "incomplete": "Chưa soạn - nội dung sẽ có khi bước sở hữu mục này chạy.",
       "untitled": "Dự án",
       "reload": "↻ Tải lại",
       "loading": "Đang tải tài liệu…",
@@ -1877,8 +1881,8 @@
       "retryDiagram": "Thử lại",
       "imageAlt": "Diagram",
       "emptyMode1": "Mục còn trống - tạo change request (nguồn gap report) để bổ sung.",
-      "incompleteShort": "Chưa hoàn thiện",
-      "emptyRunStep": "Chưa có nội dung - chạy step {stepId} · {label}",
+      "incompleteShort": "Chưa soạn",
+      "emptyRunStep": "Chưa soạn - chạy bước {stepId} · {label}",
       "openStep": "Mở step",
       "customTitle": "Mục ngoài mẫu chuẩn FlintFlow - giữ nguyên văn từ file upload, sửa qua chat",
       "templateSection": "Mục của mẫu",
@@ -1892,6 +1896,7 @@
       "comment": "Góp ý",
       "editSection": "Sửa mục này",
       "heading": "SRS - {name}",
+      "signedBadge": "Baseline",
       "openIssuesTitle": "Mở danh sách vấn đề của tài liệu",
       "blockingCount": "{count} vấn đề cần xử lý",
       "suggestionCount": "{count} gợi ý nên xem",
@@ -1955,7 +1960,7 @@
       "waiveFailed": "Không bỏ qua được vấn đề này",
       "openStepAria": "Mở bước {label} ({stepId})",
       "keepTitle": "Ghi lại lý do giữ nguyên. Cờ đỏ vẫn chặn chốt bản cho tới khi nội dung được sửa.",
-      "keepBlocking": "Giữ nguyên (vẫn chặn)",
+      "keepBlocking": "Giữ nguyên kèm lý do…",
       "waive": "Bỏ qua",
       "right": "Đúng",
       "wrong": "Sai",
@@ -2005,6 +2010,10 @@
         "link": {
           "title": "Chưa gắn chức năng",
           "hint": "Màn hình, use case hoặc tính năng này chưa có chức năng nào gắn vào - gõ lệnh sửa trong chat để thêm hoặc gắn chức năng."
+        },
+        "actor": {
+          "title": "Chưa gắn tác nhân",
+          "hint": "Màn hình này chưa có tác nhân nào dùng: không có trong bảng phân quyền và không có chức năng nào của use case trên màn - gõ lệnh sửa trong chat để thêm phân quyền (ví dụ: cho Guest và Customer dùng màn này)."
         },
         "reaccept": {
           "title": "Cần bạn duyệt lại",
@@ -2560,6 +2569,7 @@
       "acceptAsIsEmpty": "Duyệt như hiện tại:",
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
       "editSection": "Trong {label}: ",
+      "editFlag": "Trong {label}: sửa vấn đề \"{issue}\" ",
       "fixComment": "Trong {label}, sửa theo góp ý: {text}",
       "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. "
     },
@@ -2653,6 +2663,8 @@
       "viewerNotice": "Bạn đang xem với vai trò Viewer - chỉ đọc được tài liệu, không gửi tin hay chạy bước AI.",
       "staleNotice": "Bước <strong>{step}</strong> đã chốt, nhưng <strong>{sections}</strong> đã cũ so với dữ liệu bị sửa sau đó. Chạy lại bước để AI cập nhật, xem lại rồi bấm Duyệt ở cổng chốt.",
       "rerunStep": "Cập nhật lại bước này",
+      "continueNotice": "Bước <strong>{step}</strong> tới lượt nhưng chưa chạy.",
+      "continueRun": "Tiếp tục",
       "keeping": "Đang duyệt…",
       "keepAsIs": "Giữ nguyên, duyệt lại",
       "close": "Đóng",
@@ -2701,6 +2713,7 @@
       "derived_from_changed_assumption": "Dựa trên giả định đã bị đổi",
       "screen_placeholder": "Màn hình để trống có chủ đích",
       "orphan_screen_at_baseline": "Màn hình không gắn chức năng",
+      "screen_no_actor": "Màn hình chưa có tác nhân nào dùng",
       "system_name_missing": "Thiếu tên hệ thống",
       "actor_name_shape": "Tên actor chưa đúng dạng",
       "original_diagram_stale": "Hình gốc lệch dữ liệu",
@@ -3679,7 +3692,8 @@
         "material": "Đang đọc tài liệu…",
         "reject": "Đang bỏ đề xuất…",
         "redraft": "AI đang soạn lại đề xuất…",
-        "manual": "Đang lưu bản bạn tự sửa…"
+        "manual": "Đang lưu bản bạn tự sửa…",
+        "cancel": "Đang huỷ change request…"
       },
       "approved": {
         "step": "Thay đổi đã duyệt ({count} phần)",
@@ -3833,7 +3847,15 @@
       "conflictStep": "Có người vừa sửa cùng chỗ",
       "conflictLabel": "Chỗ bị người khác sửa trong lúc chờ",
       "conflictIntro": "{count, plural, other {# chỗ}} đã được người khác sửa trong lúc bạn chờ xác nhận. Chưa ghi gì - xem so sánh và chọn cách xử lý (không có nút ghi đè để không xoá phần người khác vừa sửa).",
-      "replyLabel": "AI trả lời"
+      "replyLabel": "AI trả lời",
+      "withdraw": {
+        "step": "Xác nhận",
+        "label": "Xác nhận rút lại yêu cầu",
+        "question": "Bạn trả lời “{text}” - có phải bạn muốn bỏ {crId}? Huỷ thì change request dừng hẳn, tài liệu không đổi gì.",
+        "cancelCr": "Huỷ {crId}",
+        "answer": "Không, gửi làm câu trả lời",
+        "dismiss": "Để tôi trả lời lại"
+      }
     },
     "crChat": {
       "hintNew": "Gõ yêu cầu sửa tài liệu, vd: Thêm yêu cầu hiệu năng cho màn tra cứu",
@@ -3842,7 +3864,8 @@
       "hintAmend": "Gõ thêm lệnh sửa để gộp vào {crId}…",
       "multiQuestion": "AI đang hỏi nhiều câu - trả lời ở thẻ câu hỏi phía trên (chọn gợi ý hoặc gõ từng câu).",
       "paused": "Bước AI đang tạm dừng - bấm “Tiếp tục” ở phía trên trước.",
-      "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp."
+      "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp.",
+      "withdrawReason": "Người yêu cầu rút lại ở bước làm rõ: “{text}”"
     },
     "crWorkspace": {
       "loading": "Đang tải change request",
@@ -4270,6 +4293,7 @@
         "permissions": "Phân quyền",
         "action": "Thao tác",
         "flow_to": "Chuyển tới màn",
+        "to": "Tới màn",
         "is_popup": "Là popup",
         "tabs": "Tab",
         "primary_function_id": "Chức năng chính",
@@ -4319,6 +4343,7 @@
         "screen_pending_at_baseline": "Màn hình chưa mô tả xong",
         "orphan_screen_at_baseline": "Màn hình không nằm trong luồng nào",
         "orphan_screen": "Màn hình không nằm trong luồng nào",
+        "screen_no_actor": "Màn hình chưa có tác nhân nào dùng",
         "orphan_actor": "Tác nhân chưa gắn use case",
         "usecase_no_function": "Use case chưa gắn chức năng",
         "screen_no_function": "Màn hình chưa có chức năng",

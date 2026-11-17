@@ -89,7 +89,7 @@ describe("view/page.tsx - read-only projection (UC 1.14)", () => {
     expect(headings.indexOf("I. Record of Changes")).toBeLessThan(headings.indexOf("1. Product Overview"));
   });
 
-  it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa hoàn thiện'", async () => {
+  it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa soạn'", async () => {
     await assembleDocument(P, await version());
 
     renderWithIntl(<ReadOnlyDocumentPage />);
@@ -97,17 +97,17 @@ describe("view/page.tsx - read-only projection (UC 1.14)", () => {
     expect(await screen.findByText(/2\.2\.2\. Use Case Descriptions/)).toBeInTheDocument();
     const section = screen.getByText(/2\.2\.2\. Use Case Descriptions/).closest("article");
     expect(section).not.toBeNull();
-    expect(section!.textContent).toContain("chưa hoàn thiện");
+    expect(section!.textContent).toContain("chưa soạn");
   });
 
-  it("section đã accepted (Product Overview) không hiện 'chưa hoàn thiện'", async () => {
+  it("section đã accepted (Product Overview) không hiện 'chưa soạn'", async () => {
     await assembleDocument(P, await version());
 
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     const section = (await screen.findByText(/1\. Product Overview/)).closest("article");
     expect(section).not.toBeNull();
-    expect(section!.textContent).not.toContain("chưa hoàn thiện");
+    expect(section!.textContent).not.toContain("chưa soạn");
   });
 
   it("đọc tài liệu hỏng thì hiện lỗi, không crash trang trắng", async () => {

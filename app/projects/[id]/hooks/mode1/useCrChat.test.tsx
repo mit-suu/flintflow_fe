@@ -7,7 +7,7 @@ import { renderHookWithIntl } from "@/test/intl";
 import type { CrDetail } from "@/types/change-request";
 import { useCrChat } from "./useCrChat";
 
-const api = vi.hoisted(() => ({ listCrs: vi.fn(), getCr: vi.fn(), sendCrMessage: vi.fn(), answerClarifications: vi.fn(), runCrAction: vi.fn() }));
+const api = vi.hoisted(() => ({ listCrs: vi.fn(), getCr: vi.fn(), sendCrMessage: vi.fn(), answerClarifications: vi.fn(), cancelCr: vi.fn(), runCrAction: vi.fn() }));
 
 vi.mock("@/lib/api/change-requests", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -15,6 +15,7 @@ vi.mock("@/lib/api/change-requests", async (importOriginal) => ({
   getCr: api.getCr,
   sendCrMessage: api.sendCrMessage,
   answerClarifications: api.answerClarifications,
+  cancelCr: api.cancelCr,
   runCrAction: api.runCrAction,
 }));
 
@@ -65,5 +66,50 @@ describe("useCrChat - trả lời câu làm rõ ⇒ tự chạy tiếp đề xu�
       result.current.answer(["Giữ bản của Huy"]);
     });
     await waitFor(() => expect(api.runCrAction.mock.calls.map((c) => c[2])).toEqual(expect.arrayContaining(["impact", "propose"])));
+  });
+});
+
+const asking = {
+  ...detail,
+  change_request: { ...detail.change_request, status: "awaiting_answers", clarifications: [{ round: 1, questions: ["Màn nào?"], answers: [], suggestions: [[]] }] },
+  pending_questions: ["Màn nào?"],
+} as unknown as CrDetail;
+
+describe("useCrChat - trả lời làm rõ là lời rút lại (FLF-439)", () => {
+  beforeEach(() => {
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "awaiting_answers" }] });
+    api.getCr.mockResolvedValue({ data: asking });
+    api.answerClarifications.mockReset().mockResolvedValue({ data: asking });
+    api.cancelCr.mockReset().mockResolvedValue({ data: { ...asking, change_request: { ...asking.change_request, status: "cancelled" } } });
+    api.runCrAction.mockReset().mockResolvedValue({ data: asking });
+  });
+
+  it("'không đổi nữa' ⇒ chưa gửi câu trả lời, hỏi huỷ CR; Huỷ ⇒ cancelCr kèm lý do là câu đã gõ", async () => {
+    const { result } = renderHookWithIntl(() => useCrChat("p1"));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+
+    await act(async () => result.current.send("không đổi nữa"));
+    expect(api.answerClarifications).not.toHaveBeenCalled();
+    expect(result.current.withdrawAsk).toEqual(["không đổi nữa"]);
+
+    await act(async () => result.current.confirmWithdraw());
+    await waitFor(() => expect(api.cancelCr).toHaveBeenCalledWith("p1", "CR-001", expect.stringContaining("không đổi nữa")));
+    await waitFor(() => expect(result.current.withdrawAsk).toBeNull());
+  });
+
+  it("'Không, gửi làm câu trả lời' ⇒ gửi đúng câu đó; câu trả lời thật ('không đổi') gửi thẳng, không hỏi", async () => {
+    const { result } = renderHookWithIntl(() => useCrChat("p1"));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+
+    act(() => result.current.answer(["không sửa gì nữa"]));
+    await waitFor(() => expect(result.current.withdrawAsk).toEqual(["không sửa gì nữa"]));
+    act(() => result.current.answerAnyway());
+    await waitFor(() => expect(api.answerClarifications).toHaveBeenCalledWith("p1", "CR-001", ["không sửa gì nữa"]));
+    expect(result.current.withdrawAsk).toBeNull();
+
+    await act(async () => result.current.send("không đổi"));
+    await waitFor(() => expect(api.answerClarifications).toHaveBeenLastCalledWith("p1", "CR-001", ["không đổi"]));
+    expect(result.current.withdrawAsk).toBeNull();
+    expect(api.cancelCr).not.toHaveBeenCalled();
   });
 });

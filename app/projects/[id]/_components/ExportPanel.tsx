@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ApiClientError } from "@/lib/api/client";
 import { downloadPdfExport, downloadWordExport, listBaselines, type ExportFormat } from "@/lib/api/export";
@@ -86,6 +86,8 @@ export default function ExportPanel({
   const tLanguage = useTranslations("common.documentLanguage");
   const baselineCheckFailed = t("baselineCheckFailed");
   const [source, setSource] = useState<DocumentSource>("draft");
+  /** Người dùng đã tự chọn nguồn ⇒ không đổi mặc định khi danh sách baseline về muộn. */
+  const sourceTouched = useRef(false);
   const [format, setFormat] = useState<PanelFormat>("word");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
@@ -120,6 +122,7 @@ export default function ExportPanel({
   };
 
   const selectSource = (next: DocumentSource) => {
+    sourceTouched.current = true;
     setSource(next);
     resetDownloadError();
   };
@@ -146,6 +149,8 @@ export default function ExportPanel({
         if (cancelled) return;
         setBaselines(res.data ?? []);
         setBaselineCheckError(null);
+        // FLF-431 (FLF-413 #16): đã có baseline ⇒ mặc định bản đã ký — thứ duy nhất gửi ra ngoài (BF §2); bản nháp vẫn chọn được
+        if ((res.data ?? []).length > 0) setSource((current) => (sourceTouched.current ? current : "baseline"));
       })
       .catch((err: unknown) => {
         if (cancelled) return;

@@ -44,3 +44,19 @@ describe("step registry FE (đồng bộ BE)", () => {
     expect(phaseOfStep("B-1.4")).toBe("B-1");
   });
 });
+
+describe("P06 - vòng S-5 theo số màn, nhãn bước dùng tên màn", () => {
+  it("loopKeys theo số màn, màn đã xong / đang làm đứng trước", async () => {
+    const { loopKeys } = await import("./step-registry");
+    const s = (id: string, detail_status = "pending", queue_order: number | null = 0) => ({ id, detail_status, queue_order });
+    expect(loopKeys({ screens: [s("S07", "pending", 1), s("S03", "pending", 2), s("S02", "pending", 0)], functions: [] })).toEqual(["S02", "S03", "S07"]);
+    expect(loopKeys({ screens: [s("S02", "signed_off"), s("S07", "in_progress"), s("S03")], functions: [] })).toEqual(["S02", "S07", "S03"]);
+  });
+  it("stepLabel dùng tên màn khi đã nạp, chưa có thì giữ mã", async () => {
+    const { setStepScreenNames, stepLabel } = await import("./step-registry");
+    setStepScreenNames(new Map([["S06", "Book Appointment"]]));
+    expect(stepLabel("S-5.1@S06")).toBe("Hàng đợi màn · Book Appointment");
+    expect(stepLabel("S-5.1@S09")).toBe("Hàng đợi màn · S09");
+    setStepScreenNames(new Map());
+  });
+});

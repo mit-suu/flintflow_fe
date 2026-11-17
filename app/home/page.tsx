@@ -12,7 +12,7 @@ import FolderDialogs, { type FolderDialogTarget } from "@/components/project/Fol
 import ProjectActionDialogs, { type ProjectActionTarget } from "@/components/project/ProjectActionDialogs";
 import ProjectGrid, { CARD_GRID, ProjectGridSkeleton } from "@/components/project/ProjectGrid";
 import ProjectTimeline, { type ProjectSort } from "@/components/project/ProjectTimeline";
-import { BackLink, Button, CountBadge, EmptyState, FilterSelect, Icon, Modal, SearchInput, STICKY_BLEED, STICKY_FADE, Tabs } from "@/components/ui";
+import { BackLink, Button, EmptyState, Icon, Modal } from "@/components/ui";
 import { listCrs } from "@/lib/api/change-requests";
 import { moveProjectsToFolder } from "@/lib/api/folders";
 import { getProgress } from "@/lib/api/pipeline";
@@ -22,41 +22,16 @@ import { useActiveOrganization } from "@/lib/hooks/use-active-org";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { useInfiniteList } from "@/lib/hooks/use-infinite-list";
 import { projectsErrorText, useProjects } from "@/lib/hooks/use-projects";
-import { SOURCE_MODE_OPTIONS, getProjectStartRoute } from "@/lib/project-source-mode";
+import { getProjectStartRoute } from "@/lib/project-source-mode";
 import { CR_TERMINAL_STATUSES } from "@/types/change-request";
 import type { Folder } from "@/types/folder";
 import type { ProgressResponse } from "@/types/pipeline";
-import type { Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { Project, ProjectStatus } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { NewProjectButton, PROJECTS_SCROLL_CLASS, PROJECTS_TOOLBAR_CLASS, ProjectsFilters, ProjectsSearch, ProjectsSectionTitle, ProjectsTabs, type DashboardTab, type ModeFilter } from "@/components/page-shells/ProjectsShell";
 
-type ModeFilter = ProjectMode | "all";
-type DashboardTab = "all" | "folders" | "projects";
-
-const STATUS_VALUES: readonly ProjectStatus[] = ["active", "archived"];
-const SORT_VALUES: readonly ProjectSort[] = ["updated", "opened"];
 /** Số thẻ mỗi trang — chia hết cho 2 / 3 / 4 cột của lưới. */
 const PAGE_SIZE = 24;
-
-/**
- * Tiêu đề mục dính ngay dưới thanh tab khi cuộn, và nhả ra khi cuộn hết mục (sticky trong `<section>` cha).
- * `--toolbar-h` do trang đo từ thanh tab thật (xuống dòng trên mobile ⇒ cao hơn). z trên nút ⋮ của card (z-20).
- * Chỉ âm margin phía trên: đệm dưới 8px + gap của mục chứa trọn dải mờ `STICKY_FADE`, nên lúc chưa dính dải mờ
- * không phủ lên nội dung. Gợi ý (`hint`) nằm cùng hàng tiêu đề vì lý do đó.
- */
-function SectionTitle({ id, title, count, hint }: { id: string; title: string; count?: number; hint?: string }) {
-  return (
-    // `z-[27]` phải CAO HƠN `z-[26]` mà `FolderCard` tự nâng lên lúc hover: thẻ cuộn chui xuống dưới tiêu đề
-    // mà rê chuột vào thì nó nhảy đè lên, che mất tiêu đề. Tiêu đề có nền đặc nên thẻ khuất gọn bên dưới —
-    // đổi lại bóng đổ của thẻ bị nền tiêu đề cắt, nhưng lúc đó thẻ đã khuất một nửa, cái bóng không ai thấy.
-    <div className={`sticky top-[var(--toolbar-h,0px)] z-[27] -mt-2 py-2 bg-surface-container-lowest flex items-center gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
-      <h2 id={id} className="text-title sm:text-title font-semibold text-on-surface tracking-tight">
-        {title}
-      </h2>
-      {count !== undefined && <CountBadge count={count} max={999} />}
-      {hint && <p className="hidden sm:block ml-2 text-body text-on-surface-muted truncate">{hint}</p>}
-    </div>
-  );
-}
 
 /**
  * Project Dashboard (UC-13/14/15/16/19/75). Tab: **Tất cả** = thư mục + dự án ngoài thư mục; **Thư mục**; **Dự án** =
@@ -68,7 +43,6 @@ function SectionTitle({ id, title, count, hint }: { id: string; title: string; c
 export default function HomePage() {
   const t = useTranslations("app.home");
   const tc = useTranslations("app.common");
-  const tMode = useTranslations("app.sourceMode");
   const tLoad = useTranslations("app.home.loadErrors");
   const tList = useTranslations("common.dataTable");
   const router = useRouter();
@@ -216,13 +190,6 @@ export default function HomePage() {
   // Tab Dự án hiện cả dự án trong thư mục ⇒ ghi tên thư mục trên card
   const folderNameOf = (p: Project) => (p.folderId ? folderById.get(p.folderId)?.name ?? null : null);
 
-  const statusOptions = STATUS_VALUES.map((value) => ({ value, label: t(value === "active" ? "statusActive" : "statusArchived") }));
-  const sortOptions = SORT_VALUES.map((value) => ({ value, label: t(value === "updated" ? "sortUpdated" : "sortOpened") }));
-  const modeOptions: readonly { value: ModeFilter; label: string }[] = [
-    { value: "all", label: t("modeAll") },
-    ...SOURCE_MODE_OPTIONS.map((o) => ({ value: o.value as ModeFilter, label: tMode(`${o.key}.shortLabel`) })),
-  ];
-
   const clearFilters = () => {
     setStatus("active");
     setMode("all");
@@ -353,21 +320,15 @@ export default function HomePage() {
     <>
       <TopBar
         trail={openFolder ? [t("projectsTitle"), openFolder.name] : [t("projectsTitle")]}
-        search={<SearchInput value={query} onChange={setQuery} label={t("searchLabel")} placeholder={t("searchPlaceholder")} />}
+        search={<ProjectsSearch value={query} onChange={setQuery} />}
         actions={
-          canAuthor ? (
-            <Button size="sm" icon="plus" onClick={() => setCreateOpen(true)}>
-              <span className="hidden sm:inline">{t("newProject")}</span>
-              <span className="sm:hidden">{t("newProjectShort")}</span>
-            </Button>
-          ) : undefined
+          canAuthor ? <NewProjectButton onClick={() => setCreateOpen(true)} /> : undefined
         }
       />
 
       <div
         ref={setScrollEl}
-        // `pb-12`: chừa khoảng thở ở đáy, cuộn hết trang thì dòng cuối không dính sát mép dưới khung nhìn
-        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-4 sm:px-6 lg:px-8 pb-scroll-end bg-surface-container-lowest"
+        className={PROJECTS_SCROLL_CLASS}
       >
         {showOnboarding ? (
           <section aria-labelledby="onboarding-title" className="w-full max-w-[920px] mx-auto flex flex-col gap-6 pt-6 pb-2 sm:pt-12 sm:pb-6">
@@ -386,7 +347,7 @@ export default function HomePage() {
             {/* Thanh điều hướng (dính khi cuộn): tab ở gốc, hoặc quay lại + thêm dự án khi đang trong thư mục */}
             <div
               ref={toolbarRef}
-              className={`sticky top-0 z-30 py-3 bg-surface-container-lowest flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${STICKY_BLEED} ${STICKY_FADE}`}
+              className={PROJECTS_TOOLBAR_CLASS}
             >
               {selectMode ? (
                 <>
@@ -424,32 +385,23 @@ export default function HomePage() {
                       )}
                     </div>
                   ) : (
-                    <Tabs
-                      label={t("tabsLabel")}
-                      idBase="dashboard"
+                    <ProjectsTabs
                       value={tab}
                       onChange={(next) => { setTab(next); endSelecting(); }}
-                      options={[
-                        { value: "all", label: t("tabAll") },
-                        { value: "folders", label: t("tabFolders"), count: folders.length },
-                        { value: "projects", label: t("tabProjects"), count: activeCount },
-                      ]}
-                      className="self-start"
+                      folderCount={initialLoading ? undefined : folders.length}
+                      projectCount={initialLoading ? undefined : activeCount}
                     />
                   )}
                   {showProjects && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {canAuthor && visible.length > 0 && (
-                        <Button size="sm" variant="secondary" icon="check" onClick={() => setSelectMode(true)}>
-                          {t("select")}
-                        </Button>
-                      )}
-                      {tab === "projects" && !openFolder && (
-                        <FilterSelect label={t("sortLabel")} value={sortBy} options={sortOptions} onChange={setSortBy} />
-                      )}
-                      <FilterSelect label={t("statusLabel")} value={status} options={statusOptions} onChange={setStatus} />
-                      <FilterSelect label={t("modeLabel")} value={mode} options={modeOptions} onChange={setMode} />
-                    </div>
+                    // Đang tải lần đầu: giữ nút "Chọn" (khoá) cho thanh công cụ khỏi đổi hình khi danh sách về
+                    <ProjectsFilters
+                      select={canAuthor && (visible.length > 0 || initialLoading) ? { disabled: initialLoading, onClick: () => setSelectMode(true) } : null}
+                      sort={tab === "projects" && !openFolder ? { value: sortBy, onChange: setSortBy } : null}
+                      status={status}
+                      onStatusChange={setStatus}
+                      mode={mode}
+                      onModeChange={setMode}
+                    />
                   )}
                 </>
               )}
@@ -471,13 +423,15 @@ export default function HomePage() {
               aria-labelledby={openFolder ? undefined : `dashboard-tab-${tab}`}
               className="flex flex-col gap-8"
             >
-              {/* Viewer không tạo được thư mục ⇒ chưa có thư mục nào thì bỏ hẳn mục (tiêu đề trơ trọi, không có gì bên dưới) */}
-              {showFolders && !initialLoading && (canAuthor || folders.length > 0) && (
+              {/* Viewer không tạo được thư mục ⇒ chưa có thư mục nào thì bỏ hẳn mục (tiêu đề trơ trọi, không có gì bên dưới).
+                  Đang tải lần đầu: vẫn dựng mục (tiêu đề + ô "Thư mục mới" là phần cố định) để mục Dự án bên dưới không bị
+                  đẩy xuống khi thư mục về; chỉ số đếm chờ dữ liệu. */}
+              {showFolders && (canAuthor || folders.length > 0) && (
                 <section aria-labelledby="folders-title" className="flex flex-col gap-3">
-                  <SectionTitle
+                  <ProjectsSectionTitle
                     id="folders-title"
                     title={t("foldersTitle")}
-                    count={folders.length}
+                    count={initialLoading ? undefined : folders.length}
                     hint={folders.length > 0 && tab === "all" ? t("foldersHint") : undefined}
                   />
                   {foldersError && (
@@ -505,7 +459,7 @@ export default function HomePage() {
 
               {showProjects && (
                 <section aria-labelledby="projects-title" className="flex flex-col gap-4">
-                  <SectionTitle
+                  <ProjectsSectionTitle
                     id="projects-title"
                     title={openFolder ? openFolder.name : tab === "all" && !normalizedQuery ? t("looseProjectsTitle") : t("projectsTitle")}
                     count={initialLoading || listLoading ? undefined : listTotal}

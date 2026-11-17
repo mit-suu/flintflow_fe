@@ -16,13 +16,18 @@ interface TabsProps<T extends string> {
   /** id gốc để nối tab ↔ panel (`${idBase}-tab-${value}` / `${idBase}-panel`). */
   idBase: string;
   className?: string;
+  /**
+   * `inline` (mặc định): một hàng theo bề rộng chữ. `grid`: lưới — nơi gọi đặt số cột qua `className`
+   * (vd `grid-cols-2 @min-[34rem]:grid-cols-4` để panel hẹp thành 2 × 2 thay vì cắt mất tab cuối).
+   */
+  layout?: "inline" | "grid";
 }
 
 /**
  * Tab dạng segmented (role="tablist"): roving tabindex, mũi tên trái/phải + Home/End chuyển tab. Panel tương ứng
  * đặt `role="tabpanel"` + `id={`${idBase}-panel`}` + `aria-labelledby` = id tab đang chọn.
  */
-export default function Tabs<T extends string>({ label, value, options, onChange, idBase, className }: TabsProps<T>) {
+export default function Tabs<T extends string>({ label, value, options, onChange, idBase, className, layout = "inline" }: TabsProps<T>) {
   const refs = useRef(new Map<T, HTMLButtonElement>());
 
   const onKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -41,7 +46,11 @@ export default function Tabs<T extends string>({ label, value, options, onChange
   };
 
   return (
-    <div role="tablist" aria-label={label} className={`inline-flex items-center gap-1 p-1 rounded-control bg-surface-container-high ${className ?? ""}`}>
+    <div
+      role="tablist"
+      aria-label={label}
+      className={`${layout === "grid" ? "grid" : "inline-flex"} items-center gap-1 p-1 rounded-control bg-surface-container-high ${className ?? ""}`}
+    >
       {options.map((option, index) => {
         const selected = option.value === value;
         return (
