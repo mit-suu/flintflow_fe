@@ -28,6 +28,38 @@ function AiBubble({ step, children, label }: { step?: string; children: ReactNod
 
 const btn = "px-3 py-1 rounded-[8px] text-body font-bold disabled:opacity-50 cursor-pointer";
 
+/**
+ * FLF-439: câu trả lời làm rõ là lời rút lại ("không đổi nữa") ⇒ hỏi lại trước khi huỷ CR (không quay lại được); người dùng
+ * thật ra đang trả lời thì gửi đúng câu đó làm câu trả lời.
+ */
+function WithdrawCard({ crId, answers, busy, onCancelCr, onAnswer, onDismiss }: {
+  crId: string;
+  answers: readonly string[];
+  busy: boolean;
+  onCancelCr: () => void;
+  onAnswer: () => void;
+  onDismiss: () => void;
+}) {
+  const t = useTranslations("mode1.crThread.withdraw");
+  const text = answers.map((a) => a.trim()).filter(Boolean).join(" / ");
+  return (
+    <AiBubble step={t("step")} label={t("label")}>
+      <p>{t("question", { crId, text })}</p>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" disabled={busy} onClick={onCancelCr} className={`${btn} border border-[#F2CACA] bg-white text-[#B03030]`}>
+          {t("cancelCr", { crId })}
+        </button>
+        <button type="button" disabled={busy} onClick={onAnswer} className={`${btn} bg-on-surface text-surface`}>
+          {t("answer")}
+        </button>
+        <button type="button" disabled={busy} onClick={onDismiss} className={`${btn} text-on-surface-muted`}>
+          {t("dismiss")}
+        </button>
+      </div>
+    </AiBubble>
+  );
+}
+
 /** 3.1 trong chat: chọn nguồn + người yêu cầu cho lệnh sửa đầu tiên. */
 function RequesterCard({ me, busy, onStart, onCancel, prefill }: { me: string; busy: boolean; onStart: (s: CrChatSource) => void; onCancel: () => void; prefill?: CrChatPrefill | null }) {
   const t = useTranslations("mode1.crThread.requester");
@@ -715,6 +747,16 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
             }
           />
         </AiBubble>
+      )}
+      {chat.withdrawAsk && c.status === "awaiting_answers" && (
+        <WithdrawCard
+          crId={c.cr_id}
+          answers={chat.withdrawAsk}
+          busy={busy}
+          onCancelCr={chat.confirmWithdraw}
+          onAnswer={chat.answerAnyway}
+          onDismiss={chat.dismissWithdraw}
+        />
       )}
       {c.materials.length > 0 && (
         <MaterialList

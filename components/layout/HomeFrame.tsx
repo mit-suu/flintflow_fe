@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import { logoutAndRedirect } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { fetchMe } from "@/lib/api/users";
+import { writeProfileName } from "@/lib/profile-name-cache";
 import { useAccountLocaleSync } from "@/lib/hooks/use-account-locale";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { User } from "@/types/user";
@@ -29,7 +30,8 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
   const pathname = usePathname();
   const t = useTranslations("app.shell");
   const tp = useTranslations("app.profile");
-  // JWT không có tên ⇒ layout chỉ đoán từ email ("lead.tien"). Lấy tên thật từ hồ sơ; lỗi thì giữ tên đoán.
+  // JWT không có tên ⇒ layout chỉ có tên đã nhớ (hoặc rỗng: avatar là logo). Lấy tên thật từ hồ sơ rồi nhớ lại cho lần
+  // tải sau; lỗi thì giữ tên đang có.
   const [me, setMe] = useState<User | null>(null);
   // Mọi lần đăng nhập đều vào /home ⇒ có hồ sơ là đồng bộ ngôn ngữ tài khoản với ngôn ngữ đang hiển thị (FLF-259).
   useAccountLocaleSync(me);
@@ -38,7 +40,10 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
     let mounted = true;
     fetchMe()
       .then((profile) => {
-        if (mounted) setMe(profile);
+        if (!mounted) return;
+        setMe(profile);
+        // Nhớ đúng tên sẽ hiện (kể cả tên chốt từ email) ⇒ lần tải sau avatar ra đúng chữ ngay
+        writeProfileName({ userId: profile.id, name: profile.name?.trim() || profile.email.split("@")[0] });
       })
       .catch(() => undefined);
     return () => {
@@ -46,7 +51,8 @@ export default function HomeFrame({ user, children }: { user: AppUser; children:
     };
   }, []);
 
-  const profileName = me?.name?.trim() || null;
+  // Hồ sơ đã về mà chưa đặt tên ⇒ tên chốt là phần trước `@` của email (như trang Hồ sơ); chưa về thì giữ tên đã nhớ / rỗng
+  const profileName = me ? me.name?.trim() || me.email.split("@")[0] : null;
   const isExempt = [ONBOARDING_PATH, ORGANIZATIONS_PATH, PROFILE_PATH].includes(pathname);
 
   if (!getActiveOrgId()) {

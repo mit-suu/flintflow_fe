@@ -59,12 +59,12 @@ describe("FlagsPanel", () => {
     expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
   });
 
-  it("FLF-329: cờ đỏ ⇒ 'Giữ nguyên (vẫn chặn)' gọi onKeep (không phải onWaive), modal nói rõ vẫn chặn, rồi đóng", async () => {
+  it("FLF-329: cờ đỏ ⇒ 'Giữ nguyên kèm lý do…' gọi onKeep (không phải onWaive), modal nói rõ vẫn chặn, rồi đóng", async () => {
     const onKeep = vi.fn().mockResolvedValue(undefined);
     const onWaive = vi.fn();
     renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onKeep={onKeep} onRecompute={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên (vẫn chặn)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên kèm lý do…" }));
     expect(await screen.findByText("Giữ nguyên vấn đề này?")).toBeInTheDocument();
     expect(screen.getByText(/vẫn chặn gửi duyệt và chốt bản/)).toBeInTheDocument();
     const textarea = screen.getByLabelText(/Lý do/);
@@ -81,7 +81,7 @@ describe("FlagsPanel", () => {
 
   it("FLF-329: cờ đỏ không có onKeep ⇒ không có nút giữ nguyên", () => {
     renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Giữ nguyên (vẫn chặn)" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Giữ nguyên kèm lý do…" })).toBeNull();
   });
 
   it("FLF-329: cờ đỏ đã giữ nguyên vẫn nằm ở tab Cần xử lý kèm lý do, nút đổi thành sửa lý do", () => {
@@ -106,7 +106,7 @@ describe("FlagsPanel", () => {
   it("lý do dưới 20 ký tự thì nút xác nhận bị khoá", async () => {
     renderWithIntl(<FlagsPanel flags={[baseFlag]} onKeep={vi.fn()} onRecompute={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên (vẫn chặn)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên kèm lý do…" }));
     const textarea = await screen.findByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: "Quá ngắn" } });
 
@@ -370,5 +370,23 @@ describe("FlagsPanel - Vẽ lại tất cả một lượt", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("Chưa vẽ lại được sơ đồ");
     expect(screen.getByRole("button", { name: "Vẽ lại tất cả" })).toBeEnabled();
+  });
+});
+
+describe("FLF-428 - Sửa trong chat điền sẵn câu của cờ", () => {
+  it("bấm 'Sửa trong chat' ⇒ onEditSection nhận tên mục và nguyên văn câu cờ", () => {
+    const onEditSection = vi.fn();
+    const nfrFlag: Flag = {
+      ...baseFlag,
+      id: "FL09",
+      rule_id: "nfr_missing_number",
+      section_id: "fixed:4.2.2",
+      target_id: "NFR-12",
+      message: "Yêu cầu độ tin cậy NFR-12 thiếu chỉ số đo / ngưỡng",
+      remediation_step: "S-6.3",
+    };
+    renderWithIntl(<FlagsPanel flags={[nfrFlag]} onRecompute={vi.fn()} onEditSection={onEditSection} sectionLabelOf={() => "4.2.2 Reliability"} />);
+    fireEvent.click(screen.getAllByRole("button", { name: /Sửa trong chat/ })[0]);
+    expect(onEditSection).toHaveBeenCalledWith(expect.stringContaining("4.2.2"), "Yêu cầu độ tin cậy NFR-12 thiếu chỉ số đo / ngưỡng");
   });
 });

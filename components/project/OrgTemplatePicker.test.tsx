@@ -31,6 +31,8 @@ const DRAFT_ONLY = { ...BANK, id: "t3", name: "Mẫu chỉ có bản nháp", lat
 vi.mock("@/lib/api/token-store", async (importOriginal) => ({ ...(await importOriginal<object>()), getActiveOrgId: () => "o1" }));
 const role = vi.hoisted(() => ({ value: "analyst" }));
 vi.mock("@/lib/api/orgs", () => ({ fetchOrganization: vi.fn(async () => ({ role: role.value })) }));
+// Vai trò đến từ store tổ chức dùng chung ⇒ mock hook theo `role.value` của từng test
+vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => ({ id: "o1", name: "Org", role: role.value }) }));
 vi.mock("@/lib/api/org-library", () => ({
   listOrgTemplatesPage: vi.fn(async (_org: string, query: { page: number; limit?: number; q?: string }) => {
     const all = [BANK, HIS, DRAFT_ONLY];

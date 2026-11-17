@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { loginThroughUi } from "./login-helper";
 
 /**
  * E2E thực tế cho Billing, Credit & RBAC — FE Next.js + BE Express + MongoDB thật (không MSW, không mock).
@@ -13,16 +14,6 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 const API = process.env.E2E_API_URL ?? "http://localhost:5000/api/v1";
 const PASSWORD = "Password123!";
 const VIETNAMESE = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
-
-const loginThroughUi = async (page: Page, email: string) => {
-  await page.goto("/login");
-  await page.locator("#email").fill(email);
-  await page.locator("#password").fill(PASSWORD);
-  await Promise.all([
-    page.waitForURL(/\/home/),
-    page.locator('form button[type="submit"]').click(),
-  ]);
-};
 
 const apiLogin = async (request: APIRequestContext, email: string): Promise<string> => {
   const res = await request.post(`${API}/auth/login`, {
@@ -62,7 +53,7 @@ test.describe.serial("Billing & Credit RBAC E2E", () => {
       }
     });
 
-    await loginThroughUi(page, "e2e.viewer@flintflow.local");
+    await loginThroughUi(page, "e2e.viewer@flintflow.local", PASSWORD);
     await expect(page.getByTestId("active-org-name")).toHaveText("E2E Billing Studio");
 
     const sidebar = page.getByRole("complementary", { name: "Điều hướng chính" });
@@ -93,7 +84,7 @@ test.describe.serial("Billing & Credit RBAC E2E", () => {
     page,
     request,
   }) => {
-    await loginThroughUi(page, "e2e.analyst@flintflow.local");
+    await loginThroughUi(page, "e2e.analyst@flintflow.local", PASSWORD);
     await page.goto("/home/billing");
 
     await expect(page.getByRole("heading", { name: "Thanh toán & credit" })).toBeVisible();
@@ -159,7 +150,7 @@ test.describe.serial("Billing & Credit RBAC E2E", () => {
   test("Lead: thấy đủ VND + referenceCode + pending QR + admin_adjust dấu + / −, và thông báo billing đổi VI ↔ EN không sót tiếng Việt", async ({
     page,
   }) => {
-    await loginThroughUi(page, "e2e.lead@flintflow.local");
+    await loginThroughUi(page, "e2e.lead@flintflow.local", PASSWORD);
     await page.goto("/home/billing");
 
     await expect(page.getByRole("button", { name: "Mua ngay" }).first()).toBeVisible();

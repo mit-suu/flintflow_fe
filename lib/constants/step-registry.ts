@@ -61,9 +61,31 @@ export interface ExpandedStep extends StepDef {
 }
 
 export interface LoopSource {
-  screens: { id: string; queue_order: number | null }[];
+  screens: { id: string; queue_order: number | null; detail_status?: string }[];
   functions: { screen_id: string | null }[];
 }
+
+/** So mã màn theo số: `SCR-02` < `SCR-03` < `SCR-10` (cùng luật BE `compareScreenIds`). */
+export const compareScreenIds = (a: string, b: string): number => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+
+const LOOP_RANK: Readonly<Record<string, number>> = { signed_off: 0, in_progress: 1 };
+
+/**
+ * Thứ tự vòng S-5 (P06, chốt 17/11: theo số màn) — giống BE `screenLoopOrder`: màn đã xong / đang làm đứng trước, màn còn chờ
+ * theo số màn. Trước đây theo `queue_order` model đặt ⇒ thanh tiến độ S02 → S07 → S03.
+ */
+export const screenLoopOrder = <T extends { id: string; detail_status?: string }>(screens: readonly T[]): T[] =>
+  [...screens].sort((a, b) => (LOOP_RANK[a.detail_status ?? ""] ?? 2) - (LOOP_RANK[b.detail_status ?? ""] ?? 2) || compareScreenIds(a.id, b.id));
+
+/**
+ * P06: tên màn cho nhãn bước vòng S-5 ("Hàng đợi màn · Book Appointment" thay vì "· S06"). Trang workspace nạp theo Spine
+ * (`setStepScreenNames`) trước khi các thành phần con dựng nhãn; chưa nạp / màn chưa có tên ⇒ giữ mã như cũ.
+ */
+let stepScreenNames: ReadonlyMap<string, string> = new Map();
+export const setStepScreenNames = (names: ReadonlyMap<string, string>): void => {
+  stepScreenNames = names;
+};
+export const loopDisplayName = (loop: string): string => stepScreenNames.get(loop) ?? loop;
 
 export const parseStepId = (stepId: string): { base: string; loop: string | null } => {
   const at = stepId.indexOf("@");
@@ -87,13 +109,7 @@ export const getStepDef = (stepId: string): ExpandedStep | undefined => {
 export const phaseOfStep = (stepId: string): PhaseId | undefined => getStepDef(stepId)?.phase;
 
 export const loopKeys = (spine: LoopSource): string[] => {
-  const screens = [...spine.screens]
-    .sort(
-      (a, b) =>
-        (a.queue_order ?? Number.MAX_SAFE_INTEGER) - (b.queue_order ?? Number.MAX_SAFE_INTEGER) ||
-        (a.id < b.id ? -1 : 1)
-    )
-    .map((s) => s.id);
+  const screens = screenLoopOrder(spine.screens).map((s) => s.id);
   return spine.functions.some((f) => f.screen_id === null) ? [...screens, NONSCREEN_LOOP] : screens;
 };
 
@@ -114,7 +130,7 @@ export const stepLabel = (stepId: string): string => {
   const def = getStepDef(stepId);
   if (!def) return stepId;
   if (!def.loop) return def.label_vi;
-  return `${def.label_vi} · ${def.loop === NONSCREEN_LOOP ? "không màn hình" : def.loop}`;
+  return `${def.label_vi} · ${def.loop === NONSCREEN_LOOP ? "không màn hình" : loopDisplayName(def.loop)}`;
 };
 
 export const isStepDone = (status: StepStatus | undefined): boolean => status === "accepted";

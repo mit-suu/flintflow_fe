@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import DropdownMenu, { type DropdownMenuItem, type DropdownTriggerProps } from "@/components/ui/DropdownMenu";
+import Skeleton from "@/components/ui/Skeleton";
 import { logoutAndRedirect } from "@/lib/auth";
 import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { useAppShell, type AppUser } from "./AppShell";
@@ -57,9 +58,14 @@ export default function AccountMenu({ user, trigger, placement = "bottom-end", o
       placement={placement}
       header={
         <div className="flex items-center gap-2.5">
-          <Avatar name={user.name} email={user.email} />
+          <Avatar name={user.name} email={user.email} brandFallback />
           <span className="min-w-0">
-            <span className="block text-body font-semibold text-on-surface truncate">{user.name}</span>
+            {/* Tên là dữ liệu hồ sơ: chưa về thì thanh giữ chỗ, không đoán từ email */}
+            {user.name ? (
+              <span className="block text-body font-semibold text-on-surface truncate">{user.name}</span>
+            ) : (
+              <Skeleton className="h-3.5 w-28 my-[3px]" />
+            )}
             <span className="block text-caption text-on-surface-muted truncate">{user.email}</span>
           </span>
         </div>

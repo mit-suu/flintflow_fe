@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import TopBar from "@/components/layout/TopBar";
-import { Avatar, Badge, Button, CountBadge, DropdownMenu, IconButton, Modal } from "@/components/ui";
+import { Avatar, Badge, Button, DropdownMenu, FilterSelect, IconButton, Modal } from "@/components/ui";
 import {
   changeMemberRole,
   createInvitation,
@@ -29,6 +29,8 @@ import type {
 } from "@/types/organization";
 import { ONBOARDING_PATH, ORGANIZATIONS_PATH } from "@/components/OrgGuard";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import MembersShell, { InvitationsSkeleton, MembersListSkeleton } from "@/components/page-shells/MembersShell";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 
 const ROLES: OrgRole[] = ["lead", "analyst", "viewer"];
 const INVITABLE: InvitableRole[] = ["analyst", "viewer"];
@@ -73,7 +75,12 @@ export default function MembersPage() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
-  const isLead = org?.role === "lead";
+  // Vai trò và tên lấy từ chi tiết org; lúc trang chưa tải xong thì dùng tổ chức đang mở trong store chung (đã có bản
+  // nhớ / thanh bên đã đọc) ⇒ tiêu đề, nút Mời, cột phải của Lead vẽ đúng ngay, chỉ hai danh sách là khối giữ chỗ
+  const { org: activeOrg } = useActiveOrganizationState();
+  const role = org?.role ?? activeOrg?.role ?? null;
+  const orgName = org?.name ?? activeOrg?.name ?? null;
+  const isLead = role === "lead";
 
   /** Chỉ đọc dữ liệu, không đụng state — để effect bên dưới tự quyết khi nào gán. */
   const fetchAll = useCallback(async () => {
@@ -170,7 +177,7 @@ export default function MembersPage() {
   };
 
   const openRename = () => {
-    setRenameValue(org?.name ?? "");
+    setRenameValue(orgName ?? "");
     setError(null);
     setRenameOpen(true);
   };
@@ -181,7 +188,7 @@ export default function MembersPage() {
   };
 
   const renameTrimmed = renameValue.trim();
-  const renameValid = renameTrimmed.length > 0 && renameTrimmed.length <= ORG_NAME_MAX && renameTrimmed !== org?.name;
+  const renameValid = renameTrimmed.length > 0 && renameTrimmed.length <= ORG_NAME_MAX && renameTrimmed !== orgName;
 
   /** UC-80. `renameOrganization` phát sự kiện đổi tổ chức ⇒ thanh bên tự đọc lại tên. */
   const handleRename = (e: React.FormEvent) => {
@@ -226,6 +233,10 @@ export default function MembersPage() {
   const soleLead = isLead && leadCount === 1;
   const deleteConfirmed = org !== null && confirmText.trim() === org.name;
 
+  // Lần tải đầu chưa xong (chưa có org, chưa lỗi) ⇒ chỉ vùng dữ liệu giữ chỗ; tiêu đề trang vẽ ngay
+  const loading = org === null && error === null;
+  const roleOptions = ROLES.map((role) => ({ value: role, label: tRoles(role) }));
+  const inviteRoleOptions = INVITABLE.map((role) => ({ value: role, label: tRoles(role) }));
   const displayName = (m: OrgMember) => m.name || m.email;
   const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
 
@@ -233,49 +244,24 @@ export default function MembersPage() {
     <>
       <TopBar trail={[tc("account"), t("title")]} />
 
-      {/* AppShell khoá chiều cao (h-dvh, <main> overflow-hidden) ⇒ trang phải tự có vùng cuộn, giống billing/notifications */}
-      <div className="flex-1 overflow-y-auto px-6 pt-6 sm:px-8 sm:pt-8 pb-scroll-end bg-surface-container-lowest">
-        {/* Bề ngang theo nội dung thật: Lead có thêm cột phụ (lời mời, vùng xoá) nên cần rộng; người chỉ xem
-            danh sách thì khung hẹp lại cho dễ đọc, không kéo một cột ra hết màn. */}
-        <section className={`w-full mx-auto flex flex-col gap-6 ${isLead ? "max-w-[1200px]" : "max-w-[820px]"}`}>
-          {/* Hành động chính của TRANG nằm cạnh tiêu đề trang, không phải ở thanh trên dùng chung mọi trang */}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
-                {members.length > 0 && <CountBadge count={members.length} />}
-              </div>
-              {org ? (
-                <div className="flex items-center gap-1">
-                  <p className="text-body text-on-surface-muted">{t("subtitle", { org: org.name })}</p>
-                  {isLead ? <IconButton icon="pencil" size="sm" label={t("rename.open")} disabled={busy} onClick={openRename} /> : null}
-                </div>
-              ) : null}
-              {org && !isLead ? (
-                <p className="text-body text-on-surface-muted">{t("leadOnly")}</p>
-              ) : null}
-            </div>
-            {isLead ? (
-              <Button icon="plus" onClick={() => setInviteOpen(true)}>
-                {t("invite.title")}
-              </Button>
-            ) : null}
-          </div>
-
-          {/* Đang mở hộp thoại thì lỗi hiện TRONG hộp thoại — ở đây sẽ nằm sau lớp mờ, người dùng không đọc được */}
-          {error && pending === null && !inviteOpen && !renameOpen ? (
+      <MembersShell
+        role={role}
+        orgName={orgName ?? (loading ? null : undefined)}
+        count={members.length}
+        busy={busy}
+        onRename={openRename}
+        onInvite={() => setInviteOpen(true)}
+        alert={
+          error && pending === null && !inviteOpen && !renameOpen ? (
             <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
               {error}
             </p>
-          ) : null}
-
-          {/* Hai cột từ `lg`: danh sách bên trái, việc phụ của Lead (lời mời, xoá tổ chức) dồn sang cột phải —
-              xếp dọc một cột thì trang dài gấp đôi mà hai bên vẫn trống. Dưới `lg` tự xuống một cột. */}
-          <div className={`grid gap-6 items-start ${isLead ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]" : ""}`}>
-            {/* Phân tách bằng NỀN và khoảng cách, không bằng nét: một mảng nền mờ gom cả danh sách, mỗi dòng
-                nổi lên nền trắng khi rê chuột. Không viền ngoài, không kẻ ngang.
-                Tổ chức đông người thì danh sách tự cuộn trong khung, không kéo dài
-                cả trang — tiêu đề và cột bên phải luôn nằm trong tầm mắt. */}
+          ) : null
+        }
+        list={
+          loading ? (
+            <MembersListSkeleton />
+          ) : (
             <div
               role="list"
               className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[60dvh] overflow-y-auto"
@@ -309,19 +295,17 @@ export default function MembersPage() {
                   </div>
 
                   {canChangeRole ? (
-                    <select
-                      aria-label={t("roleLabel", { name: displayName(m) })}
+                    // Danh sách nằm trong khung tự cuộn ⇒ `portal` để menu vai trò ở dòng cuối không bị khung cắt
+                    <FilterSelect
+                      className="shrink-0"
+                      label={t("roleLabel", { name: displayName(m) })}
+                      labelMode="value"
+                      portal
                       value={m.role}
                       disabled={busy}
-                      onChange={(e) => handleRoleChange(m, e.target.value as OrgRole)}
-                      className="shrink-0 rounded-control bg-surface-container-high px-2 py-1.5 text-body text-on-surface cursor-pointer hover:bg-surface-container-highest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {tRoles(role)}
-                        </option>
-                      ))}
-                    </select>
+                      options={roleOptions}
+                      onChange={(role) => handleRoleChange(m, role)}
+                    />
                   ) : (
                     <Badge tone={m.role === "lead" ? "primary" : "neutral"}>{tRoles(m.role)}</Badge>
                   )}
@@ -364,208 +348,191 @@ export default function MembersPage() {
               );
             })}
             </div>
-
-            {isLead ? (
-              <aside className="flex flex-col gap-6">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-subtitle font-bold text-on-surface">{t("invitations.title")}</h2>
-                    {invitations.length > 0 && <CountBadge count={invitations.length} />}
-                  </div>
-                  {invitations.length === 0 ? (
-                    <p className="text-body text-on-surface-muted">{t("invitations.empty")}</p>
-                  ) : (
-                    <div
-                      role="list"
-                      className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[40dvh] overflow-y-auto"
-                    >
-                      {invitations.map((inv) => (
-                        <div
-                          key={inv.id}
-                          role="listitem"
-                          className="flex flex-wrap items-center gap-2 rounded-control px-3 py-2 transition-colors hover:bg-surface-container-lowest"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-body font-medium text-on-surface truncate">
-                              {inv.email ?? t("invitations.noEmail")}
-                            </p>
-                            <p className="text-caption text-on-surface-muted">
-                              {tRoles(inv.role)} · {t(STATE_KEYS[inv.state])}
-                              {inv.state === "pending"
-                                ? " · " + t("invitations.expires", { date: date(inv.expiresAt) })
-                                : ""}
-                            </p>
-                          </div>
-                          {inv.state === "pending" ? (
-                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
-                              {t("invitations.revoke")}
-                            </Button>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-3 rounded-card bg-error-container px-4 py-4">
-                  <h2 className="text-subtitle font-bold text-error">{t("danger.title")}</h2>
-                  <p className="text-body text-on-error-container leading-[1.6]">{t("danger.body")}</p>
-                  {aloneAsLead ? null : (
-                    <p className="text-body text-on-error-container">{t("danger.onlyWhenAlone")}</p>
-                  )}
-                  <Button
-                    variant="danger"
-                    className="self-start"
-                    disabled={busy || !aloneAsLead}
-                    onClick={() => setPending({ kind: "delete" })}
-                  >
-                    {t("danger.cta")}
-                  </Button>
-                </div>
-              </aside>
-            ) : null}
-          </div>
-
-          <Modal open={inviteOpen} onClose={closeInvite} title={t("invite.title")}>
-            <form onSubmit={handleInvite} className="flex flex-col gap-4">
-              <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-                {t("invite.roleLabel")}
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as InvitableRole)}
-                  className="rounded-control bg-surface-container px-2 py-2 text-body font-normal cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        )
+        }
+        invitationsCount={invitations.length}
+        invitations={
+          loading ? (
+            <InvitationsSkeleton />
+          ) : invitations.length === 0 ? (
+            <p className="text-body text-on-surface-muted">{t("invitations.empty")}</p>
+          ) : (
+            <div
+              role="list"
+              className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[40dvh] overflow-y-auto"
+            >
+              {invitations.map((inv) => (
+                <div
+                  key={inv.id}
+                  role="listitem"
+                  className="flex flex-wrap items-center gap-2 rounded-control px-3 py-2 transition-colors hover:bg-surface-container-lowest"
                 >
-                  {INVITABLE.map((role) => (
-                    <option key={role} value={role}>
-                      {tRoles(role)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-                {t("invite.emailLabel")}
-                <input
-                  type="email"
-                  required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder={t("invite.emailPlaceholder")}
-                  className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
-                />
-              </label>
-
-              {error ? (
-                <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
-                  {error}
-                </p>
-              ) : null}
-
-              {/* Mã thô chỉ trả về đúng lượt tạo ⇒ hiện ngay trong hộp thoại và giữ đó cho tới khi người dùng đóng */}
-              {createdCode ? (
-                <div className="rounded-card bg-primary-soft px-4 py-3">
-                  <p className="text-body font-semibold text-on-surface">{t("invite.codeTitle")}</p>
-                  <p className="my-1 font-mono text-title font-bold tracking-[0.2em] text-primary" data-testid="invite-code">
-                    {createdCode.code}
-                  </p>
-                  <p className="text-body text-on-surface-muted">
-                    {createdCode.email ? t("invite.codeSent", { email: createdCode.email }) : t("invite.codeBody")}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-body font-medium text-on-surface truncate">
+                      {inv.email ?? t("invitations.noEmail")}
+                    </p>
+                    <p className="text-caption text-on-surface-muted">
+                      {tRoles(inv.role)} · {t(STATE_KEYS[inv.state])}
+                      {inv.state === "pending"
+                        ? " · " + t("invitations.expires", { date: date(inv.expiresAt) })
+                        : ""}
+                    </p>
+                  </div>
+                  {inv.state === "pending" ? (
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
+                      {t("invitations.revoke")}
+                    </Button>
+                  ) : null}
                 </div>
-              ) : null}
+              ))}
+            </div>
+          )
+        }
+        aloneAsLead={aloneAsLead}
+        onDeleteOrg={() => setPending({ kind: "delete" })}
+      >
 
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" onClick={closeInvite} disabled={busy}>
-                  {createdCode ? tc("close") : t("cancel")}
-                </Button>
-                <Button type="submit" loading={busy}>
-                  {busy ? t("invite.creating") : t("invite.cta")}
-                </Button>
+        <Modal open={inviteOpen} onClose={closeInvite} title={t("invite.title")}>
+          <form onSubmit={handleInvite} className="flex flex-col gap-4">
+            {/* Nhãn hiện phía trên là chữ thường, không phải <label for>: combobox tự mang tên qua aria-label */}
+            <div className="flex flex-col gap-1">
+              <span aria-hidden className="text-body font-semibold text-on-surface">
+                {t("invite.roleLabel")}
+              </span>
+              <FilterSelect
+                label={t("invite.roleLabel")}
+                labelMode="value"
+                fullWidth
+                portal
+                align="start"
+                value={inviteRole}
+                options={inviteRoleOptions}
+                onChange={setInviteRole}
+              />
+            </div>
+            <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
+              {t("invite.emailLabel")}
+              <input
+                type="email"
+                required
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder={t("invite.emailPlaceholder")}
+                className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+
+            {error ? (
+              <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+                {error}
+              </p>
+            ) : null}
+
+            {/* Mã thô chỉ trả về đúng lượt tạo ⇒ hiện ngay trong hộp thoại và giữ đó cho tới khi người dùng đóng */}
+            {createdCode ? (
+              <div className="rounded-card bg-primary-soft px-4 py-3">
+                <p className="text-body font-semibold text-on-surface">{t("invite.codeTitle")}</p>
+                <p className="my-1 font-mono text-title font-bold tracking-[0.2em] text-primary" data-testid="invite-code">
+                  {createdCode.code}
+                </p>
+                <p className="text-body text-on-surface-muted">
+                  {createdCode.email ? t("invite.codeSent", { email: createdCode.email }) : t("invite.codeBody")}
+                </p>
               </div>
-            </form>
-          </Modal>
+            ) : null}
 
-          {/* Đang gửi PATCH thì không đóng được (như nút Huỷ) — đóng giữa chừng sẽ mất lỗi BE trả về */}
-          <Modal open={renameOpen} onClose={busy ? () => undefined : closeRename} title={t("rename.title")}>
-            <form onSubmit={handleRename} className="flex flex-col gap-4">
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeInvite} disabled={busy}>
+                {createdCode ? tc("close") : t("cancel")}
+              </Button>
+              <Button type="submit" loading={busy}>
+                {busy ? t("invite.creating") : t("invite.cta")}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Đang gửi PATCH thì không đóng được (như nút Huỷ) — đóng giữa chừng sẽ mất lỗi BE trả về */}
+        <Modal open={renameOpen} onClose={busy ? () => undefined : closeRename} title={t("rename.title")}>
+          <form onSubmit={handleRename} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
+              {t("rename.label")}
+              <input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                maxLength={ORG_NAME_MAX}
+                autoComplete="off"
+                className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
+              />
+              <span className="text-caption font-normal text-on-surface-muted">{t("rename.hint", { max: ORG_NAME_MAX })}</span>
+            </label>
+            {error ? (
+              <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeRename} disabled={busy}>
+                {t("cancel")}
+              </Button>
+              <Button type="submit" loading={busy} disabled={!renameValid}>
+                {busy ? t("rename.saving") : t("rename.save")}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        <Modal
+          open={pending !== null}
+          onClose={closePending}
+          title={
+            pending?.kind === "remove"
+              ? t("removeTitle")
+              : pending?.kind === "delete"
+                ? t("danger.dialogTitle")
+                : t("leaveTitle")
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-body text-on-surface-muted leading-[1.6]">
+              {pending?.kind === "remove"
+                ? t("removeBody", { name: displayName(pending.member) })
+                : pending?.kind === "delete"
+                  ? t("danger.dialogBody", { org: org?.name ?? "" })
+                  : t("leaveBody", { org: org?.name ?? "" })}
+            </p>
+            {error ? (
+              <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+                {error}
+              </p>
+            ) : null}
+            {pending?.kind === "delete" ? (
               <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-                {t("rename.label")}
+                {t("danger.confirmLabel", { org: org?.name ?? "" })}
                 <input
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  maxLength={ORG_NAME_MAX}
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
                   autoComplete="off"
                   className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
                 />
-                <span className="text-caption font-normal text-on-surface-muted">{t("rename.hint", { max: ORG_NAME_MAX })}</span>
               </label>
-              {error ? (
-                <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
-                  {error}
-                </p>
-              ) : null}
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" onClick={closeRename} disabled={busy}>
-                  {t("cancel")}
-                </Button>
-                <Button type="submit" loading={busy} disabled={!renameValid}>
-                  {busy ? t("rename.saving") : t("rename.save")}
-                </Button>
-              </div>
-            </form>
-          </Modal>
-
-          <Modal
-            open={pending !== null}
-            onClose={closePending}
-            title={
-              pending?.kind === "remove"
-                ? t("removeTitle")
-                : pending?.kind === "delete"
-                  ? t("danger.dialogTitle")
-                  : t("leaveTitle")
-            }
-          >
-            <div className="flex flex-col gap-4">
-              <p className="text-body text-on-surface-muted leading-[1.6]">
-                {pending?.kind === "remove"
-                  ? t("removeBody", { name: displayName(pending.member) })
-                  : pending?.kind === "delete"
-                    ? t("danger.dialogBody", { org: org?.name ?? "" })
-                    : t("leaveBody", { org: org?.name ?? "" })}
-              </p>
-              {error ? (
-                <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
-                  {error}
-                </p>
-              ) : null}
-              {pending?.kind === "delete" ? (
-                <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-                  {t("danger.confirmLabel", { org: org?.name ?? "" })}
-                  <input
-                    value={confirmText}
-                    onChange={(e) => setConfirmText(e.target.value)}
-                    autoComplete="off"
-                    className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </label>
-              ) : null}
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" onClick={closePending} disabled={busy}>
-                  {t("cancel")}
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={confirmPending}
-                  loading={busy}
-                  disabled={pending?.kind === "delete" && !deleteConfirmed}
-                >
-                  {pending?.kind === "delete" ? t("danger.confirmCta") : t("confirm")}
-                </Button>
-              </div>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closePending} disabled={busy}>
+                {t("cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={confirmPending}
+                loading={busy}
+                disabled={pending?.kind === "delete" && !deleteConfirmed}
+              >
+                {pending?.kind === "delete" ? t("danger.confirmCta") : t("confirm")}
+              </Button>
             </div>
-          </Modal>
-        </section>
-      </div>
+          </div>
+        </Modal>
+      </MembersShell>
     </>
   );
 }

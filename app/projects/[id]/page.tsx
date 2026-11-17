@@ -10,6 +10,7 @@ import ScreenMockupRunCard from "./_components/ScreenMockupRunCard";
 import { useScreenMockupRun } from "./hooks/useScreenMockupRun";
 import ScreenMockupDialog from "@/components/project/ScreenMockupDialog";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
+import { setStepScreenNames } from "@/lib/constants/step-registry";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
 import { ApiClientError } from "@/lib/api/client";
 import type { BadgeTone } from "@/components/ui/Badge";
@@ -26,19 +27,21 @@ import type { Diagram, ReviewMode } from "@/types/spine";
 import { chatChangePreview } from "@/lib/chat-change-preview";
 import type { Project, ScreenMockupSummary } from "@/types/project";
 import type { Flag } from "@/types/flags";
-import PageSkeleton, { type WorkspacePane } from "@/components/ui/PageSkeleton";
-import Skeleton from "@/components/ui/Skeleton";
 
 import Collapse from "@/components/ui/Collapse";
-import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import WorkspaceHeader from "./_components/WorkspaceHeader";
+import WorkspaceLoading, { ToolsPanelFrame, ToolsPanelSkeleton } from "./_components/WorkspaceLoading";
+import { useWorkspaceBoot } from "../workspace-boot";
+import { BRIEF_DEFAULT_WIDTH, BRIEF_MIN, BRIEF_WIDTH_KEY, CHAT_DEFAULT_WIDTH, CHAT_MIN, CHAT_WIDTH_KEY, MODE1_ACTION, PANEL_DEFAULT_WIDTH, PANEL_MIN, PANEL_WIDTH_KEY, PROGRESS_OPEN_KEY, RAIL_DEFAULT_WIDTH, RAIL_MIN, RAIL_WIDTH_KEY, readSavedProgressOpen } from "./_components/workspace-layout";
+import { writeWorkspaceMemory, type WorkspaceMemoryPane } from "@/lib/workspace-memory";
 import WorkspaceProgressRail from "./_components/WorkspaceProgressRail";
 import ChatSessionHistory from "./_components/ChatSessionHistory";
 import ChatPane from "./_components/ChatPane";
 import ResizeHandle from "./_components/ResizeHandle";
 import DocumentPane, { sectionLabel } from "./_components/DocumentPane";
-import { SectionNamesContext } from "./_components/mode1/i18n";
+import { RefNamesContext, SectionNamesContext } from "./_components/mode1/i18n";
+import { refNames } from "./_components/mode1/spine-labels";
 import { sectionLabel as fptSectionLabel } from "@/lib/constants/fpt-sections";
 import type { RenderedSection } from "@/types/document";
 import VerificationPane from "./_components/VerificationPane";
@@ -74,6 +77,7 @@ import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import { isFlagInGateScope } from "./_components/gate-helpers";
+import { gateEditRoute } from "./_components/gate-edit-route";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
@@ -98,12 +102,8 @@ import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
 import StructureChangeNotice from "./_components/mode1/structure-change-notice";
 import ImportWorkspace from "./_components/import/import-workspace";
-import ImportSkeleton from "./_components/import/import-skeleton";
-import { CreationProgressShell } from "./_components/import/creation-progress";
-import { chooseProjectUploadVersion, dismissProjectUpload, retryProjectUpload, useProjectUploads } from "@/lib/project-uploads";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
-import { clearImportPending, isImportPending } from "@/lib/import-pending";
-import { useImportPendingHint } from "./import-pending-hint";
+import { clearImportPending } from "@/lib/import-pending";
 import { fetchOrganization } from "@/lib/api/orgs";
 import type { OrgRole } from "@/types/organization";
 import { getActiveOrgId } from "@/lib/api/token-store";
@@ -111,6 +111,9 @@ import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
 import { useChanges } from "./hooks/useChanges";
 import { isRedrawable, issueCounts, readableMessage, type RedrawReport } from "./_components/flag-rules";
+import { canShowContinueCard } from "./_components/continue-card";
+import { canShowRerunCard } from "./_components/rerun-card";
+import { contentChangeCount } from "./_components/change-count";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
@@ -181,12 +184,6 @@ export const replyOfAsk = (content: string): string | null => {
 };
 /** Cổng chốt trên màn hình đã cũ (BE đưa bước về chờ chạy sau reload/resume) — chữ user đã trả về ô chat. */
 
-// Bề rộng kéo được (px): khung chat, rail tiến độ trái, panel phải — mỗi khung nhớ riêng trong localStorage
-const CHAT_WIDTH_KEY = "flintflow_chat_pane_width";
-const RAIL_WIDTH_KEY = "flintflow_progress_rail_width";
-const PANEL_WIDTH_KEY = "flintflow_right_panel_width";
-const BRIEF_WIDTH_KEY = "flintflow_brief_panel_width";
-const CHAT_MIN = 320;
 const DOC_MIN = 320;
 /**
  * Bề rộng pane tài liệu còn **đọc được**, khác `DOC_MIN` là mức tối thiểu kỹ thuật. Dưới mức này header
@@ -199,96 +196,9 @@ const DOC_MIN = 320;
 const DOC_COMFORT = 460;
 /** Panel phải — mỗi lúc chỉ mở một; mở từ chip trạng thái của tài liệu hoặc nút "Công cụ" trên header. */
 type WorkspacePanel = "verification" | "tools" | "comments";
-const PROGRESS_OPEN_KEY = "flintflow_workspace_progress_open";
-
-/** Mặc định mở: lần đầu vào workspace phải thấy ngay mình đang ở bước nào, rail ẩn chỉ khi user tự đóng. */
-const readSavedProgressOpen = (): boolean => {
-  if (typeof window === "undefined") return true;
-  try {
-    return localStorage.getItem(PROGRESS_OPEN_KEY) !== "0";
-  } catch {
-    return true;
-  }
-};
 
 
 
-/**
- * Khung phải lần trước của dự án — để skeleton lúc vào giữ đúng bố cục sắp hiện (chỉ khung chat ở dự án mới, chat +
- * Brief khi Brief đã có dữ liệu, chat + tài liệu khi đã sang SRS). Chưa từng mở ⇒ `none`: dự án mới bắt đầu ở B-0.1.
- */
-const workspacePaneKey = (projectId: string) => `ff:workspace-pane:${projectId}`;
-const readWorkspacePane = (projectId: string): WorkspacePane => {
-  if (typeof window === "undefined" || !projectId) return "none";
-  try {
-    const value = localStorage.getItem(workspacePaneKey(projectId));
-    return value === "brief" || value === "document" ? value : "none";
-  } catch {
-    return "none";
-  }
-};
-
-// localStorage không phát sự kiện trong cùng tab — chỉ cần đọc lại sau hydrate, không cần đăng ký
-const subscribeNothing = () => () => {};
-
-const WorkspaceLoading = ({ projectId }: { projectId: string }) => {
-  // Server snapshot `none` ⇒ lần render hydrate khớp HTML server; ngay sau đó client đọc khung phải đã lưu
-  const workspacePane = useSyncExternalStore(subscribeNothing, () => readWorkspacePane(projectId), () => "none" as const);
-  // Dự án đang ở màn đọc file SRS ⇒ đúng skeleton của màn đó (một kiểu skeleton, không chớp skeleton workspace)
-  // Snapshot server = cookie server đã đọc (layout) ⇒ HTML đầu và lần hydrate đã đúng skeleton
-  const pendingHint = useImportPendingHint();
-  const importPending = useSyncExternalStore(subscribeNothing, () => isImportPending(projectId), () => pendingHint);
-  const t = useTranslations("workspace.page");
-  // Tab này vừa tạo dự án và đang tải file ⇒ hiện ngay các bước tích dần thay vì skeleton
-  const uploads = useProjectUploads(projectId);
-  if (uploads?.items.some((i) => i.kind === "srs" && i.status !== "done")) {
-    return <CreationProgressShell uploads={uploads} onRetry={(key) => retryProjectUpload(projectId, key)} onChoose={(key, choice) => chooseProjectUploadVersion(projectId, key, choice)} onDismiss={(key) => dismissProjectUpload(projectId, key)} />;
-  }
-  if (importPending) return <ImportSkeleton label={t("loading")} />;
-  return (
-  <div className="h-screen flex overflow-hidden bg-surface-container-lowest">
-    {/* Giữ chỗ rail tiến độ trái — cùng bề rộng/chiều cao hàng với WorkspaceProgressRail */}
-    <div aria-hidden className="w-[264px] shrink-0 flex flex-col">
-      <div className="h-[58px] shrink-0 pl-5 pr-3 flex items-center">
-        <Skeleton className="h-6 w-28" />
-      </div>
-      <div className="pl-5 pr-3 pb-2">
-        <Skeleton className="h-2.5 w-14" />
-      </div>
-      <div className="flex-1 min-h-0 px-2.5 flex flex-col gap-1">
-        {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="px-2.5 py-2">
-            <Skeleton className={`h-3 ${i % 3 === 2 ? "w-2/3" : "w-4/5"}`} />
-          </div>
-        ))}
-      </div>
-      <div className="shrink-0 px-5 pt-3 pb-4 flex flex-col gap-2">
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-1.5 w-full rounded-full" />
-      </div>
-    </div>
-
-    <div className="flex-1 min-w-0 flex flex-col">
-      {/* Giữ chỗ header breadcrumb */}
-      <div aria-hidden className="h-[58px] shrink-0 px-4 flex items-center gap-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-3.5 w-40" />
-        <div className="ml-auto flex items-center gap-1.5">
-          <Skeleton className="h-8 w-24" />
-          <Skeleton className="size-8 rounded-full" />
-        </div>
-      </div>
-      <PageSkeleton
-        variant="workspace"
-        workspacePane={workspacePane}
-        bare
-        label={t("loading")}
-        className="flex-1 min-h-0"
-      />
-    </div>
-  </div>
-  );
-};
 
 /**
  * Rẽ nhánh theo `project.mode`: mode 2 (`fpt`) ⇒ workspace pipeline. Mode 1 (`import`, upload SRS có sẵn) v2
@@ -348,7 +258,7 @@ export default function WorkspacePage() {
     if (isViewer) router.replace(`/projects/${projectId}/view`);
   }, [isViewer, projectId, router]);
 
-  if (project === null || isViewer !== false) return <WorkspaceLoading projectId={projectId} />;
+  if (project === null || isViewer !== false) return <WorkspaceLoading projectId={projectId} viewer={isViewer === true} />;
   // Chưa đọc xong file SRS ⇒ màn đọc khung / tiến trình ngay trong layout workspace (không còn trang `/import` riêng)
   if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} orgRole={orgRole} />;
   // Đổi mode ⇒ dựng lại workspace từ đầu (hook của mode 2 — step, gate — không mang sang mode 1)
@@ -356,8 +266,6 @@ export default function WorkspacePage() {
 }
 
 
-const MODE1_ACTION =
-  "shrink-0 px-3 py-1.5 rounded-full border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] transition-colors";
 
 /**
  * Workspace pipeline — mode 2 (template FPT) và mode 1 sau import (`mode1`). Mode 1 v3 (bám BPMN Flow 1 ⇒ 3.1): không
@@ -460,8 +368,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const mainWidth = () => mainRef.current?.getBoundingClientRect().width ?? 0;
   const rail = useResizableWidth({
     storageKey: RAIL_WIDTH_KEY,
-    defaultWidth: 264,
-    min: 200,
+    defaultWidth: RAIL_DEFAULT_WIDTH,
+    min: RAIL_MIN,
     max: () => 440,
     measure: (x) => {
       const el = document.getElementById("workspace-progress");
@@ -470,8 +378,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   });
   const panel = useResizableWidth({
     storageKey: PANEL_WIDTH_KEY,
-    defaultWidth: 360,
-    min: 300,
+    defaultWidth: PANEL_DEFAULT_WIDTH,
+    min: PANEL_MIN,
     // Chừa chỗ cho chat + pane tài liệu ở bề rộng còn ĐỌC ĐƯỢC, không phải mức tối thiểu kỹ thuật:
     // kéo tay cũng phải tôn trọng đúng ngưỡng mà bố cục tự động đã dùng để quyết định ẩn rail.
     max: () => Math.min(640, mainWidth() - CHAT_MIN - DOC_COMFORT),
@@ -483,8 +391,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // Pha Brief: chat co giãn, cột tóm tắt cố định ⇒ tay kéo đổi cỡ CỘT TÓM TẮT, đo từ mép phải của nó
   const brief = useResizableWidth({
     storageKey: BRIEF_WIDTH_KEY,
-    defaultWidth: 400,
-    min: 320,
+    defaultWidth: BRIEF_DEFAULT_WIDTH,
+    min: BRIEF_MIN,
     max: () => Math.min(620, mainWidth() - CHAT_MIN),
     measure: (x) => {
       const el = document.getElementById("workspace-brief-panel");
@@ -860,6 +768,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
 
   const spine = spineState.spine;
+  // P06: nhãn bước vòng S-5 dùng tên màn ("Hàng đợi màn · Book Appointment"), nạp trước khi thành phần con dựng nhãn
+  const screenNames = useMemo(() => new Map((spine?.screens ?? []).map((sc) => [sc.id, sc.name] as const)), [spine?.screens]);
+  setStepScreenNames(screenNames);
+  // P06: tên phần tử cho dòng so sánh giá trị (mã màn trong `flow_to` ⇒ tên màn)
+  const elementNames = useMemo(() => refNames(spine), [spine]);
   const currentStep = progress?.progress.current_step ?? steps?.current_step ?? spine?.progress.current_step ?? null;
 
   // Reload / mất mạng giữa chừng: dựng lại đúng chỗ đang dở (BUG-07) — không chạy lại, không tốn credit.
@@ -1094,21 +1007,30 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    * Khung phải ở B-0…B-2 là Brief panel, không phải SRS pane (FLF-221): SRS chưa có nội dung trước S-1, và một trang
    * tài liệu trống làm user tưởng phải viết SRS ngay. Theo giai đoạn của bước đang làm; S-1 trở đi là SRS pane như cũ.
    */
-  const briefPane = !mode1 && (shownPhase ?? "").startsWith("B-");
-  // Không dựng khung phải (khung chat chiếm hết chỗ) khi: chưa biết giai đoạn — nếu không thì lúc mới vào,
-  // `shownPhase` còn null nên khung SRS hiện ra một nhịp rồi mới đổi sang Brief; hoặc đang pha Brief mà Brief chưa có gì.
   const phaseUnknown = !mode1 && shownPhase === null;
-  const briefHidden = phaseUnknown || (briefPane && spine !== null && !briefHasData(spine));
-  // Nhớ khung phải đang hiện cho lần vào sau (skeleton giữ đúng bố cục). Chưa biết giai đoạn thì chưa ghi.
-  const shownPane: WorkspacePane = briefHidden ? "none" : briefPane ? "brief" : "document";
+  // Chưa biết giai đoạn (tiến độ chưa về) ⇒ giữ đúng khung phải của lần trước (bản nhớ, như khung đang tải) thay vì bỏ
+  // trống rồi bật Brief / tài liệu ra sau một nhịp. Không có bản nhớ ⇒ chưa dựng khung phải (khung chat chiếm hết chỗ).
+  const boot = useWorkspaceBoot();
+  const rememberedPane = boot.memory?.id === projectId ? boot.memory.pane : "none";
+  const briefPane = !mode1 && (phaseUnknown ? rememberedPane === "brief" : (shownPhase ?? "").startsWith("B-"));
+  // Đang pha Brief mà Brief chưa có gì ⇒ không dựng khung phải
+  const briefHidden = phaseUnknown ? rememberedPane === "none" : briefPane && spine !== null && !briefHasData(spine);
+  // Khung phải đang hiện — nhớ cho lần vào sau (khung đang tải giữ đúng bố cục, xem `lib/workspace-memory`)
+  const shownPane: WorkspaceMemoryPane = briefHidden ? "none" : briefPane ? "brief" : "document";
+  // Nhớ bố cục cho lần tải sau (`WorkspaceLoading` dựng đúng ngay từ HTML đầu). Chưa biết giai đoạn / chưa có tên thì chưa ghi.
+  const projectName = ws.project?.name;
+  const knownReviewMode = spine?.project.review_mode ?? null;
   useEffect(() => {
-    if (phaseUnknown) return;
-    try {
-      localStorage.setItem(workspacePaneKey(projectId), shownPane);
-    } catch {
-      // Không ghi được (chế độ riêng tư) ⇒ lần sau skeleton mặc định, không sao
-    }
-  }, [phaseUnknown, shownPane, projectId]);
+    if (!projectName || (!mode1 && phaseUnknown)) return;
+    writeWorkspaceMemory({
+      id: projectId,
+      mode: mode1 ? "import" : "fpt",
+      name: projectName,
+      phase: shownPhase,
+      pane: shownPane,
+      review: knownReviewMode,
+    });
+  }, [projectId, mode1, projectName, phaseUnknown, shownPhase, shownPane, knownReviewMode]);
 
   const markPlaceholder = (screenId: string) =>
     submitOps([{ op: "set", path: `screens[id=${screenId}].detail_status`, value: "placeholder", reason: "Để lại màn ở vòng một" }]);
@@ -1117,7 +1039,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const handleChangeApplied = useCallback(
     (result: ApplyResult, impactedSectionIds?: string[]) => {
       // BUG-27: áp xong phải có phản hồi — trước đây panel đóng lặng lẽ, user không biết đã ghi hay chưa
-      setToast(result.changes.length > 0 ? t("toasts.changesApplied", { count: result.changes.length }) : t("toasts.noChange"));
+      // FLF-431: chỉ đếm thay đổi nội dung — "Xác nhận không đổi" chỉ ghi mốc duyệt, không được báo "Đã áp dụng 44 thay đổi"
+      const contentCount = contentChangeCount(result.changes);
+      setToast(contentCount > 0 ? t("toasts.changesApplied", { count: contentCount }) : t("toasts.noChange"));
       bumpVersion(result.spine_version);
       replaceSpine(result.spine);
       void reloadProgress();
@@ -1423,7 +1347,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // ─── resize chat pane ─────────────────────────────────────────
   const chat = useResizableWidth({
     storageKey: CHAT_WIDTH_KEY,
-    defaultWidth: 480,
+    defaultWidth: CHAT_DEFAULT_WIDTH,
     min: CHAT_MIN,
     // Chừa chỗ cho tài liệu ở bề rộng còn đọc được + panel phải đang mở
     max: () => Math.min(1000, mainWidth() - (rightPanel ? panel.width : 0) - DOC_COMFORT),
@@ -1606,12 +1530,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // FLF-398: đang tải tệp đính kèm cũng là đang bận — gửi lần nữa lúc này sẽ chạy bước chồng lên lượt đang tải
   const aiWorking = runner.state.busy || stepRunningElsewhere || ws.uploadingAttachments;
   /**
-   * Thẻ "Cập nhật lại bước này" cho bước đang xem: runner rảnh, **hoặc** đang dừng ở cổng của **bước khác** (vd cổng S-9.5 Ký
-   * baseline còn mở) — trước đây chỉ `idle` nên Analyst không có nút duyệt ở S-9.5 thì không bao giờ chạy lại được bước bị
-   * mở lại để gỡ "Cần bạn duyệt lại" (bug T1, e2e 2026-11-16).
-   */
-  const runnerFreeForRerun = runner.state.status === "idle" || (runner.state.status === "gate_ready" && runner.state.stepId !== viewedStep);
-  /**
    * Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). Gồm cả bước tới lượt đang
    * `revision_requested` (bị mở lại, hoà giải): thiếu nó thì tin nhắn rơi vào hỏi đáp thường, AI chỉ trả lời "xem như
    * đã duyệt" mà bước không bao giờ chạy lại được.
@@ -1631,6 +1549,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     currentStep === "B-0.1" &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
     (spine?.addendum.length ?? 0) === 0;
+
+  /** FLF-432: thẻ "Tiếp tục" — bước tới lượt chưa chạy, không lượt nào đang chạy, phiên đã có hội thoại (`continue-card.ts`). */
+  const showContinueCard = canShowContinueCard({
+    mode1,
+    canEdit,
+    onPipelineSession,
+    stepNotStarted,
+    aiWorking,
+    showOpening,
+    sessionMessages: ws.activeSession?.messages.length ?? 0,
+  });
 
   /**
    * FLF-416 (BF §3.1.2): dự án vừa sang Luồng 2 từ file upload (chế độ 3 SRS viết dở / chế độ 4 bổ sung theo mẫu chuẩn) —
@@ -1889,7 +1818,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     }
     const raw = (custom ?? ws.inputMessage).trim();
     const status = runner.state.status;
-    const toRun = stepNotStarted || (reopenable && status === "idle");
+    // FLF-432 (QLHS #7): lượt trước bị gián đoạn (BE khởi động lại) ⇒ tin nhắn chạy lại bước tới lượt, không rơi vào hỏi
+    // đáp thường (AI trả lời như bước vẫn đang chạy, bước không bao giờ tiến)
+    const resumable = status === "interrupted" && viewedStep !== null && viewedStep === currentStep;
+    const toRun = stepNotStarted || resumable || (reopenable && status === "idle");
     if (status !== "needs_input" && status !== "gate_ready" && !toRun) return sendChat(custom);
     if (!(await ws.uploadPendingAttachments())) return;
     const text = raw || t("session.attachmentOnly");
@@ -1924,6 +1856,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         return;
       }
       if (runner.locked("gate")) return;
+      // P08: bước hết 8 lượt gọi AI, hoặc lệnh nhắm mục bước này không ghi (S-7.4 "thêm thông báo vào mục 5.3") ⇒ đi đường
+      // "Sửa tài liệu" (xem trước + Áp dụng) thay vì gửi revision rồi bị từ chối / bị bỏ
+      const route = gateEditRoute(text, runner.state.stepId, gate?.calls_used);
+      if (route) {
+        setToast(t(route === "callLimit" ? "toasts.gateEditCallLimit" : "toasts.gateEditOtherSection"));
+        release();
+        submitEditInstruction(text);
+        return;
+      }
       ws.appendLocalMessage(text, runner.state.stepId);
       // Thẻ cổng đã cũ (bước đã về chờ chạy) thì runner tự chạy lại bước với đúng lời nhắn này
       const turn = runner.gate("revision", text);
@@ -1941,7 +1882,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       },
     };
     // Bước mở lại (màn để trống / mục đã cũ) chạy lẻ; bước tới lượt chạy cả giai đoạn cho cả hai chế độ duyệt
-    const turn = reopenable && !stepNotStarted ? runner.run(stepId, { ...start, standalone: true }) : runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
+    const turn = reopenable && !stepNotStarted && !resumable ? runner.run(stepId, { ...start, standalone: true }) : runner.runWholePhase(unitOfStep(stepId) ?? stepId, start);
     release();
     await turn;
   };
@@ -1988,6 +1929,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   };
   const shownToast = toast ?? (ws.notice ? noticeText(ws.notice) : null);
 
+  // FLF-431 (BarberGo #21): thẻ chạy lại bước hiện cả khi cổng của bước khác (Ký baseline) đang mở
+  const rerunCardAllowed = viewedStep !== null && canShowRerunCard(aiWorking, runner.state, viewedStep);
+
   const rerunStaleStep = async (stepId: string) => {
     const text = t("rerunStep.message");
     await runner.run(stepId, { message: text, standalone: true, reopen: true, onStarted: () => ws.appendLocalMessage(text, stepId) });
@@ -1996,6 +1940,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   return (
     // Tên mục theo tài liệu đang xem cho nhãn mục của mode 1 (mẫu cố định / file có sẵn đặt tên khác mẫu FPT)
     <SectionNamesContext.Provider value={panelSectionNames}>
+    <RefNamesContext.Provider value={elementNames}>
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
       {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
@@ -2003,7 +1948,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <div style={{ width: rail.width }} className="h-full shrink-0">
         <WorkspaceProgressRail
           onHide={toggleProgress}
-          currentPhase={shownPhase}
+          // Tiến độ chưa về ⇒ mở sẵn giai đoạn đã nhớ (như khung đang tải), không tắt rồi bật lại ô đang làm
+          currentPhase={shownPhase ?? (phaseUnknown && boot.memory?.id === projectId ? boot.memory.phase : null)}
           steps={steps?.steps ?? []}
           progress={progress?.progress ?? null}
           selectedStepId={viewedStep}
@@ -2215,6 +2161,22 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           {flow2AutoStart && currentStep && <RunOnce onRun={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
           {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
+          {/* FLF-432 (QLHS #10, luồng C #2): bước tới lượt chưa chạy mà không có lượt nào đang chạy (BE khởi động lại giữa
+              chừng, sang giai đoạn mới) — trước chỉ có cách gõ chat. Phiên còn trống thì ChatPane đã có lời mời riêng. */}
+          {showContinueCard && currentStep && (
+            <div className="bg-primary-soft rounded-control p-3 flex flex-wrap items-center justify-between gap-2 text-body text-on-surface">
+              <p className="leading-relaxed">
+                {t.rich("page.continueNotice", { step: stepLabel(currentStep, locale), strong: (chunks) => <strong>{chunks}</strong> })}
+              </p>
+              <button
+                type="button"
+                onClick={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)}
+                className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
+              >
+                {t("page.continueRun")}
+              </button>
+            </div>
+          )}
           {/* Bước đã chốt không hiện thông báo trong khung chat — dấu ✓ trên rail tiến độ đã nói điều đó, còn
               một dải chữ đứng mãi mỗi lần xem lại bước cũ thì chỉ chiếm chỗ của cuộc trò chuyện */}
           {/* BF §3.2: câu hỏi của lượt người khác khởi động treo ở người đó — không thẻ câu hỏi, chỉ báo ai đang trả lời */}
@@ -2223,7 +2185,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               {t.rich("page.heldByOther", { who: runner.state.heldBy, strong: (chunks) => <strong>{chunks}</strong> })}
             </p>
           )}
-          {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && runnerFreeForRerun && !aiWorking && (
+          {!mode1 && canEdit && onPipelineSession && viewedStep && staleSectionsOfViewed.length > 0 && rerunCardAllowed && (
             <div
               ref={staleCardRef}
               onAnimationEnd={(e) => e.currentTarget.classList.remove("ff-flash")}
@@ -2440,6 +2402,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <DocumentPane
           projectId={projectId}
           projectName={documentName}
+          baselineVersions={spine?.baselines.map((b) => b.version) ?? []}
           flags={flags}
           doc={doc}
           newerVersion={follow.hasNewer && followBusy ? { onApply: follow.apply } : null}
@@ -2501,73 +2464,72 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <Collapse axis="x" open={rightPanel !== null}>
         <ResizeHandle active={panel.resizing} onStart={panel.startResize} onReset={panel.reset} label={t("page.resizePanel")} />
         <div id="workspace-right-panel" style={{ width: panel.width }} className="h-full shrink-0">
-        {shownPanel === "tools" && spine && (
-          <aside className="w-full h-full bg-surface-container flex flex-col overflow-hidden" aria-label={mode1 ? t("page.toolsMode1") : t("page.toolsRecord")}>
-            <div className="ff-fade-below [--ff-fade:var(--color-surface-container)] h-12 pl-4 pr-2 bg-surface-container flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <Icon name="folder" size={16} className="text-primary" />
-                <h3 className="font-bold text-body text-on-surface truncate">{mode1 ? t("page.toolsMode1") : t("page.toolsRecord")}</h3>
-              </div>
-              <IconButton icon="close" size="sm" label={t("page.closeRecord")} onClick={() => setRightPanel(null)} />
-            </div>
-            <div className="flex-1 overflow-y-auto ff-scroll p-4 flex flex-col gap-3">
-            {mode1 && (
-              <Mode1WorkspaceTools
-                projectId={projectId}
-                projectName={ws.project?.name}
-                flags={flags}
-                onSpineChanged={() => onSpineChanged()}
-                readOnly={!canEdit}
-                canRelease={ws.orgRole === "lead"}
-                orgRole={ws.orgRole}
-                sectionName={panelSectionName}
-                onTemplateChanged={handleTemplateChanged}
-                templateCurrent={ws.project ? (ws.project.template_current ?? null) : undefined}
-                refreshToken={documentRefreshToken}
-                documentLanguage={documentLanguage}
-                // CR đang soạn ở khung chat (chưa ghi bản nháp) ⇒ khoá gửi Lead duyệt / phát hành thẳng
-                crInProgress={crChat.detail ? crChat.detail.change_request.cr_id : crChat.pending !== null || crChat.busy !== null ? "" : null}
-                onTranslate={
-                  canEdit && ws.project?.converted_from === "fpt"
-                    ? (locale, version) => {
-                        setTranslateStatus(undefined);
-                        setTranslateLocale(locale);
-                        setTranslateTarget({ version });
-                        setTranslateOpen(true);
-                      }
-                    : undefined
-                }
-              />
+        {shownPanel === "tools" && (
+          // MỘT khung duy nhất: tiêu đề có ngay khi mở (dự án nhập SRS mở sẵn), thân giữ chỗ tới khi Spine về rồi thay
+          // tại chỗ — khung không bị tháo ra dựng lại (không nháy, focus / tham chiếu tới panel vẫn giữ)
+          <ToolsPanelFrame title={mode1 ? t("page.toolsMode1") : t("page.toolsRecord")} closeLabel={t("page.closeRecord")} onClose={() => setRightPanel(null)}>
+            {!spine ? (
+              <ToolsPanelSkeleton />
+            ) : (
+              <>
+                {mode1 && (
+                  <Mode1WorkspaceTools
+                    projectId={projectId}
+                    projectName={ws.project?.name}
+                    flags={flags}
+                    onSpineChanged={() => onSpineChanged()}
+                    readOnly={!canEdit}
+                    canRelease={ws.orgRole === "lead"}
+                    orgRole={ws.orgRole}
+                    sectionName={panelSectionName}
+                    onTemplateChanged={handleTemplateChanged}
+                    templateCurrent={ws.project ? (ws.project.template_current ?? null) : undefined}
+                    refreshToken={documentRefreshToken}
+                    documentLanguage={documentLanguage}
+                    // CR đang soạn ở khung chat (chưa ghi bản nháp) ⇒ khoá gửi Lead duyệt / phát hành thẳng
+                    crInProgress={crChat.detail ? crChat.detail.change_request.cr_id : crChat.pending !== null || crChat.busy !== null ? "" : null}
+                    onTranslate={
+                      canEdit && ws.project?.converted_from === "fpt"
+                        ? (locale, version) => {
+                            setTranslateStatus(undefined);
+                            setTranslateLocale(locale);
+                            setTranslateTarget({ version });
+                            setTranslateOpen(true);
+                          }
+                        : undefined
+                    }
+                  />
+                )}
+                {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được (cùng lý do chặn như mode 1) */}
+                {!mode1 && canChangeTemplate && canEdit && (
+                  <TemplateChangeEntry
+                    projectId={projectId}
+                    orgRole={ws.orgRole}
+                    flags={flags}
+                    sectionName={panelSectionName}
+                    refreshToken={documentRefreshToken}
+                    onChanged={handleTemplateChanged}
+                    current={ws.project ? (ws.project.template_current ?? null) : undefined}
+                  />
+                )}
+                {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
+                {!mode1 && (
+                  <ProjectRecordPanel
+                    projectId={projectId}
+                    spine={spine}
+                    onSubmitOps={async (ops) => void (await submitOps(ops))}
+                    onMarkPlaceholder={(id) => void markPlaceholder(id)}
+                    busy={savingChange}
+                    readOnly={!canEdit}
+                    inBriefPhase={inBriefPhase}
+                    history={changes.history}
+                    historyLoading={changes.historyLoading}
+                    onLoadHistory={changes.loadHistory}
+                  />
+                )}
+              </>
             )}
-            {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được (cùng lý do chặn như mode 1) */}
-            {!mode1 && canChangeTemplate && canEdit && (
-              <TemplateChangeEntry
-                projectId={projectId}
-                orgRole={ws.orgRole}
-                flags={flags}
-                sectionName={panelSectionName}
-                refreshToken={documentRefreshToken}
-                onChanged={handleTemplateChanged}
-                current={ws.project ? (ws.project.template_current ?? null) : undefined}
-              />
-            )}
-            {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
-            {!mode1 && (
-              <ProjectRecordPanel
-                projectId={projectId}
-                spine={spine}
-                onSubmitOps={async (ops) => void (await submitOps(ops))}
-                onMarkPlaceholder={(id) => void markPlaceholder(id)}
-                busy={savingChange}
-                readOnly={!canEdit}
-                inBriefPhase={inBriefPhase}
-                history={changes.history}
-                historyLoading={changes.historyLoading}
-                onLoadHistory={changes.loadHistory}
-              />
-            )}
-            </div>
-          </aside>
+          </ToolsPanelFrame>
         )}
 
         {shownPanel === "verification" && (
@@ -2588,7 +2550,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   }
                 : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
-              onEditSection: canEdit ? (label) => startEditing(t("userText.editSection", { label })) : undefined,
+              onEditSection: canEdit ? (label, issue) => startEditing(issue ? t("userText.editFlag", { label, issue }) : t("userText.editSection", { label })) : undefined,
               onDraftSection: canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined,
               acceptedSteps,
             }}
@@ -2789,6 +2751,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         </Suspense>
       )}
     </div>
+    </RefNamesContext.Provider>
     </SectionNamesContext.Provider>
   );
 }

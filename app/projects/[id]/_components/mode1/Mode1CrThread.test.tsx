@@ -78,10 +78,9 @@ describe("Mode1CrThread - CR trong khung chat", () => {
     fireEvent.click(within(q).getByRole("radio", { name: "Không cần thông báo" }));
     fireEvent.click(within(q).getByRole("button", { name: "Gửi câu trả lời" }));
 
-    // 3.4 tự chạy ⇒ dừng ở danh sách phần liên quan
+    // 3.4 tự chạy ⇒ danh sách phần liên quan; P08 (CR #6): vừa trả lời câu làm rõ ⇒ 3.6 chạy tiếp luôn, không bấm "Tiếp tục"
     const related = await screen.findByLabelText("Phần liên quan");
     expect(within(related).getAllByRole("listitem").length).toBeGreaterThan(0);
-    await click("Tiếp tục - AI đề xuất sửa");
 
     // 3.6 ⇒ đồng ý đề xuất sửa (FLF-375: một nút cho cả danh sách) ⇒ 3.7 tự chạy ⇒ sẵn sàng
     const proposals = await screen.findByLabelText("Đề xuất sửa");
@@ -103,7 +102,6 @@ describe("Mode1CrThread - CR trong khung chat", () => {
     fireEvent.click(within(q).getByRole("radio", { name: "Có, áp cho mọi thiết bị" }));
     fireEvent.click(within(q).getByRole("radio", { name: "Không cần thông báo" }));
     fireEvent.click(within(q).getByRole("button", { name: "Gửi câu trả lời" }));
-    await click("Tiếp tục - AI đề xuất sửa");
     fireEvent.click(within(await screen.findByLabelText("Đề xuất sửa")).getByRole("button", { name: /^Đồng ý tất cả/ }));
     await click("Xác nhận & ghi vào bản nháp");
     expect(await screen.findByLabelText("Đã ghi vào bản nháp")).toBeInTheDocument();

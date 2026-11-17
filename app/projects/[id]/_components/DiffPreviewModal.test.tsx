@@ -221,3 +221,15 @@ describe("DiffPreviewModal - FLF-177", () => {
     });
   });
 });
+
+describe("P06 (BarberGo #23) - hộp xem trước có ngữ nghĩa hộp thoại", () => {
+  it("role=dialog có tên theo tiêu đề; Escape ⇒ onCancel", () => {
+    const onCancel = vi.fn();
+    renderWithIntl(<DiffPreviewModal preview={basePreview} onCancel={onCancel} onConfirm={vi.fn()} />);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog.getAttribute("aria-labelledby")).toBeTruthy();
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(onCancel).toHaveBeenCalled();
+  });
+});

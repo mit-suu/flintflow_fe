@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useDialogFocus } from "@/lib/hooks/use-dialog-focus";
 import { fetchBalance, type BalanceResponse } from "@/lib/api/billing";
 import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { SIDEBAR_COLLAPSED_COOKIE } from "./sidebar-config";
 
 export interface AppUser {
   name: string;
@@ -24,6 +25,11 @@ interface AppShellContextValue {
   toggleCollapsed: () => void;
   /** `GET /billing/balance` — chip credits ở top bar và nhãn gói ở menu user; `null` khi chưa tải/lỗi. */
   balance: BalanceResponse | null;
+  /**
+   * Biết chắc người này xem được số dư (Lead/Analyst) nhưng số dư chưa về ⇒ chip credits giữ chỗ (icon thật, số là thanh
+   * giữ chỗ) thay vì ẩn rồi chen vào. `false` khi Viewer, chưa biết vai trò, hoặc tải lỗi (chip ẩn như cũ).
+   */
+  balancePending: boolean;
   /** Tải lại số dư ngay — sau một thao tác trừ credit ngay trên trang (vd "Dịch tài liệu" ở dashboard, FLF-265). */
   reloadBalance: () => void;
 }
@@ -43,12 +49,18 @@ const readCollapsed = (): boolean => {
   }
 };
 
+/** Bản sao sang cookie để server dựng khung chờ xác thực đúng bề ngang (xem `SIDEBAR_COLLAPSED_COOKIE`). */
+const writeCollapsedCookie = (value: boolean) => {
+  document.cookie = `${SIDEBAR_COLLAPSED_COOKIE}=${value ? "1" : "0"}; path=/; max-age=31536000; SameSite=Lax`;
+};
+
 const writeCollapsed = (value: boolean) => {
   try {
     window.localStorage.setItem(COLLAPSED_KEY, value ? "1" : "0");
   } catch {
     // Không lưu được thì chỉ mất ghi nhớ, vẫn đổi trong phiên này qua sự kiện bên dưới
   }
+  writeCollapsedCookie(value);
   window.dispatchEvent(new Event(COLLAPSED_EVENT));
 };
 
@@ -83,6 +95,8 @@ export default function AppShell({ sidebar, user, children }: AppShellProps) {
   const [balanceRequest, setBalanceRequest] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
   const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsedSnapshot, () => false);
+  // Máy đã thu gọn từ trước khi có cookie (chỉ có localStorage) ⇒ chép sang cookie một lần, lần tải sau khung chờ đúng ngay
+  useEffect(() => writeCollapsedCookie(collapsed), [collapsed]);
   const activeOrg = useActiveOrganization();
   const orgId = activeOrg?.id;
   const role = activeOrg?.role;
@@ -90,6 +104,9 @@ export default function AppShell({ sidebar, user, children }: AppShellProps) {
     activeOrg && activeOrg.role !== "viewer" && balanceState?.orgId === activeOrg.id
       ? balanceState.data
       : null;
+  /** Tổ chức mà lần tải số dư đầu tiên đã lỗi ⇒ thôi giữ chỗ chip (ẩn như cũ), không treo thanh giữ chỗ mãi. */
+  const [balanceFailedFor, setBalanceFailedFor] = useState<string | null>(null);
+  const balancePending = Boolean(orgId && role && role !== "viewer" && !balance && balanceFailedFor !== orgId);
 
   const openNav = useCallback(() => setNavOpen(true), []);
   const closeNav = useCallback(() => setNavOpen(false), []);
@@ -109,7 +126,10 @@ export default function AppShell({ sidebar, user, children }: AppShellProps) {
       .then((next) => {
         if (!cancelled) setBalanceState({ orgId, data: next });
       })
-      .catch(() => undefined); // chip giữ số cũ / ẩn; trang billing tự báo lỗi của nó
+      // Chip giữ số cũ / ẩn; trang billing tự báo lỗi của nó
+      .catch(() => {
+        if (!cancelled) setBalanceFailedFor(orgId);
+      });
     return () => {
       cancelled = true;
     };
@@ -127,8 +147,8 @@ export default function AppShell({ sidebar, user, children }: AppShellProps) {
   }, [navOpen]);
 
   const value = useMemo(
-    () => ({ user, navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance }),
-    [user, navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, reloadBalance]
+    () => ({ user, navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, balancePending, reloadBalance }),
+    [user, navOpen, openNav, closeNav, collapsed, toggleCollapsed, balance, balancePending, reloadBalance]
   );
 
   return (

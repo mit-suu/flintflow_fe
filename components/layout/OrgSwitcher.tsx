@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import DropdownMenu, { type DropdownMenuItem } from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
+import Skeleton from "@/components/ui/Skeleton";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
 import { fetchMyOrganizations, onOrganizationChanged, switchOrganization } from "@/lib/api/orgs";
 import type { ActiveOrganization } from "@/lib/hooks/use-active-org";
@@ -16,6 +17,32 @@ import { SIDEBAR_ROW, SIDEBAR_ROW_IDLE, SidebarTooltip, sidebarRowLayout } from 
  * đều đi theo tổ chức đang mở), không phải điều hướng tới một trang — nên nó là một control ngay tại chỗ đang
  * hiện tên tổ chức, chứ không còn là một mục nav riêng.
  */
+
+/**
+ * Dòng tổ chức chưa bấm được: lúc chưa biết tổ chức (lần đầu tải trên máy này) hoặc trong khung giữ chỗ lúc xác thực.
+ * Icon và mũi tên luôn như nhau nên vẽ thật; chỉ tên là dữ liệu ⇒ có `name` (bản nhớ) thì hiện, không thì thanh giữ chỗ.
+ * Cùng hình với nút thật bên dưới ⇒ tên về là chữ thế vào đúng chỗ, dòng không nhảy.
+ */
+export function OrgSwitcherPlaceholder({ name, collapsed }: { name?: string; collapsed: boolean }) {
+  return (
+    <div aria-hidden className={`${SIDEBAR_ROW} ${sidebarRowLayout(collapsed)} text-on-surface-variant font-medium`}>
+      <Icon name="building" size={19} />
+      {collapsed ? null : (
+        <>
+          {name ? (
+            <span className="flex-1 truncate text-left font-semibold text-on-surface">{name}</span>
+          ) : (
+            <span className="flex-1 min-w-0">
+              <Skeleton className="h-3.5 w-3/4" />
+            </span>
+          )}
+          <Icon name="caret-up-down" size={15} className="-ml-1 -mr-0.5 text-on-surface-muted" />
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function OrgSwitcher({ activeOrg, collapsed }: { activeOrg: ActiveOrganization; collapsed: boolean }) {
   const t = useTranslations("app.shell");
   const tSwitcher = useTranslations("app.org.switcher");
