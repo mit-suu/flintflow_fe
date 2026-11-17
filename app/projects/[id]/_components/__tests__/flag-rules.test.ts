@@ -89,4 +89,20 @@ describe("FLF-411 U2-3: màn / use case chưa gắn chức năng", () => {
     expect(t("link.title")).toBe("Chưa gắn chức năng");
     expect(t("link.hint")).not.toMatch(/§|mục này đã chốt mà chưa điền/);
   });
+
+  it("FLF-428: màn chưa có tác nhân ⇒ nhóm 'Chưa gắn tác nhân' (cờ vàng screen_no_actor, cờ đỏ lúc ký ở mục 3.1.3); màn mồ côi luồng vẫn 'Chưa gắn chức năng'", () => {
+    const yellow = flag({ id: "Y", level: "yellow", rule_id: "screen_no_actor", section_id: "fixed:3.1.3", remediation_step: "S-4.3" });
+    const redActor = flag({ id: "R1", rule_id: "orphan_screen_at_baseline", section_id: "fixed:3.1.3", remediation_step: "S-4.3" });
+    const redFlow = flag({ id: "R2", rule_id: "orphan_screen_at_baseline", section_id: "fixed:3.1.1", remediation_step: "S-4.2" });
+    const accepted = new Set(["S-4.2", "S-4.3"]);
+    expect(actionOfFlag(yellow)).toBe("actor");
+    expect(actionOfFlag(redActor, accepted)).toBe("actor");
+    expect(actionOfFlag(redFlow, accepted)).toBe("link");
+    expect(groupByAction([redFlow, redActor, yellow], accepted).map((g) => [g.action, g.flags.map((f) => f.id)])).toEqual([
+      ["link", ["R2"]],
+      ["actor", ["R1", "Y"]],
+    ]);
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.flags.action" });
+    expect(t("actor.title")).toBe("Chưa gắn tác nhân");
+  });
 });
