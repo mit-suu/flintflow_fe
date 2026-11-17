@@ -34,6 +34,9 @@ interface WorkspaceHeaderProps {
   /** Đang xem bước khác bước hiện tại ⇒ cho đường quay lại (L9). */
   onBackToCurrent?: () => void;
   onExportClick?: () => void;
+  /** Mở / đóng panel "Trợ lý Google Docs" — không truyền ⇒ không có nút (thiếu client id Google, hoặc Viewer). */
+  onDocsAssistantClick?: () => void;
+  docsAssistantActive?: boolean;
   /** Nút riêng của chế độ (mode 1: mở popup Gap report / Change request), đứng trước Export. */
   actions?: ReactNode;
   /** Mở rộng trang: ẩn header và khối tiến độ. */
@@ -78,6 +81,8 @@ export default function WorkspaceHeader({
   currentStep = null,
   onBackToCurrent,
   onExportClick,
+  onDocsAssistantClick,
+  docsAssistantActive = false,
   actions,
   onEnterFocus,
   onToolsClick,
@@ -184,6 +189,19 @@ export default function WorkspaceHeader({
             <span className="hidden md:inline">{toolsShortLabel ?? t("tools")}</span>
             {/* Có mục chờ quyết mà nút im lặng thì user không biết để mở — badge nói số, không chỉ một chấm màu */}
             {toolsCount > 0 && <CountBadge count={toolsCount} tone="alert" />}
+          </Button>
+        )}
+        {onDocsAssistantClick && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDocsAssistantClick}
+            aria-pressed={docsAssistantActive}
+            title={t("docsAssistantHint")}
+            className={`shrink-0 ${docsAssistantActive ? "bg-primary-soft text-primary-hover" : ""}`}
+          >
+            <span className="md:hidden">G</span>
+            <span className="hidden md:inline">{t("docsAssistant")}</span>
           </Button>
         )}
         <Button size="sm" variant="ghost" icon="export" onClick={onExportClick} title={t("exportHint")} className="shrink-0">

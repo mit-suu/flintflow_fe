@@ -93,14 +93,22 @@ export const loadGooglePicker = (): Promise<PickerNamespace> => {
 };
 
 /**
- * Mở Picker (chỉ Google Docs và `.docx`, một file). Trả file đã chọn, hoặc `null` khi user huỷ.
- * `accessToken` lấy từ `GET /integrations/google/access-token`.
+ * Mở Picker (mặc định Google Docs và `.docx`, một file). Trả file đã chọn, hoặc `null` khi user huỷ.
+ * `accessToken` lấy từ `GET /integrations/google/access-token`. Trợ lý Google Docs chỉ cần Google Docs ⇒ truyền `mimeTypes`.
  */
-export const pickGoogleFile = async ({ accessToken, locale }: { accessToken: string; locale?: string }): Promise<PickedGoogleFile | null> => {
+export const pickGoogleFile = async ({
+  accessToken,
+  locale,
+  mimeTypes = [GOOGLE_DOC_MIME, DOCX_MIME],
+}: {
+  accessToken: string;
+  locale?: string;
+  mimeTypes?: string[];
+}): Promise<PickedGoogleFile | null> => {
   const picker = await loadGooglePicker();
   return new Promise((resolve) => {
     const view = new picker.DocsView(picker.ViewId.DOCS)
-      .setMimeTypes([GOOGLE_DOC_MIME, DOCX_MIME].join(","))
+      .setMimeTypes(mimeTypes.join(","))
       .setIncludeFolders(true)
       .setSelectFolderEnabled(false);
     let builder = new picker.PickerBuilder()
