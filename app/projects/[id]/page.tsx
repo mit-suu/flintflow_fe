@@ -77,6 +77,7 @@ import type { DocumentLanguage } from "@/types/project";
 import LanguageCommandCard from "./_components/LanguageCommandCard";
 import GateCard, { PICKABLE_FIELDS, unsettledAssumptions, type AssumptionDecision, type BlockingFlag, type GateNewFlag } from "./_components/GateCard";
 import { isFlagInGateScope } from "./_components/gate-helpers";
+import { gateEditRoute } from "./_components/gate-edit-route";
 import { formFactorList } from "./_components/brief-labels";
 import ElicitPanel, { splitQuestions } from "./_components/ElicitPanel";
 import { replyContainsQuestion } from "@/lib/question-options";
@@ -1853,6 +1854,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         return;
       }
       if (runner.locked("gate")) return;
+      // P08: bước hết 8 lượt gọi AI, hoặc lệnh nhắm mục bước này không ghi (S-7.4 "thêm thông báo vào mục 5.3") ⇒ đi đường
+      // "Sửa tài liệu" (xem trước + Áp dụng) thay vì gửi revision rồi bị từ chối / bị bỏ
+      const route = gateEditRoute(text, runner.state.stepId, gate?.calls_used);
+      if (route) {
+        setToast(t(route === "callLimit" ? "toasts.gateEditCallLimit" : "toasts.gateEditOtherSection"));
+        release();
+        submitEditInstruction(text);
+        return;
+      }
       ws.appendLocalMessage(text, runner.state.stepId);
       // Thẻ cổng đã cũ (bước đã về chờ chạy) thì runner tự chạy lại bước với đúng lời nhắn này
       const turn = runner.gate("revision", text);

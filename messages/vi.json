@@ -2683,6 +2683,8 @@
       "undone": "Đã hoàn tác lần sửa gần nhất",
       "languageSwitched": "Đã đổi tài liệu sang {language}",
       "aiBusyAsk": "AI đang làm - đợi xong lượt này rồi hỏi tiếp nhé",
+      "gateEditCallLimit": "Bước này đã dùng hết 8 lượt gọi AI - mình chuyển yêu cầu sang Sửa tài liệu: xem trước rồi bấm Áp dụng.",
+      "gateEditOtherSection": "Yêu cầu này thuộc mục khác bước đang làm - mình chuyển sang Sửa tài liệu: xem trước rồi bấm Áp dụng.",
       "aiBusyChat": "AI đang làm - đợi xong lượt này rồi nhắn tiếp nhé",
       "gateBlocked": "Chưa chốt được bước này - xử lý nốt phần đang chặn ở thẻ duyệt rồi quay lại nhé",
       "stepKept": "Đã duyệt lại {step} giữ nguyên nội dung"

@@ -68,6 +68,26 @@ describe("gate revision", () => {
   });
 });
 
+describe("gate 409 do chính lượt trước (P08, QLHS #5/#11)", () => {
+  it("SPINE_VERSION_CONFLICT ⇒ đọc version mới nhất, gửi lại đúng một lần, không báo lỗi", async () => {
+    submitGate
+      .mockRejectedValueOnce(new ApiClientError(409, "SPINE_VERSION_CONFLICT", "Tài liệu vừa được cập nhật"))
+      .mockResolvedValueOnce({ data: { spine_version: 10, next_step: "B-0.2" } });
+    runStep.mockImplementation(async (_p: string, _s: string, _r: unknown, h: { onEvent: (e: unknown) => void }) => h.onEvent(gateReady));
+    const onSpineChanged = vi.fn();
+    const { result } = renderHook(() => useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 4, onSpineChanged }));
+    await act(async () => result.current.run("B-0.1"));
+    let outcome: unknown;
+    await act(async () => {
+      outcome = await result.current.gate("accept");
+    });
+    expect(outcome).toBe("ok");
+    expect(submitGate).toHaveBeenCalledTimes(2);
+    expect(submitGate.mock.calls[1][2]).toMatchObject({ base_version: 9 });
+    expect(onSpineChanged).toHaveBeenCalledWith(9);
+  });
+});
+
 describe("answer với đáp án thẻ + chữ gõ", () => {
   it("gửi MỘT request /answer mang cả đáp án thẻ lẫn tin gõ", async () => {
     runStep.mockImplementation(async (_p: string, _s: string, _r: unknown, h: { onEvent: (e: unknown) => void }) => {

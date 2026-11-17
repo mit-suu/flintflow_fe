@@ -47,6 +47,28 @@ describe("useCrChat - gửi lặp (FLF-400)", () => {
   });
 });
 
+describe("useCrChat - trả lời câu làm rõ ⇒ tự chạy tiếp đề xuất (P08, CR #6)", () => {
+  const withStatus = (status: string, locations: unknown[] = []) =>
+    ({ ...detail, change_request: { ...detail.change_request, status }, locations, pending_questions: status === "awaiting_answers" ? ["Giữ bản nào?"] : [] }) as unknown as CrDetail;
+  const loc = { location_id: "L001", section_id: "fixed:2.2", path: "use_cases[id=UC09]", conclusion: null, proposal: null, verify: null, manual: false, found_by: ["keyword"] };
+
+  it("answers ⇒ impact ⇒ propose, không dừng ở 'Tiếp tục - AI đề xuất sửa'", async () => {
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "awaiting_answers" }] });
+    api.getCr.mockResolvedValue({ data: withStatus("awaiting_answers") });
+    api.answerClarifications.mockResolvedValue({ data: withStatus("impact_review") });
+    api.runCrAction.mockImplementation(async (_p: string, _id: string, action: string) =>
+      action === "impact" ? { data: withStatus("impact_review", [loc]) } : { data: withStatus("proposing", [{ ...loc, conclusion: "not_related" }]) }
+    );
+    const { result } = renderHookWithIntl(() => useCrChat("p-answer"));
+    await waitFor(() => expect(result.current.detail?.change_request.status).toBe("awaiting_answers"));
+
+    await act(async () => {
+      result.current.answer(["Giữ bản của Huy"]);
+    });
+    await waitFor(() => expect(api.runCrAction.mock.calls.map((c) => c[2])).toEqual(expect.arrayContaining(["impact", "propose"])));
+  });
+});
+
 const asking = {
   ...detail,
   change_request: { ...detail.change_request, status: "awaiting_answers", clarifications: [{ round: 1, questions: ["Màn nào?"], answers: [], suggestions: [[]] }] },

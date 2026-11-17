@@ -2684,6 +2684,8 @@
       "undone": "Undid the latest edit",
       "languageSwitched": "Switched the document to {language}",
       "aiBusyAsk": "The AI is working - wait for this turn to finish before asking again",
+      "gateEditCallLimit": "This step has used all 8 AI calls - your request moved to Edit document: review the preview, then press Apply.",
+      "gateEditOtherSection": "This request belongs to another section than the current step - it moved to Edit document: review the preview, then press Apply.",
       "aiBusyChat": "The AI is working - wait for this turn to finish before messaging again",
       "gateBlocked": "This step cannot be accepted yet - resolve what is blocking it on the review card, then come back",
       "stepKept": "Re-approved {step} without changes"

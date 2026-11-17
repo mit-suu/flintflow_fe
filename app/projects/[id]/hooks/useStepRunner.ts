@@ -594,7 +594,10 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
             dispatch({ type: "event", event, at: Date.now() });
             awaiting.see(event);
             if (event.type === "ops_applied") onSpineChanged(event.spine_version);
-            if (event.type === "gate_ready" || event.type === "auto_accepted") onSpineChanged();
+            // P08 (QLHS #5/#11): gate_ready mang version CUỐI của lượt — giữ ngay cho lượt ghi kế tiếp (trả lời thẻ, duyệt,
+            // Thử lại) thay vì chờ tải lại Spine rồi gửi `base_version` cũ ăn 409
+            if (event.type === "gate_ready") onSpineChanged(event.spine_version);
+            if (event.type === "auto_accepted") onSpineChanged();
             if ((event.type === "gate_ready" && !event.auto) || event.type === "phase_gate") stoppedAtGate = true;
             // gate_ready của bước được tự duyệt ngay sau đó không phải chỗ dừng
             if (event.type === "auto_accepted") stoppedAtGate = false;
@@ -732,13 +735,23 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       if (gateLockRef.current) return "skipped";
       gateLockRef.current = true;
       dispatch({ type: "busy", busy: true });
+      const send = (version: number) =>
+        submitGate(projectId, stepId, { session_id: sessionId, action, base_version: version, ...(note ? { note } : {}) });
       try {
-        const res = await submitGate(projectId, stepId, {
-          session_id: sessionId,
-          action,
-          base_version: baseVersion,
-          ...(note ? { note } : {}),
-        });
+        let res;
+        try {
+          res = await send(baseVersion);
+        } catch (err) {
+          // P08 (QLHS #5/#11): version của FE đi sau BE vì chính lượt trước của phiên này (render sơ đồ, tính lại cờ sau
+          // gate_ready) — đọc version mới nhất rồi gửi lại đúng một lần; lệch thật thì lần hai cũng 409 và rơi xuống báo lỗi
+          if (!isVersionConflict(err)) throw err;
+          const fresh = await getSpine(projectId)
+            .then((r) => r.data?.spine_version ?? null)
+            .catch(() => null);
+          if (fresh === null || fresh === baseVersion) throw err;
+          onSpineChanged(fresh);
+          res = await send(fresh);
+        }
         onSpineChanged(res.data?.spine_version);
         if (res.data) onGateDone?.(res.data);
         if (action === "revision" && res.data?.message_vi?.trim()) onRevisionMessage?.(res.data.message_vi.trim(), stepId);
