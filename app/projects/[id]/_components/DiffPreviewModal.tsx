@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useMemo, useState } from "react";
+import { useContext, useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ChangeDiff, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
@@ -84,6 +84,7 @@ export default function DiffPreviewModal({
   spine,
 }: DiffPreviewModalProps) {
   const t = useTranslations("workspace.diff");
+  const titleId = useId();
   const { pathLabel, humanValue, changeLabel, changeSummary, referrerLabel, ruleLabel, sectionName, violationText, crSource } = useMode1Labels();
   const documentSections = useContext(SectionNamesContext);
   const [reason, setReason] = useState("");
@@ -120,12 +121,19 @@ export default function DiffPreviewModal({
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onCancel}>
+      {/* P06 (BarberGo #23): ngữ nghĩa hộp thoại cho trình đọc màn hình / getByRole("dialog") */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+        }}
         className="bg-white rounded-[20px] p-6 w-[640px] max-w-full max-h-[85vh] ff-scroll overflow-y-auto shadow-[0_30px_80px_rgba(0,0,0,0.3)] flex flex-col gap-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-extrabold text-heading text-[#191817]">{t("title")}</h3>
+          <h3 id={titleId} className="font-extrabold text-heading text-[#191817]">{t("title")}</h3>
           <div className="flex items-center gap-2">
             {preview.branch && (
               <span className="px-2 py-0.5 rounded-full text-caption font-bold bg-[#F2F1FB] text-[#6A62C4]">{t(`branch.${preview.branch}`)}</span>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { Screen, ScreenDetailStatus, Spine } from "@/types/spine";
+import type { ScreenDetailStatus, Spine } from "@/types/spine";
+import { screenLoopOrder } from "@/lib/constants/step-registry";
 
 interface ScreenQueuePanelProps {
   spine: Pick<Spine, "screens" | "progress">;
@@ -17,13 +18,12 @@ const STATUS_STYLE: Record<ScreenDetailStatus, string> = {
   placeholder: "bg-[#FBF4E4] text-[#8A6D1F]",
 };
 
-const byQueue = (a: Screen, b: Screen) =>
-  (a.queue_order ?? Number.MAX_SAFE_INTEGER) - (b.queue_order ?? Number.MAX_SAFE_INTEGER) || (a.id < b.id ? -1 : 1);
 
 /** Hàng đợi vòng S-5 (Phases §6.2): màn pending đi tiếp; "Để lại" đánh dấu placeholder (cắt theo độ sâu). */
 export default function ScreenQueuePanel({ spine, onMarkPlaceholder, busy = false }: ScreenQueuePanelProps) {
   const t = useTranslations("workspace.screenQueue");
-  const screens = [...spine.screens].sort(byQueue);
+  // P06: cùng thứ tự vòng S-5 với thanh tiến độ (theo số màn)
+  const screens = screenLoopOrder(spine.screens);
   if (screens.length === 0) {
     return <div className="text-body text-[#A8A49C] italic px-3 py-2">{t("empty")}</div>;
   }

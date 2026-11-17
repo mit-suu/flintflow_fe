@@ -4262,6 +4262,7 @@
         "permissions": "Permissions",
         "action": "Action",
         "flow_to": "Navigates to screen",
+        "to": "To screen",
         "is_popup": "Is popup",
         "tabs": "Tabs",
         "primary_function_id": "Primary function",

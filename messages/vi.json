@@ -4261,6 +4261,7 @@
         "permissions": "Phân quyền",
         "action": "Thao tác",
         "flow_to": "Chuyển tới màn",
+        "to": "Tới màn",
         "is_popup": "Là popup",
         "tabs": "Tab",
         "primary_function_id": "Chức năng chính",
