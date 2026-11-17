@@ -149,6 +149,15 @@ describe("stepRunnerReducer", () => {
     const dead = stepRunnerReducer(initialRunnerState, { type: "restored", state: { ...base, status: "running", alive: false, questions: null } });
     expect(dead.status).toBe("interrupted");
     expect(dead.busy).toBe(false);
+
+    // BF §3.2: câu hỏi của lượt người khác khởi động treo ở họ — không thẻ câu hỏi, chỉ biết ai đang trả lời
+    const waiting = { ...base, status: "waiting_answer" as const, questions: [{ id: "q1", text: "Ai?" }], by: "user-binh", by_name: "Bình" };
+    const others = stepRunnerReducer(initialRunnerState, { type: "restored", state: waiting, me: "user-tuan" });
+    expect(others).toMatchObject({ status: "idle", heldBy: "Bình", questions: [] });
+    const mine = stepRunnerReducer(initialRunnerState, { type: "restored", state: waiting, me: "user-binh" });
+    expect(mine).toMatchObject({ status: "needs_input", heldBy: null });
+    // Dữ liệu cũ không có `by` ⇒ như trước
+    expect(stepRunnerReducer(initialRunnerState, { type: "restored", state: { ...waiting, by: null }, me: "user-tuan" }).status).toBe("needs_input");
   });
 
   it("chỉ gate_ready và error là sự kiện kết thúc luồng", () => {

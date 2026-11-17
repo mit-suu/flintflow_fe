@@ -311,5 +311,6 @@ export type Mode1ErrorCode =
 export interface PendingSection {
   section_id: string;
   title: string;
-  items: { cr_id: string; who: string }[];
+  /** `cr_id` vắng ⇒ bản xem trước sửa qua chat trước baseline (chưa thành CR). */
+  items: { cr_id?: string; who: string }[];
 }

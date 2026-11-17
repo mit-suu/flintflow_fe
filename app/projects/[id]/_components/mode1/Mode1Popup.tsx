@@ -19,6 +19,9 @@ interface Mode1PopupProps {
   onChanged?: () => void;
   /** Viewer: xem gap report / CR nhưng không tạo hay thao tác CR. */
   readOnly?: boolean;
+  /** BF §3.2 / UC-45, UC-48: người đang xem + vai trò — CR của người khác chỉ xem, Huỷ chỉ người tạo hoặc Lead. */
+  myUserId?: string | null;
+  orgRole?: string | null;
 }
 
 /**
@@ -50,7 +53,7 @@ function CompareBody({ projectId }: { projectId: string }) {
  * `panel=gap` / `panel=cr` (+ `cr=<id>` ⇒ chi tiết ngay trong popup, `new=1&…` ⇒ form tạo CR điền sẵn) /
  * `panel=compare` / `panel=reupload` (UC-25, chỉ người sửa được). Đóng ⇒ bỏ query.
  */
-export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false }: Mode1PopupProps) {
+export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false, myUserId = null, orgRole = null }: Mode1PopupProps) {
   const t = useTranslations("mode1.popup");
   const params = useSearchParams();
   const router = useRouter();
@@ -84,7 +87,7 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
           <Link href={crListHref(projectId)} scroll={false} className="self-start text-body font-bold text-primary hover:underline">
             {t("backToList")}
           </Link>
-          <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} readOnly={readOnly} />
+          <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} readOnly={readOnly} myUserId={myUserId} orgRole={orgRole} />
         </div>
       )}
       {panel === "cr" && !crId && (

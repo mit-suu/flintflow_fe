@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { applyChanges, listChanges, previewChanges, reconcile, undoLastChange } from "@/lib/api/spine";
+import { applyChanges, discardChangePreview, listChanges, previewChanges, reconcile, undoLastChange } from "@/lib/api/spine";
 import type { ApplyResult, ChangeRequestInfo, Op, PreviewResult } from "@/types/pipeline";
 import type { Change } from "@/types/spine";
 import { userErrorMessage } from "@/lib/api/error-messages";
@@ -178,10 +178,12 @@ export function useChanges(
   );
 
   const cancelPreview = useCallback(() => {
+    // BF §3.2: bỏ bản xem trước ở BE để người khác hết thấy "<mình> có bản sửa chưa xác nhận" ngay (không chờ hết hạn)
+    if (preview?.preview_id) void discardChangePreview(projectId, preview.preview_id).catch(() => undefined);
     setPreview(null);
     setPreviewSource(null);
     setClarification(null);
-  }, []);
+  }, [preview, projectId]);
 
   const adoptPreview = useCallback((next: PreviewResult, instruction: string) => {
     setError(null);

@@ -309,6 +309,9 @@ export interface RunState {
    * `/run-state/active` vẫn trả lượt này sau khi mở lại trang. Thiếu/null ⇒ gián đoạn thường.
    */
   paused_reason?: "ai_error" | null;
+  /** BF §3.2: userId + tên người khởi động lượt — câu hỏi đang chờ treo ở người này. Vắng ⇒ dữ liệu cũ, coi như của mình. */
+  by?: string | null;
+  by_name?: string | null;
 }
 
 /** GET /projects/:id/run-estimate (FLF-332) — ước tính credit cho lượt chạy liền sắp tới, trước khi gọi AI. */

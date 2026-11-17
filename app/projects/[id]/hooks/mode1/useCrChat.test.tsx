@@ -24,14 +24,14 @@ const detail = {
 } as unknown as CrDetail;
 
 beforeEach(() => {
-  api.listCrs.mockReset().mockResolvedValue({ data: [{ cr_id: "CR-001", status: "draft" }] });
+  api.listCrs.mockReset().mockResolvedValue({ data: [{ cr_id: "CR-001", status: "draft", created_by: "u1" }] });
   api.getCr.mockReset().mockResolvedValue({ data: detail });
   api.sendCrMessage.mockReset().mockResolvedValue({ data: { ...detail, message: { kind: "answer", reply: "Không vẽ lại hình." } } });
 });
 
 describe("useCrChat - gửi lặp (FLF-400)", () => {
   it("send gọi 2 lần trong cùng một tick ⇒ sendCrMessage chỉ gọi 1 lần; xong thì gửi tiếp được", async () => {
-    const { result } = renderHookWithIntl(() => useCrChat("p1"));
+    const { result } = renderHookWithIntl(() => useCrChat("p1", true, undefined, "u1"));
     await waitFor(() => expect(result.current.detail).not.toBeNull());
 
     await act(async () => {
