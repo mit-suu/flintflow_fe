@@ -6,10 +6,13 @@ import {
   markAccountLocaleSettled,
   resetAccountLocaleSync,
 } from "@/lib/hooks/use-account-locale";
-import ProjectsLayout from "./layout";
+// `layout.tsx` là server component (đọc cookie bản nhớ); phần client — AuthGuard + đồng bộ ngôn ngữ tài khoản — nằm ở đây
+import ProjectsLayoutClient from "./workspace-boot";
+
+const BOOT = { memory: null, importPendingIds: [], profileName: null, orgRole: null };
 
 const router = vi.hoisted(() => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/projects" }));
 vi.mock("@/lib/api/users", () => ({
   fetchMe: vi.fn(),
   updateMyLocale: vi.fn(async () => ({})),
@@ -41,9 +44,9 @@ describe("ProjectsLayout", () => {
     } as never);
 
     renderWithIntl(
-      <ProjectsLayout>
+      <ProjectsLayoutClient boot={BOOT}>
         <p>project content</p>
-      </ProjectsLayout>,
+      </ProjectsLayoutClient>,
       "vi"
     );
 
@@ -58,9 +61,9 @@ describe("ProjectsLayout", () => {
     markAccountLocaleSettled();
 
     renderWithIntl(
-      <ProjectsLayout>
+      <ProjectsLayoutClient boot={BOOT}>
         <p>project content</p>
-      </ProjectsLayout>,
+      </ProjectsLayoutClient>,
       "vi"
     );
 
@@ -74,9 +77,9 @@ describe("ProjectsLayout", () => {
     vi.mocked(fetchMe).mockRejectedValueOnce(new Error("Network error"));
 
     renderWithIntl(
-      <ProjectsLayout>
+      <ProjectsLayoutClient boot={BOOT}>
         <p>project content</p>
-      </ProjectsLayout>,
+      </ProjectsLayoutClient>,
       "vi"
     );
 

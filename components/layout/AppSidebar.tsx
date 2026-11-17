@@ -11,7 +11,7 @@ import IconButton from "@/components/ui/IconButton";
 import { useProjects } from "@/lib/hooks/use-projects";
 import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { useAppShell } from "./AppShell";
-import OrgSwitcher from "./OrgSwitcher";
+import OrgSwitcher, { OrgSwitcherPlaceholder } from "./OrgSwitcher";
 import RecentProjects from "./RecentProjects";
 import SidebarNavItem, {
   SIDEBAR_ROW,
@@ -31,7 +31,7 @@ export default function AppSidebar() {
     toggleCollapsed
   } = useAppShell();
   // 3 dự án đang làm sửa gần nhất — BE sắp sẵn (FLF-404: không còn tải mọi dự án)
-  const { recentProjects: recent } = useProjects();
+  const { recentProjects: recent, loading: projectsLoading } = useProjects();
   const unreadCount = useUnreadNotificationCount();
   const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
   const hideBilling = orgLoading || orgError || activeOrg?.role === "viewer";
@@ -118,10 +118,12 @@ export default function AppSidebar() {
                     <div className="text-body font-medium text-on-surface-muted">{t(section.labelKey)}</div>
                   </div>
                 ))}
-              {/* Tổ chức đang mở, bấm được để đổi sang tổ chức khác hoặc tạo/tham gia tổ chức mới. Chưa biết tổ
-                  chức (đang tải / chưa có) thì không dựng gì — không có chỗ nào để đổi tới. */}
+              {/* Tổ chức đang mở, bấm được để đổi sang tổ chức khác hoặc tạo/tham gia tổ chức mới. Đang tải lần đầu
+                  (chưa có bản nhớ) ⇒ giữ đúng dòng đó, chỉ tên là thanh giữ chỗ; tải lỗi hẳn thì bỏ dòng. */}
               {section.id === "org" && activeOrg ? (
                 <OrgSwitcher activeOrg={activeOrg} collapsed={collapsed} />
+              ) : section.id === "org" && orgLoading ? (
+                <OrgSwitcherPlaceholder collapsed={collapsed} />
               ) : null}
               {section.items
                 .filter((item) => !(item.id === "billing" && hideBilling))
@@ -147,6 +149,7 @@ export default function AppSidebar() {
           {!collapsed && (
             <RecentProjects
               projects={recent}
+              loading={projectsLoading}
               onNavigate={closeNav}
             />
           )}
