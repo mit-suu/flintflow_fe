@@ -3,7 +3,8 @@
  * file, không chớp skeleton workspace (rail + chat) rồi mới đổi. Lưu bằng cookie (không phải localStorage) để server đọc được
  * (`app/projects/[id]/layout.tsx`) ⇒ HTML đầu tiên và lần hydrate đã là đúng skeleton. Chỉ là gợi ý bố cục; trạng thái thật do BE trả.
  */
-export const importPendingCookie = (projectId: string) => `ff-import-pending-${projectId}`;
+export const IMPORT_PENDING_COOKIE_PREFIX = "ff-import-pending-";
+export const importPendingCookie = (projectId: string) => `${IMPORT_PENDING_COOKIE_PREFIX}${projectId}`;
 
 const MAX_AGE_S = 60 * 60 * 24 * 30;
 

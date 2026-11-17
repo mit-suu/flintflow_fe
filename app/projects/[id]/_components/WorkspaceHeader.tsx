@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Skeleton from "@/components/ui/Skeleton";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
@@ -58,6 +59,8 @@ interface WorkspaceHeaderProps {
   onLogout: () => void;
   /** Tên hiện khi `project` chưa tải xong (vd tên vừa nhập ở hộp Tạo dự án). */
   fallbackName?: string;
+  /** Tên dự án chưa về (khung đang tải, chưa có bản nhớ) ⇒ thanh giữ chỗ thay cho chữ "Chưa đặt tên". */
+  nameLoading?: boolean;
 }
 
 /**
@@ -69,6 +72,7 @@ export default function WorkspaceHeader({
   user,
   baselineStatus = null,
   fallbackName,
+  nameLoading = false,
   progressHidden = false,
   onShowProgress,
   currentStep = null,
@@ -103,7 +107,11 @@ export default function WorkspaceHeader({
         <span aria-hidden className="hidden sm:inline text-on-surface-subtle px-0.5">
           /
         </span>
-        <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || fallbackName || t("untitled")}</span>
+        {nameLoading ? (
+          <Skeleton className="h-3.5 w-40" />
+        ) : (
+          <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || fallbackName || t("untitled")}</span>
+        )}
         {baselineStatus && (
           // Trạng thái chốt bản là thứ cả Lead lẫn Analyst cần thấy MỌI LÚC (có bản chờ mình duyệt không,
           // bản mình gửi bị từ chối chưa), nên nó ở ngay breadcrumb. Hành động thì nằm trong panel — bấm

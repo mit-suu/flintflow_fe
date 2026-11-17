@@ -4,7 +4,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import { Badge, Button, EmptyState, FilterSelect, IconButton, PAGE_GUTTER, PageSkeleton, PagedDataList, STICKY_BLEED, STICKY_FADE, type BadgeTone } from "@/components/ui";
+import { Badge, Button, EmptyState, Icon, IconButton, PagedDataList, type BadgeTone } from "@/components/ui";
 import {
   createCheckout,
   fetchBalance,
@@ -27,6 +27,7 @@ import { tPhase, tStep } from "@/lib/i18n";
 import { emitNotificationsChanged } from "@/lib/api/notifications";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
+import BillingShell, { BillingTopSkeleton, LEDGER_META, LEDGER_ROW_CLASS, LEDGER_SKELETON_ROWS, LedgerColumnHeader, LedgerRowSkeleton, LedgerToolbar } from "@/components/page-shells/BillingShell";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 
 const signedAmount = (tx: CreditTransaction) => {
@@ -73,34 +74,25 @@ type FilterChoice = { value: string; label: string };
 
 const LEDGER_PAGE_SIZE = 20;
 
-/**
- * Cột của lịch sử từ `xl`: thời gian | loại | thao tác | dự án | thành viên | token | credit | khả dụng sau.
- * Dưới `xl` một dòng gọn ba hàng: loại + credit, thao tác, rồi các ô còn lại cỡ chữ nhỏ (`order-*`).
- */
-const LEDGER_GRID =
-  "xl:grid xl:grid-cols-[150px_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_140px_120px_72px_84px] xl:items-center xl:gap-3";
-/** Ô phụ dưới `xl`: hàng cuối, chữ nhỏ. */
-const LEDGER_META = "max-xl:order-4 max-xl:text-caption max-xl:text-on-surface-muted";
-
-/** Chỉ đổi màu con số, không đổi hình thẻ: khả dụng là con số người dùng theo dõi, số khác chỉ là tham chiếu. */
-type StatTone = "primary" | "error" | "muted" | "plain";
-
-const STAT_TONE: Record<StatTone, string> = {
-  primary: "text-primary",
-  error: "text-error",
-  muted: "text-on-surface-muted",
-  plain: "text-on-surface",
-};
-
-/** Thẻ số của trang ví: nhãn nhỏ in hoa, số lớn, dòng đơn vị. */
-function StatCard({ label, value, hint, extra, tone = "plain" }: { label: string; value: ReactNode; hint: string; extra?: ReactNode; tone?: StatTone }) {
+/** Ô số phụ trong khối ví (số dư, đang giữ): tham chiếu, nhỏ hơn hẳn con số khả dụng. */
+function WalletFigure({ label, value, unit }: { label: string; value: string; unit: string }) {
   return (
-    <div className="rounded-card bg-surface-container-low p-5">
-      <div className="text-body font-bold text-on-surface-muted uppercase tracking-[0.04em]">{label}</div>
-      <div className={`text-metric font-bold leading-tight tracking-tight mt-1 ${STAT_TONE[tone]}`}>{value}</div>
-      <div className="text-body text-on-surface-subtle">{hint}</div>
-      {extra && <div className="text-caption text-on-surface-muted mt-1">{extra}</div>}
+    <div className="rounded-control bg-surface-container-lowest/70 px-4 py-3">
+      <dt className="text-caption font-bold uppercase tracking-[0.04em] text-on-surface-muted">{label}</dt>
+      <dd className="mt-0.5 text-heading font-bold text-on-surface tabular-nums">
+        {value} <span className="text-body font-medium text-on-surface-muted">{unit}</span>
+      </dd>
     </div>
+  );
+}
+
+/** Dòng tính năng của thẻ gói: dấu tích + chữ. */
+function PlanFeature({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 text-body text-on-surface-variant">
+      <Icon name="check" size={14} weight="bold" className="mt-[3px] shrink-0 text-primary" />
+      <span>{children}</span>
+    </li>
   );
 }
 
@@ -305,70 +297,99 @@ export default function BillingPage() {
       : t("planLimitsSummaryLegacy", base);
   };
 
-  // Bốn thẻ cùng một khuôn: ba con số của ví và gói hiện tại. Đơn vị "credit" giữ nguyên chữ, bản en có số nhiều.
-  const statCards: { key: string; label: string; value: ReactNode; hint: string; extra?: ReactNode; tone: StatTone }[] = balance
-    ? [
-        { key: "available", label: t("available"), value: format.number(balance.available), hint: creditUnit(balance.available), tone: lowCredit ? "error" : "primary" },
-        { key: "balance", label: t("balance"), value: format.number(balance.balance), hint: creditUnit(balance.balance), tone: "plain" },
-        { key: "reserved", label: t("reserved"), value: format.number(balance.reserved), hint: creditUnit(balance.reserved), tone: "muted" },
-        {
-          key: "currentPlan",
-          label: t("currentPlan"),
-          value: balance.planLabel,
-          hint: balance.subscription
-            ? t("validUntil", {
-                date: format.dateTime(new Date(balance.subscription.currentPeriodEnd), {
-                  day: "numeric",
-                  month: "numeric",
-                  year: "numeric",
-                }),
-              })
-            : t("defaultPlan"),
-          extra: currentPlanLimits ? formatPlanLimits(currentPlanLimits) : undefined,
-          tone: "plain",
-        },
-      ]
-    : [];
+  const shortDate = (iso: string) => format.dateTime(new Date(iso), { day: "numeric", month: "numeric", year: "numeric" });
+  // Gói credit rẻ nhất tính trên mỗi credit ⇒ đánh dấu "tiết kiệm nhất" và là nút chính duy nhất của hàng (chỉ khi có >= 2 gói)
+  const unitPrice = (pkg: CreditPackage) => (pkg.credits > 0 ? pkg.amount / pkg.credits : Number.POSITIVE_INFINITY);
+  const bestPackageId =
+    packages.length > 1 ? packages.reduce((best, pkg) => (unitPrice(pkg) < unitPrice(best) ? pkg : best)).id : null;
+  const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
     <>
       <TopBar trail={[tc("account"), t("title")]} />
 
-      {/* Vùng cuộn không có padding trên: thanh lọc lịch sử `sticky top-0` tính từ mép trong của padding */}
-      <div className={`flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 pb-scroll-end bg-surface-container-lowest ${PAGE_GUTTER}`}>
-        <h1 className="mt-6 sm:mt-8 text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
-
-        {(error !== null || orgError) && (
-          <div className="flex items-center gap-3 bg-error-container text-on-error-container px-4 py-3 rounded-control text-body font-medium">
-            <span className="flex-1">{error || t("errors.load")}</span>
-            {error !== null && <IconButton icon="close" label={tc("dismiss")} size="sm" onClick={() => setError(null)} className="shrink-0" />}
-          </div>
-        )}
-
+      <BillingShell
+        alert={
+          (error !== null || orgError) && (
+            <div className="flex items-center gap-3 bg-error-container text-on-error-container px-4 py-3 rounded-control text-body font-medium">
+              <span className="flex-1">{error || t("errors.load")}</span>
+              {error !== null && <IconButton icon="close" label={tc("dismiss")} size="sm" onClick={() => setError(null)} className="shrink-0" />}
+            </div>
+          )
+        }
+      >
         {orgError ? null : showLoading ? (
-          <PageSkeleton variant="cards" label={t("loading")} />
+          <BillingTopSkeleton />
         ) : (
           <>
-            {/* Balance */}
+            {/* Ví + gói hiện tại. Khả dụng là con số người dùng theo dõi ⇒ to nhất trang; số dư và đang giữ chỉ để đối chiếu */}
             {balance && (
-              <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {statCards.map((card) => (
-                  <StatCard key={card.key} label={card.label} value={card.value} hint={card.hint} extra={card.extra} tone={card.tone} />
-                ))}
+              <section className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                <div className={`rounded-card p-6 flex flex-col gap-5 ${lowCredit ? "bg-accent-gold-soft" : "bg-primary-soft"}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-body font-semibold text-on-surface-medium">
+                      <Icon name="wallet" size={16} />
+                      {t("available")}
+                    </div>
+                    {canPurchase && packages.length > 0 ? (
+                      <Button size="sm" icon="plus" onClick={() => scrollToSection("buy-credits")}>
+                        {t("buyCredits")}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    {/* Số hero của trang: lớn hơn bậc `metric` một nấc có chủ ý */}
+                    <span className={`text-[44px] font-bold leading-none tracking-tight tabular-nums ${lowCredit ? "text-error" : "text-primary"}`}>
+                      {format.number(balance.available)}
+                    </span>
+                    <span className="text-heading font-semibold text-on-surface-muted">{creditUnit(balance.available)}</span>
+                  </div>
+                  {lowCredit && (
+                    <p className="flex items-start gap-2 text-body font-medium text-accent-gold-text">
+                      <Icon name="warning" size={15} className="mt-[3px] shrink-0" />
+                      {t("lowCredit")}
+                    </p>
+                  )}
+                  <dl className="mt-auto grid grid-cols-2 gap-3">
+                    <WalletFigure label={t("balance")} value={format.number(balance.balance)} unit={creditUnit(balance.balance)} />
+                    <WalletFigure label={t("reserved")} value={format.number(balance.reserved)} unit={creditUnit(balance.reserved)} />
+                  </dl>
+                </div>
+
+                <div className="rounded-card bg-surface-container-low p-6 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2 text-body font-semibold text-on-surface-medium">
+                    <Icon name="layers" size={16} />
+                    {t("currentPlan")}
+                  </div>
+                  <div className="mt-2 text-title font-bold text-on-surface">{balance.planLabel}</div>
+                  <div className="flex items-center gap-1.5 text-body text-on-surface-variant">
+                    <Icon name="clock" size={14} className="shrink-0 text-on-surface-muted" />
+                    {balance.subscription ? t("validUntil", { date: shortDate(balance.subscription.currentPeriodEnd) }) : t("defaultPlan")}
+                  </div>
+                  {currentPlanLimits && (
+                    <div className="mt-3 flex items-start gap-1.5 rounded-control bg-surface-container-lowest/70 px-3 py-2.5 text-body text-on-surface-variant leading-[1.6]">
+                      <Icon name="users" size={14} className="mt-[4px] shrink-0 text-on-surface-muted" />
+                      <span>{formatPlanLimits(currentPlanLimits)}</span>
+                    </div>
+                  )}
+                  {plans.length > 1 && (
+                    <Button variant="ghost" size="sm" className="mt-auto self-start -ml-2" onClick={() => scrollToSection("plans")}>
+                      {t("comparePlans")}
+                    </Button>
+                  )}
+                </div>
               </section>
             )}
 
-            {lowCredit && (
-              <div className="bg-accent-gold-soft text-accent-gold-text px-4 py-3 rounded-control text-body font-medium">
-                {t("lowCredit")}
+            {/* Gói credit */}
+            <section id="buy-credits" className="flex flex-col gap-3 scroll-mt-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 className="text-subtitle font-bold text-on-surface">{t("buyCredits")}</h2>
+                <p className="text-body text-on-surface-muted">{t("vietqrNote")}</p>
               </div>
-            )}
-
-            {/* Packages */}
-            <section className="flex flex-col gap-3">
-              <h2 className="text-heading font-bold text-on-surface">{t("buyCredits")}</h2>
               {canPurchase ? null : (
-                <div role="note" className="rounded-control bg-primary-soft px-3 py-2 text-body text-on-surface-medium flex flex-wrap items-center gap-3">
+                <div role="note" className="rounded-control bg-primary-soft px-4 py-3 text-body text-on-surface-medium flex flex-wrap items-center gap-3">
+                  <Icon name="info" size={16} className="shrink-0 text-primary" />
                   <span className="flex-1 min-w-[240px]">{t("leadOnlyPurchase")}</span>
                   {/* FLF-332 (BR-08): báo mọi Lead của tổ chức bằng thông báo in-app; nạp xong người báo được báo lại */}
                   {topup.sent === null ? (
@@ -381,87 +402,96 @@ export default function BillingPage() {
                 </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {packages.map((pkg) => (
-                  <div key={pkg.id} className="rounded-card bg-surface-container-low p-5 flex flex-col gap-3">
-                    <div>
-                      {/* Tên gói BE gửi là tiếng Việt ("Gói 100 credit") ⇒ dựng lại từ số credit theo ngôn ngữ giao diện. */}
-                      <div className="text-body font-bold text-on-surface-medium">
-                        {t("packageLabel", { credits: format.number(pkg.credits) })}
+                {packages.map((pkg) => {
+                  const best = pkg.id === bestPackageId;
+                  return (
+                    <div key={pkg.id} className={`rounded-card p-5 flex flex-col gap-4 ${best ? "bg-primary-soft" : "bg-surface-container-low"}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        {/* Tên gói BE gửi là tiếng Việt ("Gói 100 credit") ⇒ dựng lại từ số credit theo ngôn ngữ giao diện. */}
+                        <span className="text-body font-semibold text-on-surface-medium">
+                          {t("packageLabel", { credits: format.number(pkg.credits) })}
+                        </span>
+                        {best && <Badge tone="primary">{t("bestValue")}</Badge>}
                       </div>
-                      <div className="text-metric font-bold leading-tight tracking-tight text-on-surface">
-                        {format.number(pkg.credits)}{" "}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-metric font-bold text-on-surface tabular-nums">{format.number(pkg.credits)}</span>
                         <span className="text-body font-semibold text-on-surface-muted">{creditUnit(pkg.credits)}</span>
                       </div>
-                      <div className="text-body text-on-surface-variant">{formatVnd(pkg.amount, locale)}</div>
+                      <div className="flex flex-col">
+                        <span className="text-heading font-bold text-on-surface tabular-nums">{formatVnd(pkg.amount, locale)}</span>
+                        {pkg.credits > 0 && (
+                          <span className="text-caption text-on-surface-muted tabular-nums">
+                            {t("perCredit", { price: formatVnd(Math.round(pkg.amount / pkg.credits), locale) })}
+                          </span>
+                        )}
+                      </div>
+                      {canPurchase ? (
+                        // `loading` giữ nguyên nhãn và tự khoá nút ⇒ bố cục không nhảy khi đang tạo giao dịch
+                        <Button
+                          variant={best || bestPackageId === null ? "primary" : "secondary"}
+                          size="md"
+                          fullWidth
+                          className="mt-auto"
+                          loading={busy === pkg.id}
+                          disabled={busy !== null}
+                          onClick={() => handleBuy(pkg)}
+                        >
+                          {t("buyNow")}
+                        </Button>
+                      ) : null}
                     </div>
-                    {canPurchase ? (
-                      // `loading` giữ nguyên nhãn và tự khoá nút ⇒ bố cục không nhảy khi đang tạo giao dịch
-                      <Button
-                        variant="primary"
-                        size="md"
-                        fullWidth
-                        className="mt-auto"
-                        loading={busy === pkg.id}
-                        disabled={busy !== null}
-                        onClick={() => handleBuy(pkg)}
-                      >
-                        {t("buyNow")}
-                      </Button>
-                    ) : null}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <p className="text-body text-on-surface-subtle">{t("vietqrNote")}</p>
             </section>
 
-            {/* Plans */}
-            <section className="flex flex-col gap-3">
-              <h2 className="text-heading font-bold text-on-surface">{t("plans")}</h2>
+            {/* Gói tháng: thẻ so sánh cạnh nhau, gói đang dùng tô nền tím nhạt (không dùng viền) */}
+            <section id="plans" className="flex flex-col gap-3 scroll-mt-6">
+              <h2 className="text-subtitle font-bold text-on-surface">{t("plans")}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {plans.map((plan) => {
                   const isCurrent = balance?.plan === plan.id;
                   // FLF-347: bản đầu không có hạ gói (UC-58 chỉ nâng) — gói thấp hơn chỉ tới khi gói đang dùng hết kỳ
                   const isLower = plan.priceVnd < currentPlanPrice;
                   return (
-                    // Gói hiện tại đánh dấu bằng huy hiệu, không bằng viền màu — cả trang không dùng nét để phân tách
-                    <div key={plan.id} className="rounded-card bg-surface-container-low p-5 flex items-center gap-4">
-                      <div className="flex-1">
-                        <div className="text-heading font-bold text-on-surface">{plan.label}</div>
-                        <div className="text-body text-on-surface-variant">
-                          {t("creditsPerMonth", { credits: format.number(plan.monthlyCredits) })} ·{" "}
-                          {plan.priceVnd === 0 ? t("free") : t("pricePerMonth", { price: formatVnd(plan.priceVnd, locale) })}
+                    <div key={plan.id} className={`rounded-card p-5 flex flex-col gap-4 ${isCurrent ? "bg-primary-soft" : "bg-surface-container-low"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-subtitle font-bold text-on-surface">{plan.label}</span>
+                          <span className="text-heading font-semibold text-on-surface-variant tabular-nums">
+                            {t("pricePerMonth", { price: formatVnd(plan.priceVnd, locale) })}
+                          </span>
                         </div>
+                        {isCurrent && (
+                          <Badge tone="primary" size="md">
+                            {t("current")}
+                          </Badge>
+                        )}
+                      </div>
+                      <ul className="flex flex-col gap-1.5">
+                        <PlanFeature>{t("creditsPerMonth", { credits: format.number(plan.monthlyCredits) })}</PlanFeature>
                         {plan.maxMembers != null && plan.maxProjects != null && (
-                          <div className="text-caption text-on-surface-muted mt-0.5">
+                          <PlanFeature>
                             {formatPlanLimits({
                               maxMembers: plan.maxMembers,
                               maxProjects: plan.maxProjects,
                               maxReferenceTokens: plan.maxReferenceTokens,
                             })}
-                          </div>
+                          </PlanFeature>
                         )}
-                      </div>
-                      {isCurrent ? (
-                        <Badge tone="primary" size="md">
-                          {t("current")}
-                        </Badge>
-                      ) : isLower ? (
+                      </ul>
+                      {isCurrent ? null : isLower ? (
                         balance?.subscription && (
-                          <span className="max-w-[12rem] text-right text-body text-on-surface-muted">
-                            {t("autoRevert", {
-                              plan: plan.label,
-                              date: format.dateTime(new Date(balance.subscription.currentPeriodEnd), {
-                                day: "numeric",
-                                month: "numeric",
-                                year: "numeric",
-                              }),
-                            })}
-                          </span>
+                          <p className="mt-auto text-body text-on-surface-muted">
+                            {t("autoRevert", { plan: plan.label, date: shortDate(balance.subscription.currentPeriodEnd) })}
+                          </p>
                         )
                       ) : canPurchase ? (
                         <Button
                           variant="secondary"
                           size="md"
+                          fullWidth
+                          className="mt-auto"
                           loading={busy === `plan:${plan.id}`}
                           disabled={busy !== null}
                           onClick={() => handleUpgrade(plan)}
@@ -474,25 +504,23 @@ export default function BillingPage() {
                 })}
               </div>
             </section>
-            </>
+          </>
         )}
 
         {/* Ledger — UC-59 thanh toán (cả đang chờ / lỗi) + UC-60 chi tiết từng lượt gọi AI. Tải song song với ví, theo số trang. */}
         {!billingBlocked && (
           <section aria-label={t("history")} className="flex flex-col gap-3">
-          {/* Tiêu đề + bộ lọc dính ở đầu vùng cuộn khi lướt lịch sử dài */}
-          <div className={`sticky top-0 z-30 -mt-3 py-3 bg-surface-container-lowest flex flex-wrap items-center justify-between gap-2 ${STICKY_BLEED} ${STICKY_FADE}`}>
-            <h2 className="text-heading font-bold text-on-surface">{t("history")}</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterSelect label={t("filter.kind")} value={effectiveFilters.kind} options={kindOptions} onChange={(kind) => changeFilter({ kind })} />
-              {projectChoices.length > 0 && (
-                <FilterSelect label={t("filter.project")} value={effectiveFilters.projectId} options={projectOptions} onChange={(projectId) => changeFilter({ projectId })} />
-              )}
-              {memberChoices.length > 0 && (
-                <FilterSelect label={t("filter.member")} value={effectiveFilters.memberId} options={memberOptions} onChange={(memberId) => changeFilter({ memberId })} />
-              )}
-            </div>
-          </div>
+          <LedgerToolbar
+            kind={effectiveFilters.kind}
+            kindOptions={kindOptions}
+            onKindChange={(kind) => changeFilter({ kind })}
+            projectId={effectiveFilters.projectId}
+            projectOptions={projectOptions}
+            onProjectChange={(projectId) => changeFilter({ projectId })}
+            memberId={effectiveFilters.memberId}
+            memberOptions={memberOptions}
+            onMemberChange={(memberId) => changeFilter({ memberId })}
+          />
 
           {ledgerError && (
             <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
@@ -504,26 +532,15 @@ export default function BillingPage() {
             list={ledger}
             getKey={(tx) => tx._id}
             loadingLabel={t("loadingHistory")}
-            skeletonRows={5}
-            rowClassName={`flex flex-wrap items-baseline gap-x-3 gap-y-1 text-body ${LEDGER_GRID}`}
+            skeletonRows={LEDGER_SKELETON_ROWS}
+            rowClassName={LEDGER_ROW_CLASS}
+            renderSkeletonRow={LedgerRowSkeleton}
             empty={
               !ledger.error && (
                 <EmptyState icon="wallet" title={filtered ? t("noTxFiltered") : t("noTx")} className="rounded-card bg-surface-container-low" />
               )
             }
-            // Tiêu đề cột chỉ có khi các ô thẳng cột (từ `xl`)
-            header={
-              <div aria-hidden className={`hidden ${LEDGER_GRID} px-3 pt-1.5 pb-2 text-caption uppercase tracking-[0.04em] font-bold text-on-surface-muted`}>
-                <span>{t("col.time")}</span>
-                <span>{t("col.type")}</span>
-                <span>{t("col.action")}</span>
-                <span>{t("col.project")}</span>
-                <span>{t("col.member")}</span>
-                <span className="text-right">{t("col.tokens")}</span>
-                <span className="text-right">{t("col.credit")}</span>
-                <span className="text-right">{t("col.availableAfter")}</span>
-              </div>
-            }
+            header={<LedgerColumnHeader />}
             renderItem={(tx) => {
               const isPayment = tx.type === "payment" || tx.type === "purchase";
               return (
@@ -581,7 +598,7 @@ export default function BillingPage() {
           />
           </section>
         )}
-      </div>
+      </BillingShell>
     </>
   );
 }

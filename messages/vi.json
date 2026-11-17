@@ -485,7 +485,7 @@
       "vietqrNote": "Thanh toán bằng chuyển khoản ngân hàng qua mã VietQR. Credit được cộng tự động khi giao dịch được xác nhận.",
       "plans": "Gói sử dụng",
       "creditsPerMonth": "{credits} credit / tháng",
-      "free": "Miễn phí",
+      "comparePlans": "So sánh các gói",
       "pricePerMonth": "{price} / tháng",
       "current": "Đang dùng",
       "switching": "Đang đổi…",
@@ -560,6 +560,8 @@
       "topupRequestFailed": "Chưa báo được Lead. Vui lòng thử lại.",
       "leadOnlyPurchase": "Chỉ Lead của tổ chức mới nạp credit hoặc đổi gói. Khi tổ chức cần thêm credit, hãy báo Lead.",
       "packageLabel": "Gói {credits} credit",
+      "bestValue": "Tiết kiệm nhất",
+      "perCredit": "≈ {price} / credit",
       "creditUnit": {
         "one": "credit",
         "other": "credit"
@@ -1231,6 +1233,7 @@
         "cancel": "Huỷ",
         "leadOnly": "Chỉ Lead mới mời, đổi vai trò hoặc xoá thành viên.",
         "loadError": "Không tải được danh sách thành viên.",
+        "loading": "Đang tải danh sách thành viên",
         "invite": {
           "title": "Mời thành viên",
           "roleLabel": "Vai trò",
