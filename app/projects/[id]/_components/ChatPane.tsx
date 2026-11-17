@@ -18,6 +18,7 @@ import ChatInput from "./ChatInput";
 import QuestionStepperInput, { formatAnswers } from "./QuestionStepperInput";
 import { parseChatQuestion } from "@/lib/question-options";
 import type { Locale } from "@/lib/i18n";
+import { answeredQuestionMessages } from "./answered-questions";
 
 interface ChatPaneProps {
   width?: number;
@@ -218,6 +219,8 @@ export default function ChatPane({
   }, [messages, streamingMessage, children, footerHeight]);
 
   const dividers = useMemo(() => stepDividers(messages), [messages]);
+  // P05: tin hỏi đã có câu trả lời ngay sau ⇒ thu gọn trong lịch sử
+  const answered = useMemo(() => answeredQuestionMessages(messages), [messages]);
   const last = messages[messages.length - 1];
   const questionKey =
     last?.role === "ai" ? `${messages.length}:${last.content}` : null;
@@ -312,6 +315,7 @@ export default function ChatPane({
                   messageIndex={idx}
                   onRequestRollback={onRequestRollback}
                   disabled={sending}
+                  answered={answered.get(idx)}
                 />
               </div>
             ))}
