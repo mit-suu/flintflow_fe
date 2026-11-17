@@ -507,7 +507,7 @@ interface SectionBlockProps {
   raw?: boolean;
 }
 
-/** Một mục như trên trang giấy: tiêu đề + hai dòng chữ giả (mục còn trống thì không có chữ) + nhãn trạng thái. */
+/** Một mục như trên trang giấy: tiêu đề + trích đoạn chữ của file (chưa có ⇒ hai dòng chữ giả; mục còn trống thì không có chữ) + nhãn trạng thái. */
 function SectionBlock({ section, look, statusLabel, hollow = false, raw = false }: SectionBlockProps) {
   const locale = useLocale() as Locale;
   const lines = linesOf(section.section_id);
@@ -526,7 +526,12 @@ function SectionBlock({ section, look, statusLabel, hollow = false, raw = false 
         <span className={`text-body font-semibold truncate ${raw || section.status === "present" ? "text-on-surface" : "text-on-surface-muted"}`} title={title}>
           {title}
         </span>
-        {hasBody && (
+        {/* P09 (#15): BE gửi trích đoạn ⇒ cho xem chữ FlintFlow đọc được ở mục; import cũ không có ⇒ dòng chữ giả như trước */}
+        {hasBody && section.excerpt ? (
+          <span className="text-caption text-on-surface-muted line-clamp-2 break-words" title={section.excerpt}>
+            {section.excerpt}
+          </span>
+        ) : hasBody && (
           <span aria-hidden className="flex flex-col gap-1">
             {lines.map((w, i) => (
               <span key={i} className="h-1.5 rounded-full bg-on-surface/[0.07]" style={{ width: `${w}%` }} />
