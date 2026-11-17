@@ -1,4 +1,4 @@
-import { clearAuthToken } from "../auth";
+import { clearAuthToken, logoutAndRedirect } from "../auth";
 import { ACCOUNT_SUSPENDED, endSuspendedSession } from "../account-suspended";
 import { isLostOrgError, recoverFromLostOrgAccess } from "../org-access-lost";
 import { localizeApiError } from "./error-messages";
@@ -6,6 +6,19 @@ import { MODE_SWITCH_ERROR_CODES, signalProjectModeMaybeChanged } from "../proje
 import { decodeJwt, getAccessToken, getActiveOrgId, saveAuthToken } from "./token-store";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+
+const PUBLIC_AUTH_PATHS = [
+  "/login",
+  "/register",
+  "/verify-email",
+  "/forgot-password",
+  "/reset-password",
+];
+
+const isPublicAuthPath = (pathname: string): boolean =>
+  PUBLIC_AUTH_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+let loggingOut = false;
 
 export interface ApiResponse<T = unknown> {
   data: T | null;
@@ -182,6 +195,12 @@ const requestRefresh = async (tokenAtStart: string | null, force = false): Promi
   }
 };
 
+/**
+ * `force` bỏ qua cache 2 giây và bước nhận token tab khác lúc bắt đầu: token còn hạn vẫn có thể đã bị thu hồi
+ * (`SESSION_REVOKED`, FLF-427) hoặc mang org đã mất quyền (FLF-422). Nhánh `/auth/refresh` trả 401/403 trong
+ * `requestRefresh` vẫn LUÔN nhận token tab khác vừa xoay vòng — bỏ bước đó thì sẽ gọi /auth/logout bằng cookie
+ * mới và đăng xuất mọi tab.
+ */
 export const refreshSession = async (options?: { force?: boolean }): Promise<RefreshOutcome> => {
   const force = Boolean(options?.force);
 
@@ -208,7 +227,8 @@ export const refreshSession = async (options?: { force?: boolean }): Promise<Ref
   return refreshPromise;
 };
 
-export const refreshAccessToken = async (): Promise<boolean> => (await refreshSession()) === "ok";
+export const refreshAccessToken = async (options?: { force?: boolean }): Promise<boolean> =>
+  (await refreshSession(options)) === "ok";
 
 /** Ngưỡng refresh chủ động mặc định cho một request ngắn. */
 export const DEFAULT_MIN_TOKEN_TTL_MS = 15_000;
@@ -295,9 +315,17 @@ export const authFetch = async (
       return authFetch(endpoint, options, false);
     }
 
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
+    const outcome = await refreshSession({ force: true });
+    if (outcome === "ok") {
       return authFetch(endpoint, options, false);
+    }
+
+    if (outcome === "rejected" && typeof window !== "undefined") {
+      const pathname = window.location.pathname;
+      if (!isPublicAuthPath(pathname) && !loggingOut) {
+        loggingOut = true;
+        void logoutAndRedirect("/login");
+      }
     }
   }
 

@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { continueImportFlow2, getImport, pauseImport, resumeImport, setDropText, startExtraction, uploadImport } from "@/lib/api/import";
+import {
+  continueImportFlow2,
+  getImport,
+  importFromGoogleDocs,
+  pauseImport,
+  resumeImport,
+  setDropText,
+  startExtraction,
+  uploadImport,
+} from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
 import type { GetImportResponse, ImportStatus } from "@/types/import";
@@ -127,6 +136,12 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
       run("upload", async () => {
         setStarted(false);
         return uploadImport(projectId, file);
+      }),
+    /** Chọn file trên Google Drive (Google Picker) thay cho tải file từ máy — cùng luồng, cùng trạng thái bận / lỗi. */
+    uploadFromGoogle: (fileId: string) =>
+      run("upload", async () => {
+        setStarted(false);
+        return importFromGoogleDocs(projectId, fileId);
       }),
     /** FLF-278: dùng mẫu đã lưu của tổ chức thay cho tải file — mapping áp sẵn. */
     pickOrgTemplate: (orgTemplateId: string) =>

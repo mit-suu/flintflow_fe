@@ -216,3 +216,67 @@ describe("LoginPage - tài khoản bị khoá hiện lý do (UC-03, FLF-345)", (
     expect(sessionStorage.getItem("flintflow:account-suspended")).toBeNull();
   });
 });
+
+describe("LoginPage - điều hướng sau xác thực (resolvePostAuthDestination)", () => {
+  beforeEach(() => {
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
+    vi.mocked(saveAuthToken).mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "", pathname: "/login" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("admin ⇒ về /admin/metrics", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(200, {
+        data: {
+          accessToken: "at-admin",
+          user: { role: "admin" },
+        },
+      })
+    );
+    await renderPage();
+    submit("admin@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/admin/metrics"));
+  });
+
+  it("tài khoản chưa onboarding (needsOnboarding: true) ⇒ về /home/onboarding", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(200, {
+        data: {
+          accessToken: "at-user",
+          user: { role: "user" },
+          needsOnboarding: true,
+          organizations: [],
+        },
+      })
+    );
+    await renderPage();
+    submit("user@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/home/onboarding"));
+  });
+
+  it("tài khoản có nhiều tổ chức và chưa có tổ chức mặc định ⇒ về /home/organizations", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(200, {
+        data: {
+          accessToken: "at-user",
+          user: { role: "user" },
+          needsOnboarding: false,
+          activeOrgId: null,
+          organizations: [{ id: "o1" }, { id: "o2" }],
+        },
+      })
+    );
+    await renderPage();
+    submit("user@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/home/organizations"));
+  });
+});

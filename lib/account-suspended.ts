@@ -20,7 +20,7 @@ const text = (value: unknown): string | null => (typeof value === "string" && va
 
 export const suspensionFromMeta = (meta: Record<string, unknown> | null | undefined): SuspensionNotice => ({
   reason: text(meta?.reason),
-  suspendedAt: text(meta?.suspended_at),
+  suspendedAt: text(meta?.suspended_at) ?? text(meta?.suspendedAt),
 });
 
 export const rememberSuspension = (notice: SuspensionNotice): void => {

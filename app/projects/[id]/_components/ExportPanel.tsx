@@ -13,6 +13,8 @@ import { versionFileName } from "@/types/doc-version";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { hookErrorText } from "@/lib/hook-errors";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
+import GoogleDocsExportSection from "./GoogleDocsExportSection";
 import { openMigrationMissing } from "./template-migration/missing-flags";
 
 interface ExportPanelProps {
@@ -55,9 +57,13 @@ const triggerDownload = (blob: Blob, fileName: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
-const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string; extension: string }> = [
+/** Word / PDF tải file về máy; Google Docs upload lên Drive của user (cần client id Google ở FE). */
+type PanelFormat = ExportFormat | "google-docs";
+
+const FORMAT_OPTIONS: ReadonlyArray<{ value: PanelFormat; label: string; extension: string }> = [
   { value: "word", label: "Word", extension: ".docx" },
   { value: "pdf", label: "PDF", extension: ".pdf" },
+  ...(isGoogleAuthEnabled ? [{ value: "google-docs" as const, label: "Google Docs", extension: "" }] : []),
 ];
 
 /**
@@ -82,7 +88,7 @@ export default function ExportPanel({
   const [source, setSource] = useState<DocumentSource>("draft");
   /** Người dùng đã tự chọn nguồn ⇒ không đổi mặc định khi danh sách baseline về muộn. */
   const sourceTouched = useRef(false);
-  const [format, setFormat] = useState<ExportFormat>("word");
+  const [format, setFormat] = useState<PanelFormat>("word");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
   const hasBaseline = baselines.length > 0;
@@ -121,9 +127,12 @@ export default function ExportPanel({
     resetDownloadError();
   };
 
-  const selectFormat = (next: ExportFormat) => {
+  const selectFormat = (next: PanelFormat) => {
     setFormat(next);
     resetDownloadError();
+    // Câu hỏi / lượt chờ mockup thuộc lần tải của định dạng cũ — để lại thì tự tải nhầm định dạng khi vẽ xong
+    setMockupAsk(false);
+    setWaitingMockups(false);
   };
 
   const selectLanguage = (next: DocumentLanguage) => {
@@ -384,54 +393,67 @@ export default function ExportPanel({
           </div>
         )}
 
-        {(mockupAsk || waitingMockups) && mockupPending > 0 && source === "draft" && (
-          <div role="alert" className="flex flex-col gap-2 rounded-[10px] bg-[#FFF6E5] px-3 py-2.5 text-body text-[#7A4B00]">
-            <span>{waitingMockups ? t("mockupWaiting", { count: mockupPending }) : t("mockupPending", { count: mockupPending })}</span>
-            {!waitingMockups && (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMockupAsk(false);
-                    void handleDownload();
-                  }}
-                  className="font-bold hover:underline cursor-pointer"
-                >
-                  {t("mockupExportNow")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMockupAsk(false);
-                    setWaitingMockups(true);
-                  }}
-                  className="font-bold hover:underline cursor-pointer"
-                >
-                  {t("mockupWait")}
-                </button>
+        {format === "google-docs" ? (
+          <GoogleDocsExportSection
+            projectId={projectId}
+            source={source}
+            baselineId={baselineId}
+            lang={requestedLanguage}
+            fileLanguage={requestedLanguage ?? language ?? undefined}
+            disabled={empty || loading}
+          />
+        ) : (
+          <>
+            {(mockupAsk || waitingMockups) && mockupPending > 0 && source === "draft" && (
+              <div role="alert" className="flex flex-col gap-2 rounded-[10px] bg-[#FFF6E5] px-3 py-2.5 text-body text-[#7A4B00]">
+                <span>{waitingMockups ? t("mockupWaiting", { count: mockupPending }) : t("mockupPending", { count: mockupPending })}</span>
+                {!waitingMockups && (
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMockupAsk(false);
+                        void handleDownload();
+                      }}
+                      className="font-bold hover:underline cursor-pointer"
+                    >
+                      {t("mockupExportNow")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMockupAsk(false);
+                        setWaitingMockups(true);
+                      }}
+                      className="font-bold hover:underline cursor-pointer"
+                    >
+                      {t("mockupWait")}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
+
+            {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
+
+            <button
+              type="button"
+              disabled={downloading || empty || loading}
+              onClick={() => (mockupPending > 0 && source === "draft" ? setMockupAsk(true) : void handleDownload())}
+              className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+            >
+              {downloading
+                ? format === "pdf"
+                  ? t("creatingPdf")
+                  : t("downloading")
+                : source === "draft"
+                  ? t("downloadDraft", { extension })
+                  : baselineVersion
+                    ? t("downloadBaselineVersion", { extension, version: baselineVersion })
+                    : t("downloadBaseline", { extension })}
+            </button>
+          </>
         )}
-
-        {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
-
-        <button
-          type="button"
-          disabled={downloading || empty || loading}
-          onClick={() => (mockupPending > 0 && source === "draft" ? setMockupAsk(true) : void handleDownload())}
-          className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-        >
-          {downloading
-            ? format === "pdf"
-              ? t("creatingPdf")
-              : t("downloading")
-            : source === "draft"
-              ? t("downloadDraft", { extension })
-              : baselineVersion
-                ? t("downloadBaselineVersion", { extension, version: baselineVersion })
-                : t("downloadBaseline", { extension })}
-        </button>
       </div>
     </div>
   );

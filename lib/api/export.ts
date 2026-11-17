@@ -104,6 +104,9 @@ export type PdfExportResult = WordExportResult;
 /** Định dạng file xuất: `word` (#18) hoặc `pdf` (#34, chính file Word chuyển sang PDF ở BE). */
 export type ExportFormat = "word" | "pdf";
 
+const exportQuery = (source: DocumentSource, baselineId?: string, lang?: DocumentLanguage) =>
+  `source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}${lang ? `&lang=${lang}` : ""}`;
+
 const downloadExport = async (
   format: ExportFormat,
   projectId: string,
@@ -111,8 +114,7 @@ const downloadExport = async (
   baselineId?: string,
   lang?: DocumentLanguage
 ): Promise<WordExportResult> => {
-  const query = `source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}${lang ? `&lang=${lang}` : ""}`;
-  const res = await authFetch(`/projects/${projectId}/export/${format}?${query}`);
+  const res = await authFetch(`/projects/${projectId}/export/${format}?${exportQuery(source, baselineId, lang)}`);
   if (!res.ok) {
     throw await readErrorAsApiClientError(res, `HTTP ${res.status}`);
   }
@@ -141,6 +143,35 @@ export const downloadPdfExport = (
   baselineId?: string,
   lang?: DocumentLanguage
 ): Promise<PdfExportResult> => downloadExport("pdf", projectId, source, baselineId, lang);
+
+export type GoogleDocsExportMode = "new" | "update";
+
+export interface GoogleDocsExportResult {
+  fileId: string;
+  webViewLink: string;
+  title: string;
+  /** Việc BE đã làm thật: `update` chỉ khi ghi đè được file cũ. */
+  mode: GoogleDocsExportMode;
+  /** File cũ đã bị xoá / vào thùng rác ⇒ BE tạo file mới. */
+  recreated: boolean;
+}
+
+/**
+ * Xuất sang Google Docs (contract #44) — cùng query, quyền và lỗi với `downloadWordExport`, thêm lỗi Google
+ * (`GOOGLE_RECONNECT_REQUIRED`, `GOOGLE_DRIVE_QUOTA_EXCEEDED`…). `update` ghi đè Google Doc đã xuất gần nhất cùng
+ * nguồn + ngôn ngữ; chưa có thì BE tạo mới.
+ */
+export const exportToGoogleDocs = async (
+  projectId: string,
+  query: { source: DocumentSource; baselineId?: string; lang?: DocumentLanguage },
+  mode: GoogleDocsExportMode
+): Promise<GoogleDocsExportResult> => {
+  const res = await apiCall<GoogleDocsExportResult>(
+    `/projects/${projectId}/export/google-docs?${exportQuery(query.source, query.baselineId, query.lang)}`,
+    { method: "POST", body: JSON.stringify({ mode }) }
+  );
+  return res.data as GoogleDocsExportResult;
+};
 
 export const listBaselines = (projectId: string) =>
   apiCall<Baseline[]>(`/projects/${projectId}/baselines`);
