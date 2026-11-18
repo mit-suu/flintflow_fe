@@ -25,6 +25,10 @@ describe("trang pháp lý /privacy và /terms", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Điều khoản sử dụng" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Chính sách quyền riêng tư" })).toHaveAttribute("href", "/privacy");
     expect(screen.getByRole("link", { name: "Về trang chủ" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "trantuanhiep28122003@gmail.com" })).toHaveAttribute(
+      "href",
+      "mailto:trantuanhiep28122003@gmail.com"
+    );
   });
 
   it("tiếng Anh: không sót chữ tiếng Việt", () => {
