@@ -2160,7 +2160,7 @@
       "translateAskEditor": "Ask a Lead or Analyst on this project to translate the rest, then download again.",
       "googleDocs": {
         "officialNote": "The Word file is the official copy. Google Docs is for viewing and collaborating; formatting may differ slightly.",
-        "lastExport": "Exported {time}: {title}",
+        "lastExport": "Exported {time}",
         "open": "Open",
         "modeLabel": "Export mode",
         "modeUpdate": "Update this file",

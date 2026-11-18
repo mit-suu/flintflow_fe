@@ -132,7 +132,7 @@ import CommentsPanel from "./_components/CommentsPanel";
 import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comment";
 import { useTurnNotice } from "./hooks/useTurnNotice";
 import DocsAssistantPanel from "./_components/google-docs/DocsAssistantPanel";
-import { isGoogleAuthEnabled } from "@/lib/google-auth";
+import { isDocsAssistantEnabled } from "@/lib/google-auth";
 
 /** Bề rộng cửa sổ — để biết có đủ chỗ cho rail tiến độ + chat + tài liệu + panel phải cùng lúc không. */
 const subscribeViewport = (onChange: () => void) => {
@@ -2004,9 +2004,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           currentStep={mode1 || !currentStep ? null : stepLabel(currentStep, locale)}
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
-          // Trợ lý Google Docs: cần client id Google ở FE; Viewer không dùng (BE cũng chặn bằng vai trò)
+          // Trợ lý Google Docs: tắt mặc định (`isDocsAssistantEnabled`); Viewer không dùng (BE cũng chặn bằng vai trò)
           onDocsAssistantClick={
-            isGoogleAuthEnabled && (ws.orgRole === "lead" || ws.orgRole === "analyst") ? () => setDocsAssistantOpen((v) => !v) : undefined
+            isDocsAssistantEnabled && (ws.orgRole === "lead" || ws.orgRole === "analyst") ? () => setDocsAssistantOpen((v) => !v) : undefined
           }
           docsAssistantActive={docsAssistantOpen}
           // Mode 1: gap report, change request, so sánh version mở dạng popup ngay trên màn tài liệu
@@ -2786,7 +2786,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         />
       )}
 
-      {docsAssistantOpen && isGoogleAuthEnabled && <DocsAssistantPanel projectId={projectId} onClose={() => setDocsAssistantOpen(false)} />}
+      {docsAssistantOpen && isDocsAssistantEnabled && <DocsAssistantPanel projectId={projectId} onClose={() => setDocsAssistantOpen(false)} />}
 
       {exportOpen && (
         <ExportPanel

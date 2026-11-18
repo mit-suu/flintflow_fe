@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
+import Icon from "@/components/ui/Icon";
 import { ApiClientError } from "@/lib/api/client";
 import { exportToGoogleDocs, type GoogleDocsExportMode, type GoogleDocsExportResult } from "@/lib/api/export";
 import { getGoogleDocLinks, type GoogleDocLink } from "@/lib/api/google";
@@ -41,6 +42,7 @@ export default function GoogleDocsExportSection({
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GoogleDocsExportResult | null>(null);
+  const modeLabelId = useId();
 
   useEffect(() => {
     let cancelled = false;
@@ -93,52 +95,76 @@ export default function GoogleDocsExportSection({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-caption text-[#6B6862]">{t("officialNote")}</p>
-
       {previous && (
-        <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3.5 flex flex-col gap-2 text-body text-[#4B4842]">
-          <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate">
-              {t("lastExport", {
-                time: format.dateTime(new Date(previous.exportedAt), { dateStyle: "short", timeStyle: "short" }),
-                title: previous.title,
-              })}
-            </span>
+        <>
+          {/* File đã xuất lần trước: phẳng, tên file xuống dòng thay vì bị cắt */}
+          <div className="bg-[#FAF9F7] rounded-[12px] p-3.5 flex items-start justify-between gap-3 text-body text-[#4B4842]">
+            <div className="min-w-0 flex flex-col gap-0.5">
+              <span className="text-caption text-[#6B6862]">
+                {t("lastExport", {
+                  time: format.dateTime(new Date(previous.exportedAt), { dateStyle: "short", timeStyle: "short" }),
+                })}
+              </span>
+              <span className="font-bold text-[#191817] break-words">{previous.title}</span>
+            </div>
             <a
               href={previous.webViewLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 font-bold text-[#191817] hover:underline"
+              className="shrink-0 inline-flex items-center gap-1 font-bold text-[#191817] hover:underline"
             >
-              {t("open")} ↗
+              {t("open")}
+              <Icon name="export" size={13} />
             </a>
           </div>
-          <div role="radiogroup" aria-label={t("modeLabel")} className="flex flex-col gap-1.5">
-            {(["update", "new"] as const).map((option) => (
-              <label key={option} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="google-docs-mode"
-                  checked={mode === option}
-                  onChange={() => setMode(option)}
-                />
-                {t(option === "update" ? "modeUpdate" : "modeNew")}
-              </label>
-            ))}
+
+          <div className="flex items-center justify-between gap-3">
+            <span id={modeLabelId} className="text-body text-[#4B4842]">
+              {t("modeLabel")}
+            </span>
+            <div role="radiogroup" aria-labelledby={modeLabelId} className="flex gap-1 p-1 rounded-full bg-[#F0EEEA]">
+              {(["update", "new"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === option}
+                  onClick={() => setMode(option)}
+                  className={`px-3 py-1 rounded-full text-body font-bold whitespace-nowrap cursor-pointer ${
+                    mode === option ? "bg-white text-[#191817] shadow-sm" : "text-[#6B6862]"
+                  }`}
+                >
+                  {t(option === "update" ? "modeUpdate" : "modeNew")}
+                </button>
+              ))}
+            </div>
           </div>
-          {mode === "update" && <div className="text-caption text-[#8A5A00]">⚠ {t("overwriteWarning")}</div>}
-        </div>
+
+          {mode === "update" && (
+            <div className="bg-accent-gold-soft rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex items-start gap-2">
+              <Icon name="warning" size={14} className="mt-0.5 shrink-0" />
+              <span>{t("overwriteWarning")}</span>
+            </div>
+          )}
+        </>
       )}
 
       {result && (
-        <div role="status" className="p-3 rounded-[12px] bg-[#EAF6EE] text-body text-[#1F7A45] flex items-center justify-between gap-2">
-          <span className="min-w-0">
-            ✓ {t(result.mode === "update" ? "updated" : "created", { title: result.title })}
-            {result.recreated && <span className="block text-caption">{t("recreated")}</span>}
-          </span>
-          <a href={result.webViewLink} target="_blank" rel="noopener noreferrer" className="shrink-0 font-bold hover:underline">
-            {t("openGoogleDocs")} ↗
-          </a>
+        <div role="status" className="p-3 rounded-[12px] bg-[#EAF6EE] text-body text-[#1F7A45] flex items-start gap-2">
+          <Icon name="check-circle" size={14} className="mt-0.5 shrink-0" />
+          <div className="min-w-0 flex flex-col items-start gap-1">
+            <span className="break-words">{t(result.mode === "update" ? "updated" : "created", { title: result.title })}</span>
+            {result.recreated && <span className="text-caption">{t("recreated")}</span>}
+            <a
+              href={result.webViewLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-bold hover:underline"
+            >
+              {t("openGoogleDocs")}
+              <Icon name="export" size={13} />
+            </a>
+          </div>
         </div>
       )}
 
@@ -152,6 +178,8 @@ export default function GoogleDocsExportSection({
       >
         {working ? t("exporting") : needsConnect ? t("connectAndExport") : t("export")}
       </button>
+
+      <p className="text-caption text-[#8A867E] leading-relaxed">{t("officialNote")}</p>
     </div>
   );
 }
