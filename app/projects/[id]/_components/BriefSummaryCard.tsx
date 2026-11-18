@@ -3,10 +3,17 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Spine } from "@/types/spine";
+import type { RequirementSourceRef } from "@/types/sources";
 import { briefVisionGoals, formFactorLabel, groupByTarget, isBriefCoreTopic, sectionLabel, stakesLabel } from "./brief-labels";
+import SourceChip from "./SourceChip";
 
 interface BriefSummaryCardProps {
   spine: Pick<Spine, "project" | "addendum" | "assumptions" | "other_requirements">;
+  /**
+   * FLF-443: nguồn tài liệu theo đường dẫn phần tử. Tầm nhìn / mục tiêu / ghi chú Brief không có chỗ riêng trong tài liệu
+   * nên chip nguồn của chúng nằm ở đây (Hồ sơ). Không truyền ⇒ không có chip.
+   */
+  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
 }
 
 export { groupByTarget } from "./brief-labels";
@@ -21,7 +28,7 @@ export { groupByTarget } from "./brief-labels";
 /** Số mục tiêu hiện khi thu gọn — còn lại mở bằng "Xem đầy đủ". */
 const GOALS_PREVIEW = 3;
 
-export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
+export default function BriefSummaryCard({ spine, sources }: BriefSummaryCardProps) {
   const t = useTranslations("workspace.brief.summary");
   const tLabel = useTranslations("workspace.briefLabels");
   const groups = useMemo(() => groupByTarget(spine.addendum.filter((entry) => !isBriefCoreTopic(entry.topic))), [spine.addendum]);
@@ -29,6 +36,12 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
   const { project } = spine;
   const { vision, goals: allGoals } = useMemo(() => briefVisionGoals(spine), [spine]);
   const goals = full ? allGoals : allGoals.slice(0, GOALS_PREVIEW);
+  /** Chip của đường dẫn đầu tiên có nguồn (tầm nhìn có thể nằm ở `project.vision` hoặc ở ghi chú lõi của Brief). */
+  const sourceChip = (...paths: string[]) => {
+    const refs = paths.map((path) => sources?.get(path)).find((r) => r && r.length > 0);
+    return refs ? <SourceChip refs={refs} /> : null;
+  };
+  const visionEntry = spine.addendum.find((entry) => isBriefCoreTopic(entry.topic) && entry.content.trim() === vision);
 
   const chip = (text: string) => (
     // Chữ sẫm trên nền xám đậm hơn card một nấc: xám-nhạt-trên-xám-nhạt đọc ra một cục, không ra chữ
@@ -50,18 +63,27 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
       <section className="flex flex-col gap-0.5">
         {label(t("vision"))}
         {vision ? (
-          <p className={`text-body leading-relaxed ${full ? "" : "line-clamp-3"}`}>{vision}</p>
+          <p className={`text-body leading-relaxed ${full ? "" : "line-clamp-3"}`}>
+            {vision}
+            {sourceChip("project.vision", ...(visionEntry ? [`addendum[id=${visionEntry.id}]`] : []))}
+          </p>
         ) : (
           missing(t("missingVision"))
         )}
       </section>
 
       <section className="flex flex-col gap-0.5">
-        {label(t("goalsCount", { count: allGoals.length }))}
+        <div className="flex items-baseline">
+          {label(t("goalsCount", { count: allGoals.length }))}
+          {sourceChip("project.goals")}
+        </div>
         {allGoals.length > 0 ? (
           <ul className="list-disc pl-4 text-body leading-relaxed space-y-0.5">
             {goals.map((goal) => (
-              <li key={goal.id}>{goal.text}</li>
+              <li key={goal.id}>
+                {goal.text}
+                {sourceChip(`addendum[id=${goal.id}]`)}
+              </li>
             ))}
           </ul>
         ) : (
@@ -79,6 +101,7 @@ export default function BriefSummaryCard({ spine }: BriefSummaryCardProps) {
                 {entries.map((entry) => (
                   <li key={entry.id}>
                     {entry.content}
+                    {sourceChip(`addendum[id=${entry.id}]`)}
                   </li>
                 ))}
               </ul>

@@ -3,6 +3,8 @@
 import { useLocale, useTranslations } from "next-intl";
 import { workspaceStepLabel } from "./phase-labels";
 import type { Spine } from "@/types/spine";
+import type { RequirementSourceRef } from "@/types/sources";
+import SourceChip from "./SourceChip";
 
 /**
  * Tab "Đã chốt" — sổ quyết định (`02-reduce-stops-plan.md` R4).
@@ -17,6 +19,8 @@ interface DecisionsPanelProps {
   /** Điền sẵn lệnh sửa quyết định vào ô chat (bật Sửa tài liệu); bỏ trống (Viewer) ⇒ không có nút. */
   onEditByChat?: (prefill: string) => void;
   busy?: boolean;
+  /** FLF-443: nguồn theo đường dẫn phần tử - quyết định chốt bằng tài liệu tham khảo không render ra tài liệu nên chip ở đây. */
+  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
 }
 
 /** Chủ đề chuẩn có nhãn (`messages → workspace.decisions.topic`); chủ đề tự do hiện nguyên khoá. */
@@ -50,7 +54,7 @@ const isTopicKey = (key: string): key is DecisionTopicKey => (TOPIC_KEYS as read
 export const topicLabel = (topicKey: string, t: (key: `topic.${DecisionTopicKey}`) => string): string =>
   isTopicKey(topicKey) ? t(`topic.${topicKey}`) : topicKey.replace(/_/g, " ");
 
-export default function DecisionsPanel({ spine, onEditByChat, busy = false }: DecisionsPanelProps) {
+export default function DecisionsPanel({ spine, onEditByChat, busy = false, sources }: DecisionsPanelProps) {
   const t = useTranslations("workspace.decisions");
   const locale = useLocale();
   const stepLabel = (stepId: string) => workspaceStepLabel(stepId, locale);
@@ -71,7 +75,10 @@ export default function DecisionsPanel({ spine, onEditByChat, busy = false }: De
             </span>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-body text-[#4B4842] min-w-0 break-words">{decision.answer}</span>
+            <span className="text-body text-[#4B4842] min-w-0 break-words">
+              {decision.answer}
+              {sources?.get(`decisions[id=${decision.id}]`) && <SourceChip refs={sources.get(`decisions[id=${decision.id}]`) ?? []} />}
+            </span>
             {onEditByChat && (
               <button
                 type="button"
