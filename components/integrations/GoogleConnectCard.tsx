@@ -13,7 +13,7 @@ interface GoogleConnectCardProps {
 }
 
 /**
- * Thẻ "Tích hợp" ở trang hồ sơ: trạng thái kết nối Google Docs, nút Kết nối / Kết nối lại / Ngắt kết nối.
+ * Thẻ "MCP" ở trang hồ sơ: trạng thái kết nối Google Docs, nút Kết nối / Kết nối lại / Ngắt kết nối.
  *
  * Ẩn hẳn khi FE không có `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (không có `GoogleOAuthProvider` ⇒ không được gọi
  * `useGoogleLogin`) hoặc BE chưa bật tích hợp (`GOOGLE_INTEGRATION_DISABLED`).
