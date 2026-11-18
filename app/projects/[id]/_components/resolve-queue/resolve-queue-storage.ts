@@ -1,8 +1,9 @@
 /**
- * Việc không ghi DB: ghi chú "Giữ", màn "Đặc tả chi tiết vòng này" (đã xem) và việc "Để sau" nhớ trong `localStorage`
+ * Việc không ghi DB: ghi chú "Giữ", màn "Đặc tả chi tiết vòng này" (đã xem), việc "Để sau" và nhóm cờ đã tách nhớ trong `localStorage`
  * theo dự án. Storage bị chặn / đầy ⇒ nuốt lỗi, hook vẫn giữ tập trong state nên chỉ mất khi tải lại trang.
  */
-export type QueueMemoryKind = "seen" | "later";
+/** `split` (chế độ 1, FLF-445): nhóm cờ người dùng tách ra, mỗi phần tử là danh sách id cờ (`splitKey`). */
+export type QueueMemoryKind = "seen" | "later" | "split";
 
 const storageKey = (kind: QueueMemoryKind, projectId: string) => `ff:resolve-queue:${kind}:${projectId}`;
 

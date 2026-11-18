@@ -2465,6 +2465,53 @@
         "chatBlocked": "Fixing in chat is not available right now.",
         "partial": "Only {done}/{total} heads-ups were set aside. {message}",
         "pausedByAi": "The AI just started working. The rest can wait until it finishes."
+      },
+      "mode1": {
+        "dock": {
+          "pending": "{count} flags to review"
+        },
+        "kind": {
+          "flag_red": "Red flag",
+          "flag_yellow_group": "Flag group"
+        },
+        "left": "· {count} groups left",
+        "question": "{count, plural, =1 {How should this flag be fixed?} other {How should this group of # flags be fixed?}}",
+        "groupTitle": "{rule} · {section}",
+        "listAria": "Flags in this group",
+        "choice": {
+          "cr": "Let AI propose a fix for the whole group",
+          "keep": "Keep as is, with a reason",
+          "other": "Something else"
+        },
+        "choiceHint": {
+          "cr": "AI drafts one change request for the selected flags; you review and confirm each change",
+          "keep": "Record why each selected flag stays as is, no change request",
+          "other": "Type how you want it fixed; AI drafts the change request from it"
+        },
+        "textPlaceholder": "How do you want these flags fixed?",
+        "footer": "{count, plural, =0 {No flag selected} other {Becomes 1 change request · Source: Gap report}}",
+        "requester": "Requester: {name}",
+        "requesterLabel": "Requester:",
+        "requesterEdit": "Edit",
+        "requesterEmpty": "not set",
+        "requesterMissing": "Enter a requester before creating the change request.",
+        "split": "Split {count} unselected flags into their own group",
+        "splitHint": "Unselect flags to split the group",
+        "tooMany": "A change request takes at most {max} flags. Unselect some and split them into their own group.",
+        "lock": {
+          "package": "The package is waiting for Lead approval, so no new change request can be created. Keep as is still works.",
+          "running": "You still have {crId} in progress. Confirm or cancel it in the chat before creating a new change request. Keep as is still works.",
+          "busy": "A change request in the chat is not finished yet. Finish it before creating a new one. Keep as is still works."
+        },
+        "chatLine": "✓ Group \"{text}\" ({count} flags) → {result}",
+        "result": {
+          "keep": "Kept as is"
+        },
+        "writtenLine": "{crId} is written to the draft{count, plural, =0 {, the group's flags are done} other {, # flags still open}}",
+        "partialLine": "{done}/{total} flags kept as is",
+        "errors": {
+          "partial": "Only {done}/{total} flags kept as is. {message}"
+        }
       }
     },
     "names": {
@@ -3638,7 +3685,9 @@
     "SKELETON_CONFLICT": "Someone else just reviewed the skeleton template. Reload to see it.",
     "SKELETON_NOT_FOUND": "The project has no auto-saved skeleton template.",
     "SKELETON_SUGGEST_FAILED": "Could not suggest generic names. Try again later.",
-    "IMPORT_FILE_REJECTED": "This file could not be read."
+    "IMPORT_FILE_REJECTED": "This file could not be read.",
+    "FLAG_NOT_OPEN": "A flag in this group was just handled. Reload the list and try again.",
+    "CR_TOO_MANY_LOCATIONS": "This flag group touches too many places for one change request. Split it into smaller groups."
   },
   "maintenance": {
     "metaTitle": "Under maintenance · FlintFlow",

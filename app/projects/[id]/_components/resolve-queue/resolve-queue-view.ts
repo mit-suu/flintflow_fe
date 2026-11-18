@@ -5,7 +5,7 @@ import type { Spine } from "@/types/spine";
 import type { Locale } from "@/lib/i18n";
 import { assumptionText } from "../brief-labels";
 import { readableMessage } from "../flag-rules";
-import { CHOICES, type ChoiceDef, type ChoiceTarget } from "./resolve-queue-actions";
+import { CHOICES, choicesFor, type ChoiceDef, type ChoiceTarget } from "./resolve-queue-actions";
 
 /** Translator của namespace `workspace.resolveQueue` dạng lỏng (key động theo loại việc / lựa chọn). */
 export type ResolveQueueT = (key: string, values?: Record<string, string | number>) => string;
@@ -28,6 +28,8 @@ export interface ItemView extends ChoiceTarget {
   /** Nhóm đã bấm "sửa cả nhóm trong chat" mà vẫn còn lưu ý. */
   leftAfterChat: boolean;
   choices: ChoiceDef[];
+  /** Chế độ 1: từng cờ của nhóm (thẻ cho chọn / bỏ chọn từng cờ); chế độ khác ⇒ `[]`. */
+  flagList: { id: string; message: string }[];
 }
 
 export interface ViewContext {
@@ -38,7 +40,34 @@ export interface ViewContext {
   sectionName: (sectionId: string) => string | undefined;
   /** Nhóm cờ vàng đã gửi sang chat sửa trong phiên này. */
   editedGroups: ReadonlySet<string>;
+  /** Chế độ 1 (FLF-445): cờ đỏ / nhóm cờ vàng thành thẻ nhóm cờ, sửa qua change request. */
+  mode1?: boolean;
+  /** Tên luật cờ đọc được (`workspace.flagRules`); không có ⇒ `null`. */
+  ruleTitle?: (ruleId: string) => string | null;
 }
+
+/** Thẻ nhóm cờ ở chế độ 1: tên nhóm (luật + mục), danh sách cờ để chọn, câu từng cờ làm mô tả CR. */
+const mode1FlagView = (base: Omit<ItemView, "subject" | "question" | "quoteLines" | "choices" | "flagList" | "entityId">, group: Flag[], ctx: ViewContext): ItemView => {
+  const { t } = ctx;
+  const flagList = group.map((f) => ({ id: f.id, message: readableMessage(f.message, f.section_id, ctx.sectionName(f.section_id)) }));
+  const rules = new Set(group.map((f) => f.rule_id));
+  const rule = (rules.size === 1 && ctx.ruleTitle?.(group[0].rule_id)) || shortText(flagList[0].message, 60);
+  const title = base.sectionName ? t("mode1.groupTitle", { rule, section: base.sectionName }) : rule;
+  return {
+    ...base,
+    entityId: base.key,
+    kindLabel: t(`mode1.kind.${base.kind}`),
+    title,
+    subject: title,
+    question: t("mode1.question", { count: group.length }),
+    quoteLines: [],
+    flagIds: flagList.map((f) => f.id),
+    flagMessages: Object.fromEntries(flagList.map((f) => [f.id, f.message])),
+    prefill: title,
+    flagList,
+    choices: choicesFor(base.kind, true),
+  };
+};
 
 const MAX_GROUP_LINES = 3;
 
@@ -58,8 +87,14 @@ export function buildItemView(item: PendingItem, ctx: ViewContext): ItemView | n
     detail: null as string | null,
     flagIds: [] as string[],
     prefill: "",
+    flagList: [] as ItemView["flagList"],
   };
   const choices = CHOICES[item.kind];
+
+  if (ctx.mode1 && (item.kind === "flag_red" || item.kind === "flag_yellow_group")) {
+    const group = (item.refs.flag_ids ?? []).map((id) => flags.find((f) => f.id === id)).filter((f): f is Flag => f !== undefined && isOpenFlag(f));
+    return group.length === 0 ? null : mode1FlagView(base, group, ctx);
+  }
 
   switch (item.kind) {
     case "assumption": {
@@ -120,6 +155,53 @@ export function buildItemView(item: PendingItem, ctx: ViewContext): ItemView | n
     }
   }
 }
+
+/** Khoá một nhóm tách: id cờ đã xếp, nối bằng dấu phẩy (id cờ không có dấu phẩy). */
+export const splitKey = (flagIds: readonly string[]): string => [...flagIds].sort().join(",");
+
+/**
+ * Chế độ 1 (FLF-445): nhóm cờ người dùng đã tách (trước khi tạo CR) thành việc riêng, đứng ngay sau phần còn lại của nhóm
+ * gốc. Nhóm tách chỉ giữ cờ còn trong nhóm gốc; tách hết cờ của nhóm thì nhóm gốc không còn mục riêng.
+ */
+export const applySplits = (items: readonly PendingItem[], splits: ReadonlySet<string>): PendingItem[] => {
+  if (splits.size === 0) return [...items];
+  const groups = [...splits].map((key) => key.split(","));
+  return items.flatMap((item) => {
+    const ids = item.refs.flag_ids ?? [];
+    if (item.kind !== "flag_yellow_group" || ids.length < 2) return [item];
+    const taken = new Set<string>();
+    const parts: string[][] = [];
+    for (const group of groups) {
+      const part = group.filter((id) => ids.includes(id) && !taken.has(id));
+      if (part.length === 0 || part.length === ids.length) continue;
+      part.forEach((id) => taken.add(id));
+      parts.push(part);
+    }
+    if (parts.length === 0) return [item];
+    const rest = ids.filter((id) => !taken.has(id));
+    const piece = (part: string[]): PendingItem => ({ ...item, key: `${item.key}~${splitKey(part)}`, refs: { ...item.refs, flag_ids: part } });
+    return [...(rest.length ? [{ ...item, refs: { ...item.refs, flag_ids: rest } }] : []), ...parts.map(piece)];
+  });
+};
+
+/** Bỏ nhóm tách không còn cờ nào trong hàng (cờ đã đóng / đã vào CR); không đổi gì thì trả lại chính tập vào. */
+export const pruneSplits = (splits: ReadonlySet<string>, items: readonly PendingItem[]): ReadonlySet<string> => {
+  const alive = new Set(items.flatMap((item) => item.refs.flag_ids ?? []));
+  const kept = [...splits].filter((key) => key.split(",").some((id) => alive.has(id)));
+  return kept.length === splits.size ? splits : new Set(kept);
+};
+
+/** Thêm một nhóm tách: các cờ đó rời mọi nhóm tách cũ (một cờ chỉ thuộc một nhóm). */
+export const addSplit = (splits: ReadonlySet<string>, flagIds: readonly string[]): Set<string> => {
+  const moving = new Set(flagIds);
+  const next = new Set<string>();
+  for (const key of splits) {
+    const left = key.split(",").filter((id) => !moving.has(id));
+    if (left.length) next.add(splitKey(left));
+  }
+  next.add(splitKey(flagIds));
+  return next;
+};
 
 /** Rút gọn câu trích cho dòng chat. */
 export const shortText = (text: string, max = 80): string => {

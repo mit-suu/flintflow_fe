@@ -5,7 +5,7 @@ import type { PendingItem, PendingQueue } from "@/types/pending-queue";
 import type { Spine } from "@/types/spine";
 import ResolveQueueDock from "../ResolveQueueDock";
 import type { ResolveQueueHandlers } from "../resolve-queue-actions";
-import { useResolveQueue, type ResolveQueueController } from "../useResolveQueue";
+import { useResolveQueue, type ResolveQueueController, type UseResolveQueueArgs } from "../useResolveQueue";
 
 export const item = (key: string, kind: PendingItem["kind"], refs: PendingItem["refs"], extra: Partial<PendingItem> = {}): PendingItem => ({
   key,
@@ -62,6 +62,7 @@ export const makeHandlers = (): MockHandlers => ({
   postChatLine: vi.fn(),
   showSection: vi.fn(),
   isLocked: vi.fn().mockReturnValue(false),
+  createCrFromFlags: vi.fn().mockResolvedValue("CR-001"),
 });
 
 interface HarnessProps {
@@ -72,11 +73,15 @@ interface HarnessProps {
   locked?: boolean;
   yielded?: boolean;
   enabled?: boolean;
+  /** Chế độ 1 (FLF-445): thẻ nhóm cờ. */
+  mode1?: boolean;
+  crLock?: UseResolveQueueArgs["crLock"];
+  flags?: Flag[];
   onController?: (controller: ResolveQueueController) => void;
 }
 
 /** Dựng hook + Dock như `page.tsx`, hàng việc nằm trong state để `reload()` đổi được. */
-export function Harness({ initial, reloads = [], handlers, locked = false, yielded = false, enabled = true, onController }: HarnessProps) {
+export function Harness({ initial, reloads = [], handlers, locked = false, yielded = false, enabled = true, mode1 = false, crLock = null, flags = FLAGS, onController }: HarnessProps) {
   const [queue, setQueue] = useState<PendingQueue | null>(initial);
   const [script] = useState(() => [...reloads]);
   const controller = useResolveQueue({
@@ -89,8 +94,11 @@ export function Harness({ initial, reloads = [], handlers, locked = false, yield
       return next;
     },
     spine: SPINE,
-    flags: FLAGS,
+    flags,
     enabled,
+    mode1,
+    crLock,
+    requester: "BA Lan",
     locked,
     yielded,
     sectionName: (id) => (id === "fixed:2.1" ? "2.1 Actors" : undefined),

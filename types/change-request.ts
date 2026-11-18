@@ -88,6 +88,8 @@ export interface Cr {
   submitted_at: IsoDateTime | null;
   decided_by: string | null;
   closed_reason: string | null;
+  /** FLF-445: cờ CR này sửa (tạo từ một nhóm cờ ở hàng việc chờ quyết); CR khác ⇒ `[]`. */
+  flag_ids?: string[];
   seed: CrSeed | null;
   materials: CrMaterial[];
   /** Phase 7: dữ kiện 3.2 báo vẫn thiếu khi buộc đi tiếp — 3.6 viết kèm giả định. */
@@ -224,7 +226,18 @@ export interface CreateCrRequest {
   comment_id?: string;
   /** Phase 7: đoạn văn bản nguồn dán ở 3.1 (≤ 5). File upload sau khi tạo qua `addCrMaterialFile`. */
   materials?: { name: string; text: string }[];
+  /** FLF-445: nhóm cờ mở CR này sửa (1-`CR_MAX_FLAG_IDS` id) — phần tử / mục của cờ thành đích tìm vị trí. */
+  flag_ids?: string[];
 }
+
+/** FLF-445: số cờ tối đa một CR tạo từ nhóm cờ (BE `CR_MAX_FLAG_IDS`); nhóm lớn hơn thì tách. */
+export const CR_MAX_FLAG_IDS = 50;
+
+/** Lời gọi AI của một CR — ước tính credit trước khi tạo CR từ nhóm cờ (`estimateActionCost`). */
+export type CrCostActionType = "cr_clarify" | "cr_propose" | "cr_consistency";
+
+/** BE `PROPOSE_BATCH`: AI đề xuất theo lô, mỗi lô tối đa 4 chỗ. */
+export const CR_PROPOSE_BATCH = 4;
 
 /** `POST …/locations/:locId/owner-step-draft` (BPMN 3.9) — hướng sửa của BA cho skill step sở hữu. */
 export interface OwnerStepDraftRequest {
