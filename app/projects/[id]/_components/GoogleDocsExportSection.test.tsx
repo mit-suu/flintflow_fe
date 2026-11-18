@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import { ApiClientError } from "@/lib/api/client";
 
@@ -27,14 +27,20 @@ vi.mock("@/lib/api/export", () => ({ exportToGoogleDocs: h.exportToGoogleDocs })
 const { default: GoogleDocsExportSection } = await import("./GoogleDocsExportSection");
 
 const connected = { status: "connected", email: "a@gmail.com", connectedAt: "2026-11-12T08:00:00.000Z" };
+const FOLDER = { id: "folder-1", path: "FlintFlow / Đặt lịch khám", url: "https://drive.google.com/drive/folders/folder-1" };
 const link = (over: Record<string, unknown> = {}) => ({
   fileId: "doc-1",
   title: "FAP_DRAFT",
   webViewLink: "https://docs.google.com/document/d/doc-1/edit",
+  kind: "export",
   source: "draft",
   lang: "vi",
   baselineId: null,
   exportedAt: "2026-11-15T07:02:00.000Z",
+  owner: { id: "u1", name: "An", email: "an@example.com" },
+  isMine: true,
+  folder: FOLDER,
+  stale: false,
   ...over,
 });
 const exported = (over: Record<string, unknown> = {}) => ({
@@ -43,6 +49,7 @@ const exported = (over: Record<string, unknown> = {}) => ({
   title: "FAP_DRAFT",
   mode: "new",
   recreated: false,
+  folder: FOLDER,
   ...over,
 });
 
@@ -57,7 +64,7 @@ beforeEach(() => {
 });
 
 describe("GoogleDocsExportSection", () => {
-  it("chưa xuất lần nào ⇒ không có lựa chọn cập nhật; bấm Xuất ⇒ tạo mới, hiện link mở Google Docs", async () => {
+  it("chưa xuất lần nào ⇒ bấm Xuất ⇒ tạo mới, hiện link Google Docs và đường dẫn thư mục trên Drive", async () => {
     h.exportToGoogleDocs.mockResolvedValue(exported());
     renderSection({ baselineId: undefined, lang: undefined });
 
@@ -65,37 +72,69 @@ describe("GoogleDocsExportSection", () => {
     expect(screen.queryByText("Cập nhật file này")).not.toBeInTheDocument();
     fireEvent.click(button);
 
-    expect(await screen.findByText(/Đã tạo Google Doc "FAP_DRAFT"/)).toBeInTheDocument();
-    expect(h.exportToGoogleDocs).toHaveBeenCalledWith("p1", { source: "draft", baselineId: undefined, lang: undefined }, "new");
-    expect(screen.getByRole("link", { name: /Mở Google Docs/ })).toHaveAttribute("href", "https://docs.google.com/document/d/doc-1/edit");
+    const status = await screen.findByRole("status");
+    expect(within(status).getByText(/Đã tạo Google Doc "FAP_DRAFT"/)).toBeInTheDocument();
+    expect(h.exportToGoogleDocs).toHaveBeenCalledWith("p1", { source: "draft", baselineId: undefined, lang: undefined }, "new", false);
+    expect(within(status).getByRole("link", { name: /Mở Google Docs/ })).toHaveAttribute("href", "https://docs.google.com/document/d/doc-1/edit");
+    expect(within(status).getByText("FlintFlow / Đặt lịch khám")).toBeInTheDocument();
+    expect(within(status).getByRole("link", { name: /Mở thư mục/ })).toHaveAttribute("href", FOLDER.url);
     expect(h.login).not.toHaveBeenCalled();
   });
 
-  it("đã xuất cùng nguồn + ngôn ngữ ⇒ mặc định cập nhật file cũ, có cảnh báo ghi đè; chọn Tạo bản mới ⇒ mode new", async () => {
-    h.google.getGoogleDocLinks.mockResolvedValue([link()]);
+  it("đã xuất cùng nguồn + ngôn ngữ ⇒ mặc định Cập nhật Google Doc; nhãn Cũ khi web đã đổi; chọn Tạo bản mới ⇒ mode new", async () => {
+    h.google.getGoogleDocLinks.mockResolvedValue([link({ stale: true })]);
     h.exportToGoogleDocs.mockResolvedValue(exported({ mode: "update" }));
     renderSection();
 
-    expect(await screen.findByText(/FAP_DRAFT/)).toBeInTheDocument();
+    expect(await screen.findByText(/Dữ liệu dự án đã đổi sau lần xuất này/)).toBeInTheDocument();
     expect(screen.getByLabelText("Cập nhật file này")).toBeChecked();
-    expect(screen.getByText(/ghi đè mọi chỉnh sửa/)).toBeInTheDocument();
+    expect(screen.getByText(/ghi đè nội dung Google Doc/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Xuất sang Google Docs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cập nhật Google Doc" }));
     expect(await screen.findByText(/Đã cập nhật Google Doc/)).toBeInTheDocument();
-    expect(h.exportToGoogleDocs).toHaveBeenLastCalledWith("p1", expect.anything(), "update");
+    expect(h.exportToGoogleDocs).toHaveBeenLastCalledWith("p1", expect.anything(), "update", false);
 
     fireEvent.click(screen.getByLabelText("Tạo bản mới"));
-    expect(screen.queryByText(/ghi đè mọi chỉnh sửa/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xuất sang Google Docs" }));
-    await waitFor(() => expect(h.exportToGoogleDocs).toHaveBeenLastCalledWith("p1", expect.anything(), "new"));
+    await waitFor(() => expect(h.exportToGoogleDocs).toHaveBeenLastCalledWith("p1", expect.anything(), "new", false));
   });
 
-  it("link của nguồn / ngôn ngữ khác ⇒ không gợi ý cập nhật", async () => {
-    h.google.getGoogleDocLinks.mockResolvedValue([link({ lang: "en" }), link({ source: "baseline", baselineId: "BL001" })]);
+  it("Doc đã bị sửa trong Google Docs ⇒ hỏi xác nhận; Giữ bản trên Google Docs ⇒ không ghi; Vẫn ghi đè ⇒ gửi force", async () => {
+    h.google.getGoogleDocLinks.mockResolvedValue([link()]);
+    h.exportToGoogleDocs.mockRejectedValueOnce(new ApiClientError(409, "GOOGLE_DOC_MODIFIED", "modified"));
     renderSection();
-    await screen.findByRole("button", { name: "Xuất sang Google Docs" });
-    await waitFor(() => expect(h.google.getGoogleDocLinks).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cập nhật Google Doc" }));
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText(/đã được sửa trong Google Docs/)).toBeInTheDocument();
+
+    fireEvent.click(within(alert).getByRole("button", { name: "Giữ bản trên Google Docs" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(h.exportToGoogleDocs).toHaveBeenCalledTimes(1);
+
+    h.exportToGoogleDocs.mockRejectedValueOnce(new ApiClientError(409, "GOOGLE_DOC_MODIFIED", "modified"));
+    fireEvent.click(screen.getByRole("button", { name: "Cập nhật Google Doc" }));
+    h.exportToGoogleDocs.mockResolvedValueOnce(exported({ mode: "update" }));
+    fireEvent.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Vẫn ghi đè" }));
+    expect(await screen.findByText(/Đã cập nhật Google Doc/)).toBeInTheDocument();
+    expect(h.exportToGoogleDocs).toHaveBeenLastCalledWith("p1", expect.anything(), "update", true);
+  });
+
+  it("Doc của thành viên khác, Doc liên kết, nguồn / ngôn ngữ khác ⇒ không gợi ý cập nhật; vẫn hiện trong danh sách dự án", async () => {
+    h.google.getGoogleDocLinks.mockResolvedValue([
+      link({ fileId: "theirs", title: "SRS của Bình", isMine: false, owner: { id: "u2", name: "Bình", email: null } }),
+      link({ fileId: "client", title: "SRS khách", kind: "linked", source: null, lang: null, folder: null }),
+      link({ fileId: "en", title: "SRS EN", lang: "en" }),
+      link({ fileId: "bl", title: "SRS BL", source: "baseline", baselineId: "BL001" }),
+    ]);
+    renderSection();
+
+    const list = await screen.findByRole("region", { name: "Google Doc của dự án" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(list).getByText(/Của Bình/)).toBeInTheDocument();
+    expect(within(list).getByText("Liên kết")).toBeInTheDocument();
     expect(screen.queryByText("Cập nhật file này")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xuất sang Google Docs" })).toBeInTheDocument();
   });
 
   it("chưa nối Google ⇒ nút Kết nối Google và xuất mở popup trong cú click, đồng ý xong mới xuất", async () => {
@@ -139,10 +178,13 @@ describe("GoogleDocsExportSection", () => {
   });
 
   it("bản tiếng Anh không còn chữ tiếng Việt", async () => {
-    h.google.getGoogleDocLinks.mockResolvedValue([link()]);
+    h.google.getGoogleDocLinks.mockResolvedValue([
+      link({ stale: true, folder: { ...FOLDER, path: "FlintFlow / Booking" } }),
+      link({ fileId: "theirs", isMine: false, owner: { id: "u2", name: "Binh", email: null }, folder: null }),
+    ]);
     const { container } = renderSection({}, "en");
-    expect(await screen.findByRole("button", { name: "Export to Google Docs" })).toBeInTheDocument();
-    await screen.findByText(/FAP_DRAFT/);
+    expect(await screen.findByRole("button", { name: "Update Google Doc" })).toBeInTheDocument();
+    await screen.findByText(/Project data changed/);
     expect(vietnameseLeftovers(container)).toEqual([]);
   });
 });

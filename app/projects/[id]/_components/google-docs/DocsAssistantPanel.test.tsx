@@ -16,9 +16,12 @@ const h = vi.hoisted(() => ({
     disconnectGoogle: vi.fn(),
     getGoogleDocLinks: vi.fn(),
     getGoogleAccessToken: vi.fn(),
+    linkGoogleDoc: vi.fn(),
+    unlinkGoogleDoc: vi.fn(),
   },
   stream: vi.fn(),
   pickGoogleFile: vi.fn(),
+  exportToGoogleDocs: vi.fn(),
 }));
 
 vi.mock("@react-oauth/google", () => ({
@@ -28,6 +31,7 @@ vi.mock("@react-oauth/google", () => ({
   }),
 }));
 vi.mock("@/lib/api/google", () => h.google);
+vi.mock("@/lib/api/export", () => ({ exportToGoogleDocs: h.exportToGoogleDocs }));
 vi.mock("@/lib/api/google-docs-agent", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   streamDocsAgentMessage: h.stream,
@@ -41,14 +45,20 @@ vi.mock("@/lib/google-picker", () => ({
 const { default: DocsAssistantPanel } = await import("./DocsAssistantPanel");
 
 const connected = { status: "connected", email: "a@gmail.com", connectedAt: "2026-11-17T00:00:00.000Z" };
-const link = (fileId: string, title: string) => ({
+const link = (fileId: string, title: string, over: Record<string, unknown> = {}) => ({
   fileId,
   title,
   webViewLink: `https://docs.google.com/document/d/${fileId}/edit`,
+  kind: "export",
   source: "draft",
   lang: "vi",
   baselineId: null,
   exportedAt: "2026-11-17T00:00:00.000Z",
+  owner: { id: "u1", name: "An", email: null },
+  isMine: true,
+  folder: null,
+  stale: false,
+  ...over,
 });
 
 /** Luồng SSE giả: phát lần lượt các sự kiện của kịch bản rồi kết thúc. */
@@ -156,16 +166,73 @@ describe("DocsAssistantPanel", () => {
     expect(await screen.findByText("Cần kết nối lại tài khoản Google để tiếp tục.")).toBeInTheDocument();
   });
 
-  it("chưa có tài liệu đã xuất ⇒ hướng dẫn; Chọn khác… mở Picker chỉ Google Docs rồi chọn tài liệu đó", async () => {
-    h.google.getGoogleDocLinks.mockResolvedValue([]);
-    h.google.getGoogleAccessToken.mockResolvedValue({ accessToken: "tok", expiresAt: null });
-    h.pickGoogleFile.mockResolvedValue({ id: "doc-9", name: "SRS khác", mimeType: "application/vnd.google-apps.document" });
+  it("chỉ liệt kê Doc của dự án do mình xuất / liên kết; Doc của thành viên khác chỉ được nhắc số lượng", async () => {
+    h.google.getGoogleDocLinks.mockResolvedValue([
+      link("doc-1", "SRS_v1.0"),
+      link("doc-theirs", "SRS của Bình", { isMine: false, owner: { id: "u2", name: "Bình", email: null } }),
+      link("doc-client", "SRS khách", { kind: "linked", source: null, lang: null }),
+    ]);
     renderWithIntl(<DocsAssistantPanel projectId="p1" onClose={vi.fn()} />);
-    expect(await screen.findByText(/Chưa có Google Doc nào/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-1"));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["SRS_v1.0", "SRS khách (liên kết)"]);
+    expect(screen.getByText(/1 Google Doc của thành viên khác chỉ chủ file dùng trợ lý được/)).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Chọn khác…" }));
+  it("Liên kết Google Doc… ⇒ Picker chỉ Google Docs ⇒ lưu liên kết ở BE rồi chọn Doc đó", async () => {
+    h.google.getGoogleDocLinks.mockResolvedValueOnce([link("doc-1", "SRS_v1.0")]);
+    h.google.getGoogleAccessToken.mockResolvedValue({ accessToken: "tok", expiresAt: null });
+    h.pickGoogleFile.mockResolvedValue({ id: "doc-9", name: "SRS khách", mimeType: "application/vnd.google-apps.document" });
+    h.google.linkGoogleDoc.mockResolvedValue(link("doc-9", "SRS khách", { kind: "linked" }));
+    h.google.getGoogleDocLinks.mockResolvedValueOnce([link("doc-9", "SRS khách", { kind: "linked" }), link("doc-1", "SRS_v1.0")]);
+    renderWithIntl(<DocsAssistantPanel projectId="p1" onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Liên kết Google Doc…" }));
     await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-9"));
     expect(h.pickGoogleFile).toHaveBeenCalledWith({ accessToken: "tok", locale: "vi", mimeTypes: ["application/vnd.google-apps.document"] });
+    expect(h.google.linkGoogleDoc).toHaveBeenCalledWith("p1", "doc-9");
+  });
+
+  it("đóng Picker ⇒ không liên kết gì; BE từ chối file .docx ⇒ hiện câu của BE", async () => {
+    h.google.getGoogleAccessToken.mockResolvedValue({ accessToken: "tok", expiresAt: null });
+    h.pickGoogleFile.mockResolvedValueOnce(null);
+    renderWithIntl(<DocsAssistantPanel projectId="p1" onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Liên kết Google Doc…" }));
+    await waitFor(() => expect(h.pickGoogleFile).toHaveBeenCalledTimes(1));
+    expect(h.google.linkGoogleDoc).not.toHaveBeenCalled();
+
+    h.pickGoogleFile.mockResolvedValueOnce({ id: "w", name: "SRS.docx", mimeType: "application/vnd.google-apps.document" });
+    h.google.linkGoogleDoc.mockRejectedValueOnce(new ApiClientError(400, "GOOGLE_DOC_UNSUPPORTED", "Chỉ liên kết được Google Tài liệu."));
+    fireEvent.click(screen.getByRole("button", { name: "Liên kết Google Doc…" }));
+    expect(await screen.findByText("Chỉ liên kết được Google Tài liệu.")).toBeInTheDocument();
+  });
+
+  it("Doc đang chọn là Doc liên kết ⇒ Bỏ liên kết gọi BE rồi chọn Doc còn lại", async () => {
+    h.google.getGoogleDocLinks.mockResolvedValueOnce([link("doc-client", "SRS khách", { kind: "linked" }), link("doc-1", "SRS_v1.0")]);
+    h.google.getGoogleDocLinks.mockResolvedValueOnce([link("doc-1", "SRS_v1.0")]);
+    h.google.unlinkGoogleDoc.mockResolvedValue(undefined);
+    renderWithIntl(<DocsAssistantPanel projectId="p1" onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-client"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ liên kết" }));
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-1"));
+    expect(h.google.unlinkGoogleDoc).toHaveBeenCalledWith("p1", "doc-client");
+    expect(screen.queryByRole("button", { name: "Bỏ liên kết" })).not.toBeInTheDocument();
+  });
+
+  it("dự án chưa có Doc của mình ⇒ hướng dẫn + nút Xuất SRS sang Google Docs ⇒ xuất bản nháp rồi chọn Doc mới", async () => {
+    h.google.getGoogleDocLinks.mockResolvedValueOnce([]);
+    h.exportToGoogleDocs.mockResolvedValue({ fileId: "doc-new", title: "SRS", webViewLink: "l", mode: "new", recreated: false, folder: null });
+    h.google.getGoogleDocLinks.mockResolvedValueOnce([link("doc-new", "SRS")]);
+    renderWithIntl(<DocsAssistantPanel projectId="p1" onClose={vi.fn()} />);
+    expect(await screen.findByText(/Dự án chưa có Google Doc nào của bạn/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Xuất SRS sang Google Docs" }));
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-new"));
+    expect(h.exportToGoogleDocs).toHaveBeenCalledWith("p1", { source: "draft" }, "new");
+    expect(screen.getByRole("textbox", { name: "Nhập yêu cầu…" })).toBeInTheDocument();
   });
 
   it("BE chưa bật tích hợp ⇒ báo chưa bật, không có ô nhập", async () => {
@@ -176,7 +243,11 @@ describe("DocsAssistantPanel", () => {
   });
 
   it("bản tiếng Anh không còn chữ tiếng Việt", async () => {
-    h.google.getGoogleDocLinks.mockResolvedValue([link("doc-1", "SRS")]);
+    h.google.getGoogleDocLinks.mockResolvedValue([
+      link("doc-1", "SRS"),
+      link("doc-client", "Client SRS", { kind: "linked" }),
+      link("doc-theirs", "Other", { isMine: false }),
+    ]);
     const { container } = renderWithIntl(<DocsAssistantPanel projectId="p1" onClose={vi.fn()} />, "en");
     await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("doc-1"));
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
