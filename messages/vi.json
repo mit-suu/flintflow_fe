@@ -3506,6 +3506,149 @@
     "body": "Chúng tôi đang nâng cấp hệ thống để phục vụ bạn tốt hơn. Vui lòng quay lại sau ít phút - dự án và tài liệu của bạn không bị ảnh hưởng.",
     "home": "Về trang chủ"
   },
+  "legal": {
+    "updated": "Cập nhật lần cuối: 18/11/2026",
+    "contact": "Liên hệ",
+    "backHome": "Về trang chủ",
+    "privacyLink": "Chính sách quyền riêng tư",
+    "termsLink": "Điều khoản sử dụng",
+    "privacy": {
+      "metaTitle": "Chính sách quyền riêng tư · FlintFlow",
+      "title": "Chính sách quyền riêng tư",
+      "intro": "FlintFlow (flintflow.io.vn) là nền tảng dùng AI hỗ trợ soạn tài liệu đặc tả yêu cầu phần mềm (SRS). Chính sách này giải thích chúng tôi thu thập dữ liệu gì, dùng vào việc gì, chia sẻ với ai và bạn kiểm soát dữ liệu của mình ra sao.",
+      "sections": {
+        "s1": {
+          "title": "1. Dữ liệu chúng tôi thu thập",
+          "paragraphs": {
+            "p1": "Thông tin tài khoản: họ tên, email, mật khẩu (chỉ lưu dạng đã băm) và ngôn ngữ giao diện. Nếu bạn đăng nhập bằng Google, chúng tôi nhận tên, email và ảnh đại diện từ tài khoản Google của bạn.",
+            "p2": "Nội dung bạn tạo: thông tin dự án, nội dung trò chuyện, tài liệu bạn tải lên và tài liệu SRS được sinh ra.",
+            "p3": "Thông tin thanh toán: mã đơn hàng, gói cước, số tiền và trạng thái giao dịch. Chúng tôi không lưu số thẻ hay thông tin đăng nhập ngân hàng của bạn.",
+            "p4": "Dữ liệu kỹ thuật: nhật ký truy cập và lỗi cần thiết để vận hành và bảo vệ hệ thống."
+          }
+        },
+        "s2": {
+          "title": "2. Dữ liệu nhận từ Google",
+          "paragraphs": {
+            "p1": "Khi bạn chủ động kết nối Google Drive, FlintFlow chỉ xin quyền drive.file. Quyền này chỉ cho phép truy cập những tệp bạn tạo bằng FlintFlow hoặc tự chọn mở bằng FlintFlow, không cho phép xem toàn bộ Google Drive của bạn.",
+            "p2": "Chúng tôi dùng quyền này để: xuất tài liệu SRS ra Google Docs, nhập một Google Doc bạn chọn làm tài liệu nguồn, và để trợ lý Google Docs đọc và đề xuất chỉnh sửa trên chính tài liệu đó khi bạn yêu cầu. Mọi chỉnh sửa chỉ được ghi khi bạn bấm Áp dụng.",
+            "p3": "Mã làm mới (refresh token) của Google được mã hoá AES-256-GCM trên máy chủ và không bao giờ được gửi về trình duyệt. Bạn có thể ngắt kết nối bất cứ lúc nào ở trang Hồ sơ: chúng tôi thu hồi quyền phía Google và xoá mã đã lưu.",
+            "p4": "Việc FlintFlow sử dụng và chuyển giao sang bất kỳ ứng dụng nào khác thông tin nhận được từ Google API tuân thủ Chính sách dữ liệu người dùng của Google API Services, bao gồm các yêu cầu về Sử dụng có giới hạn (Limited Use). Dữ liệu từ Google không được bán, không dùng cho quảng cáo và không dùng để huấn luyện mô hình AI. Không ai trong đội ngũ đọc dữ liệu này, trừ khi bạn đồng ý, khi cần để xử lý sự cố bảo mật, hoặc khi pháp luật yêu cầu."
+          },
+          "link": {
+            "label": "Google API Services User Data Policy",
+            "href": "https://developers.google.com/terms/api-services-user-data-policy"
+          }
+        },
+        "s3": {
+          "title": "3. Cách chúng tôi sử dụng dữ liệu",
+          "paragraphs": {
+            "p1": "Để cung cấp các tính năng bạn dùng: dẫn dắt các bước soạn SRS, sinh nội dung và sơ đồ, xuất tài liệu, quản lý tổ chức và cộng tác.",
+            "p2": "Để tính credit, xử lý thanh toán và gửi email cần thiết như xác thực tài khoản, lời mời vào tổ chức và thông báo về giao dịch.",
+            "p3": "Để bảo mật, chống lạm dụng và sửa lỗi hệ thống."
+          }
+        },
+        "s4": {
+          "title": "4. Bên xử lý dữ liệu",
+          "paragraphs": {
+            "p1": "Nhà cung cấp mô hình AI (như Anthropic, Google, OpenAI): mỗi lượt chỉ nhận phần ngữ cảnh cần cho bước đang làm, không nhận toàn bộ dự án.",
+            "p2": "Hạ tầng: máy chủ đám mây (Microsoft Azure, Vercel), cơ sở dữ liệu đám mây và dịch vụ lưu trữ hình ảnh.",
+            "p3": "Thanh toán: chuyển khoản VietQR, đối soát qua SePay.",
+            "p4": "Chúng tôi không bán dữ liệu cá nhân của bạn cho bất kỳ ai."
+          }
+        },
+        "s5": {
+          "title": "5. Thời gian lưu giữ",
+          "paragraphs": {
+            "p1": "Dữ liệu tài khoản và dự án được giữ đến khi bạn xoá hoặc yêu cầu xoá.",
+            "p2": "Nội dung gửi tới và nhận về từ mô hình AI được giữ tối đa 30 ngày để xử lý sự cố, sau đó tự động xoá.",
+            "p3": "Mã truy cập Google được giữ đến khi bạn ngắt kết nối."
+          }
+        },
+        "s6": {
+          "title": "6. Quyền của bạn",
+          "paragraphs": {
+            "p1": "Bạn có quyền xem, sửa, xuất hoặc yêu cầu xoá dữ liệu cá nhân của mình bằng cách liên hệ email bên dưới.",
+            "p2": "Bạn có thể thu hồi quyền của FlintFlow trên tài khoản Google bất cứ lúc nào tại trang Hồ sơ hoặc tại myaccount.google.com/permissions."
+          }
+        },
+        "s7": {
+          "title": "7. Bảo mật",
+          "paragraphs": {
+            "p1": "Dữ liệu được truyền qua HTTPS. Mã truy cập bên thứ ba được mã hoá khi lưu. Quyền truy cập dự án được kiểm theo tổ chức và vai trò của từng thành viên."
+          }
+        },
+        "s8": {
+          "title": "8. Thay đổi chính sách",
+          "paragraphs": {
+            "p1": "Khi chính sách thay đổi, chúng tôi cập nhật ngày ở đầu trang và thông báo trong ứng dụng nếu thay đổi ảnh hưởng đáng kể đến quyền của bạn."
+          }
+        }
+      }
+    },
+    "terms": {
+      "metaTitle": "Điều khoản sử dụng · FlintFlow",
+      "title": "Điều khoản sử dụng",
+      "intro": "Các điều khoản này áp dụng khi bạn sử dụng FlintFlow (flintflow.io.vn). Khi tạo tài khoản hoặc sử dụng dịch vụ, bạn đồng ý với các điều khoản dưới đây.",
+      "sections": {
+        "s1": {
+          "title": "1. Tài khoản",
+          "paragraphs": {
+            "p1": "Bạn cần cung cấp thông tin chính xác và tự bảo mật mật khẩu của mình. Bạn chịu trách nhiệm về mọi hoạt động diễn ra dưới tài khoản của mình."
+          }
+        },
+        "s2": {
+          "title": "2. Dịch vụ và nội dung do AI tạo",
+          "paragraphs": {
+            "p1": "FlintFlow dùng AI để gợi ý và soạn nội dung đặc tả. Nội dung do AI tạo có thể chưa chính xác hoặc chưa đầy đủ. Bạn có trách nhiệm xem xét và xác nhận tài liệu trước khi sử dụng."
+          }
+        },
+        "s3": {
+          "title": "3. Nội dung của bạn",
+          "paragraphs": {
+            "p1": "Bạn giữ toàn bộ quyền đối với nội dung bạn đưa vào và tài liệu được tạo ra cho bạn. Bạn cho phép FlintFlow xử lý nội dung đó chỉ nhằm cung cấp dịch vụ cho bạn.",
+            "p2": "Bạn cam kết có quyền hợp pháp với nội dung tải lên và không đưa vào nội dung vi phạm pháp luật."
+          }
+        },
+        "s4": {
+          "title": "4. Credit và thanh toán",
+          "paragraphs": {
+            "p1": "Các thao tác AI tiêu tốn credit theo bảng giá đang công bố. Credit được giữ trước khi chạy; nếu thao tác thất bại do lỗi hệ thống, credit đã giữ sẽ được hoàn lại.",
+            "p2": "Thắc mắc về thanh toán, vui lòng liên hệ email bên dưới."
+          }
+        },
+        "s5": {
+          "title": "5. Dịch vụ bên thứ ba",
+          "paragraphs": {
+            "p1": "Một số tính năng như Google Docs và Google Drive phụ thuộc vào dịch vụ của bên thứ ba và chịu thêm điều khoản của bên đó. Bạn có thể ngắt kết nối các dịch vụ này bất cứ lúc nào."
+          }
+        },
+        "s6": {
+          "title": "6. Hành vi bị cấm",
+          "paragraphs": {
+            "p1": "Không được dùng FlintFlow để vi phạm pháp luật, tấn công hoặc làm quá tải hệ thống, truy cập trái phép dữ liệu của người khác, hay cố ý lách giới hạn credit."
+          }
+        },
+        "s7": {
+          "title": "7. Tạm ngưng và chấm dứt",
+          "paragraphs": {
+            "p1": "Chúng tôi có thể tạm ngưng tài khoản vi phạm các điều khoản này. Bạn có thể ngừng sử dụng và yêu cầu xoá tài khoản bất cứ lúc nào."
+          }
+        },
+        "s8": {
+          "title": "8. Giới hạn trách nhiệm",
+          "paragraphs": {
+            "p1": "Dịch vụ được cung cấp theo hiện trạng. Trong phạm vi pháp luật cho phép, FlintFlow không chịu trách nhiệm về thiệt hại gián tiếp phát sinh từ việc sử dụng nội dung do dịch vụ tạo ra."
+          }
+        },
+        "s9": {
+          "title": "9. Luật áp dụng",
+          "paragraphs": {
+            "p1": "Các điều khoản này được điều chỉnh theo pháp luật Việt Nam."
+          }
+        }
+      }
+    }
+  },
   "admin": {
     "common": {
       "closeNotice": "Đóng thông báo",

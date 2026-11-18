@@ -2175,7 +2175,6 @@
         "unavailable": "Export to Google Docs is not enabled on this server."
       },
       "languageUnavailable":"This version can't be downloaded in another language yet - download it in the document language.",
-      "languageUnavailable": "This version can't be downloaded in another language yet - download it in the document language.",
       "close": "Close",
       "mockupPending": "{count} screens are still being drawn. Exporting now uses their original pictures.",
       "mockupWaiting": "Waiting for {count} screens to finish drawing; the draft downloads automatically when done.",
@@ -3506,6 +3505,149 @@
     "title": "FlintFlow is under maintenance",
     "body": "We're upgrading the system to serve you better. Please check back in a few minutes - your projects and documents are not affected.",
     "home": "Go to home page"
+  },
+  "legal": {
+    "updated": "Last updated: November 18, 2026",
+    "contact": "Contact",
+    "backHome": "Back to home",
+    "privacyLink": "Privacy Policy",
+    "termsLink": "Terms of Service",
+    "privacy": {
+      "metaTitle": "Privacy Policy · FlintFlow",
+      "title": "Privacy Policy",
+      "intro": "FlintFlow (flintflow.io.vn) is an AI-assisted platform for writing software requirements specifications (SRS). This policy explains what data we collect, how we use it, who we share it with, and how you stay in control of it.",
+      "sections": {
+        "s1": {
+          "title": "1. Data we collect",
+          "paragraphs": {
+            "p1": "Account information: your name, email, password (stored only as a hash) and interface language. If you sign in with Google, we receive your name, email and profile picture from your Google account.",
+            "p2": "Content you create: project information, chat messages, documents you upload and the SRS documents generated for you.",
+            "p3": "Payment information: order ID, plan, amount and transaction status. We never store your card number or banking credentials.",
+            "p4": "Technical data: access and error logs needed to operate and protect the service."
+          }
+        },
+        "s2": {
+          "title": "2. Data received from Google",
+          "paragraphs": {
+            "p1": "When you choose to connect Google Drive, FlintFlow requests only the drive.file permission. It lets FlintFlow access only the files you create with FlintFlow or explicitly open with FlintFlow; it does not give access to the rest of your Google Drive.",
+            "p2": "We use this permission to export your SRS to Google Docs, to import a Google Doc you pick as a source document, and to let the Google Docs assistant read and propose edits to that same document when you ask it to. Edits are written only when you click Apply.",
+            "p3": "Your Google refresh token is encrypted with AES-256-GCM on our servers and is never sent to the browser. You can disconnect at any time from your Profile page: we revoke the permission on Google's side and delete the stored token.",
+            "p4": "FlintFlow's use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements. Google user data is never sold, never used for advertising and never used to train AI models. No one on our team reads it unless you consent, it is needed to handle a security incident, or the law requires it."
+          },
+          "link": {
+            "label": "Google API Services User Data Policy",
+            "href": "https://developers.google.com/terms/api-services-user-data-policy"
+          }
+        },
+        "s3": {
+          "title": "3. How we use data",
+          "paragraphs": {
+            "p1": "To provide the features you use: guiding the SRS steps, generating content and diagrams, exporting documents, and managing organizations and collaboration.",
+            "p2": "To meter credits, process payments and send necessary emails such as account verification, organization invitations and transaction notices.",
+            "p3": "To keep the service secure, prevent abuse and fix errors."
+          }
+        },
+        "s4": {
+          "title": "4. Who processes data",
+          "paragraphs": {
+            "p1": "AI model providers (such as Anthropic, Google and OpenAI): each request receives only the context needed for the current step, never your whole project.",
+            "p2": "Infrastructure: cloud hosting (Microsoft Azure, Vercel), a cloud database and an image storage service.",
+            "p3": "Payments: VietQR bank transfers, reconciled through SePay.",
+            "p4": "We do not sell your personal data to anyone."
+          }
+        },
+        "s5": {
+          "title": "5. Retention",
+          "paragraphs": {
+            "p1": "Account and project data is kept until you delete it or ask us to delete it.",
+            "p2": "Content sent to and received from AI models is kept for up to 30 days for troubleshooting, then deleted automatically.",
+            "p3": "Google access tokens are kept until you disconnect."
+          }
+        },
+        "s6": {
+          "title": "6. Your rights",
+          "paragraphs": {
+            "p1": "You can access, correct, export or request deletion of your personal data by contacting the email below.",
+            "p2": "You can revoke FlintFlow's access to your Google account at any time from your Profile page or at myaccount.google.com/permissions."
+          }
+        },
+        "s7": {
+          "title": "7. Security",
+          "paragraphs": {
+            "p1": "Data is transmitted over HTTPS. Third-party access tokens are encrypted at rest. Access to projects is checked against each member's organization and role."
+          }
+        },
+        "s8": {
+          "title": "8. Changes to this policy",
+          "paragraphs": {
+            "p1": "When this policy changes, we update the date at the top of the page and notify you in the app if the change materially affects your rights."
+          }
+        }
+      }
+    },
+    "terms": {
+      "metaTitle": "Terms of Service · FlintFlow",
+      "title": "Terms of Service",
+      "intro": "These terms apply when you use FlintFlow (flintflow.io.vn). By creating an account or using the service, you agree to the terms below.",
+      "sections": {
+        "s1": {
+          "title": "1. Accounts",
+          "paragraphs": {
+            "p1": "You must provide accurate information and keep your password secure. You are responsible for all activity under your account."
+          }
+        },
+        "s2": {
+          "title": "2. The service and AI-generated content",
+          "paragraphs": {
+            "p1": "FlintFlow uses AI to suggest and draft specification content. AI-generated content may be inaccurate or incomplete. You are responsible for reviewing and confirming documents before you rely on them."
+          }
+        },
+        "s3": {
+          "title": "3. Your content",
+          "paragraphs": {
+            "p1": "You keep all rights to the content you provide and the documents generated for you. You allow FlintFlow to process that content solely to provide the service to you.",
+            "p2": "You confirm that you have the right to upload your content and that it does not violate the law."
+          }
+        },
+        "s4": {
+          "title": "4. Credits and payments",
+          "paragraphs": {
+            "p1": "AI actions consume credits according to the published pricing. Credits are reserved before an action runs; if the action fails because of a system error, the reserved credits are returned.",
+            "p2": "For payment questions, please contact the email below."
+          }
+        },
+        "s5": {
+          "title": "5. Third-party services",
+          "paragraphs": {
+            "p1": "Some features, such as Google Docs and Google Drive, depend on third-party services and are also subject to their terms. You can disconnect these services at any time."
+          }
+        },
+        "s6": {
+          "title": "6. Prohibited use",
+          "paragraphs": {
+            "p1": "You may not use FlintFlow to break the law, attack or overload the service, access other people's data without permission, or deliberately work around credit limits."
+          }
+        },
+        "s7": {
+          "title": "7. Suspension and termination",
+          "paragraphs": {
+            "p1": "We may suspend accounts that violate these terms. You may stop using the service and request account deletion at any time."
+          }
+        },
+        "s8": {
+          "title": "8. Limitation of liability",
+          "paragraphs": {
+            "p1": "The service is provided as is. To the extent permitted by law, FlintFlow is not liable for indirect damages arising from the use of content generated by the service."
+          }
+        },
+        "s9": {
+          "title": "9. Governing law",
+          "paragraphs": {
+            "p1": "These terms are governed by the laws of Vietnam."
+          }
+        }
+      }
+    }
   },
   "admin": {
     "common": {
