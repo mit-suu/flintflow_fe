@@ -1940,9 +1940,7 @@
       "loadingFlags": "Đang tải danh sách cờ…",
       "title": "Kiểm tra tài liệu",
       "close": "Đóng kiểm tra tài liệu",
-      "loadingIssues": "Đang tải danh sách vấn đề…",
-      "hideTrace": "Ẩn bản đồ truy vết",
-      "showTrace": "Xem bản đồ truy vết"
+      "loadingIssues": "Đang tải danh sách vấn đề…"
     },
     "flags": {
       "waiveTitle": "Waive cờ {rule}",
@@ -2331,6 +2329,143 @@
       "wrongHint": "Giá trị đang dựa trên giả định này sai - cần sửa lại chỗ đó",
       "intro": "{count} giả định chờ xác nhận. Xác nhận đúng thì nội dung giữ nguyên; báo sai thì phần dựa trên nó cần sửa lại.",
       "confirmRest": "Xác nhận {count} giả định còn lại"
+    },
+    "resolveQueue": {
+      "dock": {
+        "pending": "{count} việc chờ bạn quyết",
+        "deferred": "{count} việc đã để sau",
+        "start": "Giải quyết lần lượt",
+        "review": "Xem lại",
+        "locked": "AI đang làm việc, xong sẽ mở lại"
+      },
+      "afterSingle": {
+        "text": "Còn {count} việc chờ bạn quyết",
+        "continue": "Tiếp lần lượt",
+        "later": "Để sau"
+      },
+      "kind": {
+        "assumption": "Giả định",
+        "brief_note": "Ghi chú",
+        "screen": "Màn hình",
+        "flag_red": "Vấn đề cần xử lý",
+        "flag_yellow_group": "Lưu ý"
+      },
+      "question": {
+        "assumption": "Giả định này có đúng không?",
+        "brief_note": "Ghi chú này nên xử lý thế nào?",
+        "screen": "Có đặc tả chi tiết màn \"{name}\" ngay vòng này không?",
+        "group": "{count} lưu ý cùng nhóm cần xem",
+        "groupLeft": "Còn {count} lưu ý chưa xử lý xong"
+      },
+      "moreLines": "và {count} lưu ý khác",
+      "prefill": {
+        "flag": "Trong {label}: sửa vấn đề \"{issue}\" ",
+        "group": "Sửa các vấn đề cùng nhóm sau: {issues} "
+      },
+      "card": {
+        "aria": "Việc chờ quyết: {kind}",
+        "left": "· còn {count} việc",
+        "collapse": "Thu gọn",
+        "later": "Để sau",
+        "progress": "Đã quyết {done} trên {total} việc",
+        "why": "Vì sao: {text}",
+        "section": "Mục {name} ↗",
+        "dependents": "Quyết việc này trước vì còn {count} việc phía sau dựa vào nó.",
+        "alsoDone": "Câu này cũng xong luôn {count} việc.",
+        "alsoDoneShow": "Xem",
+        "alsoDoneHide": "Ẩn",
+        "credit": "khoảng {count} credit",
+        "apply": "Áp dụng",
+        "back": "Quay lại",
+        "confirmDrop": "Bỏ ghi chú này khỏi hồ sơ? Việc này không hoàn tác được ở đây.",
+        "confirmDropYes": "Bỏ ghi chú",
+        "reasonPlaceholder": "Lý do (ít nhất {min} ký tự)",
+        "reasonCount": "{count}/{min} ký tự",
+        "textPlaceholder": {
+          "assumption": "Theo bạn, điều đúng là gì?",
+          "brief_note": "Nội dung mới của ghi chú"
+        },
+        "leftAfterChat": "Đã nhờ AI sửa cả nhóm mà vẫn còn lưu ý. Bạn có thể sửa tiếp trong chat hoặc bỏ qua cả nhóm."
+      },
+      "choice": {
+        "assumption": {
+          "right": "Đúng",
+          "wrong": "Không đúng",
+          "other": "Muốn khác"
+        },
+        "brief_note": {
+          "keep": "Giữ",
+          "drop": "Bỏ",
+          "other": "Muốn khác"
+        },
+        "screen": {
+          "detail": "Đặc tả chi tiết vòng này",
+          "later": "Để lại"
+        },
+        "flag_red": {
+          "chat": "Sửa trong chat",
+          "keep": "Giữ nguyên, kèm lý do"
+        },
+        "flag_yellow_group": {
+          "chat": "Sửa cả nhóm trong chat",
+          "waive": "Bỏ qua cả nhóm, kèm lý do"
+        }
+      },
+      "choiceHint": {
+        "assumption": {
+          "right": "Giữ nguyên nội dung đang dựa trên giả định này",
+          "wrong": "Phần dựa trên giả định này sẽ cần sửa lại",
+          "other": "Gõ điều đúng, AI sửa và xác nhận giúp bạn"
+        },
+        "brief_note": {
+          "keep": "Ghi chú vào đúng mục như đang xếp",
+          "drop": "Chỉ khi nội dung sai",
+          "other": "Sửa lại nội dung ghi chú, không tốn credit"
+        },
+        "screen": {
+          "detail": "Hỏi sâu về màn này ở vòng đặc tả",
+          "later": "Để màn này ở mức sơ lược, làm sau"
+        },
+        "flag_red": {
+          "chat": "Điền sẵn vào ô chat để AI sửa",
+          "keep": "Vẫn tính là chưa xong, nhưng ghi nhận lý do bạn giữ"
+        },
+        "flag_yellow_group": {
+          "chat": "Điền sẵn vào ô chat để AI sửa cả nhóm",
+          "waive": "Bỏ qua từng lưu ý trong nhóm và ghi lý do"
+        }
+      },
+      "result": {
+        "assumption": {
+          "right": "xác nhận đúng",
+          "wrong": "báo không đúng",
+          "other": "đổi theo ý bạn"
+        },
+        "brief_note": {
+          "keep": "giữ lại",
+          "drop": "đã bỏ",
+          "other": "đã sửa nội dung"
+        },
+        "screen": {
+          "detail": "đặc tả chi tiết vòng này",
+          "later": "để lại"
+        },
+        "flag_red": {
+          "keep": "giữ nguyên"
+        },
+        "flag_yellow_group": {
+          "waive": "bỏ qua cả nhóm ({done}/{total})"
+        }
+      },
+      "chatLine": "✓ {kind} \"{text}\" → {choice}",
+      "partialLine": "{done}/{total} lưu ý đã bỏ qua",
+      "errors": {
+        "write": "Chưa lưu được, bạn thử lại nhé.",
+        "reasonShort": "Lý do cần ít nhất {min} ký tự.",
+        "chatBlocked": "Lúc này chưa sửa trong chat được.",
+        "partial": "Mới bỏ qua {done}/{total} lưu ý. {message}",
+        "pausedByAi": "AI vừa bắt đầu chạy, phần còn lại để lúc AI xong."
+      }
     },
     "names": {
       "aria": "Tên riêng và thuật ngữ",
@@ -2943,8 +3078,8 @@
       "tab": {
         "agreed": "Đã thống nhất",
         "pending": "Chờ bạn quyết",
-        "sources": "Nguồn",
-        "history": "Lịch sử"
+        "history": "Lịch sử",
+        "trace": "Truy vết"
       },
       "viewerNote": "Bạn đang xem với vai trò Viewer - chỉ xem hồ sơ, không chốt hay sửa được.",
       "briefTitle": "Tóm tắt Brief",
@@ -2966,40 +3101,20 @@
       "answerInChat": "Trả lời trong chat",
       "answerInChatPrefill": "Trả lời câu hỏi \"{question}\": ",
       "openQuestionsTitle": "Câu hỏi mở ({count})",
-      "openQuestionsHint": "AI ghi lại khi đọc tài liệu; trả lời để AI cập nhật nội dung."
+      "openQuestionsHint": "AI ghi lại khi đọc tài liệu; trả lời để AI cập nhật nội dung.",
+      "queueTitle": "Việc chờ bạn quyết ({count})",
+      "queueHint": "Quyết từng việc ở khung chat, theo thứ tự. Ở đây chỉ để xem.",
+      "decideInChat": "Quyết trong chat",
+      "queueFallback": "Chưa tải được danh sách việc chờ quyết. Bạn vẫn quyết được ngay tại đây.",
+      "traceHint": "Chọn một mục để xem nó nối tới những gì trong tài liệu."
     },
     "sources": {
-      "loading": "Đang tải nguồn tài liệu…",
-      "count": "{count} mục có nguồn từ tài liệu",
-      "assumptions": "{count} điều AI đang tự giả định - xác nhận ở tab “Chờ bạn quyết”",
-      "empty": "Chưa có mục nào được viết từ tài liệu. Đính kèm biên bản họp, email hoặc transcript ở khung chat, AI sẽ đọc và ghi lại đoạn gốc cho từng yêu cầu.",
       "deletedDocument": "Tài liệu đã xoá",
-      "groupHeading": "{label} ({count})",
       "paragraph": "đoạn {n}",
-      "kind": {
-        "use_cases": "Use case",
-        "functions": "Chức năng",
-        "nfrs": "Yêu cầu phi chức năng",
-        "business_rules": "Quy tắc nghiệp vụ",
-        "actors": "Tác nhân",
-        "roles": "Vai trò",
-        "features": "Tính năng",
-        "screens": "Màn hình",
-        "entities": "Thực thể dữ liệu",
-        "common_requirements": "Yêu cầu chung",
-        "messages": "Thông báo",
-        "other_requirements": "Yêu cầu khác",
-        "glossary": "Thuật ngữ",
-        "addendum": "Ghi chú Brief",
-        "project": "Thông tin dự án"
-      },
-      "field": {
-        "vision": "Tầm nhìn",
-        "goals": "Mục tiêu",
-        "release_scope": "Phạm vi bản 1.0",
-        "system_name": "Tên hệ thống",
-        "name": "Tên dự án"
-      }
+      "chip": "Nguồn · {count}",
+      "chipAria": "Nguồn tài liệu của mục này ({count} đoạn)",
+      "popoverLabel": "Nguồn tài liệu",
+      "openDocument": "Mở tài liệu"
     },
     "editHistory": {
       "loading": "Đang tải…",
@@ -3312,6 +3427,16 @@
       "addFailed": "Không tải được tài liệu lên",
       "busy": "Đang tải tệp đính kèm ở ô chat. Chờ xong rồi thêm lại.",
       "buttonAria": "Tài liệu ({count})"
+    },
+    "referenceViewer": {
+      "loading": "Đang tải tài liệu…",
+      "loadFailed": "Không mở được tài liệu này.",
+      "empty": "Tài liệu này chưa đọc được chữ.",
+      "paragraphMissing": "Đoạn này không còn trong bản hiện tại.",
+      "paragraph": "Đoạn {n}",
+      "download": "Tải về",
+      "downloading": "Đang tải…",
+      "downloadFailed": "Không tải được file. Thử lại sau."
     }
   },
   "errors": {
@@ -4910,7 +5035,8 @@
       "confirm": "AI đọc cả tài liệu một lần, tốn ~{credits} credit. Chạy chứ?",
       "confirmUnknown": "AI đọc cả tài liệu một lần và tốn credit. Chạy chứ?",
       "cancel": "Huỷ",
-      "run": "Chạy"
+      "run": "Chạy",
+      "view": "Xem"
     },
     "extraction": {
       "aria": "Danh sách yêu cầu rút từ {name}",

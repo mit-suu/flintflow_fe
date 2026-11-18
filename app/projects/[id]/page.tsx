@@ -89,6 +89,9 @@ import { recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { usePendingSections } from "./hooks/mode1/usePendingSections";
+import { usePendingQueue } from "./hooks/usePendingQueue";
+import ResolveQueueDock from "./_components/resolve-queue/ResolveQueueDock";
+import { useResolveQueue } from "./_components/resolve-queue/useResolveQueue";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1VersionsMenu from "./_components/mode1/Mode1VersionsMenu";
@@ -133,6 +136,9 @@ import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comme
 import { useTurnNotice } from "./hooks/useTurnNotice";
 import DocsAssistantPanel from "./_components/google-docs/DocsAssistantPanel";
 import { isDocsAssistantEnabled } from "@/lib/google-auth";
+import { useSources } from "./hooks/useSources";
+import { sourcesByPath } from "./_components/SourceChip";
+import { ReferenceViewerProvider } from "./_components/reference-viewer/ReferenceViewerProvider";
 
 /** Bề rộng cửa sổ — để biết có đủ chỗ cho rail tiến độ + chat + tài liệu + panel phải cùng lúc không. */
 const subscribeViewport = (onChange: () => void) => {
@@ -339,6 +345,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   } = useFlags(projectId, spineState.version);
   // Góp ý ghim vào nội dung (UC-49) — nguồn duy nhất cho cả `DocumentPane` (chấm số) lẫn panel, như `useFlags`
   const comments = useComments(projectId, spineState.version);
+  // FLF-443: nguồn tài liệu tải một lần cho chip "Nguồn" (tài liệu + Hồ sơ). Viewer không đọc được nguồn (403) ⇒ không tải
+  const requirementSources = useSources(projectId, ws.ready && ws.canEdit ? spineState.version : null);
+  const sourceMap = useMemo(() => sourcesByPath(requirementSources.sources), [requirementSources.sources]);
 
   // Panel phải: mỗi lúc một (rail icon). Mode 1 mở sẵn cột cờ & version.
   const [rightPanel, setRightPanel] = useState<WorkspacePanel | null>(mode1 ? "tools" : null);
@@ -1421,12 +1430,68 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // Tab mở giữa lượt chạy ở nơi khác: theo dõi run-state tới khi BE xong rồi dựng lại / tải lại — không chờ user tải trang (FLF-235)
   useFollowRunningElsewhere({ active: stepRunningElsewhere, projectId, restore: restoreRunner, onSettled: onSpineChanged });
 
+  // ─── Hàng việc chờ quyết (FLF-443): dải + thẻ giải quyết lần lượt ở vùng ô nhập. Chỉ nối handler có sẵn, không logic. ───
+  // Chế độ 1 ẩn tới khi có luồng change request riêng cho cờ; Viewer / phiên phụ không có.
+  const pendingQueueEnabled = !mode1 && ws.ready && ws.canEdit && ws.isPipelineActive;
+  const pendingQueue = usePendingQueue(projectId, spineState.version, pendingQueueEnabled);
+  const gateAssumptionIds = new Set(
+    (runner.state.phaseGate ? runner.state.phaseGate.new_assumptions : runner.state.gate?.payload?.new_assumptions)?.map((a) => a.id) ?? []
+  );
+  /** Keep / waive cờ đi qua hàng ghi (như ghi op) rồi đọc lại Spine: hai lượt ghi liền nhau không ăn 409. */
+  const queueFlagWrite = (write: () => Promise<void>): Promise<void> => {
+    const run = writeQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await write();
+        bumpVersion(await reloadSpine());
+      });
+    writeQueueRef.current = run;
+    return run;
+  };
+  // AI đang chạy (bước của tab này, bước người khác đang chạy, đang đọc file đính kèm) ⇒ thẻ quyết khoá theo cùng điều kiện
+  const aiWorking = runner.state.busy || stepRunningElsewhere || ws.uploadingAttachments;
+  const resolveQueue = useResolveQueue({
+    projectId,
+    queue: pendingQueue.queue,
+    loading: pendingQueue.loading,
+    reloadQueue: pendingQueue.reload,
+    spine,
+    flags,
+    enabled: pendingQueueEnabled,
+    locked: aiWorking,
+    yielded: runner.state.status === "needs_input" || runner.state.status === "gate_ready",
+    excludeIds: gateAssumptionIds,
+    sectionName: panelSectionName,
+    handlers: {
+      submitOps,
+      decideAssumption: applyAssumptionDecision,
+      markPlaceholder,
+      keepFlag: (flagId, reason) => queueFlagWrite(() => handleFlagKeep(flagId, reason)),
+      waiveFlag: (flagId, reason) => queueFlagWrite(() => handleFlagWaive(flagId, reason)),
+      startEditing: (prefill) => {
+        if (editDisabledReason) {
+          setToast(editDisabledReason);
+          return false;
+        }
+        startEditing(prefill);
+        return true;
+      },
+      postChatLine: (text) => ws.appendLocalMessage(text, viewedStep ?? null, "ai"),
+      showSection,
+    },
+  });
+
   if (!ws.ready) return <WorkspaceLoading projectId={projectId} />;
 
   /** FLF-244: phiên phụ chỉ hỏi đáp + lệnh sửa — thẻ hỏi, thẻ cổng, tiến trình bước chỉ hiện ở phiên chính. */
   const onPipelineSession = ws.isPipelineActive;
   /** FLF-244: Viewer chỉ đọc — ẩn ô nhập, thẻ hỏi, thẻ cổng và mọi nút chạy bước (BE cũng chặn 403). */
   const canEdit = ws.canEdit;
+  /** "Quyết trong chat" ở tab Chờ quyết: mở thẻ đúng việc; panel đang chiếm chỗ của khung chat (màn hẹp) thì đóng lại. */
+  const decideInChat = (key: string) => {
+    resolveQueue.openItem(key);
+    if (narrow) setRightPanel(null);
+  };
   /** Đổi mẫu cần baseline: mode 1, hoặc dự án mode 2 đã có baseline (chưa kịp chuyển mode / đang chờ Lead duyệt). */
   const canChangeTemplate = mode1 || (spine?.baselines.length ?? 0) > 0;
   /** FLF-278: dự án theo mẫu bắt buộc (FLF-335) — mục riêng của mẫu còn trống có nút "Nhờ AI soạn". */
@@ -1558,7 +1623,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
   const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
   // FLF-398: đang tải tệp đính kèm cũng là đang bận — gửi lần nữa lúc này sẽ chạy bước chồng lên lượt đang tải
-  const aiWorking = runner.state.busy || stepRunningElsewhere || ws.uploadingAttachments;
   /**
    * Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). Gồm cả bước tới lượt đang
    * `revision_requested` (bị mở lại, hoà giải): thiếu nó thì tin nhắn rơi vào hỏi đáp thường, AI chỉ trả lời "xem như
@@ -1971,6 +2035,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     // Tên mục theo tài liệu đang xem cho nhãn mục của mode 1 (mẫu cố định / file có sẵn đặt tên khác mẫu FPT)
     <SectionNamesContext.Provider value={panelSectionNames}>
     <RefNamesContext.Provider value={elementNames}>
+    <ReferenceViewerProvider projectId={projectId}>
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
       {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
@@ -2151,6 +2216,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   onKeepAsReference={() => ws.dismissSrsSuggestion(ws.srsSuggestions[0].key)}
                 />
               )}
+              {/* FLF-443: việc chờ bạn quyết - thẻ một việc mỗi lần, nhường chỗ cho câu hỏi / thẻ duyệt của AI */}
+              <ResolveQueueDock controller={resolveQueue} onShowSection={showSection} />
             </>
           }
           onSelectAttachment={ws.selectAttachment}
@@ -2486,6 +2553,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <DocumentPane
           projectId={projectId}
           projectName={documentName}
+          sources={canEdit ? sourceMap : undefined}
           baselineVersions={spine?.baselines.map((b) => b.version) ?? []}
           flags={flags}
           doc={doc}
@@ -2641,6 +2709,16 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                     onLoadHistory={changes.loadHistory}
                     onEditByChat={(prefill) => startEditing(prefill)}
                     onAnswerInChat={answerInChat}
+                    queue={
+                      pendingQueueEnabled && pendingQueue.queue
+                        ? { ...pendingQueue.queue, items: pendingQueue.queue.items.filter((item) => resolveQueue.pendingKeys.has(item.key)) }
+                        : null
+                    }
+                    queueError={pendingQueueEnabled ? pendingQueue.error : null}
+                    flags={flags}
+                    onDecideInChat={decideInChat}
+                    sectionName={panelSectionName}
+                    sources={sourceMap}
                   />
                 )}
               </>
@@ -2650,9 +2728,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
         {shownPanel === "verification" && (
           <VerificationPane
-            projectId={projectId}
-            // Bản đồ truy vết chọn thực thể từ Spine đang mở — không gọi thêm request
-            spine={spine ?? undefined}
             issues={{
               sectionLabelOf: (id) => panelSectionNames.get(id),
               onShowSection: showSection,
@@ -2869,6 +2944,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         </Suspense>
       )}
     </div>
+    </ReferenceViewerProvider>
     </RefNamesContext.Provider>
     </SectionNamesContext.Provider>
   );

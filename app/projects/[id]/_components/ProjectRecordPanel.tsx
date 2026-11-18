@@ -5,6 +5,9 @@ import { useLocale, useTranslations } from "next-intl";
 import Tabs from "@/components/ui/Tabs";
 import type { Op } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
+import type { Flag } from "@/types/flags";
+import type { PendingQueue } from "@/types/pending-queue";
+import type { Locale } from "@/lib/i18n";
 import BriefSummaryCard from "./BriefSummaryCard";
 import Icon from "@/components/ui/Icon";
 import { otherRequirementText } from "./brief-labels";
@@ -14,11 +17,17 @@ import AssumptionSweepPanel from "./AssumptionSweepPanel";
 import AddendumTriagePanel from "./AddendumTriagePanel";
 import ScreenQueuePanel from "./ScreenQueuePanel";
 import EditHistory from "./EditHistory";
-import { pendingRecordCount } from "./project-record-pending";
-import SourcesPanel from "./SourcesPanel";
-import { useSources } from "../hooks/useSources";
+import TraceabilityMap from "./TraceabilityMap";
+import SourceChip from "./SourceChip";
+import type { RequirementSourceRef } from "@/types/sources";
+import { buildItemView, type ItemView, type ResolveQueueT } from "./resolve-queue/resolve-queue-view";
 
-type RecordTab = "agreed" | "pending" | "sources" | "history";
+type RecordTab = "agreed" | "pending" | "history" | "trace";
+
+/** Việc của tab Chờ quyết: chỉ việc không phải cờ (cờ xem ở Kiểm & chốt). */
+const RECORD_KINDS = new Set(["assumption", "brief_note", "screen"]);
+const NO_EDITED_GROUPS: ReadonlySet<string> = new Set();
+const EMPTY_SOURCES: ReadonlyMap<string, RequirementSourceRef[]> = new Map();
 
 interface ProjectRecordPanelProps {
   projectId: string;
@@ -37,6 +46,18 @@ interface ProjectRecordPanelProps {
   onEditByChat?: (prefill: string) => void;
   /** Điền sẵn câu trả lời cho một câu hỏi mở vào ô chat (không bật Sửa tài liệu). */
   onAnswerInChat?: (prefill: string) => void;
+  /**
+   * FLF-443: hàng việc chờ quyết của BE. Có hàng ⇒ tab Chờ quyết chỉ xem, mỗi việc "Quyết trong chat". `null` (chưa tải /
+   * Viewer) hoặc `queueError` ⇒ tab hiện lại các panel ghi cũ để không mất đường quyết.
+   */
+  queue?: PendingQueue | null;
+  queueError?: string | null;
+  flags?: readonly Flag[];
+  /** Mở thẻ giải quyết của một việc ở vùng ô nhập. */
+  onDecideInChat?: (key: string) => void;
+  sectionName?: (sectionId: string) => string | undefined;
+  /** Nguồn tài liệu theo đường dẫn phần tử (page tải một lần, dùng chung với chip trong tài liệu). */
+  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
 }
 
 function Block({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -53,7 +74,7 @@ function Block({ title, hint, children }: { title: string; hint?: string; childr
 
 /**
  * "Hồ sơ dự án" — thay panel "Công cụ" (8 phần không liên quan xếp chồng). Chia theo ý định của người dùng:
- * **Đã thống nhất** (tra cứu) · **Chờ bạn quyết** (chỉ phần của giai đoạn hiện tại) · **Lịch sử** sửa.
+ * **Đã thống nhất** (tra cứu) · **Chờ bạn quyết** (chỉ xem; quyết ở thẻ trong chat, FLF-443) · **Lịch sử** sửa · **Truy vết**.
  */
 export default function ProjectRecordPanel({
   projectId,
@@ -68,16 +89,29 @@ export default function ProjectRecordPanel({
   onLoadHistory,
   onEditByChat,
   onAnswerInChat,
+  queue = null,
+  queueError = null,
+  flags = [],
+  onDecideInChat,
+  sectionName = () => undefined,
+  sources: sourceMap = EMPTY_SOURCES,
 }: ProjectRecordPanelProps) {
   const t = useTranslations("workspace.projectRecord");
-  const locale = useLocale();
+  const tQueue = useTranslations("workspace.resolveQueue") as unknown as ResolveQueueT;
+  const locale = useLocale() as Locale;
   const openQuestions = spine.other_requirements.filter((item) => item.kind === "open_question");
-  const pendingCount = pendingRecordCount(spine, inBriefPhase);
+  // Hàng đợi chạy được ⇒ nơi quyết duy nhất là thẻ ở vùng ô nhập; tab chỉ liệt kê. Số đếm lấy từ hàng, không tự tính ở FE.
+  const queueMode = queue !== null && !queueError;
+  const queueViews: ItemView[] = queueMode
+    ? queue.items
+        .filter((item) => RECORD_KINDS.has(item.kind))
+        .map((item) => buildItemView(item, { spine, flags, locale, t: tQueue, sectionName, editedGroups: NO_EDITED_GROUPS }))
+        .filter((view): view is ItemView => view !== null)
+    : [];
+  const pendingCount = queueViews.length;
   const decisions = (spine.decisions ?? []).filter((d) => d.superseded_by === null);
   const [tab, setTab] = useState<RecordTab>(pendingCount > 0 ? "pending" : "agreed");
   const busy = saving || readOnly;
-  // FLF-292: nguồn tài liệu của yêu cầu — tải lại khi Spine đổi (lượt Draft mới có thể ghi nguồn mới)
-  const sources = useSources(projectId, spine.spine_version);
 
   return (
     <div className="@container flex flex-col gap-3">
@@ -91,8 +125,8 @@ export default function ProjectRecordPanel({
         options={[
           { value: "agreed", label: t("tab.agreed") },
           { value: "pending", label: t("tab.pending"), ...(pendingCount > 0 ? { count: pendingCount } : {}) },
-          { value: "sources", label: t("tab.sources") },
           { value: "history", label: t("tab.history") },
+          { value: "trace", label: t("tab.trace") },
         ]}
       />
 
@@ -104,11 +138,11 @@ export default function ProjectRecordPanel({
         {tab === "agreed" && (
           <>
             <Block title={t("briefTitle")} hint={t("briefHint")}>
-              <BriefSummaryCard spine={spine} />
+              <BriefSummaryCard spine={spine} sources={sourceMap} />
             </Block>
             {decisions.length > 0 ? (
               <Block title={t("decisionsTitle", { count: decisions.length })} hint={t("decisionsHint")}>
-                <DecisionsPanel spine={spine} onEditByChat={readOnly ? undefined : onEditByChat} busy={busy} />
+                <DecisionsPanel spine={spine} onEditByChat={readOnly ? undefined : onEditByChat} busy={busy} sources={sourceMap} />
               </Block>
             ) : (
               <p className="px-1 text-body text-on-surface-variant">
@@ -123,7 +157,37 @@ export default function ProjectRecordPanel({
 
         {tab === "pending" && (
           <>
-            {inBriefPhase && (
+            {queueViews.length > 0 && (
+              <Block title={t("queueTitle", { count: queueViews.length })} hint={t("queueHint")}>
+                <ul className="flex flex-col gap-1.5">
+                  {queueViews.map((view) => {
+                    const refs = view.kind === "brief_note" ? sourceMap.get(`addendum[id=${view.entityId}]`) : undefined;
+                    return (
+                      <li key={view.key} className="rounded-inner bg-surface-container-low px-3 py-2.5 flex flex-col gap-1.5">
+                        <span className="text-caption font-bold text-on-surface-variant">{view.kindLabel}</span>
+                        <div className="text-body leading-relaxed text-on-surface">
+                          {view.subject}
+                          {refs && <SourceChip refs={refs} />}
+                        </div>
+                        {onDecideInChat && !readOnly && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => onDecideInChat(view.key)}
+                            className="self-end inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-caption font-bold text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50"
+                          >
+                            {t("decideInChat")}
+                            <Icon name="arrow-right" size={12} />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Block>
+            )}
+            {queueError && <p className="px-1 text-body text-on-surface-variant">{t("queueFallback")}</p>}
+            {!queueMode && inBriefPhase && (
               <>
                 <Block title={t("assumptionsTitle")} hint={t("assumptionsHint")}>
                   <AssumptionSweepPanel spine={spine} onSubmitOps={onSubmitOps} busy={busy} />
@@ -157,22 +221,28 @@ export default function ProjectRecordPanel({
                 </ul>
               </Block>
             )}
-            {spine.screens.length > 0 && (
+            {!queueMode && spine.screens.length > 0 && (
               <Block title={t("screensTitle")} hint={t("screensHint")}>
                 <ScreenQueuePanel spine={spine} onMarkPlaceholder={onMarkPlaceholder} busy={busy} />
               </Block>
             )}
-            {!inBriefPhase && spine.screens.length === 0 && openQuestions.length === 0 && (
+            {(queueMode ? queueViews.length === 0 : !inBriefPhase && spine.screens.length === 0) && openQuestions.length === 0 && (
               <p className="px-1 py-2 text-body text-on-surface-variant">{t("nothingPending")}</p>
             )}
           </>
         )}
 
-        {tab === "sources" && <SourcesPanel spine={spine} sources={sources.sources} loading={sources.loading} error={sources.error} />}
 
         {tab === "history" && (
           <Block title={t("historyTitle")} hint={t("historyHint")}>
             <EditHistory history={history} loading={historyLoading} onLoad={onLoadHistory} />
+          </Block>
+        )}
+
+        {/* FLF-443: bản đồ truy vết dời từ Kiểm & chốt về Hồ sơ */}
+        {tab === "trace" && (
+          <Block title={t("tab.trace")} hint={t("traceHint")}>
+            <TraceabilityMap projectId={projectId} spine={spine} />
           </Block>
         )}
       </div>

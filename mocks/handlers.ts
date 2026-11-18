@@ -854,6 +854,13 @@ export const handlers = [
   }),
   http.get(api("/projects/:projectId"), () => ok(mockState.project)),
   http.get(api("/projects/:projectId/documents"), () => ok([])),
+  // FLF-443: chữ + file gốc của tài liệu tham khảo - mock mặc định "không có tài liệu", test cần thì ghi đè bằng `mockServer.use`
+  http.get(api("/projects/:projectId/documents/:docId/text"), () =>
+    HttpResponse.json({ data: null, error: { code: "DOCUMENT_NOT_FOUND", message: "Document not found" } }, { status: 404 })
+  ),
+  http.get(api("/projects/:projectId/documents/:docId/download"), () =>
+    HttpResponse.json({ data: null, error: { code: "DOCUMENT_NOT_FOUND", message: "Document not found" } }, { status: 404 })
+  ),
   http.get(api("/verification/projects/:projectId"), () => ok({})),
 
   // FLF-244: danh sách chỉ kèm tin cuối mỗi phiên — lịch sử đủ ở GET /chats/:chatId
@@ -927,6 +934,8 @@ export const handlers = [
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
   // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
   http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),
+  // FLF-443: hàng việc chờ quyết - mock mặc định rỗng, test cần hàng riêng thì `mockServer.use` ghi đè
+  http.get(api("/projects/:projectId/pending-queue"), () => ok({ total: 0, items: [] })),
 
   http.get(api("/projects/:projectId/steps"), () => {
     const response: StepsResponse = {

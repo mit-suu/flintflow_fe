@@ -7,6 +7,8 @@ import { extractRequirements, getExtraction } from "@/lib/api/extraction";
 import type { ProjectDocument } from "@/types/document";
 import type { Extraction } from "@/types/extraction";
 import ExtractionList from "./ExtractionList";
+import { useReferenceViewer } from "../reference-viewer/ReferenceViewerProvider";
+import ReferenceDownloadButton from "../reference-viewer/ReferenceDownloadButton";
 import { useMode1Labels } from "./i18n";
 
 interface ReferenceDocumentsPanelProps {
@@ -32,6 +34,8 @@ interface ReferenceDocumentsPanelProps {
 export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onCrsCreated, readOnly = false, canExtract = true }: ReferenceDocumentsPanelProps) {
   const t = useTranslations("mode1.referenceDocs");
   const L = useMode1Labels();
+  // FLF-443: xem chữ / tải file gốc (mọi chế độ). Ngoài provider của workspace thì không có nút "Xem"
+  const viewer = useReferenceViewer();
   const [extractions, setExtractions] = useState<Record<string, Extraction | null>>({});
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{ documentId: string; cost: number | null } | null>(null);
@@ -112,6 +116,16 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
                 </span>
               )}
               <span className="ml-auto flex items-center gap-1.5">
+                {viewer && !unreadable && (
+                  <button
+                    type="button"
+                    onClick={() => viewer.openDocument({ documentId: d._id, name: d.originalName })}
+                    className="px-2.5 py-1 rounded-full text-caption font-bold bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest cursor-pointer"
+                  >
+                    {t("view")}
+                  </button>
+                )}
+                <ReferenceDownloadButton projectId={projectId} documentId={d._id} fallbackName={d.originalName} />
                 {ex && (
                   <button type="button" onClick={() => setOpenDoc(openDoc === d._id ? null : d._id)} className="px-2.5 py-1 rounded-full text-caption font-bold bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest cursor-pointer">
                     {openDoc === d._id ? t("hide") : t("show")}

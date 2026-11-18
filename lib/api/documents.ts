@@ -1,5 +1,6 @@
-import type { DocumentUploadChoice, DocxPrecheck, ProjectDocument } from "@/types/document";
+import type { DocumentUploadChoice, DocxPrecheck, ProjectDocument, ReferenceDocumentText } from "@/types/document";
 import { apiCall } from "./client";
+import { fetchFile } from "./files";
 
 export const listProjectDocuments = (projectId: string) =>
   apiCall<ProjectDocument[]>(`/projects/${projectId}/documents`);
@@ -31,3 +32,11 @@ export const deleteProjectDocument = (projectId: string, documentId: string) =>
   apiCall<{ deleted: boolean }>(`/projects/${projectId}/documents/${documentId}`, {
     method: "DELETE",
   });
+
+/** Chữ của tài liệu tham khảo, chia đoạn theo `para_id` (Lead / Analyst). `404 DOCUMENT_NOT_FOUND` khi tài liệu không thuộc dự án. */
+export const getReferenceDocumentText = (projectId: string, documentId: string) =>
+  apiCall<ReferenceDocumentText>(`/projects/${projectId}/documents/${documentId}/text`);
+
+/** File gốc (blob + tên từ `Content-Disposition`). `503 DOCUMENT_UNAVAILABLE` khi kho lưu file không trả được. */
+export const downloadReferenceDocument = (projectId: string, documentId: string) =>
+  fetchFile(`/projects/${projectId}/documents/${documentId}/download`);

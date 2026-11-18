@@ -19,6 +19,8 @@ import { blockRegionKey, sectionRegionKey } from "./document-diff";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
 import type { Flag } from "@/types/flags";
 import type { DocumentLanguage } from "@/types/project";
+import type { RequirementSourceRef } from "@/types/sources";
+import SourceChip, { sectionEntityPath } from "./SourceChip";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface DocumentPaneProps {
@@ -131,6 +133,11 @@ interface DocumentPaneProps {
    * "Có bản mới · Cập nhật" ở đầu tài liệu. Không truyền ⇒ không có dải.
    */
   newerVersion?: { onApply: () => void } | null;
+  /**
+   * FLF-443: nguồn tài liệu theo đường dẫn phần tử (`sourcesByPath`) ⇒ chip "Nguồn · n" ở đoạn / dòng / mục và cạnh tiêu đề
+   * mục chi tiết function / feature. Không truyền ⇒ không có chip.
+   */
+  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
@@ -519,12 +526,19 @@ export function BlockView({
   projectId,
   afterHeading = false,
   onRedrawDiagram,
+  sourceChip,
 }: {
   block: Block;
   projectId: string;
   afterHeading?: boolean;
   onRedrawDiagram?: (diagramId: string) => Promise<void>;
+  /**
+   * FLF-443: chip "Nguồn" cho đoạn / mục / dòng gắn phần tử Spine. Chỉ workspace (`DocumentPane`) truyền; trang `/view` không
+   * truyền nên không có chip.
+   */
+  sourceChip?: (entityPath: string | null | undefined) => ReactNode;
 }) {
+  const chip = (path: string | null | undefined) => (sourceChip && path ? sourceChip(path) : null);
   switch (block.type) {
     case "heading": {
       const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
@@ -534,6 +548,7 @@ export function BlockView({
       return (
         <p className="mb-2 last:mb-0 text-body text-on-surface-dark leading-[1.65]">
           <Runs runs={block.runs} />
+          {chip(block.entity_path)}
         </p>
       );
     case "bullet_list":
@@ -542,6 +557,7 @@ export function BlockView({
           {block.items.map((item, i) => (
             <li key={i}>
               <Runs runs={item} />
+              {chip(block.item_entity_paths?.[i])}
             </li>
           ))}
         </ul>
@@ -552,6 +568,7 @@ export function BlockView({
           {block.items.map((item, i) => (
             <li key={i}>
               <Runs runs={item} />
+              {chip(block.item_entity_paths?.[i])}
             </li>
           ))}
         </ol>
@@ -575,6 +592,8 @@ export function BlockView({
                   {row.map((cell, ci) => (
                     <td key={ci} className="border border-outline px-2 py-1 align-top">
                       <Cell cell={cell} />
+                      {/* Chip ở ô cuối của dòng */}
+                      {ci === row.length - 1 && chip(block.row_entity_paths?.[ri])}
                     </td>
                   ))}
                 </tr>
@@ -665,7 +684,9 @@ function SectionView({
   onRedraw,
   onRedrawDiagram,
   screenMockup,
+  sources,
 }: {
+  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
   /** FLF-410: nút vẽ lại ảnh gốc bằng mockup của mục; `pending` ⇒ màn đang chờ lượt vẽ nền (phủ vệt quét lên ảnh). */
   screenMockup?: { enabled: boolean; pending: boolean; onAction: (action: "redraw" | "original") => Promise<void> | void };
   onEdit?: (sectionLabel: string) => void;
@@ -697,6 +718,13 @@ function SectionView({
   // Hook gọi trước mọi `return` sớm (rules-of-hooks)
   const t = useTranslations("workspace.document");
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
+  const sourceChip = sources
+    ? (path: string | null | undefined) => {
+        const refs = path ? sources.get(path) : undefined;
+        return refs ? <SourceChip refs={refs} /> : null;
+      }
+    : undefined;
+  const sectionChip = sourceChip?.(sectionEntityPath(section.id));
   const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
   // `feature:*` (§3.2…) chỉ là tiêu đề nhóm, Spine feature không có thân — nội dung nằm ở các function con (FLF-248)
   // P07 (câu 3): mục chỉ có chữ hướng dẫn của mẫu cũng là mục chưa soạn — nhãn như mục trống, hướng dẫn mờ bên dưới
@@ -732,6 +760,7 @@ function SectionView({
             {section.number ? `${section.number}. ` : ""}
             {section.heading}
           </h5>
+          {sectionChip}
           {showEmpty && <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />}
           {pendingProposals.length > 0 && (
             // BF §3.2 "Hai người sửa cùng lúc": không khoá, chỉ báo ai đang có bản sửa chưa xác nhận ở mục này
@@ -832,7 +861,7 @@ function SectionView({
               {screenMockup?.pending && inScreenImages(i) ? (
                 // Màn đang chờ vẽ mockup: ảnh cũ mờ dưới vệt quét, tới lượt xong thì tài liệu tải lại thay ảnh mới
                 <div className="relative" aria-busy>
-                  <BlockView block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} onRedrawDiagram={onRedrawDiagram} />
+                  <BlockView block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} onRedrawDiagram={onRedrawDiagram} sourceChip={sourceChip} />
                   <Skeleton className="absolute inset-0 opacity-85 rounded-inner" />
                   <span className="absolute inset-0 flex items-center justify-center text-body font-bold text-on-surface-variant">{t("screenMockup.drawing")}</span>
                 </div>
@@ -842,6 +871,7 @@ function SectionView({
                   projectId={projectId}
                   afterHeading={followsHeading(section.blocks, i)}
                   onRedrawDiagram={onRedrawDiagram}
+                  sourceChip={sourceChip}
                 />
               )}
             </BlockSlot>
@@ -908,6 +938,7 @@ function DocumentPaneView({
   onTranslate,
   newerVersion = null,
   baselineVersions = [],
+  sources,
 }: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
@@ -1153,6 +1184,7 @@ function DocumentPaneView({
               onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
               onRedrawDiagram={onRedrawDiagram}
               screenMockup={screenMockupState(section.id)}
+              sources={sources}
             />
           ))}
       </div>
